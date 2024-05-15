@@ -29,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -68,6 +69,9 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.dataimport.job.SourceRecordDataSource;
+import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -88,16 +92,21 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.json.tree.JsonArray;
 import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
+import services.k_int.interaction.sierra.DateTimeRange;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.VarField;
+import services.k_int.interaction.sierra.bibs.BibParams;
+import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
@@ -123,7 +132,7 @@ import services.k_int.utils.UUIDUtils;
  */
 @Prototype
 @Slf4j
-public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
+public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult>, SourceRecordDataSource {
 	private static final IntegerHostLmsPropertyDefinition GET_HOLDS_RETRY_ATTEMPTS_PROPERTY = integerPropertyDefinition(
 		"get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE);
 
@@ -151,6 +160,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final SierraItemMapper itemMapper;
 	private final ObjectRulesService objectRuleService;
+  private final ObjectMapper objectMapper;
 	
 	private final Integer getHoldsRetryAttempts;
 	private final SierraPatronMapper sierraPatronMapper;
@@ -167,9 +177,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		SierraItemMapper itemMapper,
 		ObjectRulesService objectRuleService,
 		PublisherTransformationService publisherTransformationService,
-		 SierraPatronMapper sierraPatronMapper, R2dbcOperations r2dbcOperations) {
+		SierraPatronMapper sierraPatronMapper, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper) {
 
 		this.lms = lms;
+		this.objectMapper = objectMapper;
 
 		this.getHoldsRetryAttempts = getGetHoldsRetryAttempts(lms.getClientConfig());
 		this.itemMapper = itemMapper;
@@ -228,10 +239,124 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			VIRTUAL_PATRON_PIN);
 	}
 
+  public Flux<SourceRecord> getChunk(JsonNode parameters) {
+  	return Flux.just( conversionService.convertRequired(parameters, BibParams.class) )
+  		.flatMap( client::bibs )
+  		.map( items -> conversionService.convertRequired(parameters, SourceRecord.class) );
+  }
+	
+
+
+	@Override
+	public boolean isSourceImportEnabled() {
+		return this.isEnabled();
+	}
+	
+	public BibParams mergeApiParameters(Optional<BibParams> parameters) {
+		
+		final int limit = 500;
+		
+		return parameters
+			// Create builder from the existing params.
+			.map( BibParams::toBuilder )
+			
+			// No current properties just set offset to 0
+			.orElse(BibParams.builder()
+					.offset(0)) // Default 0
+			
+			// Ensure we add the constant parameters.
+			.limit(limit)
+			.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed", "fixedFields", "varFields" ))
+			.build();
+		
+	}
+	
+	@Override
+  public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) {
+  	
+		try {
+
+			// Use the inbuilt marshalling to convert into the BibParams.
+			final Optional<BibParams> optParams = checkpoint.isPresent() ? Optional.of( objectMapper.readValueFromTree(checkpoint.get(), BibParams.class) ) : Optional.empty();
+			
+			final BibParams apiParams = mergeApiParameters(optParams);
+	  	
+	  	final Instant now = Instant.now();
+			return Mono.just( apiParams )
+				.flatMap( params -> Mono.from( client.bibsRawResponse(params) ))
+				.mapNotNull( itemPage -> itemPage.get("entries") )
+				.filter( entries -> {
+					if (entries.isArray()) {
+						return true;
+					}
+					
+					log.debug("[.entries] property received from sierra is not an array");
+					return false;
+				})
+				.cast( JsonArray.class )
+				.flatMap( jsonArr -> {
+					
+					try {
+						
+						boolean lastChunk = jsonArr.size() != apiParams.getLimit();
+						BibParamsBuilder paramsBuilder;
+						if (lastChunk) {
+							LocalDateTime fromLdt = now.atZone(ZoneId.of("UTC")).toLocalDateTime();
+							log.trace("Setting from date for {} to {}", lms.getName(), fromLdt);
+
+							paramsBuilder = BibParams.builder()
+								.updatedDate(DateTimeRange.builder()
+										.fromDate(fromLdt)
+										.build());
+						} else {
+							paramsBuilder = apiParams.toBuilder()
+								.offset( apiParams.getOffset() + jsonArr.size());
+						}
+
+						
+						// We return the current data with the Checkpoint that will return the next chunk.
+						final JsonNode newCheckpoint = objectMapper.writeValueToTree(paramsBuilder.build());
+						
+						final var builder = SourceRecordImportChunk.builder()
+								.lastChunk( lastChunk )
+								.checkpoint( newCheckpoint );
+						
+						jsonArr.values().forEach(rawJson -> {
+							
+							try {
+								builder.dataEntry( SourceRecord.builder()
+				  				.hostLmsId( lms.getId() )
+				  				.lastFetched( now )
+				  				.remoteId( rawJson.get("id").coerceStringValue() )
+				  				.sourceRecordData( rawJson )
+				  				.build());
+			  			} catch (Throwable t) {  				
+			  				if (log.isDebugEnabled()) {
+			    				log.error( "Error creating SourceRecord from JSON '{}' \ncause: {}", rawJson, t);
+			  				} else {
+			  					log.error( "Error creating SourceRecord from JSON", t );
+			  				}
+			  			}
+						});
+						
+						return Mono.just( builder.build() );
+						
+					} catch (Exception e) {
+						return Mono.error( e );
+					}
+				});
+		} catch (Exception e) {
+			return Mono.error( e );
+		}
+  	
+  }
+	
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
 		log.trace("Creating subscribable batch;  since={} offset={} limit={}", since, offset, limit);
 		return Mono.from(client.bibs(params -> {
-			params.offset(offset).limit(limit)
+			params
+				.offset(offset)
+				.limit(limit)
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed", "fixedFields", "varFields" ));
 
 			if (since != null) {
@@ -1459,8 +1584,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
 		return client.getRootUri().toString();
 	}
-
+	
 	public R2dbcOperations getR2dbcOperations() {
 		return r2dbcOperations;
+	}
+
+	@Override
+	@NonNull
+	public BibResult convertSourceToInternalType(@NonNull SourceRecord source) {
+		return conversionService.convertRequired(source.getSourceRecordData(), BibResult.class);
 	}
 }
