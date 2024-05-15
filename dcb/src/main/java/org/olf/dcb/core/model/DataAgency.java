@@ -1,29 +1,28 @@
 package org.olf.dcb.core.model;
 
+import java.time.Instant;
 import java.util.UUID;
-
-import jakarta.validation.constraints.Size;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.DateCreated;
+import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
-import io.micronaut.data.annotation.DateCreated;
-import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import io.micronaut.core.annotation.Nullable;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import services.k_int.data.querying.DefaultQueryField;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-import lombok.ToString;
-import java.time.Instant;
 
 @Data
 @Serdeable
@@ -35,7 +34,6 @@ import java.time.Instant;
 @Accessors(chain = true)
 @ToString(onlyExplicitlyIncluded = true)
 public class DataAgency implements Agency {
-
 	public static final String BASIC_BARCODE_AND_PIN = "BASIC/BARCODE+PIN";
 	public static final String BASIC_BARCODE_AND_NAME = "BASIC/BARCODE+NAME";
 
@@ -45,13 +43,13 @@ public class DataAgency implements Agency {
 	@TypeDef(type = DataType.UUID)
 	private UUID id;
 
-        @Nullable
-        @DateCreated
-        private Instant dateCreated;
+	@Nullable
+	@DateCreated
+	private Instant dateCreated;
 
-        @Nullable
-        @DateUpdated
-        private Instant dateUpdated;
+	@Nullable
+	@DateUpdated
+	private Instant dateUpdated;
 
 	@ToString.Include
 	@NonNull
@@ -90,5 +88,4 @@ public class DataAgency implements Agency {
 		}
 		// Lombok will fill in the fields and methods
 	}
-
 }
