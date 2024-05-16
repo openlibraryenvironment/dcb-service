@@ -51,6 +51,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import io.micronaut.http.HttpResponse;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
@@ -187,7 +188,7 @@ class ApplicationServicesClient {
 		final var path = createPath("holds", id);
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.exchange(request, LibraryHold.class, FALSE))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.map(HttpResponse::body)
 			.onErrorResume(error -> {
 				log.error("An error occured when trying to get hold {} : {}", id, error.getMessage());
 				if ((error instanceof HttpClientResponseException) &&
@@ -204,7 +205,7 @@ class ApplicationServicesClient {
 		final var path = createPath("patrons", localPatronId);
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.exchange(request, PatronData.class, TRUE))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.map(HttpResponse::body)
 			.map(data -> Patron.builder()
 				.localId(singletonList(valueOf(data.getPatronID())))
 				.localPatronType(valueOf(data.getPatronCodeID()))
@@ -283,23 +284,10 @@ class ApplicationServicesClient {
 		log.info("Getting patron barcode from patron id: {}", localId);
 
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(String.class),
-				response -> response
-					.onErrorResume(error -> {
-						log.error("Error attempting to retrieve patron barcode with patron id {} : {}",
-							localId, error.getMessage());
-						if ((error instanceof HttpClientResponseException) &&
-							(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
-							// Not found is not really an error
-							return Mono.empty();
-						} else {
-							return Mono.error(new PolarisWorkflowException(
-								"Error attempting to retrieve patron barcode with patron id " +localId+ " : " +error.getMessage()));
-						}
-					})
-			))
+			.flatMap(request -> client.retrieve(request, Argument.of(String.class)))
 			// remove quotes
-			.map(string -> string.replace("\"", ""));
+			.map(string -> string.replace("\"", ""))
+			.doOnSuccess(barcode -> log.info("Successfully got patron barcode {} from local id {}", barcode, localId));
 	}
 
 	public Mono<String> getPatronIdByIdentifier(String identifier, String identifierType) {
@@ -320,7 +308,7 @@ class ApplicationServicesClient {
 		return createRequest(GET, path,
 			uri -> uri.queryParam("orgid", illLocation))
 			.flatMap(request -> client.exchange(request, PatronDefaults.class, TRUE))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.map(HttpResponse::body)
 			.doOnError(e -> log.debug("Error occurred when getting patron defaults", e));
 	}
 
@@ -331,7 +319,7 @@ class ApplicationServicesClient {
 
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.exchange(request, HoldRequestDefault.class, TRUE))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()))
+			.map(HttpResponse::body)
 			.map(HoldRequestDefault::getExpirationDatePeriod)
 			.doOnError(e -> log.debug("Error occurred when getting hold request defaults", e))
 			.onErrorReturn(defaultExpirationDatePeriod);
@@ -628,7 +616,7 @@ class ApplicationServicesClient {
 
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.exchange(request, BibliographicRecord.class, TRUE))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
+			.map(HttpResponse::body);
 	}
 
 	private Mono<WorkflowRequest> getLocalRequestBody(HoldRequestParameters holdRequestParameters, String activationDate) {
