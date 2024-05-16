@@ -7,6 +7,7 @@ import static io.micronaut.http.HttpMethod.PUT;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.valueOf;
+import static java.time.ZoneOffset.UTC;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
@@ -41,6 +42,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -107,9 +109,9 @@ class ApplicationServicesClient {
 		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
 		final var path = createPath("workflow");
-		final String activationDateToMatchHold = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
-		final String payloadActivationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
-
+		final String activationDateToMatchHold = ZonedDateTime.now(UTC).format(ofPattern("yyyy-MM-dd"));
+		final String payloadActivationDate = ZonedDateTime.now(UTC).format(ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+		;
 		return createRequest(POST, path, uri -> {})
 			.zipWith(getLocalRequestBody(holdRequestParameters, payloadActivationDate))
 			.map(function(ApplicationServicesClient::addBodyToRequest))
