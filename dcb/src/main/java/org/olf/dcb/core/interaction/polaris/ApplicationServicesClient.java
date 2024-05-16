@@ -107,10 +107,11 @@ class ApplicationServicesClient {
 		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
 		final var path = createPath("workflow");
-		final String activationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
+		final String activationDateToMatchHold = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
+		final String payloadActivationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
 
 		return createRequest(POST, path, uri -> {})
-			.zipWith(getLocalRequestBody(holdRequestParameters, activationDate))
+			.zipWith(getLocalRequestBody(holdRequestParameters, payloadActivationDate))
 			.map(function(ApplicationServicesClient::addBodyToRequest))
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class)))
 			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateHoldRequests, Continue))
@@ -118,7 +119,7 @@ class ApplicationServicesClient {
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
-				activationDate,
+				activationDateToMatchHold,
 				holdRequestParameters.getNote() != null ? holdRequestParameters.getNote() : ""));
 	}
 
