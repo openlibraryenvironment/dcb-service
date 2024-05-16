@@ -24,8 +24,10 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 class ApplicationServicesAuthFilter {
 	private final PolarisLmsClient client;
 	private final Map<String, Object> conf;
@@ -38,9 +40,8 @@ class ApplicationServicesAuthFilter {
 	}
 
 	Mono<MutableHttpRequest<?>> basicAuth(MutableHttpRequest<?> request) {
-		return Mono.justOrEmpty(currentToken)
-			.filter(token -> !token.isExpired())
-			.switchIfEmpty(staffAuthenticator().map(newToken -> currentToken = newToken))
+		return staffAuthenticator()
+			.map(newToken -> currentToken = newToken)
 			.map(validToken -> {
 				final var token = validToken.getAccessToken();
 				final var secret = validToken.getAccessSecret();
@@ -55,7 +56,7 @@ class ApplicationServicesAuthFilter {
 				}
 
 				return request;
-			});
+			}).doOnSuccess(req -> log.debug("Request '{}' completed staff auth.", req.getPath()));
 	}
 
 	private Mono<AuthToken> staffAuthenticator() {
