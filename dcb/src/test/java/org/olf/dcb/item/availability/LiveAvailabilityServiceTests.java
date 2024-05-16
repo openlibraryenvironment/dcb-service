@@ -120,8 +120,12 @@ class LiveAvailabilityServiceTests {
 		bibRecordFixture.createBibRecord(randomUUID(), secondHostLms.getId(),
 			"767648", clusterRecord);
 
-		final var firstAgency = agencyFixture.defineAgency("first-agency",
-			"First Agency", firstHostLms);
+		final var firstAgency = agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("first-agency")
+			.name("First Agency")
+			.hostLms(firstHostLms)
+			.build());
 
 		mapLocationToAgency("ab6", firstHostLms, firstAgency);
 
@@ -147,8 +151,13 @@ class LiveAvailabilityServiceTests {
 				.build()
 		));
 
-		final var secondAgency = agencyFixture.defineAgency("second-agency",
-			"Second Agency", secondHostLms);
+		final var secondAgency = agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("second-agency")
+			.name("Second Agency")
+			.isSupplyingAgency(true)
+			.hostLms(secondHostLms)
+			.build());
 
 		mapLocationToAgency("ab5", secondHostLms, secondAgency);
 		mapLocationToAgency("ab7", secondHostLms, secondAgency);
