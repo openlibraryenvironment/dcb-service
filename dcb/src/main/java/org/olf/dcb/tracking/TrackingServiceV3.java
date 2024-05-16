@@ -87,6 +87,26 @@ public class TrackingServiceV3 implements TrackingService {
 			.doOnError(error -> log.error(errorMsg, error));
 	}
 
+	private Mono<RequestWorkflowContext> auditTrackingError(
+		String message, RequestWorkflowContext ctx, Throwable error) {
+
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("Error", error);
+
+		return patronRequestWorkflowService.auditTrackingError(message, ctx.getPatronRequest(), auditData)
+			.flatMap(audit -> Mono.just(ctx)); // Resume tracking after auditing
+	}
+
+	public RequestWorkflowContext incrementManualPollCounter(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().incrementManualPollCountForCurrentStatus();
+		return ctx;
+	}
+
+	public RequestWorkflowContext incrementAutoPollCounter(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().incrementAutoPollCountForCurrentStatus();
+		return ctx;
+	}
+
 	/**
 	 * Force an update of the patron request.
 	 * @param pr_id
@@ -97,16 +117,9 @@ public class TrackingServiceV3 implements TrackingService {
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
 			.map(this::incrementManualPollCounter)
 			.flatMap(patronRequestWorkflowService::auditManualPoll)
-			.flatMap(this::trackBorrowingSystem)
-			.flatMap(this::trackPickupSystem)
-			.flatMap(this::trackSupplyingSystem)
+			.flatMap(this::trackSystems)
 			.flatMap(patronRequestWorkflowService::progressUsing)
 			.flatMap(ctx -> Mono.just(ctx.getPatronRequest() ) );
-	}
-
-	public RequestWorkflowContext incrementManualPollCounter(RequestWorkflowContext ctx) {
-		ctx.getPatronRequest().incrementManualPollCountForCurrentStatus();
-		return ctx;
 	}
 
 	/**
@@ -121,16 +134,18 @@ public class TrackingServiceV3 implements TrackingService {
 		return Mono.from(patronRequestRepository.findById(tr.id()))
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
 			.map(this::incrementAutoPollCounter)
-			.flatMap(this::trackBorrowingSystem)
-			.flatMap(this::trackPickupSystem)
-			.flatMap(this::trackSupplyingSystem)
+			.flatMap(this::trackSystems)
 			.flatMap(ctx -> patronRequestWorkflowService.progressUsing(ctx))
 			.thenReturn(tr);
 	}
 
-	public RequestWorkflowContext incrementAutoPollCounter(RequestWorkflowContext ctx) {
-		ctx.getPatronRequest().incrementAutoPollCountForCurrentStatus();
-		return ctx;
+	private <R> Mono<RequestWorkflowContext> trackSystems(RequestWorkflowContext ctx) {
+		return this.trackBorrowingSystem(ctx)
+			.onErrorResume(error -> auditTrackingError("Tracking failed : Borrowing System", ctx, error))
+			.flatMap(this::trackPickupSystem)
+			.onErrorResume(error -> auditTrackingError("Tracking failed : Pickup System", ctx, error))
+			.flatMap(this::trackSupplyingSystem)
+			.onErrorResume(error -> auditTrackingError("Tracking failed : Supplying System", ctx, error));
 	}
 
 	private Mono<RequestWorkflowContext> trackBorrowingSystem(RequestWorkflowContext rwc) {

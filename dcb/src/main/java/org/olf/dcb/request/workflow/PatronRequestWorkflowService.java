@@ -202,6 +202,17 @@ public class PatronRequestWorkflowService {
 			.flatMap(audit -> Mono.error(error)); // Resume the error after auditing
 	}
 
+	public Mono<PatronRequestAudit> auditTrackingError(String message, PatronRequest patronRequest,
+		HashMap<String, Object> auditData) {
+
+		return patronRequestAuditService.addAuditEntry(
+			patronRequest,
+			patronRequest.getStatus(),
+			patronRequest.getStatus(),
+			Optional.of(message),
+			Optional.of(auditData));
+	}
+
 	private Mono<? extends PatronRequestAudit> auditActionAttempted(
 		PatronRequestStateTransition action, RequestWorkflowContext ctx,
 		HashMap<String, Object> auditData) {
