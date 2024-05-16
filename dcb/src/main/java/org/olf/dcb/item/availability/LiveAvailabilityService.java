@@ -124,6 +124,7 @@ public class LiveAvailabilityService {
 			.filter(Item::notDeleted)
 			.filter(Item::hasAgency)
 			.filter(Item::hasHostLms)
+			.filter(Item::AgencyIsSupplying)
 			.collectList()
 			.doOnError(error -> log.error("doOnError occurred fetching items", error))
 			.map(AvailabilityReport::ofItems)

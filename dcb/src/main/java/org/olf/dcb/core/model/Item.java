@@ -5,6 +5,7 @@ import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -67,6 +68,10 @@ public class Item implements Comparable<Item> {
 
 	public boolean hasAgency() {
 		return getAgencyCode() != null;
+	}
+
+	public boolean AgencyIsSupplying() {
+		return getValueOrDefault(agency, Agency::getIsSupplyingAgency, true);
 	}
 
 	public String getAgencyCode() {

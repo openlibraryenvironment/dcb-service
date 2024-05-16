@@ -21,6 +21,9 @@ public interface Agency {
 	@NonNull
 	<T extends HostLms> T getHostLms();
 
+	@NonNull
+	Boolean getIsSupplyingAgency();
+
 	static DataAgencyBuilder builder() {
 		return DataAgency.builder();
 	}
