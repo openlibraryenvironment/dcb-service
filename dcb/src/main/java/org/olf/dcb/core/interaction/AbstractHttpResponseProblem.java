@@ -7,6 +7,7 @@ import static org.zalando.problem.Status.INTERNAL_SERVER_ERROR;
 import java.net.URI;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.zalando.problem.AbstractThrowableProblem;
 
 import io.micronaut.core.type.Argument;
@@ -14,6 +15,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
+@Slf4j
 public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 	protected AbstractHttpResponseProblem(String title, String detail,
 		HttpClientResponseException responseException, HttpRequest<?> request) {
@@ -26,7 +28,7 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 	private static Map<String, Object> determineParameters(
 		HttpClientResponseException responseException, HttpRequest<?> request) {
 
-		return Map.of(
+		final var parameters = Map.of(
 			"responseStatusCode", getValue(responseException,
 				HttpClientResponseException::getStatus, HttpStatus::getCode, "Unknown"),
 			"responseBody", interpretResponseBody(responseException),
@@ -34,6 +36,9 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 			"requestUrl", getValue(request, HttpRequest::getUri, URI::toString, "Unknown"),
 			"requestBody", interpretRequestBody(request)
 		);
+
+		parameters.forEach((key, value) -> log.error("{}: {}", key, value));
+		return parameters;
 	}
 
 	private static Object interpretResponseBody(HttpClientResponseException responseException) {
