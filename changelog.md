@@ -1,10 +1,37 @@
 # Changelog
 
+## Version 6.9.0
+
+### Additions
+* [General]
+	* audit tracking system failures in admin
+	* Store whether an agency participates in borrowing DCB-1125
+	* Store whether an agency participates in supplying DCB-1125g
+	* Exclude items with an agency without a Host LMS from availability DCB-1114
+	* Exclude items without an agency from availability DCB-1114
+
+### Changes
+* [Chore]
+	* remove unneeded empties in the application services client
+* [Refactor]
+	* ensure UTC time is used in activation date [DCB-1123]
+	* staff auth token generation in polaris application services
+	* server logging for failed requests via AbstractHttpResponseProblem
+	* activation date in polaris client [DCB-1123]
+	* add PolarisRequestNotFoundException
+	* re add combined poll count [DCB-1039]
+	* auditData with different poll counts [DCB-1039]
+	* distinguish poll checks [DCB-1039]
+
 ## Version 6.8.0
 
 ### Additions
 * [General]
 	* Record resolution in audit DCB-1093
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
