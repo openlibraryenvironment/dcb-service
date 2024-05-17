@@ -734,7 +734,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<TransactionStatus> getTransactionStatus(String localRequestId) {
 		// Should not attempt to get transaction status when no ID is provided
 		if (isEmpty(localRequestId)) {
-			return Mono.empty();
+			return Mono.error(
+				new NullPointerException("Cannot use transaction id: "+localRequestId+" to fetch transaction status."));
 		}
 
 		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);

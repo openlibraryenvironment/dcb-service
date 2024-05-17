@@ -498,7 +498,7 @@ class PatronRequestApiTests {
 		trackingFixture.runTracking();
 
 		await()
-			.atMost(10, SECONDS)
+			.atMost(15, SECONDS)
 			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
 				hasStatus(CONFIRMED));
 

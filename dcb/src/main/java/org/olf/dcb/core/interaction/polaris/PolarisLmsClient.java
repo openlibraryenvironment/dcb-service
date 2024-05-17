@@ -475,27 +475,26 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
-		if (localRequestId == null) {
-			log.error("localRequestId was null.");
-			return Mono.empty();
-		}
 
-		int parsedLocalRequestId;
-
-		try {
-			parsedLocalRequestId = Integer.parseInt(localRequestId);
-		} catch (NumberFormatException e) {
-			return Mono.error(
-				new NumberFormatException("Cannot convert localRequestId: "+localRequestId+" to an Integer."));
-		}
-
-		return ApplicationServices.getLocalHoldRequest(parsedLocalRequestId)
+		return parseLocalRequestId(localRequestId)
+			.flatMap(ApplicationServices::getLocalHoldRequest)
 			.map(hold -> HostLmsRequest.builder()
 				.localId(localRequestId)
 				.status(checkHoldStatus(hold.getSysHoldStatus()))
 				.requestedItemId(getValue(hold, LibraryHold::getItemRecordID, Object::toString))
 				.requestedItemBarcode(getValue(hold, LibraryHold::getItemBarcode))
 				.build());
+	}
+
+	private Mono<Integer> parseLocalRequestId(String localRequestId) {
+		try {
+			int parsedLocalRequestId = Integer.parseInt(localRequestId);
+			return Mono.just(parsedLocalRequestId);
+		} catch (NumberFormatException e) {
+			return Mono.error(new NumberFormatException("Cannot convert localRequestId: " + localRequestId + " to an Integer."));
+		} catch (NullPointerException e) {
+			return Mono.error(new NullPointerException("Cannot use null localRequestId to fetch local request."));
+		}
 	}
 
 	/**
@@ -577,13 +576,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 
-		if (localItemId == null) {
-			log.warn("getItem called with null localItemId, returning empty mono.");
-
-			return Mono.empty();
-		}
-
-		return ApplicationServices.itemrecords(localItemId)
+		return parseLocalItemId(localItemId)
+			.flatMap(ApplicationServices::itemrecords)
 			.doOnSuccess(itemRecordFull -> log.info("Got item: {}", itemRecordFull))
 			.map(item -> validate(localItemId, item))
 			.flatMap(this::collectItemStatusName)
@@ -596,6 +590,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.barcode(itemRecord.getBarcode())
 					.build();
 			});
+	}
+
+	private Mono<String> parseLocalItemId(String localItemId) {
+		if (localItemId == null) {
+			return Mono.error(new NullPointerException("Cannot use null localItemId to fetch local item."));
+		}
+		return Mono.just(localItemId);
 	}
 
 	private ApplicationServicesClient.ItemRecordFull validate(

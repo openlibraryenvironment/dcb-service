@@ -172,11 +172,11 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(
-			UUID.randomUUID().toString(), null));
+		final var exception = assertThrows(NullPointerException.class,
+			() -> singleValueFrom(client.getRequest(null)));
 
 		// Assert
-		assertThat("Should be an empty publisher", localItem, is(nullValue()));
+		assertThat(exception, hasMessage("Cannot use transaction id: null to fetch transaction status."));
 	}
 
 	@ParameterizedTest

@@ -1181,21 +1181,34 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code(), requestedItemId)
 			: "";
 
+		if (requestedItemId == null) {
+			return Mono.just(
+				new HostLmsRequest(holdId, status, requestedItemId, null));
+		}
+
 		return getItem(requestedItemId, holdId)
-			.map(item -> new HostLmsRequest(holdId, status, requestedItemId, item.getBarcode()))
-			.defaultIfEmpty(new HostLmsRequest(holdId, status, requestedItemId, null));
+			.map(item -> new HostLmsRequest(holdId, status, requestedItemId, item.getBarcode()));
 	}
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
 
-		if ( localRequestId == null )
-			return Mono.empty();
-
-		return Mono.from(client.getHold(Long.valueOf(localRequestId)))
+		return parseLocalRequestId(localRequestId)
+			.flatMap(id -> Mono.from(client.getHold(id)))
 			.flatMap(this::sierraPatronHoldToHostLmsHold)
 			.defaultIfEmpty(new HostLmsRequest(localRequestId, "MISSING"));
+	}
+
+	private Mono<Long> parseLocalRequestId(String localRequestId) {
+		try {
+			Long parsedLocalRequestId = Long.valueOf(localRequestId);
+			return Mono.just(parsedLocalRequestId);
+		} catch (NumberFormatException e) {
+			return Mono.error(new NumberFormatException("Cannot convert localRequestId: " + localRequestId + " to a Long type."));
+		} catch (NullPointerException e) {
+			return Mono.error(new NullPointerException("Cannot use null localRequestId to fetch local request."));
+		}
 	}
 
 	// II: We need to talk about this in a review session
@@ -1262,17 +1275,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 		log.debug("getItem({}, {})", localItemId, localRequestId);
 
-		if (localItemId != null) {
-			return Mono.from(client.getItem(localItemId))
-				.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
-				.defaultIfEmpty(HostLmsItem.builder()
-					.localId(localItemId)
-					.status("MISSING")
-					.build());
-		}
+		localItemId = parseLocalItemId(localItemId);
 
-		log.warn("getItem called with null itemId");
-		return Mono.empty();
+		return Mono.from(client.getItem(localItemId))
+			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
+			.defaultIfEmpty(HostLmsItem.builder()
+				.localId(localItemId)
+				.status("MISSING")
+				.build());
+	}
+
+	private String parseLocalItemId(String localItemId) {
+		if (localItemId == null) {
+			throw new NullPointerException("Cannot use null localItemId to fetch local item.");
+		}
+		return localItemId;
 	}
 
 	// WARNING We might need to make this accept a patronIdentity - as different

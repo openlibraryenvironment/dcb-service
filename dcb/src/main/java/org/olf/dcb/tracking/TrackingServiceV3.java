@@ -21,6 +21,7 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
@@ -91,7 +92,7 @@ public class TrackingServiceV3 implements TrackingService {
 		String message, RequestWorkflowContext ctx, Throwable error) {
 
 		final var auditData = new HashMap<String, Object>();
-		auditData.put("Error", error);
+		auditData.put("Error", error.toString());
 
 		return patronRequestWorkflowService.auditTrackingError(message, ctx.getPatronRequest(), auditData)
 			.flatMap(audit -> Mono.just(ctx)); // Resume tracking after auditing
