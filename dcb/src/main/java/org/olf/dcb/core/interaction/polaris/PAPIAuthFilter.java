@@ -16,11 +16,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -30,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.annotation.Serdeable;
@@ -37,6 +35,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.interaction.polaris.exceptions.PAPIAuthException;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -57,8 +56,7 @@ class PAPIAuthFilter {
 	Mono<MutableHttpRequest<?>> ensureStaffAuth(MutableHttpRequest<?> request) {
 		overrideMethod = FALSE;
 
-		return staffAuthentication(request, FALSE)
-			.doOnSuccess(req -> log.debug("Request '{}' completed staff auth.", req.getPath()));
+		return staffAuthentication(request, FALSE);
 	}
 
 	Mono<MutableHttpRequest<?>> ensurePatronAuth(MutableHttpRequest<?> request,
@@ -66,8 +64,7 @@ class PAPIAuthFilter {
 
 		overrideMethod = override;
 
-		return patronAuthentication(request, patronCredentials, override)
-			.doOnSuccess(req -> log.debug("Request '{}' completed patron auth.", req.getPath()));
+		return patronAuthentication(request, patronCredentials, override);
 	}
 
 	private Mono<MutableHttpRequest<?>> staffAuthentication(MutableHttpRequest<?> request, Boolean publicMethod) {
@@ -83,7 +80,8 @@ class PAPIAuthFilter {
 			String password = (String) conf.get(STAFF_PASSWORD);
 
 			return createStaffAuthRequest(domain, username, password)
-				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)));
+				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)))
+				.doOnError(e -> Mono.error(new PAPIAuthException("Staff Auth Failed", e)));
 		});
 	}
 
@@ -108,7 +106,8 @@ class PAPIAuthFilter {
 	private Mono<PatronAuthToken> patronAuthenticator(PAPIClient.PatronCredentials patronCredentials) {
 		return Mono.defer(() -> createPatronAuthRequest(patronCredentials)
 			.flatMap(request -> client.exchange(request, PatronAuthToken.class, TRUE))
-			.flatMap(response -> Mono.justOrEmpty(response.getBody())));
+			.map(HttpResponse::body))
+			.doOnError(e -> Mono.error(new PAPIAuthException("Patron Auth Failed", e)));
 	}
 
 	private MutableHttpRequest<?> createStaffRequest(MutableHttpRequest<?> request,
@@ -154,17 +153,16 @@ class PAPIAuthFilter {
 	}
 
 	private MutableHttpRequest<?> authorization(MutableHttpRequest<?> request) {
+
 		final var id = (String) conf.get(ACCESS_ID);
 		final var key = (String) conf.get(ACCESS_KEY);
 		final var method = request.getMethod().name();
 		final var path = request.getUri().toString();
-		final var date = generateFormattedDate();
+		final var date = generateUTCFormattedDateTime();
 		final var accessSecret = getAccessSecret(request);
 
 		final var signature = calculateApiSignature(key, method, path, date, accessSecret);
 		final var token = "PWS " + id + ":" + signature;
-
-		log.debug("token {}", token);
 
 		return request.header(HttpHeaders.AUTHORIZATION, token).header("PolarisDate", date);
 	}
@@ -212,36 +210,22 @@ class PAPIAuthFilter {
 
 			final var data = method + path + date + (password != null && !password.isEmpty() ? password : "");
 
+			log.info("Encoding data: {}", data);
+
 			final var rawHmac = mac.doFinal(data.getBytes());
 
 			return Base64.getEncoder().encodeToString(rawHmac);
 		} catch (Exception e) {
 			// Handle any exceptions that might occur during the calculation
-			throw new RuntimeException("Error calculating PAPI API signature", e);
+			throw new PAPIAuthException("Error calculating PAPI API signature", e);
 		}
 	}
 
-	private String generateFormattedDate() {
+	private String generateUTCFormattedDateTime() {
 		final var formatter = DateTimeFormatter
 			.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
-			.withZone(ZoneId.of("GMT"))
-			.withLocale(Locale.ENGLISH);;
+			.withZone(ZoneId.of("UTC"));
 		return formatter.format(Instant.now());
-	}
-
-	private static Instant instantOf(String dateStr) {
-		Pattern pattern = Pattern.compile("\\/Date\\((\\d+)([+-]\\d+)\\)\\/");
-		Matcher matcher = pattern.matcher(dateStr);
-
-		if (matcher.matches()) {
-			final var timestamp = Long.parseLong(matcher.group(1));
-			final var timeZoneOffsetMinutes = Integer.parseInt(matcher.group(2));
-			final var timeZoneOffsetMillis = timeZoneOffsetMinutes * 60 * 1000;
-			final var timestampWithOffset = timestamp - timeZoneOffsetMillis;
-			return Instant.ofEpochMilli(timestampWithOffset);
-		} else {
-			throw new IllegalArgumentException("Invalid date string format");
-		}
 	}
 
 	@Builder
@@ -261,9 +245,6 @@ class PAPIAuthFilter {
 		private Integer patronID;
 		@JsonProperty("AuthExpDate")
 		private String authExpDate;
-		public Boolean isExpired() {
-			return instantOf(authExpDate).isBefore(Instant.now());
-		}
 	}
 
 	@Builder
@@ -295,8 +276,5 @@ class PAPIAuthFilter {
 		private Integer branchID;
 		@JsonProperty("AuthExpDate")
 		private String authExpDate;
-		public Boolean isExpired() {
-			return instantOf(authExpDate).isBefore(Instant.now());
-		}
 	}
 }
