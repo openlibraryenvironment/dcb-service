@@ -142,7 +142,8 @@ public class PatronRequestAuditService {
 	public Mono<PatronRequest> auditTrackingError(
 		String message, PatronRequest patronRequest, HashMap<String, Object> auditData) {
 
-		return auditEntry(patronRequest, message, auditData);
+		return auditEntry(patronRequest, message, auditData)
+			.flatMap(pr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)));
 	}
 
 	public Mono<PatronRequest> auditActionAttempted(
