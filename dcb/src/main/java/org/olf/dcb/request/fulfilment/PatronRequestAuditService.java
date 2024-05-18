@@ -6,10 +6,12 @@ import static services.k_int.utils.StringUtils.truncate;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
+import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 
@@ -119,5 +121,72 @@ public class PatronRequestAuditService {
 
 		return addAuditEntry(patronRequest, fromStatus, ERROR,
 			Optional.ofNullable(message), Optional.ofNullable(data));
+	}
+
+	public Mono<? extends PatronRequest> auditActionEmpty(
+		PatronRequestStateTransition action, RequestWorkflowContext ctx,
+		HashMap<String, Object> auditData) {
+
+		return auditActionFailed(action, ctx, auditData, "EMPTY", "applyTransition caught an unhandled empty.")
+			.then(Mono.empty()); // Resume the empty after auditing
+	}
+
+	public Mono<? extends PatronRequest> auditActionError(
+		PatronRequestStateTransition action, RequestWorkflowContext ctx,
+		HashMap<String, Object> auditData, Throwable error) {
+
+		return auditActionFailed(action, ctx, auditData, "ERROR", error.toString())
+			.then(Mono.error(error)); // Resume the error after auditing
+	}
+
+	public Mono<PatronRequest> auditTrackingError(
+		String message, PatronRequest patronRequest, HashMap<String, Object> auditData) {
+
+		return auditEntry(patronRequest, message, auditData);
+	}
+
+	public Mono<PatronRequest> auditActionAttempted(
+		PatronRequestStateTransition action, RequestWorkflowContext ctx,
+		HashMap<String, Object> auditData) {
+
+		return auditEntry(ctx.getPatronRequest(), "Action attempted : " + action.getName(), auditData);
+	}
+
+	public Function<RequestWorkflowContext, Mono<? extends PatronRequest>> auditActionCompleted(
+		PatronRequestStateTransition action, HashMap<String, Object> auditData) {
+
+		final var message = "Action completed : " + action.getName();
+		log.info("{}", message);
+
+		return chainContext -> addAuditEntry(
+				chainContext.getPatronRequest(),
+				chainContext.getPatronRequestStateOnEntry(),
+				chainContext.getPatronRequest().getStatus(),
+				Optional.of(message),
+				Optional.of(auditData))
+			.flatMap(audit -> Mono.from(patronRequestRepository.saveOrUpdate(audit.getPatronRequest())));
+	}
+
+	private Mono<PatronRequest> auditEntry(
+		PatronRequest patronRequest, String message, HashMap<String, Object> auditData) {
+
+		log.info("{}", message);
+
+		return addAuditEntry(
+			patronRequest,
+			patronRequest.getStatus(),
+			patronRequest.getStatus(),
+			Optional.of(message),
+			Optional.of(auditData)
+		).flatMap(audit -> Mono.from(patronRequestRepository.saveOrUpdate(audit.getPatronRequest())));
+	}
+
+	private Mono<PatronRequest> auditActionFailed(
+		PatronRequestStateTransition action, RequestWorkflowContext ctx,
+		HashMap<String, Object> auditData, String key, String value) {
+
+		auditData.put(key, value);
+
+		return auditEntry(ctx.getPatronRequest(), "Action failed : " + action.getName(), auditData);
 	}
 }

@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
@@ -21,7 +22,6 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
-import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
@@ -43,6 +43,7 @@ public class TrackingServiceV3 implements TrackingService {
 	private final PatronRequestWorkflowService patronRequestWorkflowService;
 	private final ReactorFederatedLockService reactorFederatedLockService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	private final int MAX_TRACKING_CONCURRENCY = 10;
 
@@ -53,7 +54,8 @@ public class TrackingServiceV3 implements TrackingService {
                       HostLmsReactions hostLmsReactions,
                       PatronRequestWorkflowService patronRequestWorkflowService,
                       ReactorFederatedLockService reactorFederatedLockService,
-											RequestWorkflowContextHelper requestWorkflowContextHelper) {
+											RequestWorkflowContextHelper requestWorkflowContextHelper,
+		PatronRequestAuditService patronRequestAuditService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -63,6 +65,7 @@ public class TrackingServiceV3 implements TrackingService {
 		this.patronRequestWorkflowService = patronRequestWorkflowService;
 		this.reactorFederatedLockService = reactorFederatedLockService;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
   @Timed("tracking.run")
@@ -94,7 +97,7 @@ public class TrackingServiceV3 implements TrackingService {
 		final var auditData = new HashMap<String, Object>();
 		auditData.put("Error", error.toString());
 
-		return patronRequestWorkflowService.auditTrackingError(message, ctx.getPatronRequest(), auditData)
+		return patronRequestAuditService.auditTrackingError(message, ctx.getPatronRequest(), auditData)
 			.flatMap(audit -> Mono.just(ctx)); // Resume tracking after auditing
 	}
 

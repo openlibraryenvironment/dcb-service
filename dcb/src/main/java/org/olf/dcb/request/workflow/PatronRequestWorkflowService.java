@@ -13,7 +13,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -160,88 +159,16 @@ public class PatronRequestWorkflowService {
 
 		auditData.put("workflowMessages", ctx.getWorkflowMessages());
 
-		return auditActionAttempted(action, ctx, auditData)
-			.flatMap(audit -> action.attempt(ctx))
+		return patronRequestAuditService.auditActionAttempted(action, ctx, auditData)
+			.flatMap(pr -> action.attempt(ctx))
 			.flatMap(incrementStateTransitionMetrics(ctx))
-			.flatMap(auditActionCompleted(action, auditData))
-			.onErrorResume(error -> auditActionError(action, ctx, auditData, error))
-			.switchIfEmpty(Mono.defer(() -> auditActionEmpty(action, ctx, auditData)))
+			.flatMap(patronRequestAuditService.auditActionCompleted(action, auditData))
+			.onErrorResume(error -> patronRequestAuditService.auditActionError(action, ctx, auditData, error))
+			.switchIfEmpty(Mono.defer(() -> patronRequestAuditService.auditActionEmpty(action, ctx, auditData)))
 			.flatMap(request -> {
 				// Recursively call progress all in case there are subsequent steps we can apply
 				return this.progressAll(ctx.getPatronRequest());
 			});
-	}
-
-	private Mono<? extends PatronRequest> auditActionEmpty(
-		PatronRequestStateTransition action, RequestWorkflowContext ctx,
-		HashMap<String, Object> auditData) {
-
-		auditData.put("EMPTY", "applyTransition caught an unhandled empty.");
-
-		return patronRequestAuditService.addAuditEntry(
-				ctx.getPatronRequest(),
-				ctx.getPatronRequestStateOnEntry(),
-				getToStatus(action, ctx),
-				Optional.of("Action failed : " + action.getName()),
-				Optional.of(auditData))
-			.flatMap(audit -> Mono.empty()); // Resume the empty after auditing
-	}
-
-	private Mono<? extends PatronRequest> auditActionError(
-		PatronRequestStateTransition action, RequestWorkflowContext ctx,
-		HashMap<String, Object> auditData, Throwable error) {
-
-		auditData.put("ERROR", error);
-
-		return patronRequestAuditService.addAuditEntry(
-				ctx.getPatronRequest(),
-				ctx.getPatronRequestStateOnEntry(),
-				getToStatus(action, ctx),
-				Optional.of("Action failed : " + action.getName()),
-				Optional.of(auditData))
-			.flatMap(audit -> Mono.error(error)); // Resume the error after auditing
-	}
-
-	public Mono<PatronRequestAudit> auditTrackingError(String message, PatronRequest patronRequest,
-		HashMap<String, Object> auditData) {
-
-		return patronRequestAuditService.addAuditEntry(
-			patronRequest,
-			patronRequest.getStatus(),
-			patronRequest.getStatus(),
-			Optional.of(message),
-			Optional.of(auditData));
-	}
-
-	private Mono<? extends PatronRequestAudit> auditActionAttempted(
-		PatronRequestStateTransition action, RequestWorkflowContext ctx,
-		HashMap<String, Object> auditData) {
-
-		return patronRequestAuditService.addAuditEntry(
-			ctx.getPatronRequest(),
-			ctx.getPatronRequestStateOnEntry(),
-			getToStatus(action, ctx),
-			Optional.of("Action attempted : " + action.getName()),
-			Optional.of(auditData));
-	}
-
-	private static PatronRequest.Status getToStatus(
-		PatronRequestStateTransition action, RequestWorkflowContext ctx) {
-		return action.getTargetStatus().isPresent()
-			? action.getTargetStatus().get()
-			: ctx.getPatronRequestStateOnEntry().getNextExpectedStatus();
-	}
-
-	private Function<RequestWorkflowContext, Mono<? extends PatronRequest>> auditActionCompleted(
-		PatronRequestStateTransition action, HashMap<String, Object> auditData) {
-
-		return chainContext -> patronRequestAuditService.addAuditEntry(
-				chainContext.getPatronRequest(),
-				chainContext.getPatronRequestStateOnEntry(),
-				chainContext.getPatronRequest().getStatus(),
-				Optional.of("Action completed : " + action.getName()),
-				Optional.of(auditData))
-			.flatMap(audit -> Mono.from(patronRequestRepository.saveOrUpdate(audit.getPatronRequest())));
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> incrementStateTransitionMetrics(
@@ -257,7 +184,7 @@ public class PatronRequestWorkflowService {
 
 	public Function<Publisher<PatronRequest>, Flux<PatronRequest>> getErrorTransformerFor(
 		PatronRequest patronRequest) {
-		
+
 		final var fromState = patronRequest.getStatus();
 
 		return pub -> Flux.from(pub)

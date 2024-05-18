@@ -19,12 +19,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
-import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasCode;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -375,6 +370,7 @@ class PatronRequestApiTests {
 			.toList();
 
 		assertThat(sortedDistinctToStatus, contains(
+			is(SUBMITTED_TO_DCB),
 			is(PATRON_VERIFIED),
 			is(RESOLVED),
 			is(REQUEST_PLACED_AT_SUPPLYING_AGENCY),
@@ -531,6 +527,7 @@ class PatronRequestApiTests {
 			.toList();
 
 		assertThat(sortedDistinctToStatus, contains(
+			is(SUBMITTED_TO_DCB),
 			is(PATRON_VERIFIED),
 			is(RESOLVED),
 			is(REQUEST_PLACED_AT_SUPPLYING_AGENCY),
