@@ -1249,7 +1249,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.thenReturn("OK");
 		} else {
 			log.warn("Update item status requested for {} and we don't have a sierra translation for that", crs);
-			return Mono.just("OK");
+			return Mono.error(new NullPointerException("Could not update item "+itemId+" status for hostlms: "+getHostLms().getName()));
 		}
 	}
 
