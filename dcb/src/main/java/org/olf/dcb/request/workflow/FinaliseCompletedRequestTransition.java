@@ -1,7 +1,10 @@
 package org.olf.dcb.request.workflow;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -56,11 +59,28 @@ public class FinaliseCompletedRequestTransition implements PatronRequestStateTra
 		return Mono.just(patronRequest)
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
+			.flatMap(checkForErrorString(patronRequest))
 			.then(Mono.just(patronRequest.setStatus(Status.FINALISED)))
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
 			.thenReturn(ctx);
 	}
-	
+
+	// Method providing an audit for returned ERROR strings.
+	// ERROR Strings are returned instead of empties
+	// TODO: Needs reviewing, should this be a hard stop?
+	private Function<String, Mono<? extends String>> checkForErrorString(PatronRequest patronRequest) {
+		return string -> {
+			if (Objects.equals(string, "ERROR")) {
+				final var auditData = new HashMap<String, Object>();
+				auditData.put("Reason", "Mono with 'ERROR' String returned from cleanup.");
+				return patronRequestAuditService.addAuditEntry(patronRequest,
+						"Action Failed : FinaliseCompletedRequestTransition", auditData)
+					.then(Mono.just(string));
+			}
+			return Mono.just(string);
+		};
+	}
+
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());

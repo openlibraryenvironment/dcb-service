@@ -104,6 +104,13 @@ public class PatronRequestAuditService {
 				Optional.ofNullable(message), Optional.ofNullable(auditData)));
 	}
 
+	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest,
+		String message, Map<String, Object> auditData) {
+
+		return addAuditEntry(patronRequest, patronRequest.getStatus(), patronRequest.getStatus(),
+				Optional.ofNullable(message), Optional.ofNullable(auditData));
+	}
+
 	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest pr, String message) {
 		return this.addAuditEntry(pr, pr.getStatus(), pr.getStatus(),
 			Optional.ofNullable(message), empty());
