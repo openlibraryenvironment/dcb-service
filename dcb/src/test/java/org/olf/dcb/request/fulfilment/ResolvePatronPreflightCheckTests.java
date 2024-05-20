@@ -15,6 +15,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -35,6 +36,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
@@ -59,6 +62,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@BeforeEach
 	void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
