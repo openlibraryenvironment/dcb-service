@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import static reactor.function.TupleUtils.function;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -18,7 +19,6 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
 import io.micronaut.context.BeanProvider;
@@ -63,7 +63,7 @@ public class BorrowingAgencyService {
 
 		return fetchRequiredData(patronRequest, ctx)
 			.flatMap(function(this::borrowingRequestFlow))
-			.map(function(patronRequest::placedAtBorrowingAgency))
+			.map(patronRequest::placedAtBorrowingAgency)
 			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
 			;
 	}
@@ -180,7 +180,7 @@ public class BorrowingAgencyService {
 				supplierRequest.getLocalItemBarcode(),
 				supplierRequest.getCanonicalItemType(),
 				patronIdentity.getLocalHomeLibraryCode()))
-			.map(hostLmsItem -> patronRequest.setLocalItemId(hostLmsItem.getLocalId()))
+			.map(patronRequest::addLocalItemDetails)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to create virtual item."))));
 	}
 
@@ -191,7 +191,7 @@ public class BorrowingAgencyService {
 				new DcbError("Failed to resolve shelving loc "+context+":"+code+" to agency"))));
 	}
 
-	private Mono<Tuple2<String, String>> borrowingRequestFlow(RequestWorkflowContext ctx,
+	private Mono<LocalRequest> borrowingRequestFlow(RequestWorkflowContext ctx,
 		PatronRequest patronRequest, PatronIdentity borrowingIdentity,
 		HostLmsClient hostLmsClient, SupplierRequest supplierRequest) {
 
@@ -213,12 +213,7 @@ public class BorrowingAgencyService {
 					.delaySubscription(Duration.ofSeconds(5))
 					.doOnSuccess(localRequest -> log.debug("borrowingRequestFlow returned: {}", localRequest));
 			})
-			.transform(extractLocalIdAndLocalStatus())
 			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to place hold request."))) );
-	}
-
-	private static Function<Mono<LocalRequest>, Publisher<Tuple2<String, String>>> extractLocalIdAndLocalStatus() {
-		return mono -> mono.map(localRequest -> Tuples.of(localRequest.getLocalId(), localRequest.getLocalStatus()));
 	}
 
 	private static Mono<LocalRequest> createHoldRequest(RequestWorkflowContext ctx,

@@ -12,6 +12,9 @@ public class LocalRequest {
 	/** The status of the request */
 	String localStatus;
 
+	/** The raw status of the request */
+	String rawLocalStatus;
+
 	/** Once known, the local id of the item actually requested */
 	String requestedItemId;
 

@@ -134,7 +134,7 @@ public class SupplierRequest {
 
 	@ToString.Include
 	@Nullable
-	@Size(max = 32)
+	@Size(max = 200)
 	private String rawLocalStatus;
 
 	@Nullable
@@ -163,9 +163,14 @@ public class SupplierRequest {
 	/**
 	 * A place request on a bib record MAY change the item selected, if the fields are set, store the actual values in here
 	 */
-	public SupplierRequest placed(String localId, String localStatus, String localItemId, String localItemBarcode) {
+	public SupplierRequest placed(
+		String localId, String localStatus,
+		String rawLocalStatus, String localItemId,
+		String localItemBarcode)
+	{
 		setLocalId(localId);
 		setLocalStatus(localStatus);
+		setRawLocalStatus(rawLocalStatus);
 		if ( localItemId != null )
 			setLocalItemId(localItemId);
 		if ( localItemBarcode != null )

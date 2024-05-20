@@ -325,6 +325,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.map(response -> LocalRequest.builder()
 				.localId(transactionId)
 				.localStatus(HOLD_CONFIRMED)
+				.rawLocalStatus(response.getStatus())
 				.build());
 	}
 

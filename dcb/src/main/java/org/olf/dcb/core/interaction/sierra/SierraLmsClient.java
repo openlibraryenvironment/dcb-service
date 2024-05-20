@@ -904,6 +904,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			return LocalRequest.builder()
 				.localId(extractedId)
 				.localStatus(localStatus)
+				.rawLocalStatus(sph.status().toString())
 				.requestedItemId(requestedItemId)
 				.build();
 
@@ -1270,7 +1271,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.localId(item.getId())
 			.barcode(item.getBarcode())
 			.status(resolvedStatus)
-			.rawStatus(item.getStatus().toString())
+			.rawStatus(item.getStatus().getCode() != null ? item.getStatus().getCode() : null)
 			.build();
 	}
 

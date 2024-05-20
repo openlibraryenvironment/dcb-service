@@ -30,6 +30,8 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.LocalRequest;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
@@ -45,6 +47,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.*;
 @Accessors(chain = true)
 @ToString(onlyExplicitlyIncluded = true)
 public class PatronRequest {
+
 	@Serdeable
 	public enum Status {
 		SUBMITTED_TO_DCB, 
@@ -378,9 +381,16 @@ public class PatronRequest {
 		return setStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
 	}
 
-	public PatronRequest placedAtBorrowingAgency(String localId, String localStatus) {
-		return setLocalRequestId(localId)
-			.setLocalRequestStatus(localStatus)
+	public PatronRequest addLocalItemDetails(HostLmsItem hostLmsItem) {
+		return setLocalItemId(hostLmsItem.getLocalId() != null ? hostLmsItem.getLocalId() : null)
+			.setLocalItemStatus(hostLmsItem.getStatus() != null ? hostLmsItem.getStatus() : null)
+			.setRawLocalItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
+	}
+
+	public PatronRequest placedAtBorrowingAgency(LocalRequest localRequest) {
+		return setLocalRequestId(localRequest.getLocalId())
+			.setLocalRequestStatus(localRequest.getLocalStatus() != null ? localRequest.getLocalStatus() : null)
+			.setRawLocalRequestStatus(localRequest.getRawLocalStatus() != null ? localRequest.getRawLocalStatus() : null)
 			.setStatus(REQUEST_PLACED_AT_BORROWING_AGENCY);
 	}
 

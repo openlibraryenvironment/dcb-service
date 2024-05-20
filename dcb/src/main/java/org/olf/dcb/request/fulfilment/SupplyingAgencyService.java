@@ -148,7 +148,10 @@ public class SupplyingAgencyService {
 			// provider
 			.flatMap(client -> this.placeHoldRequest(client, psrc))
 			// ToDo: add a function to look up the item requested and extract the barcode and set it in the LocalRequest so it can be returned in the line below
-			.map(lr -> supplierRequest.placed(lr.getLocalId(), lr.getLocalStatus(), lr.getRequestedItemId(), lr.getRequestedItemBarcode()))
+			.map(lr -> supplierRequest.placed(
+				lr.getLocalId(), lr.getLocalStatus(),
+				lr.getRawLocalStatus(), lr.getRequestedItemId(),
+				lr.getRequestedItemBarcode()))
 			.thenReturn(psrc)
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
