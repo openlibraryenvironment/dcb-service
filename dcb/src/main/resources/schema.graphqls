@@ -28,6 +28,7 @@ type Mutation {
 		createLibrary(input: LibraryInput): Library!
 		createLibraryGroup(input: LibraryGroupInput): LibraryGroup!
 		addLibraryToGroup(input: AddLibraryToGroupCommand): LibraryGroupMember!
+		updateAgencyParticipationStatus(input: UpdateAgencyParticipationInput): Agency!
 }
 
 input AddAgencyToGroupCommand {
@@ -92,6 +93,12 @@ input PersonInput {
 	email: String!
 }
 
+input UpdateAgencyParticipationInput {
+	code: String!
+	isSupplyingAgency: Boolean
+	isBorrowingAgency: Boolean
+}
+
 type ProcessState {
   id: ID
   context: ID
@@ -122,6 +129,8 @@ type Agency {
     latitude: Float
     hostLms: HostLms
     locations: [Location]
+		isSupplyingAgency: Boolean
+		isBorrowingAgency: Boolean
 }
 
 """
