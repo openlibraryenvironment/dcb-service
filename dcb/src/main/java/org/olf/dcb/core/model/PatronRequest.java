@@ -210,6 +210,9 @@ public class PatronRequest {
 	@Nullable
 	private String localRequestStatus;
 
+	@Nullable
+	private String rawLocalRequestStatus;
+
 	// When did we last poll the local request
 	@Nullable
 	Instant localRequestLastCheckTimestamp;
@@ -223,6 +226,9 @@ public class PatronRequest {
 
 	@Nullable
 	private String localItemStatus;
+
+	@Nullable
+	private String rawLocalItemStatus;
 
 	// When did we last poll the local item
 	@Nullable

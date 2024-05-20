@@ -85,6 +85,11 @@ public class SupplierRequest {
 	@Size(max = 32)
 	private String localItemStatus;
 
+	@ToString.Include
+	@Nullable
+	@Size(max = 32)
+	private String rawLocalItemStatus;
+
 	@Nullable
 	Instant localItemLastCheckTimestamp;
 
@@ -126,6 +131,11 @@ public class SupplierRequest {
 	@Nullable
 	@Size(max = 32)
 	private String localStatus;
+
+	@ToString.Include
+	@Nullable
+	@Size(max = 32)
+	private String rawLocalStatus;
 
 	@Nullable
 	Instant localRequestLastCheckTimestamp;

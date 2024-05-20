@@ -1181,13 +1181,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			? mapSierraHoldStatusToDCBHoldStatus(sierraHold.status().code(), requestedItemId)
 			: "";
 
+		final var rawStatus = sierraHold.status() != null ? sierraHold.status().toString() : null;
+
 		if (requestedItemId == null) {
 			return Mono.just(
-				new HostLmsRequest(holdId, status, requestedItemId, null));
+				new HostLmsRequest(holdId, status, rawStatus, requestedItemId, null));
 		}
 
 		return getItem(requestedItemId, holdId)
-			.map(item -> new HostLmsRequest(holdId, status, requestedItemId, item.getBarcode()));
+			.map(item -> new HostLmsRequest(holdId, status, rawStatus, requestedItemId, item.getBarcode()));
 	}
 
 	@Override
@@ -1268,6 +1270,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.localId(item.getId())
 			.barcode(item.getBarcode())
 			.status(resolvedStatus)
+			.rawStatus(item.getStatus().toString())
 			.build();
 	}
 

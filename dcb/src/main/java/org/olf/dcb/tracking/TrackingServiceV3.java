@@ -191,7 +191,7 @@ public class TrackingServiceV3 implements TrackingService {
 				if ( hold.getStatus().equals(pr.getLocalRequestStatus()) ) {
 					// The hold status is the same as the last time we checked - update the tracking info and return
 					log.debug("TRACKING - update PR repeat counter {} {} {}",pr.getId(), pr.getLocalRequestStatus(), pr.getLocalRequestStatusRepeat());
-					return Mono.from(patronRequestRepository.updateLocalRequestTracking(pr.getId(), pr.getLocalRequestStatus(), Instant.now(),
+					return Mono.from(patronRequestRepository.updateLocalRequestTracking(pr.getId(), pr.getLocalRequestStatus(), hold.getRawStatus(), Instant.now(),
 							incrementRepeatCounter(pr.getLocalRequestStatusRepeat())))
 						.doOnNext(count -> log.debug("update count {}",count))
 						.thenReturn(pr);
@@ -260,7 +260,7 @@ public class TrackingServiceV3 implements TrackingService {
 					else {
 						// virtual item status has not changed - just update trackig stats
 	          log.debug("TRACKING - update virtual item repeat counter {} {} {}",pr.getId(), pr.getLocalItemStatus(), pr.getLocalItemStatusRepeat());
-		        return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), Instant.now(),
+		        return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
 			          incrementRepeatCounter(pr.getLocalItemStatusRepeat())))
 				      .doOnNext(count -> log.debug("update count {}",count))
 					    .thenReturn(pr);
@@ -314,7 +314,7 @@ public class TrackingServiceV3 implements TrackingService {
           else {
             log.debug("TRACKING - update supplier item counter {} {} {}",sr.getId(), sr.getLocalItemStatus(), sr.getLocalItemStatusRepeat());
 						// ToDo - add required methods to supplier repo
-            return Mono.from(supplierRequestRepository.updateLocalItemTracking(sr.getId(), sr.getLocalItemStatus(), Instant.now(),
+            return Mono.from(supplierRequestRepository.updateLocalItemTracking(sr.getId(), sr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
                 incrementRepeatCounter(sr.getLocalItemStatusRepeat())))
               .doOnNext(count -> log.debug("update count {}",count))
               .thenReturn(sr);
@@ -383,7 +383,7 @@ public class TrackingServiceV3 implements TrackingService {
 				}
 				else {
 					log.debug("TRACKING - update supplier request counter {} {} {}",sr.getId(), sr.getLocalStatus(), sr.getLocalRequestStatusRepeat());
-          return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), Instant.now(),
+          return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), hold.getRawStatus(), Instant.now(),
                 incrementRepeatCounter(sr.getLocalRequestStatusRepeat())))
             .doOnNext(count -> log.debug("update count {}",count))
             .thenReturn(sr);

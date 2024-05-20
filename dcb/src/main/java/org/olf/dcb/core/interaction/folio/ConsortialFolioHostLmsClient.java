@@ -672,6 +672,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return HostLmsRequest.builder()
 			.localId(transactionId)
 			.status(mappedStatus)
+			.rawStatus(status)
 			.build();
 	}
 
@@ -721,6 +722,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return HostLmsItem.builder()
 			.localId(itemId)
 			.status(mappedStatus)
+			.rawStatus(status)
 			.build();
 	}
 

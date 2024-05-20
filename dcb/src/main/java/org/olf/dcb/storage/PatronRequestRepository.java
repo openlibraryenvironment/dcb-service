@@ -112,4 +112,6 @@ public interface PatronRequestRepository {
   Publisher<Void> updatePickupRequestTracking(@NotNull UUID id, String pickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
   Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
+	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, String rawLocalRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
+	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 }

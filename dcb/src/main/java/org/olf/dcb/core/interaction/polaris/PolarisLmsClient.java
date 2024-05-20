@@ -481,6 +481,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(hold -> HostLmsRequest.builder()
 				.localId(localRequestId)
 				.status(checkHoldStatus(hold.getSysHoldStatus()))
+				.rawStatus(hold.getSysHoldStatus())
 				.requestedItemId(getValue(hold, LibraryHold::getItemRecordID, Object::toString))
 				.requestedItemBarcode(getValue(hold, LibraryHold::getItemBarcode))
 				.build());
@@ -587,6 +588,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
 					.status(hostLmsStatus)
+					.rawStatus(itemRecord.getItemStatusName())
 					.barcode(itemRecord.getBarcode())
 					.build();
 			});

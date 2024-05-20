@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction;
 
 import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,5 +41,8 @@ public class HostLmsItem {
 
 	String localId;
 	String status;
+	// The local status that hasn't been altered
+	@Nullable
+	String rawStatus;
 	String barcode;
 }

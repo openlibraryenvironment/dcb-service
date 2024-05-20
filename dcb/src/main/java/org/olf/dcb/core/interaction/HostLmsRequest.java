@@ -47,6 +47,10 @@ public class HostLmsRequest {
 	@Nullable
 	String status;
 
+	// The local status that hasn't been altered
+	@Nullable
+	String rawStatus;
+
 	/** Once known, the local id of the item actually requested */
 	@Nullable
 	String requestedItemId;

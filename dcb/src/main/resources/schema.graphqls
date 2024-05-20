@@ -181,6 +181,8 @@ type PatronRequest {
 	nextExpectedStatus: String
 	outOfSequenceFlag: Boolean
 	elapsedTimeInCurrentStatus: Float
+	rawLocalItemStatus: String
+	rawLocalRequestStatus: String
 }
 
 type PatronRequestAudit {
@@ -211,6 +213,8 @@ type SupplierRequest {
   localAgency: String
   patronRequest: PatronRequest
   virtualPatron: PatronIdentity
+  rawLocalItemStatus: String
+  rawLocalStatus: String
 }
 
 type Patron {

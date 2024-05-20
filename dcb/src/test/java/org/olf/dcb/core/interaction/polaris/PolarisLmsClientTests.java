@@ -22,6 +22,7 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
@@ -567,6 +568,7 @@ class PolarisLmsClientTests {
 			notNullValue(),
 			HostLmsRequestMatchers.hasLocalId(localHoldId),
 			hasStatus(HOLD_READY),
+			hasRawStatus("Held"),
 			HostLmsRequestMatchers.hasRequestedItemId("6737455"),
 			HostLmsRequestMatchers.hasRequestedItemBarcode("785574212")
 		));

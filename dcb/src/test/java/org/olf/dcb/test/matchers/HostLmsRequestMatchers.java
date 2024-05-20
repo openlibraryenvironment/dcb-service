@@ -12,6 +12,10 @@ public class HostLmsRequestMatchers {
 		return hasProperty("status", is(expectedStatus));
 	}
 
+	public static Matcher<HostLmsRequest> hasRawStatus(String expectedStatus) {
+		return hasProperty("rawStatus", is(expectedStatus));
+	}
+
 	public static Matcher<HostLmsRequest> hasNoStatus() {
 		return hasProperty("status", is(nullValue()));
 	}
