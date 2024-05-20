@@ -80,6 +80,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.names(List.of("Bob"))
 				.build());
 
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
 
@@ -111,6 +113,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.barcodes(List.of("27536633"))
 				.names(List.of("Bob"))
 				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
 
@@ -155,6 +159,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 					.build())
 				.build());
 
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
 
@@ -193,6 +199,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 					.code("blocked")
 					.build())
 				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
 
@@ -258,6 +266,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.deleted(true)
 				.build());
 
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
 
@@ -294,6 +304,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.names(List.of("Bob"))
 				.build());
 
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
@@ -323,6 +335,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 			.barcodes(List.of("647647746"))
 			.names(List.of("Bob"))
 			.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -360,6 +374,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 			failedCheck("UNKNOWN_BORROWING_HOST_LMS",
 				"\"%s\" is not a recognised Host LMS".formatted(unknownHostLmsCode))
 		));
+	}
+
+	private void mapPatronToAgency(String hostLmsCode, String locationCode, String agencyCode) {
+		agencyFixture.defineAgency(agencyCode, "Example Agency",
+			hostLmsFixture.findByCode(hostLmsCode));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			hostLmsCode, locationCode, agencyCode);
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {
