@@ -1,5 +1,27 @@
 # Changelog
 
+## Version 6.10.0
+
+### Additions
+* [General]
+	* pass back raw local statuses when request/item is created
+	* Support toggling library participation through GraphQL [DCB-1131]
+	* add tracking of raw local request/item statuses
+	* Exclude items from non-supplying agencies DCB-1134
+
+### Changes
+* [Chore]
+	* check for error strings in finalisation [DCB-1140]
+	* ensure patron requests are updated when tracking [DCB-1139]
+	* tidy PAPI API auth
+* [Refactor]
+	* sierra update item status
+	* auditing for actions [DCB-1139]
+
+### Fixes
+* [General]
+	* resume request/item tracking when local id is null [DCB-1138]
+
 ## Version 6.9.0
 
 ### Additions
@@ -12,6 +34,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* remove unneeded empties in the application services client
 * [Refactor]
 	* ensure UTC time is used in activation date [DCB-1123]
