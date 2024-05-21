@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -15,6 +16,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -82,7 +85,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -226,7 +230,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
 
@@ -271,7 +276,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 					.build())
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -312,7 +318,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 					.build())
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
 
@@ -378,7 +385,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.deleted(true)
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -416,7 +424,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -448,7 +457,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 			.names(List.of("Bob"))
 			.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency");
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -488,9 +498,16 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		));
 	}
 
-	private void mapPatronToAgency(String hostLmsCode, String locationCode, String agencyCode) {
-		agencyFixture.defineAgency(agencyCode, "Example Agency",
-			hostLmsFixture.findByCode(hostLmsCode));
+	private void mapPatronToAgency(String hostLmsCode, String locationCode, String agencyCode, boolean isBorrowingAgency) {
+		DataHostLms hostLms = hostLmsFixture.findByCode(hostLmsCode);
+		agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code(agencyCode)
+			.name("Example Agency")
+			.isSupplyingAgency(true)
+			.isBorrowingAgency(isBorrowingAgency)
+			.hostLms(hostLms)
+			.build());
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			hostLmsCode, locationCode, agencyCode);
