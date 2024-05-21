@@ -20,6 +20,7 @@ import reactor.core.publisher.Mono;
 @Property(name = "dcb.requests.preflight-checks.pickup-location.enabled", value = "false")
 @Property(name = "dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled", value = "false")
 @Property(name = "dcb.requests.preflight-checks.resolve-patron.enabled", value = "false")
+@Property(name = "dcb.requests.preflight-checks.duplicate-requests.enabled", value = "false")
 @Property(name = "include-test-only-check", value = "true")
 @DcbTest()
 class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTests {

@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import io.micronaut.core.annotation.Introspected;
+import io.micronaut.data.annotation.Join;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -114,4 +115,8 @@ public interface PatronRequestRepository {
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, String rawLocalRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
 	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
+
+	@Join("requestingIdentity")
+	Publisher<PatronRequest> findAllByPatronHostlmsCodeAndBibClusterIdOrderByDateCreatedDesc(
+		@NotNull @NonNull String patronHostlmsCode, @NotNull @NonNull UUID bibClusterId);
 }
