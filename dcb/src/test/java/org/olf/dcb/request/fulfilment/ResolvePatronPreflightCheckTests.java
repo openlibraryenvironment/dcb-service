@@ -17,7 +17,6 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -138,6 +137,86 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsAssociatedWithAgencyNotParticipatingInBorrowing() {
+		// Arrange
+		final var localPatronId = "354256";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		final var agencyCode = "non-borrowing-agency";
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", agencyCode, false);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
+				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, agencyCode))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsAssociatedWithAnAgencyWithNoParticipationInformation() {
+		// Arrange
+		final var localPatronId = "354256";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		final var agencyCode = "non-borrowing-agency";
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", agencyCode, null);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
+				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, agencyCode))
+		));
 	}
 
 	@Test
@@ -498,8 +577,11 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		));
 	}
 
-	private void mapPatronToAgency(String hostLmsCode, String locationCode, String agencyCode, boolean isBorrowingAgency) {
-		DataHostLms hostLms = hostLmsFixture.findByCode(hostLmsCode);
+	private void mapPatronToAgency(String hostLmsCode, String locationCode,
+		String agencyCode, Boolean isBorrowingAgency) {
+
+		final var hostLms = hostLmsFixture.findByCode(hostLmsCode);
+
 		agencyFixture.defineAgency(DataAgency.builder()
 			.id(randomUUID())
 			.code(agencyCode)
