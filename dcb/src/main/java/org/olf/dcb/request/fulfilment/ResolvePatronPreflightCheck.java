@@ -54,7 +54,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			.filter(Patron::isNotDeleted)
 			// This uses a tuple because the patron does not directly have an association with an agency
 			.zipWhen(patron -> findAgencyForPatron(patron, hostLmsCode))
-			.map(function((patron, agency) -> checkEligibility(localPatronId, patron, hostLmsCode)))
+			.map(function((patron, agency) -> checkPatron(patron, localPatronId, hostLmsCode)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
@@ -75,6 +75,10 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 				hostLmsCode,
 				patron.getLocalHomeLibraryCode())
 			.map(ReferenceValueMapping::getToValue);
+	}
+
+	private List<CheckResult> checkPatron(Patron patron, String localPatronId, String hostLmsCode) {
+		return checkEligibility(localPatronId, patron, hostLmsCode);
 	}
 
 	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
