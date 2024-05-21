@@ -154,16 +154,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			.flatMap(client -> Mono.justOrEmpty((String) client.getConfig().get(DEFAULT_AGENCY_CODE_KEY)))
 			.doOnSuccess(defaultAgencyCode -> log.info("Using default agency code: {}", defaultAgencyCode))
 			.doOnError(error -> log.error("Error occurred getting default Agency.", error))
-			.switchIfEmpty(Mono.defer(() -> {
-				UnableToResolveAgencyProblem problem = new UnableToResolveAgencyProblem(
-					"DCB could not use any agency code to find an agency.",
-					"This problem was triggered because both the home library code and the default agency code were unresolvable.",
-					systemCode,
-					homeLibraryCode,
-					null
-				);
-				return Mono.error(problem);
-			}));
+			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(homeLibraryCode, systemCode));
 	}
 
 
