@@ -19,6 +19,7 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -56,6 +57,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
+			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error, localPatronId))
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(hostLmsCode))
 			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode));
 	}
@@ -64,7 +66,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		return locationToAgencyMappingService.findLocationToAgencyMapping(hostLmsCode,
 			patron.getLocalHomeLibraryCode())
 			.map(ReferenceValueMapping::getToValue)
-			.flatMap(agencyService::findByCode);
+			.flatMap(agencyService::findByCode)
+			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(patron.getLocalHomeLibraryCode(), hostLmsCode));
 	}
 
 	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
@@ -125,6 +128,16 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
 					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()))
 		));
+	}
+
+	private Mono<List<CheckResult>> agencyNotFound(
+		UnableToResolveAgencyProblem error, String localPatronId) {
+
+		return Mono.just(List.of(
+			failed("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(localPatronId, error.getHomeLibraryCode(),
+						error.getSystemCode()))));
 	}
 
 	private static List<CheckResult> unknownHostLms(String localSystemCode) {
