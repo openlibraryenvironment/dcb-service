@@ -138,6 +138,45 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
+	void shouldFailWhenPatronIsAssociatedWithUnknownAgency() {
+		// Arrange
+		final var localPatronId = "8292567";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			BORROWING_HOST_LMS_CODE, "home-library", "unknown-agency");
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(localPatronId, "home-library", BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
 	void shouldFailWhenPatronIsIneligible() {
 		// Arrange
 		final var localPatronId = "345358";
