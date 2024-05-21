@@ -4,6 +4,7 @@ import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
+import static reactor.function.TupleUtils.function;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,10 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.AgencyService;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -23,9 +28,16 @@ import reactor.core.publisher.Mono;
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronPreflightCheck implements PreflightCheck {
 	private final HostLmsService hostLmsService;
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final AgencyService agencyService;
 
-	public ResolvePatronPreflightCheck(HostLmsService hostLmsService) {
+	public ResolvePatronPreflightCheck(HostLmsService hostLmsService,
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		AgencyService agencyService) {
+
 		this.hostLmsService = hostLmsService;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.agencyService = agencyService;
 	}
 
 	@Override
@@ -38,12 +50,21 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			// Could be done inside the Host LMS client method
 			// Was not done initially due to potentially affecting other uses
 			.filter(Patron::isNotDeleted)
-			.map(patron -> checkEligibility(localPatronId, patron, hostLmsCode))
+			// This uses a tuple because the patron does not directly have an association with an agency
+			.zipWhen(patron -> findAgencyForPatron(patron, hostLmsCode))
+			.map(function((patron, agency) -> checkEligibility(localPatronId, patron, hostLmsCode)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(hostLmsCode))
 			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode));
+	}
+
+	private Mono<DataAgency> findAgencyForPatron(Patron patron, String hostLmsCode) {
+		return locationToAgencyMappingService.findLocationToAgencyMapping(hostLmsCode,
+			patron.getLocalHomeLibraryCode())
+			.map(ReferenceValueMapping::getToValue)
+			.flatMap(agencyService::findByCode);
 	}
 
 	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
