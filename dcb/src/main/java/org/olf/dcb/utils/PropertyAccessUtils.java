@@ -28,4 +28,9 @@ public class PropertyAccessUtils {
 			.map(mapper)
 			.orElse(valueWhenMissing);
 	}
+
+	// This probably belongs in separate utility class
+	public static String valueOrDefault(String nullableValue, String defaultValue) {
+		return Optional.ofNullable(nullableValue).orElse(defaultValue);
+	}
 }
