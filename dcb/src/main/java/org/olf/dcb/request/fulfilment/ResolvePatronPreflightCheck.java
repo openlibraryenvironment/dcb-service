@@ -4,6 +4,7 @@ import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
+import static reactor.core.publisher.Mono.defer;
 import static reactor.function.TupleUtils.function;
 
 import java.util.ArrayList;
@@ -63,11 +64,17 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<DataAgency> findAgencyForPatron(Patron patron, String hostLmsCode) {
-		return locationToAgencyMappingService.findLocationToAgencyMapping(hostLmsCode,
-			patron.getLocalHomeLibraryCode())
-			.map(ReferenceValueMapping::getToValue)
+		return findHomeLocationMapping(patron, hostLmsCode)
+			.switchIfEmpty(defer(() -> locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode)))
 			.flatMap(agencyService::findByCode)
 			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(patron.getLocalHomeLibraryCode(), hostLmsCode));
+	}
+
+	private Mono<String> findHomeLocationMapping(Patron patron, String hostLmsCode) {
+		return locationToAgencyMappingService.findLocationToAgencyMapping(
+				hostLmsCode,
+				patron.getLocalHomeLibraryCode())
+			.map(ReferenceValueMapping::getToValue);
 	}
 
 	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {

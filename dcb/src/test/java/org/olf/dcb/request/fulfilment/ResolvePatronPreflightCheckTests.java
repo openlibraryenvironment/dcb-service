@@ -102,6 +102,41 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
+	void shouldPassWhenPatronMappedToDefaultAgency() {
+		// Arrange
+		final var localPatronId = "345358";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
+
+		agencyFixture.defineAgency("default-agency-code", "Default Agency",
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
 	void shouldFailWhenPatronIsNotAssociatedWithAgency() {
 		// Arrange
 		final var localPatronId = "8292567";
