@@ -15,12 +15,12 @@ public interface HostLmsClient {
 	// local values when encountered via updateRequestStatus
 	enum CanonicalRequestState {
 		PLACED, TRANSIT;
-	}
 
+	}
 	enum CanonicalItemState {
 		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF, COMPLETED;
-	}
 
+	}
 	HostLms getHostLms();
 
 	default String getHostLmsCode() {
@@ -29,6 +29,10 @@ public interface HostLmsClient {
 
 	default Map<String, Object> getConfig() {
 		return getHostLms().getClientConfig();
+	}
+
+	default String getDefaultAgencyCode() {
+		return (String) getConfig().get("default-agency-code");
 	}
 
 	List<HostLmsPropertyDefinition> getSettings();
