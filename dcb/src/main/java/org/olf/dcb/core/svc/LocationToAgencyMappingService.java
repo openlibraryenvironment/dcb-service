@@ -6,6 +6,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.core.publisher.Mono.empty;
 import static reactor.function.TupleUtils.function;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -19,12 +20,15 @@ import reactor.core.publisher.Mono;
 public class LocationToAgencyMappingService {
 	private final AgencyService agencyService;
 	private final ReferenceValueMappingService referenceValueMappingService;
+	private final HostLmsService hostLmsService;
 
 	public LocationToAgencyMappingService(AgencyService agencyService,
-		ReferenceValueMappingService referenceValueMappingService) {
+		ReferenceValueMappingService referenceValueMappingService,
+		HostLmsService hostLmsService) {
 
 		this.agencyService = agencyService;
 		this.referenceValueMappingService = referenceValueMappingService;
+		this.hostLmsService = hostLmsService;
 	}
 
 	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
