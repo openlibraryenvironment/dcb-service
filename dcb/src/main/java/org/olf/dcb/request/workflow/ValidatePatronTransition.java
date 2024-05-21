@@ -37,8 +37,6 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
-	private static final String DEFAULT_AGENCY_CODE_KEY = "default-agency-code";
-
 	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
 	
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
@@ -151,12 +149,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		log.info("Attempting to use default agency from config with systemCode: {}.", systemCode);
 
 		return hostLmsService.getClientFor(systemCode)
-			.flatMap(client -> Mono.justOrEmpty((String) client.getConfig().get(DEFAULT_AGENCY_CODE_KEY)))
+			.flatMap(client -> Mono.justOrEmpty(client.getDefaultAgencyCode()))
 			.doOnSuccess(defaultAgencyCode -> log.info("Using default agency code: {}", defaultAgencyCode))
 			.doOnError(error -> log.error("Error occurred getting default Agency.", error))
 			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(homeLibraryCode, systemCode));
 	}
-
 
 	private Mono<DataAgency> findOneAgencyByCode(String code) {
 		log.debug("findOneAgencyByCode({})", code);
