@@ -43,9 +43,9 @@ public interface HostLmsClient {
 
 	/**
 	 * place a hold for a specified item at a supplying agency.
-	 * NOTE: Different systems have different policies and we may need to place a Bib or an Item level hold. If we place a bib level
-	 * hold we will will not know the barcode and id of the item held until the downstream system has selected an item.
-	 * impementers need to take care to return the id and barcode of the ultimately selected item once it is known.
+	 * NOTE: Different systems have different policies. We may need to place a Bib or an Item level hold. If we place a bib level
+	 * hold we will not know the barcode and id of the item held until the downstream system has selected an item.
+	 * implementers need to take care to return the id and barcode of the ultimately selected item once it is known.
 	 */
 	Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters);
 
@@ -58,7 +58,7 @@ public interface HostLmsClient {
 	// Look up patron by their internal id - e.g. 1234
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 
-	// Look up patron by the string they use to identift themselves on the login screen - e.g. fred.user
+	// Look up patron by the string they use to identify themselves on the login screen - e.g. fred.user
 	Mono<Patron> getPatronByUsername(String username);
 
 	Mono<Patron> updatePatron(String localId, String patronType);
