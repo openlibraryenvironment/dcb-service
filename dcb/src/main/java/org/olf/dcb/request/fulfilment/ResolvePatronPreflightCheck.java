@@ -1,8 +1,10 @@
 package org.olf.dcb.request.fulfilment;
 
+import static io.micronaut.core.util.CollectionUtils.concat;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 import static reactor.core.publisher.Mono.defer;
 import static reactor.function.TupleUtils.function;
@@ -54,7 +56,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			.filter(Patron::isNotDeleted)
 			// This uses a tuple because the patron does not directly have an association with an agency
 			.zipWhen(patron -> findAgencyForPatron(patron, hostLmsCode))
-			.map(function((patron, agency) -> checkPatron(patron, localPatronId, hostLmsCode)))
+			.map(function((patron, agency) -> checkPatron(patron, localPatronId, agency, hostLmsCode)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
@@ -67,31 +69,42 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		return findHomeLocationMapping(patron, hostLmsCode)
 			.switchIfEmpty(defer(() -> locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode)))
 			.flatMap(agencyService::findByCode)
-			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(patron.getLocalHomeLibraryCode(), hostLmsCode));
+			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(
+				patron.getLocalHomeLibraryCode(), hostLmsCode));
 	}
 
 	private Mono<String> findHomeLocationMapping(Patron patron, String hostLmsCode) {
 		return locationToAgencyMappingService.findLocationToAgencyMapping(
-				hostLmsCode,
-				patron.getLocalHomeLibraryCode())
+				hostLmsCode, patron.getLocalHomeLibraryCode())
 			.map(ReferenceValueMapping::getToValue);
 	}
 
-	private List<CheckResult> checkPatron(Patron patron, String localPatronId, String hostLmsCode) {
-		return checkEligibility(localPatronId, patron, hostLmsCode);
-	}
+	private List<CheckResult> checkPatron(Patron patron, String localPatronId,
+		DataAgency agency, String hostLmsCode) {
 
-	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
 		// Uses the incoming local patron ID
 		// rather than the list of IDs that could be returned from the Host LMS
 		// in order to avoid having to choose (and potential data leakage)
 
-		final var checkResults = new ArrayList<CheckResult>();
+		final var eligibilityCheckResults = checkEligibility(localPatronId, patron, hostLmsCode);
+		final var agencyCheckResults = checkAgency(localPatronId, agency, hostLmsCode);
+
+		final var allCheckResults = concat(eligibilityCheckResults, agencyCheckResults);
+
+		if (isEmpty(allCheckResults)) {
+			allCheckResults.add(passed());
+		}
+
+		return allCheckResults;
+	}
+
+	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
+		final var eligibilityCheckResults = new ArrayList<CheckResult>();
 
 		final var eligible = getValueOrDefault(patron, Patron::isEligible, true);
 
 		if (!eligible) {
-			checkResults.add(failed("PATRON_INELIGIBLE",
+			eligibilityCheckResults.add(failed("PATRON_INELIGIBLE",
 				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
 					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(),
 						patron.getCanonicalPatronType())));
@@ -100,16 +113,29 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var blocked = getValueOrDefault(patron, Patron::getBlocked, false);
 
 		if (blocked) {
-			checkResults.add(failed("PATRON_BLOCKED",
+			eligibilityCheckResults.add(failed("PATRON_BLOCKED",
 				"Patron \"%s\" from \"%s\" has a local account block"
 					.formatted(localPatronId, hostLmsCode)));
 		}
 
-		if (isEmpty(checkResults)) {
-			checkResults.add(passed());
+		return eligibilityCheckResults;
+	}
+
+	private static ArrayList<CheckResult> checkAgency(String localPatronId,
+		DataAgency agency, String hostLmsCode) {
+
+		final var agencyCheckResults = new ArrayList<CheckResult>();
+
+		final var participatingInBorrowing = getValueOrDefault(agency,
+			DataAgency::getIsBorrowingAgency, false);
+
+		if (!participatingInBorrowing) {
+			agencyCheckResults.add(failed("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
+				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
+					.formatted(localPatronId, hostLmsCode, getValue(agency, DataAgency::getCode))));
 		}
 
-		return checkResults;
+		return agencyCheckResults;
 	}
 
 	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
