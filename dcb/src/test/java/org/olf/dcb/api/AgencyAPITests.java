@@ -33,6 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 @DcbTest
 @TestInstance(PER_CLASS)
 class AgencyAPITests {
+	private static final String ACCESS_TOKEN = "agency-test-admin-token";
+
 	@Inject
 	@Client("/")
 	private HttpClient client;
@@ -51,15 +53,10 @@ class AgencyAPITests {
 	@Test
 	void shouldBeAbleToCreateAgency() {
 		// Arrange
-		log.info("get client");
-		log.info("create hostLmsCode");
-
 		hostLmsFixture.createSierraHostLms("hostLmsCode");
 
-		final var accessToken = "agency-test-admin-token";
-		TestStaticTokenValidator.add(accessToken, "test-admin", List.of(ADMINISTRATOR));
+		TestStaticTokenValidator.add(ACCESS_TOKEN, "test-admin", List.of(ADMINISTRATOR));
 
-		log.info("create agency");
 		final var agencyDTO = AgencyDTO.builder()
 			.id(randomUUID())
 			.code("ab6")
@@ -71,29 +68,15 @@ class AgencyAPITests {
 			.isBorrowingAgency(false)
 			.build();
 
-		log.info("get agencies");
+		// Act
 		final var blockingClient = client.toBlocking();
-		final var postRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(accessToken);
+		final var postRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(
+			ACCESS_TOKEN);
 
 		blockingClient.exchange(postRequest, AgencyDTO.class);
 
-		log.info("get agencies page");
-		final var listRequest = HttpRequest.GET("/agencies?page=0&size=10").bearerAuth(accessToken);
-
-		// Act
-		final var listResponse = blockingClient.exchange(listRequest, Argument.of(Page.class, AgencyDTO.class));
-
 		// Assert
-		assertThat(listResponse.getStatus(), is(OK));
-		assertThat(listResponse.getBody().isPresent(), is(true));
-		
-		final var page = listResponse.getBody().get();
-
-		final var pageContent = page.getContent();
-
-		assertThat("Should only find one agency", pageContent.size(), is(1));
-
-		final var onlySavedAgency = pageContent.get(0);
+		final var onlySavedAgency = getOnlyAgency();
 
 		assertThat(onlySavedAgency, allOf(
 			notNullValue(),
@@ -106,5 +89,24 @@ class AgencyAPITests {
 			hasProperty("isSupplyingAgency", is(true)),
 			hasProperty("isBorrowingAgency", is(false))
 		));
+	}
+
+	private AgencyDTO getOnlyAgency() {
+		final var agencyListRequest = HttpRequest.GET("/agencies?page=0&size=1")
+			.bearerAuth(ACCESS_TOKEN);
+
+		final var agencyListResponse = client.toBlocking()
+			.exchange(agencyListRequest, Argument.of(Page.class, AgencyDTO.class));
+
+		assertThat(agencyListResponse.getStatus(), is(OK));
+		assertThat(agencyListResponse.getBody().isPresent(), is(true));
+
+		final var page = agencyListResponse.getBody().get();
+
+		final var pageContent = page.getContent();
+
+		assertThat("Should only find one agency", pageContent.size(), is(1));
+
+		return (AgencyDTO)pageContent.get(0);
 	}
 }
