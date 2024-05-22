@@ -4,11 +4,18 @@ import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasAuthProfile;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasCode;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasHostLmsCode;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasId;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasIdpUrl;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasName;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isNotBorrowingAgency;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isSupplyingAgency;
 
 import java.util.List;
 
@@ -72,7 +79,7 @@ class AgencyAPITests {
 			.isSupplyingAgency(true)
 			.isBorrowingAgency(false)
 			.build();
-		
+
 		saveAgency(agency);
 
 		// Assert
@@ -80,14 +87,14 @@ class AgencyAPITests {
 
 		assertThat(onlySavedAgency, allOf(
 			notNullValue(),
-			hasProperty("id", is(agency.getId())),
-			hasProperty("code", is("ab6")),
-			hasProperty("name", is("agencyName")),
-			hasProperty("authProfile", is("authProfile")),
-			hasProperty("idpUrl", is("idpUrl")),
-			hasProperty("hostLMSCode", is(CIRCULATING_HOST_LMS_CODE)),
-			hasProperty("isSupplyingAgency", is(true)),
-			hasProperty("isBorrowingAgency", is(false))
+			hasId(agency.getId()),
+			hasCode("ab6"),
+			hasName("agencyName"),
+			hasAuthProfile("authProfile"),
+			hasIdpUrl("idpUrl"),
+			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+			isSupplyingAgency(),
+			isNotBorrowingAgency()
 		));
 	}
 
