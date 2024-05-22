@@ -121,9 +121,17 @@ public class AgenciesController {
 			.flatMap(exists -> {
 				log.debug("Agency exists: {}", exists);
 
-				return Mono.from(exists
-					? agencyRepository.update(agency)
-					: agencyRepository.save(agency));
+				return exists
+					? update(agency)
+					: save(agency);
 			});
+	}
+
+	private Mono<? extends DataAgency> save(DataAgency agency) {
+		return Mono.from(agencyRepository.save(agency));
+	}
+
+	private Mono<? extends DataAgency> update(DataAgency agency) {
+		return Mono.from(agencyRepository.update(agency));
 	}
 }
