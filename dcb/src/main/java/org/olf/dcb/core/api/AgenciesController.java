@@ -1,7 +1,7 @@
 package org.olf.dcb.core.api;
 
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.UUID;
 
@@ -103,8 +103,8 @@ public class AgenciesController {
 			.idpUrl(agency.getIdpUrl())
 			.longitude(agency.getLongitude())
 			.latitude(agency.getLatitude())
-			.isSupplyingAgency(getValueOrDefault(agency, AgencyDTO::getIsSupplyingAgency, true))
-			.isBorrowingAgency(getValueOrDefault(agency, AgencyDTO::getIsBorrowingAgency, true))
+			.isSupplyingAgency(agency.getIsSupplyingAgency())
+			.isBorrowingAgency(agency.getIsBorrowingAgency())
 			.build();
 	}
 
@@ -131,7 +131,34 @@ public class AgenciesController {
 		return Mono.from(agencyRepository.save(agency));
 	}
 
-	private Mono<? extends DataAgency> update(DataAgency agency) {
-		return Mono.from(agencyRepository.update(agency));
+	private Mono<? extends DataAgency> update(DataAgency agencyToUpdate) {
+		return Mono.just(agencyToUpdate)
+				.zipWhen(this::findByCode, this::enrichWithExistingFields)
+				.flatMap(enrichedAgency -> Mono.from(agencyRepository.update(enrichedAgency)));
+	}
+
+	private Mono<DataAgency> findByCode(DataAgency agency) {
+		return Mono.from(agencyRepository.findById(agency.getId()));
+	}
+
+	/**
+	 * Enrich the incoming definition with fields from the existing agency from the DB
+	 * when they are omitted by the client.
+	 * Only implements participation fields for the moment
+	 *
+	 * @param updatedAgency Agency received from the client
+	 * @param existingAgency agency fetched from the database
+	 * @return agency received from the client with participation fields from the DB if not provided
+	 */
+	private DataAgency enrichWithExistingFields(DataAgency updatedAgency, DataAgency existingAgency) {
+		if (getValue(updatedAgency, DataAgency::getIsSupplyingAgency) == null) {
+			updatedAgency.setIsSupplyingAgency(existingAgency.getIsSupplyingAgency());
+		}
+
+		if (getValue(updatedAgency, DataAgency::getIsBorrowingAgency) == null) {
+			updatedAgency.setIsBorrowingAgency(existingAgency.getIsBorrowingAgency());
+		}
+
+		return updatedAgency;
 	}
 }
