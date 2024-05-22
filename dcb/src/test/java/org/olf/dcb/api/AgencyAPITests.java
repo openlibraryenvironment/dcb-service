@@ -12,6 +12,7 @@ import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -44,6 +45,11 @@ class AgencyAPITests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
+	@BeforeAll
+	void beforeAll() {
+		TestStaticTokenValidator.add(ACCESS_TOKEN, "test-admin", List.of(ADMINISTRATOR));
+	}
+
 	@BeforeEach
 	void beforeEach() {
 		agencyFixture.deleteAll();
@@ -55,8 +61,7 @@ class AgencyAPITests {
 		// Arrange
 		hostLmsFixture.createSierraHostLms("hostLmsCode");
 
-		TestStaticTokenValidator.add(ACCESS_TOKEN, "test-admin", List.of(ADMINISTRATOR));
-
+		// Act
 		final var agency = AgencyDTO.builder()
 			.id(randomUUID())
 			.code("ab6")
@@ -68,7 +73,7 @@ class AgencyAPITests {
 			.isBorrowingAgency(false)
 			.build();
 
-		// Act
+
 		saveAgency(agency);
 
 		// Assert
