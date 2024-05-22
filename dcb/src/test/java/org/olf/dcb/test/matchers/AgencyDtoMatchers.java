@@ -37,6 +37,10 @@ public class AgencyDtoMatchers {
 		return hasProperty("isSupplyingAgency", is(true));
 	}
 
+	public static Matcher<AgencyDTO> isNotSupplyingAgency() {
+		return hasProperty("isSupplyingAgency", is(false));
+	}
+
 	public static Matcher<AgencyDTO> isNotBorrowingAgency() {
 		return hasProperty("isBorrowingAgency", is(false));
 	}
