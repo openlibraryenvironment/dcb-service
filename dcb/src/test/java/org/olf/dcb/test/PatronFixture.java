@@ -69,6 +69,28 @@ public class PatronFixture {
 		singleValueFrom(patronIdentityRepository.save(identity));
 	}
 
+	public PatronIdentity saveIdentityAndReturn(Patron patron, DataHostLms homeHostLms,
+		String localId, boolean homeIdentity, String localPtype, String localHomeLibraryCode, DataAgency resolvedAgency) {
+
+		PatronIdentity pi = PatronIdentity.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.localId(localId)
+			.hostLms(homeHostLms)
+			.homeIdentity(homeIdentity)
+			.localPtype(localPtype)
+			.localHomeLibraryCode(localHomeLibraryCode)
+			.resolvedAgency(resolvedAgency)
+			.localBarcode("8675309012")
+			.build();
+
+		return saveIdentityAndReturn(pi);
+	}
+
+	private PatronIdentity saveIdentityAndReturn(PatronIdentity identity) {
+		return singleValueFrom(patronIdentityRepository.save(identity));
+	}
+
 	public void deleteAllPatrons() {
 		patronRequestsFixture.deleteAll();
 
