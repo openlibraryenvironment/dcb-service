@@ -316,6 +316,50 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@Test
+	void shouldExcludeItemsThatAreAssociatedWithAgencyWithNoParticipationInformation() {
+		// Arrange
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
+
+		final var bibId = "364568";
+
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(), bibId, clusterRecord);
+
+		final var knownLocationCode = "known-location";
+
+		final var agency = agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("agency")
+			.name("Agency")
+			// Unknown whether they are supplying or not
+			.isSupplyingAgency(null)
+			.hostLms(firstHostLms)
+			.build());
+
+		mapLocationToAgency(knownLocationCode, firstHostLms, agency);
+
+		sierraItemsAPIFixture.itemsForBibId(bibId, List.of(
+			SierraItem.builder()
+				.id("3752566")
+				.barcode("5362553")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("1")
+				.locationCode(knownLocationCode)
+				.locationName("Known Location")
+				.build()
+		));
+
+		// Act
+		final var report = checkAvailability(clusterRecord);
+
+		// Assert
+		assertThat(report, allOf(
+			hasNoItems(),
+			hasNoErrors()
+		));
+	}
+
+	@Test
 	void shouldReportZeroItemsWhenHostLmsRespondsWithZeroItems() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
