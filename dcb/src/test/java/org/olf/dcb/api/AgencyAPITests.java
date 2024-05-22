@@ -15,6 +15,7 @@ import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasId;
 import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasIdpUrl;
 import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasName;
 import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isNotBorrowingAgency;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isNotSupplyingAgency;
 import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isSupplyingAgency;
 
 import java.util.List;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.api.serde.AgencyDTO;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
@@ -67,7 +69,7 @@ class AgencyAPITests {
 	}
 
 	@Test
-	void shouldBeAbleToCreateAgency() {
+	void shouldBeAbleToCreateAnAgency() {
 		// Act
 		final var agency = AgencyDTO.builder()
 			.id(randomUUID())
@@ -94,6 +96,50 @@ class AgencyAPITests {
 			hasIdpUrl("idpUrl"),
 			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
 			isSupplyingAgency(),
+			isNotBorrowingAgency()
+		));
+	}
+
+	@Test
+	void shouldBeAbleToUpdateAnAgency() {
+		// Arrange
+		final var agencyId = randomUUID();
+
+		agencyFixture.defineAgency(DataAgency.builder()
+			.id(agencyId)
+			.code("agency-code")
+			.name("Agency Name")
+			.isSupplyingAgency(true)
+			.isBorrowingAgency(true)
+			.hostLms(hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE))
+			.build());
+
+		// Act
+		final var updatedAgency = AgencyDTO.builder()
+			.id(agencyId)
+			.code("updated-code")
+			.name("Updated Name")
+			.authProfile("updated-profile")
+			.idpUrl("updated-url")
+			.hostLMSCode(CIRCULATING_HOST_LMS_CODE)
+			.isSupplyingAgency(false)
+			.isBorrowingAgency(false)
+			.build();
+
+		saveAgency(updatedAgency);
+
+		// Assert
+		final var onlySavedAgency = getOnlyAgency();
+
+		assertThat(onlySavedAgency, allOf(
+			notNullValue(),
+			hasId(agencyId),
+			hasCode("updated-code"),
+			hasName("Updated Name"),
+			hasAuthProfile("updated-profile"),
+			hasIdpUrl("updated-url"),
+			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+			isNotSupplyingAgency(),
 			isNotBorrowingAgency()
 		));
 	}
