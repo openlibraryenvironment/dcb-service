@@ -1,11 +1,13 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasAuthProfile;
@@ -36,6 +38,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
@@ -142,6 +145,34 @@ class AgencyAPITests {
 			isNotSupplyingAgency(),
 			isNotBorrowingAgency()
 		));
+	}
+
+	@Test
+	void shouldFailWhenAgencyAssociatedWithUnknownHostLms() {
+		// Act
+		final var agency = AgencyDTO.builder()
+			.id(randomUUID())
+			.code("example-agency")
+			.name("Example Agency")
+			.authProfile("authProfile")
+			.idpUrl("idpUrl")
+			.hostLMSCode("unknown-host-lms")
+			.isSupplyingAgency(true)
+			.isBorrowingAgency(true)
+			.build();
+
+		final var blockingClient = client.toBlocking();
+
+		final var postRequest = HttpRequest.POST("/agencies", agency)
+			.bearerAuth(ACCESS_TOKEN);
+
+		final var exception = assertThrows(HttpClientResponseException.class, () ->
+			blockingClient.exchange(postRequest, AgencyDTO.class));
+
+		// Assert
+		final var response = exception.getResponse();
+
+		assertThat("Should return a not found status", response.getStatus(), is(NOT_FOUND));
 	}
 
 	private void saveAgency(AgencyDTO agencyToSave) {
