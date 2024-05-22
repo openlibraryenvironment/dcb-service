@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 @DcbTest
 @TestInstance(PER_CLASS)
 class AgencyAPITests {
+	private static final String CIRCULATING_HOST_LMS_CODE = "agency-api-host-lms";
 	private static final String ACCESS_TOKEN = "agency-test-admin-token";
 
 	@Inject
@@ -48,19 +49,18 @@ class AgencyAPITests {
 	@BeforeAll
 	void beforeAll() {
 		TestStaticTokenValidator.add(ACCESS_TOKEN, "test-admin", List.of(ADMINISTRATOR));
+
+		hostLmsFixture.deleteAll();
+		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE);
 	}
 
 	@BeforeEach
 	void beforeEach() {
 		agencyFixture.deleteAll();
-		hostLmsFixture.deleteAll();
 	}
 
 	@Test
 	void shouldBeAbleToCreateAgency() {
-		// Arrange
-		hostLmsFixture.createSierraHostLms("hostLmsCode");
-
 		// Act
 		final var agency = AgencyDTO.builder()
 			.id(randomUUID())
@@ -68,12 +68,11 @@ class AgencyAPITests {
 			.name("agencyName")
 			.authProfile("authProfile")
 			.idpUrl("idpUrl")
-			.hostLMSCode("hostLmsCode")
+			.hostLMSCode(CIRCULATING_HOST_LMS_CODE)
 			.isSupplyingAgency(true)
 			.isBorrowingAgency(false)
 			.build();
-
-
+		
 		saveAgency(agency);
 
 		// Assert
@@ -86,7 +85,7 @@ class AgencyAPITests {
 			hasProperty("name", is("agencyName")),
 			hasProperty("authProfile", is("authProfile")),
 			hasProperty("idpUrl", is("idpUrl")),
-			hasProperty("hostLMSCode", is("hostLmsCode")),
+			hasProperty("hostLMSCode", is(CIRCULATING_HOST_LMS_CODE)),
 			hasProperty("isSupplyingAgency", is(true)),
 			hasProperty("isBorrowingAgency", is(false))
 		));
