@@ -57,7 +57,7 @@ class AgencyAPITests {
 
 		TestStaticTokenValidator.add(ACCESS_TOKEN, "test-admin", List.of(ADMINISTRATOR));
 
-		final var agencyDTO = AgencyDTO.builder()
+		final var agency = AgencyDTO.builder()
 			.id(randomUUID())
 			.code("ab6")
 			.name("agencyName")
@@ -69,18 +69,14 @@ class AgencyAPITests {
 			.build();
 
 		// Act
-		final var blockingClient = client.toBlocking();
-		final var postRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(
-			ACCESS_TOKEN);
-
-		blockingClient.exchange(postRequest, AgencyDTO.class);
+		saveAgency(agency);
 
 		// Assert
 		final var onlySavedAgency = getOnlyAgency();
 
 		assertThat(onlySavedAgency, allOf(
 			notNullValue(),
-			hasProperty("id", is(agencyDTO.getId())),
+			hasProperty("id", is(agency.getId())),
 			hasProperty("code", is("ab6")),
 			hasProperty("name", is("agencyName")),
 			hasProperty("authProfile", is("authProfile")),
@@ -89,6 +85,15 @@ class AgencyAPITests {
 			hasProperty("isSupplyingAgency", is(true)),
 			hasProperty("isBorrowingAgency", is(false))
 		));
+	}
+
+	private void saveAgency(AgencyDTO agencyToSave) {
+		final var blockingClient = client.toBlocking();
+
+		final var postRequest = HttpRequest.POST("/agencies", agencyToSave)
+			.bearerAuth(ACCESS_TOKEN);
+
+		blockingClient.exchange(postRequest, AgencyDTO.class);
 	}
 
 	private AgencyDTO getOnlyAgency() {
