@@ -148,6 +148,48 @@ class AgencyAPITests {
 	}
 
 	@Test
+	void shouldPreserveParticipationConfigurationWhenUpdatingAgency() {
+		// Arrange
+		final var agencyId = randomUUID();
+
+		agencyFixture.defineAgency(DataAgency.builder()
+			.id(agencyId)
+			.code("agency-code")
+			.name("Agency Name")
+			.isSupplyingAgency(true)
+			.isBorrowingAgency(false)
+			.hostLms(hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE))
+			.build());
+
+		// Act
+		final var updatedAgency = AgencyDTO.builder()
+			.id(agencyId)
+			.code("updated-code")
+			.name("Updated Name")
+			.authProfile("updated-profile")
+			.idpUrl("updated-url")
+			.hostLMSCode(CIRCULATING_HOST_LMS_CODE)
+			.build();
+
+		saveAgency(updatedAgency);
+
+		// Assert
+		final var onlySavedAgency = getOnlyAgency();
+
+		assertThat(onlySavedAgency, allOf(
+			notNullValue(),
+			hasId(agencyId),
+			hasCode("updated-code"),
+			hasName("Updated Name"),
+			hasAuthProfile("updated-profile"),
+			hasIdpUrl("updated-url"),
+			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+			isSupplyingAgency(),
+			isNotBorrowingAgency()
+		));
+	}
+
+	@Test
 	void shouldFailWhenAgencyAssociatedWithUnknownHostLms() {
 		// Act
 		final var agency = AgencyDTO.builder()
