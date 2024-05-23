@@ -1,5 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static java.util.Collections.emptyList;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
 
 import java.util.Collection;
@@ -52,9 +54,7 @@ public class PatronRequestPreflightChecksService {
 
 	private Mono<List<CheckResult>> performChecks(PlacePatronRequestCommand command) {
 		return Flux.fromIterable(checks)
-			.doOnNext(check -> {
-				log.info("Preflight check: {}", check);
-			})
+			.doOnNext(check -> log.info("Preflight check: {}", check))
 			.concatMap(check -> check.check(command))
 			.reduce(PatronRequestPreflightChecksService::concatenateChecks);
 	}
@@ -66,10 +66,20 @@ public class PatronRequestPreflightChecksService {
 	}
 
 	private static boolean allPassed(List<CheckResult> results) {
+		if (isEmpty(results)) {
+			log.warn("No preflight check results returned");
+			return true;
+		}
+
 		return results.stream().allMatch(CheckResult::getPassed);
 	}
 
 	private static List<FailedPreflightCheck> failedChecksOnly(List<CheckResult> reportedResults) {
+		if (isEmpty(reportedResults)) {
+			log.warn("No preflight check results returned");
+			return emptyList();
+		}
+
 		return reportedResults.stream()
 			.filter(CheckResult::getFailed)
 			.map(FailedPreflightCheck::fromResult)
