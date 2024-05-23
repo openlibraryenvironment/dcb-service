@@ -11,8 +11,8 @@ import java.util.UUID;
 import org.olf.dcb.core.UnhandledExceptionProblem;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
+import org.olf.dcb.utils.CollectionUtils;
 
-import graphql.com.google.common.collect.Streams;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -56,13 +56,7 @@ public class PatronRequestPreflightChecksService {
 		return Flux.fromIterable(checks)
 			.doOnNext(check -> log.info("Preflight check: {}", check))
 			.concatMap(check -> check.check(command))
-			.reduce(PatronRequestPreflightChecksService::concatenateChecks);
-	}
-
-	private static List<CheckResult> concatenateChecks(List<CheckResult> firstChecks,
-		List<CheckResult> secondChecks) {
-
-		return Streams.concat(firstChecks.stream(), secondChecks.stream()).toList();
+			.reduce(CollectionUtils::concatenate);
 	}
 
 	private static boolean allPassed(List<CheckResult> results) {
