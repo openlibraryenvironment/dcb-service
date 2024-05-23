@@ -1,14 +1,26 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.olf.dcb.request.fulfilment.CheckResult.failed;
+import static org.hamcrest.Matchers.emptyString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasDetail;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
 
 import java.util.Collection;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.UnhandledExceptionProblem;
 import org.olf.dcb.test.DcbTest;
 
 import io.micronaut.context.annotation.Property;
@@ -26,6 +38,8 @@ import reactor.core.publisher.Mono;
 class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTests {
 	@Inject
 	private Collection<PreflightCheck> preflightChecks;
+	@Inject
+	private PatronRequestPreflightChecksService service;
 
 	@Test
 	void shouldOnlyIncludeAlwaysFailingCheck() {
@@ -34,12 +48,25 @@ class PatronRequestPreflightChecksServiceTests extends AbstractPreflightCheckTes
 			preflightChecks, containsInAnyOrder(instanceOf(AlwaysFailingCheck.class)));
 	}
 
+	@Test
+	void shouldHandleUnhandledErrorsDuringPreflight() {
+		final var problem = assertThrows(UnhandledExceptionProblem.class,
+			() -> singleValueFrom(service.check(PlacePatronRequestCommand.builder().build())));
+
+		assertThat(problem, allOf(
+			notNullValue(),
+			hasTitle("Unhandled exception: \"Always failing check\""),
+			hasDetail("java.lang.RuntimeException: Always failing check"),
+			hasParameters(hasEntry(equalTo("stackTrace"), is(not(emptyString()))))
+		));
+	}
+
 	@Singleton
 	@Requires(property = "include-test-only-check")
 	static class AlwaysFailingCheck implements PreflightCheck {
 		@Override
 		public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-			return Mono.just(List.of(failed("ALWAYS_FAIL", "Always fail")));
+			return Mono.error(new RuntimeException("Always failing check"));
 		}
 	}
 }

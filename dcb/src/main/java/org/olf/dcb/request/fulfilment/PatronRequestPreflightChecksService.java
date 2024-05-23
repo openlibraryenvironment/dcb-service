@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.dcb.core.UnhandledExceptionProblem;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
 
@@ -32,6 +33,8 @@ public class PatronRequestPreflightChecksService {
 		log.info("Perform preflight checks {}", command);
 
 		return performChecks(command)
+			// Has to go before flatMap that possibly raises error
+			.onErrorMap(UnhandledExceptionProblem::new)
 			.flatMap(results -> {
 				if (allPassed(results)) {
 					log.info("request passed preflight {}", command);
