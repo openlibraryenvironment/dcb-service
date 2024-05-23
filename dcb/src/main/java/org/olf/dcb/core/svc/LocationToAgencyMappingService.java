@@ -7,6 +7,7 @@ import static reactor.core.publisher.Mono.empty;
 import static reactor.function.TupleUtils.function;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -68,7 +69,7 @@ public class LocationToAgencyMappingService {
 		log.debug("Attempting to use default agency for Host LMS: {}", hostLmsCode);
 
 		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap(client -> Mono.justOrEmpty(client.getDefaultAgencyCode()))
+			.flatMap(client -> Mono.justOrEmpty(getValue(client, HostLmsClient::getDefaultAgencyCode)))
 			.doOnSuccess(defaultAgencyCode -> log.debug(
 				"Found default agency code {} for Host LMS {}", defaultAgencyCode, hostLmsCode))
 			.doOnError(error -> log.error(
