@@ -46,8 +46,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var hostLmsCode = command.getRequestorLocalSystemCode();
-		final var localPatronId = command.getRequestorLocalId();
+		final var hostLmsCode = getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
+		final var localPatronId = getValue(command, PlacePatronRequestCommand::getRequestorLocalId);
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap(client -> client.getPatronByLocalId(localPatronId))
@@ -75,7 +75,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	private Mono<String> findHomeLocationMapping(Patron patron, String hostLmsCode) {
 		return locationToAgencyMappingService.findLocationToAgencyMapping(
-				hostLmsCode, patron.getLocalHomeLibraryCode())
+				hostLmsCode, getValue(patron, Patron::getLocalHomeLibraryCode))
 			.map(ReferenceValueMapping::getToValue);
 	}
 
@@ -106,8 +106,9 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		if (!eligible) {
 			eligibilityCheckResults.add(failed("PATRON_INELIGIBLE",
 				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
-					.formatted(localPatronId, hostLmsCode, patron.getLocalPatronType(),
-						patron.getCanonicalPatronType())));
+					.formatted(localPatronId, hostLmsCode,
+						getValueOrDefault(patron, Patron::getLocalPatronType, "Unknown local patron type"),
+						getValueOrDefault(patron, Patron::getCanonicalPatronType, "Unknown canonical patron type"))));
 		}
 
 		final var blocked = getValueOrDefault(patron, Patron::getBlocked, false);
