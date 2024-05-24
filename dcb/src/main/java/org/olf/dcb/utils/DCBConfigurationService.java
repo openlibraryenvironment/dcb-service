@@ -30,9 +30,6 @@ import com.opencsv.CSVParserBuilder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
-
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -99,35 +96,42 @@ public class DCBConfigurationService {
 
 	// Below are the override methods for uploaded mappings.
 	// These methods take:
-	// A 'mappingCategory' - for example 'CirculationStatus' - this is supplied by the user from the admin app.
-	// A 'code' - for example 'ARCHWAY' - also supplied by the user from the admin app.
+	// A 'mappingCategory' - for example 'ItemType' - this is supplied by the user from the admin app.
+	// A Host LMS code - for example 'ARCHWAY' - also supplied by the user from DCB Admin
 	// And a CompletedFileUpload for the CSV/TSV mappings file to be processed.
 	public Mono<UploadedConfigImport> importConfiguration(String mappingCategory, String code, CompletedFileUpload file) {
 		// This will support all mappings which get uploaded via a file, as opposed to being taken from a URL.
 		log.debug("importConfiguration({},{})",mappingCategory,file.getFilename());
 		String[] expectedHeaders;
+		boolean noCode = code == null || code.isEmpty() || code.equals("undefined");
+
 		// Switch on category - different validations will be needed for different categories as we expand this feature.
 		// New cases will be added here when official support is added for them.
 		switch (mappingCategory) {
-			case "CirculationStatus" -> {
-				// Define expected headers for "CirculationStatus"
-				expectedHeaders = new String[]{"Local code", "Local meaning", "DCB code"};
-				if (code == null || code.isEmpty() || code.equals("undefined"))
-				{
+			// Two main categories: ReferenceValueMappings and NumericRangeMappings.
+			// We can expand to sub-categories - i.e. PatronType (RVM) etc - but we should wait.
+			case "Reference value mappings" -> {
+				if (noCode) {
 					throw new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry.");
 				}
+				expectedHeaders = new String[]{"fromContext", "fromCategory", "fromValue", "toContext", "toCategory", "toValue"};
 				return cleanupMappings(mappingCategory, code)
-						.flatMap(cleanupResult ->
-							referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
-						);
-				// Runs cleanup on any existing mappings and then imports the newly uploaded ones.
+					.flatMap(cleanupResult ->
+						referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
+					);
 			}
-			// Example of adding a new category.
-			//	case "ShelvingLocation" -> {
-			//		expectedHeaders = new String[]{"This", "Is", "Test"};
-			//		return referenceValueMappingImport(file, code, mappingCategory, expectedHeaders);
-			//			}
-			default -> {
+			// Numeric range mappings will be added subsequently in DCB-1153 and this code will be restored.
+//			case "Numeric range mappings " -> {
+//				if (noCode) {
+//					throw new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry.");
+//				}
+//				expectedHeaders = new String[]{"context", "domain", "lowerBound", "upperBound", "toValue", "toContext"};
+//				return cleanupMappings(mappingCategory, code)
+//					.flatMap(cleanupResult ->
+//						numericRangeImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
+//					);
+//			}
+				default -> {
 				// Throw an error if a user tries to upload a file of unsupported category type.
 				// Will currently never be seen in admin app as CirculationStatus is pre-set,
 				// but could be seen if someone manually performed a POST request.
@@ -142,91 +146,45 @@ public class DCBConfigurationService {
 			InputStreamReader reader = new InputStreamReader(file.getInputStream());
 			if (file.getFilename().contains(".tsv"))
 			{
-				List<String[]> tsvData = parseTsv(reader, expectedHeaders);
-				return Flux.fromIterable(tsvData)
-					.concatMap(line -> processReferenceValueMapping(line, code, mappingCategory))
-					.collectList()
-					.map(mappings -> UploadedConfigImport.builder()
-						.message(mappings.size() + " mappings have been imported successfully.")
-						.lastImported(Instant.now())
-						.recordsImported((long) mappings.size())
-						.recordsDeleted(cleanupResult)
-						.build());
+				List<String[]> tsvData = parseTsv(reader, expectedHeaders, mappingCategory, code);
+					return Flux.fromIterable(tsvData)
+						.concatMap(this::processReferenceValueMapping)
+						.collectList()
+						.map(mappings -> UploadedConfigImport.builder()
+							.message(mappings.size() + " mappings have been imported successfully.")
+							.lastImported(Instant.now())
+							.recordsImported((long) mappings.size())
+							.recordsDeleted(cleanupResult)
+							.build());
 			}
 			else {
-				List<String[]> csvData = parseCsv(reader, expectedHeaders);
-				return Flux.fromIterable(csvData)
-					.concatMap(line -> processReferenceValueMapping(line, code, mappingCategory))
-					.collectList()
-					.map(mappings -> UploadedConfigImport.builder()
-						.message(mappings.size() + " mappings have been imported successfully.")
-						.lastImported(Instant.now())
-						.recordsImported((long) mappings.size())
-						.recordsDeleted(cleanupResult)
-						.build());
+				List<String[]> csvData = parseCsv(reader, expectedHeaders, code);
+				{
+					return Flux.fromIterable(csvData)
+						.concatMap(this::processReferenceValueMapping)
+						.collectList()
+						.map(mappings -> UploadedConfigImport.builder()
+							.message(mappings.size() + " mappings have been imported successfully.")
+							.lastImported(Instant.now())
+							.recordsImported((long) mappings.size())
+							.recordsDeleted(cleanupResult)
+							.build());
+				}
 			}
-			// Parse the CSV data and convert it to a list of arrays. Separate method would be needed for TSV.
-			// Process each line and convert it to a Flux of Mono
-
 		} catch (IOException e) {
 			throw new FileUploadValidationException("Error reading file.");
 		}
 	}
 
 	// Method for parsing the uploaded CSV/TSV file. Runs validation on the supplied data.
-	public static List<String[]> parseCsv(Reader reader, String[] expectedHeaders) {
+	public static List<String[]> parseCsv(Reader reader, String[] expectedHeaders, String code) {
 		String validationError = "";
 		try {
 			CSVReader csvReader = new CSVReader(reader);
 			// Get the header line so we can compare
 			String[] headers = csvReader.readNext();
 			// Check if the headers match the expectedHeaders
-			if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) || (!headers[1].equalsIgnoreCase(expectedHeaders[1])) || (!headers[2].equalsIgnoreCase(expectedHeaders[2]))))
-			{
-				validationError = "TSV headers do not match the expected headers: "+ Arrays.toString(expectedHeaders)+
-					". Please check your TSV file and retry.";
-				throw new FileUploadValidationException(validationError);
-			}
-			String[] line;
-			List<String[]> csvData = new ArrayList<>();
-			int lineNumber = 2;
-			// Now, validate that there are no empty entries for meaning or code
-			while ((line = csvReader.readNext()) != null) {
-				// Check that 'local code' and 'meaning' columns are not empty
-				if ((!line[0].isEmpty() && !line[1].isEmpty()))
-				{
-					if ((line[2].equalsIgnoreCase("Unknown") || line[2].equalsIgnoreCase("Available") || line[2].equalsIgnoreCase("Unavailable") || line[2].isEmpty()) )
-					{
-						csvData.add(line);
-					}
-					else {
-						validationError="One or more values of DCB code is invalid at line "+lineNumber+". Valid values are “Available”, “Unavailableand “Unknown. " +
-							"DCB code can also be empty. Please correct the values and retry.";
-						throw new FileUploadValidationException(validationError);
-					}
-				} else {
-					validationError = "Empty value in 'code' or 'meaning' column at line " + lineNumber;
-					throw new FileUploadValidationException(validationError);
-				}
-				lineNumber++;
-			}
-			return csvData;
-		} catch (Exception e) {
-			log.debug("A FileValidationException has occurred. Details:"+validationError);
-			throw new FileUploadValidationException(validationError);
-		}
-	}
-
-	public static List<String[]> parseTsv(Reader reader, String[] expectedHeaders) {
-		String validationError = "";
-		try {
-			CSVReader TSVReader = new CSVReaderBuilder(reader)
-				.withCSVParser(new CSVParserBuilder().withSeparator('\t').build())
-				.build();
-			// Get the header line so we can compare
-			String[] headers = TSVReader.readNext();
-			// Check if the headers match the expectedHeaders
-			if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) || (!headers[1].equalsIgnoreCase(expectedHeaders[1])) || (!headers[2].equalsIgnoreCase(expectedHeaders[2]))))
+			if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) || (!headers[1].equalsIgnoreCase(expectedHeaders[1])) || (!headers[2].equalsIgnoreCase(expectedHeaders[2])) || (!headers[3].equalsIgnoreCase(expectedHeaders[3])) || (!headers[4].equalsIgnoreCase(expectedHeaders[4])) || (!headers[5].equalsIgnoreCase(expectedHeaders[5]))))
 			{
 				validationError = "CSV headers do not match the expected headers: "+ Arrays.toString(expectedHeaders)+
 					". Please check your CSV file and retry.";
@@ -235,22 +193,14 @@ public class DCBConfigurationService {
 			String[] line;
 			List<String[]> csvData = new ArrayList<>();
 			int lineNumber = 2;
-			// Now, validate that there are no empty entries for meaning or code
-			while ((line = TSVReader.readNext()) != null) {
-				// Check that 'local code' and 'meaning' columns are not empty
-				if ((!line[0].isEmpty() && !line[1].isEmpty()))
+			while ((line = csvReader.readNext()) != null) {
+				// Make sure that the contexts match what's expected, and that there isn't a clash between them and what the user has supplied.
+				if ((line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
 				{
-					if ((line[2].equalsIgnoreCase("Unknown") || line[2].equalsIgnoreCase("Available") || line[2].equalsIgnoreCase("Unavailable") || line[2].isEmpty()) )
-					{
-						csvData.add(line);
-					}
-					else {
-						validationError="One or more values of DCB code is invalid at line "+lineNumber+". Valid values are “Available”, “Unavailableand “Unknown. " +
-							"DCB code can also be empty. Please correct the values and retry.";
-						throw new FileUploadValidationException(validationError);
-					}
-				} else {
-					validationError = "Empty value in 'code' or 'meaning' column at line " + lineNumber;
+					csvData.add(line);
+				}
+				else {
+					validationError="Either the fromContext or toContext values in your .csv file do not match the Host LMS code you supplied. Please check your file and try again.";
 					throw new FileUploadValidationException(validationError);
 				}
 				lineNumber++;
@@ -262,42 +212,58 @@ public class DCBConfigurationService {
 		}
 	}
 
-	// This method override is used to build a CirculationStatusMapping
-	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm, String code, String mappingCategory) {
-		// Used for circulation status mappings only at present.
-		String dcbCode = getDcbCode(rvm);
-		ReferenceValueMapping rvmd= ReferenceValueMapping.builder()
-			.id(UUID.randomUUID())
-			.fromContext(code)
-			.fromCategory(mappingCategory)
-			.fromValue(rvm[0])
-			.toContext("DCB")
-			.toCategory("Host LMS")
-			.toValue(dcbCode)
-			.label(rvm[1])
-			.lastImported(Instant.now())
-			.deleted(false)
-			.build();
-		log.debug("process referece value mapping {}",rvmd);
-		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
-	}
-
-	private static String getDcbCode(String[] rvm) {
-		String dcbCode = "";
-		if (Objects.equals(rvm[2], ""))
-		{
-			dcbCode = "Unknown";
+	public static List<String[]> parseTsv(Reader reader, String[] expectedHeaders, String mappingCategory, String code) {
+		String validationError = "";
+		log.debug("Parsing for"+ mappingCategory, code);
+		try {
+			CSVReader TSVReader = new CSVReaderBuilder(reader)
+				.withCSVParser(new CSVParserBuilder().withSeparator('\t').build())
+				.build();
+			// Get the header line so we can compare
+			String[] headers = TSVReader.readNext();
+			// Check if the headers match the expectedHeaders
+			if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) || (!headers[1].equalsIgnoreCase(expectedHeaders[1])) || (!headers[2].equalsIgnoreCase(expectedHeaders[2])) || (!headers[3].equalsIgnoreCase(expectedHeaders[3])) || (!headers[4].equalsIgnoreCase(expectedHeaders[4])) || (!headers[5].equalsIgnoreCase(expectedHeaders[5]))))
+			{
+				validationError = "TSV headers do not match the expected headers: "+ Arrays.toString(expectedHeaders)+
+					". Please check your TSV file and retry.";
+				throw new FileUploadValidationException(validationError);
+			}
+			String[] line;
+			List<String[]> tsvData = new ArrayList<>();
+			int lineNumber = 2;
+			while ((line = TSVReader.readNext()) != null) {
+					// Line by line validation goes here
+					// Validate that the contexts match what's expected, and that there isn't a clash between them and what the user has supplied.
+					if ((line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
+					{
+						tsvData.add(line);
+					}
+					else {
+						validationError="Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.";
+						throw new FileUploadValidationException(validationError);
+					}
+					lineNumber++;
+			}
+			return tsvData;
+		} catch (Exception e) {
+			log.debug("A FileValidationException has occurred. Details:"+validationError);
+			throw new FileUploadValidationException(validationError);
 		}
-		else {
-			dcbCode = rvm[2];
-		}
-		return dcbCode;
 	}
 
 	@Transactional
 	protected Mono<Long> cleanupMappings(String category, String context) {
 		 // This method marks any existing mappings for the given category and context as deleted.
-     return Mono.from(referenceValueMappingRepository.markAsDeleted(category, context));
+		switch (category) {
+			// Mark all existing reference value mappings for a Host LMS as deleted.
+			case "Reference value":
+				return Mono.from(referenceValueMappingRepository.markAsDeleted(context));
+				// This is a switch because it will also support numeric range mappings in DCB-1153.
+//			case "NumericRangeMappings":
+//				return Mono.from(numericRangeMappingRepository.markAsDeleted(context));
+			default:
+				return Mono.from(referenceValueMappingRepository.markAsDeleted(category, context));
+		}
 	}
 
 	private Mono<ConfigImportResult> numericRangeImport(String url) {
@@ -346,6 +312,8 @@ public class DCBConfigurationService {
 			.toContext(rvm[3])
 			.toCategory(rvm[4])
 			.toValue(rvm[5])
+			.lastImported(Instant.now())
+			.deleted(false)
 			.build();
 
 		// If there was an optional label, set it
