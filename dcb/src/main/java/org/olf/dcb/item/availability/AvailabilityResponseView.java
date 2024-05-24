@@ -3,7 +3,9 @@ package org.olf.dcb.item.availability;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
@@ -20,6 +22,7 @@ import lombok.Data;
 public class AvailabilityResponseView {
 	private final List<ARVItem> itemList;
 	private final List<Error> errors;
+	private final Map<String, Long> timings;
 	private final UUID clusteredBibId;
 
 	public static AvailabilityResponseView from(AvailabilityReport report,
@@ -35,8 +38,11 @@ public class AvailabilityResponseView {
 				.message(error.getMessage())
 				.build())
 			.toList();
-
-		return new AvailabilityResponseView(mappedItems, mappedErrors, clusteredBibId);
+		
+		final var timingsMap = new LinkedHashMap<String, Long> ();
+			report.getTimings().forEach( tuple -> timingsMap.put(tuple.getT1(), tuple.getT2()) );
+				
+		return new AvailabilityResponseView(mappedItems, mappedErrors, timingsMap, clusteredBibId);
 	}
 
 	private static ARVItem mapItem(Item item) {

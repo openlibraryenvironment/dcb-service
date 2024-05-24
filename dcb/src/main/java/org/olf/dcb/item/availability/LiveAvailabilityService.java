@@ -1,5 +1,6 @@
 package org.olf.dcb.item.availability;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
@@ -24,11 +25,15 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.micrometer.common.lang.NonNull;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import services.k_int.utils.TupleUtils;
+import reactor.util.function.Tuples;
+import services.k_int.utils.Functions;
 
 @Slf4j
 @Singleton
@@ -36,6 +41,9 @@ public class LiveAvailabilityService {
 	private final HostLmsService hostLmsService;
 	private final RequestableItemService requestableItemService;
 	private final SharedIndexService sharedIndexService;
+	private final MeterRegistry meterRegistry; 
+	
+	private static final String METRIC_NAME = "dcb.availability";
 	
 	final Cache<String, AvailabilityReport> availabilityCache = Caffeine.newBuilder()
 			.maximumSize(1_000) // Maximum number of entries
@@ -43,11 +51,12 @@ public class LiveAvailabilityService {
 			.build();
 
 	public LiveAvailabilityService(HostLmsService hostLmsService,
-		RequestableItemService requestableItemService, SharedIndexService sharedIndexService) {
+		RequestableItemService requestableItemService, SharedIndexService sharedIndexService, MeterRegistry meterRegistry) {
 
 		this.hostLmsService = hostLmsService;
 		this.requestableItemService = requestableItemService;
 		this.sharedIndexService = sharedIndexService;
+		this.meterRegistry = meterRegistry;
 	}
 	
 	private Flux<BibRecord> getClusterMembers( @NonNull UUID clusteredBibId ) {
@@ -91,47 +100,82 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Optional<Duration> timeout) {
 		log.debug("getAvailableItems({})", clusteredBibId);
 
-		return Mono.just( clusteredBibId )
-			.flatMapMany( this::getClusterMembers )
-			.flatMap( b -> checkBibAvailabilityAtHost(timeout, b))
-			.map( this::determineRequestability )
-			.doOnNext ( b -> log.debug("Requestability check result == {}",b) )
-			.reduce(emptyReport(), AvailabilityReport::combineReports)
-			.doOnNext ( b -> log.debug("Sorting..."))
-			.map(AvailabilityReport::sortItems)
-			.switchIfEmpty(
-				Mono.defer(() -> {
-					log.error("getAvailableItems resulted in an empty stream");
-					return Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBibId));
+		final List<Tag> commonTags = List.of(Tag.of("cluster", clusteredBibId.toString()));
+		
+		return Mono.defer( () -> Mono.just(System.nanoTime()) )
+			.flatMap( start -> Mono.just( clusteredBibId )
+				.flatMapMany( this::getClusterMembers )
+				.flatMap( b -> checkBibAvailabilityAtHost(timeout, b, commonTags))
+				.map( this::determineRequestability )
+				.doOnNext ( b -> log.debug("Requestability check result == {}",b) )
+				.reduce(emptyReport(), AvailabilityReport::combineReports)
+				.doOnNext ( b -> log.debug("Sorting..."))
+				.map(AvailabilityReport::sortItems)
+				.map( report -> {
+					final long elapsed = System.nanoTime() - start;
+					
+//					var tags = new ArrayList<>(List.of( Tag.of("status", "success"), Tag.of("lms", "all") ));
+//					tags.addAll(commonTags);
+//					Timer timer = meterRegistry.timer(METRIC_NAME, tags);
+//					timer.record(elapsed, NANOSECONDS);
+					
+					return report.toBuilder()
+						.timing( Tuples.of("total", elapsed) )
+						.build();
 				})
-			);
+				.switchIfEmpty(
+					Mono.defer(() -> {
+						log.error("getAvailableItems resulted in an empty stream");
+						return Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBibId));
+					})
+				));
 	}
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bibRecord) {
+		Optional<Duration> timeout, BibRecord bibRecord, List<Tag> parentTags) {
 		
 		return hostLmsService.getClientFor(bibRecord.getSourceSystemId())
-		  .flatMap(TupleUtils.curry(timeout, bibRecord, this::checkBibAvailabilityAtHost))
+		  .flatMap(hostLms -> this.checkBibAvailabilityAtHost(timeout, bibRecord, parentTags, hostLms))
 			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
-
+	
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bib, HostLmsClient hostLms) {
+		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms) {
+		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("bib", bib.getId().toString()), Tag.of("lms", hostLms.getHostLmsCode())));
+		commonTags.addAll(parentTags);
 		
-		final var liveData = hostLms.getItems(bib)
-			.flatMapIterable(identity())
-			.filter(Item::notSuppressed)
-			.filter(Item::notDeleted)
-			.filter(Item::hasAgency)
-			.filter(Item::hasHostLms)
-			.filter(Item::AgencyIsSupplying)
-			.collectList()
-			.doOnError(error -> log.error("doOnError occurred fetching items", error))
-			.map(AvailabilityReport::ofItems)
-			.map(TupleUtils.curry(bib, this::addValueToCache))
-			.onErrorResume(error -> Mono.defer(() ->
-				Mono.just(AvailabilityReport.ofErrors(mapToError(bib, hostLms.getHostLmsCode())))))
-			.cache(); // Create a hot source and cache. This will make sure the mono completes as hot sources cannot be cancelled;
+		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )
+			.flatMap( start -> hostLms.getItems(bib)
+					.flatMapIterable(identity())
+					.filter(Item::notSuppressed)
+					.filter(Item::notDeleted)
+					.filter(Item::hasAgency)
+					.filter(Item::hasHostLms)
+					.filter(Item::AgencyIsSupplying)
+					.collectList()
+					.map(AvailabilityReport::ofItems)
+					.map(Functions.curry(bib, this::addValueToCache))
+					.map( report -> {
+						final long elapsed = System.nanoTime() - start;
+						var tags = new ArrayList<>(List.of( Tag.of("status", "success") ));
+						tags.addAll(commonTags);
+						Timer timer = meterRegistry.timer(METRIC_NAME, tags);
+						timer.record(System.nanoTime() - start, NANOSECONDS);
+						
+						return report.toBuilder()
+								.timing( Tuples.of(hostLms.getHostLmsCode(), elapsed) )
+								.build();
+					})
+					.onErrorResume(error -> Mono.defer(() -> {
+						final long elapsed = System.nanoTime() - start;
+						log.error("Error fetching items", error);
+						var tags = new ArrayList<>(List.of( Tag.of("status", "error") ));
+						tags.addAll(commonTags);
+						Timer timer = meterRegistry.timer(METRIC_NAME, tags);
+						timer.record(System.nanoTime() - start, NANOSECONDS);
+						return Mono.just(AvailabilityReport.ofErrors(mapToError(bib, hostLms.getHostLmsCode()), Tuples.of(hostLms.getHostLmsCode(), elapsed) ));
+					})))
+			.cache();
 		
 		return timeout
 			.map(timeoutSet -> liveData.transformDeferred(addCacheFallback(timeoutSet, bib, hostLms)))
@@ -184,8 +228,7 @@ public class LiveAvailabilityService {
 	
 	private static final AvailabilityReport getNoCachedValueErrorReport ( String message ) {
 		return Optional.of(message)
-			.map(msg -> AvailabilityReport.Error.builder().message(msg).build())
-			.map(err -> AvailabilityReport.of(List.of(), List.of(err)))
+			.map(msg -> AvailabilityReport.ofErrors(AvailabilityReport.Error.builder().message(msg).build()))
 			.get();
 	}
 

@@ -1,6 +1,7 @@
 package org.olf.dcb.item.availability;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -8,46 +9,58 @@ import org.olf.dcb.core.model.Item;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.Singular;
+import lombok.experimental.Accessors;
+import reactor.util.function.Tuple2;
 
 @Data
 @Builder(toBuilder = true)
+@Accessors(chain = true)
 public class AvailabilityReport {
 	private final List<Item> items;
 	private final List<Error> errors;
+	
+	@Singular
+	private final List<Tuple2<String, Long>> timings;
 
-	public static AvailabilityReport of(List<Item> items, List<Error> errors) {
+	private static AvailabilityReport of(List<Item> items, List<Tuple2<String, Long>> timings, List<Error> errors) {
+		
 		return builder()
 			.items(items)
+			.timings(timings)
 			.errors(errors)
 			.build();
 	}
 
 	public static AvailabilityReport ofItems(List<Item> items) {
-		return of(items, List.of());
+		return of(items, Collections.emptyList(), Collections.emptyList());
 	}
 
-	public static AvailabilityReport ofErrors(Error... errors) {
-		return of(List.of(), List.of(errors));
+	public static AvailabilityReport ofErrors(Error error, Tuple2<String, Long> timing) {
+		return of(Collections.emptyList(), List.of(timing), List.of(error));
+	}
+	
+	public static AvailabilityReport ofErrors(Error error) {
+		return of(Collections.emptyList(), Collections.emptyList(), List.of(error));
 	}
 
 	public static AvailabilityReport emptyReport() {
-		return of(List.of(), List.of());
+		return of(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
 	}
 
 	static AvailabilityReport combineReports(
 		AvailabilityReport firstReport, AvailabilityReport secondReport) {
 
-		final var newItemsList = new ArrayList<Item>();
-
-		newItemsList.addAll(firstReport.getItems());
+		final var newItemsList = new ArrayList<Item>(firstReport.getItems());
 		newItemsList.addAll(secondReport.getItems());
 
-		final var newErrorsList = new ArrayList<Error>();
-
-		newErrorsList.addAll(firstReport.getErrors());
+		final var newErrorsList = new ArrayList<Error>(firstReport.getErrors());
 		newErrorsList.addAll(secondReport.getErrors());
+		
+		final var newTimings = new ArrayList<Tuple2<String, Long>>(firstReport.getTimings());
+		newTimings.addAll(secondReport.getTimings());
 
-		return of(newItemsList, newErrorsList);
+		return of(newItemsList, newTimings, newErrorsList);
 	}
 
 	AvailabilityReport forEachItem(Consumer<Item> consumer) {
@@ -57,7 +70,7 @@ public class AvailabilityReport {
 	}
 
 	AvailabilityReport sortItems() {
-		return of(sortItems(items), errors);
+		return of(sortItems(items), timings, errors);
 	}
 
 	private List<Item> sortItems(List<Item> items) {
