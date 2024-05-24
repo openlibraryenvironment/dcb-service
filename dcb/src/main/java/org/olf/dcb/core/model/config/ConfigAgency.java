@@ -21,6 +21,7 @@ public class ConfigAgency implements Agency {
 	private String name;
 	private String hostLms;
 	private Boolean isSupplyingAgency;
+	private Boolean isBorrowingAgency;
 	
 	public ConfigAgency( @Parameter("code") String code, @Parameter("name") String name, BeanContext beanProvider ) {
 		this.code = code;
@@ -52,6 +53,11 @@ public class ConfigAgency implements Agency {
 	@Override
 	public Boolean getIsSupplyingAgency() {
 		return isSupplyingAgency;
+	}
+
+	@Override
+	public Boolean getIsBorrowingAgency() {
+		return isBorrowingAgency;
 	}
 
 	public void setHostLms( String hostLms ) {

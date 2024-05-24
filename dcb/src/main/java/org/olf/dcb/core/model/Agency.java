@@ -24,6 +24,9 @@ public interface Agency {
 	@NonNull
 	Boolean getIsSupplyingAgency();
 
+	@NonNull
+	Boolean getIsBorrowingAgency();
+
 	static DataAgencyBuilder builder() {
 		return DataAgency.builder();
 	}

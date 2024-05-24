@@ -6,6 +6,8 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.core.publisher.Mono.empty;
 import static reactor.function.TupleUtils.function;
 
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -19,20 +21,17 @@ import reactor.core.publisher.Mono;
 public class LocationToAgencyMappingService {
 	private final AgencyService agencyService;
 	private final ReferenceValueMappingService referenceValueMappingService;
+	private final HostLmsService hostLmsService;
 
 	public LocationToAgencyMappingService(AgencyService agencyService,
-		ReferenceValueMappingService referenceValueMappingService) {
+		ReferenceValueMappingService referenceValueMappingService,
+		HostLmsService hostLmsService) {
 
 		this.agencyService = agencyService;
 		this.referenceValueMappingService = referenceValueMappingService;
+		this.hostLmsService = hostLmsService;
 	}
 
-	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
-		return Mono.just(incomingItem)
-			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
-			.map(function(Item::setAgency))
-			.defaultIfEmpty(incomingItem);
-	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
 		final var locationCode = trimToNull(getValue(item, Item::getLocationCode));
@@ -64,5 +63,23 @@ public class LocationToAgencyMappingService {
 
 		return referenceValueMappingService.findMapping("Location", fromContext,
 			locationCode, "AGENCY", "DCB");
+	}
+
+	public Mono<String> findDefaultAgencyCode(String hostLmsCode) {
+		log.debug("Attempting to use default agency for Host LMS: {}", hostLmsCode);
+
+		return hostLmsService.getClientFor(hostLmsCode)
+			.flatMap(client -> Mono.justOrEmpty(getValue(client, HostLmsClient::getDefaultAgencyCode)))
+			.doOnSuccess(defaultAgencyCode -> log.debug(
+				"Found default agency code {} for Host LMS {}", defaultAgencyCode, hostLmsCode))
+			.doOnError(error -> log.error(
+				"Error occurred getting default agency code for Host LMS {}", hostLmsCode, error));
+	}
+
+	public Mono<Item> enrichItemAgencyFromLocation(Item incomingItem, String hostLmsCode) {
+		return Mono.just(incomingItem)
+			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
+			.map(function(Item::setAgency))
+			.defaultIfEmpty(incomingItem);
 	}
 }

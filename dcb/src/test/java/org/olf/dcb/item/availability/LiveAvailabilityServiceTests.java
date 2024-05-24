@@ -120,12 +120,8 @@ class LiveAvailabilityServiceTests {
 		bibRecordFixture.createBibRecord(randomUUID(), secondHostLms.getId(),
 			"767648", clusterRecord);
 
-		final var firstAgency = agencyFixture.defineAgency(DataAgency.builder()
-			.id(randomUUID())
-			.code("first-agency")
-			.name("First Agency")
-			.hostLms(firstHostLms)
-			.build());
+		final var firstAgency = agencyFixture.defineAgency("first-agency",
+			"First Agency", firstHostLms);
 
 		mapLocationToAgency("ab6", firstHostLms, firstAgency);
 
@@ -151,13 +147,8 @@ class LiveAvailabilityServiceTests {
 				.build()
 		));
 
-		final var secondAgency = agencyFixture.defineAgency(DataAgency.builder()
-			.id(randomUUID())
-			.code("second-agency")
-			.name("Second Agency")
-			.isSupplyingAgency(true)
-			.hostLms(secondHostLms)
-			.build());
+		final var secondAgency = agencyFixture.defineAgency("second-agency",
+			"Second Agency", secondHostLms);
 
 		mapLocationToAgency("ab5", secondHostLms, secondAgency);
 		mapLocationToAgency("ab7", secondHostLms, secondAgency);
@@ -297,6 +288,50 @@ class LiveAvailabilityServiceTests {
 			.code("agency")
 			.name("Agency")
 			.isSupplyingAgency(false)
+			.hostLms(firstHostLms)
+			.build());
+
+		mapLocationToAgency(knownLocationCode, firstHostLms, agency);
+
+		sierraItemsAPIFixture.itemsForBibId(bibId, List.of(
+			SierraItem.builder()
+				.id("3752566")
+				.barcode("5362553")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("1")
+				.locationCode(knownLocationCode)
+				.locationName("Known Location")
+				.build()
+		));
+
+		// Act
+		final var report = checkAvailability(clusterRecord);
+
+		// Assert
+		assertThat(report, allOf(
+			hasNoItems(),
+			hasNoErrors()
+		));
+	}
+
+	@Test
+	void shouldExcludeItemsThatAreAssociatedWithAgencyWithNoParticipationInformation() {
+		// Arrange
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
+
+		final var bibId = "364568";
+
+		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(), bibId, clusterRecord);
+
+		final var knownLocationCode = "known-location";
+
+		final var agency = agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("agency")
+			.name("Agency")
+			// Unknown whether they are supplying or not
+			.isSupplyingAgency(null)
 			.hostLms(firstHostLms)
 			.build());
 

@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -15,13 +16,17 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
@@ -35,6 +40,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 
@@ -59,6 +66,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@BeforeEach
 	void beforeEach() {
 		referenceValueMappingFixture.deleteAll();
+		agencyFixture.deleteAll();
 	}
 
 	@Test
@@ -75,6 +83,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -94,6 +105,196 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
+	void shouldPassWhenPatronMappedToDefaultAgency() {
+		// Arrange
+		final var localPatronId = "345358";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
+
+		agencyFixture.defineAgency("default-agency-code", "Default Agency",
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsAssociatedWithAgencyNotParticipatingInBorrowing() {
+		// Arrange
+		final var localPatronId = "354256";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		final var agencyCode = "non-borrowing-agency";
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", agencyCode, false);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
+				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, agencyCode))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsAssociatedWithAnAgencyWithNoParticipationInformation() {
+		// Arrange
+		final var localPatronId = "354256";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		final var agencyCode = "non-borrowing-agency";
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", agencyCode, null);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
+				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, agencyCode))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsNotAssociatedWithAgency() {
+		// Arrange
+		final var localPatronId = "8292567";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(localPatronId, "home-library", BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsAssociatedWithUnknownAgency() {
+		// Arrange
+		final var localPatronId = "8292567";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			BORROWING_HOST_LMS_CODE, "home-library", "unknown-agency");
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(localPatronId, "home-library", BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
 	void shouldFailWhenPatronIsIneligible() {
 		// Arrange
 		final var localPatronId = "345358";
@@ -107,6 +308,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.barcodes(List.of("27536633"))
 				.names(List.of("Bob"))
 				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
 
@@ -151,6 +355,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 					.build())
 				.build());
 
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
+
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
 
@@ -189,6 +396,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 					.code("blocked")
 					.build())
 				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
 
@@ -254,6 +464,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.deleted(true)
 				.build());
 
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
+
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
 
@@ -290,6 +503,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.names(List.of("Bob"))
 				.build());
 
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
+
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
@@ -319,6 +535,9 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 			.barcodes(List.of("647647746"))
 			.names(List.of("Bob"))
 			.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -356,6 +575,24 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 			failedCheck("UNKNOWN_BORROWING_HOST_LMS",
 				"\"%s\" is not a recognised Host LMS".formatted(unknownHostLmsCode))
 		));
+	}
+
+	private void mapPatronToAgency(String hostLmsCode, String locationCode,
+		String agencyCode, Boolean isBorrowingAgency) {
+
+		final var hostLms = hostLmsFixture.findByCode(hostLmsCode);
+
+		agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code(agencyCode)
+			.name("Example Agency")
+			.isSupplyingAgency(true)
+			.isBorrowingAgency(isBorrowingAgency)
+			.hostLms(hostLms)
+			.build());
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			hostLmsCode, locationCode, agencyCode);
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import graphql.com.google.common.collect.Streams;
+
 public class CollectionUtils {
 	public static <T> List<T> nonNullValuesList(T... values) {
 		return Stream.of(values)
@@ -31,5 +33,19 @@ public class CollectionUtils {
 		}
 
 		return collection;
+	}
+
+	public static <T> List<T> concatenate(Collection<T> firstCollection,
+		Collection<T> secondCollection) {
+
+		return Streams.concat(emptyWhenNull(firstCollection), emptyWhenNull(secondCollection)).toList();
+	}
+
+	private static <T> Stream<T> emptyWhenNull(Collection<T> collection) {
+		if (collection == null) {
+			return Stream.empty();
+		}
+
+		return collection.stream();
 	}
 }

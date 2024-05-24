@@ -44,6 +44,7 @@ public class AgencyFixture {
 			.code(code)
 			.name(name)
 			.isSupplyingAgency(true)
+			.isBorrowingAgency(true)
 			.hostLms(hostLms)
 			.build());
 	}
@@ -58,6 +59,7 @@ public class AgencyFixture {
 			.code(code)
 			.name(name)
 			.isSupplyingAgency(true)
+			.isBorrowingAgency(true)
 			.hostLms(hostLms)
 			.longitude(longitude)
 			.latitude(latitude)
