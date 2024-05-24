@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 6.11.0
+
+### Additions
+* [General]
+	* Disallow patron from placing request when agency is not participating in borrowing DCB-1135
+	* Fetch participation fields for updated agency when omitted by the client DCB-1125
+	* Exclude items from live availability when agency participation unknown DCB-1134
+	* prevent duplicate request within N seconds [DCB-1090]
+
+### Changes
+* [Test]
+	* PreventDuplicateRequestsPreflightCheckTests
+
 ## Version 6.10.0
 
 ### Additions
@@ -11,6 +24,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* check for error strings in finalisation [DCB-1140]
 	* ensure patron requests are updated when tracking [DCB-1139]
 	* tidy PAPI API auth
