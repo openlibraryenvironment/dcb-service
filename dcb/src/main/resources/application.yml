@@ -51,6 +51,11 @@ micronaut:
       # discovered until we try to make a request. This was causing random failures talking to ES
       connect-ttl: PT30S
       
+      pool:
+        enabled: true
+        max-concurrent-requests-per-http2-connection: 200
+        
+      
   metrics:
     enabled: true
     export:
