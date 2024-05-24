@@ -1,18 +1,15 @@
 package org.olf.dcb.request.fulfilment;
 
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static java.util.Collections.emptyList;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.core.UnhandledExceptionProblem;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
-import org.olf.dcb.utils.CollectionUtils;
 
+import graphql.com.google.common.collect.Streams;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -35,8 +32,6 @@ public class PatronRequestPreflightChecksService {
 		log.info("Perform preflight checks {}", command);
 
 		return performChecks(command)
-			// Has to go before flatMap that possibly raises error
-			.onErrorMap(UnhandledExceptionProblem::new)
 			.flatMap(results -> {
 				if (allPassed(results)) {
 					log.info("request passed preflight {}", command);
@@ -54,26 +49,24 @@ public class PatronRequestPreflightChecksService {
 
 	private Mono<List<CheckResult>> performChecks(PlacePatronRequestCommand command) {
 		return Flux.fromIterable(checks)
-			.doOnNext(check -> log.info("Preflight check: {}", check))
+			.doOnNext(check -> {
+				log.info("Preflight check: {}", check);
+			})
 			.concatMap(check -> check.check(command))
-			.reduce(CollectionUtils::concatenate);
+			.reduce(PatronRequestPreflightChecksService::concatenateChecks);
+	}
+
+	private static List<CheckResult> concatenateChecks(List<CheckResult> firstChecks,
+		List<CheckResult> secondChecks) {
+
+		return Streams.concat(firstChecks.stream(), secondChecks.stream()).toList();
 	}
 
 	private static boolean allPassed(List<CheckResult> results) {
-		if (isEmpty(results)) {
-			log.warn("No preflight check results returned");
-			return true;
-		}
-
 		return results.stream().allMatch(CheckResult::getPassed);
 	}
 
 	private static List<FailedPreflightCheck> failedChecksOnly(List<CheckResult> reportedResults) {
-		if (isEmpty(reportedResults)) {
-			log.warn("No preflight check results returned");
-			return emptyList();
-		}
-
 		return reportedResults.stream()
 			.filter(CheckResult::getFailed)
 			.map(FailedPreflightCheck::fromResult)

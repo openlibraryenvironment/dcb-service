@@ -12,7 +12,6 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.workflow.exceptions.NoAgencyFoundException;
@@ -33,26 +32,25 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyRepository agencyRepository;
-	private final LocationToAgencyMappingService locationToAgencyMappingService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
+
+	private static final String DEFAULT_AGENCY_CODE_KEY = "default-agency-code";
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
 	
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
 		HostLmsService hostLmsService, ReferenceValueMappingService referenceValueMappingService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		AgencyRepository agencyRepository,
-		LocationToAgencyMappingService locationToAgencyMappingService) {
+		AgencyRepository agencyRepository) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.agencyRepository = agencyRepository;
-		this.locationToAgencyMappingService = locationToAgencyMappingService;
 	}
 
 	/**
@@ -82,8 +80,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				log.debug("setLocalHomeLibraryCode({})", hostLmsPatron.getLocalHomeLibraryCode());
 				pi.setLocalHomeLibraryCode(hostLmsPatron.getLocalHomeLibraryCode());
 
-				if (hostLmsPatron.getLocalBarcodes() == null)
+				if ( hostLmsPatron.getLocalBarcodes() == null )
 					log.warn("Patron does not have barcodes.. Will not be able to circulate items");
+
+				// pi.setResolvedAgency(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),
+				// hostLmsPatron.getLocalHomeLibraryCode()));
 
 				if (hostLmsPatron.getIsDeleted() != null && hostLmsPatron.getIsDeleted()) {
 					throw new PatronDeletedInHostLmsException(
@@ -120,8 +121,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 			// If homeLibraryCode or findAgencyForLocation produced empty,
 			// try to use a default agency code from config
-			.switchIfEmpty(Mono.defer(() -> locationToAgencyMappingService.findDefaultAgencyCode(systemCode)))
-			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(homeLibraryCode, systemCode))
+			.switchIfEmpty(Mono.defer(() -> findAgencyForDefaultAgencyCode(homeLibraryCode, systemCode)))
 
 			// when either findAgencyForLocation or findAgencyForDefaultAgencyCode
 			// successfully found an agency code then..
@@ -140,12 +140,32 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	}
 
 	private Mono<String> findAgencyForLocation(String code, String systemCode) {
-		log.debug("findAgencyForLocation({}, {})", code, systemCode);
+		log.info("findAgencyForLocation({}, {})", code, systemCode);
 
 		return referenceValueMappingService.findMapping("Location", systemCode, code, "AGENCY", "DCB")
 			.doOnNext(locatedMapping -> log.debug("Located Loc-to-agency mapping {}", locatedMapping))
 			.map(ReferenceValueMapping::getToValue);
 	}
+
+	private Mono<String> findAgencyForDefaultAgencyCode(String homeLibraryCode, String systemCode) {
+		log.info("Attempting to use default agency from config with systemCode: {}.", systemCode);
+
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(client -> Mono.justOrEmpty((String) client.getConfig().get(DEFAULT_AGENCY_CODE_KEY)))
+			.doOnSuccess(defaultAgencyCode -> log.info("Using default agency code: {}", defaultAgencyCode))
+			.doOnError(error -> log.error("Error occurred getting default Agency.", error))
+			.switchIfEmpty(Mono.defer(() -> {
+				UnableToResolveAgencyProblem problem = new UnableToResolveAgencyProblem(
+					"DCB could not use any agency code to find an agency.",
+					"This problem was triggered because both the home library code and the default agency code were unresolvable.",
+					systemCode,
+					homeLibraryCode,
+					null
+				);
+				return Mono.error(problem);
+			}));
+	}
+
 
 	private Mono<DataAgency> findOneAgencyByCode(String code) {
 		log.debug("findOneAgencyByCode({})", code);

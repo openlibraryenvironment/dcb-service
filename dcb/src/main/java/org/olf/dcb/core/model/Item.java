@@ -71,7 +71,7 @@ public class Item implements Comparable<Item> {
 	}
 
 	public boolean AgencyIsSupplying() {
-		return getValueOrDefault(agency, Agency::getIsSupplyingAgency, false);
+		return getValueOrDefault(agency, Agency::getIsSupplyingAgency, true);
 	}
 
 	public String getAgencyCode() {

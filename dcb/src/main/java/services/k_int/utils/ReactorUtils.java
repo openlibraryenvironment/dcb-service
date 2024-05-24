@@ -41,8 +41,4 @@ public interface ReactorUtils {
 			}
 		};
 	}
-
-	static <T> Mono<T> raiseError(Throwable throwable) {
-		return Mono.defer(() -> Mono.error(throwable));
-	}
 }
