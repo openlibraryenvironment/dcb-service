@@ -20,15 +20,16 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.micronaut.http.*;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
@@ -109,9 +110,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
-
 	private static final String DCB_BORROWING_FLOW = "DCB";
 	private static final String ILL_BORROWING_FLOW = "ILL";
+	private final PolarisConfig polarisConfig;
+
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
 		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
@@ -120,17 +122,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
-		final var clientConfig = hostLms.getClientConfig();
-
-
-		// The URL for ingest
-		defaultBaseUrl = getBaseURL(clientConfig, DEFAULT_CLIENT_BASE_URL, TRUE);
-		applicationServicesOverrideURL = getBaseURL(clientConfig, OVERRIDE_CLIENT_BASE_URL, FALSE);
-
-		lms = hostLms;
-
-		this.ApplicationServices = new ApplicationServicesClient(this);
-		this.PAPIService = new PAPIClient(this);
+		this.lms = hostLms;
+		this.polarisConfig = convertConfig(hostLms);
+		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
+		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
+		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig);
+		this.PAPIService = new PAPIClient(this, polarisConfig);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
@@ -141,21 +138,18 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.client = client;
 	}
 
-	private URI getBaseURL(Map<String, Object> clientConfig, String baseUrlKey, Boolean throwExceptionIfNull) {
-		final var configValue = extractOptionalMapValue(clientConfig, baseUrlKey, String.class);
-
-		if (configValue == null) {
-			if (throwExceptionIfNull) {
-				throw new IllegalArgumentException("Client base URL key " + baseUrlKey + " is null.");
-			} else {
-				//log.warn("No client base URL found for key: {}", baseUrlKey);
-				return null;
-			}
-		}
-
-		return UriBuilder.of(configValue).build();
+	private PolarisConfig convertConfig(HostLms hostLms) {
+		return new ObjectMapper()
+			.enable(SerializationFeature.INDENT_OUTPUT)
+			.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+			.convertValue(hostLms.getClientConfig(), PolarisConfig.class);
 	}
 
+	private URI applicationServicesOverrideURL() {
+		return polarisConfig.getOverrideBaseUrl() != null
+			? UriBuilder.of(polarisConfig.getOverrideBaseUrl()).build()
+			: null;
+	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
@@ -174,24 +168,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		return switch (borrowerlendingFlow) {
 			case DCB_BORROWING_FLOW -> placeHoldRequest(parameters, TRUE);
-			case ILL_BORROWING_FLOW -> placeILLHoldRequest(illLocationId(), parameters);
+			case ILL_BORROWING_FLOW -> placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 			default -> placeHoldRequest(parameters, TRUE);
 		};
 	}
 
-	Integer illLocationId() {
-		final var illLocationId = extractRequiredMapValue(getItemConfig(), ILL_LOCATION_ID, Integer.class);
-
-		if (illLocationId == null) {
-			throw new IllegalArgumentException(
-				"config value: 'ill-location-id' not set in Polaris config for hostlms:" + getHostLms().getName());
-		}
-
-		return illLocationId;
-	}
-
 	private String borrowerlendingFlow() {
-		return extractOptionalMapValue(getConfig(), BORROWER_LENDING_FLOW, String.class);
+		return polarisConfig.getBorrowerLendingFlow();
 	}
 
 	private Mono<LocalRequest> placeILLHoldRequest(Integer illLocationId, PlaceHoldRequestParameters parameters) {
@@ -456,7 +439,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// supplier requests need the pickup location to be set as ILL
 		if (isBorrower == FALSE) {
-			pickup_location = extractRequiredMapValue(getItemConfig(), ILL_LOCATION_ID, String.class);
+			pickup_location = String.valueOf(polarisConfig.getIllLocationId());
 			if (pickup_location == null) {
 				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
 			}
@@ -653,7 +636,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Mono<Void> updateItemToPickupTransit(String itemId) {
 
-		return ApplicationServices.checkIn(itemId, illLocationId()).then();
+		return ApplicationServices.checkIn(itemId, polarisConfig.getIllLocationId()).then();
 	}
 	private Mono<Void> updateItem(String itemId, Integer toStatus) {
 
@@ -702,7 +685,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<Patron> fetchPatronDefaultsByOrg(Patron patron) {
-		return ApplicationServices.patrondefaults(illLocationId())
+		return ApplicationServices.patrondefaults(polarisConfig.getIllLocationId())
 			.onErrorResume(error -> {
 				log.error(error.getMessage() != null ? error.getMessage() : "Unable to get patron defaults.");
 
@@ -1081,8 +1064,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Publisher<BibsPagedRow> getResources(Instant since, Publisher<String> terminator) {
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
 
-		final Map<String, Object> conf = lms.getClientConfig();
-		Integer pageSize = (Integer) conf.get(MAX_BIBS);
+		Integer pageSize = polarisConfig.getPageSize();
 		if (pageSize > 100) {
 			log.info("Limiting POLARIS page size to 100");
 			pageSize = 100;
@@ -1165,105 +1147,18 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return PAPIService.synch_BibsPagedGet(date, lastId, nrecs);
 	}
 
-	public String getGeneralUriParameters(PolarisClient polarisClient) {
-		// LinkedHashMap used to keep order of params
-		final var params = new LinkedHashMap<>();
-
-		switch (polarisClient) {
-			case PAPIService -> {
-				final var papiMap = getPAPIConfig();
-				params.put("version", papiMap.getOrDefault(PAPI_VERSION, "v1"));
-				params.put("langId", papiMap.getOrDefault(PAPI_LANG_ID, "1033"));
-				params.put("appId", papiMap.getOrDefault(PAPI_APP_ID, "100"));
-				params.put("orgId", papiMap.getOrDefault(PAPI_ORG_ID, "1"));
-			}
-			case APPLICATION_SERVICES -> {
-				final var servicesConfig = getServicesConfig();
-
-				params.put("version", servicesConfig.getOrDefault(SERVICES_VERSION, "v1"));
-				params.put("language", servicesConfig.getOrDefault(SERVICES_LANGUAGE, "eng"));
-				params.put("product", servicesConfig.getOrDefault(SERVICES_PRODUCT_ID, "19"));
-				params.put("domain", servicesConfig.getOrDefault(SERVICES_SITE_DOMAIN, "polaris"));
-				params.put("org", extractRequiredMapValue(servicesConfig, SERVICES_ORG_ID, String.class));
-				params.put("workstation", servicesConfig.getOrDefault(SERVICES_WORKSTATION_ID, "1"));
-			}
-			default -> {
-				log.error("Unknown or unsupported enum value");
-				return null;
-			}
-		}
-
-		if (params.values().stream().anyMatch(Objects::isNull)) {
-			log.error("One or more parameter values are null: params={}", params);
-			throw new IllegalArgumentException("One or more parameter values are null: params="+params);
-		}
-
-		return params.values().stream().map(s -> "/" + s).collect(Collectors.joining());
-	}
-
-	static <T> T extractMapValueWithDefault(Map<String, Object> map, String key, Class<T> type, Object defval) {
-		final Object r1 = extractOptionalMapValue(map,key,type);
-		return type.cast( r1 != null ? r1 : defval );
-	}
-
-	static <T> T extractRequiredMapValue(Map<String, Object> map, String key, Class<T> type) {
-		Object value = map.get(key);
-
-		if (value != null) {
-			if (type.isInstance(value)) {
-				return type.cast(value);
-			} else if (type == String.class && value instanceof Integer) {
-				return type.cast(value.toString());
-			} else if (type == Integer.class && value instanceof String) {
-				return type.cast(Integer.valueOf((String) value));
-			}
-		}
-
-		log.warn("Unable to extract required key: {}, to type: {}, from map: {},", key, type, map);
-		throw new NullPointerException("Unable to extract required key: "+key+", to type: "+type+" from config.");
-	}
-
-	static <T> T extractOptionalMapValue(Map<String, Object> map, String key, Class<T> type) {
-		Object value = map.get(key);
-
-		if (value != null) {
-			if (type.isInstance(value)) {
-				return type.cast(value);
-			} else if (type == String.class && value instanceof Integer) {
-				return type.cast(value.toString());
-			} else if (type == Integer.class && value instanceof String) {
-				return type.cast(Integer.valueOf((String) value));
-			}
-		}
-
-		return null;
-	}
-
 	Mono<String> getMappedItemType(String itemTypeCode) {
 		if (getHostLmsCode() != null && itemTypeCode != null) {
+
+
 			return referenceValueMappingService.findMapping("ItemType", "DCB",
-				itemTypeCode, "ItemType", getHostLmsCode())
-			.map(ReferenceValueMapping::getToValue)
-			.defaultIfEmpty("19");
+					itemTypeCode, "ItemType", getHostLmsCode())
+				.map(ReferenceValueMapping::getToValue)
+				.defaultIfEmpty("19");
 		}
 
 		log.warn("Request to map item type was missing required parameters {}/{}", getHostLmsCode(), itemTypeCode);
 		return Mono.just("19");
-	}
-
-	@SuppressWarnings("unchecked")
-	Map<String, Object> getServicesConfig() {
-		return (Map<String, Object>) extractRequiredMapValue(getConfig(), SERVICES, Map.class);
-	}
-
-	@SuppressWarnings("unchecked")
-	Map<String, Object> getItemConfig() {
-		return (Map<String, Object>) extractRequiredMapValue(getConfig(), ITEM, Map.class);
-	}
-
-	@SuppressWarnings("unchecked")
-	private Map<String, Object> getPAPIConfig() {
-		return (Map<String, Object>) extractOptionalMapValue(getConfig(), PAPI, Map.class);
 	}
 
 	@Builder
@@ -1316,8 +1211,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String BibliographicRecordXML;
 	}
-
-	public enum PolarisClient { PAPIService, APPLICATION_SERVICES }
 
 	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
 		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);

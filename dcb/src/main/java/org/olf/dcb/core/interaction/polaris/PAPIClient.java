@@ -8,13 +8,6 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_BRANCH_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.LOGON_USER_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.PATRON_BARCODE_PREFIX;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.SERVICES_WORKSTATION_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractMapValueWithDefault;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.extractRequiredMapValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
@@ -51,13 +44,15 @@ public class PAPIClient {
 	private final PAPIAuthFilter authFilter;
 	private final String PUBLIC_PARAMETERS;
 	private final String PROTECTED_PARAMETERS;
+	private final PolarisConfig polarisConfig;
 
-	public PAPIClient(PolarisLmsClient client) {
+	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig) {
 		this.client = client;
-		this.authFilter = new PAPIAuthFilter(client);
+		this.polarisConfig = polarisConfig;
+		this.authFilter = new PAPIAuthFilter(client, polarisConfig);
 
 		// Build PAPI base parameters
-		String PAPI_PARAMETERS = client.getGeneralUriParameters(PAPIService);
+		String PAPI_PARAMETERS = polarisConfig.pAPIServiceUriParameters();
 		String BASE_PARAMETERS = "/PAPIService/REST";
 		this.PUBLIC_PARAMETERS = BASE_PARAMETERS + "/public" + PAPI_PARAMETERS;
 		this.PROTECTED_PARAMETERS = BASE_PARAMETERS + "/protected" + PAPI_PARAMETERS;
@@ -107,15 +102,11 @@ public class PAPIClient {
 	}
 
 	private PatronRegistration getPatronRegistration(Patron patron) {
-		final var conf = client.getConfig();
-		final var servicesConfig = client.getServicesConfig();
-		final var patronBarcodePrefix = extractMapValueWithDefault(
-			servicesConfig, PATRON_BARCODE_PREFIX, String.class, "DCB-");
-
+		final var patronBarcodePrefix = polarisConfig.getPatronBarcodePrefix("DCB-");
 		return PatronRegistration.builder()
-			.logonBranchID(extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class))
-			.logonUserID(extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class))
-			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
+			.logonBranchID(polarisConfig.getLogonBranchId())
+			.logonUserID(polarisConfig.getLogonUserId())
+			.logonWorkstationID(polarisConfig.getServicesWorkstationId())
 			.patronBranchID(patron.getLocalItemLocationId())
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
@@ -137,13 +128,11 @@ public class PAPIClient {
 		log.info("patronRegistrationUpdate {} {}", barcode, patronType);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
-		final var conf = client.getConfig();
-		final var servicesConfig = client.getServicesConfig();
 
 		final var body = PatronRegistration.builder()
-			.logonBranchID( extractRequiredMapValue(conf, LOGON_BRANCH_ID, Integer.class) )
-			.logonUserID( extractRequiredMapValue(conf, LOGON_USER_ID, Integer.class) )
-			.logonWorkstationID( extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class) )
+			.logonBranchID(polarisConfig.getLogonBranchId())
+			.logonUserID(polarisConfig.getLogonUserId())
+			.logonWorkstationID(polarisConfig.getServicesWorkstationId())
 			.patronCode(Integer.valueOf(patronType))
 			.build();
 
@@ -172,13 +161,12 @@ public class PAPIClient {
 	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
-		final var servicesConfig = client.getServicesConfig();
 
 		log.info("itemCheckoutPost PatronBarcode {} itemBarcode {} path {}", patronBarcode, itemBarcode, path);
 
 		final var body = ItemCheckoutData.builder()
-			.logonBranchID(client.illLocationId())
-			.logonWorkstationID(extractRequiredMapValue(servicesConfig, SERVICES_WORKSTATION_ID, Integer.class))
+			.logonBranchID(polarisConfig.getIllLocationId())
+			.logonWorkstationID(polarisConfig.getServicesWorkstationId())
 			.itemBarcode(itemBarcode)
 			.build();
 
