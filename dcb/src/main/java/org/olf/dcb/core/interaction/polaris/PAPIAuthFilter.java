@@ -4,19 +4,12 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.ACCESS_ID;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.ACCESS_KEY;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.DOMAIN_ID;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.HMAC_SHA1_ALGORITHM;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_PASSWORD;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.STAFF_USERNAME;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisClient.PAPIService;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.Map;
 import java.util.Optional;
 
 import javax.crypto.Mac;
@@ -40,17 +33,17 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 class PAPIAuthFilter {
+	private final PolarisConfig polarisConfig;
 	private AuthToken currentToken;
 	private PatronAuthToken patronAuthToken;
 	private final PolarisLmsClient client;
-	private final Map<String, Object> conf;
 	private final String URI_PARAMETERS;
 	private Boolean overrideMethod;
 
-	PAPIAuthFilter(PolarisLmsClient client) {
+	PAPIAuthFilter(PolarisLmsClient client, PolarisConfig polarisConfig) {
 		this.client = client;
-		this.conf = client.getConfig();
-		this.URI_PARAMETERS = client.getGeneralUriParameters(PAPIService);
+		this.polarisConfig = polarisConfig;
+		this.URI_PARAMETERS = polarisConfig.pAPIServiceUriParameters();
 	}
 
 	Mono<MutableHttpRequest<?>> ensureStaffAuth(MutableHttpRequest<?> request) {
@@ -75,9 +68,9 @@ class PAPIAuthFilter {
 
 	private Mono<AuthToken> staffAuthenticator() {
 		return Mono.defer(() -> {
-			String domain = (String) conf.get(DOMAIN_ID);
-			String username = (String) conf.get(STAFF_USERNAME);
-			String password = (String) conf.get(STAFF_PASSWORD);
+			String domain = polarisConfig.getDomainId();
+			String username = polarisConfig.getStaffUsername();
+			String password = polarisConfig.getStaffPassword();
 
 			return createStaffAuthRequest(domain, username, password)
 				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)))
@@ -154,8 +147,8 @@ class PAPIAuthFilter {
 
 	private MutableHttpRequest<?> authorization(MutableHttpRequest<?> request) {
 
-		final var id = (String) conf.get(ACCESS_ID);
-		final var key = (String) conf.get(ACCESS_KEY);
+		final var id = polarisConfig.getAccessId();
+		final var key = polarisConfig.getAccessKey();
 		final var method = request.getMethod().name();
 		final var path = request.getUri().toString();
 		final var date = generateUTCFormattedDateTime();

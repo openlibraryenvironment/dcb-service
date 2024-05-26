@@ -1,0 +1,297 @@
+package org.olf.dcb.core.interaction.polaris;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
+
+import java.util.List;
+import java.util.function.Function;
+
+@Data
+@NoArgsConstructor
+@Serdeable
+public class PolarisConfig {
+	@JsonProperty("default-agency-code")
+	private String defaultAgencyCode;
+	@JsonProperty("roles")
+	private List<String> roles;
+	@JsonProperty("ingest")
+	private Boolean ingest;
+	@JsonProperty("base-url")
+	private Object baseUrl;
+	@JsonProperty("base-url-application-services")
+	private String overrideBaseUrl;
+	@JsonProperty("page-size")
+	private Integer pageSize;
+	@JsonProperty("staff-username")
+	private String staffUsername;
+	@JsonProperty("staff-password")
+	private String staffPassword;
+	@JsonProperty("domain-id")
+	private String domainId;
+	@JsonProperty("access-id")
+	private String accessId;
+	@JsonProperty("access-key")
+	private String accessKey;
+	@JsonProperty("logon-branch-id")
+	private Object logonBranchId;
+	@JsonProperty("logon-user-id")
+	private Object logonUserId;
+	@JsonProperty("contextHierarchy")
+	private List<String> contextHierarchy;
+	@JsonProperty("borrower-lending-flow")
+	private String borrowerLendingFlow;
+	@JsonProperty("papi")
+	private PapiConfig papi;
+	@JsonProperty("services")
+	private ServicesConfig services;
+	@JsonProperty("item")
+	private ItemConfig item;
+
+	public String getBaseUrl() {
+
+		return requiredValue("Base Url", this.baseUrl, String.class);
+	}
+
+	public Integer getLogonBranchId() {
+
+		return requiredValue("Logon Branch ID", this.logonBranchId, Integer.class);
+	}
+
+	public Integer getLogonUserId() {
+
+		return requiredValue("Logon User ID", this.logonUserId, Integer.class);
+	}
+
+	public String getPapiVersion() {
+
+		final var value = getNestedProperty(getPapi(), PapiConfig::getPapiVersion);
+
+		return valueWithDefault(value, String.class, "v1");
+	}
+
+	public String getPapiLangId() {
+
+		final var value = getNestedProperty(getPapi(), PapiConfig::getLangId);
+
+		return valueWithDefault(value, String.class, "1033");
+	}
+
+	public String getPapiAppId() {
+
+		final var value = getNestedProperty(getPapi(), PapiConfig::getAppId);
+
+		return valueWithDefault(value, String.class, "100");
+	}
+
+	public String getPapiOrgId() {
+
+		final var value = getNestedProperty(getPapi(), PapiConfig::getOrgId);
+
+		return valueWithDefault(value, String.class, "1");
+	}
+
+	public String getPatronBarcodePrefix(String defaultValue) {
+
+		final var value = getNestedProperty(getServices(), ServicesConfig::getPatronBarcodePrefix);
+
+		return valueWithDefault(value, String.class, defaultValue);
+	}
+
+	public String getServicesVersion() {
+
+		final var value = getNestedProperty(getServices(), ServicesConfig::getServicesVersion);
+
+		return valueWithDefault(value, String.class, "v1");
+	}
+
+	public String getServicesLanguage() {
+
+		final var value = getNestedProperty(getServices(), ServicesConfig::getLanguage);
+
+		return valueWithDefault(value, String.class, "eng");
+	}
+
+	public String getServicesProductId() {
+
+		final var value = getNestedProperty(getServices(), ServicesConfig::getProductId);
+
+		return valueWithDefault(value, String.class, "19");
+	}
+
+	public String getServicesSiteDomain() {
+
+		final var value = getNestedProperty(getServices(), ServicesConfig::getSiteDomain);
+
+		return valueWithDefault(value, String.class, "polaris");
+	}
+
+	public String getServicesOrganisationId() {
+
+		final var value = getNestedProperty(getServices(), ServicesConfig::getOrganisationId);
+
+		return requiredValue("Services Organisation Id", value, String.class);
+	}
+
+	public Integer getServicesWorkstationId() {
+
+		final var value = getNestedProperty(getServices(), ServicesConfig::getWorkstationId);
+
+		return valueWithDefault(value, Integer.class, 1);
+	}
+
+	public Integer getItemRenewalLimit() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getRenewalLimit);
+
+		return requiredValue("Item Renewal Limit", value, Integer.class);
+	}
+
+	public Integer getItemFindCodeId() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getFineCodeId);
+
+		return requiredValue("Item Fine Code ID", value, Integer.class);
+	}
+
+	public Integer getItemHistoryActionId() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getHistoryActionId);
+
+		return requiredValue("Item History Action ID", value, Integer.class);
+	}
+
+	public Integer getItemLoanPeriodCodeId() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getLoanPeriodCodeId);
+
+		return requiredValue("Item Loan Period Code ID", value, Integer.class);
+	}
+
+	public Integer getItemShelvingSchemeId() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getShelvingSchemeId);
+
+		return requiredValue("Item Shelving Scheme ID", value, Integer.class);
+	}
+
+	public String getItemBarcodePrefix() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getBarcodePrefix);
+
+		return optionalValue(value, String.class);
+	}
+
+	public Integer getIllLocationId() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getIllLocationId);
+
+		return requiredValue("Ill Location ID", value, Integer.class);
+	}
+
+	@Data
+	@NoArgsConstructor
+	@Serdeable
+	public static class PapiConfig {
+		@JsonProperty("papi-version")
+		private Object papiVersion;
+		@JsonProperty("lang-id")
+		private Object langId;
+		@JsonProperty("app-id")
+		private Object appId;
+		@JsonProperty("org-id")
+		private Object orgId;
+	}
+
+	@Data
+	@NoArgsConstructor
+	@Serdeable
+	public static class ServicesConfig {
+		@JsonProperty("patron-barcode-prefix")
+		private Object patronBarcodePrefix;
+		@JsonProperty("services-version")
+		private Object servicesVersion;
+		@JsonProperty("language")
+		private Object language;
+		@JsonProperty("product-id")
+		private Object productId;
+		@JsonProperty("site-domain")
+		private Object siteDomain;
+		@JsonProperty("organisation-id")
+		private Object organisationId;
+		@JsonProperty("workstation-id")
+		private Object workstationId;
+	}
+
+	@Data
+	@NoArgsConstructor
+	@Serdeable
+	public static class ItemConfig {
+		@JsonProperty("renewal-limit")
+		private Object renewalLimit;
+		@JsonProperty("fine-code-id")
+		private Object fineCodeId;
+		@JsonProperty("history-action-id")
+		private Object historyActionId;
+		@JsonProperty("loan-period-code-id")
+		private Object loanPeriodCodeId;
+		@JsonProperty("shelving-scheme-id")
+		private Object shelvingSchemeId;
+		@JsonProperty("barcode-prefix")
+		private Object barcodePrefix;
+		@JsonProperty("ill-location-id")
+		private Object illLocationId;
+	}
+
+	public String applicationServicesUriParameters() {
+		return "/" + this.getServicesVersion() +
+			"/" + this.getServicesLanguage() +
+			"/" + this.getServicesProductId() +
+			"/" + this.getServicesSiteDomain() +
+			"/" + this.getServicesOrganisationId() +
+			"/" + this.getServicesWorkstationId();
+	}
+
+	public String pAPIServiceUriParameters() {
+		return "/" + this.getPapiVersion() +
+			"/" + this.getPapiLangId() +
+			"/" + this.getPapiAppId() +
+			"/" + this.getPapiOrgId();
+	}
+
+	private <T, R> R getNestedProperty(T parent, Function<T, R> extractor) {
+		return parent != null ? extractor.apply(parent) : null;
+	}
+
+	static <T> T valueWithDefault(Object value, Class<T> type, Object defval) {
+		final Object r1 = optionalValue(value,type);
+		return type.cast( r1 != null ? r1 : defval );
+	}
+
+	static <T> T requiredValue(String name, Object value, Class<T> type) {
+
+		T t = getT(value, type);
+		if (t != null) return t;
+
+		throw new PolarisConfigurationException("Missing required config value: " + name);
+	}
+
+	static <T> T optionalValue(Object value, Class<T> type) {
+		return getT(value, type);
+	}
+
+	private static <T> T getT(Object value, Class<T> type) {
+		if (value != null) {
+			if (type.isInstance(value)) {
+				return type.cast(value);
+			} else if (type == String.class && value instanceof Integer) {
+				return type.cast(value.toString());
+			} else if (type == Integer.class && value instanceof String) {
+				return type.cast(Integer.valueOf((String) value));
+			}
+		}
+		return null;
+	}
+}
