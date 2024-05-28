@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 6.12.1
+
+### Fixes
+* [General]
+	* Tolerate null home library code for patron DCB-1135
+
 ## Version 6.12.0
 
 ### Additions
@@ -12,6 +18,8 @@
 	* Add nanosecond timings to live availability response
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* streamline polaris configurations [DCB-1084]
 
