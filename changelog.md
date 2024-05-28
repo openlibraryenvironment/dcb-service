@@ -1,5 +1,24 @@
 # Changelog
 
+## Version 6.12.0
+
+### Additions
+* [General]
+	* manual selection of an item by a patron [DCB-1120]
+	* Disallow patron from placing request when agency is not participating in borrowing DCB-1135
+	* Fetch participation fields for updated agency when omitted by the client DCB-1125
+	* Exclude items from live availability when agency participation unknown DCB-1134
+	* Extend mappings import to reference value mappings [DCB-1152]
+	* Add nanosecond timings to live availability response
+
+### Changes
+* [Refactor]
+	* streamline polaris configurations [DCB-1084]
+
+### Fixes
+* [General]
+	* Up the concurrent streams for http2 multiplexing
+
 ## Version 6.11.0
 
 ### Additions
@@ -10,6 +29,8 @@
 	* prevent duplicate request within N seconds [DCB-1090]
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Test]
 	* PreventDuplicateRequestsPreflightCheckTests
 
