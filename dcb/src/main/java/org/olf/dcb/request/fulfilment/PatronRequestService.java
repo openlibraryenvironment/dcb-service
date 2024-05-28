@@ -5,6 +5,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
@@ -53,9 +54,27 @@ public class PatronRequestService {
 			.doOnError(PreflightCheckFailedException.class, e -> log.error("Preflight check for request {} failed", command, e))
 			.zipWhen(this::findOrCreatePatron)
 			.map(function(this::mapToPatronRequest))
+			.map(mapManualItemSectionIfPresent(command))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate)
 			.doOnError(e -> log.error("Placing request {} failed", command, e));
+	}
+
+	private static Function<PatronRequest, PatronRequest> mapManualItemSectionIfPresent(
+		PlacePatronRequestCommand command)
+	{
+		if (command.getItem() == null) {
+			return patronRequest -> patronRequest.setIsManuallySelectedItem(Boolean.FALSE);
+		}
+		else if (isFullItemPresent(command.getItem())) {
+			return patronRequest -> patronRequest.addManuallySelectedItemDetails(command.getItem());
+		}
+		// Indicate no item or partial item selected
+		return patronRequest -> patronRequest.setIsManuallySelectedItem(Boolean.FALSE);
+	}
+
+	private static Boolean isFullItemPresent(PlacePatronRequestCommand.Item item) {
+		return item.getLocalId() != null && item.getLocalSystemCode() != null && item.getAgencyCode() != null;
 	}
 
 	private Mono<Patron> findOrCreatePatron(PlacePatronRequestCommand command) {

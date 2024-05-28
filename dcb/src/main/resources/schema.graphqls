@@ -192,6 +192,9 @@ type PatronRequest {
 	elapsedTimeInCurrentStatus: Float
 	rawLocalItemStatus: String
 	rawLocalRequestStatus: String
+	localItemHostlmsCode: String
+	localItemAgencyCode: String
+	isManuallySelectedItem: Boolean
 }
 
 type PatronRequestAudit {

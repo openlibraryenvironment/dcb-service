@@ -1,6 +1,9 @@
 package org.olf.dcb.request.resolution;
 
+import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
+import static org.olf.dcb.request.resolution.ResolutionStrategy.MANUAL_SELECTION;
+import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +17,7 @@ import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
 
 @Slf4j
@@ -25,8 +29,8 @@ public class PatronRequestResolutionService {
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		@Value("${dcb.itemresolver.code}") String itemResolver,
-		List<ResolutionStrategy> allResolutionStrategies) {
-
+		List<ResolutionStrategy> allResolutionStrategies)
+	{
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
@@ -42,19 +46,69 @@ public class PatronRequestResolutionService {
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
 
-		final var resolutionStrategy = allResolutionStrategies.stream()
-			.filter(strategy -> strategy.getCode().equals(this.itemResolver))
-			.findFirst()
-			.orElseThrow(() -> new RuntimeException("No resolver with code " + this.itemResolver));
-
 		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
 			.zipWhen(this::getAvailableItems, Resolution::trackAllItems)
 			.map(this::filterItems)
-			.zipWhen(resolution -> selectItem(resolutionStrategy, resolution), Resolution::selectItem)
+			.flatMap(this::decideResolutionStrategy)
+			.flatMap(function(this::applyResolutionStrategy))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
 			.switchIfEmpty(Mono.defer(() -> Mono.just(noItemsSelectable(patronRequest))));
+	}
+
+	private Mono<Tuple2<ResolutionStrategy, Resolution>> decideResolutionStrategy(Resolution resolution) {
+
+		final var patronRequest = resolution.getPatronRequest();
+		final var code = decideCode(patronRequest);
+
+		return Mono.defer(() -> Mono.fromCallable(() -> getResolutionStrategyBy(code))
+			.doOnSuccess(strategy -> log.info("Selecting item by {} for Patron Request {}",
+				strategy.getCode(), patronRequest.getId()))
+			.single()
+			.zipWith(Mono.just(resolution)));
+	}
+
+	private String decideCode(PatronRequest patronRequest) {
+
+		final var isManualSelection = patronRequest.getIsManuallySelectedItem();
+		return TRUE.equals(isManualSelection) ? MANUAL_SELECTION : itemResolverFor(patronRequest);
+	}
+
+	private String itemResolverFor(PatronRequest patronRequest) {
+
+		// manual selection failed at submission
+		// but the item resolver could be set to the manual selection resolver code
+		if (MANUAL_SELECTION.equals(itemResolver)) {
+			validateManualSelectionFor(patronRequest);
+			// manual selection now passed checks so set the pr to manual selection
+			patronRequest.setIsManuallySelectedItem(TRUE);
+		}
+
+		return itemResolver;
+	}
+
+	private void validateManualSelectionFor(PatronRequest patronRequest) {
+		if (patronRequest.getLocalItemId() == null) {
+			throw new IllegalArgumentException("localItemId is required for manual item selection");
+		}
+		if (patronRequest.getLocalItemHostlmsCode() == null) {
+			throw new IllegalArgumentException("localItemHostlmsCode is required for manual item selection");
+		}
+		if (patronRequest.getLocalItemAgencyCode() == null) {
+			throw new IllegalArgumentException("localItemAgencyCode is required for manual item selection");
+		}
+	}
+
+	private ResolutionStrategy getResolutionStrategyBy(String code) {
+		return allResolutionStrategies.stream()
+			.filter(strategy -> strategy.getCode().equals(code))
+			.findFirst()
+			.orElseThrow(() -> new RuntimeException("No resolver with code " + code));
+	}
+
+	private Mono<Resolution> applyResolutionStrategy(ResolutionStrategy strategy, Resolution resolution) {
+		return selectItem(strategy, resolution).map(resolution::selectItem);
 	}
 
 	private Mono<List<Item>> getAvailableItems(Resolution resolution) {
@@ -67,7 +121,7 @@ public class PatronRequestResolutionService {
 			.map(AvailabilityReport::getItems);
 	}
 
-	private static Mono<Item> selectItem(ResolutionStrategy resolutionStrategy,
+	private Mono<Item> selectItem(ResolutionStrategy resolutionStrategy,
 		Resolution resolution) {
 
 		return resolutionStrategy.chooseItem(resolution.getFilteredItems(),

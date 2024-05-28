@@ -17,6 +17,7 @@ public class PlacePatronRequestCommand {
 	@NonNull Requestor requestor;
 	@Nullable String description;
 	@Nullable String requesterNote;
+	@Nullable Item item;
 
 	String getPickupLocationCode() {
 		return getPickupLocation().getCode();
@@ -64,6 +65,18 @@ public class PlacePatronRequestCommand {
 		// THe location code of the patrons home library (May not be present - e.g. FOLIO)
 		String homeLibraryCode;
 		// The patrons home agency
+		String agencyCode;
+	}
+
+	@Serdeable
+	@Builder
+	@Value
+	public static class Item {
+		// The item ID at the system
+		String localId;
+		// The code assigned to the hostLMS this item belongs to
+		String localSystemCode;
+		// The agency code of the item
 		String agencyCode;
 	}
 }

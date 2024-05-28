@@ -32,6 +32,7 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
@@ -228,6 +229,15 @@ public class PatronRequest {
 	private String localItemId;
 
 	@Nullable
+	private String localItemHostlmsCode;
+
+	@Nullable
+	private String localItemAgencyCode;
+
+	@Nullable
+	private Boolean isManuallySelectedItem;
+
+	@Nullable
 	private String localItemStatus;
 
 	@Nullable
@@ -385,6 +395,13 @@ public class PatronRequest {
 		return setLocalItemId(hostLmsItem.getLocalId() != null ? hostLmsItem.getLocalId() : null)
 			.setLocalItemStatus(hostLmsItem.getStatus() != null ? hostLmsItem.getStatus() : null)
 			.setRawLocalItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
+	}
+
+	public PatronRequest addManuallySelectedItemDetails(PlacePatronRequestCommand.Item item) {
+		return setLocalItemId(item.getLocalId())
+			.setLocalItemHostlmsCode(item.getLocalSystemCode())
+			.setLocalItemAgencyCode(item.getAgencyCode())
+			.setIsManuallySelectedItem(Boolean.TRUE);
 	}
 
 	public PatronRequest placedAtBorrowingAgency(LocalRequest localRequest) {
