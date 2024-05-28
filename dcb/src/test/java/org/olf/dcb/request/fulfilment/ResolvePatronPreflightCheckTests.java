@@ -107,14 +107,13 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldPassWhenPatronMappedToDefaultAgency() {
 		// Arrange
-		final var localPatronId = "345358";
+		final var localPatronId = "673633";
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
 			Patron.builder()
 				.id(Integer.parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
 				.build());
@@ -142,7 +141,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsAssociatedWithAgencyNotParticipatingInBorrowing() {
 		// Arrange
-		final var localPatronId = "354256";
+		final var localPatronId = "562732";
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
@@ -182,7 +181,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsAssociatedWithAnAgencyWithNoParticipationInformation() {
 		// Arrange
-		final var localPatronId = "354256";
+		final var localPatronId = "736453";
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
@@ -258,7 +257,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsAssociatedWithUnknownAgency() {
 		// Arrange
-		final var localPatronId = "8292567";
+		final var localPatronId = "725562";
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
@@ -297,7 +296,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsIneligible() {
 		// Arrange
-		final var localPatronId = "345358";
+		final var localPatronId = "836492";
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
@@ -382,7 +381,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsIneligibleAndBlocked() {
 		// Arrange
-		final var localPatronId = "2656774";
+		final var localPatronId = "984625";
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,

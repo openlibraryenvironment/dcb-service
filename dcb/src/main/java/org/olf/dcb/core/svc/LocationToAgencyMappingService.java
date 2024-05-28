@@ -61,6 +61,13 @@ public class LocationToAgencyMappingService {
 			return empty();
 		}
 
+		if (isEmpty(locationCode)) {
+			// This will happen for all FOLIO patrons so has lower log level than similar warning above
+			log.debug("Attempting to find mapping from location to agency with empty code");
+
+			return empty();
+		}
+
 		return referenceValueMappingService.findMapping("Location", fromContext,
 			locationCode, "AGENCY", "DCB");
 	}

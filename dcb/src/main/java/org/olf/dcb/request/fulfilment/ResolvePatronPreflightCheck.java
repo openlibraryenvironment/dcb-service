@@ -26,8 +26,10 @@ import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronPreflightCheck implements PreflightCheck {
@@ -74,6 +76,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<String> findHomeLocationMapping(Patron patron, String hostLmsCode) {
+		log.debug("Finding home location mapping for host LMS code: \"{}\", patron: {}", hostLmsCode, patron);
+
 		return locationToAgencyMappingService.findLocationToAgencyMapping(
 				hostLmsCode, getValue(patron, Patron::getLocalHomeLibraryCode))
 			.map(ReferenceValueMapping::getToValue);
