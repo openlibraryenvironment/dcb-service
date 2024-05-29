@@ -453,7 +453,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		PlaceHoldRequestParameters parameters) {
 		return getBibIdFromItemId(parameters.getLocalItemId())
 			.flatMap(this::getBib)
-			.zipWith(ApplicationServices.itemrecords(parameters.getLocalItemId()));
+			.zipWith(ApplicationServices.itemrecords(parameters.getLocalItemId(), FALSE));
 	}
 
 	@Override
@@ -562,7 +562,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 
 		return parseLocalItemId(localItemId)
-			.flatMap(ApplicationServices::itemrecords)
+			.flatMap(id -> ApplicationServices.itemrecords(id,TRUE))
 			.doOnSuccess(itemRecordFull -> log.info("Got item: {}", itemRecordFull))
 			.map(item -> validate(localItemId, item))
 			.flatMap(this::collectItemStatusName)
@@ -575,8 +575,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.rawStatus(itemRecord.getItemStatusName())
 					.barcode(itemRecord.getBarcode())
 					.build();
-			});
+			})
+			.defaultIfEmpty(HostLmsItem.builder()
+				.localId(localItemId)
+				.status("MISSING")
+				.build());
 	}
+
 
 	private Mono<String> parseLocalItemId(String localItemId) {
 		if (localItemId == null) {
@@ -640,7 +645,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 	private Mono<Void> updateItem(String itemId, Integer toStatus) {
 
-		return ApplicationServices.itemrecords(itemId)
+		return ApplicationServices.itemrecords(itemId,FALSE)
 			.flatMap(item -> ApplicationServices.updateItemRecord(itemId, item.getItemStatusID(), toStatus));
 	}
 
@@ -701,7 +706,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<Patron> fetchItemLocation(Patron patron) {
-		return ApplicationServices.itemrecords(patron.getLocalItemId())
+		return ApplicationServices.itemrecords(patron.getLocalItemId(),FALSE)
 			.map(item -> patron.setLocalItemLocationId(item.getAssignedBranchID()));
 	}
 
@@ -856,7 +861,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<String> getBibIdFromItemId(String recordNumber) {
-		return ApplicationServices.itemrecords(recordNumber)
+		return ApplicationServices.itemrecords(recordNumber,FALSE)
 			.map(record -> record.getBibInfo().getBibliographicRecordID())
 			.map(String::valueOf);
 	}

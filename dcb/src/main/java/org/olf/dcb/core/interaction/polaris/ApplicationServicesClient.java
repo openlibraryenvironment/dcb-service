@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import io.micronaut.http.HttpResponse;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.exceptions.CreateVirtualItemException;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
@@ -663,11 +664,32 @@ class ApplicationServicesClient {
 		return request.body(body);
 	}
 
-	public Mono<ItemRecordFull> itemrecords(String localItemId) {
+	public Mono<ItemRecordFull> itemrecords(String localItemId, Boolean handleItemNotFoundAsMissing) {
 		final var path = createPath("itemrecords", localItemId);
 
 		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class)));
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class), response -> response
+					.onErrorResume(error -> handleItemNotFoundError(handleItemNotFoundAsMissing, localItemId, error))
+			));
+	}
+
+	private static Mono<ItemRecordFull> handleItemNotFoundError(Boolean handleItemNotFoundAsMissing,
+		String localItemId, Throwable error)
+	{
+		String errorMessage = Objects.toString(error.getMessage(), null);
+		log.error("Error attempting to retrieve item record {}: {}", localItemId, errorMessage);
+
+		if (handleItemNotFoundAsMissing && error instanceof HttpClientResponseException httpClientResponseException) {
+
+			final var isNotFound = httpClientResponseException.getStatus() == HttpStatus.NOT_FOUND;
+
+			if (isNotFound) {
+				// Pass back an empty Mono to allow further processing
+				return Mono.empty();
+			}
+		}
+
+		return Mono.error(error);
 	}
 
 	public Mono<WorkflowResponse> checkIn(String itemId, Integer illLocationId) {
