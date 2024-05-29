@@ -164,7 +164,7 @@ class PolarisLmsClientTests {
 				.build()));
 
 		// Assert
-		assertThat(itemsList, hasSize(3));
+		assertThat(itemsList, hasSize(5));
 
 		final var firstItem = itemsList.stream()
 			.filter(item -> "3512742".equals(item.getLocalId()))
