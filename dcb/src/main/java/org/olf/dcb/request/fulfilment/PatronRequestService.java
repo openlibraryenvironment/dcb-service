@@ -54,13 +54,13 @@ public class PatronRequestService {
 			.doOnError(PreflightCheckFailedException.class, e -> log.error("Preflight check for request {} failed", command, e))
 			.zipWhen(this::findOrCreatePatron)
 			.map(function(this::mapToPatronRequest))
-			.map(mapManualItemSectionIfPresent(command))
+			.map(mapManualItemSelectionIfPresent(command))
 			.flatMap(this::savePatronRequest)
 			.doOnSuccess(requestWorkflow::initiate)
 			.doOnError(e -> log.error("Placing request {} failed", command, e));
 	}
 
-	private static Function<PatronRequest, PatronRequest> mapManualItemSectionIfPresent(
+	private static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(
 		PlacePatronRequestCommand command)
 	{
 		if (command.getItem() == null) {
