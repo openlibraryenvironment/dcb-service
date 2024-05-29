@@ -34,36 +34,40 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final String pickupLocationCode = getValue(command, PlacePatronRequestCommand::getPickupLocationCode);
-		final String hostLmsCode = getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
-		final String patronLocalId = getValue(command, PlacePatronRequestCommand::getRequestorLocalId);
-		final UUID bibClusterId = getValue(command, PlacePatronRequestCommand::getCitation).getBibClusterId();
-		final Instant requestWindowMatcher = Instant.now().plusSeconds(requestWindowInSeconds);
+		final Instant thisRequestInstant = Instant.now();
+		final String thisPickupLocationCode = getValue(command, PlacePatronRequestCommand::getPickupLocationCode);
+		final String thisHostLmsCode = getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
+		final String thisPatronLocalId = getValue(command, PlacePatronRequestCommand::getRequestorLocalId);
+		final UUID thisBibClusterId = getValue(command, PlacePatronRequestCommand::getCitation).getBibClusterId();
 
-		return checkRequestFor(hostLmsCode, patronLocalId, bibClusterId, requestWindowMatcher)
-			.map( result(pickupLocationCode, hostLmsCode, patronLocalId, bibClusterId) )
+		return checkRequestFor(thisHostLmsCode, thisPatronLocalId, thisBibClusterId, thisRequestInstant)
+			.map( result(thisPickupLocationCode, thisHostLmsCode, thisPatronLocalId, thisBibClusterId) )
 			.map(List::of);
 	}
 
 	private Function<List<PatronRequest>, CheckResult> result(
-		String pickupLocationCode, String hostLmsCode, String patronLocalId, UUID bibClusterId)
+		String thisPickupLocationCode, String thisHostLmsCode, String thisPatronLocalId, UUID thisBibClusterId)
 	{
-		return list -> list.isEmpty() ? passed() : checkFailed(pickupLocationCode, hostLmsCode, patronLocalId, bibClusterId);
+		return list -> list.isEmpty() ?
+			passed() : checkFailed(thisPickupLocationCode, thisHostLmsCode, thisPatronLocalId, thisBibClusterId);
 	}
 
 	private Mono<List<PatronRequest>> checkRequestFor(
-		String hostLmsCode, String patronLocalId, UUID bibClusterId, Instant requestWindowMatcher)
+		String thisHostLmsCode, String thisPatronLocalId, UUID thisBibClusterId, Instant thisRequestInstant)
 	{
-		return fetchMatchedPatronRequestsFor(hostLmsCode, bibClusterId)
-			.filter(patronRequest -> isMatching(patronLocalId, requestWindowMatcher, patronRequest))
+		return fetchMatchedPatronRequestsFor(thisHostLmsCode, thisBibClusterId)
+			.filter(lastMatchedPatronRequest -> isMatching(thisPatronLocalId, thisRequestInstant, lastMatchedPatronRequest))
 			.collectList();
 	}
 
 	private Boolean isMatching(
-		String patronLocalId, Instant requestWindowMatcher, PatronRequest patronRequest)
+		String thisPatronLocalId, Instant thisRequestInstant, PatronRequest lastMatchedPatronRequest)
 	{
-		return patronRequest.getRequestingIdentity().getLocalId().equals(patronLocalId) &&
-			patronRequest.getDateCreated().isBefore(requestWindowMatcher);
+		return lastMatchedPatronRequest.getRequestingIdentity().getLocalId().equals(thisPatronLocalId) &&
+			// Check that the Instant of this request
+			// is within the request window of the last matching request
+			// which means we caught a preventable request
+			thisRequestInstant.isBefore(lastMatchedPatronRequest.getDateCreated().plusSeconds(requestWindowInSeconds));
 	}
 
 	private CheckResult checkFailed(
