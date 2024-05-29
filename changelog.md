@@ -1,6 +1,26 @@
 # Changelog
 
+## Version 6.12.2
+
+### Changes
+* [Chore]
+	* correct naming of method in PatronRequestService
+* [Refactor]
+	* update README.md with new config values for [DCB-1090]
+* [Test]
+	* polaris item duedate with single digit min with/without space [DCB-1146]
+	* DateTimeParseException fix [DCB-1146]
+
+### Fixes
+* [General]
+	* polling a polaris item that is not found [DCB-1174]
+	* request window rule for PreventDuplicateRequestsPreFlightCheck [DCB-1090]
+
 ## Version 6.12.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
