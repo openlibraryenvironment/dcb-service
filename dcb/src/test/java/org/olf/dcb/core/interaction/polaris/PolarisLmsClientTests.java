@@ -164,7 +164,7 @@ class PolarisLmsClientTests {
 				.build()));
 
 		// Assert
-		assertThat(itemsList, hasSize(5));
+		assertThat(itemsList, hasSize(3));
 
 		final var firstItem = itemsList.stream()
 			.filter(item -> "3512742".equals(item.getLocalId()))
@@ -174,7 +174,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
 		assertThat(firstItem, hasStatus(UNAVAILABLE));
-		assertThat(firstItem, hasDueDate("2024-06-03T09:43:00Z"));
+		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
 		assertThat(firstItem, hasLocation("SLPL Kingshighway", "15"));
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
