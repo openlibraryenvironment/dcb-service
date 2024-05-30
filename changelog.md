@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 6.12.3
+
+### Fixes
+* [General]
+	* tolerate nulls and toString Errors when auditing in HandleBorrowerItemLoaned [DCB-1180]
+
 ## Version 6.12.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* correct naming of method in PatronRequestService
 * [Refactor]
 	* update README.md with new config values for [DCB-1090]
