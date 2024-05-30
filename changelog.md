@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 6.12.4
+
+### Fixes
+* [General]
+	* revert shouldBeAbleToGetItemsByBibId back
+
 ## Version 6.12.3
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
