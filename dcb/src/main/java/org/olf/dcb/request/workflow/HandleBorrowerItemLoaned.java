@@ -9,6 +9,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import jakarta.inject.Singleton;
@@ -70,10 +71,25 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 				return hostLmsService.getClientFor(rwc.getLenderSystemCode())
 					.flatMap(hostLmsClient -> updateThenCheckoutItem(rwc, hostLmsClient, patron_barcodes))
-					.doOnNext(srwc -> rwc.getWorkflowMessages().add("Home item (b=" + home_item_barcode + "@" + rwc.getLenderSystemCode() + ") checked out to virtual patron (b=" + patron_barcodes[0] + ")") )
-					.doOnError(error -> {
-						log.error("problem checking out item {} to vpatron {}: {}",home_item_barcode, patron_barcodes, error);
-						patronRequestAuditService.addErrorAuditEntry( rwc.getPatronRequest(), "Error attempting to check out home item to vpatron:" + error);
+					.doOnNext(srwc -> {
+						String homeItemBarcode = Objects.toString(home_item_barcode, "unknown");
+						String lenderSystemCode = Objects.toString(rwc.getLenderSystemCode(), "unknown");
+						String patronBarcode =  Objects.toString(patron_barcodes[0], "unknown");
+						String message = String.format("Home item (b=%s@%s) checked out to virtual patron (b=%s)",
+							homeItemBarcode, lenderSystemCode, patronBarcode
+						);
+						rwc.getWorkflowMessages().add(message);
+					})
+					.onErrorResume(error -> {
+						String errorMessage = Objects.toString(error, "Unknown error");
+						log.error("Problem checking out item {} to vpatron {}: {}", home_item_barcode, patron_barcodes, errorMessage);
+
+						String auditMessage = String.format("Error attempting to check out home item to vpatron: %s", errorMessage);
+						patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(), auditMessage);
+
+						// Intentionally transform Error
+						// failure to check out the item to a patron, at the supplier, will not halt a successful loan
+						return Mono.just(rwc);
 					})
 					.thenReturn(rwc);
 			} else {

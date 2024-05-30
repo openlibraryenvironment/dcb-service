@@ -119,7 +119,7 @@ public class PatronRequestAuditService {
 	public Mono<PatronRequestAudit> addErrorAuditEntry(PatronRequest patronRequest,
 		String message) {
 
-		return addErrorAuditEntry(patronRequest, patronRequest.getStatus(), message, Map.of());
+		return addErrorAuditEntry(patronRequest, patronRequest.getStatus(), message, new HashMap<>());
 	}
 
 	public Mono<PatronRequestAudit> addErrorAuditEntry(
