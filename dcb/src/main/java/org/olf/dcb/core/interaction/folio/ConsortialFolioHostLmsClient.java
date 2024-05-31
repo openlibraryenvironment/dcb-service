@@ -592,6 +592,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<Patron> updatePatron(String localId, String patronType) {
 		// DCB has no means to update users via the available edge modules
 		// and edge-dcb does not do this on DCB's behalf when creating the transaction
+		log.warn("NOOP: updatePatron called for hostlms {} localPatronId {} localPatronType {}",
+			getHostLms().getName(), localId, patronType);
 
 		// Finding the existing user by ID is the easiest way to support the current
 		// host LMS client interface
