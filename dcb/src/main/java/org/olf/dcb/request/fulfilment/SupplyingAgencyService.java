@@ -5,6 +5,7 @@ import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -43,6 +44,7 @@ public class SupplyingAgencyService {
 	private final PatronService patronService;
 	private final PatronTypeService patronTypeService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
@@ -51,7 +53,8 @@ public class SupplyingAgencyService {
 		SupplierRequestService supplierRequestService, PatronService patronService,
 		PatronTypeService patronTypeService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
+		PatronRequestAuditService patronRequestAuditService) {
 
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestService = supplierRequestService;
@@ -59,6 +62,7 @@ public class SupplyingAgencyService {
 		this.patronTypeService = patronTypeService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
@@ -329,7 +333,34 @@ public class SupplyingAgencyService {
 
 				// if the returned value and the stored value were different, update the virtual patron
 				else if (!Objects.equals(newlyMappedVPatronType, patronType)) {
-					return updateVirtualPatron(supplierHostLmsCode, localId, newlyMappedVPatronType);
+					return updateVirtualPatron(supplierHostLmsCode, localId, newlyMappedVPatronType)
+
+						// check the patron type was infact updated by checking what was returned
+						.flatMap(returnedPatron -> {
+
+							final var returnedLocalPatronType = returnedPatron.getLocalPatronType();
+
+							if (!returnedLocalPatronType.equals(newlyMappedVPatronType)) { // then unsuccessful update
+
+								var auditData = new HashMap<String, Object>();
+								auditData.put("supplier-dcbPatronId", localId);
+								auditData.put("supplier-hostLmsCode", supplierHostLmsCode);
+								auditData.put("supplier-dcbLocalPatronType-before-update", patronType);
+								auditData.put("supplier-dcbLocalPatronType-after-update", returnedLocalPatronType);
+								auditData.put("supplier-dcbLocalPatronType-desired-update", newlyMappedVPatronType);
+								auditData.put("supplier-patron-returned-from-update", returnedPatron.toString());
+
+								final var auditMessage = String.format("Patron update failed : localId %s ptype %s hostlms %s",
+								localId, newlyMappedVPatronType, supplierHostLmsCode);
+
+								return patronRequestAuditService
+									.addErrorAuditEntry(patronRequest, patronRequest.getStatus(), auditMessage, auditData)
+									.map(audit -> returnedLocalPatronType);
+							}
+
+							// successful update
+							return Mono.just(returnedLocalPatronType);
+						});
 				}
 
 				// do nothing if the patron types are equal
@@ -339,12 +370,11 @@ public class SupplyingAgencyService {
 			.map(updatedPatronType -> Tuples.of(localId, updatedPatronType));
 	}
 
-	private Mono<String> updateVirtualPatron(String supplierHostLmsCode, String localId, String patronType) {
+	private Mono<Patron> updateVirtualPatron(String supplierHostLmsCode, String localId, String patronType) {
 		log.debug("updateVirtualPatron {}, {}", localId, patronType);
 
 		return hostLmsService.getClientFor(supplierHostLmsCode)
-			.flatMap(hostLmsClient -> hostLmsClient.updatePatron(localId, patronType))
-			.map(Patron::getLocalPatronType);
+			.flatMap(hostLmsClient -> hostLmsClient.updatePatron(localId, patronType));
 	}
 
 	private Mono<PatronIdentity> getRequestingIdentity(PatronRequest patronRequest) {
