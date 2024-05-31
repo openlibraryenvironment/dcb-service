@@ -1,6 +1,23 @@
 # Changelog
 
+## Version 6.12.5
+
+### Changes
+* [Chore]
+	* audit log a patron type update failure [DCB-1184]
+	* log NOOP return for updatePatron in ConsortialFolioHostLmsClient [DCB-1184]
+	* log NOOP for update patron in ConsortialFolioHostLmsClient [DCB-1184]
+
+### Fixes
+* [General]
+	* ensure checkout failure audits [DCB-1180]
+	* Truncate failed check message in event log DCB-1182
+
 ## Version 6.12.4
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
