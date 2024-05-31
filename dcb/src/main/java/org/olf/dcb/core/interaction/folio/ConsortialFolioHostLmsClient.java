@@ -601,7 +601,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return findUsers(query)
 			.flatMap(response -> mapFirstUserToPatron(response, query,
-				Mono.error(FailedToFindVirtualPatronException.notFound(localId, getHostLmsCode()))));
+				Mono.error(FailedToFindVirtualPatronException.notFound(localId, getHostLmsCode()))))
+			.doOnSuccess(patron -> log.warn("NOOP: updatePatron for hostlms {} returning {}",
+				getHostLms().getName(), patron));
 	}
 
 	@Override
