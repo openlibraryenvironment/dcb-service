@@ -7,10 +7,7 @@ import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 import jakarta.inject.Singleton;
 import jakarta.inject.Named;
@@ -84,12 +81,17 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 						String errorMessage = Objects.toString(error, "Unknown error");
 						log.error("Problem checking out item {} to vpatron {}: {}", home_item_barcode, patron_barcodes, errorMessage);
 
-						String auditMessage = String.format("Error attempting to check out home item to vpatron: %s", errorMessage);
-						patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(), auditMessage);
+						String auditMessage = String.format("Checkout failed : itemb %s, patronb %s, hostlms %s",
+							home_item_barcode, Arrays.toString(patron_barcodes), rwc.getLenderSystemCode());
+
+						var auditData = new HashMap<String, Object>();
+						auditData.put("Error", errorMessage);
 
 						// Intentionally transform Error
 						// failure to check out the item to a patron, at the supplier, will not halt a successful loan
-						return Mono.just(rwc);
+						return patronRequestAuditService
+							.addErrorAuditEntry(rwc.getPatronRequest(), rwc.getPatronRequest().getStatus(), auditMessage, auditData)
+							.map(audit -> rwc);
 					})
 					.thenReturn(rwc);
 			} else {
