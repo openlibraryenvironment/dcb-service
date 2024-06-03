@@ -3,7 +3,6 @@ package org.olf.dcb.core.model;
 import java.time.Instant;
 import java.util.UUID;
 
-import io.micronaut.data.annotation.Where;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -31,7 +30,6 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
-@Where("@.deleted = false OR @.deleted IS NULL")
 public class ReferenceValueMapping {
 
     @NotNull

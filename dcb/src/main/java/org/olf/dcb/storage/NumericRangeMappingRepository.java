@@ -2,7 +2,6 @@ package org.olf.dcb.storage;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.util.Collection;
 import java.util.UUID;
 import org.olf.dcb.core.model.NumericRangeMapping;
 import org.reactivestreams.Publisher;
@@ -11,7 +10,6 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import reactor.core.publisher.Mono;
-import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.Query;
 
 public interface NumericRangeMappingRepository {
@@ -34,12 +32,17 @@ public interface NumericRangeMappingRepository {
 
 	@NonNull
 	@SingleResult
+	@Query("SELECT * FROM numeric_range_mapping WHERE deleted = false OR deleted IS null")
 	Publisher<Page<NumericRangeMapping>> queryAll(Pageable page);
 
 	@NonNull
- 	Publisher<NumericRangeMapping> queryAll();
+	@Query("SELECT * FROM numeric_range_mapping WHERE deleted = false OR deleted IS NULL")
+	Publisher<NumericRangeMapping> queryAll();
 
  	Publisher<Void> delete(UUID id);
+
+	@Query("UPDATE numeric_range_mapping  SET deleted = true WHERE context = :context")
+	Publisher<Long> markAsDeleted(@NotNull String context);
 
 	@SingleResult
 	@NonNull

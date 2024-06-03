@@ -17,66 +17,68 @@ import reactor.core.publisher.Mono;
 
 public interface ReferenceValueMappingRepository {
 
-    @NonNull
-    @SingleResult
-    Publisher<? extends ReferenceValueMapping> save(@Valid @NotNull @NonNull ReferenceValueMapping agency);
+	@NonNull
+	@SingleResult
+	Publisher<? extends ReferenceValueMapping> save(@Valid @NotNull @NonNull ReferenceValueMapping agency);
 
-    @NonNull
-    @SingleResult
-    Publisher<? extends ReferenceValueMapping> persist(@Valid @NotNull @NonNull ReferenceValueMapping agency);
+	@NonNull
+	@SingleResult
+	Publisher<? extends ReferenceValueMapping> persist(@Valid @NotNull @NonNull ReferenceValueMapping agency);
 
-    @NonNull
-    @SingleResult
-    Publisher<? extends ReferenceValueMapping> update(@Valid @NotNull @NonNull ReferenceValueMapping agency);
+	@NonNull
+	@SingleResult
+	Publisher<? extends ReferenceValueMapping> update(@Valid @NotNull @NonNull ReferenceValueMapping agency);
 
-    @NonNull
-    @SingleResult
-    Publisher<ReferenceValueMapping> findById(@NonNull UUID id);
+	@NonNull
+	@SingleResult
+	Publisher<ReferenceValueMapping> findById(@NonNull UUID id);
 
-    @NonNull
-    @SingleResult
-    Publisher<Boolean> existsById(@NonNull UUID id);
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsById(@NonNull UUID id);
 
-    @NonNull
-    @SingleResult
-    Publisher<Page<ReferenceValueMapping>> queryAll(Pageable page);
+	@NonNull
+	@SingleResult
+	@Query("SELECT * FROM reference_value_mapping WHERE deleted = false OR deleted IS NULL")
+	Publisher<Page<ReferenceValueMapping>> queryAll(Pageable page);
 
-    @NonNull
-    Publisher<? extends ReferenceValueMapping> queryAll();
+	@NonNull
+	@Query("SELECT * FROM reference_value_mapping WHERE deleted = false OR deleted IS NULL")
+	Publisher<? extends ReferenceValueMapping> queryAll();
 
-		Publisher<Void> delete(UUID id);
+	Publisher<Void> delete(UUID id);
 
-		@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_category = :fromCategory AND from_context = :fromContext")
-		Publisher<Long> markAsDeleted(@NotNull String fromCategory, @NotNull String fromContext);
+	// For when we want to delete all existing RVMs for a given Host LMS, and we're not bothered about category.
+	@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_context = :context OR to_context =:context")
+	Publisher<Long> markAsDeleted(@NotNull String context);
 
-		// For when we want to delete all existing RVMs for a given Host LMS, and we're not bothered about category.
-		@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_context = :fromContext")
-		Publisher<Long> markAsDeleted(@NotNull String fromContext);
-
-		// Find all deleted mappings. This method could be extended for a specific context / category in future if needed.
-		@Query("SELECT * FROM reference_value_mapping WHERE deleted = true")
-		Publisher<ReferenceValueMapping> findDeleted();
+	// Find all deleted mappings. This method could be extended for a specific context / category in future if needed.
+	@Query("SELECT * FROM reference_value_mapping WHERE deleted = true")
+	Publisher<ReferenceValueMapping> findDeleted();
 
 	/**
 	 * given a source category, context, value and target context look up a value.
 	 * For example - given "PatronType", "DCB", "UG", "SANDBOX" - return "15"
-	 * Which is the patron type to use for undergraduates in the SANDBOX system 
+	 * Which is the patron type to use for undergraduates in the SANDBOX system
 	 * (Where UG is the canonical DCB code for the undergraduate Patron Type)
 	 */
 
+	@Query("SELECT * FROM reference_value_mapping WHERE from_category = :fromCategory AND (deleted = false OR deleted IS NULL)")
 	Publisher<ReferenceValueMapping> findAllByFromCategory(
 		@NonNull String fromCategory);
 
+	@Query("SELECT * FROM reference_value_mapping WHERE from_category = :fromCategory AND from_context = :fromContext AND (deleted = false OR deleted IS NULL)")
 	Publisher<ReferenceValueMapping> findAllByFromCategoryAndFromContext(
 		@NonNull String fromCategory,
 		@NonNull String fromContext);
 
+	@Query("SELECT * FROM reference_value_mapping WHERE from_category = :sourceCategory AND from_context = :sourceContext AND from_value = :sourceValue AND to_context = :targetContext AND (deleted = false OR deleted IS NULL) LIMIT 1")
 	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndFromValueAndToContext(
 		@NonNull String sourceCategory,
 		@NonNull String sourceContext,
 		@NonNull String sourceValue,
 		@NonNull String targetContext);
-
+	@Query("SELECT * FROM reference_value_mapping WHERE from_category = :sourceCategory AND from_context = :sourceContext AND from_value = :sourceValue AND to_category = :targetCategory AND to_context = :targetContext AND (deleted = false OR deleted IS NULL) LIMIT 1")
 	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 		@NonNull String sourceCategory,
 		@NonNull String sourceContext,
@@ -84,6 +86,7 @@ public interface ReferenceValueMappingRepository {
 		@NonNull String targetCategory,
 		@NonNull String targetContext);
 
+	@Query("SELECT * FROM reference_value_mapping WHERE from_category = :sourceCategory AND from_context = :sourceContext AND to_category = :targetCategory AND to_context = :targetContext AND to_value = :targetValue AND (deleted = false OR deleted IS NULL) LIMIT 1")
 	Publisher<ReferenceValueMapping> findOneByFromCategoryAndFromContextAndToCategoryAndToContextAndToValue(
 		@NonNull String sourceCategory,
 		@NonNull String sourceContext,
@@ -96,5 +99,5 @@ public interface ReferenceValueMappingRepository {
 	default Publisher<ReferenceValueMapping> saveOrUpdate(@Valid @NotNull @NonNull ReferenceValueMapping rvm) {
 		return Mono.from(this.existsById(rvm.getId()))
 			.flux().concatMap(update -> Mono.from(update ? this.update(rvm) : this.save(rvm)));
-	  }
+	}
 }
