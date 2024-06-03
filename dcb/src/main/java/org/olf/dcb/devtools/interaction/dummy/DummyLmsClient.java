@@ -43,6 +43,7 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
 import jakarta.inject.Singleton;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.annotation.Serdeable;
@@ -578,6 +579,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
     public String itemId;
     public String itemStatus;
     public String itemBarcode;
-  } 
+  }
+
+	@Override
+	public @NonNull String getClientId() {
+		return "DUMMY_DEV_CLIENT";
+	} 
 
 }

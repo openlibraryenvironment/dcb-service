@@ -2,6 +2,7 @@ package services.k_int.interaction.sierra;
 
 import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -40,6 +41,8 @@ import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 public interface SierraApiClient extends BasicAuthClient {
 	String CONFIG_ROOT = "sierra.client";
 	Logger log = LoggerFactory.getLogger(SierraApiClient.class);
+	
+	URI getRootUri(); 
 
 	@SingleResult
 	default Publisher<BibResultSet> bibs(BibParams params) {

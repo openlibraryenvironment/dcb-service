@@ -7,9 +7,11 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 
+import io.micronaut.core.annotation.NonNull;
 import reactor.core.publisher.Mono;
 
-public interface HostLmsClient {
+public interface HostLmsClient extends Comparable<HostLmsClient> {
+	
 	// All implementations must understand these states and be able to translate
 	// them to
 	// local values when encountered via updateRequestStatus
@@ -100,4 +102,13 @@ public interface HostLmsClient {
 	default boolean reflectPatronLoanAtSupplier() {
 		return true;
 	}
+	
+	@NonNull
+	String getClientId();
+	
+	@Override
+	default int compareTo(HostLmsClient o) {
+		return getClientId().compareTo(o.getClientId());
+	}
+	
 }

@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -30,6 +31,7 @@ import java.util.function.Function;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+
 import io.micronaut.http.*;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
@@ -1236,5 +1238,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
     return Mono.just("OK");
   }
 
-
+	@Override
+	public @NonNull String getClientId() {
+		
+//		return Optional.ofNullable(this.applicationServicesOverrideURL())
+//			.map( uri -> uri.resolve("/") )
+//			.map( ovr -> "%s:%s".formatted(this.defaultBaseUrl.resolve("/").toString(), ovr.toString()) )
+//			.orElseGet(this.defaultBaseUrl.resolve("/")::toString);
+		
+		// Probably don't need both.
+		
+		// Uri "toString" behaviour will sometimes return the string provided at initialization.
+		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
+		// will force the toString method to construct a new string representation, meaning it's more comparable.
+		return this.defaultBaseUrl.resolve("/").toString();
+	}
 }

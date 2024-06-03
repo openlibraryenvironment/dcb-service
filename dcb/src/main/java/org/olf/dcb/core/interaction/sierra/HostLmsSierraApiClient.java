@@ -403,4 +403,10 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class)));
 	}
 
+	@Override
+	@NotNull
+	public URI getRootUri() {
+		return this.rootUri;
+	}
+
 }

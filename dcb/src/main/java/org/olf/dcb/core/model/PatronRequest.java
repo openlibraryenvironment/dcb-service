@@ -63,6 +63,8 @@ public class PatronRequest {
 		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
 		// The supplying agency has confirmed the actual item which will be shipped
 		CONFIRMED,
+		// No further processing by DCB as this request should be handled by existing local (Same host/agency request) workflow.
+		HANDED_OFF_AS_LOCAL,
 		REQUEST_PLACED_AT_BORROWING_AGENCY,
 		RECEIVED_AT_PICKUP,
 		READY_FOR_PICKUP,

@@ -6,6 +6,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -14,9 +15,12 @@ import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 
+import com.hazelcast.query.Predicates;
+
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.Functions;
 
 @Slf4j
 @Prototype
@@ -62,6 +66,10 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		
+		// Local should only be handed off to the local system.
+		if ("RET-LOCAL".equals( ctx.getPatronRequest().getActiveWorkflow() )) return false;
+		
 		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 
