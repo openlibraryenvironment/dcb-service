@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 6.13.0
+
+### Additions
+* [General]
+	* Extend numeric range mapping import and implement soft delete [DCB-1153]
+
 ## Version 6.12.5
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* audit log a patron type update failure [DCB-1184]
 	* log NOOP return for updatePatron in ConsortialFolioHostLmsClient [DCB-1184]
 	* log NOOP for update patron in ConsortialFolioHostLmsClient [DCB-1184]
