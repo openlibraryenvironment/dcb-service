@@ -27,9 +27,9 @@ import com.opencsv.CSVParser;
 import com.opencsv.CSVParserBuilder;
 
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.ArrayList;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -105,11 +105,8 @@ public class DCBConfigurationService {
 		String[] expectedHeaders;
 		boolean noCode = code == null || code.isEmpty() || code.equals("undefined");
 
-		// Switch on category - different validations will be needed for different categories as we expand this feature.
-		// New cases will be added here when official support is added for them.
 		switch (mappingCategory) {
 			// Two main categories: ReferenceValueMappings and NumericRangeMappings.
-			// We can expand to sub-categories - i.e. PatronType (RVM) etc - but we should wait.
 			case "Reference value mappings" -> {
 				if (noCode) {
 					throw new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry.");
@@ -121,16 +118,16 @@ public class DCBConfigurationService {
 					);
 			}
 			// Numeric range mappings will be added subsequently in DCB-1153 and this code will be restored.
-//			case "Numeric range mappings " -> {
-//				if (noCode) {
-//					throw new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry.");
-//				}
-//				expectedHeaders = new String[]{"context", "domain", "lowerBound", "upperBound", "toValue", "toContext"};
-//				return cleanupMappings(mappingCategory, code)
-//					.flatMap(cleanupResult ->
-//						numericRangeImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
-//					);
-//			}
+			case "Numeric range mappings" -> {
+				if (noCode) {
+					throw new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry.");
+				}
+				expectedHeaders = new String[]{"context", "domain", "lowerBound", "upperBound", "toValue", "toContext"};
+				return cleanupMappings(mappingCategory, code)
+					.flatMap(cleanupResult ->
+						numericRangeImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
+					);
+			}
 				default -> {
 				// Throw an error if a user tries to upload a file of unsupported category type.
 				// Will currently never be seen in admin app as CirculationStatus is pre-set,
@@ -162,6 +159,41 @@ public class DCBConfigurationService {
 				{
 					return Flux.fromIterable(csvData)
 						.concatMap(this::processReferenceValueMapping)
+						.collectList()
+						.map(mappings -> UploadedConfigImport.builder()
+							.message(mappings.size() + " mappings have been imported successfully.")
+							.lastImported(Instant.now())
+							.recordsImported((long) mappings.size())
+							.recordsDeleted(cleanupResult)
+							.build());
+				}
+			}
+		} catch (IOException e) {
+			throw new FileUploadValidationException("Error reading file.");
+		}
+	}
+
+	private Mono<UploadedConfigImport> numericRangeImport(CompletedFileUpload file, String code, String mappingCategory, String[] expectedHeaders, Long cleanupResult) {
+		try {
+			InputStreamReader reader = new InputStreamReader(file.getInputStream());
+			if (file.getFilename().contains(".tsv"))
+			{
+				List<String[]> tsvData = parseTsv(reader, expectedHeaders, mappingCategory, code);
+				return Flux.fromIterable(tsvData)
+					.concatMap(this::processNumericRangeMapping)
+					.collectList()
+					.map(mappings -> UploadedConfigImport.builder()
+						.message(mappings.size() + " mappings have been imported successfully.")
+						.lastImported(Instant.now())
+						.recordsImported((long) mappings.size())
+						.recordsDeleted(cleanupResult)
+						.build());
+			}
+			else {
+				List<String[]> csvData = parseCsv(reader, expectedHeaders, code);
+				{
+					return Flux.fromIterable(csvData)
+						.concatMap(this::processNumericRangeMapping)
 						.collectList()
 						.map(mappings -> UploadedConfigImport.builder()
 							.message(mappings.size() + " mappings have been imported successfully.")
@@ -228,12 +260,26 @@ public class DCBConfigurationService {
 					". Please check your TSV file and retry.";
 				throw new FileUploadValidationException(validationError);
 			}
+			// Validate NRMs also
 			String[] line;
 			List<String[]> tsvData = new ArrayList<>();
 			int lineNumber = 2;
 			while ((line = TSVReader.readNext()) != null) {
 					// Line by line validation goes here
 					// Validate that the contexts match what's expected, and that there isn't a clash between them and what the user has supplied.
+				if (mappingCategory.equalsIgnoreCase("Numeric range mappings")) {
+					if (line[0].equals(code))
+					{
+						tsvData.add(line);
+					}
+					else {
+						validationError="The context does not match the Host LMS code you supplied. Please check your file and try again.";
+						throw new FileUploadValidationException(validationError);
+					}
+					lineNumber++;
+				}
+				else
+				{
 					if ((line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
 					{
 						tsvData.add(line);
@@ -243,6 +289,7 @@ public class DCBConfigurationService {
 						throw new FileUploadValidationException(validationError);
 					}
 					lineNumber++;
+				}
 			}
 			return tsvData;
 		} catch (Exception e) {
@@ -253,16 +300,15 @@ public class DCBConfigurationService {
 
 	@Transactional
 	protected Mono<Long> cleanupMappings(String category, String context) {
-		 // This method marks any existing mappings for the given category and context as deleted.
+		// This method marks any existing mappings for the given category and context as deleted.
 		switch (category) {
 			// Mark all existing reference value mappings for a Host LMS as deleted.
-			case "Reference value":
+			case "Reference value mappings":
 				return Mono.from(referenceValueMappingRepository.markAsDeleted(context));
-				// This is a switch because it will also support numeric range mappings in DCB-1153.
-//			case "NumericRangeMappings":
-//				return Mono.from(numericRangeMappingRepository.markAsDeleted(context));
+			case "Numeric range mappings":
+				return Mono.from(numericRangeMappingRepository.markAsDeleted(context));
 			default:
-				return Mono.from(referenceValueMappingRepository.markAsDeleted(category, context));
+				return Mono.from(referenceValueMappingRepository.markAsDeleted(context));
 		}
 	}
 
@@ -322,6 +368,8 @@ public class DCBConfigurationService {
 
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
+
+
 	private Mono<NumericRangeMapping> processNumericRangeMapping(String[] nrmr) {
 
                 NumericRangeMapping nrm = NumericRangeMapping.builder()
@@ -332,6 +380,8 @@ public class DCBConfigurationService {
                         .upperBound(Long.valueOf(nrmr[3]))
                         .targetContext(nrmr[5])
                         .mappedValue(nrmr[4])
+												.lastImported(Instant.now())
+												.deleted(false)
                         .build();
 
 		return Mono.from(numericRangeMappingRepository.saveOrUpdate(nrm));

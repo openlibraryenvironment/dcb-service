@@ -1,16 +1,17 @@
 package org.olf.dcb.core.model;
 
+import java.time.Instant;
 import java.util.UUID;
 
+import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Id;
+import io.micronaut.data.annotation.TypeDef;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
@@ -65,4 +66,12 @@ public class NumericRangeMapping {
         @NotNull
         @NonNull
         private String mappedValue;
+
+				@Nullable
+				private Instant lastImported;
+
+				@Nullable
+				@Builder.Default
+				private Boolean deleted = false;
+
 }

@@ -450,6 +450,8 @@ type NumericRangeMapping {
   upperBound: Int
   targetContext: String
   mappedValue: String
+	lastImported: String
+	deleted: Boolean
 }
 
 type ClusterRecord {
