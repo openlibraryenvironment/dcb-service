@@ -74,11 +74,11 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {
 		// Do not audit a resolution when an item hasn't been chosen
-		if (resolution.getChosenItem().isEmpty()) {
+		if (resolution.getChosenItem() == null) {
 			return Mono.just(resolution);
 		}
 
-		final var chosenItem = resolution.getChosenItem().get();
+		final var chosenItem = resolution.getChosenItem();
 
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
 				"Resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
@@ -89,15 +89,17 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
 		log.debug("updatePatronRequest({})", resolution);
 
-		if (resolution.getChosenItem().isPresent()) {
-			resolution.getPatronRequest().resolve();
+		final var patronRequest = resolution.getPatronRequest();
+
+		if (resolution.getChosenItem() != null) {
+			patronRequest.resolve();
 		} else {
-			resolution.getPatronRequest().resolveToNoItemsSelectable();
+			patronRequest.resolveToNoItemsSelectable();
 		}
 
 		final var patronRequestService = patronRequestServiceProvider.get();
 
-		return patronRequestService.updatePatronRequest(resolution.getPatronRequest())
+		return patronRequestService.updatePatronRequest(patronRequest)
 			.thenReturn(resolution);
 	}
 
@@ -106,12 +108,12 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var chosenItem = resolution.getChosenItem();
 
-		if (chosenItem.isEmpty()) {
+		if (chosenItem == null) {
 			return Mono.just(resolution);
 		}
 
 		return supplierRequestService.saveSupplierRequest(
-				mapToSupplierRequest(chosenItem.get(), resolution.getPatronRequest()))
+				mapToSupplierRequest(chosenItem, resolution.getPatronRequest()))
 			.thenReturn(resolution);
 	}
 

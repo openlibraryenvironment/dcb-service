@@ -30,8 +30,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -59,9 +57,6 @@ class PatronRequestResolutionServiceTests {
 	private final String KNOWN_LOCATION_CODE = "known-location";
 
 	@Inject
-	private PatronRequestResolutionStateTransition patronRequestResolutionStateTransition;
-
-	@Inject
 	private PatronRequestResolutionService patronRequestResolutionService;
 
 	@Inject
@@ -79,8 +74,6 @@ class PatronRequestResolutionServiceTests {
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
 	private PatronFixture patronFixture;
-	@Inject
-	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
@@ -109,8 +102,10 @@ class PatronRequestResolutionServiceTests {
 
 		hostLmsFixture.deleteAll();
 
-		cataloguingHostLms = hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
+		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
 			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
+
+		cataloguingHostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
 
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
@@ -175,9 +170,8 @@ class PatronRequestResolutionServiceTests {
 
 		// Assert
 		assertThat("Has resolution", resolution, is(notNullValue()));
-		assertThat("Has chosen item", resolution.getChosenItem().isPresent(), is(true));
 
-		final var chosenItem = resolution.getChosenItem().get();
+		final var chosenItem = resolution.getChosenItem();
 
 		assertThat(chosenItem, allOf(
 			notNullValue(),
