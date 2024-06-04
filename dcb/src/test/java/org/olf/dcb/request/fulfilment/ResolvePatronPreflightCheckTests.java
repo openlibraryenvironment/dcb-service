@@ -481,8 +481,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("PATRON_DELETED",
-				"Patron \"%s\" from \"%s\" has been deleted"
+			failedCheck("PATRON_NOT_FOUND",
+				"Patron \"%s\" from \"%s\" has likely been deleted"
 					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
 		));
 	}

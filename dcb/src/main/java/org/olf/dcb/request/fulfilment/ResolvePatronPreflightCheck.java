@@ -151,8 +151,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	private Mono<List<CheckResult>> patronDeleted(String localPatronId, String hostLmsCode) {
 		return Mono.just(List.of(
-			failed("PATRON_DELETED",
-				"Patron \"%s\" from \"%s\" has been deleted".formatted(localPatronId, hostLmsCode))
+			failed("PATRON_NOT_FOUND",
+				"Patron \"%s\" from \"%s\" has likely been deleted".formatted(localPatronId, hostLmsCode))
 		));
 	}
 
