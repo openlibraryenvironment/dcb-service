@@ -545,7 +545,11 @@ class PatronRequestApiTests {
 		final var hostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
 		final var sourceSystemId = hostLms.getId();
 
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "565382", clusterRecord);
+		final var sourceRecordId = "565382";
+
+		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, sourceRecordId, clusterRecord);
+
+		sierraItemsAPIFixture.zeroItemsResponseForBibId(sourceRecordId);
 
 		savePatronTypeMappings();
 
