@@ -50,6 +50,12 @@ public class ItemMatchers {
 		));
 	}
 
+	public static Matcher<Item> hasLocationCode(String expectedCode) {
+		return hasProperty("location", allOf(
+			hasProperty("code", is(expectedCode))
+		));
+	}
+
 	public static Matcher<Item> hasDueDate(String expectedDueDate) {
 		return hasDueDate(Instant.parse(expectedDueDate));
 	}
