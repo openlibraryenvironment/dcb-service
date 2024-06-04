@@ -1,20 +1,21 @@
 package org.olf.dcb.request.resolution;
 
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.PatronRequest;
-import reactor.core.publisher.Mono;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronRequest;
+
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
-public class ManualSelectionStrategy implements ResolutionStrategy{
+public class ManualSelectionStrategy implements ResolutionStrategy {
 
 	@Override
 	public String getCode() {
@@ -44,6 +45,8 @@ public class ManualSelectionStrategy implements ResolutionStrategy{
 	}
 
 	private static Boolean manuallySelected(PatronRequest patronRequest, Item item) {
+		log.debug("Filtering manually selected item: {} for patron request: {}", item, patronRequest);
+
 		return isLocalId(patronRequest, item) &&
 			isAgencyCode(patronRequest, item) &&
 			isHostlmsCode(patronRequest, item);

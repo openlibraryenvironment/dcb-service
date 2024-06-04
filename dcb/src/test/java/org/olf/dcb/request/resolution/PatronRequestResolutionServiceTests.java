@@ -14,7 +14,6 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocationCode;
 
 import java.time.Instant;
@@ -137,7 +136,7 @@ class PatronRequestResolutionServiceTests {
 		final var sourceRecordId = "465675";
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
-			sourceRecordId, clusterRecord);
+				sourceRecordId, clusterRecord);
 
 		final var onlyAvailableItemId = "651463";
 		final var onlyAvailableItemBarcode = "76653672456";
@@ -148,7 +147,62 @@ class PatronRequestResolutionServiceTests {
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode)
 		));
 
-		final var homeLibraryCode = "465636";
+		final var homeLibraryCode = "home-library";
+
+		final var patron = patronFixture.savePatron(homeLibraryCode);
+		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-",
+				homeLibraryCode, null);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat("Has resolution", resolution, is(notNullValue()));
+
+		final var chosenItem = resolution.getChosenItem();
+
+		assertThat(chosenItem, allOf(
+			notNullValue(),
+			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+			hasLocalId(onlyAvailableItemId),
+			hasBarcode(onlyAvailableItemBarcode),
+			hasLocalBibId(sourceRecordId),
+			hasLocationCode(KNOWN_LOCATION_CODE),
+			hasAgencyCode(KNOWN_AGENCY_CODE)
+		));
+	}
+
+	@Test
+	void shouldSelectManuallySelectedItem() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "174625";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "826425";
+		final var onlyAvailableItemBarcode = "25452553";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode)
+		));
+
+		final var homeLibraryCode = "home-library";
 
 		final var patron = patronFixture.savePatron(homeLibraryCode);
 		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-",
@@ -161,6 +215,11 @@ class PatronRequestResolutionServiceTests {
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
+			.isManuallySelectedItem(true)
+			.localItemId(onlyAvailableItemId)
+			// This has to be the Host LMS associated with the agency for the item
+			.localItemHostlmsCode(CIRCULATING_HOST_LMS_CODE)
+			.localItemAgencyCode(KNOWN_AGENCY_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

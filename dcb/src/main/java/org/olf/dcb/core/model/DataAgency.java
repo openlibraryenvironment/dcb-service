@@ -64,6 +64,7 @@ public class DataAgency implements Agency {
 	@Size(max = 200)
 	private String name;
 
+	@ToString.Include
 	@NonNull
 	@Relation(value = MANY_TO_ONE)
 	private DataHostLms hostLms;

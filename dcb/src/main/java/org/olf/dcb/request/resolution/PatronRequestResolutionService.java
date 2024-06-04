@@ -70,9 +70,17 @@ public class PatronRequestResolutionService {
 	}
 
 	private String decideCode(PatronRequest patronRequest) {
+		log.debug("Deciding strategy code for {}", patronRequest);
 
 		final var isManualSelection = patronRequest.getIsManuallySelectedItem();
-		return TRUE.equals(isManualSelection) ? MANUAL_SELECTION : itemResolverFor(patronRequest);
+
+		final var chosenStrategy = TRUE.equals(isManualSelection)
+			? MANUAL_SELECTION
+			: itemResolverFor(patronRequest);
+
+		log.debug("Chosen selection strategy: {}", chosenStrategy);
+
+		return chosenStrategy;
 	}
 
 	private String itemResolverFor(PatronRequest patronRequest) {

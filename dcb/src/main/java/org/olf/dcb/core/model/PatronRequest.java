@@ -1,9 +1,19 @@
 package org.olf.dcb.core.model;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
+
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,12 +40,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
 
 
 @Slf4j
@@ -227,15 +232,18 @@ public class PatronRequest {
 	@Nullable
 	private Long localRequestStatusRepeat;
 
+	@ToString.Include
 	@Nullable
 	private String localItemId;
 
+	@ToString.Include
 	@Nullable
 	private String localItemHostlmsCode;
 
 	@Nullable
 	private String localItemAgencyCode;
 
+	@ToString.Include
 	@Nullable
 	private Boolean isManuallySelectedItem;
 
