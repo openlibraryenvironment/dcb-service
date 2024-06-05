@@ -176,9 +176,13 @@ public class BorrowingAgencyService {
 			new CreateItemCommand(
 				patronRequest.getId(),
 				localBibId,
+
+				// supplier information
 				agencyCode,
+				supplierRequest.getHostLmsCode(),
 				supplierRequest.getLocalItemBarcode(),
 				supplierRequest.getCanonicalItemType(),
+
 				patronIdentity.getLocalHomeLibraryCode()))
 			.map(patronRequest::addLocalItemDetails)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to create virtual item."))));

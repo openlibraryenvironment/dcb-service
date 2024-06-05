@@ -387,6 +387,11 @@ class ApplicationServicesClient {
 				final Integer interLibraryLoanBranch = polarisConfig.getIllLocationId();
 				final Integer patronHomeBranch = getPatronHomeBranch(createItemCommand);
 
+				// holds get deleted in polaris after being filled
+				// adding a note to help staff know where to send the item back
+				final String noteForStaff = "Supplier Agency Code: " + createItemCommand.getLocationCode()
+					+ ", \nSupplier Hostlms Code: " + createItemCommand.getSupplierHostLmsCode();
+
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
 					.txnUserID(TransactingPolarisUserID)
@@ -413,6 +418,7 @@ class ApplicationServicesClient {
 							.holdable(TRUE)
 							.itemStatusID(Available)
 							.materialTypeID(itemtype)
+							.nonPublicNotes(noteForStaff)
 							.build())
 						.build())
 					.build();

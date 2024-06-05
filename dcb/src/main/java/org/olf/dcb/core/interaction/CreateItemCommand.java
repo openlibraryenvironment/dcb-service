@@ -32,6 +32,9 @@ public class CreateItemCommand {
 	String locationCode;
 
 	@Nullable
+	String supplierHostLmsCode;
+
+	@Nullable
 	String barcode;
 
 	@Nullable
