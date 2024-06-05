@@ -32,7 +32,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			// This is a workaround due to the current resolution process
 			// being too coupled to a patron request
 			.map(this::mapToPatronRequest)
-			.map(patronRequest -> List.of(passed()));
+			.flatMap(patronRequestResolutionService::resolvePatronRequest)
+			.map(resolution -> List.of(passed()));
 	}
 
 	private PatronRequest mapToPatronRequest(PlacePatronRequestCommand command) {
