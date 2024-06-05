@@ -5,12 +5,11 @@ import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
-import java.util.UUID;
 
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -21,19 +20,23 @@ import reactor.core.publisher.Mono;
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron-request.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	private final PatronRequestResolutionService patronRequestResolutionService;
+	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 
 	public ResolvePatronRequestPreflightCheck(
-		PatronRequestResolutionService patronRequestResolutionService) {
+		PatronRequestResolutionService patronRequestResolutionService,
+		BeanProvider<PatronRequestService> patronRequestServiceProvider) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
+		this.patronRequestServiceProvider = patronRequestServiceProvider;
 	}
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		return Mono.just(command)
-			// This is a workaround due to the current resolution process
-			// being too coupled to a patron request
-			.map(this::mapToPatronRequest)
+		// This is a workaround due to the current resolution process
+		// being too coupled to a patron request
+		return Mono.just(patronRequestServiceProvider.get())
+			.map(patronRequestService -> patronRequestService.mapToPatronRequest(command, null))
+			.map(PatronRequestService.mapManualItemSelectionIfPresent(command))
 			.flatMap(patronRequestResolutionService::resolvePatronRequest)
 			.map(this::checkResolution);
 	}
@@ -51,17 +54,5 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		}
 
 		return List.of(passed());
-	}
-
-	private PatronRequest mapToPatronRequest(PlacePatronRequestCommand command) {
-		log.debug("mapToPatronRequest({})", command);
-
-		return PatronRequest.builder()
-			.id(UUID.randomUUID())
-			.bibClusterId(command.getCitation().getBibClusterId())
-			.requestedVolumeDesignation(command.getCitation().getVolumeDesignator())
-			.pickupLocationCodeContext(command.getPickupLocationContext())
-			.pickupLocationCode(command.getPickupLocationCode())
-			.build();
 	}
 }

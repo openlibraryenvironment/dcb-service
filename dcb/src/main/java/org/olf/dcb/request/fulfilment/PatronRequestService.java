@@ -60,9 +60,9 @@ public class PatronRequestService {
 			.doOnError(e -> log.error("Placing request {} failed", command, e));
 	}
 
-	private static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(
-		PlacePatronRequestCommand command)
-	{
+	public static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(
+		PlacePatronRequestCommand command) {
+
 		if (command.getItem() == null) {
 			return patronRequest -> patronRequest.setIsManuallySelectedItem(Boolean.FALSE);
 		}
@@ -86,7 +86,7 @@ public class PatronRequestService {
 			requestor.getLocalId(), requestor.getHomeLibraryCode());
 	}
 
-	private PatronRequest mapToPatronRequest(PlacePatronRequestCommand command, Patron patron) {
+	public PatronRequest mapToPatronRequest(PlacePatronRequestCommand command, Patron patron) {
 		final var id = UUID.randomUUID();
 
 		log.debug("mapToPatronRequest({}, {})", command, patron);
