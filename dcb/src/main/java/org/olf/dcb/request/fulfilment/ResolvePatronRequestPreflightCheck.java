@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
 
+import org.olf.dcb.request.resolution.PatronRequestResolutionService;
+
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,14 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron-request.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
+	private final PatronRequestResolutionService patronRequestResolutionService;
+
+	public ResolvePatronRequestPreflightCheck(
+		PatronRequestResolutionService patronRequestResolutionService) {
+
+		this.patronRequestResolutionService = patronRequestResolutionService;
+	}
+
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		return Mono.just(command)
