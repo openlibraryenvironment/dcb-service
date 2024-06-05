@@ -1,13 +1,15 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.PatronRequest;
-
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
+import org.olf.dcb.request.resolution.Resolution;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -33,7 +35,22 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			// being too coupled to a patron request
 			.map(this::mapToPatronRequest)
 			.flatMap(patronRequestResolutionService::resolvePatronRequest)
-			.map(resolution -> List.of(passed()));
+			.map(this::checkResolution);
+	}
+
+	private List<CheckResult> checkResolution(Resolution resolution) {
+		log.debug("checkResolution({})", resolution);
+
+		final var chosenItem = getValue(resolution, Resolution::getChosenItem);
+
+		if (chosenItem == null) {
+			return List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Patron request for cluster record \"%s\" could not be resolved to an item"
+					.formatted(resolution.getBibClusterId())
+			));
+		}
+
+		return List.of(passed());
 	}
 
 	private PatronRequest mapToPatronRequest(PlacePatronRequestCommand command) {

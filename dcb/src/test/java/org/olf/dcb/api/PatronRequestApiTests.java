@@ -3,7 +3,6 @@ package org.olf.dcb.api;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
-import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
@@ -19,7 +18,12 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasCode;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -554,54 +558,34 @@ class PatronRequestApiTests {
 		savePatronTypeMappings();
 
 		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, "43546", VALID_PICKUP_LOCATION_ID,
-			SUPPLYING_HOST_LMS_CODE, "homeLibraryCode");
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
+				KNOWN_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
+				SUPPLYING_HOST_LMS_CODE, "home-library-code"));
 
-		assertThat(placedRequestResponse.getStatus(), is(OK));
+		final var response = exception.getResponse();
 
-		// Need a longer timeout because retrying the Sierra API,
-		// which happens when the zero items 404 response is received,
-		// takes longer than success
-		final var fetchedPatronRequest = await()
-			.atMost(12, SECONDS)
-			.until(
-				() -> adminApiClient.getPatronRequestViaAdminApi(requireNonNull(placedRequestResponse.body()).getId()),
-				isNotAvailableToRequest());
+		assertThat("Should respond with a bad request status",
+			response.getStatus(), is(BAD_REQUEST));
 
-		// Assert
-		assertThat(fetchedPatronRequest, is(notNullValue()));
-		assertThat(fetchedPatronRequest.getCitation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getCitation().getBibClusterId(), is(clusterRecordId));
+		final var optionalBody = response.getBody(ChecksFailure.class);
 
-		assertThat(fetchedPatronRequest.getPickupLocation(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getPickupLocation().getCode(), is(VALID_PICKUP_LOCATION_ID));
+		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
 
-		assertThat(fetchedPatronRequest.getStatus(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getStatus().getCode(), is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY"));
-		assertThat(fetchedPatronRequest.getStatus().getErrorMessage(), is(nullValue()));
+		final var expectedDescription = "Patron request for cluster record \"%s\" could not be resolved to an item"
+			.formatted(clusterRecordId);
 
-		assertThat(fetchedPatronRequest.getRequestor(), is(notNullValue()));
-		assertThat(fetchedPatronRequest.getRequestor().getIdentities(), hasSize(1));
+		assertThat("Body should report no selectable item failed check", optionalBody.get(),
+			hasProperty("failedChecks", containsInAnyOrder(
+				allOf(
+					hasDescription(expectedDescription),
+					hasCode("NO_ITEM_SELECTABLE_FOR_REQUEST")
+				)
+			)));
 
-		final var homeIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(0);
-		assertThat(homeIdentity.getHomeIdentity(), is(true));
-		assertThat(homeIdentity.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
-		assertThat(homeIdentity.getLocalId(), is("43546"));
-
-		// No supplier request
-		assertThat(fetchedPatronRequest.getSupplierRequests(), is(nullValue()));
-
-		assertThat(fetchedPatronRequest.getAudits(), is(notNullValue()));
-
-		final var lastAuditValue = fetchedPatronRequest.getAudits().size();
-		final var lastAudit = fetchedPatronRequest.getAudits().get(lastAuditValue - 1);
-
-		assertThat(lastAudit.getPatronRequestId(), is(fetchedPatronRequest.getId().toString()));
-		assertThat(lastAudit.getDescription(), is("Action completed : PatronRequestResolutionStateTransition"));
-		assertThat(lastAudit.getFromStatus(), is(PATRON_VERIFIED));
-		assertThat(lastAudit.getToStatus(), is(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
-		assertThat(lastAudit.getDate(), is(notNullValue()));
+		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
+			isFailedCheckEvent(expectedDescription)
+		));
 	}
 
 	@Test

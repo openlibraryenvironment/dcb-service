@@ -158,6 +158,48 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		assertThat(results, containsInAnyOrder(passedCheck()));
 	}
 
+	@Test
+	void shouldFailWhenNoItemCanBeSelected() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var clusterRecordId = clusterRecord.getId();
+
+		final var sourceRecordId = "3545674";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		sierraItemsAPIFixture.zeroItemsResponseForBibId(sourceRecordId);
+
+		final var localPatronId = "2645637";
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Patron request for cluster record \"%s\" could not be resolved to an item"
+					.formatted(clusterRecordId))
+		));
+	}
+
 	private List<CheckResult> check(PlacePatronRequestCommand command) {
 		return singleValueFrom(check.check(command));
 	}

@@ -25,7 +25,7 @@ public class Resolution {
 		return builder().patronRequest(patronRequest).build();
 	}
 
-	UUID getBibClusterId() {
+	public UUID getBibClusterId() {
 		return getValue(patronRequest, PatronRequest::getBibClusterId);
 	}
 
