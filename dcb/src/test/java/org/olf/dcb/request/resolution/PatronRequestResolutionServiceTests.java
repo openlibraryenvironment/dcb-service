@@ -5,6 +5,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
@@ -19,6 +20,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocationCode;
 import java.time.Instant;
 import java.util.List;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
@@ -168,19 +171,16 @@ class PatronRequestResolutionServiceTests {
 		final var resolution = resolve(patronRequest);
 
 		// Assert
-		assertThat("Has resolution", resolution, is(notNullValue()));
-
-		final var chosenItem = resolution.getChosenItem();
-
-		assertThat(chosenItem, allOf(
+		assertThat(resolution, allOf(
 			notNullValue(),
-			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-			hasLocalId(onlyAvailableItemId),
-			hasBarcode(onlyAvailableItemBarcode),
-			hasLocalBibId(sourceRecordId),
-			hasLocationCode(KNOWN_LOCATION_CODE),
-			hasAgencyCode(KNOWN_AGENCY_CODE)
-		));
+			hasChosenItem(
+					hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+					hasLocalId(onlyAvailableItemId),
+					hasBarcode(onlyAvailableItemBarcode),
+					hasLocalBibId(sourceRecordId),
+					hasLocationCode(KNOWN_LOCATION_CODE),
+					hasAgencyCode(KNOWN_AGENCY_CODE)
+			)));
 	}
 
 	@Test
@@ -228,6 +228,17 @@ class PatronRequestResolutionServiceTests {
 		final var resolution = resolve(patronRequest);
 
 		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasLocalId(onlyAvailableItemId),
+				hasBarcode(onlyAvailableItemBarcode),
+				hasLocalBibId(sourceRecordId),
+				hasLocationCode(KNOWN_LOCATION_CODE),
+				hasAgencyCode(KNOWN_AGENCY_CODE)
+			)));
+
 		assertThat("Has resolution", resolution, is(notNullValue()));
 
 		final var chosenItem = resolution.getChosenItem();
@@ -264,5 +275,10 @@ class PatronRequestResolutionServiceTests {
 			.statusCode("-")
 			.dueDate(Instant.now().plus(3, HOURS))
 			.build();
+	}
+
+	@SafeVarargs
+	private Matcher<Resolution> hasChosenItem(Matcher<Item>... matchers) {
+		return hasProperty("chosenItem", allOf(matchers));
 	}
 }
