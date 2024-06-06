@@ -47,7 +47,7 @@ public class PatronFixture {
 		return singleValueFrom(patronRepository.save(patron));
 	}
 
-	public void saveIdentity(Patron patron, DataHostLms homeHostLms,
+	public PatronIdentity saveIdentity(Patron patron, DataHostLms homeHostLms,
 		String localId, boolean homeIdentity, String localPtype, String localHomeLibraryCode, DataAgency resolvedAgency) {
 
 		PatronIdentity pi = PatronIdentity.builder()
@@ -62,11 +62,11 @@ public class PatronFixture {
 			.localBarcode("8675309012")
 			.build();
 
-		saveIdentity(pi);
+		return saveIdentity(pi);
 	}
 
-	private void saveIdentity(PatronIdentity identity) {
-		singleValueFrom(patronIdentityRepository.save(identity));
+	private PatronIdentity saveIdentity(PatronIdentity identity) {
+		return singleValueFrom(patronIdentityRepository.save(identity));
 	}
 
 	public PatronIdentity saveIdentityAndReturn(Patron patron, DataHostLms homeHostLms,

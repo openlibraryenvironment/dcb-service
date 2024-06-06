@@ -401,7 +401,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			supplyingAgency);
 		patronFixture.saveIdentity(patron, hostLms, localId, false, "1", null, null);
 		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
-		return patron;
+		return patron;	
 	}
 
 	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron,
