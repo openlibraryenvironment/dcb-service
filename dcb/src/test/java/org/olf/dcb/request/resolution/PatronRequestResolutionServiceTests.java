@@ -54,9 +54,12 @@ class PatronRequestResolutionServiceTests {
 	private final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
 	private final String BORROWING_HOST_LMS_CODE = "resolution-borrowing";
-	private final String KNOWN_AGENCY_CODE = "known-agency";
+
+	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
+
 	private final String PICKUP_LOCATION_CODE = "pickup-location";
-	private final String KNOWN_LOCATION_CODE = "known-location";
+	private final String ITEM_LOCATION_CODE = "item-location";
 
 	@Inject
 	private PatronRequestResolutionService patronRequestResolutionService;
@@ -111,6 +114,9 @@ class PatronRequestResolutionServiceTests {
 
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
+
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, "",
+			"", "http://some-system", "item");
 	}
 
 	@BeforeEach
@@ -120,13 +126,16 @@ class PatronRequestResolutionServiceTests {
 		agencyFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, KNOWN_AGENCY_CODE);
+			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE, KNOWN_LOCATION_CODE, KNOWN_AGENCY_CODE);
+			CATALOGUING_HOST_LMS_CODE, ITEM_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
 
-		agencyFixture.defineAgency(KNOWN_AGENCY_CODE, "Known Agency",
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_CODE,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
 	}
 
 	@Test
@@ -176,8 +185,8 @@ class PatronRequestResolutionServiceTests {
 					hasLocalId(onlyAvailableItemId),
 					hasBarcode(onlyAvailableItemBarcode),
 					hasLocalBibId(sourceRecordId),
-					hasLocationCode(KNOWN_LOCATION_CODE),
-					hasAgencyCode(KNOWN_AGENCY_CODE)
+					hasLocationCode(ITEM_LOCATION_CODE),
+					hasAgencyCode(SUPPLYING_AGENCY_CODE)
 			)));
 	}
 
@@ -215,7 +224,7 @@ class PatronRequestResolutionServiceTests {
 			.localItemId(onlyAvailableItemId)
 			// This has to be the Host LMS associated with the agency for the item
 			.localItemHostlmsCode(CIRCULATING_HOST_LMS_CODE)
-			.localItemAgencyCode(KNOWN_AGENCY_CODE)
+			.localItemAgencyCode(SUPPLYING_AGENCY_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -231,8 +240,8 @@ class PatronRequestResolutionServiceTests {
 				hasLocalId(onlyAvailableItemId),
 				hasBarcode(onlyAvailableItemBarcode),
 				hasLocalBibId(sourceRecordId),
-				hasLocationCode(KNOWN_LOCATION_CODE),
-				hasAgencyCode(KNOWN_AGENCY_CODE)
+				hasLocationCode(ITEM_LOCATION_CODE),
+				hasAgencyCode(SUPPLYING_AGENCY_CODE)
 			)));
 	}
 
@@ -249,7 +258,7 @@ class PatronRequestResolutionServiceTests {
 		return SierraItem.builder()
 			.id(id)
 			.barcode(barcode)
-			.locationCode(KNOWN_LOCATION_CODE)
+			.locationCode(ITEM_LOCATION_CODE)
 			.statusCode("-")
 			.build();
 	}
@@ -258,7 +267,7 @@ class PatronRequestResolutionServiceTests {
 		return SierraItem.builder()
 			.id(id)
 			.barcode(barcode)
-			.locationCode(KNOWN_LOCATION_CODE)
+			.locationCode(ITEM_LOCATION_CODE)
 			.statusCode("-")
 			.dueDate(Instant.now().plus(3, HOURS))
 			.build();
