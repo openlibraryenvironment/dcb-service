@@ -11,7 +11,6 @@ import static reactor.function.TupleUtils.function;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.Patron;
@@ -25,19 +24,14 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 
 @Slf4j
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronPreflightCheck implements PreflightCheck {
-	private final HostLmsService hostLmsService;
 	private final LocalPatronService localPatronService;
 
-	public ResolvePatronPreflightCheck(HostLmsService hostLmsService,
-		LocalPatronService localPatronService) {
-
-		this.hostLmsService = hostLmsService;
+	public ResolvePatronPreflightCheck(LocalPatronService localPatronService) {
 		this.localPatronService = localPatronService;
 	}
 
@@ -46,7 +40,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var hostLmsCode = getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
 		final var localPatronId = getValue(command, PlacePatronRequestCommand::getRequestorLocalId);
 
-		return findLocalPatronAndAgency(localPatronId, hostLmsCode)
+		return localPatronService.findLocalPatronAndAgency(localPatronId, hostLmsCode)
 			.map(function((patron, agency) -> checkPatron(patron, localPatronId, agency, hostLmsCode)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
@@ -54,18 +48,6 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error, localPatronId))
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(hostLmsCode))
 			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode));
-	}
-
-	private Mono<Tuple2<Patron, DataAgency>> findLocalPatronAndAgency(
-		String localPatronId, String hostLmsCode) {
-
-		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap(client -> client.getPatronByLocalId(localPatronId))
-			// Could be done inside the Host LMS client method
-			// Was not done initially due to potentially affecting other uses
-			.filter(Patron::isNotDeleted)
-			// This uses a tuple because the patron does not directly have an association with an agency
-			.zipWhen(patron -> localPatronService.findAgencyForPatron(patron, hostLmsCode));
 	}
 
 	private List<CheckResult> checkPatron(Patron patron, String localPatronId,
