@@ -441,12 +441,7 @@ class PatronRequestResolutionTests {
 	}
 
 	private Patron definePatron(String localId, String homeLibraryCode) {
-		final var patron = patronFixture.savePatron(homeLibraryCode);
-
-		patronFixture.saveIdentity(patron, cataloguingHostLms, localId, true, "-",
-			homeLibraryCode, null);
-
-		return patron;
+		return patronFixture.definePatron(localId, homeLibraryCode, cataloguingHostLms);
 	}
 
 	private void resolve(PatronRequest patronRequest) {singleValueFrom(

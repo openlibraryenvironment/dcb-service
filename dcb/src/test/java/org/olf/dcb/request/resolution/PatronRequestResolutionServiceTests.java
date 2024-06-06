@@ -256,19 +256,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	private Patron definePatron(String localId, String homeLibraryCode) {
-		final var patron = patronFixture.savePatron(homeLibraryCode);
-
-		final var homeIdentity = patronFixture.saveIdentity(patron,
-			cataloguingHostLms, localId, true, "-",
-			homeLibraryCode, null);
-
-		// This has to refer to a shallow copy of the patron in order to avoid
-		// a stack overflow caused by a circular reference
-		patron.setPatronIdentities(List.of(
-			homeIdentity.setPatron(Patron.builder().id(patron.getId()).build())
-		));
-
-		return patron;
+		return patronFixture.definePatron(localId, homeLibraryCode, cataloguingHostLms);
 	}
 
 	private SierraItem availableItem(String id, String barcode) {
