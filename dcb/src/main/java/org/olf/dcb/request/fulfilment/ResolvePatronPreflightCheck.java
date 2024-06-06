@@ -21,7 +21,6 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.svc.AgencyService;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
@@ -35,16 +34,13 @@ import reactor.util.function.Tuple2;
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronPreflightCheck implements PreflightCheck {
 	private final HostLmsService hostLmsService;
-	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final AgencyService agencyService;
 	private final LocalPatronService localPatronService;
 
 	public ResolvePatronPreflightCheck(HostLmsService hostLmsService,
-		LocationToAgencyMappingService locationToAgencyMappingService,
 		AgencyService agencyService, LocalPatronService localPatronService) {
 
 		this.hostLmsService = hostLmsService;
-		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.agencyService = agencyService;
 		this.localPatronService = localPatronService;
 	}
@@ -78,7 +74,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	private Mono<DataAgency> findAgencyForPatron(Patron patron, String hostLmsCode) {
 		return localPatronService.findHomeLocationMapping(patron, hostLmsCode)
-			.switchIfEmpty(defer(() -> locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode)))
+			.switchIfEmpty(defer(() -> localPatronService.findDefaultAgencyCode(hostLmsCode)))
 			.flatMap(agencyService::findByCode)
 			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(
 				patron.getLocalHomeLibraryCode(), hostLmsCode));

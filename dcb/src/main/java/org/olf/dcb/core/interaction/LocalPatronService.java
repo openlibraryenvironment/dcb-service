@@ -25,4 +25,8 @@ public class LocalPatronService {
 				hostLmsCode, getValue(patron, Patron::getLocalHomeLibraryCode))
 			.map(ReferenceValueMapping::getToValue);
 	}
+
+	public Mono<String> findDefaultAgencyCode(String hostLmsCode) {
+		return locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode);
+	}
 }
