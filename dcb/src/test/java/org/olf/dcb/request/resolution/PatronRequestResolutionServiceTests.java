@@ -241,7 +241,8 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	private Patron definePatron(String localId, String homeLibraryCode) {
-		return patronFixture.definePatron(localId, homeLibraryCode, cataloguingHostLms);
+		return patronFixture.definePatron(localId, homeLibraryCode,
+			cataloguingHostLms, null);
 	}
 
 	private SierraItem availableItem(String id, String barcode) {

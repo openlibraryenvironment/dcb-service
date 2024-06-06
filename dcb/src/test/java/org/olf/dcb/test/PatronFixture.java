@@ -37,13 +37,13 @@ public class PatronFixture {
 	}
 
 	public Patron definePatron(String localId, String homeLibraryCode,
-		DataHostLms hostLms) {
+		DataHostLms hostLms, DataAgency agency) {
 
 		final var patron = savePatron(homeLibraryCode);
 
 		final var homeIdentity = saveIdentity(patron,
 			hostLms, localId, true, "-",
-			homeLibraryCode, null);
+			homeLibraryCode, agency);
 
 		// This has to refer to a shallow copy of the patron in order to avoid
 		// a stack overflow caused by a circular reference
