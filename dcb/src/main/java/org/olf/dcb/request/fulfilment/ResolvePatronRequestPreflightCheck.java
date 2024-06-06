@@ -3,9 +3,12 @@ package org.olf.dcb.request.fulfilment;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 
@@ -35,10 +38,23 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		// This is a workaround due to the current resolution process
 		// being too coupled to a patron request
 		return Mono.just(patronRequestServiceProvider.get())
-			.map(patronRequestService -> patronRequestService.mapToPatronRequest(command, null))
+			.zipWith(mapToPatron(command))
+			.map(function((patronRequestService, patron) -> patronRequestService.mapToPatronRequest(command, patron)))
 			.map(PatronRequestService.mapManualItemSelectionIfPresent(command))
 			.flatMap(patronRequestResolutionService::resolvePatronRequest)
 			.map(this::checkResolution);
+	}
+
+	private static Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
+		final var homeIdentity = PatronIdentity.builder()
+			.homeIdentity(true)
+			.build();
+
+		final var patron = Patron.builder()
+			.patronIdentities(List.of(homeIdentity))
+			.build();
+
+		return Mono.just(patron);
 	}
 
 	private List<CheckResult> checkResolution(Resolution resolution) {
