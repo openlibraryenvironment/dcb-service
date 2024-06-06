@@ -3,12 +3,15 @@ package org.olf.dcb.request.resolution;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionStrategy.MANUAL_SELECTION;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
@@ -58,7 +61,6 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Tuple2<ResolutionStrategy, Resolution>> decideResolutionStrategy(Resolution resolution) {
-
 		final var patronRequest = resolution.getPatronRequest();
 		final var code = decideCode(patronRequest);
 
@@ -84,7 +86,6 @@ public class PatronRequestResolutionService {
 	}
 
 	private String itemResolverFor(PatronRequest patronRequest) {
-
 		// manual selection failed at submission
 		// but the item resolver could be set to the manual selection resolver code
 		if (MANUAL_SELECTION.equals(itemResolver)) {
@@ -116,7 +117,8 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Resolution> applyResolutionStrategy(ResolutionStrategy strategy, Resolution resolution) {
-		return selectItem(strategy, resolution).map(resolution::selectItem);
+		return selectItem(strategy, resolution)
+			.map(resolution::selectItem);
 	}
 
 	private Mono<List<Item>> getAvailableItems(Resolution resolution) {
@@ -138,6 +140,17 @@ public class PatronRequestResolutionService {
 	}
 
 	private Resolution filterItems(Resolution resolution) {
-		return resolution.trackFilteredItems(resolution.getAllItems());
+		final var patronRequest = getValue(resolution, Resolution::getPatronRequest);
+		final var patron = getValue(patronRequest, PatronRequest::getPatron);
+		final var optionalHomeIdentity = getValue(patron, Patron::getHomeIdentity);
+		
+		if (optionalHomeIdentity.isEmpty()) {
+			throw new NoHomeIdentityException(getValue(patron, Patron::getId),
+				getValue(patron, Patron::getPatronIdentities));
+		}
+
+		final var allItems = resolution.getAllItems();
+
+		return resolution.trackFilteredItems(allItems);
 	}
 }

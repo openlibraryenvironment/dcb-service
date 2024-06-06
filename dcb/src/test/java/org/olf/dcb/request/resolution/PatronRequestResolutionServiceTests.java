@@ -6,7 +6,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -235,20 +234,6 @@ class PatronRequestResolutionServiceTests {
 				hasLocationCode(KNOWN_LOCATION_CODE),
 				hasAgencyCode(KNOWN_AGENCY_CODE)
 			)));
-
-		assertThat("Has resolution", resolution, is(notNullValue()));
-
-		final var chosenItem = resolution.getChosenItem();
-
-		assertThat(chosenItem, allOf(
-			notNullValue(),
-			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-			hasLocalId(onlyAvailableItemId),
-			hasBarcode(onlyAvailableItemBarcode),
-			hasLocalBibId(sourceRecordId),
-			hasLocationCode(KNOWN_LOCATION_CODE),
-			hasAgencyCode(KNOWN_AGENCY_CODE)
-		));
 	}
 
 	private Resolution resolve(PatronRequest patronRequest) {
