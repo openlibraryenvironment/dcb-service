@@ -454,7 +454,7 @@ class PatronRequestResolutionTests {
 
 	private Patron definePatron(String localId, String homeLibraryCode) {
 		return patronFixture.definePatron(localId, homeLibraryCode,
-			cataloguingHostLms, null);
+			cataloguingHostLms, agencyFixture.findByCode(BORROWING_AGENCY_CODE));
 	}
 
 	private void resolve(PatronRequest patronRequest) {singleValueFrom(
