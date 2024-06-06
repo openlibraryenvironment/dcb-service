@@ -31,6 +31,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
@@ -152,9 +153,7 @@ class PatronRequestResolutionServiceTests {
 
 		final var homeLibraryCode = "home-library";
 
-		final var patron = patronFixture.savePatron(homeLibraryCode);
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-",
-				homeLibraryCode, null);
+		final var patron = definePatron("872321", homeLibraryCode);
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -204,9 +203,7 @@ class PatronRequestResolutionServiceTests {
 
 		final var homeLibraryCode = "home-library";
 
-		final var patron = patronFixture.savePatron(homeLibraryCode);
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-",
-			homeLibraryCode, null);
+		final var patron = definePatron("872321", homeLibraryCode);
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -256,6 +253,15 @@ class PatronRequestResolutionServiceTests {
 
 	private Resolution resolve(PatronRequest patronRequest) {
 		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
+	}
+
+	private Patron definePatron(String localId, String homeLibraryCode) {
+		final var patron = patronFixture.savePatron(homeLibraryCode);
+
+		patronFixture.saveIdentity(patron, cataloguingHostLms, localId, true, "-",
+			homeLibraryCode, null);
+
+		return patron;
 	}
 
 	private SierraItem availableItem(String id, String barcode) {
