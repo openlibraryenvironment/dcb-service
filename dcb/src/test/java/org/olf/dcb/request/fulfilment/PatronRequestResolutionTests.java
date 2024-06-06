@@ -43,6 +43,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
@@ -172,8 +173,7 @@ class PatronRequestResolutionTests {
 				.build()
 		));
 
-		final var patron = patronFixture.savePatron("465636");
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-", "465636", null);
+		final var patron = definePatron("872321", "465636");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -235,8 +235,7 @@ class PatronRequestResolutionTests {
 				.build()
 		));
 
-		final var patron = patronFixture.savePatron("465636");
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-", "465636", null);
+		final var patron = definePatron("872321", "465636");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -291,8 +290,7 @@ class PatronRequestResolutionTests {
 		agencyFixture.defineAgency("unknown-circulating-host-lms",
 			"Unknown Circulating Host LMS", null);
 
-		final var patron = patronFixture.savePatron("465636");
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true, "-", "465636", null);
+		final var patron = definePatron("872321", "465636");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -329,8 +327,7 @@ class PatronRequestResolutionTests {
 
 		sierraItemsAPIFixture.itemsForBibId("245375", emptyList());
 
-		final var patron = patronFixture.savePatron("294385");
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "872321", true,"-", "294385", null);
+		final var patron = definePatron("872321", "294385");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -360,8 +357,7 @@ class PatronRequestResolutionTests {
 		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - entering\n\n");
 
 		// Arrange
-		final var patron = patronFixture.savePatron("757646");
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "86848", true, "-", "757646", null);
+		final var patron = definePatron("86848", "757646");
 
 		final var clusterRecordId = randomUUID();
 
@@ -408,8 +404,7 @@ class PatronRequestResolutionTests {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), null);
 
-		final var patron = patronFixture.savePatron("757646");
-		patronFixture.saveIdentity(patron, cataloguingHostLms, "86848", true, "-", "757646", null);
+		final var patron = definePatron("86848", "757646");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -443,6 +438,15 @@ class PatronRequestResolutionTests {
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
+	}
+
+	private Patron definePatron(String localId, String homeLibraryCode) {
+		final var patron = patronFixture.savePatron(homeLibraryCode);
+
+		patronFixture.saveIdentity(patron, cataloguingHostLms, localId, true, "-",
+			homeLibraryCode, null);
+
+		return patron;
 	}
 
 	private void resolve(PatronRequest patronRequest) {singleValueFrom(
