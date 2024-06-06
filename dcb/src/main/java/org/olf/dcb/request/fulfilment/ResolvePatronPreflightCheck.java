@@ -6,7 +6,6 @@ import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
-import static reactor.core.publisher.Mono.defer;
 import static reactor.function.TupleUtils.function;
 
 import java.util.ArrayList;
@@ -20,7 +19,6 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
@@ -34,14 +32,12 @@ import reactor.util.function.Tuple2;
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronPreflightCheck implements PreflightCheck {
 	private final HostLmsService hostLmsService;
-	private final AgencyService agencyService;
 	private final LocalPatronService localPatronService;
 
 	public ResolvePatronPreflightCheck(HostLmsService hostLmsService,
-		AgencyService agencyService, LocalPatronService localPatronService) {
+		LocalPatronService localPatronService) {
 
 		this.hostLmsService = hostLmsService;
-		this.agencyService = agencyService;
 		this.localPatronService = localPatronService;
 	}
 
@@ -69,15 +65,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			// Was not done initially due to potentially affecting other uses
 			.filter(Patron::isNotDeleted)
 			// This uses a tuple because the patron does not directly have an association with an agency
-			.zipWhen(patron -> findAgencyForPatron(patron, hostLmsCode));
-	}
-
-	private Mono<DataAgency> findAgencyForPatron(Patron patron, String hostLmsCode) {
-		return localPatronService.findHomeLocationMapping(patron, hostLmsCode)
-			.switchIfEmpty(defer(() -> localPatronService.findDefaultAgencyCode(hostLmsCode)))
-			.flatMap(agencyService::findByCode)
-			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(
-				patron.getLocalHomeLibraryCode(), hostLmsCode));
+			.zipWhen(patron -> localPatronService.findAgencyForPatron(patron, hostLmsCode));
 	}
 
 	private List<CheckResult> checkPatron(Patron patron, String localPatronId,
