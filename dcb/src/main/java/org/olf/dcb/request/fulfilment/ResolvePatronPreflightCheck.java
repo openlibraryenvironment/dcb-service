@@ -14,12 +14,12 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.UnknownHostLmsException;
+import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
@@ -37,14 +37,16 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	private final HostLmsService hostLmsService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final AgencyService agencyService;
+	private final LocalPatronService localPatronService;
 
 	public ResolvePatronPreflightCheck(HostLmsService hostLmsService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		AgencyService agencyService) {
+		AgencyService agencyService, LocalPatronService localPatronService) {
 
 		this.hostLmsService = hostLmsService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.agencyService = agencyService;
+		this.localPatronService = localPatronService;
 	}
 
 	@Override
@@ -75,19 +77,11 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<DataAgency> findAgencyForPatron(Patron patron, String hostLmsCode) {
-		return findHomeLocationMapping(patron, hostLmsCode)
+		return localPatronService.findHomeLocationMapping(patron, hostLmsCode)
 			.switchIfEmpty(defer(() -> locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode)))
 			.flatMap(agencyService::findByCode)
 			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(
 				patron.getLocalHomeLibraryCode(), hostLmsCode));
-	}
-
-	private Mono<String> findHomeLocationMapping(Patron patron, String hostLmsCode) {
-		log.debug("Finding home location mapping for host LMS code: \"{}\", patron: {}", hostLmsCode, patron);
-
-		return locationToAgencyMappingService.findLocationToAgencyMapping(
-				hostLmsCode, getValue(patron, Patron::getLocalHomeLibraryCode))
-			.map(ReferenceValueMapping::getToValue);
 	}
 
 	private List<CheckResult> checkPatron(Patron patron, String localPatronId,
