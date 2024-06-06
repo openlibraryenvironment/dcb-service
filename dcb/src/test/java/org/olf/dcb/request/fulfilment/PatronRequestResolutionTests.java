@@ -71,6 +71,12 @@ class PatronRequestResolutionTests {
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
 	private final String BORROWING_HOST_LMS_CODE = "resolution-borrowing";
 
+	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
+
+	private final String PICKUP_LOCATION_CODE = "pickup-location";
+	private final String ITEM_LOCATION_CODE = "item-location";
+
 	@Inject
 	private PatronRequestResolutionStateTransition patronRequestResolutionStateTransition;
 
@@ -126,6 +132,9 @@ class PatronRequestResolutionTests {
 
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
+
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, "",
+			"", "http://some-system", "item");
 	}
 
 	@BeforeEach
@@ -133,18 +142,20 @@ class PatronRequestResolutionTests {
 		log.info("beforeEach\n\n");
 
 		clusterRecordFixture.deleteAll();
-		// RequestWorkflowContextHelper will complain if the requested pickup location cannot be mapped into an expectedAgency
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE,"ABC123","ab8");
+			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE,"ab6","ab8");
+			CATALOGUING_HOST_LMS_CODE, ITEM_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
 
-		agencyFixture.defineAgency("ab8", "ab8",
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_CODE,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
 	}
 
 	@Test
@@ -161,14 +172,14 @@ class PatronRequestResolutionTests {
 			SierraItem.builder()
 				.id("1000001")
 				.barcode("30800005238487")
-				.locationCode("ab6")
+				.locationCode(ITEM_LOCATION_CODE)
 				.statusCode("-")
 				.dueDate(Instant.parse("2021-02-25T12:00:00Z"))
 				.build(),
 			SierraItem.builder()
 				.id("1000002")
 				.barcode("6565750674")
-				.locationCode("ab6")
+				.locationCode(ITEM_LOCATION_CODE)
 				.statusCode("-")
 				.build()
 		));
@@ -180,7 +191,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -196,7 +207,8 @@ class PatronRequestResolutionTests {
 
 		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
-		final DataAgency expectedAgency = agencyFixture.findByCode("ab8");
+		final DataAgency expectedAgency = agencyFixture.findByCode(
+			SUPPLYING_AGENCY_CODE);
 
 		assertThat(onlySupplierRequest, allOf(
 			notNullValue(),
@@ -204,11 +216,11 @@ class PatronRequestResolutionTests {
 			hasLocalItemId("1000002"),
 			hasLocalItemBarcode("6565750674"),
 			hasLocalBibId("465675"),
-			hasLocalItemLocationCode("ab6"),
+			hasLocalItemLocationCode(ITEM_LOCATION_CODE),
 			hasNoLocalItemStatus(),
 			hasNoLocalId(),
 			hasNoLocalStatus(),
-			hasLocalAgencyCode("ab8"),
+			hasLocalAgencyCode(SUPPLYING_AGENCY_CODE),
 			hasResolvedAgency(expectedAgency)
 		));
 
@@ -242,7 +254,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -297,7 +309,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -334,7 +346,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -366,7 +378,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -411,7 +423,7 @@ class PatronRequestResolutionTests {
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.build();
 
