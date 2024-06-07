@@ -3,7 +3,9 @@ package org.olf.dcb.request.resolution;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -115,8 +117,8 @@ class PatronRequestResolutionServiceTests {
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
 
-		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, "",
-			"", "http://some-system", "item");
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, HOST_LMS_KEY,
+			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
 	}
 
 	@BeforeEach
@@ -156,7 +158,8 @@ class PatronRequestResolutionServiceTests {
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			// Sierra item with due date is considered not available
 			CheckedOutItem("372656", "6256486473634"),
-			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode)
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				ITEM_LOCATION_CODE)
 		));
 
 		final var homeLibraryCode = "home-library";
@@ -206,7 +209,8 @@ class PatronRequestResolutionServiceTests {
 		final var onlyAvailableItemBarcode = "25452553";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode)
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				ITEM_LOCATION_CODE)
 		));
 
 		final var homeLibraryCode = "home-library";
@@ -245,6 +249,55 @@ class PatronRequestResolutionServiceTests {
 			)));
 	}
 
+	@Test
+	void shouldExcludeItemFromSameAgencyAsBorrower() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "632545";
+
+		bibRecordFixture.createBibRecord(bibRecordId,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE).getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "564325";
+		final var onlyAvailableItemBarcode = "721425354";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				"borrowing-location")
+		));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
+			"borrowing-location", BORROWING_AGENCY_CODE);
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("356425", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem()
+		));
+	}
+
 	private Resolution resolve(PatronRequest patronRequest) {
 		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
 	}
@@ -254,11 +307,13 @@ class PatronRequestResolutionServiceTests {
 			cataloguingHostLms, agencyFixture.findByCode(BORROWING_AGENCY_CODE));
 	}
 
-	private SierraItem availableItem(String id, String barcode) {
+	private SierraItem availableItem(String id, String barcode,
+		String itemLocationCode) {
+
 		return SierraItem.builder()
 			.id(id)
 			.barcode(barcode)
-			.locationCode(ITEM_LOCATION_CODE)
+			.locationCode(itemLocationCode)
 			.statusCode("-")
 			.build();
 	}
@@ -276,5 +331,9 @@ class PatronRequestResolutionServiceTests {
 	@SafeVarargs
 	private Matcher<Resolution> hasChosenItem(Matcher<Item>... matchers) {
 		return hasProperty("chosenItem", allOf(matchers));
+	}
+
+	private Matcher<Resolution> hasNoChosenItem() {
+		return hasProperty("chosenItem", is(nullValue()));
 	}
 }

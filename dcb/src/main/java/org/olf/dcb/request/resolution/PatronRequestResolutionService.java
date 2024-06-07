@@ -9,9 +9,11 @@ import static reactor.function.TupleUtils.function;
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
@@ -149,8 +151,24 @@ public class PatronRequestResolutionService {
 				getValue(patron, Patron::getPatronIdentities));
 		}
 
+		final var homeIdentity = optionalHomeIdentity.get();
+
+		final var borrowingAgency = getValue(homeIdentity, PatronIdentity::getResolvedAgency);
+
+		final var borrowingAgencyCode = getValue(borrowingAgency, DataAgency::getCode);
+
 		final var allItems = resolution.getAllItems();
 
-		return resolution.trackFilteredItems(allItems);
+		final var filteredItems = allItems.stream()
+			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
+			.toList();
+
+		return resolution.trackFilteredItems(filteredItems);
+	}
+
+	private static boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
+		final var itemAgencyCode = getValue(item, Item::getAgencyCode);
+
+		return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
 	}
 }
