@@ -258,6 +258,59 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	}
 
 	@Test
+	void shouldFailWhenPatronIsNotAssociatedWithAgency() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var clusterRecordId = clusterRecord.getId();
+
+		final var sourceRecordId = "874626";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var localPatronId = "8292567";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(localPatronId, "home-library", BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
 	void shouldFailWhenHostLmsIsNotRecognised() {
 		// Arrange
 		final var unknownHostLmsCode = "unknown-host-lms";

@@ -14,6 +14,7 @@ import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Requires;
@@ -52,6 +53,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.map(this::checkResolution)
 			// Many of these errors are duplicated from the resolve patron preflight check
 			// This is due to both having to resolve the patron before performing the checks
+			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error,
+				getValue(command, PlacePatronRequestCommand::getRequestorLocalId)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)));
@@ -92,6 +95,16 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		return Mono.just(List.of(
 			failed("PATRON_NOT_FOUND", error.getMessage())
 		));
+	}
+
+	private Mono<List<CheckResult>> agencyNotFound(
+		UnableToResolveAgencyProblem error, String localPatronId) {
+
+		return Mono.just(List.of(
+			failed("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(localPatronId, error.getHomeLibraryCode(),
+						error.getSystemCode()))));
 	}
 
 	private static List<CheckResult> unknownHostLms(String localSystemCode) {
