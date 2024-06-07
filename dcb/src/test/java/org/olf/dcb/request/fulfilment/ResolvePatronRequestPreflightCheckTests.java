@@ -42,9 +42,12 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	private final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
 	private final String BORROWING_HOST_LMS_CODE = "resolution-borrowing";
-	private final String KNOWN_AGENCY_CODE = "known-agency";
+
+	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
+	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+
 	private final String PICKUP_LOCATION_CODE = "pickup-location";
-	private final String KNOWN_LOCATION_CODE = "known-location";
+	private final String ITEM_LOCATION_CODE = "item-location";
 
 	@Inject
 	private ResolvePatronRequestPreflightCheck check;
@@ -99,6 +102,9 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
+
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, "",
+			"", "http://some-system", "item");
 	}
 
 	@BeforeEach
@@ -108,12 +114,15 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		agencyFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, KNOWN_AGENCY_CODE);
+			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE, KNOWN_LOCATION_CODE, KNOWN_AGENCY_CODE);
+			CATALOGUING_HOST_LMS_CODE, ITEM_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
 
-		agencyFixture.defineAgency(KNOWN_AGENCY_CODE, "Known Agency",
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
+
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_CODE,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 	}
 
@@ -208,7 +217,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		return SierraItem.builder()
 			.id(id)
 			.barcode(barcode)
-			.locationCode(KNOWN_LOCATION_CODE)
+			.locationCode(ITEM_LOCATION_CODE)
 			.statusCode("-")
 			.build();
 	}
