@@ -16,6 +16,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Citation;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.PickupLocation;
@@ -73,6 +74,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	private AgencyFixture agencyFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	private DataHostLms cataloguingHostLms;
 
@@ -88,6 +90,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		supplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
