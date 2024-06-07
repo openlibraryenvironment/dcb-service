@@ -10,6 +10,8 @@ import java.util.List;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
@@ -56,6 +58,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error,
 				getValue(command, PlacePatronRequestCommand::getRequestorLocalId)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
+			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
+			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)));
 	}
@@ -110,5 +114,25 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	private static List<CheckResult> unknownHostLms(String localSystemCode) {
 		return List.of(failed("UNKNOWN_BORROWING_HOST_LMS",
 			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode)));
+	}
+
+	private Mono<List<CheckResult>> noPatronTypeMappingFound(
+		NoPatronTypeMappingFoundException error) {
+
+		return Mono.just(List.of(
+			failed("PATRON_TYPE_NOT_MAPPED",
+				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
+					.formatted(error.getLocalPatronType(), error.getHostLmsCode()))
+		));
+	}
+
+	private Mono<List<CheckResult>> nonNumericPatronType(
+		UnableToConvertLocalPatronTypeException error) {
+
+		return Mono.just(List.of(
+			failed("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
+				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
+					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()))
+		));
 	}
 }

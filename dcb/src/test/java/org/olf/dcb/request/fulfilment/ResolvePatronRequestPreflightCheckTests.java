@@ -311,6 +311,111 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	}
 
 	@Test
+	void shouldFailWhenLocalPatronTypeIsNotMappedToCanonicalPatronType() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var clusterRecordId = clusterRecord.getId();
+
+		final var sourceRecordId = "356354";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var localPatronId = "736553";
+		final var unmappedLocalPatronType = 35;
+		final var homeLibraryCode = "home-library";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(unmappedLocalPatronType)
+				.homeLibraryCode(homeLibraryCode)
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_TYPE_NOT_MAPPED",
+				"Local patron type \"%d\" from \"%s\" is not mapped to a DCB canonical patron type"
+					.formatted(unmappedLocalPatronType, BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
+	void shouldFailWhenNoLocalPatronTypeIsDefined() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var clusterRecordId = clusterRecord.getId();
+
+		final var sourceRecordId = "987531";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var localPatronId = "257255";
+		final var homeLibraryCode = "home-library";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.homeLibraryCode(homeLibraryCode)
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
+				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"null\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
 	void shouldFailWhenHostLmsIsNotRecognised() {
 		// Arrange
 		final var unknownHostLmsCode = "unknown-host-lms";
