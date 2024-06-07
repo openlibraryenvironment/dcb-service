@@ -298,6 +298,57 @@ class PatronRequestResolutionServiceTests {
 		));
 	}
 
+	@Test
+	void shouldTolerateUnknownPatronAgency() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "6736442";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "254535";
+		final var onlyAvailableItemBarcode = "862545263";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = patronFixture.definePatron("872321", homeLibraryCode,
+			cataloguingHostLms, null);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasLocalId(onlyAvailableItemId),
+				hasBarcode(onlyAvailableItemBarcode),
+				hasLocalBibId(sourceRecordId),
+				hasLocationCode(ITEM_LOCATION_CODE),
+				hasAgencyCode(SUPPLYING_AGENCY_CODE)
+			)));
+	}
+
 	private Resolution resolve(PatronRequest patronRequest) {
 		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
 	}

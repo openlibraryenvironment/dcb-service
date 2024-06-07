@@ -157,6 +157,10 @@ public class PatronRequestResolutionService {
 
 		final var borrowingAgencyCode = getValue(borrowingAgency, DataAgency::getCode);
 
+		if (borrowingAgencyCode == null) {
+			log.warn("Borrowing agency code during resolution is null");
+		}
+
 		final var allItems = resolution.getAllItems();
 
 		final var filteredItems = allItems.stream()
