@@ -271,6 +271,38 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	}
 
 	@Test
+	void shouldFailWhenClusterRecordCannotBeFound() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var localPatronId = "563653";
+
+		definePatron(localPatronId);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("CLUSTER_RECORD_NOT_FOUND",
+				"Cluster record \"%s\" cannot be found".formatted(clusterRecordId))
+		));
+	}
+
+	@Test
 	void shouldFailWhenPatronCannotBeFoundInHostLms() {
 		// Arrange
 		final var bibRecordId = randomUUID();

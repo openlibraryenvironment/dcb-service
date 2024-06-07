@@ -14,6 +14,8 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
+import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
@@ -60,6 +62,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
+			.onErrorResume(CannotFindClusterRecordException.class, this::clusterRecordNotFound)
+			.onErrorResume(NoBibsForClusterRecordException.class, this::clusterRecordNotFound)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.defaultIfEmpty(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
@@ -95,6 +99,20 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		}
 
 		return List.of(passed());
+	}
+
+	private Mono<List<CheckResult>> clusterRecordNotFound(CannotFindClusterRecordException error) {
+		return Mono.just(List.of(
+			failed("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
+				.formatted(getValue(error, CannotFindClusterRecordException::getClusterRecordId)))
+		));
+	}
+
+	private Mono<List<CheckResult>> clusterRecordNotFound(NoBibsForClusterRecordException error) {
+		return Mono.just(List.of(
+			failed("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
+				.formatted(getValue(error, NoBibsForClusterRecordException::getClusterRecordId)))
+		));
 	}
 
 	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
