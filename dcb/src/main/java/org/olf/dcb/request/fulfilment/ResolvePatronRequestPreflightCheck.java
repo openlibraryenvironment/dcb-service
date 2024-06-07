@@ -8,6 +8,7 @@ import static reactor.function.TupleUtils.function;
 import java.util.List;
 
 import org.olf.dcb.core.interaction.LocalPatronService;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
@@ -47,7 +48,10 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.map(function((patronRequestService, patron) -> patronRequestService.mapToPatronRequest(command, patron)))
 			.map(PatronRequestService.mapManualItemSelectionIfPresent(command))
 			.flatMap(patronRequestResolutionService::resolvePatronRequest)
-			.map(this::checkResolution);
+			.map(this::checkResolution)
+			// Many of these errors are duplicated from the resolve patron preflight check
+			// This is due to both having to resolve the patron before performing the checks
+			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound);
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
@@ -79,5 +83,11 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		}
 
 		return List.of(passed());
+	}
+
+	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
+		return Mono.just(List.of(
+			failed("PATRON_NOT_FOUND", error.getMessage())
+		));
 	}
 }

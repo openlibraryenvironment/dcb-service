@@ -214,6 +214,48 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		));
 	}
 
+	@Test
+	void shouldFailWhenPatronCannotBeFoundInHostLms() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var clusterRecordId = clusterRecord.getId();
+
+		final var sourceRecordId = "874626";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var localPatronId = "365573";
+
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_NOT_FOUND",
+				"Patron \"%s\" is not recognised in \"%s\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+		));
+	}
+
 	private List<CheckResult> check(PlacePatronRequestCommand command) {
 		return singleValueFrom(check.check(command));
 	}
