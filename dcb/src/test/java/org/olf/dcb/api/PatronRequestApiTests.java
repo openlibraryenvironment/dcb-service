@@ -159,7 +159,7 @@ class PatronRequestApiTests {
 				.build());
 
 		// patron service
-		final var expectedUniqueId = "%s@%s".formatted(KNOWN_PATRON_LOCAL_ID, SUPPLYING_AGENCY_CODE);
+		final var expectedUniqueId = "%s@%s".formatted(KNOWN_PATRON_LOCAL_ID, BORROWING_AGENCY_CODE);
 
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", expectedUniqueId);
 		sierraPatronsAPIFixture.postPatronResponse(expectedUniqueId, 2745326);
@@ -209,7 +209,8 @@ class PatronRequestApiTests {
 			SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			SUPPLYING_HOST_LMS_CODE, "tstce", SUPPLYING_AGENCY_CODE);
+			BORROWING_HOST_LMS_CODE, "tstce", BORROWING_AGENCY_CODE);
+
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			SUPPLYING_HOST_LMS_CODE, "tstr", SUPPLYING_AGENCY_CODE);
 
@@ -237,7 +238,7 @@ class PatronRequestApiTests {
 		// We use location UUID for pickup location now and not a code
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
 			clusterRecordId, KNOWN_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
-			SUPPLYING_HOST_LMS_CODE, "home-library");
+			BORROWING_HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -296,8 +297,7 @@ class PatronRequestApiTests {
 
 		assertThat(placedPatronRequest.getRequestor(), is(notNullValue()));
 		assertThat(placedPatronRequest.getRequestor().getHomeLibraryCode(), is("home-library"));
-		assertThat(placedPatronRequest.getRequestor().getLocalSystemCode(), is(
-			SUPPLYING_HOST_LMS_CODE));
+		assertThat(placedPatronRequest.getRequestor().getLocalSystemCode(), is(BORROWING_HOST_LMS_CODE));
 		assertThat(placedPatronRequest.getRequestor().getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 
 		log.info("Waiting for placed....");
@@ -339,7 +339,7 @@ class PatronRequestApiTests {
 
 		assertThat(homeIdentity.getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 		assertThat(homeIdentity.getHomeIdentity(), is(true));
-		assertThat(homeIdentity.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
+		assertThat(homeIdentity.getHostLmsCode(), is(BORROWING_HOST_LMS_CODE));
 
 		final var supplierIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(0);
 
@@ -403,7 +403,7 @@ class PatronRequestApiTests {
 		// We use location UUID for pickup location now and not a code
 		var placedRequestResponse = patronRequestApiClient.placePatronRequest(
 			clusterRecordId, KNOWN_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
-			SUPPLYING_HOST_LMS_CODE, "home-library");
+			BORROWING_HOST_LMS_CODE, "home-library");
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -561,7 +561,7 @@ class PatronRequestApiTests {
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
 				KNOWN_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
-				SUPPLYING_HOST_LMS_CODE, "home-library-code"));
+				BORROWING_HOST_LMS_CODE, "home-library-code"));
 
 		final var response = exception.getResponse();
 
@@ -608,7 +608,8 @@ class PatronRequestApiTests {
 		// When placing a request with an invalid request body
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(randomUUID(),
-				KNOWN_PATRON_LOCAL_ID, null, SUPPLYING_HOST_LMS_CODE, "home-library-code"));
+				KNOWN_PATRON_LOCAL_ID, null,
+				BORROWING_HOST_LMS_CODE, "home-library-code"));
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();
@@ -631,7 +632,7 @@ class PatronRequestApiTests {
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
 				KNOWN_PATRON_LOCAL_ID, "unknown-pickup-location",
-				SUPPLYING_HOST_LMS_CODE, "home-library-code"));
+				BORROWING_HOST_LMS_CODE, "home-library-code"));
 
 		// Assert
 		final var response = exception.getResponse();
@@ -679,7 +680,7 @@ class PatronRequestApiTests {
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
 				KNOWN_PATRON_LOCAL_ID, "unmapped-pickup-location",
-				SUPPLYING_HOST_LMS_CODE, "home-library-code"));
+				BORROWING_HOST_LMS_CODE, "home-library-code"));
 
 		// Assert
 		final var response = exception.getResponse();
@@ -742,7 +743,7 @@ class PatronRequestApiTests {
 		// Define a mapping from patron-request-api-tests:[10-20] to DCB:15 - so any value between 10 and 20 can be mapped
 		// to our canonical DCB:15 type
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
-			SUPPLYING_HOST_LMS_CODE, 10, 20, "DCB", "15");
+			BORROWING_HOST_LMS_CODE, 10, 20, "DCB", "15");
 		// was referenceValueMappingFixture.definePatronTypeMapping("patron-request-api-tests", "15", "DCB", "15");
 
 		// Define a mapping from the spine reference DCB:15 to a TARGET vocal (patron-request-api-tests) value 15
