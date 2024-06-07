@@ -146,7 +146,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var onlyAvailableItemBarcode = "82365396";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode)
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				ITEM_LOCATION_CODE)
 		));
 
 		final var localPatronId = definePatron("465367");
@@ -188,6 +189,60 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		sierraItemsAPIFixture.zeroItemsResponseForBibId(sourceRecordId);
 
 		final var localPatronId = "2645637";
+
+		definePatron(localPatronId);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Patron request for cluster record \"%s\" could not be resolved to an item"
+					.formatted(clusterRecordId))
+		));
+	}
+
+	@Test
+	void shouldFailWhenOnlyItemIsFromSameAgencyAsBorrower() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var clusterRecordId = clusterRecord.getId();
+
+		final var sourceRecordId = "625252";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "352545";
+		final var onlyAvailableItemBarcode = "82365396";
+		final var itemLocationCode = "borrowing-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				itemLocationCode)
+		));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
+			itemLocationCode, BORROWING_AGENCY_CODE);
+
+		final var localPatronId = "353663";
 
 		definePatron(localPatronId);
 
@@ -447,11 +502,13 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		return singleValueFrom(check.check(command));
 	}
 
-	private SierraItem availableItem(String id, String barcode) {
+	private SierraItem availableItem(String id, String barcode,
+		String locationCode) {
+
 		return SierraItem.builder()
 			.id(id)
 			.barcode(barcode)
-			.locationCode(ITEM_LOCATION_CODE)
+			.locationCode(locationCode)
 			.statusCode("-")
 			.build();
 	}

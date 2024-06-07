@@ -184,12 +184,12 @@ class PatronRequestResolutionServiceTests {
 		assertThat(resolution, allOf(
 			notNullValue(),
 			hasChosenItem(
-					hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-					hasLocalId(onlyAvailableItemId),
-					hasBarcode(onlyAvailableItemBarcode),
-					hasLocalBibId(sourceRecordId),
-					hasLocationCode(ITEM_LOCATION_CODE),
-					hasAgencyCode(SUPPLYING_AGENCY_CODE)
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasLocalId(onlyAvailableItemId),
+				hasBarcode(onlyAvailableItemBarcode),
+				hasLocalBibId(sourceRecordId),
+				hasLocationCode(ITEM_LOCATION_CODE),
+				hasAgencyCode(SUPPLYING_AGENCY_CODE)
 			)));
 	}
 
@@ -264,14 +264,15 @@ class PatronRequestResolutionServiceTests {
 
 		final var onlyAvailableItemId = "564325";
 		final var onlyAvailableItemBarcode = "721425354";
+		final var itemLocationCode = "borrowing-location";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
-				"borrowing-location")
+				itemLocationCode)
 		));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
-			"borrowing-location", BORROWING_AGENCY_CODE);
+			itemLocationCode, BORROWING_AGENCY_CODE);
 
 		final var homeLibraryCode = "home-library";
 
