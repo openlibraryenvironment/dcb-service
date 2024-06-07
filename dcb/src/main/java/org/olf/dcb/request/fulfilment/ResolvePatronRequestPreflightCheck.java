@@ -7,6 +7,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.model.Patron;
@@ -51,7 +52,9 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.map(this::checkResolution)
 			// Many of these errors are duplicated from the resolve patron preflight check
 			// This is due to both having to resolve the patron before performing the checks
-			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound);
+			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
+			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
+				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)));
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
@@ -89,5 +92,10 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		return Mono.just(List.of(
 			failed("PATRON_NOT_FOUND", error.getMessage())
 		));
+	}
+
+	private static List<CheckResult> unknownHostLms(String localSystemCode) {
+		return List.of(failed("UNKNOWN_BORROWING_HOST_LMS",
+			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode)));
 	}
 }

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -253,6 +254,34 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 			failedCheck("PATRON_NOT_FOUND",
 				"Patron \"%s\" is not recognised in \"%s\""
 					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
+	void shouldFailWhenHostLmsIsNotRecognised() {
+		// Arrange
+		final var unknownHostLmsCode = "unknown-host-lms";
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(unknownHostLmsCode)
+				.localId("6545362")
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(UUID.randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("UNKNOWN_BORROWING_HOST_LMS",
+				"\"%s\" is not a recognised Host LMS".formatted(unknownHostLmsCode))
 		));
 	}
 
