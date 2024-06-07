@@ -7,6 +7,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
@@ -24,13 +25,16 @@ import reactor.core.publisher.Mono;
 public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	private final PatronRequestResolutionService patronRequestResolutionService;
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
+	private final LocalPatronService localPatronService;
 
 	public ResolvePatronRequestPreflightCheck(
 		PatronRequestResolutionService patronRequestResolutionService,
-		BeanProvider<PatronRequestService> patronRequestServiceProvider) {
+		BeanProvider<PatronRequestService> patronRequestServiceProvider,
+		LocalPatronService localPatronService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
+		this.localPatronService = localPatronService;
 	}
 
 	@Override
