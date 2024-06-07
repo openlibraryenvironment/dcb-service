@@ -1,10 +1,26 @@
 # Changelog
 
+## Version 6.14.0
+
+### Additions
+* [General]
+	* Exclude items from same agency as borrower from resolution DCB-1173
+	* Fail preflight when resolution cannot select an item DCB-1173
+	* LOCAL workflow extended.
+
+### Changes
+* [Chore]
+	* add a note for staff when creating a polaris virtual item
+
 ## Version 6.13.0
 
 ### Additions
 * [General]
 	* Extend numeric range mapping import and implement soft delete [DCB-1153]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ## Version 6.12.5
 
