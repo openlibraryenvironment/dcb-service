@@ -61,7 +61,9 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
-				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)));
+				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
+			.defaultIfEmpty(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Failed due to empty reactive chain")));
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
