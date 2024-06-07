@@ -106,8 +106,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
 
-		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, "",
-			"", "http://some-system", "item");
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, HOST_LMS_KEY,
+			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
 	}
 
 	@BeforeEach
@@ -148,7 +148,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode)
 		));
 
-		final var localPatronId = "465367";
+		final var localPatronId = definePatron("465367");
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -188,6 +188,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var localPatronId = "2645637";
 
+		definePatron(localPatronId);
+
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(Requestor.builder()
@@ -223,5 +225,26 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 			.locationCode(ITEM_LOCATION_CODE)
 			.statusCode("-")
 			.build();
+	}
+
+	private String definePatron(String localPatronId) {
+		final var homeLibraryCode = "home-library";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode(homeLibraryCode)
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
+
+		return localPatronId;
 	}
 }

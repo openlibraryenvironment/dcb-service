@@ -18,6 +18,7 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @Slf4j
 @Singleton
@@ -49,16 +50,20 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.map(this::checkResolution);
 	}
 
-	private static Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
-		final var homeIdentity = PatronIdentity.builder()
-			.homeIdentity(true)
-			.build();
+	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
+		return localPatronService.findLocalPatronAndAgency(
+				getValue(command, PlacePatronRequestCommand::getRequestorLocalId),
+				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
+			.map(TupleUtils.function((patron, agency) -> {
+				final var homeIdentity = PatronIdentity.builder()
+					.homeIdentity(true)
+					.resolvedAgency(agency)
+					.build();
 
-		final var patron = Patron.builder()
-			.patronIdentities(List.of(homeIdentity))
-			.build();
-
-		return Mono.just(patron);
+				return Patron.builder()
+					.patronIdentities(List.of(homeIdentity))
+					.build();
+			}));
 	}
 
 	private List<CheckResult> checkResolution(Resolution resolution) {
