@@ -84,6 +84,7 @@ import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
+import org.zalando.problem.Problem;
 import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
@@ -473,7 +474,7 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var exception = assertThrows(PolarisWorkflowException.class,
+		final var exception = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localPatronId("1")
@@ -488,7 +489,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(exception, allOf(
 			notNullValue(),
-			hasMessage("Failed to handle polaris workflow. Response was: ApplicationServicesClient.WorkflowResponse(workflowRequestGuid=c07ba982-b123-48df-99fb-e9b03cd82dab, workflowStatus=-3, prompt=ApplicationServicesClient.Prompt(WorkflowPromptID=94, title=Serial Holds, message=You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:), answerExtension=null, informationMessages=[]). Expected to reply to promptID: 77 with reply: 5")
+			hasMessage("Failed to handle Polaris.ApplicationServices API workflow: Serial Holds")
 		));
 	}
 

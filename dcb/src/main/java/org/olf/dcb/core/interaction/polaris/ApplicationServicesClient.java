@@ -26,6 +26,7 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Wor
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
 import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -514,7 +515,7 @@ class ApplicationServicesClient {
 		WorkflowResponse response, Integer promptID, Integer promptResult) {
 
 		if (!Objects.equals(response.getWorkflowStatus(), InputRequired)) {
-			log.debug("Input was not required for workflow response: {}", response.getWorkflowRequestGuid());
+			log.info("Input was not required for workflow response: {}", response.getWorkflowRequestGuid());
 			return Mono.just(response);
 		}
 
@@ -531,8 +532,21 @@ class ApplicationServicesClient {
 			.filter(workflowResponse -> Objects.equals(workflowResponse.getPrompt().getWorkflowPromptID(), promptID))
 			.flatMap(resp -> createItemWorkflowReply(resp.getWorkflowRequestGuid(), promptID, promptResult))
 			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
-			.switchIfEmpty(Mono.error(new PolarisWorkflowException("Failed to handle polaris workflow. " +
-				"Response was: " + response + ". Expected to reply to promptID: " + promptID + " with reply: " + promptResult)));
+			.switchIfEmpty(raiseError(Problem.builder()
+				.withType(ERR0210)
+				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
+				.withDetail(response.getPrompt() != null && response.getPrompt().getTitle() != null ? response.getPrompt().getTitle() : "Response didn't have a title")
+				.with("Message", response.getPrompt() != null && response.getPrompt().getMessage() != null ? response.getPrompt().getMessage() : "No message")
+				.with("Information messages", response.getInformationMessages() != null ? response.getInformationMessages() : "No messages")
+				.with("Workflow prompt ID", response.getPrompt().getWorkflowPromptID() != null ? response.getPrompt().getWorkflowPromptID() : "No prompt id")
+				.with("Workflow doc", "https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview")
+				.with("Workflow status", response.getWorkflowStatus() != null ? response.getWorkflowStatus() : "No status")
+				.with("Workflow request GUID", response.getWorkflowRequestGuid() != null ? response.getWorkflowRequestGuid() : "No guid")
+				.with("Full response", response)
+				.with("Expected prompt ID", promptID)
+				.with("Expected reply", promptResult)
+				.build())
+			);
 	}
 
 
