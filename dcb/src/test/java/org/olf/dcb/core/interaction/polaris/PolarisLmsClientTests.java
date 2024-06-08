@@ -808,6 +808,8 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
 			"create-item-resp.json");
 
+		referenceValueMappingFixture.defineMapping("DCB", "ItemType", "TEST:CIRC", CATALOGUING_HOST_LMS_CODE, "ItemType", "007");
+
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
@@ -816,6 +818,7 @@ class PolarisLmsClientTests {
 				.bibId("1203065")
 				.barcode("3430470102")
 				.patronHomeLocation("37")
+				.canonicalItemType("TEST:CIRC")
 				.build()));
 
 		// Assert
@@ -852,7 +855,8 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(problem, allOf(
 			notNullValue(),
-			messageContains("Unable to create virtual item at polaris")
+			messageContains(
+				"Item type code and host LMS code should not be null: itemTypeCode=null, hostLmsCode=polaris-cataloguing")
 		));
 	}
 

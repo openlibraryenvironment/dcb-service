@@ -12,6 +12,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
@@ -536,6 +537,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.build();
 			})
 			.onErrorMap(error -> {
+
+				if (error instanceof Problem) return error;
+
 				log.error("Error attempting to create item {} : {}", createItemCommand, error.getMessage());
 				return Problem.builder()
 					.withType(ERR0211)
@@ -1155,17 +1159,37 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	Mono<String> getMappedItemType(String itemTypeCode) {
-		if (getHostLmsCode() != null && itemTypeCode != null) {
 
+		final var hostlmsCode = getHostLmsCode();
 
+		if (hostlmsCode != null && itemTypeCode != null) {
 			return referenceValueMappingService.findMapping("ItemType", "DCB",
-					itemTypeCode, "ItemType", getHostLmsCode())
+					itemTypeCode, "ItemType", hostlmsCode)
 				.map(ReferenceValueMapping::getToValue)
-				.defaultIfEmpty("19");
+
+				//
+				.switchIfEmpty(raiseError(Problem.builder()
+					.withTitle("Unable to find item type mapping from DCB to " + hostlmsCode)
+					.withDetail("Attempt to find item type mapping returned empty")
+					.with("Source category", "ItemType")
+					.with("Source context", "DCB")
+					.with("DCB item type code", itemTypeCode)
+					.with("Target category", "ItemType")
+					.with("Target context", hostlmsCode)
+					.build())
+				);
 		}
 
-		log.warn("Request to map item type was missing required parameters {}/{}", getHostLmsCode(), itemTypeCode);
-		return Mono.just("19");
+		log.error(String.format("Request to map item type was missing required parameters %s/%s", hostlmsCode, itemTypeCode));
+		return raiseError(Problem.builder()
+			.withTitle("Item type code and host LMS code should not be null")
+			.withDetail(String.format("itemTypeCode=%s, hostLmsCode=%s", itemTypeCode, hostlmsCode))
+			.with("Source category", "ItemType")
+			.with("Source context", "DCB")
+			.with("DCB item type code", itemTypeCode)
+			.with("Target category", "ItemType")
+			.with("Target context", hostlmsCode)
+			.build());
 	}
 
 	@Builder
