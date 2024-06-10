@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 6.14.1
+
+### Changes
+* [Refactor]
+	* use org.zalando.problem when unable to handle Polaris API workflow
+	* response to no item type mapping found in polaris client
+
 ## Version 6.14.0
 
 ### Additions
@@ -10,6 +17,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add a note for staff when creating a polaris virtual item
 
 ## Version 6.13.0
