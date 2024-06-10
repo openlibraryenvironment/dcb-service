@@ -136,9 +136,12 @@ public class TrackingServiceV3 implements TrackingService {
 	private Mono<PatronRequestRepository.ScheduledTrackingRecord> doTracking(PatronRequestRepository.ScheduledTrackingRecord tr) {
 		return Mono.from(patronRequestRepository.findById(tr.id()))
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
+			.doOnError(error -> log.error("Error occurred finding patron request (or context) {}", tr.id(), error))
 			.map(this::incrementAutoPollCounter)
 			.flatMap(this::trackSystems)
+			.doOnError(error -> log.error("Error occurred tracking patron request in local systems {}", tr.id(), error))
 			.flatMap(ctx -> patronRequestWorkflowService.progressUsing(ctx))
+			.doOnError(error -> log.error("Error occurred progressing patron request {}", tr.id(), error))
 			.thenReturn(tr);
 	}
 
