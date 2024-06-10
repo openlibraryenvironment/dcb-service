@@ -35,6 +35,7 @@ public class LocalPatronService {
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap(client -> client.getPatronByLocalId(localPatronId))
+			.doOnSuccess(patron -> log.debug("Found patron: {} from Host LMS: {}", patron, hostLmsCode))
 			// Could be done inside the Host LMS client method
 			// Was not done initially due to potentially affecting other uses
 			.filter(Patron::isNotDeleted)

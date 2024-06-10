@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static reactor.function.TupleUtils.consumer;
 import static reactor.function.TupleUtils.function;
 
 import java.time.Duration;
@@ -26,7 +27,6 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import reactor.function.TupleUtils;
 
 @Slf4j
 @Singleton
@@ -54,7 +54,9 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.zipWith(mapToPatron(command))
 			.map(function((patronRequestService, patron) -> patronRequestService.mapToPatronRequest(command, patron)))
 			.map(PatronRequestService.mapManualItemSelectionIfPresent(command))
+			.doOnSuccess(patronRequest -> log.debug("Completed mapping to patron request: {}", patronRequest))
 			.flatMap(patronRequestResolutionService::resolvePatronRequest)
+			.doOnSuccess(resolution -> log.debug("Completed resolution: {}", resolution))
 			.map(this::checkResolution)
 			// Many of these errors are duplicated from the resolve patron preflight check
 			// This is due to both having to resolve the patron before performing the checks
@@ -73,10 +75,13 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
+		log.debug("mapToPatron {}", command);
+
 		return localPatronService.findLocalPatronAndAgency(
 				getValue(command, PlacePatronRequestCommand::getRequestorLocalId),
 				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
-			.map(TupleUtils.function((patron, agency) -> {
+			.doOnSuccess(consumer((patron, agency) -> log.debug("Finished fetching patron: {} and agency: {}", patron, agency)))
+			.map(function((patron, agency) -> {
 				final var homeIdentity = PatronIdentity.builder()
 					.homeIdentity(true)
 					.resolvedAgency(agency)
