@@ -90,7 +90,15 @@ public class Library {
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataHostLms secondHostLms;
 
-	@NonNull
+	@Nullable
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency agency;
+
+	@Nullable
+	@Size(max = 200)
+	private String principalLabel;
+
+	@Nullable
+	@Size(max = 200)
+	private String secretLabel;
 }

@@ -284,6 +284,8 @@ type Library {
 	contacts: [Person]
 	secondHostLms: HostLms
 	membership: [LibraryGroupMember]
+	principalLabel: String
+	secretLabel: String
 }
 
 type LibraryContact {
