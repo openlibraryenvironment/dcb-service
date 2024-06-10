@@ -857,7 +857,7 @@ class PolarisLmsClientTests {
 		assertThat(problem, allOf(
 			notNullValue(),
 			messageContains(
-				"Item type code and host LMS code should not be null: itemTypeCode=null, hostLmsCode=polaris-cataloguing")
+				"Request to map item type was missing required parameters: itemTypeCode=null, hostLmsCode=polaris-cataloguing")
 		));
 	}
 

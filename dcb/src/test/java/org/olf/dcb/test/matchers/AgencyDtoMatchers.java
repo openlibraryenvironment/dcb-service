@@ -44,4 +44,12 @@ public class AgencyDtoMatchers {
 	public static Matcher<AgencyDTO> isNotBorrowingAgency() {
 		return hasProperty("isBorrowingAgency", is(false));
 	}
+
+	public static Matcher<AgencyDTO> hasPrincipalLabel(String principalLabel) {
+		return hasProperty("principalLabel", is(principalLabel));
+	}
+
+	public static Matcher<AgencyDTO> hasSecretLabel(String secretLabel) {
+		return hasProperty("secretLabel", is(secretLabel));
+	}
 }

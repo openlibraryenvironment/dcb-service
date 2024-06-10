@@ -1166,8 +1166,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return referenceValueMappingService.findMapping("ItemType", "DCB",
 					itemTypeCode, "ItemType", hostlmsCode)
 				.map(ReferenceValueMapping::getToValue)
-
-				//
 				.switchIfEmpty(raiseError(Problem.builder()
 					.withTitle("Unable to find item type mapping from DCB to " + hostlmsCode)
 					.withDetail("Attempt to find item type mapping returned empty")
@@ -1182,7 +1180,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.error(String.format("Request to map item type was missing required parameters %s/%s", hostlmsCode, itemTypeCode));
 		return raiseError(Problem.builder()
-			.withTitle("Item type code and host LMS code should not be null")
+			.withTitle("Request to map item type was missing required parameters")
 			.withDetail(String.format("itemTypeCode=%s, hostLmsCode=%s", itemTypeCode, hostlmsCode))
 			.with("Source category", "ItemType")
 			.with("Source context", "DCB")

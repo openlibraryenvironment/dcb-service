@@ -2,12 +2,16 @@ package org.olf.dcb.core.api;
 
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static reactor.function.TupleUtils.function;
 
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 
@@ -26,8 +30,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.storage.LibraryRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 @Controller("/agencies")
 @Validated
@@ -37,12 +44,15 @@ import reactor.core.publisher.Mono;
 public class AgenciesController {
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
+	private final LibraryRepository libraryRepository;
 
 	public AgenciesController(AgencyRepository agencyRepository,
-		HostLmsRepository hostLmsRepository) {
+		HostLmsRepository hostLmsRepository,
+		LibraryRepository libraryRepository) {
 
 		this.agencyRepository = agencyRepository;
 		this.hostLmsRepository = hostLmsRepository;
+		this.libraryRepository = libraryRepository;
 	}
 
 	@Operation(
@@ -64,14 +74,18 @@ public class AgenciesController {
 		return Flux.from(agencyRepository.queryAll())
 			// work around as fetching agency will not fetch hostLms or hostLmsId
 			.flatMap(this::addHostLms)
-			.map(AgencyDTO::mapToAgencyDTO)
+			.flatMap(this::addLibraryLabels)
+			.map(mapToAgencyDTO())
 			.collectList()
 			.map(agencyDTOList -> Page.of(agencyDTOList, finalPageable, agencyDTOList.size()));
 	}
 
 	@Get("/{id}")
 	public Mono<AgencyDTO> show(UUID id) {
-		return Mono.from(agencyRepository.findById(id)).flatMap(this::addHostLms).map(AgencyDTO::mapToAgencyDTO);
+		return Mono.from(agencyRepository.findById(id))
+			.flatMap(this::addHostLms)
+			.flatMap(this::addLibraryLabels)
+			.map(mapToAgencyDTO());
 	}
 
 	@Post("/")
@@ -90,7 +104,8 @@ public class AgenciesController {
 			.doOnNext(a -> log.debug("save agency {}", a))
 			.flatMap(this::saveOrUpdate)
 			.flatMap(this::addHostLms)
-			.map(AgencyDTO::mapToAgencyDTO);
+			.flatMap(this::addLibraryLabels)
+			.map(mapToAgencyDTO());
 	}
 
 	private static DataAgency mapToAgency(AgencyDTO agency, DataHostLms lms) {
@@ -113,6 +128,34 @@ public class AgenciesController {
 		return Mono.from(agencyRepository.findHostLmsIdById(dataAgency.getId()))
 			.flatMap(hostLmsId -> Mono.from(hostLmsRepository.findById(hostLmsId)))
 			.map(dataAgency::setHostLms);
+	}
+
+	private Mono<Tuple2<DataAgency, Library>> addLibraryLabels(DataAgency dataAgency) {
+		return Mono.just(dataAgency)
+			.zipWith( Mono.from(libraryRepository.findOneByAgencyCode(dataAgency.getCode())) )
+			.doOnNext(logWarningForMissingLibraryLabels(dataAgency.getName()))
+			.switchIfEmpty(Mono.defer(() -> {
+				log.info("No Library was found for Agency[{}] when trying to addLibraryLabels()", dataAgency.getName());
+				return Mono.just(Tuples.of(dataAgency, Library.builder().build()));
+			}));
+	}
+
+	private static Consumer<Tuple2<DataAgency, Library>> logWarningForMissingLibraryLabels(String agencyName) {
+		return tuple -> {
+			final var library = tuple.getT2();
+
+			if (library.getPrincipalLabel() == null) {
+				log.warn("Missing principal label for Library {}, Agency {}", library.getFullName(), agencyName);
+			}
+
+			if (library.getSecretLabel() == null) {
+				log.warn("Missing secret label for Library {}, Agency {}", library.getFullName(), agencyName);
+			}
+		};
+	}
+
+	private static Function<Tuple2<DataAgency, Library>, AgencyDTO> mapToAgencyDTO() {
+		return function(AgencyDTO::mapToAgencyDTO);
 	}
 
 	private Mono<DataAgency> saveOrUpdate(DataAgency agency) {
