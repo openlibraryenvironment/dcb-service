@@ -1,9 +1,10 @@
 package org.olf.dcb.tracking;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
@@ -17,6 +18,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
+import io.micrometer.core.annotation.Timed;
 import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
@@ -26,9 +28,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-import java.time.Instant;
-
-import io.micrometer.core.annotation.Timed;
 
 @Slf4j
 @Refreshable
@@ -82,7 +81,7 @@ public class TrackingServiceV3 implements TrackingService {
 			.count()
 			.subscribe(
 				total -> log.info("TRACKING Tracking completed for {} total Requests", total),
-				error -> log.error("TRACKING Error when updating tracking information"));
+				error -> log.error("TRACKING Error when updating tracking information", error));
 	}
 
 	private <T> Function<Flux<T>, Flux<T>> enrichWithLogging( String successMsg, String errorMsg ) {
