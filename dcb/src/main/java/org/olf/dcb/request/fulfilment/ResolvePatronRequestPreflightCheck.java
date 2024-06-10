@@ -5,6 +5,7 @@ import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.function.TupleUtils.function;
 
+import java.time.Duration;
 import java.util.List;
 
 import org.olf.dcb.core.UnknownHostLmsException;
@@ -67,7 +68,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.defaultIfEmpty(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
-				"Failed due to empty reactive chain")));
+				"Failed due to empty reactive chain")))
+			.timeout(Duration.ofSeconds(30), Mono.just(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST", "Failed due to timeout"))));
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
