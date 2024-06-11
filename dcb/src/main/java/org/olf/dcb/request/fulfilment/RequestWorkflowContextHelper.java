@@ -95,6 +95,10 @@ public class RequestWorkflowContextHelper {
 		final var patronId = PatronId.fromPatron(requestWorkflowContext.getPatronRequest().getPatron());
 
 		return patronService.findById(patronId)
+			// Set the patron on the patron request to the full patron record (as well as the context)
+			// Should mean that logic works the same way irrespective of which way the patron is accessed
+			.map(patron -> requestWorkflowContext.getPatronRequest().setPatron(patron))
+			.map(PatronRequest::getPatron)
 			.map(requestWorkflowContext::setPatron);
 	}
 
