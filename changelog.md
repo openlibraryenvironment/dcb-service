@@ -1,8 +1,22 @@
 # Changelog
 
+## Version 6.15.0
+
+### Additions
+* [General]
+	* add support for custom library credential prompts [DCB-1186]
+
+### Changes
+* [Chore]
+	* tidy virtual checkout audit
+* [Refactor]
+	* RequestWorkflowContextHelper to have Error recovery
+
 ## Version 6.14.1
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* use org.zalando.problem when unable to handle Polaris API workflow
 	* response to no item type mapping found in polaris client
