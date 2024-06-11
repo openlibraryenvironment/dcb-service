@@ -10,7 +10,17 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
-import static org.olf.dcb.test.matchers.AgencyDtoMatchers.*;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasAuthProfile;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasCode;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasHostLmsCode;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasId;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasIdpUrl;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasName;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasPrincipalLabel;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.hasSecretLabel;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isNotBorrowingAgency;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isNotSupplyingAgency;
+import static org.olf.dcb.test.matchers.AgencyDtoMatchers.isSupplyingAgency;
 
 import java.util.List;
 
@@ -25,6 +35,7 @@ import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LibraryFixture;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.data.model.Page;
@@ -34,7 +45,6 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.test.LibraryFixture;
 
 @Slf4j
 @DcbTest
@@ -64,6 +74,7 @@ class AgencyAPITests {
 
 	@BeforeEach
 	void beforeEach() {
+		libraryFixture.deleteAll();
 		agencyFixture.deleteAll();
 	}
 
