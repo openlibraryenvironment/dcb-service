@@ -78,20 +78,19 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 						rwc.getWorkflowMessages().add(message);
 					})
 					.onErrorResume(error -> {
-						String errorMessage = Objects.toString(error, "Unknown error");
-						log.error("Problem checking out item {} to vpatron {}: {}", home_item_barcode, patron_barcodes, errorMessage);
-
-						String auditMessage = String.format("Checkout failed : itemb %s, patronb %s, hostlms %s",
-							home_item_barcode, Arrays.toString(patron_barcodes), rwc.getLenderSystemCode());
+						log.error("Problem checking out item {} to vpatron {}", home_item_barcode, patron_barcodes, error);
 
 						var auditData = new HashMap<String, Object>();
-						auditData.put("Error", errorMessage);
+						auditData.put("virtual-patron-barcode", Arrays.toString(patron_barcodes));
+						auditData.put("home-item-barcode", home_item_barcode);
+						auditData.put("lender-system-code", rwc.getLenderSystemCode());
+						auditData.put("Error", error.toString());
 
 						// Intentionally transform Error
-						// failure to check out the item to a patron, at the supplier, will not halt a successful loan
+						// A virtual checkout is deemed as more of a notification than a critical action
 						return patronRequestAuditService
-							.addErrorAuditEntry(rwc.getPatronRequest(), rwc.getPatronRequest().getStatus(), auditMessage, auditData)
-							.map(audit -> rwc);
+							.addAuditEntry(rwc.getPatronRequest(), "Virtual checkout failed : " + error.getMessage(), auditData)
+							.thenReturn(rwc);
 					})
 					.thenReturn(rwc);
 			} else {
