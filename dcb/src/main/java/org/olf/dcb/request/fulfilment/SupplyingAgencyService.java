@@ -423,7 +423,7 @@ public class SupplyingAgencyService {
 								localId, newlyMappedVPatronType, supplierHostLmsCode);
 
 								return patronRequestAuditService
-									.addErrorAuditEntry(patronRequest, patronRequest.getStatus(), auditMessage, auditData)
+									.addAuditEntry(patronRequest, auditMessage, auditData)
 									.map(audit -> returnedLocalPatronType);
 							}
 

@@ -18,6 +18,9 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Slf4j
 @Singleton
 public class RequestWorkflowContextHelper {
@@ -31,6 +34,7 @@ public class RequestWorkflowContextHelper {
 	private final LocationService locationService;
 	private final HostLmsService hostLmsService;
 	private final PatronService patronService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	public RequestWorkflowContextHelper(
 		SupplierRequestService supplierRequestService,
@@ -38,7 +42,8 @@ public class RequestWorkflowContextHelper {
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
 		AgencyRepository agencyRepository, LocationService locationService,
-		HostLmsService hostLmsService, PatronService patronService) {
+		HostLmsService hostLmsService, PatronService patronService,
+		PatronRequestAuditService patronRequestAuditService) {
 
 		this.supplierRequestService = supplierRequestService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -48,6 +53,7 @@ public class RequestWorkflowContextHelper {
 		this.locationService = locationService;
 		this.hostLmsService = hostLmsService;
 		this.patronService = patronService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	// Given a patron request, construct the patron request context containing all related objects for a workflow
@@ -63,7 +69,41 @@ public class RequestWorkflowContextHelper {
 		.flatMap(this::decorateContextWithPatronDetails)
 		.flatMap(this::decorateContextWithLenderDetails)
 		.flatMap(this::resolvePickupLocationAgency)
+		.onErrorResume(error -> {
+			log.error("Error in RequestWorkflowContextHelper fromPatronRequest: {}", error.getMessage(), error);
+			return patronRequestAuditService
+				.addAuditEntry(rwc.getPatronRequest(), "RWC : " + error.getMessage(), convertContextToMap(rwc, error))
+				.thenReturn(rwc);
+		})
 		.flatMap(this::report);
+	}
+
+	public Map<String, Object> convertContextToMap(RequestWorkflowContext ctx, Throwable throwable) {
+		Map<String, Object> map = new HashMap<>();
+		if (ctx != null) {
+			if (throwable != null) map.put("Error", throwable.toString());
+			if (ctx.getPatronAgencyCode() != null) map.put("patronAgencyCode", ctx.getPatronAgencyCode());
+			if (ctx.getPatronSystemCode() != null) map.put("patronSystemCode", ctx.getPatronSystemCode());
+			if (ctx.getPatronAgency() != null) map.put("patronAgency", ctx.getPatronAgency());
+			if (ctx.getPatronSystem() != null) map.put("patronSystem", ctx.getPatronSystem());
+			if (ctx.getPickupAgencyCode() != null) map.put("pickupAgencyCode", ctx.getPickupAgencyCode());
+			if (ctx.getPickupSystemCode() != null) map.put("pickupSystemCode", ctx.getPickupSystemCode());
+			if (ctx.getPickupAgency() != null) map.put("pickupAgency", ctx.getPickupAgency());
+			if (ctx.getPickupLocationLocalId() != null) map.put("pickupLocationLocalId", ctx.getPickupLocationLocalId());
+			if (ctx.getPickupLocation() != null) map.put("pickupLocation", ctx.getPickupLocation());
+			if (ctx.getLenderAgencyCode() != null) map.put("lenderAgencyCode", ctx.getLenderAgencyCode());
+			if (ctx.getLenderSystemCode() != null) map.put("lenderSystemCode", ctx.getLenderSystemCode());
+			if (ctx.getLenderAgency() != null) map.put("lenderAgency", ctx.getLenderAgency());
+			if (ctx.getPatronHomeIdentity() != null) map.put("patronHomeIdentity", ctx.getPatronHomeIdentity());
+			if (ctx.getPatronVirtualIdentity() != null) map.put("patronVirtualIdentity", ctx.getPatronVirtualIdentity());
+			if (ctx.getPatronRequest() != null) map.put("patronRequest", ctx.getPatronRequest());
+			if (ctx.getSupplierRequest() != null) map.put("supplierRequest", ctx.getSupplierRequest());
+			if (ctx.getSupplierHoldId() != null) map.put("supplierHoldId", ctx.getSupplierHoldId());
+			if (ctx.getSupplierHoldStatus() != null) map.put("supplierHoldStatus", ctx.getSupplierHoldStatus());
+			if (ctx.getPatron() != null) map.put("patron", ctx.getPatron());
+			if (ctx.getPatronRequestStateOnEntry() != null) map.put("patronRequestStateOnEntry", ctx.getPatronRequestStateOnEntry());
+		}
+		return map;
 	}
 
 	private Mono<RequestWorkflowContext> decorateWithPatronRequestStateOnEntry(RequestWorkflowContext requestWorkflowContext) {
