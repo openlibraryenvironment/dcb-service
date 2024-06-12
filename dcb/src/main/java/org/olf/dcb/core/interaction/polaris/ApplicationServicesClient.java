@@ -419,7 +419,7 @@ class ApplicationServicesClient {
 							.holdable(TRUE)
 							.itemStatusID(Available)
 							.materialTypeID(itemtype)
-							.nonPublicNotes(noteForStaff)
+							.nonPublicNote(noteForStaff)
 							.build())
 						.build())
 					.build();
@@ -1386,6 +1386,9 @@ class ApplicationServicesClient {
 		private Boolean loneableOutsideSystem;
 		@JsonProperty("Holdable")
 		private Boolean holdable;
+
+		@JsonProperty("NonPublicNote")
+		private String nonPublicNote;
 
 		// item delete fields
 		@JsonProperty("IsAutoDelete")
