@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 6.15.1
+
+### Fixes
+* [General]
+	* use NonPublicNote instead of NonPublicNotes when creating vitem Polaris
+
 ## Version 6.15.0
 
 ### Additions
@@ -8,6 +14,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* tidy virtual checkout audit
 * [Refactor]
 	* RequestWorkflowContextHelper to have Error recovery
