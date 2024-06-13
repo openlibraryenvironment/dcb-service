@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -419,6 +420,86 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_INELIGIBLE"),
 			failedCheck("PATRON_BLOCKED")
+		));
+	}
+
+	@Test
+	void shouldFailWhenPatronHasNoBarcodes() {
+		// Arrange
+		final var localPatronId = "673635";
+		final var localPatronType = 15;
+		final var homeLibraryCode = "home-library";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode(homeLibraryCode)
+				.barcodes(emptyList())
+				.names(List.of("Bob"))
+				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, homeLibraryCode, "example-agency",
+			true);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("INVALID_PATRON_BARCODE",
+				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, ""))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPatronHasEmptyBarcode() {
+		// Arrange
+		final var localPatronId = "673635";
+		final var localPatronType = 15;
+		final var homeLibraryCode = "home-library";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode(homeLibraryCode)
+				.barcodes(List.of(""))
+				.names(List.of("Bob"))
+				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, homeLibraryCode, "example-agency",
+			true);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("INVALID_PATRON_BARCODE",
+				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, ""))
 		));
 	}
 

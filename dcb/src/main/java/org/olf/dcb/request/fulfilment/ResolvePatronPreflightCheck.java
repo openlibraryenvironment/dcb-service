@@ -2,7 +2,6 @@ package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.concat;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static java.util.Collections.emptyList;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -22,6 +21,7 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -75,7 +75,17 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	private List<CheckResult> checkBarcode(String localPatronId, Patron patron,
 		String hostLmsCode) {
 
-		return emptyList();
+		final var eligibilityCheckResults = new ArrayList<CheckResult>();
+
+		final var firstBarcode = getValue(patron, p -> p.getFirstBarcode(""));
+
+		if (StringUtils.isEmpty(firstBarcode)) {
+			eligibilityCheckResults.add(failed("INVALID_PATRON_BARCODE",
+				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
+					.formatted(localPatronId, hostLmsCode, firstBarcode)));
+		}
+
+		return eligibilityCheckResults;
 	}
 
 	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
