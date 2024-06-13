@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.concat;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static java.util.Collections.emptyList;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -57,16 +58,24 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		// rather than the list of IDs that could be returned from the Host LMS
 		// in order to avoid having to choose (and potential data leakage)
 
+		final var barcodeChecksResults = checkBarcode(localPatronId, patron, hostLmsCode);
 		final var eligibilityCheckResults = checkEligibility(localPatronId, patron, hostLmsCode);
 		final var agencyCheckResults = checkAgency(localPatronId, agency, hostLmsCode);
 
-		final var allCheckResults = concat(eligibilityCheckResults, agencyCheckResults);
+		final var allCheckResults = concat(
+			concat(eligibilityCheckResults, agencyCheckResults), barcodeChecksResults);
 
 		if (isEmpty(allCheckResults)) {
 			allCheckResults.add(passed());
 		}
 
 		return allCheckResults;
+	}
+
+	private List<CheckResult> checkBarcode(String localPatronId, Patron patron,
+		String hostLmsCode) {
+
+		return emptyList();
 	}
 
 	private List<CheckResult> checkEligibility(String localPatronId, Patron patron, String hostLmsCode) {
