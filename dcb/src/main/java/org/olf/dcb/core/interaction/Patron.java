@@ -1,5 +1,8 @@
 package org.olf.dcb.core.interaction;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
+
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -56,6 +59,9 @@ public class Patron {
 	}
 
 	public String getFirstBarcode() {
-		return getLocalBarcodes().stream().findFirst().orElse(null);
+		return getValueOrDefault(this, Patron::getLocalBarcodes, new ArrayList<String>())
+			.stream()
+			.findFirst()
+			.orElse(null);
 	}
 }
