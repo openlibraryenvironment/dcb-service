@@ -1,6 +1,20 @@
 # Changelog
 
+## Version 6.15.2
+
+### Changes
+* [Chore]
+	* add a PR errorMessage fallback instead of null being saved
+
+### Fixes
+* [General]
+	* keep pr ref aligned after determining error message [DCB-1212]
+
 ## Version 6.15.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
