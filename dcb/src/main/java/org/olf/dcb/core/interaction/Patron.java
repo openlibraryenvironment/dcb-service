@@ -59,9 +59,13 @@ public class Patron {
 	}
 
 	public String getFirstBarcode() {
+		return getFirstBarcode(null);
+	}
+
+	public String getFirstBarcode(String defaultBarcode) {
 		return getValueOrDefault(this, Patron::getLocalBarcodes, new ArrayList<String>())
 			.stream()
 			.findFirst()
-			.orElse(null);
+			.orElse(defaultBarcode);
 	}
 }
