@@ -230,10 +230,14 @@ public class PatronRequestWorkflowService {
 		if (throwable instanceof ThrowableProblem problem) {
 			return isNotEmpty(problem.getTitle())
 				? problem.getTitle()
-				: problem.getMessage();
+				: isNotEmpty(problem.getMessage())
+				? problem.getMessage()
+				: "Fallback(1): no error message was determined";
 		}
 
-		return throwable.getMessage();
+		return isNotEmpty(throwable.getMessage())
+			? throwable.getMessage()
+			: "Fallback(0): no error message was determined";
 	}
 
 	private Optional<PatronRequestStateTransition> getApplicableTransitionFor(
