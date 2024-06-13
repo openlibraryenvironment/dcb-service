@@ -504,6 +504,47 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
+	void shouldFailEvenWhenPatronHasSecondNonEmptyBarcode() {
+		// Arrange
+		final var localPatronId = "673635";
+		final var localPatronType = 15;
+		final var homeLibraryCode = "home-library";
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			Patron.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode(homeLibraryCode)
+				.barcodes(List.of("", "242673764"))
+				.names(List.of("Bob"))
+				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, homeLibraryCode, "example-agency",
+			true);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("INVALID_PATRON_BARCODE",
+				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, ""))
+		));
+	}
+
+
+	@Test
 	void shouldFailWhenPatronCannotBeFoundInHostLms() {
 		// Arrange
 		final var localPatronId = "673825";
