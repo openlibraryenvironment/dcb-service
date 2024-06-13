@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 6.16.0
+
+### Additions
+* [General]
+	* Disallow patrons without a barcode to place requests DCB-1213
+
 ## Version 6.15.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add a PR errorMessage fallback instead of null being saved
 
 ### Fixes
