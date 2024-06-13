@@ -199,6 +199,7 @@ public class PatronRequestWorkflowService {
 				}
 
 				final var message = determineMessage(throwable);
+				patronRequest.setErrorMessage(message); // keep pr ref aligned
 
 				final var auditData = new HashMap<String, Object>();
 
