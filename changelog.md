@@ -1,10 +1,24 @@
 # Changelog
 
+## Version 6.17.0
+
+### Additions
+* [General]
+	* Repeat attempts to find placed holds [DCB-1216]
+
+### Changes
+* [Refactor]
+	* Improve logging for 'No hold request found []' errors [DCB-1215]
+
 ## Version 6.16.0
 
 ### Additions
 * [General]
 	* Disallow patrons without a barcode to place requests DCB-1213
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ## Version 6.15.2
 
