@@ -7,10 +7,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
@@ -459,6 +456,44 @@ class PolarisLmsClientTests {
 			hasLocalStatus("In Processing"),
 			hasRequestedItemId("6737455"),
 			hasRequestedItemBarcode("785574212")
+		));
+	}
+
+	@Test
+	void shouldFailToPlaceRequestAtSupplyingAgencyWhenMatchingHoldIsEmpty() {
+		// Arrange
+		final var itemId = "6737455";
+
+		mockPolarisFixture.mockGetItem(itemId);
+		mockPolarisFixture.mockGetBib("1106339");
+		mockPolarisFixture.mockPlaceHold();
+		mockPolarisFixture.mockEmptyListPatronLocalHolds();
+		mockPolarisFixture.mockGetHold("3773060",
+			LibraryHold.builder()
+				.sysHoldStatus("In Processing")
+				.itemRecordID(6737455)
+				.itemBarcode("785574212")
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var exception = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localPatronId("1")
+					.localBibId(null)
+					.localItemId(itemId)
+					.pickupLocationCode("5324532")
+					.note("DCB Testing PACDisplayNotes")
+					.patronRequestId(UUID.randomUUID().toString())
+					.build()
+			)));
+
+		// Assert
+		assertThat(exception, allOf(
+			notNullValue(),
+			messageContains("No hold request found for local patron id: 1")
 		));
 	}
 

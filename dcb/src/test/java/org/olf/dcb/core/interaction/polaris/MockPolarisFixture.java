@@ -184,6 +184,11 @@ public class MockPolarisFixture {
 			"listPatronLocalHolds.json");
 	}
 
+	public void mockEmptyListPatronLocalHolds() {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1/requests/local",
+			"emptyListPatronLocalHolds.json");
+	}
+
 	public void mockGetHold(String holdId, LibraryHold response) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId,
 			response()

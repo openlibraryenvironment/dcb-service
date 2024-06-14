@@ -45,6 +45,8 @@ public class PolarisConfig {
 	private String borrowerLendingFlow;
 	@JsonProperty("hold-fetching-delay")
 	private Integer holdFetchingDelay;
+	@JsonProperty("hold-fetching-max-retry")
+	private Integer holdFetchingMaxRetry;
 	@JsonProperty("papi")
 	private PapiConfig papi;
 	@JsonProperty("services")
@@ -197,6 +199,12 @@ public class PolarisConfig {
 
 		return valueWithDefault(this.holdFetchingDelay, Integer.class, defaultDelay);
 	}
+
+	public Integer getMaxHoldFetchingRetry(Integer defaultMaxRetry) {
+
+		return valueWithDefault(this.holdFetchingMaxRetry, Integer.class, defaultMaxRetry);
+	}
+
 
 	@Data
 	@NoArgsConstructor

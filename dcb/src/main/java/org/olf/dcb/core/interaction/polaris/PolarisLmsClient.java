@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -84,6 +85,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
+import reactor.util.retry.Retry;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -335,16 +337,31 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.debug("getPatronHoldRequestId({}, {})", bibId, activationDate);
 
-		return Mono.just(patronId)
-			.delayElement(Duration.ofSeconds(polarisConfig.getHoldFetchingDelay(5)))
-			.flatMap(ApplicationServices::listPatronLocalHolds)
-			.doOnNext( logLocalHolds() )
-			.flatMap(holds -> processHolds(holds, bibId, activationDate, note, patronId, parameters))
+		final var fetchDelay = polarisConfig.getHoldFetchingDelay(5);
+		final var maxFetchRetry = polarisConfig.getMaxHoldFetchingRetry(10);
+		AtomicInteger retryCount = new AtomicInteger(0);
+
+		return fetchAndProcessHolds(patronId, bibId, activationDate, note, parameters, fetchDelay)
+			.retryWhen(Retry.max(maxFetchRetry + 1)
+				.filter(throwable -> throwable instanceof Problem && retryCount.get() < maxFetchRetry)
+				.doBeforeRetry(retrySignal -> log.debug("Fetch hold retry: {}", retryCount.incrementAndGet()))
+			)
+			.doOnSuccess(result -> log.debug("Fetch hold succeeded after {} retries", retryCount.get()))
 			// We should retrieve the item record for the selected hold and store the barcode here
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new HoldRequestException("Error occurred when getting Hold"));
 			});
+	}
+
+	public Mono<LocalRequest> fetchAndProcessHolds(String patronId, Integer bibId,
+		String activationDate, String note, HoldRequestParameters parameters, Integer delay) {
+
+		return Mono.just(patronId)
+			.delayElement(Duration.ofSeconds(delay))
+			.flatMap(ApplicationServices::listPatronLocalHolds)
+			.doOnNext(logLocalHolds())
+			.flatMap(holds -> processHolds(holds, bibId, activationDate, note, patronId, parameters));
 	}
 
 	private Mono<LocalRequest> processHolds(

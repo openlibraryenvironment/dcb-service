@@ -107,6 +107,10 @@ public class HostLmsFixture {
 		clientConfig.put("logon-branch-id", "73");
 		clientConfig.put("logon-user-id", "1");
 
+		// Purposely set to 0 to decrease overall time of tests
+		clientConfig.put("hold-fetching-delay", "0");
+		clientConfig.put("hold-fetching-max-retry", "0");
+
 		Map<String, Object> papi = new HashMap<>();
 		papi.put("papi-version", "v1");
 		papi.put("lang-id", "1033");
