@@ -111,22 +111,9 @@ public class HostLmsFixture {
 		clientConfig.put("hold-fetching-delay", "0");
 		clientConfig.put("hold-fetching-max-retry", "0");
 
-		Map<String, Object> papi = new HashMap<>();
-		papi.put("papi-version", "v1");
-		papi.put("lang-id", "1033");
-		papi.put("app-id", "100");
-		papi.put("org-id", "1");
-
-		clientConfig.put("papi", papi);
-
 		Map<String, Object> services = new HashMap<>();
-		services.put("services-version", "v1");
-		services.put("language", "eng");
-		services.put("product-id", "20");
-		services.put("site-domain", "polaris");
+		services.put("product-id", "20"); // tests rely upon this value but default is 19
 		services.put("organisation-id", "73");
-		services.put("workstation-id", "1");
-		services.put("patron-barcode-prefix", "");
 
 		clientConfig.put("services", services);
 
