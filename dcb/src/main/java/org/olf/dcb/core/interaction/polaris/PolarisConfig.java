@@ -43,6 +43,8 @@ public class PolarisConfig {
 	private List<String> contextHierarchy;
 	@JsonProperty("borrower-lending-flow")
 	private String borrowerLendingFlow;
+	@JsonProperty("hold-fetching-delay")
+	private Integer holdFetchingDelay;
 	@JsonProperty("papi")
 	private PapiConfig papi;
 	@JsonProperty("services")
@@ -189,6 +191,11 @@ public class PolarisConfig {
 		final var value = getNestedProperty(getItem(), ItemConfig::getIllLocationId);
 
 		return requiredValue("Ill Location ID", value, Integer.class);
+	}
+
+	public Integer getHoldFetchingDelay(Integer defaultDelay) {
+
+		return valueWithDefault(this.holdFetchingDelay, Integer.class, defaultDelay);
 	}
 
 	@Data

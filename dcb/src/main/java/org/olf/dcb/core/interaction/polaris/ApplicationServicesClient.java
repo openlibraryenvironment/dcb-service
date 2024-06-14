@@ -64,6 +64,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple4;
+import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
 
 @Slf4j
@@ -91,7 +92,7 @@ class ApplicationServicesClient {
 	/**
 	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
 	 */
-	Mono<Tuple4<String, Integer, String, String>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
+	Mono<Tuple5<String, Integer, String, String, HoldRequestParameters>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
 		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
 		final var path = createPath("workflow");
@@ -108,7 +109,8 @@ class ApplicationServicesClient {
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
 				activationDateToMatchHold,
-				holdRequestParameters.getNote() != null ? holdRequestParameters.getNote() : ""));
+				holdRequestParameters.getNote() != null ? holdRequestParameters.getNote() : "",
+				holdRequestParameters));
 	}
 
 	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse) {
@@ -307,7 +309,10 @@ class ApplicationServicesClient {
 			.map(HttpResponse::body)
 			.map(HoldRequestDefault::getExpirationDatePeriod)
 			.doOnError(e -> log.debug("Error occurred when getting hold request defaults", e))
-			.onErrorReturn(defaultExpirationDatePeriod);
+			.onErrorResume(error -> {
+				log.info("Error handled : returning defaultExpirationDatePeriod:" + defaultExpirationDatePeriod);
+				return Mono.just(defaultExpirationDatePeriod);
+			});
 	}
 
 //	https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/patrons/get_requests_local

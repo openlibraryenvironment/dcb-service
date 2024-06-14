@@ -16,16 +16,11 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -329,35 +324,45 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			})
 			.doOnNext(hr -> log.info("Attempt to place hold... {}", hr))
 			.flatMap(ApplicationServices::createHoldRequestWorkflow)
+			.doOnNext(__ -> log.info("Hold paced, attempting to get hold.. "))
+			.doOnError(error -> log.error("Failed to place hold.. ", error))
 			.flatMap(function(this::getLocalHoldRequestId));
 	}
 
 	public Mono<LocalRequest> getLocalHoldRequestId(
-		String patronId, Integer bibId, String activationDate, String note) {
+		String patronId, Integer bibId, String activationDate,
+		String note, HoldRequestParameters parameters) {
 
 		log.debug("getPatronHoldRequestId({}, {})", bibId, activationDate);
 
-		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
-		// visible
-		synchronized (this) {
-			try {
-				Thread.sleep(2000);
-			} catch (Exception e) {
-			}
-		}
-
-		return ApplicationServices.listPatronLocalHolds(patronId)
+		return Mono.just(patronId)
+			.delayElement(Duration.ofSeconds(polarisConfig.getHoldFetchingDelay(5)))
+			.flatMap(ApplicationServices::listPatronLocalHolds)
 			.doOnNext( logLocalHolds() )
-			.flatMapMany(Flux::fromIterable)
-			.filter(holds -> shouldIncludeHold(holds, bibId, activationDate, note))
-			.collectList()
-			.flatMap(this::chooseHold)
+			.flatMap(holds -> processHolds(holds, bibId, activationDate, note, patronId, parameters))
 			// We should retrieve the item record for the selected hold and store the barcode here
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
 				return Mono.error(new HoldRequestException("Error occurred when getting Hold"));
 			});
+	}
 
+	private Mono<LocalRequest> processHolds(
+		List<ApplicationServicesClient.SysHoldRequest> holds, Integer bibId,
+		String activationDate, String note, String patronId,
+		HoldRequestParameters parameters) {
+
+		return Flux.fromIterable(holds)
+			.filter(hold -> shouldIncludeHold(hold, bibId, activationDate, note))
+			.collectList()
+			.flatMap(this::chooseHold)
+			.switchIfEmpty(raiseError(Problem.builder()
+				.withTitle("No hold request found for local patron id: " + patronId)
+				.withDetail("Match attempted : bibId %s, activationDate %s, note %s".formatted(bibId, activationDate, note))
+				.with("returned-list", holds)
+				.with("hold-request-sent", parameters)
+				.build())
+			);
 	}
 
 	private static Consumer<List<ApplicationServicesClient.SysHoldRequest>> logLocalHolds() {
@@ -421,7 +426,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		} else if (filteredHolds.size() > 1) {
 			throw new HoldRequestException("Multiple hold requests found: " + filteredHolds);
 		} else {
-			throw new HoldRequestException("No hold requests found: " + filteredHolds);
+			return Mono.empty();
 		}
 	}
 
