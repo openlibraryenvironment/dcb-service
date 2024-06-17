@@ -493,7 +493,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(exception, allOf(
 			notNullValue(),
-			messageContains("No hold request found for local patron id: 1")
+			messageContains("No holds to process for local patron id: 1")
 		));
 	}
 

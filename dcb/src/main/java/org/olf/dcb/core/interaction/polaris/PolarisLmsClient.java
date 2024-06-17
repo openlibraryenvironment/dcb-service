@@ -369,13 +369,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		String activationDate, String note, String patronId,
 		HoldRequestParameters parameters) {
 
+		if (holds.isEmpty()) {
+			return raiseError(Problem.builder()
+				.withTitle("No holds to process for local patron id: " + patronId)
+				.withDetail("Match attempted : bibId %s, activationDate %s, note %s".formatted(bibId, activationDate, note))
+				.with("returned-list", holds)
+				.with("hold-request-sent", parameters)
+				.build());
+		}
+
+		final var holdCount = holds.size();
+
 		return Flux.fromIterable(holds)
-			.filter(hold -> shouldIncludeHold(hold, bibId, note))
+			.filter(hold -> shouldIncludeHold(hold, bibId, note, activationDate, holdCount))
 			.collectList()
 			.flatMap(this::chooseHold)
 			.switchIfEmpty(raiseError(Problem.builder()
-				.withTitle("No hold request found for local patron id: " + patronId)
+				.withTitle("Could not identify hold for local patron id: " + patronId)
 				.withDetail("Match attempted : bibId %s, activationDate %s, note %s".formatted(bibId, activationDate, note))
+				.with("holds-returned-count", holdCount)
 				.with("returned-list", holds)
 				.with("hold-request-sent", parameters)
 				.build())
@@ -387,14 +399,40 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Boolean shouldIncludeHold(ApplicationServicesClient.SysHoldRequest sysHoldRequest,
-		Integer bibId, String note) {
+		Integer bibId, String note, String activationDate, Integer holdCount) {
 
 		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
 			isEqualDisplayNoteIfPresent(sysHoldRequest, note)) {
 
-			log.info("Hold boolean matched.");
+			log.info("Hold found by bibId and note.");
 
 			return TRUE;
+		}
+
+		else if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
+			isEqualActivationDateIfPresent(sysHoldRequest, activationDate)) {
+
+			log.info("Hold found by bibId and activationDate.");
+
+			return TRUE;
+		}
+
+		else if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
+			holdCount == 1) {
+
+			log.info("Only hold found by bibId.");
+
+			return TRUE;
+		}
+
+		return FALSE;
+	}
+
+	private static boolean isEqualActivationDateIfPresent(
+		ApplicationServicesClient.SysHoldRequest sysHoldRequest, String activationDate) {
+
+		if (sysHoldRequest.getActivationDate() != null && activationDate != null) {
+			return Objects.equals(activationDate, sysHoldRequest.getActivationDate());
 		}
 
 		return FALSE;
