@@ -370,7 +370,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		HoldRequestParameters parameters) {
 
 		return Flux.fromIterable(holds)
-			.filter(hold -> shouldIncludeHold(hold, bibId, activationDate, note))
+			.filter(hold -> shouldIncludeHold(hold, bibId, note))
 			.collectList()
 			.flatMap(this::chooseHold)
 			.switchIfEmpty(raiseError(Problem.builder()
@@ -387,30 +387,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Boolean shouldIncludeHold(ApplicationServicesClient.SysHoldRequest sysHoldRequest,
-		Integer bibId, String activationDate, String note) {
+		Integer bibId, String note) {
 
 		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
-			isEqualDisplayNoteIfPresent(sysHoldRequest, note) &&
-			isEqualActivationDateIfPresent(sysHoldRequest, activationDate)) {
+			isEqualDisplayNoteIfPresent(sysHoldRequest, note)) {
 
 			log.info("Hold boolean matched.");
 
 			return TRUE;
 		}
-		
+
 		return FALSE;
-	}
-
-	private static boolean isEqualActivationDateIfPresent(
-		ApplicationServicesClient.SysHoldRequest sysHoldRequest, String activationDate) {
-
-		if (sysHoldRequest.getActivationDate() != null && activationDate != null) {
-			final var zonedDateTime = ZonedDateTime.parse(sysHoldRequest.getActivationDate());
-			final var formattedDate = zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-			return Objects.equals(activationDate, formattedDate);
-		}
-
-		return TRUE;
 	}
 
 	private static boolean isEqualDisplayNoteIfPresent(

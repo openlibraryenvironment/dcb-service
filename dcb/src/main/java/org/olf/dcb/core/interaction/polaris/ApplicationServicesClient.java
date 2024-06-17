@@ -92,15 +92,16 @@ class ApplicationServicesClient {
 	/**
 	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
 	 */
-	Mono<Tuple5<String, Integer, String, String, HoldRequestParameters>> createHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
+	Mono<Tuple5<String, Integer, String, String, HoldRequestParameters>> createHoldRequestWorkflow(
+		HoldRequestParameters holdRequestParameters) {
 		log.debug("createHoldRequestWorkflow with holdRequestParameters {}", holdRequestParameters);
 
 		final var path = createPath("workflow");
-		final String activationDateToMatchHold = ZonedDateTime.now(UTC).format(ofPattern("yyyy-MM-dd"));
-		final String payloadActivationDate = ZonedDateTime.now(UTC).format(ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
-		;
+		final String activationDateUTC = ZonedDateTime.now(UTC).format(ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+		final var noteWithActivationDateUTC = addActivationDateToNote(holdRequestParameters, activationDateUTC);
+
 		return createRequest(POST, path, uri -> {})
-			.zipWith(getLocalRequestBody(holdRequestParameters, payloadActivationDate))
+			.zipWith(getLocalRequestBody(holdRequestParameters, activationDateUTC, noteWithActivationDateUTC))
 			.map(function(ApplicationServicesClient::addBodyToRequest))
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class)))
 			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateHoldRequests, Continue))
@@ -108,9 +109,16 @@ class ApplicationServicesClient {
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
-				activationDateToMatchHold,
-				holdRequestParameters.getNote() != null ? holdRequestParameters.getNote() : "",
+				activationDateUTC,
+				noteWithActivationDateUTC,
 				holdRequestParameters));
+	}
+
+	private static String addActivationDateToNote(HoldRequestParameters holdRequestParameters, String activationDateUTC) {
+		final var noteWithActivationDateUTC = (holdRequestParameters.getNote() != null
+			? holdRequestParameters.getNote()
+			: "Note was null");
+		return noteWithActivationDateUTC + ", " + activationDateUTC;
 	}
 
 	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse) {
@@ -621,7 +629,8 @@ class ApplicationServicesClient {
 			.map(HttpResponse::body);
 	}
 
-	private Mono<WorkflowRequest> getLocalRequestBody(HoldRequestParameters holdRequestParameters, String activationDate) {
+	private Mono<WorkflowRequest> getLocalRequestBody(HoldRequestParameters holdRequestParameters,
+		String activationDate, String noteWithActivationDateUTC) {
 
 		final var placeHoldRequest = 5;
 		final var holdRequestData = 9;
@@ -641,9 +650,9 @@ class ApplicationServicesClient {
 						.origin(2)
 						.activationDate(activationDate)
 						.expirationDate(LocalDateTime.now().plusDays(expiration).format( ofPattern("MM/dd/yyyy")))
-						.staffDisplayNotes(holdRequestParameters.getNote())
-						.nonPublicNotes(holdRequestParameters.getNote())
-						.pACDisplayNotes(holdRequestParameters.getNote())
+						.staffDisplayNotes(noteWithActivationDateUTC)
+						.nonPublicNotes(noteWithActivationDateUTC)
+						.pACDisplayNotes(noteWithActivationDateUTC)
 						.bibliographicRecordID(holdRequestParameters.getBibliographicRecordID())
 						.itemRecordID(Optional.ofNullable(holdRequestParameters.getRecordNumber()).map(Integer::valueOf).orElse(null))
 						.itemBarcode(holdRequestParameters.getItemBarcode())
