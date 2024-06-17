@@ -118,7 +118,7 @@ class ApplicationServicesClient {
 		final var noteWithActivationDateUTC = (holdRequestParameters.getNote() != null
 			? holdRequestParameters.getNote()
 			: "Note was null");
-		return noteWithActivationDateUTC + ", " + activationDateUTC;
+		return noteWithActivationDateUTC + "\n Activated: " + activationDateUTC;
 	}
 
 	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse) {
