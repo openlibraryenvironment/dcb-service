@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 6.17.1
+
+### Changes
+* [Chore]
+	* tidy polaris hold note
+* [Refactor]
+	* add fallback matchers for getting hold by patron in polaris
+	* activation date added to note to match in polaris get hold
+* [Test]
+	* Streamline Polaris configurations [DCB-1084]
+
 ## Version 6.17.0
 
 ### Additions
@@ -7,6 +18,8 @@
 	* Repeat attempts to find placed holds [DCB-1216]
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* Improve logging for 'No hold request found []' errors [DCB-1215]
 
