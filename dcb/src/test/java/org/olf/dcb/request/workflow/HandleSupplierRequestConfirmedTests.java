@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
@@ -264,6 +265,46 @@ class HandleSupplierRequestConfirmedTests {
 
 		// Assert
 		assertThat("Should not be applicable for request status other than placed at supplying agency",
+			applicable, is(false));
+	}
+
+	@Test
+	void shouldNotProgressRequestWhenLocalRequestStatusIsPlaced() {
+		// Arrange
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		final var localSupplyingHoldId = "73625225";
+
+		supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localStatus(HOLD_PLACED)
+				.localId(localSupplyingHoldId)
+				.localItemId("2652563")
+				.localItemBarcode("2917564")
+				.patronRequest(patronRequest)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.build());
+
+		// Act
+		final var applicable = singleValueFrom(
+			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.map(ctx -> handleSupplierRequestConfirmed.isApplicableFor(ctx)));
+
+		// Assert
+		assertThat("Should not be applicable for local supplier request status of placed",
 			applicable, is(false));
 	}
 
