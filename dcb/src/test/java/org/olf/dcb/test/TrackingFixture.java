@@ -1,6 +1,9 @@
 package org.olf.dcb.test;
 
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.tracking.TrackingService.LOCK_NAME;
+
+import java.util.UUID;
 
 import org.olf.dcb.tracking.TrackingService;
 
@@ -32,5 +35,9 @@ public class TrackingFixture {
 
 		// Wait for the lock to be released
 		federatedLockService.waitMaxForNoFederatedLock(LOCK_NAME, 10000);
+	}
+
+	public void trackRequest(UUID id) {
+		singleValueFrom(trackingService.forceUpdate(id).then());
 	}
 }

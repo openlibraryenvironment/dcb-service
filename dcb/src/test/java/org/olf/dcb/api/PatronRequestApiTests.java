@@ -495,18 +495,10 @@ class PatronRequestApiTests {
 		sierraItemsAPIFixture.successResponseForCreateItem(7916920,
 			SUPPLYING_AGENCY_CODE, updatedLocalSupplyingItemBarcode, "7916922");
 
-		trackingFixture.runTracking();
+		trackingFixture.trackRequest(placedPatronRequest.getId());
 
-		await()
-			.atMost(15, SECONDS)
-			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
-				hasStatus(CONFIRMED));
-
-		trackingFixture.runTracking();
-
-		log.info("Waiting for placed at borrowing agency");
 		final var fetchedPatronRequest = await()
-			.atMost(10, SECONDS)
+			.atMost(5, SECONDS)
 			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
 				hasStatus(REQUEST_PLACED_AT_BORROWING_AGENCY));
 

@@ -112,17 +112,19 @@ public class TrackingServiceV3 implements TrackingService {
 
 	/**
 	 * Force an update of the patron request.
-	 * @param pr_id
-	 * @return
+	 * @param pr_id ID of the patron request
+	 * @return patron request
 	 */
 	public Mono<PatronRequest> forceUpdate(UUID pr_id) {
+		log.debug("Manual tracking poll for patron request \"{}\"", pr_id);
+
 		return Mono.from(patronRequestRepository.findById(pr_id))
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
 			.map(this::incrementManualPollCounter)
 			.flatMap(patronRequestWorkflowService::auditManualPoll)
 			.flatMap(this::trackSystems)
 			.flatMap(patronRequestWorkflowService::progressUsing)
-			.flatMap(ctx -> Mono.just(ctx.getPatronRequest() ) );
+			.flatMap(ctx -> Mono.just(ctx.getPatronRequest()));
 	}
 
 	/**
