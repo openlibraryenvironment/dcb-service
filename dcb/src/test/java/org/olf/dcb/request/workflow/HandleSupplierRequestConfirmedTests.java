@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -99,7 +100,7 @@ class HandleSupplierRequestConfirmedTests {
 	}
 
 	@Test
-	void shouldProgressPatronRequestToConfirmed() {
+	void shouldProgressPatronRequestToConfirmedWhenLocalSupplierRequestIsConfirmed() {
 		// Arrange
 		final var patron = Patron.builder()
 			.id(randomUUID())
@@ -163,6 +164,76 @@ class HandleSupplierRequestConfirmedTests {
 
 		assertThat(updatedSupplierRequest, allOf(
 			hasLocalStatus(HOLD_CONFIRMED),
+			hasLocalItemId(updatedLocalSupplyingItemId),
+			hasLocalItemBarcode(updatedLocalSupplyingBarcode)
+		));
+	}
+
+	@Test
+	void shouldProgressPatronRequestToConfirmedWhenLocalSupplierRequestIsInTransit() {
+		// Arrange
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		final var localSupplyingHoldId = "3525635";
+
+		supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localStatus(HOLD_TRANSIT)
+				.localId(localSupplyingHoldId)
+				.localItemId("73653263")
+				.localItemBarcode("1745736")
+				.patronRequest(patronRequest)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.build());
+
+		// Update the hold to be an item level hold
+		final var updatedLocalSupplyingItemId = "6736735";
+
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId,
+			SierraPatronHold.builder()
+				.id(localSupplyingHoldId)
+				.recordType("i")
+				.record(updatedLocalSupplyingItemId)
+				.status(SierraCodeTuple.builder()
+					.code("0")
+					.build())
+				.build());
+
+		final var updatedLocalSupplyingBarcode = "355366";
+
+		sierraItemsAPIFixture.mockGetItemById(updatedLocalSupplyingItemId,
+			SierraItem.builder()
+				.id(updatedLocalSupplyingItemId)
+				.barcode(updatedLocalSupplyingBarcode)
+				.statusCode("-")
+				.build());
+
+		// Act
+		final var updatedPatronRequest = confirmRequestPlacedAtSupplyingAgency(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(CONFIRMED)
+		));
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			hasLocalStatus(HOLD_TRANSIT),
 			hasLocalItemId(updatedLocalSupplyingItemId),
 			hasLocalItemBarcode(updatedLocalSupplyingBarcode)
 		));

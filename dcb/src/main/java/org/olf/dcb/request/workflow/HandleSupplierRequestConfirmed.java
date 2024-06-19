@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -54,7 +55,9 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 		final var localHoldStatus = getValueOrDefault(ctx.getSupplierRequest(),
 			SupplierRequest::getLocalStatus, "");
 
-		return (localHoldStatus.equals(HOLD_CONFIRMED));
+		// The local request may go into transit before DCB has a chance to detect confirmation
+		// when that happens, infer that confirmation has happened
+		return (localHoldStatus.equals(HOLD_CONFIRMED) || localHoldStatus.equals(HOLD_TRANSIT));
 	}
 
 	@Override
