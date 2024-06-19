@@ -3,6 +3,8 @@ package org.olf.dcb.request.workflow;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,6 +12,7 @@ import java.util.Optional;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
@@ -38,10 +41,20 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			( ctx.getSupplierRequest() != null ) &&
-			( ctx.getSupplierRequest().getLocalStatus() != null ) &&
-			( ctx.getSupplierRequest().getLocalStatus().equals(HOLD_CONFIRMED) );
+		final var requestStatus = getValue(ctx.getPatronRequest(), PatronRequest::getStatus);
+
+		if (requestStatus == null) {
+			return false;
+		}
+
+		if (!possibleSourceStatus.contains(requestStatus)) {
+			return false;
+		}
+
+		final var localHoldStatus = getValueOrDefault(ctx.getSupplierRequest(),
+			SupplierRequest::getLocalStatus, "");
+
+		return (localHoldStatus.equals(HOLD_CONFIRMED));
 	}
 
 	@Override
