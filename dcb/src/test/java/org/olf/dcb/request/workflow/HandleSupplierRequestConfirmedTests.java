@@ -11,6 +11,7 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -237,6 +238,33 @@ class HandleSupplierRequestConfirmedTests {
 			hasLocalItemId(updatedLocalSupplyingItemId),
 			hasLocalItemBarcode(updatedLocalSupplyingBarcode)
 		));
+	}
+
+	@Test
+	void shouldNotProgressRequestWhenNotPlacedAtSupplyingAgency() {
+		// Arrange
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var applicable = singleValueFrom(
+			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.map(ctx -> handleSupplierRequestConfirmed.isApplicableFor(ctx)));
+
+		// Assert
+		assertThat("Should not be applicable for request status other than placed at supplying agency",
+			applicable, is(false));
 	}
 
 	@Test
