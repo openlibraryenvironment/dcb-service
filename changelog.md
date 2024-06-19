@@ -1,9 +1,20 @@
 # Changelog
 
+## Version 6.18.0
+
+### Additions
+* [General]
+	* Trigger confirmed transition when local supplying request is in transit DCB-1243
+
+### Changes
+* [Refactor]
+	* extend request confirmation hardening to Sierra [DCB-1218]
+
 ## Version 6.17.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* tidy polaris hold note
 * [Refactor]
 	* add fallback matchers for getting hold by patron in polaris
