@@ -2,6 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -349,6 +350,33 @@ class HandleSupplierRequestConfirmedTests {
 			hasLocalStatus(HOLD_CONFIRMED),
 			hasLocalItemId(originalLocalItemId)
 		));
+	}
+
+	@Test
+	void shouldTolerateNullPatronRequestStatus() {
+		// Arrange
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(null)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var applicable = singleValueFrom(
+			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.map(ctx -> handleSupplierRequestConfirmed.isApplicableFor(ctx)));
+
+		// Assert
+		assertThat("Should not be applicable for request with no status",
+			applicable, is(false));
 	}
 
 	private PatronRequest confirmRequestPlacedAtSupplyingAgency(PatronRequest patronRequest) {
