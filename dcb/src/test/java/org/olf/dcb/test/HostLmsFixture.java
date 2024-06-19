@@ -69,7 +69,10 @@ public class HostLmsFixture {
 		return createSierraHostLms(code, Map.of(
 			"key", username,
 			"secret", password,
-			"base-url", baseUrl));
+			"base-url", baseUrl,
+			"get-holds-retry-attempts", 0,
+			"place-hold-delay", 0,
+			"get-hold-delay", 0));
 	}
 
 	public DataHostLms createSierraHostLms(String code, String username,
@@ -81,7 +84,9 @@ public class HostLmsFixture {
 			"base-url", baseUrl,
 			"holdPolicy", holdPolicy,
 			"get-holds-retry-attempts", "1",
-			"default-agency-code", "default-agency-code"));
+			"default-agency-code", "default-agency-code",
+			"place-hold-delay", 0,
+			"get-hold-delay", 0));
 	}
 
 	private DataHostLms createSierraHostLms(String code, Map<String, Object> config) {

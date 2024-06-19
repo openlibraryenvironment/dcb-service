@@ -26,6 +26,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -39,6 +40,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;
@@ -86,6 +88,7 @@ import io.micronaut.core.util.StringUtils;
 import io.micronaut.json.tree.JsonNode;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -121,6 +124,12 @@ import services.k_int.utils.UUIDUtils;
 public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResult> {
 	private static final IntegerHostLmsPropertyDefinition GET_HOLDS_RETRY_ATTEMPTS_PROPERTY = integerPropertyDefinition(
 		"get-holds-retry-attempts", "Number of retry attempts when getting holds for a patron", FALSE);
+
+	private static final IntegerHostLmsPropertyDefinition GET_PLACE_HOLD_DELAY_PROPERTY = integerPropertyDefinition(
+		"place-hold-delay", "Number of seconds to wait before placing a hold for a patron", FALSE);
+
+	private static final IntegerHostLmsPropertyDefinition GET_FETCHING_HOLD_DELAY_PROPERTY = integerPropertyDefinition(
+		"get-hold-delay", "Number of seconds to wait before getting a hold for a patron", FALSE);
 
 	private static final IntegerHostLmsPropertyDefinition PAGE_SIZE_PROPERTY = integerPropertyDefinition(
 		"page-size", "How many items to retrieve in each page", FALSE);
@@ -171,8 +180,22 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.sierraPatronMapper = sierraPatronMapper;
 	}
 
-	private static Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
-		return GET_HOLDS_RETRY_ATTEMPTS_PROPERTY.getOptionalValueFrom(clientConfig, 25);
+	private Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
+		final var retries = GET_HOLDS_RETRY_ATTEMPTS_PROPERTY.getOptionalValueFrom(clientConfig, 25);
+		log.info("Get holds retry attempts set to {} retries for HostLMS {}", retries, lms.getName());
+		return retries;
+	}
+
+	private Integer getPlaceHoldDelay(Map<String, Object> clientConfig) {
+		final var delay = GET_PLACE_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, 2);
+		log.info("Place hold delay set to {} seconds for HostLMS {}", delay, lms.getName());
+		return delay;
+	}
+
+	private Integer getFetchingHoldDelay(Map<String, Object> clientConfig) {
+		final var delay = GET_FETCHING_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, 1);
+		log.info("Fetching hold delay set to {} seconds for HostLMS {}", delay, lms.getName());
+		return delay;
 	}
 
 	@Override
@@ -187,7 +210,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			PAGE_SIZE_PROPERTY,
 			stringPropertyDefinition("secret", "Secret for this Sierra system", TRUE),
 			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE),
-			GET_HOLDS_RETRY_ATTEMPTS_PROPERTY);
+			GET_HOLDS_RETRY_ATTEMPTS_PROPERTY,
+			GET_PLACE_HOLD_DELAY_PROPERTY,
+			GET_FETCHING_HOLD_DELAY_PROPERTY);
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
@@ -759,16 +784,20 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.note(parameters.getNote())
 			.build();
 
-		// Ian: NOTE... SIERRA needs time between placeHoldRequest and
-		// Allow a grace period for Sierra
-		try { Thread.sleep(2000); } catch ( Exception e ) { }
+		AtomicInteger retryCount = new AtomicInteger(0);
 
 		// getPatronHoldRequestId completing... Either
 		// we need retries or a delay.
-		return Mono.from(client.placeHoldRequest(parameters.getLocalPatronId(), patronHoldPost))
+		return Mono.just(patronHoldPost)
+			// Ian: NOTE... SIERRA needs time between placeHoldRequest and
+			// Allow a grace period for Sierra
+			.delayElement( Duration.ofSeconds(getPlaceHoldDelay(getConfig())) )
+			.flatMap(holdPost -> Mono.from(client.placeHoldRequest(parameters.getLocalPatronId(), holdPost)))
 			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getLocalPatronId(),
 					recordNumber, parameters.getNote(), parameters.getPatronRequestId()))
+				.doOnError(e -> log.debug("Retry attempt: " + retryCount.incrementAndGet()))
 				.retry(getHoldsRetryAttempts))
+			.doOnSuccess(__ -> log.info("Successfully got hold after {} attempts", retryCount.get()))
 			// If we were lucky enough to get back an Item ID, go fetch the barcode, otherwise this is just a bib or volume request
 			.flatMap(localRequest -> addBarcodeIfItemIdPresent(localRequest) )
 			.onErrorResume(NullPointerException.class, error -> {
@@ -793,6 +822,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private boolean shouldIncludeHold(SierraPatronHold hold, String patronRequestId) {
+		log.debug("checking hold for, patronRequestId {}, hold {} ", patronRequestId, hold);
 		return (hold != null) && (hold.note() != null) && (hold.note().contains(patronRequestId));
 	}
 
@@ -802,22 +832,17 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("getPatronHoldRequestId({}, {}, {}, {})", patronLocalId,
 			localItemId, note, patronRequestId);
 
-		// Ian: TEMPORARY WORKAROUND - Wait for sierra to process the hold and make it
-		// visible
-		synchronized (this) {
-			try {
-				Thread.sleep(1000);
-			} catch (Exception e) {
-			}
-		}
-
-		return Mono.from(client.patronHolds(patronLocalId))
+		return Mono.just(patronLocalId)
+			// Ian: TEMPORARY WORKAROUND - Wait for sierra to process the hold and make it
+			// visible
+			.delayElement( Duration.ofSeconds(getFetchingHoldDelay(getConfig())) )
+			.flatMap(id -> Mono.from(client.patronHolds(id)))
 			.map(SierraPatronHoldResultSet::entries)
 			.doOnNext(entries -> log.debug("Hold entries: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(hold -> shouldIncludeHold(hold, patronRequestId))
 			.collectList()
-			.map(filteredHolds -> chooseHold(note, filteredHolds))
+			.map(filteredHolds -> chooseHold(patronLocalId, note, filteredHolds))
 			// We should retrieve the item record for the selected hold and store the barcode here
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
@@ -870,7 +895,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		};
 	}
 
-	private LocalRequest chooseHold(String note, List<SierraPatronHold> filteredHolds) {
+	private LocalRequest chooseHold(String localPatronId, String note, List<SierraPatronHold> filteredHolds) {
 		log.debug("chooseHold({},{})", note, filteredHolds);
 
 		if (filteredHolds.size() == 1) {
@@ -911,7 +936,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		} else if (filteredHolds.size() > 1) {
 			throw new RuntimeException("Multiple hold requests found for the given note: " + note);
 		} else {
-			throw new RuntimeException("No hold request found for the given note: " + note);
+			throw Problem.builder()
+				.withTitle("No holds to process for local patron id: " + localPatronId)
+				.withDetail("Match attempted : note %s".formatted(note))
+				.with("filteredHolds", filteredHolds)
+				.build();
 		}
 	}
 

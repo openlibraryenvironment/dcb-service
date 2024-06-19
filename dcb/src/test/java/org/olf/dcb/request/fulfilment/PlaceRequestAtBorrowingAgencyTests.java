@@ -310,7 +310,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
-		assert exception.getMessage().startsWith("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId);
+		assert exception.getMessage().startsWith("No holds to process for local patron id:" + " 785843");
 		// assertThat(exception.getMessage(), is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
@@ -318,8 +318,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertThat("Request should have error status afterwards",
 			fetchedPatronRequest.getStatus(), is(ERROR));
 
-		String expectedNote="No hold request found for the given note: Consortial Hold. tno=%s \nFor UNKNOWN@null\n Pickup UNKNOWN@%s"
-			.formatted(patronRequestId, BORROWING_AGENCY_CODE);
+		String expectedNote="No holds to process for local patron id: 785843";
 
 		assertThat("Request should have error message afterwards", fetchedPatronRequest.getErrorMessage(), is(expectedNote));
 
