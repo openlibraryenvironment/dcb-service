@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 6.19.0
+
+### Additions
+* [General]
+	* do not attempt tracking in borrowing library prematurely [DCB-1233]
+
+### Fixes
+* [General]
+	* try matching tno in polaris hold notes to avoid escaped quotes
+
 ## Version 6.18.0
 
 ### Additions
@@ -7,6 +17,8 @@
 	* Trigger confirmed transition when local supplying request is in transit DCB-1243
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* extend request confirmation hardening to Sierra [DCB-1218]
 
