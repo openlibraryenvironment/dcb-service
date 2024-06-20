@@ -24,6 +24,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -444,7 +446,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var returnedDisplayNote = notNullDisplayNote(sysHoldRequest);
 
 		if (returnedDisplayNote != null && note != null) {
-			return Objects.equals(returnedDisplayNote, note);
+			final var tnoNote = extractTno(note);
+			final var tnoReturned = extractTno(returnedDisplayNote);
+			return Objects.equals(tnoReturned, tnoNote);
 		}
 
 		return TRUE;
@@ -452,6 +456,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private static String notNullDisplayNote(ApplicationServicesClient.SysHoldRequest sysHoldRequest) {
 		return sysHoldRequest.getPacDisplayNotes() != null ? sysHoldRequest.getPacDisplayNotes() : null;
+	}
+
+	private static String extractTno(String str) {
+		Pattern pattern = Pattern.compile("tno=[^\\s]+");
+		Matcher matcher = pattern.matcher(str);
+		if (matcher.find()) {
+			return matcher.group();
+		}
+		return null;
 	}
 
 	private Mono<LocalRequest> chooseHold(List<ApplicationServicesClient.SysHoldRequest> filteredHolds) {
