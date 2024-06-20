@@ -29,6 +29,9 @@ import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+
 @Slf4j
 @Refreshable
 @Singleton
@@ -157,11 +160,34 @@ public class TrackingServiceV3 implements TrackingService {
 	}
 
 	private Mono<RequestWorkflowContext> trackBorrowingSystem(RequestWorkflowContext rwc) {
-		log.debug("trackBorrowingSystem");
-		return Mono.just(rwc.getPatronRequest())
-			.flatMap(this::checkPatronRequest)
-			.flatMap(this::checkVirtualItem)
+
+		final var state = rwc.getPatronRequest().getStatus();
+
+		if (isPrematureTracking(state)) {
+
+			log.warn("PR {} in state {} skipped tracking of borrowing system", rwc.getPatronRequest().getId(), state);
+
+			return skipTracking(rwc,"Tracking skipped : Borrowing System");
+
+		} else {
+
+			log.debug("trackBorrowingSystem");
+
+			return Mono.just(rwc.getPatronRequest())
+				.flatMap(this::checkPatronRequest)
+				.flatMap(this::checkVirtualItem)
+				.thenReturn(rwc);
+		}
+	}
+
+	private Mono<RequestWorkflowContext> skipTracking(RequestWorkflowContext rwc, String message) {
+		return patronRequestAuditService
+			.addAuditEntry(rwc.getPatronRequest(), message)
 			.thenReturn(rwc);
+	}
+
+	private boolean isPrematureTracking(PatronRequest.Status status) {
+		return CONFIRMED.equals(status) || REQUEST_PLACED_AT_SUPPLYING_AGENCY.equals(status);
 	}
 
 	private Mono<RequestWorkflowContext> trackPickupSystem(RequestWorkflowContext rwc) {
