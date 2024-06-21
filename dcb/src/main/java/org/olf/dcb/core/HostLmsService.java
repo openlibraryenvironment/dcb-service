@@ -4,17 +4,25 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.InvalidHostLmsConfigurationException;
+import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.BeanContext;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.data.model.Pageable;
+import io.micronaut.transaction.TransactionDefinition.Propagation;
+import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -25,11 +33,14 @@ import reactor.core.publisher.Mono;
 public class HostLmsService implements IngestSourcesProvider {
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
-	
+	private final BibRecordService bibRecordService;
+	private final RawSourceRepository rawSourceRepo;
 
-	HostLmsService(BeanContext context, HostLmsRepository hostLmsRepository) {
+	HostLmsService(BeanContext context, HostLmsRepository hostLmsRepository, BibRecordService bibRecordService, RawSourceRepository rawSourceRepo) {
 		this.hostLmsRepository = hostLmsRepository;
 		this.context = context;
+		this.bibRecordService = bibRecordService;
+		this.rawSourceRepo = rawSourceRepo;
 	}
 	
 	private final Map<String, String> idToCodeCache = new ConcurrentHashMap<>();
@@ -108,5 +119,50 @@ public class HostLmsService implements IngestSourcesProvider {
 		// log.debug("getAllHostLms()");
 
 		return Flux.from(hostLmsRepository.queryAll());
+	}
+
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Long> deleteAllHostLmsBibs ( UUID owner ) {
+		
+		final int reportChunkSize = 10_000;
+		final Pageable page = Pageable.from(0, reportChunkSize);
+		
+		return Flux.just( page )
+			.repeat()
+			.concatMap( p -> Mono.from( bibRecordService.getPageOfHostLmsBibs( owner, p ) )
+					.flatMap(this::deleteChunkOfBibs) )
+			.takeWhile( deleted -> deleted > 0 )
+			.reduce(0L, (total, removed) -> {
+				log.info("Removed chunk of [{}] bibs for host lms [{}]", removed, owner);
+				return total + removed;
+			})
+			.doOnSuccess( total -> log.info("Removed [{}] bibs in total for host lms [{}]", total, owner) );
+	}
+
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Long> deleteChunkOfBibs(Iterable<BibRecord> chunk) {
+		
+		return Flux.fromIterable( chunk )
+			.concatMap( bib -> bibRecordService.deleteBibAndUpdateCluster(bib).thenReturn(bib) )
+			.count();
+	}
+	
+
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Integer> deleteAllRawSourceRecords (UUID hostId) {
+		log.info("Delete all raw source records for host lms [{}]", hostId);
+		return Mono.from(rawSourceRepo.deleteAllByHostLmsId(hostId))
+			.doOnSuccess( count -> log.info("Removed [{}] source records for HostLms [{}]", count, hostId) );
+	}
+	
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Mono<UUID> deleteHostLmsData( @NonNull HostLms lms ) {
+		final UUID id = lms.getId();
+		return deleteAllHostLmsBibs( id )
+			.then( Mono.defer(() -> deleteAllRawSourceRecords(id)) )
+			.thenReturn(id);
+		
+		// Need to fetch all bibs, soft delete them and then expunge the source records from the database.
+		
 	}
 }

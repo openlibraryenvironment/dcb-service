@@ -16,8 +16,6 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.event.ApplicationEventListener;
 import io.micronaut.context.event.StartupEvent;
 import io.micronaut.core.annotation.NonNull;
-import io.micronaut.data.event.EntityEventContext;
-import io.micronaut.data.event.EntityEventListener;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.TaskExecutors;
@@ -32,12 +30,13 @@ import reactor.core.publisher.MonoSink;
 @Requires(bean = SharedIndexService.class)
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Singleton
-public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupEvent>, EntityEventListener<ClusterRecord> {
+public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupEvent> {
 	
 	public static  enum ReindexOp {
 		START,
 		STOP
 	}
+	
 	
 	private final SharedIndexService sharedIndexService;
 	private final RecordClusteringService clusters;
@@ -47,21 +46,6 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	public SharedIndexLiveUpdater(SharedIndexService sharedIndexService, RecordClusteringService recordClusteringService) {
 		this.sharedIndexService = sharedIndexService;
 		this.clusters = recordClusteringService;
-	}
-
-	@Override
-	public void postPersist(@NonNull EntityEventContext<ClusterRecord> context) {
-		sharedIndexService.add(context.getEntity().getId());
-	}
-
-	@Override
-	public void postUpdate(@NonNull EntityEventContext<ClusterRecord> context) {
-		sharedIndexService.update(context.getEntity().getId());
-	}
-
-	@Override
-	public void postRemove(@NonNull EntityEventContext<ClusterRecord> context) {
-		sharedIndexService.delete(context.getEntity().getId());
 	}
 
 	@Override

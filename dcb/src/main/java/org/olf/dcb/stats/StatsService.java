@@ -29,7 +29,7 @@ import io.micronaut.scheduling.annotation.Scheduled;
  * running instance.
  *
  * Because many instances of DCB may be running, we store the stats in a distributed map.
- */
+// */
 @Singleton
 public class StatsService implements Runnable{
 

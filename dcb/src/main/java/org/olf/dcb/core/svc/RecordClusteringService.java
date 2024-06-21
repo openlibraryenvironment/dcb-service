@@ -5,9 +5,12 @@ import static services.k_int.utils.TupleUtils.curry;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -16,22 +19,29 @@ import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.clustering.MatchPoint;
-import org.olf.dcb.stats.StatsService;
+import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.MatchPointRepository;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.annotation.Timed;
+import io.micronaut.context.BeanProvider;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
+import io.micronaut.transaction.reactive.ReactiveTransactionStatus;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -45,20 +55,21 @@ public class RecordClusteringService {
 	private static final Logger log = LoggerFactory.getLogger(RecordClusteringService.class);
 
 	final ClusterRecordRepository clusterRecords;
+	final BeanProvider<SharedIndexService> sharedIndexService;
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
+	private final R2dbcOperations operations;
 
-	final StatsService statsService;
 
 	public RecordClusteringService(
 			ClusterRecordRepository clusterRecordRepository,
 			BibRecordService bibRecordService,
-			MatchPointRepository matchPointRepository,
-		  StatsService statsService) {
+			MatchPointRepository matchPointRepository, R2dbcOperations operations, BeanProvider<SharedIndexService> sharedIndexService) {
 		this.clusterRecords = clusterRecordRepository;
+		this.sharedIndexService = sharedIndexService;
 		this.bibRecords = bibRecordService;
 		this.matchPointRepository = matchPointRepository;
-		this.statsService = statsService;
+		this.operations = operations;
 	}
 
 	// Get cluster record by id
@@ -97,20 +108,70 @@ public class RecordClusteringService {
 	
 
 	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<Void> softDelete(ClusterRecord theRecord) {
+	public Mono<ClusterRecord> softDelete(ClusterRecord theRecord) {
 		log.debug("Soft delete {}",theRecord.getId());
 		return Mono.justOrEmpty(theRecord)
 			.filter( cr -> Objects.nonNull(cr.getId()) )
-			.map( current -> 
+			.flatMap( current -> 
 				// Create a new record for the deleted item.
-				ClusterRecord.builder()
+				Mono.just(ClusterRecord.builder()
 					.id(current.getId())
 					.dateCreated(current.getDateCreated())
 					.isDeleted(true)
 					.build())
-			.flatMap( this::saveOrUpdate )
-			.doOnNext(cr -> log.debug("Soft deleted cluster {}", cr.getId()))
-			.then();
+			
+					.flatMap( deleted -> this.saveOrUpdate(deleted)
+							.thenReturn( deleted ))
+					.doOnNext(cr -> log.debug("Soft deleted cluster {}", cr.getId())));
+	}
+	
+	final Map<ReactiveTransactionStatus<?>, ConcurrentLinkedQueue<Runnable>> events = new ConcurrentHashMap<>();
+	
+	final Map<ReactiveTransactionStatus<?>, Mono<Void>> trxWatchers = new ConcurrentHashMap<>();
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	protected Mono<Void> onCommittal( Runnable runnable ) {	
+		
+		return Mono.from(operations.withTransaction( status -> {
+			var queue = events.computeIfAbsent(status, (s) -> {
+				log.debug("Creating list of events for transaction {}", s.toString());
+			  return new ConcurrentLinkedQueue<>();
+			});
+			queue.add(runnable);
+			
+			trxWatchers.computeIfAbsent(status, sts -> { 
+				var watcher = Mono.just(sts)
+					.publishOn(Schedulers.boundedElastic())
+					.subscribeOn(Schedulers.boundedElastic())
+					.repeat()
+					.skipUntil( s ->
+					  s.isCompleted()
+					)
+					.next()
+					.map( s -> {
+						if (!s.isRollbackOnly()) {
+							log.debug("Transaction [{}] committal. Running events.", s.toString());
+							events.get(s).forEach(Runnable::run);
+						} else {
+							log.info("Transaction [{}] rollback, skipping events.", s.toString());
+						}
+						return s;
+					})
+					.then()
+					.doFinally( _signal -> {
+						log.debug("Clean up transactional event queues for [{}]", sts);
+						trxWatchers.remove(sts);
+						events.remove(sts);
+					});
+				
+				watcher.subscribe( _v -> {}, err -> log.error("Error watching for index update on committal", err) );
+				
+				return watcher;
+			});
+			
+			return Mono.empty();
+		}));
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -227,83 +288,7 @@ public class RecordClusteringService {
 				}
 				return mergeClusterRecords(primary, prioritisedClusters);
 				
-			});
-		
-//		final int matches = matchedClusterList.size();
-//		
-//		return switch (matches) {
-//			case 0 -> {
-//				// We can match 0 clusters and have a current cluster, if the record changes enough to alter all the match points.
-//				// If there is no current cluster this will return empty and a new one created.
-//				yield Mono.justOrEmpty(currentCluster);
-//			}
-//			
-//			case 1 -> {				
-//				
-////				if (pointsCreated > 2) {
-////					
-////					// We matched a single cluster. It may/may not be the current. Because we only matched
-////					// on a single match point but created many 
-////					
-////					log.trace("Match point - Match ratio too low. Cannot quick match");
-////					yield Mono.empty();
-////				}
-//				
-//				// Single match point.
-//				ClusterRecord cr = matchedClusterList.get(0);
-//				
-//				var currentId = currentCluster
-//					.map(current -> current.getId().toString())
-//					.orElse(null);
-//				
-//				if ( cr.getId().toString().equals( currentId ) ) {
-//					log.trace("Matches current cluster. {}/{}", cr.getId(),cr.getTitle());
-//					yield Mono.just( cr );
-//				}
-//				
-//				// Single match not current
-//				
-//				log.trace("Low number of match points, but found single match. {}/{}", cr.getId(),cr.getTitle());
-//				yield Mono.just( cr );
-//			}
-//			
-//			default -> {
-//				
-//				// Sort the unique entries.
-//				final List<ClusterRecord> clusters = new LinkedHashSet<>(matchedClusterList).stream()
-//					.sorted((cr1, cr2) -> cr2.getDateUpdated().compareTo(cr1.getDateUpdated()))
-//					.toList()
-//				;
-//				
-//				yield switch ( clusters.size() ) {
-//					case 1 -> {
-//						ClusterRecord cr = clusters.iterator().next();
-//						log.trace("Single cluster matched by multiple match points. {}/{}",cr.getId(), cr.getTitle());
-//						yield Mono.just( cr );
-//					}
-//					default -> {
-//						
-//						// Pop the first item.
-//						var items = clusters.iterator();
-//						
-//						Set<ClusterRecord> toRemove = new HashSet<>();
-//						
-//						var primary = items.next();
-//
-//						log.trace("Multiple cluster matched. Use first cluster and merge others {}/{}",primary.getId(), primary.getTitle());
-//
-//						items.forEachRemaining(c -> {
-//							if (c.getId() != null && !c.getId().toString().equals(Objects.toString(primary.getId(), null))) {
-//								toRemove.add(c);
-//							}});
-//						
-//						yield mergeClusterRecords(primary, toRemove);
-////							.flatMap(this::electSelectedBib);
-//					}
-//				};
-//			}
-//		};
-		
+			});		
 	}
 	
 	
@@ -334,30 +319,45 @@ public class RecordClusteringService {
 						.build());
 	}
 	
-//	@Transactional(propagation = Propagation.MANDATORY)
-//	public Mono<ClusterRecord> touch ( final ClusterRecord cluster ) {
-//
-//		log.debug("request touch cr {}",cluster.getId());
-//
-//		return Mono.justOrEmpty(cluster.getId())
-//			.flatMap( theId -> {
-//				return Mono.from(clusterRecords.touch(theId) )
-//					.doOnNext( total -> {
-//						log.debug("Touch updatedDate on cluster record {} yeilded {} records updated", theId, total);
-//					});
-//			})
-//			.thenReturn( cluster );
-//	}
-	
-//	@Transactional(propagation = Propagation.MANDATORY)
-//	public Mono<ClusterRecord> update ( final ClusterRecord cluster ) {
-//		return Mono.from ( clusterRecords.update(cluster) );
-//	}
-	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<ClusterRecord> saveOrUpdate ( final ClusterRecord cluster ) {
-		return Mono.from ( clusterRecords.saveOrUpdate(cluster) )
-				.doOnError(t -> log.error("Error adding {}", cluster) );
+		
+		return Mono.just(cluster)
+			.zipWhen( cr -> Mono.from( clusterRecords.existsById( cr.getId() )))
+			.flatMap( TupleUtils.function((cr, update) -> {
+				final Function<ClusterRecord, Publisher<? extends ClusterRecord>> saveMethod = update ? clusterRecords::update : clusterRecords::save;
+				
+				final Mono<ClusterRecord> saveChain = Mono.just(cr)
+					.map( saveMethod )
+					.flatMap(Mono::from);
+				
+				if (!sharedIndexService.isPresent()) {
+					return saveChain;
+				}
+				
+				return saveChain
+					.flatMap(c -> 
+						onCommittal(() -> {
+							final UUID id = c.getId();
+							
+							if (Boolean.TRUE.equals(c.getIsDeleted())) {
+								log.trace("Delete index for record [{}]", id);
+								sharedIndexService.get().delete(cr.getId());
+								return;
+							}
+							
+							if (update) {
+								log.trace("Update index for record [{}]", id);
+								sharedIndexService.get().update( id );
+								return;
+							}
+							
+							// Addition
+							log.trace("Add index for record [{}]", id);
+							sharedIndexService.get().add( c.getId() );
+						})
+						.thenReturn(c));
+			}));
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)

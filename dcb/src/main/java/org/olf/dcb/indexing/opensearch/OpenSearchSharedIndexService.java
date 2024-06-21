@@ -437,12 +437,18 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			  .index(i -> i.refreshInterval(val))));
 	}
 	
+	private boolean isTimeValueDisabled(Time time) {
+		if (time.isOffset()) return time.offset() > -1;
+		
+		return "-1".equals( time.time() );
+	}
+	
 	private Mono<Boolean> disableRefresh() {
 		
 		return getIndexSettings()
 			.map( state -> {
 				var existingInterval = state.index().refreshInterval();
-				if (existingInterval != null) {
+				if (existingInterval != null && !isTimeValueDisabled(existingInterval)) {
 					refreshInterval.set(existingInterval);
 				}
 				return refreshInterval.get();

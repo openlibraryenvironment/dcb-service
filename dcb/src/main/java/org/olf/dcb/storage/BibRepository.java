@@ -57,6 +57,10 @@ public interface BibRepository {
 
 	@NonNull
 	@SingleResult
+	Publisher<Page<BibRecord>> findAllBySourceSystemId( UUID sourceSystemId, Pageable page );
+
+	@NonNull
+	@SingleResult
 	Publisher<Page<BibRecord>> queryAll(Pageable page);
 
 	@NonNull

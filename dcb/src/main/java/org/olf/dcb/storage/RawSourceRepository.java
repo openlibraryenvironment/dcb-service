@@ -37,6 +37,10 @@ public interface RawSourceRepository {
 		.thenReturn(rawSource);
 	}
 	
+	@SingleResult
+	@NonNull
+	Publisher<Integer> deleteAllByHostLmsId( UUID hostLmsId );
+	
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById( @NonNull UUID id );

@@ -23,18 +23,21 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.annotation.Timed;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
-
-import io.micrometer.core.annotation.Timed;
+import services.k_int.utils.Functions;
+import services.k_int.utils.ReactorUtils;
 
 
 @Singleton
@@ -198,8 +201,27 @@ public class BibRecordService {
 			.thenReturn(bib);
 	}
 	
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Mono<BibRecord> deleteBibAndUpdateCluster(@NonNull BibRecord bib) {
+		return Mono.justOrEmpty( bib.getId() )
+				.flatMap( this::getClusterRecordForBib )
+				.flatMap( cr -> findAllByContributesTo(cr)
+					.count()
+					.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get()
+							.electSelectedBib(cr, Optional.ofNullable(bib))
+							.then(Mono.empty()) : Mono.just( cr ) )
+				)
+				.doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
+				.flatMap( recordClusteringServiceProvider.get()::softDelete )
+				.then( Mono.defer(() -> {
+					log.debug("Deleteing bib [{}]", bib.getId());
+					return deleteBibAndRelations(bib).thenReturn(bib); 
+				}))
+			;
+	}
+	
 	@Transactional
-	public Mono<Void> delete(@NonNull BibRecord bib) {
+	protected Mono<Void> deleteBibAndRelations(@NonNull BibRecord bib) {
 		return deleteRelatedItems( bib )
 			.map(BibRecord::getId)
 			.map(bibRepo::delete)
@@ -249,16 +271,7 @@ public class BibRecordService {
 					statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
 					log.debug("Record {} flagged as {}, ensure we redact accordingly.", source, deleted ? "deleted" : "suppressed");
 					
-					return Mono.justOrEmpty( bib.getId() )
-						.flatMap( this::getClusterRecordForBib )
-						.flatMap( cr -> this.findAllByContributesTo(cr)
-							.count()
-							.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get().electSelectedBib(cr, Optional.ofNullable(bib)).then(Mono.empty()) : Mono.just( cr ) )
-						)
-						.doOnNext( cr -> log.debug("Soft deleteing cluster record {} as only referenced bib to be deleted due to suppression", cr.getId()) )
-						.flatMap( recordClusteringServiceProvider.get()::softDelete )
-						.then( this.delete(bib).then(Mono.empty()) )
-					;
+					return deleteBibAndUpdateCluster(bib).then( Mono.empty() );
 				}
 				
 				// Default to just re-emitting the bib.
@@ -278,6 +291,11 @@ public class BibRecordService {
 	public Flux<UUID> findTop2HighestScoringContributorId( @NonNull ClusterRecord cr  ) {
 		return Flux.from( bibRepo.findTop2ByContributesToOrderByMetadataScoreDesc(cr) )
 				.map( BibRecord::getId );
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Mono<Page<BibRecord>> getPageOfHostLmsBibs ( @NonNull UUID sourceSystemId, @NonNull Pageable page ) {
+		return Mono.from( bibRepo.findAllBySourceSystemId(sourceSystemId, page) );
 	}
 
 	public Publisher<Void> cleanup() {

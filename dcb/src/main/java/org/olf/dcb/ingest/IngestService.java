@@ -67,8 +67,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 	protected IngestService(BibRecordService bibRecordService, 
 		List<IngestSourcesProvider> sourceProviders, 
 		PublisherTransformationService publisherHooksService, 
-		RecordClusteringService recordClusteringService, 
-		HazelcastInstance hazelcastInstanc,
+		RecordClusteringService recordClusteringService,
 		ConversionService conversionService,
 		ConcurrencyGroupService concurrencyGroupService, ReactorFederatedLockService lockService) {
 

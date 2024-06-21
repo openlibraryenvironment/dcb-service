@@ -14,7 +14,7 @@ import org.olf.dcb.indexing.SharedIndexLiveUpdater.ReindexOp;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.security.RoleNames;
-import org.olf.dcb.stats.StatsService;
+//import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ProcessStateRepository;
@@ -57,12 +57,13 @@ public class AdminController {
 	private final PatronRequestRepository patronRequestRepository;
 	private final ProcessStateRepository processStateRepository;
 	private final BibRepository bibRepository;
-	private final StatsService statsService;
+//	private final StatsService statsService;
 	private final DCBConfigurationService configurationService;
 	private final Optional<SharedIndexLiveUpdater> sharedIndexUpdater;
 
 	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService,
-			StatsService statsService, PatronRequestRepository patronRequestRepository,
+//			StatsService statsService,
+			PatronRequestRepository patronRequestRepository,
 			ProcessStateRepository processStateRepository,
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
@@ -70,7 +71,7 @@ public class AdminController {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
-		this.statsService = statsService;
+//		this.statsService = statsService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.processStateRepository = processStateRepository;
 		this.configurationService = configurationService;
@@ -112,13 +113,13 @@ public class AdminController {
 		.map(TupleUtils.function(PatronRequestAdminView::from));
 	}
 
-	@SingleResult
-	@Get(uri = "/statistics", produces = APPLICATION_JSON)
-	public Mono<StatsService.Report> getStatsReport() {
-		StatsService.Report report = statsService.getReport();
-		log.debug("report: {}", report);
-		return Mono.just(report);
-	}
+//	@SingleResult
+//	@Get(uri = "/statistics", produces = APPLICATION_JSON)
+//	public Mono<StatsService.Report> getStatsReport() {
+//		StatsService.Report report = statsService.getReport();
+//		log.debug("report: {}", report);
+//		return Mono.just(report);
+//	}
 
   @Get(uri = "/recordCounts", produces = APPLICATION_JSON)
   public Flux<RecordCountSummary> getRecordCounts() {

@@ -18,8 +18,6 @@ import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 
-import com.hazelcast.core.HazelcastInstance;
-
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micronaut.configuration.metrics.annotation.RequiresMetrics;
@@ -49,10 +47,9 @@ public class MeasuredIngestService extends IngestService {
 	
 	MeasuredIngestService(BibRecordService bibRecordService, List<IngestSourcesProvider> sourceProviders,
 			PublisherTransformationService publisherHooksService, RecordClusteringService recordClusteringService,
-			HazelcastInstance hazelcastInstanc, ConversionService conversionService,
+			ConversionService conversionService,
 			ConcurrencyGroupService concurrencyGroupService, ReactorFederatedLockService lockService, PublisherTransformationService publisherTransformationService, MeterRegistry meterRegistry) {
-		super(bibRecordService, sourceProviders, publisherHooksService, recordClusteringService, hazelcastInstanc,
-				conversionService, concurrencyGroupService, lockService);
+		super(bibRecordService, sourceProviders, publisherHooksService, recordClusteringService, conversionService, concurrencyGroupService, lockService);
 		this.meterRegistry = meterRegistry;
 		log.info("USING INSTRUMENTED INGEST PROCESS");
 	}
