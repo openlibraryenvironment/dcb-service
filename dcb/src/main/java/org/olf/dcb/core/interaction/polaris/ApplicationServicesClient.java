@@ -206,7 +206,7 @@ class ApplicationServicesClient {
 				.localBarcodes(singletonList(data.getBarcode()))
 				.localHomeLibraryCode(valueOf(data.getOrganizationID()))
 				.isActive(true)
-				.blocked(false)
+				.isBlocked(false)
 				.isDeleted(false)
 				.build());
 	}

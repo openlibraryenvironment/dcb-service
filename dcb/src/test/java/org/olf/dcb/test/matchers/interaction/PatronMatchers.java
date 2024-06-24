@@ -65,11 +65,11 @@ public class PatronMatchers {
 	}
 
 	public static Matcher<Patron> isBlocked() {
-		return hasProperty("blocked", is(true));
+		return hasProperty("isBlocked", is(true));
 	}
 
 	public static Matcher<Patron> isNotBlocked() {
-		return hasProperty("blocked", is(false));
+		return hasProperty("isBlocked", is(false));
 	}
 
 	public static Matcher<Patron> isActive() {

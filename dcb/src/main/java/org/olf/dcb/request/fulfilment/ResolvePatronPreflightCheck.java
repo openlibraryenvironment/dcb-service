@@ -101,7 +101,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 						getValueOrDefault(patron, Patron::getCanonicalPatronType, "Unknown canonical patron type"))));
 		}
 
-		final var blocked = getValueOrDefault(patron, Patron::getBlocked, false);
+		final var blocked = getValueOrDefault(patron, Patron::getIsBlocked, false);
 
 		if (blocked) {
 			eligibilityCheckResults.add(failed("PATRON_BLOCKED",

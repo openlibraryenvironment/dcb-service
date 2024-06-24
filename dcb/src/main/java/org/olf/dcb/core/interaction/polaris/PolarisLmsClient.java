@@ -856,7 +856,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var canCirculate = getValueOrDefault(blocks,
 			PatronCirculationBlocksResult::getCanPatronCirculate, true);
 
-		return patron.setBlocked(!canCirculate);
+		return patron.setIsBlocked(!canCirculate);
 	}
 
 	@Override

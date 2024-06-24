@@ -29,7 +29,7 @@ class UserToPatronConverter implements TypeConverter<User, Patron> {
 				getValue(personalDetails, User.PersonalDetails::getMiddleName),
 				getValue(personalDetails, User.PersonalDetails::getLastName)
 			))
-			.blocked(getValueOrDefault(user, User::getBlocked, false))
+			.isBlocked(getValueOrDefault(user, User::getBlocked, false))
 			.build());
 	}
 }

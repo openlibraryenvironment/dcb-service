@@ -41,7 +41,7 @@ public class Patron {
 	private String localItemId;
 	private Integer localItemLocationId;
 	private Boolean isDeleted;
-	@Nullable private Boolean blocked;
+	@Nullable private Boolean isBlocked;
 	private String city;
 	private String postalCode;
 	private String state;
