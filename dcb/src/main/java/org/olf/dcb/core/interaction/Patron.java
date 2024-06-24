@@ -45,6 +45,7 @@ public class Patron {
 	private String city;
 	private String postalCode;
 	private String state;
+	private Boolean isActive;
 
 	public boolean isEligible() {
 		return !Objects.equals(canonicalPatronType, "NOT_ELIGIBLE");
