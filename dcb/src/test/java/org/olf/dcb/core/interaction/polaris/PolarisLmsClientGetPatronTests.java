@@ -20,8 +20,10 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibrar
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isActive;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isBlocked;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -126,7 +128,9 @@ class PolarisLmsClientGetPatronTests {
 			hasCanonicalPatronType(canonicalPatronType),
 			hasLocalBarcodes(barcode),
 			hasHomeLibraryCode(organisationId),
-			isNotBlocked()
+			isActive(),
+			isNotBlocked(),
+			isNotDeleted()
 		));
 	}
 

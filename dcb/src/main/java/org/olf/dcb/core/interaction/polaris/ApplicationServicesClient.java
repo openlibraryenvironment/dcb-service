@@ -38,10 +38,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import io.micronaut.http.HttpResponse;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.exceptions.CreateVirtualItemException;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
@@ -53,6 +51,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -206,7 +205,9 @@ class ApplicationServicesClient {
 				.localPatronType(valueOf(data.getPatronCodeID()))
 				.localBarcodes(singletonList(data.getBarcode()))
 				.localHomeLibraryCode(valueOf(data.getOrganizationID()))
-				.blocked(FALSE)
+				.isActive(true)
+				.blocked(false)
+				.isDeleted(false)
 				.build());
 	}
 
