@@ -12,6 +12,7 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarco
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isActive;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isBlocked;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
@@ -76,6 +77,7 @@ class SierraPatronMapperTests {
 			hasCanonicalPatronType(MAPPED_CANONICAL_PATRON_TYPE),
 			hasHomeLibraryCode("home-library"),
 			isNotBlocked(),
+			isActive(),
 			isNotDeleted()
 		));
 	}

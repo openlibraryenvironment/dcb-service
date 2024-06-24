@@ -72,6 +72,10 @@ public class PatronMatchers {
 		return hasProperty("blocked", is(false));
 	}
 
+	public static Matcher<Patron> isActive() {
+		return hasProperty("isActive", is(true));
+	}
+
 	public static Matcher<Patron> isNotDeleted() {
 		return hasProperty("isDeleted", is(false));
 	}

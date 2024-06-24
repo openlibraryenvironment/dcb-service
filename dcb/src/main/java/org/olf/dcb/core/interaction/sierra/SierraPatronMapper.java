@@ -36,6 +36,7 @@ public class SierraPatronMapper {
 			.localBarcodes(patronRecord.getBarcodes())
 			.localNames(patronRecord.getNames())
 			.localHomeLibraryCode(patronRecord.getHomeLibraryCode())
+			.isActive(true)
 			.blocked(isPatronBlocked(patronRecord))
 			.isDeleted(patronRecord.getDeleted() != null ? patronRecord.getDeleted() : false)
 			.build();
