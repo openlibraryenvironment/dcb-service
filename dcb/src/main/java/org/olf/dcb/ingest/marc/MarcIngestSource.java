@@ -279,8 +279,10 @@ public interface MarcIngestSource<T> extends IngestSource {
 
 	private static void parseFromSingleSubfield(Record marcRecord, String fieldTag, char subField,
 			Consumer<String> consumer) {
-		extractOrderedSubfields((DataField) marcRecord.getVariableField(fieldTag), "" + subField).limit(1).findFirst()
-				.ifPresent(consumer);
+		extractOrderedSubfields((DataField) marcRecord.getVariableField(fieldTag), "" + subField)
+			.filter( Objects::nonNull ) // FindFirst non null, or degrade to empty if no data or only nulls.
+			.findFirst()
+			.ifPresent(consumer);
 	}
 
 	public default GoldrushKey getGoldrushKey(final Record marcRecord) {
