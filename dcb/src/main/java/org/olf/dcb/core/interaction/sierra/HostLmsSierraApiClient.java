@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
@@ -66,7 +67,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	private static final String CLIENT_BASE_URL = "base-url";
 	private static final Argument<SierraError> ERROR_TYPE = Argument.of(SierraError.class);
 
-	private final Logger log = LoggerFactory.getLogger(HostLmsSierraApiClient.class);
+	private static final Logger log = LoggerFactory.getLogger(HostLmsSierraApiClient.class);
 	private final URI rootUri;
 	private final HostLms lms;
 	private final HttpClient client;
@@ -316,11 +317,12 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
 		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
-				.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
-				// This has to happen after other error handlers related to
-				// HttpClientResponseException
-				.onErrorMap(HttpClientResponseException.class,
-						responseException -> unexpectedResponseProblem(responseException, request, null));
+			.doOnError(logRequestAndResponseDetails(request))
+			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
+			// This has to happen after other error handlers related to
+			// HttpClientResponseException
+			.onErrorMap(HttpClientResponseException.class,
+					responseException -> unexpectedResponseProblem(responseException, request, null));
 	}
 
 	/**
@@ -338,11 +340,33 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType, ERROR_TYPE))
-				.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken()).transform(errorHandlingTransformer)
-				// This has to go after more specific error handling
-				// as will convert any client response exception to a problem
-				.onErrorMap(HttpClientResponseException.class,
-						responseException -> unexpectedResponseProblem(responseException, request, null));
+			.doOnError(logRequestAndResponseDetails(request))
+			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken()).transform(errorHandlingTransformer)
+			// This has to go after more specific error handling
+			// as will convert any client response exception to a problem
+			.onErrorMap(HttpClientResponseException.class,
+					responseException -> unexpectedResponseProblem(responseException, request, null));
+	}
+
+	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
+		return error -> {
+			try {
+				log.error("""
+						HTTP Request and Response Details:
+						URL: {}
+						Method: {}
+						Headers: {}
+						Body: {}
+						Response: {}""",
+					request.getUri(),
+					request.getMethod(),
+					request.getHeaders().asMap(),
+					request.getBody().orElse(null),
+					error.toString());
+			} catch (Exception e) {
+				log.error("Couldn't log error request and response details", e);
+			}
+		};
 	}
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
@@ -399,6 +423,12 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	public Publisher<HttpStatus> deleteBib(@NonNull @NotNull String id) {
 		return deleteRequest("bibs/" + id)
+			.flatMap(this::ensureToken)
+			.flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class)));
+	}
+
+	public Publisher<HttpStatus> deleteHold(@NonNull @NotNull String id) {
+		return deleteRequest("patrons/holds/" + id)
 			.flatMap(this::ensureToken)
 			.flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class)));
 	}

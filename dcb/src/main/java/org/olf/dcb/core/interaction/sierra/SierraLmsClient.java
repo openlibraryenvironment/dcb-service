@@ -42,6 +42,7 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.micronaut.http.HttpStatus;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;
 import org.olf.dcb.configuration.ConfigurationRecord;
@@ -49,17 +50,8 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -704,6 +696,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
+		log.debug("{}", getHostLms().getName() + " attempting to cancel local hold " + parameters.getLocalRequestId());
+
+		return deleteHold(parameters.getLocalRequestId()).thenReturn(parameters.getLocalRequestId());
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
 		PlaceHoldRequestParameters parameters) {
 
@@ -865,6 +864,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case "j" -> HostLmsRequest.HOLD_READY; // volume ready for pickup
 			case "i" -> HostLmsRequest.HOLD_READY; // Item ready for pickup
 			case "t" -> HostLmsRequest.HOLD_TRANSIT; // IN Transit
+			case "m" -> HostLmsRequest.HOLD_MISSING;
 			default -> code;
 		};
 	}
@@ -1354,10 +1354,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
   public Mono<String> deleteHold(String id) {
-		log.info("Delete hold is not currently implemented for Sierra");
-		return Mono.just("OK");
-	}
+		log.debug("deleteHold({})", id);
 
+		return Mono.from(client.deleteHold(id)).thenReturn("OK").defaultIfEmpty("ERROR");
+	}
 
 	@Override
 	public ProcessStateService getProcessStateService() {

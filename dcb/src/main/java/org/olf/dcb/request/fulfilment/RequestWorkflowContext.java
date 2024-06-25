@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.model.*;
 
 import io.micronaut.serde.annotation.Serdeable;
@@ -7,6 +8,8 @@ import lombok.experimental.Accessors;
 import lombok.Data;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Core attributes needed for workflow steps.
@@ -69,6 +72,15 @@ public class RequestWorkflowContext {
 			( pickupLocation != null ? pickupLocation.getName() : "UNKNOWN" ) +
 			"@"+pickupAgencyCode;
 		return note;
+	}
+
+	public static <T> T extractFromSupplierReq(RequestWorkflowContext ctx,
+		Function<SupplierRequest, T> extractor, String fieldName) {
+
+		return Optional.ofNullable(ctx)
+			.map(RequestWorkflowContext::getSupplierRequest)
+			.map(extractor)
+			.orElseThrow(() -> new DcbError("Unable to extract ctx.sr.'%s'".formatted(fieldName)));
 	}
 }
 

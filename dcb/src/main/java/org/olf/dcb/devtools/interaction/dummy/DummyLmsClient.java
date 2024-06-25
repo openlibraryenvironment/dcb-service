@@ -17,15 +17,7 @@ import java.util.UUID;
 
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
@@ -227,6 +219,12 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		log.info("Create bib {}", bib);
 		String newBibUUID = UUID.randomUUID().toString();
 		return Mono.just(newBibUUID);
+	}
+
+	@Override
+	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
+		log.info("Cancel hold request {}", parameters);
+		return Mono.just(parameters.getLocalRequestId());
 	}
 
 	public Mono<Patron> updatePatron(String localId, String patronType) {
