@@ -3,7 +3,9 @@ package org.olf.dcb.request.fulfilment;
 public enum SupplierRequestStatusCode {
 	PENDING("PENDING"),
 	PLACED("PLACED"),
-	ACCEPTED("ACCEPTED");
+	ACCEPTED("ACCEPTED"),
+
+	CANCELLED("CANCELLED");
 
 	private final String displayName;
 

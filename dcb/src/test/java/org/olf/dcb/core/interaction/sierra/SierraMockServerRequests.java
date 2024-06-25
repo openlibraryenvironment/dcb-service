@@ -38,6 +38,10 @@ public class SierraMockServerRequests {
 		return acceptsJson("GET", subPath);
 	}
 
+	HttpRequest delete(String subPath) {
+		return acceptsJson("DELETE", subPath);
+	}
+
 	public RequestDefinition put(String subPath) {
 		return acceptsJson("PUT", subPath);
 	}

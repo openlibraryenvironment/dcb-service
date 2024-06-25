@@ -9,11 +9,16 @@ import static org.hamcrest.Matchers.hasProperty;
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
 
 public class SupplierRequestMatchers {
 
 	public static Matcher<SupplierRequest> hasLocalStatus(String expectedStatus) {
 		return hasProperty("localStatus", is(expectedStatus));
+	}
+
+	public static Matcher<SupplierRequest> hasStatusCode(SupplierRequestStatusCode expectedStatus) {
+		return hasProperty("statusCode", is(expectedStatus));
 	}
 
 	public static Matcher<SupplierRequest> hasLocalItemBarcode(String expectedBarcode) {

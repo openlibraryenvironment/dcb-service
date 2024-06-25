@@ -47,6 +47,8 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<String> createBib(Bib bib);
 
+	Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters);
+
 	/**
 	 * place a hold for a specified item at a supplying agency.
 	 * NOTE: Different systems have different policies. We may need to place a Bib or an Item level hold. If we place a bib level

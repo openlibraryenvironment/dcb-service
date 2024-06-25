@@ -37,19 +37,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.FailedToGetItemsException;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
@@ -589,6 +577,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
+			log.debug("{} cancelHoldRequest({})", getHostLms().getName(), parameters);
+
+			return updateTransactionStatus(parameters.getLocalRequestId(), TransactionStatus.CANCELLED)
+				.thenReturn(parameters.getLocalRequestId());
+		}
+
+	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
 		// DCB has no means to update users via the available edge modules
 		// and edge-dcb does not do this on DCB's behalf when creating the transaction
@@ -828,8 +824,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		log.info("Delete hold is not currently implemented for FOLIO");
     return Mono.just("OK");
   }
-
-
 
 	@Override
 	public Mono<String> deleteBib(String id) {

@@ -34,9 +34,7 @@ public class PatronRequestAuditService {
 	}
 
 	private void log(PatronRequestAudit auditEntry) {
-		log.debug("AUDIT LOG {}: {}",
-			auditEntry.getToStatus() == ERROR ? "Unsuccessful transition" : "Successful transition",
-			auditEntry);
+		log.debug("AUDIT LOGGED: {}", auditEntry);
 	}
 
 	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest,

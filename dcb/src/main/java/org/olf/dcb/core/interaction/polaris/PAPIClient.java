@@ -10,6 +10,7 @@ import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
@@ -36,6 +38,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -193,6 +196,33 @@ public class PAPIClient {
 				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")));
 	}
 
+	// https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceHoldRequestCancel.htm#papiserviceholdrequestcancel_3571891891_1215927
+	public Mono<String> holdRequestCancel(String patronBarcode, String requestID, Integer wsid, Integer userid) {
+
+		final var path = createPath("patron", patronBarcode, "holdrequests", requestID, "cancelled");
+
+		return createRequest(PUT, path, uri -> uri.queryParam("wsid", wsid).queryParam("userid", userid))
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
+			.flatMap(request -> client.retrieve(request, Argument.of(HoldRequestCancelResult.class)))
+			.map(result -> {
+
+				if (result.getPapiErrorCode() >= 0) {
+					return requestID;
+				}
+
+				throw Problem.builder()
+					.withTitle("Failed to cancel hold request")
+					.withDetail(result.getErrorMessage() != null ? result.getErrorMessage()
+						: "HoldRequestCancelResult error message was null")
+					.with("PatronBarcode", patronBarcode)
+					.with("RequestID", requestID)
+					.with("userid", userid)
+					.with("wsid", wsid)
+					.build();
+			});
+	}
+
 	/*
 	Protected endpoints
 	*/
@@ -306,6 +336,21 @@ public class PAPIClient {
 
 	private static PatronCredentials emptyCredentials() {
 		return PatronCredentials.builder().build();
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class HoldRequestCancelResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("SysHoldRequestID")
+		private Integer sysHoldRequestID;
+		@JsonProperty("ReturnCode")
+		private Integer returnCode;
 	}
 
 	@Builder

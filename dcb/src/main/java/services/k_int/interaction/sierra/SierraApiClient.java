@@ -154,4 +154,6 @@ public interface SierraApiClient extends BasicAuthClient {
 	@Delete("/bibs/{id}")
 	Publisher<HttpStatus> deleteBib(String id);
 
+	@Delete("/patrons/holds/{id}")
+	Publisher<HttpStatus> deleteHold(String id);
 }

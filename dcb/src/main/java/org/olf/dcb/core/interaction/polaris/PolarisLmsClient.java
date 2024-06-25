@@ -35,17 +35,7 @@ import io.micronaut.http.*;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
@@ -572,6 +562,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
+	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
+
+		final var PatronBarcode = parameters.getPatronBarcode();
+		final var RequestID = parameters.getLocalRequestId();
+		final var wsid = polarisConfig.getServicesWorkstationId();
+		final var userid = polarisConfig.getLogonUserId();
+
+		return PAPIService.holdRequestCancel(PatronBarcode, RequestID, wsid, userid);
+	}
+
+	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
 		log.info("createItem({})",createItemCommand);
 
@@ -1000,6 +1001,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass,
 		Boolean useGenericHttpClientResponseExceptionHandler) {
 		return Mono.from(client.exchange(request, returnClass))
+			.doOnError(logRequestAndResponseDetails(request))
 			.onErrorResume(HttpClientResponseException.class, responseException -> {
 				if (useGenericHttpClientResponseExceptionHandler) {
 					// Generic error handling
@@ -1034,6 +1036,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType))
+			.doOnError(logRequestAndResponseDetails(request))
 			// Additional request specific error handling
 			.transform(errorHandlingTransformer)
 			// This has to go after more specific error handling
@@ -1041,6 +1044,27 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.doOnError(HttpClientResponseException.class, error -> log.error("Unexpected response from Host LMS: {}", getHostLmsCode(), error))
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+	}
+
+	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
+		return error -> {
+			try {
+				log.error("""
+						HTTP Request and Response Details:
+						URL: {}
+						Method: {}
+						Headers: {}
+						Body: {}
+						Response: {}""",
+					request.getUri(),
+					request.getMethod(),
+					request.getHeaders().asMap(),
+					request.getBody().orElse(null),
+					error.toString());
+			} catch (Exception e) {
+				log.error("Couldn't log error request and response details", e);
+			}
+		};
 	}
 
 	/**
