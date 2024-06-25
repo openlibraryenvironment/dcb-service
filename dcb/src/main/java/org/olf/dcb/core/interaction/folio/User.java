@@ -15,6 +15,7 @@ public class User {
 	@Nullable String username;
 	@Nullable User.PersonalDetails personal;
 	@Nullable Boolean blocked;
+	@Nullable Boolean active;
 
 	@Serdeable
 	@Builder

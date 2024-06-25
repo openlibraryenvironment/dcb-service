@@ -30,6 +30,8 @@ class UserToPatronConverter implements TypeConverter<User, Patron> {
 				getValue(personalDetails, User.PersonalDetails::getLastName)
 			))
 			.isBlocked(getValueOrDefault(user, User::getBlocked, false))
+			.isActive(getValueOrDefault(user, User::getActive, true))
+			.isDeleted(false)
 			.build());
 	}
 }

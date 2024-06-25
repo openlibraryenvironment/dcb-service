@@ -10,8 +10,11 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoCanonicalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoHomeLibraryCode;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isActive;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isBlocked;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotActive;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.Patron;
@@ -43,6 +46,7 @@ class UserToPatronConverterTests {
 				.preferredFirstName("preferred first name")
 				.build())
 			.blocked(false)
+			.active(true)
 			.build();
 
 		// Act
@@ -57,7 +61,9 @@ class UserToPatronConverterTests {
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
 			hasLocalNames("first name", "middle name", "last name"),
-			isNotBlocked()
+			isActive(),
+			isNotBlocked(),
+			isNotDeleted()
 		));
 	}
 
@@ -88,6 +94,38 @@ class UserToPatronConverterTests {
 		assertThat(patron, allOf(
 			notNullValue(),
 			isBlocked()
+		));
+	}
+
+	@Test
+	void shouldMapInactiveUserToPatron() {
+		// Arrange
+		final var barcode = "17452745";
+		final var localId = randomUUID().toString();
+		final var patronGroupName = "undergraduate";
+
+		final var user = User.builder()
+			.id(localId)
+			.patronGroupName(patronGroupName)
+			.barcode(barcode)
+			.personal(User.PersonalDetails.builder()
+				.firstName("first name")
+				.middleName("middle name")
+				.lastName("last name")
+				.preferredFirstName("preferred first name")
+				.build())
+			.active(false)
+			.build();
+
+		// Act
+		final var patron = conversionService.convert(user, Patron.class).orElseThrow();
+
+		// Assert
+		assertThat(patron, allOf(
+			notNullValue(),
+			isNotActive(),
+			isNotBlocked(),
+			isNotDeleted()
 		));
 	}
 

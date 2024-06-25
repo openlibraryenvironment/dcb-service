@@ -26,7 +26,9 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalBar
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalIds;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalNames;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isActive;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
 
 import java.util.List;
 import java.util.UUID;
@@ -109,7 +111,9 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasLocalBarcodes(barcode),
 			hasNoHomeLibraryCode(),
 			hasLocalNames("first name", "middle name", "last name"),
-			isNotBlocked()
+			isActive(),
+			isNotBlocked(),
+			isNotDeleted()
 		));
 	}
 
@@ -172,7 +176,8 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasNoLocalBarcodes(),
 			hasNoHomeLibraryCode(),
 			hasNoLocalNames(),
-			isNotBlocked()
+			isNotBlocked(),
+			isActive()
 		));
 	}
 
