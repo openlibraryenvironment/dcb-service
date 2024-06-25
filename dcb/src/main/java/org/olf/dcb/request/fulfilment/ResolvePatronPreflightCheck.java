@@ -109,6 +109,14 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 					.formatted(localPatronId, hostLmsCode)));
 		}
 
+		final var active = getValueOrDefault(patron, Patron::getIsActive, true);
+
+		if (!active) {
+			eligibilityCheckResults.add(failed("PATRON_INACTIVE",
+				"Patron \"%s\" from \"%s\" is inactive"
+					.formatted(localPatronId, hostLmsCode)));
+		}
+
 		return eligibilityCheckResults;
 	}
 
