@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -88,6 +89,13 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		if (barcode != null) {
 			auditData.put("selectedItemBarcode", barcode);
+		}
+
+		final var itemStatusCode = getValue(chosenItem, Item::getStatus,
+			ItemStatus::getCode);
+
+		if (itemStatusCode != null) {
+			auditData.put("selectedItemStatusCode", itemStatusCode.name());
 		}
 
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
