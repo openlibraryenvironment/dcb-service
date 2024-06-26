@@ -1,10 +1,26 @@
 # Changelog
 
+## Version 6.20.0
+
+### Additions
+* [General]
+	* Disallow inactive patrons from requesting DCB-1253
+	* patron cancellation [DCB-1174]
+
+### Fixes
+* [General]
+	* Drop single resource only, on error saving/marshalling
+	* Lets ignore nulls in stream.
+
 ## Version 6.19.0
 
 ### Additions
 * [General]
 	* do not attempt tracking in borrowing library prematurely [DCB-1233]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
