@@ -90,8 +90,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var auditData = new HashMap<String, Object>();
 
-		final var itemStatusCode = getValue(chosenItem, Item::getStatus,
-			ItemStatus::getCode);
+		final var itemStatusCode = getValue(chosenItem, Item::getStatus, ItemStatus::getCode);
 
 		// For values that could be "unknown", "null" is used as a differentiating default
 		final var presentableItem = PresentableItem.builder()
@@ -101,6 +100,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.localItemType(getValueOrDefault(chosenItem, Item::getLocalItemType, "null"))
 			.canonicalItemType(getValueOrDefault(chosenItem, Item::getCanonicalItemType, "null"))
 			.holdCount(getValueOrDefault(chosenItem, Item::getHoldCount, 0))
+			.agencyCode(getValueOrDefault(chosenItem, Item::getAgencyCode, "Unknown"))
 			.build();
 
 		putNonNullValue(auditData, "selectedItem", presentableItem);
@@ -205,5 +205,6 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		String localItemType;
 		String canonicalItemType;
 		Integer holdCount;
+		String agencyCode;
 	}
 }
