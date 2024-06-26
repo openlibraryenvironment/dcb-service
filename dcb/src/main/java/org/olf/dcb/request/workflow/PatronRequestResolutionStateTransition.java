@@ -25,6 +25,9 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -86,16 +89,15 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var auditData = new HashMap<String, Object>();
 
-		final var barcode = getValue(chosenItem, Item::getBarcode);
-
-		putNonNullValue(auditData, "selectedItemBarcode", barcode);
-
 		final var itemStatusCode = getValue(chosenItem, Item::getStatus,
 			ItemStatus::getCode);
 
-		final var itemStatusCodeName = getValue(itemStatusCode, Enum::name);
+		final var presentableItem = PresentableItem.builder()
+			.barcode(getValue(chosenItem, Item::getBarcode))
+			.statusCode(getValue(itemStatusCode, Enum::name))
+			.build();
 
-		putNonNullValue(auditData, "selectedItemStatusCode", itemStatusCodeName);
+		putNonNullValue(auditData, "selectedItem", presentableItem);
 
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
 				"Resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
@@ -186,4 +188,12 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
   public boolean attemptAutomatically() {
     return true;
   }
+
+	@Serdeable
+	@Value
+	@Builder
+	public static class PresentableItem {
+		String barcode;
+		String statusCode;
+	}
 }
