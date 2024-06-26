@@ -4,7 +4,9 @@ import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -80,9 +82,17 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var chosenItem = resolution.getChosenItem();
 
+		final var auditData = new HashMap<String, Object>();
+
+		final var barcode = getValue(chosenItem, Item::getBarcode);
+
+		if (barcode != null) {
+			auditData.put("selectedItemBarcode", barcode);
+		}
+
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
 				"Resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
-					chosenItem.getLocalId(), chosenItem.getHostLmsCode()))
+					chosenItem.getLocalId(), chosenItem.getHostLmsCode()), auditData)
 			.then(Mono.just(resolution));
 	}
 

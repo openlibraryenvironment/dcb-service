@@ -15,6 +15,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -470,7 +471,8 @@ class PatronRequestResolutionTests {
 		assertThat(fetchedAudit, allOf(
 			notNullValue(),
 			hasBriefDescription("Resolved to item with local ID \"%s\" from Host LMS \"%s\""
-				.formatted(expectedItemId, expectedHostLms))
+				.formatted(expectedItemId, expectedHostLms)),
+			hasAuditDataProperty("selectedItemBarcode", "6565750674")
 		));
 	}
 
