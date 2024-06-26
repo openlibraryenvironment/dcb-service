@@ -9,5 +9,12 @@ public class MapUtils {
 		return Optional.ofNullable(map.get(key))
 			.map(String::valueOf);
 	}
-	
+
+	public static <T> void putNonNullValue(Map<String, T> auditData,
+		String key, T value) {
+
+		if (value != null) {
+			auditData.put(key, value);
+		}
+	}
 }

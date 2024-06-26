@@ -5,6 +5,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static services.k_int.utils.MapUtils.putNonNullValue;
 
 import java.util.HashMap;
 import java.util.List;
@@ -87,16 +88,14 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var barcode = getValue(chosenItem, Item::getBarcode);
 
-		if (barcode != null) {
-			auditData.put("selectedItemBarcode", barcode);
-		}
+		putNonNullValue(auditData, "selectedItemBarcode", barcode);
 
 		final var itemStatusCode = getValue(chosenItem, Item::getStatus,
 			ItemStatus::getCode);
 
-		if (itemStatusCode != null) {
-			auditData.put("selectedItemStatusCode", itemStatusCode.name());
-		}
+		final var itemStatusCodeName = getValue(itemStatusCode, Enum::name);
+
+		putNonNullValue(auditData, "selectedItemStatusCode", itemStatusCodeName);
 
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
 				"Resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
