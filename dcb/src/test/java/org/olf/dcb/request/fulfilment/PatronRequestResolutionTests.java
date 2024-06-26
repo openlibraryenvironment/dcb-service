@@ -473,6 +473,7 @@ class PatronRequestResolutionTests {
 			hasBriefDescription("Resolved to item with local ID \"%s\" from Host LMS \"%s\""
 				.formatted(expectedItemId, expectedHostLms)),
 			hasNestedAuditDataProperty("selectedItem", "barcode", "6565750674"),
+			hasNestedAuditDataProperty("selectedItem", "requestable", true),
 			hasNestedAuditDataProperty("selectedItem", "statusCode", "AVAILABLE")
 		));
 	}
