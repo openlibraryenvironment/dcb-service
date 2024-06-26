@@ -75,12 +75,12 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {
+		final var chosenItem = getValue(resolution, Resolution::getChosenItem);
+
 		// Do not audit a resolution when an item hasn't been chosen
-		if (resolution.getChosenItem() == null) {
+		if (chosenItem == null) {
 			return Mono.just(resolution);
 		}
-
-		final var chosenItem = resolution.getChosenItem();
 
 		final var auditData = new HashMap<String, Object>();
 
