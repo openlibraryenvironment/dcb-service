@@ -93,10 +93,13 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		final var itemStatusCode = getValue(chosenItem, Item::getStatus,
 			ItemStatus::getCode);
 
+		// For values that could be "unknown", "null" is used as a differentiating default
 		final var presentableItem = PresentableItem.builder()
 			.barcode(getValueOrDefault(chosenItem, Item::getBarcode, "Unknown"))
 			.statusCode(getValueOrDefault(itemStatusCode, Enum::name, "null"))
 			.requestable(getValueOrDefault(chosenItem, Item::getIsRequestable, false))
+			.localItemType(getValueOrDefault(chosenItem, Item::getLocalItemType, "null"))
+			.canonicalItemType(getValueOrDefault(chosenItem, Item::getCanonicalItemType, "null"))
 			.build();
 
 		putNonNullValue(auditData, "selectedItem", presentableItem);
@@ -198,5 +201,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		String barcode;
 		String statusCode;
 		Boolean requestable;
+		String localItemType;
+		String canonicalItemType;
 	}
 }

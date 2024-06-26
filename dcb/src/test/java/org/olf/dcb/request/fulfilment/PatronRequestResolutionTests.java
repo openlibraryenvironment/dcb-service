@@ -474,7 +474,9 @@ class PatronRequestResolutionTests {
 				.formatted(expectedItemId, expectedHostLms)),
 			hasNestedAuditDataProperty("selectedItem", "barcode", "6565750674"),
 			hasNestedAuditDataProperty("selectedItem", "requestable", true),
-			hasNestedAuditDataProperty("selectedItem", "statusCode", "AVAILABLE")
+			hasNestedAuditDataProperty("selectedItem", "statusCode", "AVAILABLE"),
+			hasNestedAuditDataProperty("selectedItem", "localItemType", "null"),
+			hasNestedAuditDataProperty("selectedItem", "canonicalItemType", "UNKNOWN")
 		));
 	}
 
