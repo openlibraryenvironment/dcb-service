@@ -100,6 +100,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.requestable(getValueOrDefault(chosenItem, Item::getIsRequestable, false))
 			.localItemType(getValueOrDefault(chosenItem, Item::getLocalItemType, "null"))
 			.canonicalItemType(getValueOrDefault(chosenItem, Item::getCanonicalItemType, "null"))
+			.holdCount(getValueOrDefault(chosenItem, Item::getHoldCount, 0))
 			.build();
 
 		putNonNullValue(auditData, "selectedItem", presentableItem);
@@ -203,5 +204,6 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		Boolean requestable;
 		String localItemType;
 		String canonicalItemType;
+		Integer holdCount;
 	}
 }

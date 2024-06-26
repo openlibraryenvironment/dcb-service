@@ -476,7 +476,8 @@ class PatronRequestResolutionTests {
 			hasNestedAuditDataProperty("selectedItem", "requestable", true),
 			hasNestedAuditDataProperty("selectedItem", "statusCode", "AVAILABLE"),
 			hasNestedAuditDataProperty("selectedItem", "localItemType", "null"),
-			hasNestedAuditDataProperty("selectedItem", "canonicalItemType", "UNKNOWN")
+			hasNestedAuditDataProperty("selectedItem", "canonicalItemType", "UNKNOWN"),
+			hasNestedAuditDataProperty("selectedItem", "holdCount", 0)
 		));
 	}
 
