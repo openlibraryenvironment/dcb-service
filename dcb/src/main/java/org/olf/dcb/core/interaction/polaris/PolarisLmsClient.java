@@ -352,6 +352,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.just(patronId)
 			.delayElement(Duration.ofSeconds(delay))
 			.flatMap(ApplicationServices::listPatronLocalHolds)
+			.doOnSuccess(resp -> log.info("Full log resp of getting hold after placing in {}: {}", getHostLmsCode(), resp))
+			.doOnError(error -> log.error("Full log resp of getting hold after placing in {}", getHostLmsCode(), error))
 			.doOnNext(logLocalHolds())
 			.flatMap(holds -> processHolds(holds, bibId, activationDate, note, patronId, parameters));
 	}

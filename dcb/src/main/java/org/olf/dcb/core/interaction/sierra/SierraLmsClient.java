@@ -794,11 +794,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.flatMap(holdPost -> Mono.from(client.placeHoldRequest(parameters.getLocalPatronId(), holdPost)))
 			.then(Mono.defer(() -> getPatronHoldRequestId(parameters.getLocalPatronId(),
 					recordNumber, parameters.getNote(), parameters.getPatronRequestId()))
+				.doOnSuccess(resp -> log.info("Full log resp of getting hold after placing in {}: {}", getHostLmsCode(), resp))
+				.doOnError(e -> log.error("Full log resp of getting hold after placing in {}", getHostLmsCode(), e))
 				.doOnError(e -> log.debug("Retry attempt: " + retryCount.incrementAndGet()))
 				.retry(getHoldsRetryAttempts))
 			.doOnSuccess(__ -> log.info("Successfully got hold after {} attempts", retryCount.get()))
 			// If we were lucky enough to get back an Item ID, go fetch the barcode, otherwise this is just a bib or volume request
 			.flatMap(localRequest -> addBarcodeIfItemIdPresent(localRequest) )
+			.doOnError(e -> log.error("Full log resp of getting hold after placing in {}", getHostLmsCode(), e))
 			.onErrorResume(NullPointerException.class, error -> {
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
