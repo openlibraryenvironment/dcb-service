@@ -7,13 +7,14 @@ import static org.zalando.problem.Status.INTERNAL_SERVER_ERROR;
 import java.net.URI;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
 import org.zalando.problem.AbstractThrowableProblem;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
+import io.micronaut.http.HttpVersion;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
@@ -34,7 +35,8 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 			"responseBody", interpretResponseBody(responseException),
 			"requestMethod", getValueOrDefault(request, HttpRequest::getMethodName, "Unknown"),
 			"requestUrl", getValue(request, HttpRequest::getUri, URI::toString, "Unknown"),
-			"requestBody", interpretRequestBody(request)
+			"requestBody", interpretRequestBody(request),
+			"httpVersion", getValue(request, HttpRequest::getHttpVersion, HttpVersion::name, "Unknown")
 		);
 
 		parameters.forEach((key, value) -> log.error("{}: {}", key, value));

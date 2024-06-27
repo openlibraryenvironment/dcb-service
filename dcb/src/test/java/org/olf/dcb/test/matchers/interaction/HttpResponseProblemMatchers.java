@@ -58,4 +58,8 @@ public class HttpResponseProblemMatchers {
 	public static Matcher<ThrowableProblem> hasNoRequestBody() {
 		return hasRequestBody(is("No body"));
 	}
+
+	public static Matcher<ThrowableProblem> hasHttpVersion(String expectedValue) {
+		return hasParameters(hasEntry(equalTo("httpVersion"), is(expectedValue)));
+	}
 }
