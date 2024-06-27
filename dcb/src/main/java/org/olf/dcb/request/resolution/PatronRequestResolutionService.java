@@ -3,6 +3,7 @@ package org.olf.dcb.request.resolution;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionStrategy.MANUAL_SELECTION;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
@@ -16,7 +17,6 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
@@ -142,21 +142,20 @@ public class PatronRequestResolutionService {
 	}
 
 	private Resolution filterItems(Resolution resolution) {
-		final var patronRequest = PropertyAccessUtils.getValueOrNull(resolution, Resolution::getPatronRequest);
-		final var patron = PropertyAccessUtils.getValueOrNull(patronRequest, PatronRequest::getPatron);
-		final var optionalHomeIdentity = PropertyAccessUtils.getValueOrNull(patron, Patron::getHomeIdentity);
+		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
+		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
+		final var optionalHomeIdentity = getValueOrNull(patron, Patron::getHomeIdentity);
 		
 		if (optionalHomeIdentity.isEmpty()) {
-			throw new NoHomeIdentityException(
-                    PropertyAccessUtils.getValueOrNull(patron, Patron::getId),
-				PropertyAccessUtils.getValueOrNull(patron, Patron::getPatronIdentities));
+			throw new NoHomeIdentityException(getValueOrNull(patron, Patron::getId),
+				getValueOrNull(patron, Patron::getPatronIdentities));
 		}
 
 		final var homeIdentity = optionalHomeIdentity.get();
 
-		final var borrowingAgency = PropertyAccessUtils.getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);
+		final var borrowingAgency = getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);
 
-		final var borrowingAgencyCode = PropertyAccessUtils.getValueOrNull(borrowingAgency, DataAgency::getCode);
+		final var borrowingAgencyCode = getValueOrNull(borrowingAgency, DataAgency::getCode);
 
 		if (borrowingAgencyCode == null) {
 			log.warn("Borrowing agency code during resolution is null");
@@ -172,7 +171,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private static boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
-		final var itemAgencyCode = PropertyAccessUtils.getValueOrNull(item, Item::getAgencyCode);
+		final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
 
 		return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
 	}

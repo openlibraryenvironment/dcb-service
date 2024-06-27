@@ -5,6 +5,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Optional;
@@ -42,7 +43,7 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		final var requestStatus = PropertyAccessUtils.getValueOrNull(ctx.getPatronRequest(), PatronRequest::getStatus);
+		final var requestStatus = getValueOrNull(ctx.getPatronRequest(), PatronRequest::getStatus);
 
 		if (requestStatus == null) {
 			return false;

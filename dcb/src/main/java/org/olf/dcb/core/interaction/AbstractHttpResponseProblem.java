@@ -1,7 +1,7 @@
 package org.olf.dcb.core.interaction;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static org.zalando.problem.Status.INTERNAL_SERVER_ERROR;
 
 import java.net.URI;
@@ -45,7 +45,7 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 	}
 
 	private static Object interpretResponseBody(HttpClientResponseException responseException) {
-		final var response = PropertyAccessUtils.getValueOrNull(responseException, HttpClientResponseException::getResponse);
+		final var response = getValueOrNull(responseException, HttpClientResponseException::getResponse);
 
 		if (response == null) {
 			return noBodyMessage();

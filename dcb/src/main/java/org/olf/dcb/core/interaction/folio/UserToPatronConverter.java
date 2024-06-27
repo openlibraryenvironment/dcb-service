@@ -2,11 +2,11 @@ package org.olf.dcb.core.interaction.folio;
 
 import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.convert.ConversionContext;
 import io.micronaut.core.convert.TypeConverter;
@@ -25,9 +25,9 @@ class UserToPatronConverter implements TypeConverter<User, Patron> {
 			.localPatronType(user.getPatronGroupName())
 			.localBarcodes(nonNullValuesList(user.getBarcode()))
 			.localNames(nonNullValuesList(
-				PropertyAccessUtils.getValueOrNull(personalDetails, User.PersonalDetails::getFirstName),
-				PropertyAccessUtils.getValueOrNull(personalDetails, User.PersonalDetails::getMiddleName),
-				PropertyAccessUtils.getValueOrNull(personalDetails, User.PersonalDetails::getLastName)
+				getValueOrNull(personalDetails, User.PersonalDetails::getFirstName),
+				getValueOrNull(personalDetails, User.PersonalDetails::getMiddleName),
+				getValueOrNull(personalDetails, User.PersonalDetails::getLastName)
 			))
 			.isBlocked(getValue(user, User::getBlocked, false))
 			.isActive(getValue(user, User::getActive, true))

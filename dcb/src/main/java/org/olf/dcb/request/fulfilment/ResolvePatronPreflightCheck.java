@@ -5,6 +5,7 @@ import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
 import java.util.ArrayList;
@@ -18,7 +19,6 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.util.StringUtils;
@@ -38,8 +38,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var hostLmsCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
-		final var localPatronId = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId);
+		final var hostLmsCode = getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
+		final var localPatronId = getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId);
 
 		return localPatronService.findLocalPatronAndAgency(localPatronId, hostLmsCode)
 			.map(function((patron, agency) -> checkPatron(patron, localPatronId, agency, hostLmsCode)))
@@ -77,7 +77,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 		final var eligibilityCheckResults = new ArrayList<CheckResult>();
 
-		final var firstBarcode = PropertyAccessUtils.getValueOrNull(patron, p -> p.getFirstBarcode(""));
+		final var firstBarcode = getValueOrNull(patron, p -> p.getFirstBarcode(""));
 
 		if (StringUtils.isEmpty(firstBarcode)) {
 			eligibilityCheckResults.add(failed("INVALID_PATRON_BARCODE",
@@ -131,7 +131,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		if (!participatingInBorrowing) {
 			agencyCheckResults.add(failed("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
 				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
-					.formatted(localPatronId, hostLmsCode, PropertyAccessUtils.getValueOrNull(agency, DataAgency::getCode))));
+					.formatted(localPatronId, hostLmsCode, getValueOrNull(agency, DataAgency::getCode))));
 		}
 
 		return agencyCheckResults;

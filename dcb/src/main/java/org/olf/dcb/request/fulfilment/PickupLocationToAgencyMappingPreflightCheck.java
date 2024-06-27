@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 
@@ -32,7 +33,7 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var pickupLocationCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
+		final var pickupLocationCode = getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
 
 		return getAgencyForPickupLocation(pickupLocationCode)
 			.map(agency -> passed())

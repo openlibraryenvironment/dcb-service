@@ -9,6 +9,7 @@ import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -307,7 +308,7 @@ public class PAPIClient {
 		BiFunction<Integer, String, Throwable> toThrowableMapper) {
 
 		final var errorCode = getValue(result, PapiResult::getPapiErrorCode, 0);
-		final var errorMessage = PropertyAccessUtils.getValueOrNull(result, PapiResult::getErrorMessage);
+		final var errorMessage = getValueOrNull(result, PapiResult::getErrorMessage);
 
 		// Any positive number: Represents either the count of rows returned or the number of rows affected by the procedure.
 		// See individual procedure definitions for details.

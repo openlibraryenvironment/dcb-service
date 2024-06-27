@@ -1,11 +1,11 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ public class MaterialTypeToItemTypeMappingService {
 	private Mono<String> findMapping(Item item, String hostLmsCode) {
 		final var unknownItemType = "UNKNOWN";
 
-		final var localItemTypeCode = PropertyAccessUtils.getValueOrNull(item, Item::getLocalItemTypeCode);
+		final var localItemTypeCode = getValueOrNull(item, Item::getLocalItemTypeCode);
 
 		if (isEmpty(localItemTypeCode)) {
 			log.warn("Attempting to map null / empty local item type code for Host LMS: {}", hostLmsCode);

@@ -1,6 +1,7 @@
 package org.olf.dcb.core.api;
 
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
 import java.util.UUID;
@@ -13,6 +14,7 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.LibraryRepository;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -29,9 +31,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.storage.LibraryRepository;
-import org.olf.dcb.utils.PropertyAccessUtils;
-
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -195,11 +194,11 @@ public class AgenciesController {
 	 * @return agency received from the client with participation fields from the DB if not provided
 	 */
 	private DataAgency enrichWithExistingFields(DataAgency updatedAgency, DataAgency existingAgency) {
-		if (PropertyAccessUtils.getValueOrNull(updatedAgency, DataAgency::getIsSupplyingAgency) == null) {
+		if (getValueOrNull(updatedAgency, DataAgency::getIsSupplyingAgency) == null) {
 			updatedAgency.setIsSupplyingAgency(existingAgency.getIsSupplyingAgency());
 		}
 
-		if (PropertyAccessUtils.getValueOrNull(updatedAgency, DataAgency::getIsBorrowingAgency) == null) {
+		if (getValueOrNull(updatedAgency, DataAgency::getIsBorrowingAgency) == null) {
 			updatedAgency.setIsBorrowingAgency(existingAgency.getIsBorrowingAgency());
 		}
 

@@ -17,6 +17,7 @@ import java.util.function.Function;
 
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.duplicate-requests.enabled", defaultValue = "true", notEquals = "false")
@@ -36,10 +37,10 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final Instant thisRequestInstant = Instant.now();
-		final String thisPickupLocationCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
-		final String thisHostLmsCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
-		final String thisPatronLocalId = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId);
-		final UUID thisBibClusterId = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getCitation).getBibClusterId();
+		final String thisPickupLocationCode = getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
+		final String thisHostLmsCode = getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
+		final String thisPatronLocalId = getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId);
+		final UUID thisBibClusterId = getValueOrNull(command, PlacePatronRequestCommand::getCitation).getBibClusterId();
 
 		return checkRequestFor(thisHostLmsCode, thisPatronLocalId, thisBibClusterId, thisRequestInstant)
 			.map( result(thisPickupLocationCode, thisHostLmsCode, thisPatronLocalId, thisBibClusterId) )

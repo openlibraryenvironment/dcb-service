@@ -3,6 +3,7 @@ package org.olf.dcb.devtools.interaction.dummy;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.io.StringWriter;
 import java.time.Instant;
@@ -193,8 +194,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		log.info("findVirtualPatron({})", patron);
 
-		final var uniqueId = PropertyAccessUtils.getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
-		final var barcode = PropertyAccessUtils.getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
+		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
+		final var barcode = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
 		// Pretend that we already know everything about all patrons, this will skip the
 		// patron create step

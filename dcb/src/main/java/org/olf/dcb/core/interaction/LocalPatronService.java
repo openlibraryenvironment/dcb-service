@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.core.publisher.Mono.defer;
 
 import org.olf.dcb.core.HostLmsService;
@@ -8,7 +9,6 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +55,7 @@ public class LocalPatronService {
 		log.debug("Finding home location mapping for host LMS code: \"{}\", patron: {}", hostLmsCode, patron);
 
 		return locationToAgencyMappingService.findLocationToAgencyMapping(
-				hostLmsCode, PropertyAccessUtils.getValueOrNull(patron, Patron::getLocalHomeLibraryCode))
+				hostLmsCode, getValueOrNull(patron, Patron::getLocalHomeLibraryCode))
 			.map(ReferenceValueMapping::getToValue);
 	}
 

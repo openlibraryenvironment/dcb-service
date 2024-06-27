@@ -2,11 +2,11 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 
 import org.olf.dcb.core.svc.LocationService;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -23,7 +23,7 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var pickupLocationCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
+		final var pickupLocationCode = getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
 
 		return locationService.findByCode(pickupLocationCode)
 			.switchIfEmpty(Mono.defer(() -> locationService.findById(pickupLocationCode)))

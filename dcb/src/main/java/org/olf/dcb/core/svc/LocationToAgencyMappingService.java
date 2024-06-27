@@ -2,7 +2,9 @@ package org.olf.dcb.core.svc;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.core.publisher.Mono.empty;
+import static reactor.core.publisher.Mono.justOrEmpty;
 import static reactor.function.TupleUtils.function;
 
 import org.olf.dcb.core.HostLmsService;
@@ -10,7 +12,6 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -34,8 +35,7 @@ public class LocationToAgencyMappingService {
 
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
-		final var locationCode = trimToNull(
-                PropertyAccessUtils.getValueOrNull(item, Item::getLocationCode));
+		final var locationCode = trimToNull(getValueOrNull(item, Item::getLocationCode));
 
 		if (isEmpty(locationCode)) {
 			return empty();
@@ -77,8 +77,7 @@ public class LocationToAgencyMappingService {
 		log.debug("Attempting to use default agency for Host LMS: {}", hostLmsCode);
 
 		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap(client -> Mono.justOrEmpty(
-                    PropertyAccessUtils.getValueOrNull(client, HostLmsClient::getDefaultAgencyCode)))
+			.flatMap(client -> justOrEmpty(getValueOrNull(client, HostLmsClient::getDefaultAgencyCode)))
 			.doOnSuccess(defaultAgencyCode -> log.debug(
 				"Found default agency code {} for Host LMS {}", defaultAgencyCode, hostLmsCode))
 			.doOnError(error -> log.error(

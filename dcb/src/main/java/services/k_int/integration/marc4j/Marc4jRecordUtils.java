@@ -3,6 +3,7 @@ package services.k_int.integration.marc4j;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.hasText;
 import static java.util.Collections.emptyList;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -116,7 +117,7 @@ public interface Marc4jRecordUtils {
 		final var generalInformationField = marcRecord.getVariableField("008");
 
 		if (generalInformationField instanceof ControlField generalInfoControlField) {
-			final var generalInfo = PropertyAccessUtils.getValueOrNull(generalInfoControlField, ControlField::getData);
+			final var generalInfo = getValueOrNull(generalInfoControlField, ControlField::getData);
 
 			if (StringUtils.isEmpty(generalInfo)) {
 				return emptyList();

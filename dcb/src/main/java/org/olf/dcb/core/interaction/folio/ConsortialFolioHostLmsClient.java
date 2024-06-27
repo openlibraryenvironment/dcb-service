@@ -26,6 +26,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
@@ -36,7 +37,20 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.FailedToGetItemsException;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
@@ -51,7 +65,6 @@ import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -266,8 +279,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.status(status)
 				.dueDate(holding.getDueDate())
 				.holdCount(holding.getTotalHoldRequests())
-				.localItemType(PropertyAccessUtils.getValueOrNull(holding.getMaterialType(), MaterialType::getName))
-				.localItemTypeCode(PropertyAccessUtils.getValueOrNull(holding.getMaterialType(), MaterialType::getName))
+				.localItemType(getValueOrNull(holding.getMaterialType(), MaterialType::getName))
+				.localItemTypeCode(getValueOrNull(holding.getMaterialType(), MaterialType::getName))
 				.location(Location.builder()
 					.name(holding.getLocation())
 					.code(holding.getLocationCode())
@@ -287,7 +300,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var transactionId = UUID.randomUUID().toString();
 
-		final var agencyCode = PropertyAccessUtils.getValueOrNull(parameters.getPickupAgency(), Agency::getCode);
+		final var agencyCode = getValueOrNull(parameters.getPickupAgency(), Agency::getCode);
 		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
 
 		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
@@ -304,7 +317,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
 					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
-					.servicePointName(PropertyAccessUtils.getValueOrNull(parameters.getPickupAgency(), Agency::getName))
+					.servicePointName(getValueOrNull(parameters.getPickupAgency(), Agency::getName))
 					.libraryCode(agencyCode)
 					.build())
 				.build());
@@ -489,7 +502,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		try {
-			final var barcodeListString = PropertyAccessUtils.getValueOrNull(patron,
+			final var barcodeListString = getValueOrNull(patron,
 				org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
 			final var firstBarcodeInList = parseList(barcodeListString).get(0);
@@ -500,7 +513,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			return findUserByBarcode(firstBarcodeInList);
 		} catch (NoHomeIdentityException | NoHomeBarcodeException e) {
 			return Mono.error(FailedToFindVirtualPatronException.noBarcode(
-				PropertyAccessUtils.getValueOrNull(patron, org.olf.dcb.core.model.Patron::getId)));
+				getValueOrNull(patron, org.olf.dcb.core.model.Patron::getId)));
 		}
 	}
 
@@ -522,7 +535,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private Mono<Patron> mapFirstUserToPatron(UserCollection response,
 		CqlQuery query, Mono<Patron> emptyReturnValue) {
 
-		final var users = PropertyAccessUtils.getValueOrNull(response, UserCollection::getUsers);
+		final var users = getValueOrNull(response, UserCollection::getUsers);
 
 		if (isEmpty(users)) {
 			return emptyReturnValue;
@@ -657,7 +670,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static HostLmsRequest mapToHostLmsRequest(String transactionId,
 		TransactionStatus transactionStatus) {
 
-		final var status = PropertyAccessUtils.getValueOrNull(transactionStatus, TransactionStatus::getStatus);
+		final var status = getValueOrNull(transactionStatus, TransactionStatus::getStatus);
 
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
 		final var mappedStatus = switch(status) {
@@ -696,7 +709,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static HostLmsItem mapToHostLmsItem(String itemId,
 		TransactionStatus transactionStatus, String transactionId) {
 
-		final var status = PropertyAccessUtils.getValueOrNull(transactionStatus, TransactionStatus::getStatus);
+		final var status = getValueOrNull(transactionStatus, TransactionStatus::getStatus);
 
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
 		final var mappedStatus = switch(status) {

@@ -7,10 +7,11 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
 import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
@@ -20,22 +21,33 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
-import io.micronaut.http.*;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
@@ -51,12 +63,14 @@ import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
-import org.olf.dcb.utils.PropertyAccessUtils;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -65,6 +79,10 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
@@ -521,9 +539,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.localId(localRequestId)
 				.status(checkHoldStatus(hold.getSysHoldStatus()))
 				.rawStatus(hold.getSysHoldStatus())
-				.requestedItemId(PropertyAccessUtils.getValueOrNull(hold, LibraryHold::getItemRecordID, Object::toString))
-				.requestedItemBarcode(
-					PropertyAccessUtils.getValueOrNull(hold, LibraryHold::getItemBarcode))
+				.requestedItemId(getValueOrNull(hold, LibraryHold::getItemRecordID, Object::toString))
+				.requestedItemBarcode(getValueOrNull(hold, LibraryHold::getItemBarcode))
 				.build());
 	}
 
@@ -722,7 +739,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		final var barcodeListAsString = PropertyAccessUtils.getValueOrNull(patron,
+		final var barcodeListAsString = getValueOrNull(patron,
 			org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
 		final var firstBarcodeInList = parseList(barcodeListAsString).get(0);
@@ -851,13 +868,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
 		log.info("getPatronCirculationBlocks: {}", patron);
 
-		final var barcode = PropertyAccessUtils.getValueOrNull(patron, Patron::getFirstBarcode);
+		final var barcode = getValueOrNull(patron, Patron::getFirstBarcode);
 
 		return PAPIService.getPatronCirculationBlocks(barcode);
 	}
 
 	private static Patron isBlocked(Patron patron, PatronCirculationBlocksResult blocks) {
-		final var canCirculate = PropertyAccessUtils.getValue(blocks,
+		final var canCirculate = getValue(blocks,
 			PatronCirculationBlocksResult::getCanPatronCirculate, true);
 
 		return patron.setIsBlocked(!canCirculate);
@@ -917,10 +934,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					: "")
 				.localStatus( getLocalStatus(response) )
 				.rawLocalStatus(getValue(response, LibraryHold::getSysHoldStatus, Object::toString, ""))
-				.requestedItemId(
-					PropertyAccessUtils.getValueOrNull(response, LibraryHold::getItemRecordID, Object::toString))
-				.requestedItemBarcode(
-					PropertyAccessUtils.getValueOrNull(response, LibraryHold::getItemBarcode))
+				.requestedItemId(getValueOrNull(response, LibraryHold::getItemRecordID, Object::toString))
+				.requestedItemBarcode(getValueOrNull(response, LibraryHold::getItemBarcode))
 				.build());
 	}
 

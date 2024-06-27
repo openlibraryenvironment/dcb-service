@@ -1,32 +1,32 @@
 package org.olf.dcb.request.workflow;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.storage.SupplierRequestRepository;
-import org.olf.dcb.utils.PropertyAccessUtils;
-
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import reactor.core.publisher.Mono;
-
 import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.storage.SupplierRequestRepository;
+
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Prototype
@@ -60,9 +60,9 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 
-		final var patronRequest = PropertyAccessUtils.getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
-		final var status = PropertyAccessUtils.getValueOrNull(patronRequest, PatronRequest::getStatus);
-		final var localStatus = PropertyAccessUtils.getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus);
+		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
+		final var status = getValueOrNull(patronRequest, PatronRequest::getStatus);
+		final var localStatus = getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus);
 
 		if (status == null || localStatus == null) return false;
 
@@ -117,13 +117,13 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		// borrower data
 		auditData.put("dcb-patron-request-status-on-entry", status);
 		auditData.put("local-patron-request-status-on-entry", localRequestStatus);
-		auditData.put("virtual-item-status-on-entry", PropertyAccessUtils.getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus));
+		auditData.put("virtual-item-status-on-entry", getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus));
 
 		// lender data
-		final var supplierRequest = PropertyAccessUtils.getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
-		auditData.put("dcb-supplier-request-status-on-entry", PropertyAccessUtils.getValueOrNull(supplierRequest, SupplierRequest::getStatusCode));
-		auditData.put("local-supplier-request-status-on-entry", PropertyAccessUtils.getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus));
-		auditData.put("local-supplier-item-status-on-entry", PropertyAccessUtils.getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus));
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		auditData.put("dcb-supplier-request-status-on-entry", getValueOrNull(supplierRequest, SupplierRequest::getStatusCode));
+		auditData.put("local-supplier-request-status-on-entry", getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus));
+		auditData.put("local-supplier-item-status-on-entry", getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus));
 
 		return auditData;
 	}
@@ -131,7 +131,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> verifySupplierCancellation() {
 		return ctx -> {
 
-			final var supplierRequest = PropertyAccessUtils.getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+			final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
 			final var result = getName() + " : verification result";
 
 			return fetchLocal(supplierRequest)
