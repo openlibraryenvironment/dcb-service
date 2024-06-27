@@ -1,7 +1,5 @@
 package org.olf.dcb.core.svc;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
@@ -10,6 +8,7 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +42,8 @@ public class AgencyService {
 	}
 
 	private Mono<DataHostLms> findHostLms(DataAgency agency) {
-		final var hostLmsId = getValue(getValue(agency, Agency::getHostLms), HostLms::getId);
+		final var hostLmsId = PropertyAccessUtils.getValueOrNull(
+                PropertyAccessUtils.getValueOrNull(agency, Agency::getHostLms), HostLms::getId);
 
 		if (hostLmsId == null) {
 			return Mono.empty();

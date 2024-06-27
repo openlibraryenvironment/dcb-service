@@ -15,6 +15,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -26,7 +27,6 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 @Slf4j
 @Prototype
@@ -60,9 +60,9 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 
-		final var patronRequest = getValue(ctx, RequestWorkflowContext::getPatronRequest);
-		final var status = getValue(patronRequest, PatronRequest::getStatus);
-		final var localStatus = getValue(patronRequest, PatronRequest::getLocalRequestStatus);
+		final var patronRequest = PropertyAccessUtils.getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
+		final var status = PropertyAccessUtils.getValueOrNull(patronRequest, PatronRequest::getStatus);
+		final var localStatus = PropertyAccessUtils.getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus);
 
 		if (status == null || localStatus == null) return false;
 
@@ -117,13 +117,13 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		// borrower data
 		auditData.put("dcb-patron-request-status-on-entry", status);
 		auditData.put("local-patron-request-status-on-entry", localRequestStatus);
-		auditData.put("virtual-item-status-on-entry", getValue(patronRequest, PatronRequest::getLocalItemStatus));
+		auditData.put("virtual-item-status-on-entry", PropertyAccessUtils.getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus));
 
 		// lender data
-		final var supplierRequest = getValue(ctx, RequestWorkflowContext::getSupplierRequest);
-		auditData.put("dcb-supplier-request-status-on-entry", getValue(supplierRequest, SupplierRequest::getStatusCode));
-		auditData.put("local-supplier-request-status-on-entry", getValue(supplierRequest, SupplierRequest::getLocalStatus));
-		auditData.put("local-supplier-item-status-on-entry", getValue(supplierRequest, SupplierRequest::getLocalItemStatus));
+		final var supplierRequest = PropertyAccessUtils.getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		auditData.put("dcb-supplier-request-status-on-entry", PropertyAccessUtils.getValueOrNull(supplierRequest, SupplierRequest::getStatusCode));
+		auditData.put("local-supplier-request-status-on-entry", PropertyAccessUtils.getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus));
+		auditData.put("local-supplier-item-status-on-entry", PropertyAccessUtils.getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus));
 
 		return auditData;
 	}
@@ -131,7 +131,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> verifySupplierCancellation() {
 		return ctx -> {
 
-			final var supplierRequest = getValue(ctx, RequestWorkflowContext::getSupplierRequest);
+			final var supplierRequest = PropertyAccessUtils.getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
 			final var result = getName() + " : verification result";
 
 			return fetchLocal(supplierRequest)
@@ -155,9 +155,9 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 			auditData.put("is-local-supplier-request-cancelled", isCancelled);
 			auditData.put("local-supplier-request-mapped-status",
-				getValueOrDefault(request, HostLmsRequest::getStatus, "No local mapped status available"));
+				getValue(request, HostLmsRequest::getStatus, "No local mapped status available"));
 			auditData.put("local-supplier-request-raw-status",
-				getValueOrDefault(request, HostLmsRequest::getRawStatus, "No local raw status available"));
+				getValue(request, HostLmsRequest::getRawStatus, "No local raw status available"));
 			auditData.put("local-supplier-request", request);
 
 			return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), resultString, auditData)
@@ -180,7 +180,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 			var auditData = new HashMap<String, Object>();
 			auditData.put("is-local-supplier-request-cancelled", FALSE);
-			auditData.put("ErrorMessage", getValueOrDefault(error, Throwable::getMessage, "No error message available"));
+			auditData.put("ErrorMessage", getValue(error, Throwable::getMessage, "No error message available"));
 			auditData.put("Full error", error.toString());
 
 			return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), result, auditData).thenReturn(ctx);

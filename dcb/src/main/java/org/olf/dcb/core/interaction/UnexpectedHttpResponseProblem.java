@@ -2,8 +2,8 @@ package org.olf.dcb.core.interaction;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
+import org.olf.dcb.utils.PropertyAccessUtils;
 import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.http.HttpRequest;
@@ -31,8 +31,8 @@ public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 			return "Unexpected response from Host LMS: \"%s\"".formatted(hostLmsCode);
 		} else {
 			return "Unexpected response from: %s %s".formatted(
-				getValue(request, HttpRequest::getMethodName),
-				getValue(request, HttpRequest::getPath));
+				PropertyAccessUtils.getValueOrNull(request, HttpRequest::getMethodName),
+				PropertyAccessUtils.getValueOrNull(request, HttpRequest::getPath));
 		}
 	}
 }

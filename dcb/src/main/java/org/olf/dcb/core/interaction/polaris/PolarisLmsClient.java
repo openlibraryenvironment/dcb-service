@@ -10,7 +10,7 @@ import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRe
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
@@ -51,6 +51,7 @@ import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.RawSourceRepository;
+import org.olf.dcb.utils.PropertyAccessUtils;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 
@@ -520,8 +521,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.localId(localRequestId)
 				.status(checkHoldStatus(hold.getSysHoldStatus()))
 				.rawStatus(hold.getSysHoldStatus())
-				.requestedItemId(getValue(hold, LibraryHold::getItemRecordID, Object::toString))
-				.requestedItemBarcode(getValue(hold, LibraryHold::getItemBarcode))
+				.requestedItemId(PropertyAccessUtils.getValueOrNull(hold, LibraryHold::getItemRecordID, Object::toString))
+				.requestedItemBarcode(
+					PropertyAccessUtils.getValueOrNull(hold, LibraryHold::getItemBarcode))
 				.build());
 	}
 
@@ -720,7 +722,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		final var barcodeListAsString = getValue(patron,
+		final var barcodeListAsString = PropertyAccessUtils.getValueOrNull(patron,
 			org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
 		final var firstBarcodeInList = parseList(barcodeListAsString).get(0);
@@ -849,13 +851,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
 		log.info("getPatronCirculationBlocks: {}", patron);
 
-		final var barcode = getValue(patron, Patron::getFirstBarcode);
+		final var barcode = PropertyAccessUtils.getValueOrNull(patron, Patron::getFirstBarcode);
 
 		return PAPIService.getPatronCirculationBlocks(barcode);
 	}
 
 	private static Patron isBlocked(Patron patron, PatronCirculationBlocksResult blocks) {
-		final var canCirculate = getValueOrDefault(blocks,
+		final var canCirculate = PropertyAccessUtils.getValue(blocks,
 			PatronCirculationBlocksResult::getCanPatronCirculate, true);
 
 		return patron.setIsBlocked(!canCirculate);
@@ -915,8 +917,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					: "")
 				.localStatus( getLocalStatus(response) )
 				.rawLocalStatus(getValue(response, LibraryHold::getSysHoldStatus, Object::toString, ""))
-				.requestedItemId(getValue(response, LibraryHold::getItemRecordID, Object::toString))
-				.requestedItemBarcode(getValue(response, LibraryHold::getItemBarcode))
+				.requestedItemId(
+					PropertyAccessUtils.getValueOrNull(response, LibraryHold::getItemRecordID, Object::toString))
+				.requestedItemBarcode(
+					PropertyAccessUtils.getValueOrNull(response, LibraryHold::getItemBarcode))
 				.build());
 	}
 

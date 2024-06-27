@@ -2,7 +2,6 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.function.TupleUtils.consumer;
 import static reactor.function.TupleUtils.function;
 
@@ -21,6 +20,7 @@ import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Requires;
@@ -61,14 +61,14 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			// Many of these errors are duplicated from the resolve patron preflight check
 			// This is due to both having to resolve the patron before performing the checks
 			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error,
-				getValue(command, PlacePatronRequestCommand::getRequestorLocalId)))
+				PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorResume(CannotFindClusterRecordException.class, this::clusterRecordNotFound)
 			.onErrorResume(NoBibsForClusterRecordException.class, this::clusterRecordNotFound)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
-				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
+				PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.defaultIfEmpty(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
 				"Failed due to empty reactive chain")))
 			.timeout(Duration.ofSeconds(30), Mono.just(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST", "Failed due to timeout"))));
@@ -78,8 +78,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		log.debug("mapToPatron {}", command);
 
 		return localPatronService.findLocalPatronAndAgency(
-				getValue(command, PlacePatronRequestCommand::getRequestorLocalId),
-				getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
+				PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId),
+				PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
 			.doOnSuccess(consumer((patron, agency) -> log.debug("Finished fetching patron: {} and agency: {}", patron, agency)))
 			.map(function((patron, agency) -> {
 				final var homeIdentity = PatronIdentity.builder()
@@ -96,7 +96,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	private List<CheckResult> checkResolution(Resolution resolution) {
 		log.debug("checkResolution({})", resolution);
 
-		final var chosenItem = getValue(resolution, Resolution::getChosenItem);
+		final var chosenItem = PropertyAccessUtils.getValueOrNull(resolution, Resolution::getChosenItem);
 
 		if (chosenItem == null) {
 			return List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
@@ -111,14 +111,14 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	private Mono<List<CheckResult>> clusterRecordNotFound(CannotFindClusterRecordException error) {
 		return Mono.just(List.of(
 			failed("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
-				.formatted(getValue(error, CannotFindClusterRecordException::getClusterRecordId)))
+				.formatted(PropertyAccessUtils.getValueOrNull(error, CannotFindClusterRecordException::getClusterRecordId)))
 		));
 	}
 
 	private Mono<List<CheckResult>> clusterRecordNotFound(NoBibsForClusterRecordException error) {
 		return Mono.just(List.of(
 			failed("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
-				.formatted(getValue(error, NoBibsForClusterRecordException::getClusterRecordId)))
+				.formatted(PropertyAccessUtils.getValueOrNull(error, NoBibsForClusterRecordException::getClusterRecordId)))
 		));
 	}
 

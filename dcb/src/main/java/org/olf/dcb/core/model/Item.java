@@ -5,10 +5,11 @@ import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.time.Instant;
 import java.util.Comparator;
+
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -63,7 +64,7 @@ public class Item implements Comparable<Item> {
 	}
 
 	public String getLocationCode() {
-		return getValue(location, Location::getCode);
+		return PropertyAccessUtils.getValueOrNull(location, Location::getCode);
 	}
 
 	public boolean hasAgency() {
@@ -71,11 +72,11 @@ public class Item implements Comparable<Item> {
 	}
 
 	public boolean AgencyIsSupplying() {
-		return getValueOrDefault(agency, Agency::getIsSupplyingAgency, false);
+		return getValue(agency, Agency::getIsSupplyingAgency, false);
 	}
 
 	public String getAgencyCode() {
-		return getValue(agency, Agency::getCode);
+		return PropertyAccessUtils.getValueOrNull(agency, Agency::getCode);
 	}
 
 	public boolean hasHostLms() {
@@ -83,11 +84,11 @@ public class Item implements Comparable<Item> {
 	}
 
 	public HostLms getHostLms() {
-		return getValue(agency, Agency::getHostLms);
+		return PropertyAccessUtils.getValueOrNull(agency, Agency::getHostLms);
 	}
 
 	public String getHostLmsCode() {
-		return getValue(getHostLms(), HostLms::getCode);
+		return PropertyAccessUtils.getValueOrNull(getHostLms(), HostLms::getCode);
 	}
 
 	@Override

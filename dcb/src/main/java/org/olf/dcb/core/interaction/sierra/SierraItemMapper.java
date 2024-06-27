@@ -2,7 +2,6 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,6 +13,7 @@ import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.rules.ObjectRuleset;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -66,8 +66,8 @@ public class SierraItemMapper {
 	public Mono<Item> mapResultToItem( SierraItem itemResult, String hostLmsCode, String localBibId, @NonNull Optional<ObjectRuleset> itemSuppressionRules ) {
 		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
 
-		final var statusCode = getValue(itemResult.getStatus(), Status::getCode);
-		final var dueDate = getValue(itemResult.getStatus(), Status::getDuedate);
+		final var statusCode = PropertyAccessUtils.getValueOrNull(itemResult.getStatus(), Status::getCode);
+		final var dueDate = PropertyAccessUtils.getValueOrNull(itemResult.getStatus(), Status::getDuedate);
 
 		final String rawVolumeStatement = extractRawVolumeStatement(itemResult.getVarFields());
 		final String parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);

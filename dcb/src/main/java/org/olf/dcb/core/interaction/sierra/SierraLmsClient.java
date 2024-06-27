@@ -22,7 +22,6 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.text.SimpleDateFormat;
@@ -42,7 +41,6 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.micronaut.http.HttpStatus;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.BranchRecord;
 import org.olf.dcb.configuration.ConfigurationRecord;
@@ -70,6 +68,7 @@ import org.olf.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.dcb.tracking.model.PatronTrackingEvent;
 import org.olf.dcb.tracking.model.PickupTrackingEvent;
 import org.olf.dcb.tracking.model.TrackingRecord;
+import org.olf.dcb.utils.PropertyAccessUtils;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
@@ -629,7 +628,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		// Look up virtual patron using generated unique ID string
-		final var uniqueId = getValue(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
+		final var uniqueId = PropertyAccessUtils.getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 
 		return patronFind("u", uniqueId);
 	}

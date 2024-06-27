@@ -5,7 +5,6 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +17,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -42,7 +42,7 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		final var requestStatus = getValue(ctx.getPatronRequest(), PatronRequest::getStatus);
+		final var requestStatus = PropertyAccessUtils.getValueOrNull(ctx.getPatronRequest(), PatronRequest::getStatus);
 
 		if (requestStatus == null) {
 			return false;
@@ -52,7 +52,7 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 			return false;
 		}
 
-		final var localHoldStatus = getValueOrDefault(ctx.getSupplierRequest(),
+		final var localHoldStatus = getValue(ctx.getSupplierRequest(),
 			SupplierRequest::getLocalStatus, "");
 
 		// The local request may go into transit before DCB has a chance to detect confirmation

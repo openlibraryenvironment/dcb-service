@@ -1,7 +1,5 @@
 package org.olf.dcb.request.resolution;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -10,6 +8,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.storage.LocationRepository;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -58,10 +57,10 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 	}
 
 	private ItemWithDistance calculateDistanceFromPickupLocation(ItemWithDistance iwd) {
-		final var item = getValue(iwd, ItemWithDistance::getItem);
+		final var item = PropertyAccessUtils.getValueOrNull(iwd, ItemWithDistance::getItem);
 
-		final var agency = getValue(item, Item::getAgency);
-		final var pickupLocation = getValue(iwd, ItemWithDistance::getPickupLocation);
+		final var agency = PropertyAccessUtils.getValueOrNull(item, Item::getAgency);
+		final var pickupLocation = PropertyAccessUtils.getValueOrNull(iwd, ItemWithDistance::getPickupLocation);
 
 		iwd.setDistance(calculateDistance(agency, pickupLocation));
 		log.debug("Distance:{}", iwd.getDistance());
@@ -72,11 +71,11 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 	private static double calculateDistance(DataAgency agency, Location pickupLocation) {
 		log.debug("calculateDistance({}, {})", agency, pickupLocation);
 
-		final var itemLatitude = getValue(agency, DataAgency::getLatitude);
-		final var itemLongitude = getValue(agency, DataAgency::getLongitude);
+		final var itemLatitude = PropertyAccessUtils.getValueOrNull(agency, DataAgency::getLatitude);
+		final var itemLongitude = PropertyAccessUtils.getValueOrNull(agency, DataAgency::getLongitude);
 
-		final var pickupLocationLatitude = getValue(pickupLocation, Location::getLatitude);
-		final var pickupLocationLongitude = getValue(pickupLocation, Location::getLongitude);
+		final var pickupLocationLatitude = PropertyAccessUtils.getValueOrNull(pickupLocation, Location::getLatitude);
+		final var pickupLocationLongitude = PropertyAccessUtils.getValueOrNull(pickupLocation, Location::getLongitude);
 
 		if ((itemLatitude != null) &&
 			(itemLongitude != null) &&

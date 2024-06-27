@@ -1,8 +1,8 @@
 package org.olf.dcb.core.interaction;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-
 import java.util.stream.Collectors;
+
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpHeaders;
@@ -18,7 +18,7 @@ public class HttpProtocolToLogMessageMapper {
 		}
 		
 		return "Status: %s\nHeaders: %s\nBody: %s\n".formatted(
-			getValue(response.getStatus(), HttpStatus::getCode),
+			PropertyAccessUtils.getValueOrNull(response.getStatus(), HttpStatus::getCode),
 			toLogOutput(response.getHeaders()),
 			response.getBody(Argument.of(String.class)).orElse("No Body")
 		);

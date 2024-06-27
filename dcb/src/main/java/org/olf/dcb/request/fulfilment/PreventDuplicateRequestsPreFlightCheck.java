@@ -5,6 +5,8 @@ import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.utils.PropertyAccessUtils;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -15,7 +17,6 @@ import java.util.function.Function;
 
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.duplicate-requests.enabled", defaultValue = "true", notEquals = "false")
@@ -35,10 +36,10 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final Instant thisRequestInstant = Instant.now();
-		final String thisPickupLocationCode = getValue(command, PlacePatronRequestCommand::getPickupLocationCode);
-		final String thisHostLmsCode = getValue(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
-		final String thisPatronLocalId = getValue(command, PlacePatronRequestCommand::getRequestorLocalId);
-		final UUID thisBibClusterId = getValue(command, PlacePatronRequestCommand::getCitation).getBibClusterId();
+		final String thisPickupLocationCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
+		final String thisHostLmsCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode);
+		final String thisPatronLocalId = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId);
+		final UUID thisBibClusterId = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getCitation).getBibClusterId();
 
 		return checkRequestFor(thisHostLmsCode, thisPatronLocalId, thisBibClusterId, thisRequestInstant)
 			.map( result(thisPickupLocationCode, thisHostLmsCode, thisPatronLocalId, thisBibClusterId) )

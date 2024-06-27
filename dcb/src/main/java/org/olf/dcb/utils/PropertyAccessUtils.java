@@ -6,18 +6,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 public class PropertyAccessUtils {
-	public static <T, R> R getValue(T nullableObject, Function<T, R> accessor) {
-		return getValue(nullableObject, accessor, identity());
-	}
-
-	public static <T, R> R getValueOrDefault(T nullableObject, Function<T, R> accessor, R valueWhenMissing) {
+	public static <T, R> R getValue(T nullableObject, Function<T, R> accessor, R valueWhenMissing) {
 		return getValue(nullableObject, accessor, identity(), valueWhenMissing);
-	}
-
-	public static <T, R, S> S getValue(T nullableObject, Function<T, R> accessor,
-		Function<R, S> mapper) {
-
-		return getValue(nullableObject, accessor, mapper, (S)null);
 	}
 
 	public static <T, R, S> S getValue(T nullableObject, Function<T, R> accessor,
@@ -27,6 +17,16 @@ public class PropertyAccessUtils {
 			.map(accessor)
 			.map(mapper)
 			.orElse(valueWhenMissing);
+	}
+
+	public static <T, R> R getValueOrNull(T nullableObject, Function<T, R> accessor) {
+		return getValueOrNull(nullableObject, accessor, identity());
+	}
+
+	public static <T, R, S> S getValueOrNull(T nullableObject, Function<T, R> accessor,
+		Function<R, S> mapper) {
+
+		return getValue(nullableObject, accessor, mapper, (S)null);
 	}
 
 	// This probably belongs in separate utility class

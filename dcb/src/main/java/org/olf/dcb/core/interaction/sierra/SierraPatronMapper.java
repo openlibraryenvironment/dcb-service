@@ -3,11 +3,11 @@ package org.olf.dcb.core.interaction.sierra;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.util.Collections.singletonList;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
@@ -57,7 +57,7 @@ public class SierraPatronMapper {
 	}
 
 	private static boolean hasCode(@Nullable Block blockInfo) {
-		final var blockCode = getValue(blockInfo, Block::getCode);
+		final var blockCode = PropertyAccessUtils.getValueOrNull(blockInfo, Block::getCode);
 
 		return isNotEmpty(blockCode) && isNotHyphen(blockCode);
 	}

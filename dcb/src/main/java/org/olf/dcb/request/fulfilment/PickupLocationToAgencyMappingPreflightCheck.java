@@ -2,7 +2,6 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 
@@ -11,6 +10,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -32,7 +32,7 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
-		final var pickupLocationCode = getValue(command, PlacePatronRequestCommand::getPickupLocationCode);
+		final var pickupLocationCode = PropertyAccessUtils.getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
 
 		return getAgencyForPickupLocation(pickupLocationCode)
 			.map(agency -> passed())

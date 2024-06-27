@@ -3,7 +3,6 @@ package org.olf.dcb.request.fulfilment;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static java.util.Collections.emptyList;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static services.k_int.utils.StringUtils.truncate;
 
 import java.util.Collection;
@@ -14,6 +13,7 @@ import org.olf.dcb.core.UnhandledExceptionProblem;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
 import org.olf.dcb.utils.CollectionUtils;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -92,7 +92,7 @@ public class PatronRequestPreflightChecksService {
 		return Event.builder()
 			.id(UUID.randomUUID())
 			.type(FAILED_CHECK)
-			.summary(truncate(getValue(failedCheck, FailedPreflightCheck::getDescription), 128))
+			.summary(truncate(PropertyAccessUtils.getValueOrNull(failedCheck, FailedPreflightCheck::getDescription), 128))
 			.build();
 	}
 }

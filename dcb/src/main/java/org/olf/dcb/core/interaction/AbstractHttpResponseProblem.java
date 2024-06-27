@@ -1,12 +1,13 @@
 package org.olf.dcb.core.interaction;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.zalando.problem.Status.INTERNAL_SERVER_ERROR;
 
 import java.net.URI;
 import java.util.Map;
 
+import org.olf.dcb.utils.PropertyAccessUtils;
 import org.zalando.problem.AbstractThrowableProblem;
 
 import io.micronaut.core.type.Argument;
@@ -33,7 +34,7 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 			"responseStatusCode", getValue(responseException,
 				HttpClientResponseException::getStatus, HttpStatus::getCode, "Unknown"),
 			"responseBody", interpretResponseBody(responseException),
-			"requestMethod", getValueOrDefault(request, HttpRequest::getMethodName, "Unknown"),
+			"requestMethod", PropertyAccessUtils.getValue(request, HttpRequest::getMethodName, "Unknown"),
 			"requestUrl", getValue(request, HttpRequest::getUri, URI::toString, "Unknown"),
 			"requestBody", interpretRequestBody(request),
 			"httpVersion", getValue(request, HttpRequest::getHttpVersion, HttpVersion::name, "Unknown")
@@ -44,7 +45,7 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 	}
 
 	private static Object interpretResponseBody(HttpClientResponseException responseException) {
-		final var response = getValue(responseException, HttpClientResponseException::getResponse);
+		final var response = PropertyAccessUtils.getValueOrNull(responseException, HttpClientResponseException::getResponse);
 
 		if (response == null) {
 			return noBodyMessage();

@@ -9,7 +9,6 @@ import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 
 import java.util.Arrays;
 import java.util.List;
@@ -21,6 +20,7 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
+import org.olf.dcb.utils.PropertyAccessUtils;
 import org.reactivestreams.Publisher;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -306,8 +306,8 @@ public class PAPIClient {
 	private <T extends PapiResult> Mono<T> checkForPAPIErrorCode(T result,
 		BiFunction<Integer, String, Throwable> toThrowableMapper) {
 
-		final var errorCode = getValueOrDefault(result, PapiResult::getPapiErrorCode, 0);
-		final var errorMessage = getValue(result, PapiResult::getErrorMessage);
+		final var errorCode = getValue(result, PapiResult::getPapiErrorCode, 0);
+		final var errorMessage = PropertyAccessUtils.getValueOrNull(result, PapiResult::getErrorMessage);
 
 		// Any positive number: Represents either the count of rows returned or the number of rows affected by the procedure.
 		// See individual procedure definitions for details.

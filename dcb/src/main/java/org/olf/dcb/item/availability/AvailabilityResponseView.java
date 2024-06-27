@@ -1,7 +1,5 @@
 package org.olf.dcb.item.availability;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,6 +8,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -46,9 +45,9 @@ public class AvailabilityResponseView {
 	}
 
 	private static ARVItem mapItem(Item item) {
-		final var agency = getValue(item, Item::getAgency);
-		final var agencyCode = getValue(agency, DataAgency::getCode);
-		final var agencyName = getValue(agency, DataAgency::getName);
+		final var agency = PropertyAccessUtils.getValueOrNull(item, Item::getAgency);
+		final var agencyCode = PropertyAccessUtils.getValueOrNull(agency, DataAgency::getCode);
+		final var agencyName = PropertyAccessUtils.getValueOrNull(agency, DataAgency::getName);
 
 		final var mappedAgency = agency != null
 			? new Agency(agencyCode, agencyName)

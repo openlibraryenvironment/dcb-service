@@ -5,7 +5,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrDefault;
 import static services.k_int.utils.MapUtils.putNonNullValue;
 
 import java.util.HashMap;
@@ -23,6 +22,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -81,7 +81,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {
-		final var chosenItem = getValue(resolution, Resolution::getChosenItem);
+		final var chosenItem = PropertyAccessUtils.getValueOrNull(resolution, Resolution::getChosenItem);
 
 		// Do not audit a resolution when an item hasn't been chosen
 		if (chosenItem == null) {
@@ -90,17 +90,17 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var auditData = new HashMap<String, Object>();
 
-		final var itemStatusCode = getValue(chosenItem, Item::getStatus, ItemStatus::getCode);
+		final var itemStatusCode = PropertyAccessUtils.getValueOrNull(chosenItem, Item::getStatus, ItemStatus::getCode);
 
 		// For values that could be "unknown", "null" is used as a differentiating default
 		final var presentableItem = PresentableItem.builder()
-			.barcode(getValueOrDefault(chosenItem, Item::getBarcode, "Unknown"))
-			.statusCode(getValueOrDefault(itemStatusCode, Enum::name, "null"))
-			.requestable(getValueOrDefault(chosenItem, Item::getIsRequestable, false))
-			.localItemType(getValueOrDefault(chosenItem, Item::getLocalItemType, "null"))
-			.canonicalItemType(getValueOrDefault(chosenItem, Item::getCanonicalItemType, "null"))
-			.holdCount(getValueOrDefault(chosenItem, Item::getHoldCount, 0))
-			.agencyCode(getValueOrDefault(chosenItem, Item::getAgencyCode, "Unknown"))
+			.barcode(getValue(chosenItem, Item::getBarcode, "Unknown"))
+			.statusCode(getValue(itemStatusCode, Enum::name, "null"))
+			.requestable(getValue(chosenItem, Item::getIsRequestable, false))
+			.localItemType(getValue(chosenItem, Item::getLocalItemType, "null"))
+			.canonicalItemType(getValue(chosenItem, Item::getCanonicalItemType, "null"))
+			.holdCount(getValue(chosenItem, Item::getHoldCount, 0))
+			.agencyCode(getValue(chosenItem, Item::getAgencyCode, "Unknown"))
 			.build();
 
 		putNonNullValue(auditData, "selectedItem", presentableItem);
