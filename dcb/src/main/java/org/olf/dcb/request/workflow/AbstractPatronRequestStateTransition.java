@@ -10,7 +10,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import lombok.Getter;
 
 @Getter
-class AbstractPatronRequestStateTransition {
+abstract class AbstractPatronRequestStateTransition {
 	// Name retained from original field to preserve public interface
 	private final List<PatronRequest.Status> possibleSourceStatus;
 
@@ -32,4 +32,14 @@ class AbstractPatronRequestStateTransition {
 
 		return !possibleSourceStatus.contains(requestStatus);
 	}
+
+	public boolean isApplicableFor(RequestWorkflowContext context) {
+		if (notInApplicableRequestStatus(context)) {
+			return false;
+		}
+
+		return checkApplicability(context);
+	}
+
+	protected abstract boolean checkApplicability(RequestWorkflowContext context);
 }

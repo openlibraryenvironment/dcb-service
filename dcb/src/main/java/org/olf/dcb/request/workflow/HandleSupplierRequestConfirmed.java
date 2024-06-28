@@ -41,11 +41,7 @@ public class HandleSupplierRequestConfirmed extends AbstractPatronRequestStateTr
 	}
 
 	@Override
-	public boolean isApplicableFor(RequestWorkflowContext context) {
-		if (notInApplicableRequestStatus(context)) {
-			return false;
-		}
-
+	protected boolean checkApplicability(RequestWorkflowContext context) {
 		final var localHoldStatus = getValue(context, RequestWorkflowContext::getSupplierRequest,
 			SupplierRequest::getLocalStatus, "");
 
