@@ -1,6 +1,6 @@
 package org.olf.dcb.request.workflow.exceptions;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.valueOrDefault;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.net.URI;
 import java.util.Map;
@@ -49,9 +49,9 @@ public class UnableToResolveAgencyProblem extends AbstractThrowableProblem {
 		String homeLibraryCode, String defaultAgencyCode) {
 
 		return Map.of(
-			"systemCode", valueOrDefault(systemCode, "Unknown"),
-			"homeLibraryCode", valueOrDefault(homeLibraryCode, "Unknown"),
-			"defaultAgencyCode", valueOrDefault(defaultAgencyCode, "Unknown")
+			"systemCode", getValue(systemCode, "Unknown"),
+			"homeLibraryCode", getValue(homeLibraryCode, "Unknown"),
+			"defaultAgencyCode", getValue(defaultAgencyCode, "Unknown")
 		);
 	}
 

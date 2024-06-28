@@ -6,17 +6,21 @@ import java.util.Optional;
 import java.util.function.Function;
 
 public class PropertyAccessUtils {
-	public static <T, R> R getValue(T nullableObject, Function<T, R> accessor, R valueWhenMissing) {
-		return getValue(nullableObject, accessor, identity(), valueWhenMissing);
+	public static <T, R> R getValue(T nullableObject, Function<T, R> accessor, R defaultValue) {
+		return getValue(nullableObject, accessor, identity(), defaultValue);
 	}
 
 	public static <T, R, S> S getValue(T nullableObject, Function<T, R> accessor,
-		Function<R, S> mapper, S valueWhenMissing) {
+		Function<R, S> mapper, S defaultValue) {
 
 		return Optional.ofNullable(nullableObject)
 			.map(accessor)
 			.map(mapper)
-			.orElse(valueWhenMissing);
+			.orElse(defaultValue);
+	}
+
+	public static String getValue(String nullableValue, String defaultValue) {
+		return getValue(nullableValue, identity(), defaultValue);
 	}
 
 	public static <T, R> R getValueOrNull(T nullableObject, Function<T, R> accessor) {
@@ -27,10 +31,5 @@ public class PropertyAccessUtils {
 		Function<R, S> mapper) {
 
 		return getValue(nullableObject, accessor, mapper, (S)null);
-	}
-
-	// This probably belongs in separate utility class
-	public static String valueOrDefault(String nullableValue, String defaultValue) {
-		return Optional.ofNullable(nullableValue).orElse(defaultValue);
 	}
 }
