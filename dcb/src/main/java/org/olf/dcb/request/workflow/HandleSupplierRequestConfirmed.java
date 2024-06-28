@@ -5,20 +5,17 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -28,32 +25,28 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 @Named("SupplierRequestConfirmed")
-public class HandleSupplierRequestConfirmed implements PatronRequestStateTransition {
+public class HandleSupplierRequestConfirmed extends AbstractPatronRequestStateTransition
+	implements PatronRequestStateTransition {
+
 	private final SupplierRequestService supplierRequestService;
 	private final HostLmsService hostLmsService;
 
-	private static final List<Status> possibleSourceStatus = List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
-	
 	public HandleSupplierRequestConfirmed(SupplierRequestService supplierRequestRepository,
 		HostLmsService hostLmsService) {
 
+		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		
 		this.supplierRequestService = supplierRequestRepository;
 		this.hostLmsService = hostLmsService;
 	}
 
 	@Override
-	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		final var requestStatus = getValueOrNull(ctx.getPatronRequest(), PatronRequest::getStatus);
-
-		if (requestStatus == null) {
+	public boolean isApplicableFor(RequestWorkflowContext context) {
+		if (notInApplicableRequestStatus(context)) {
 			return false;
 		}
 
-		if (!possibleSourceStatus.contains(requestStatus)) {
-			return false;
-		}
-
-		final var localHoldStatus = getValue(ctx.getSupplierRequest(),
+		final var localHoldStatus = getValue(context, RequestWorkflowContext::getSupplierRequest,
 			SupplierRequest::getLocalStatus, "");
 
 		// The local request may go into transit before DCB has a chance to detect confirmation
@@ -94,11 +87,6 @@ public class HandleSupplierRequestConfirmed implements PatronRequestStateTransit
 			.then(Mono.just(ctx));
 	}
 
-	@Override
-	public List<Status> getPossibleSourceStatus() {
-		return possibleSourceStatus;
-	}
-	
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
 		return Optional.of(CONFIRMED);
