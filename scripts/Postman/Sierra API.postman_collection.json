@@ -1,0 +1,226 @@
+{
+	"info": {
+		"_postman_id": "911ffea9-049c-4afc-b4bc-14487be8bfb4",
+		"name": "Sierra API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "23516371"
+	},
+	"item": [
+		{
+			"name": "Get Token",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var creds = pm.environment.get(\"CLIENT_KEY\") + \":\" + pm.environment.get(\"CLIENT_SECRET\");",
+							"var encodedCreds = btoa(creds);",
+							"pm.environment.set(\"basicAuth\", encodedCreds);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.environment.set(\"auth_token\", jsonData.access_token);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Basic {{basicAuth}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/x-www-form-urlencoded",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "{{DOMAIN_URL}}/iii/sierra-api/{{API_VERSION}}/token",
+					"host": [
+						"{{DOMAIN_URL}}"
+					],
+					"path": [
+						"iii",
+						"sierra-api",
+						"{{API_VERSION}}",
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get an item by record ID",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{DOMAIN_URL}}/iii/sierra-api/{{API_VERSION}}/items/523",
+					"host": [
+						"{{DOMAIN_URL}}"
+					],
+					"path": [
+						"iii",
+						"sierra-api",
+						"{{API_VERSION}}",
+						"items",
+						"523"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get a patron by record ID",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{DOMAIN_URL}}/iii/sierra-api/{{API_VERSION}}/patrons/342",
+					"host": [
+						"{{DOMAIN_URL}}"
+					],
+					"path": [
+						"iii",
+						"sierra-api",
+						"{{API_VERSION}}",
+						"patrons",
+						"342"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Find a patron by varField fieldTag and varField content",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{DOMAIN_URL}}/iii/sierra-api/{{API_VERSION}}/patrons/holds/342",
+					"host": [
+						"{{DOMAIN_URL}}"
+					],
+					"path": [
+						"iii",
+						"sierra-api",
+						"{{API_VERSION}}",
+						"patrons",
+						"holds",
+						"342"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get a hold record by hold ID",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{auth_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{DOMAIN_URL}}/iii/sierra-api/{{API_VERSION}}/patrons/holds/342",
+					"host": [
+						"{{DOMAIN_URL}}"
+					],
+					"path": [
+						"iii",
+						"sierra-api",
+						"{{API_VERSION}}",
+						"patrons",
+						"holds",
+						"342"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

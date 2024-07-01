@@ -1,0 +1,192 @@
+{
+	"info": {
+		"_postman_id": "460e694c-0c66-4e01-83f2-303ebaf1b752",
+		"name": "polaris.applicationservices API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "23516371"
+	},
+	"item": [
+		{
+			"name": "/authentication/staffuser",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var creds = pm.environment.get(\"STAFF_DOMAIN\") + \"\\\\\" + pm.environment.get(\"STAFF_USERNAME\") + \":\" + pm.environment.get(\"STAFF_PASSWORD\");",
+							"var encodedCreds = btoa(creds);",
+							"pm.environment.set(\"basicAuth\", encodedCreds);",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"var authHeader = \"PAS \" + pm.environment.get(\"SITE_DOMAIN\") + \":\" + jsonData.AccessToken + \":\" + jsonData.AccessSecret;",
+							"pm.environment.set(\"auth_header\", authHeader);",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Basic {{basicAuth}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{DOMAIN_URL}}/api/{{VERSION}}/{{LANGUAGE}}/{{PRODUCT_ID}}/authentication/staffuser",
+					"host": [
+						"{{DOMAIN_URL}}"
+					],
+					"path": [
+						"api",
+						"{{VERSION}}",
+						"{{LANGUAGE}}",
+						"{{PRODUCT_ID}}",
+						"authentication",
+						"staffuser"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Item Record",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Authorization",
+						"value": "{{auth_header}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{BASE_URL}}/itemrecords/1",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"itemrecords",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Patron Record",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "{{auth_header}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{BASE_URL}}/patrons/1255217",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"patrons",
+						"1255217"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Patron Local ID By Barcode",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "{{auth_header}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{BASE_URL}}/ids/patrons?barcode=openrs&type=barcode",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"ids",
+						"patrons"
+					],
+					"query": [
+						{
+							"key": "barcode",
+							"value": "openrs"
+						},
+						{
+							"key": "type",
+							"value": "barcode"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Hold",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "{{auth_header}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{BASE_URL}}/holds/29771",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"holds",
+						"29771"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
