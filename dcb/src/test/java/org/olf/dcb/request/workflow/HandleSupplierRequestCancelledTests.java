@@ -4,6 +4,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -42,21 +43,22 @@ class HandleSupplierRequestCancelledTests {
 	}
 
 	@Test
+	void shouldNotProgressRequestWhenItemHasBeenDispatchedForPickup() {
+		// Arrange
+		final var patronRequest = definePatronRequest(PICKUP_TRANSIT);
+
+		// Act
+		final var applicable = isApplicable(patronRequest);
+
+		// Assert
+		assertThat("Should not be applicable after item has been dispatched",
+			applicable, is(false));
+	}
+
+	@Test
 	void shouldTolerateNullPatronRequestStatus() {
 		// Arrange
-		final var patron = Patron.builder()
-			.id(randomUUID())
-			.build();
-
-		patronFixture.savePatron(patron);
-
-		final var patronRequest = PatronRequest.builder()
-			.id(randomUUID())
-			.patron(patron)
-			.status(null)
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
+		final var patronRequest = definePatronRequest(null);
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
@@ -70,5 +72,22 @@ class HandleSupplierRequestCancelledTests {
 		return singleValueFrom(
 			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 				.map(ctx -> handleSupplierRequestCancelled.isApplicableFor(ctx)));
+	}
+
+	private PatronRequest definePatronRequest(PatronRequest.Status status) {
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(status)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+		return patronRequest;
 	}
 }
