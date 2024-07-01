@@ -65,14 +65,18 @@ public class SierraPatronsAPIFixture {
 		deleteHoldById(holdId, sierraMockServerResponses.badRequestError());
 	}
 
-	private void deleteHoldById(String holdId, HttpResponse response) {
-		mockServer.clear(deleteHold(holdId));
+	public void verifyDeleteHoldRequestMade(String holdId) {
+		mockServer.verify(deleteHoldRequest(holdId));
+	}
 
-		mockServer.when(deleteHold(holdId))
+	private void deleteHoldById(String holdId, HttpResponse response) {
+		mockServer.clear(deleteHoldRequest(holdId));
+
+		mockServer.when(deleteHoldRequest(holdId))
 			.respond(response);
 	}
 
-	private HttpRequest deleteHold(String holdId) {
+	private HttpRequest deleteHoldRequest(String holdId) {
 		return sierraMockServerRequests.delete("/holds/" + holdId);
 	}
 
@@ -333,7 +337,7 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerResponses.jsonSuccess("patrons/patron/"+ patronId +".json");
 	}
 
-    @Data
+	@Data
 	@Serdeable
 	@Builder
 	public static class Patron {
