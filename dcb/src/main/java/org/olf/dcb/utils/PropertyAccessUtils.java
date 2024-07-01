@@ -19,7 +19,7 @@ public class PropertyAccessUtils {
 			.orElse(defaultValue);
 	}
 
-	public static String getValue(String nullableValue, String defaultValue) {
+	public static <T> T getValue(T nullableValue, T defaultValue) {
 		return getValue(nullableValue, identity(), defaultValue);
 	}
 
