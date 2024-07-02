@@ -1,18 +1,8 @@
 package org.olf.dcb.request.workflow;
 
-import static java.lang.Boolean.FALSE;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
-import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsRequest;
@@ -22,11 +12,20 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.SupplierRequestRepository;
-
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+
+import static java.lang.Boolean.FALSE;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Prototype
@@ -99,6 +98,10 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 			final var localRequestId = extractFromSupplierReq(ctx, SupplierRequest::getLocalId, "LocalRequestId");
 			final var localItemId = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemId, "LocalItemId");
 			final var localItemBarcode = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemBarcode, "LocalItemBarcode");
+			final var localRequestStatus = extractFromSupplierReq(ctx, SupplierRequest::getLocalStatus, "LocalStatus");
+
+			// In-case local hols was already cancelled
+			if (HOLD_CANCELLED.equals(localRequestStatus)) return Mono.just(ctx);
 
 			return hostLmsService.getClientFor(hostLmsCode)
 				.flatMap(hostLmsClient -> hostLmsClient.cancelHoldRequest(CancelHoldRequestParameters.builder()
@@ -173,7 +176,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		return Mono.from(supplierRequestRepository.update(context.getSupplierRequest())).thenReturn(context);
 	}
 
-	private Function<Throwable, Mono<? extends RequestWorkflowContext>> auditVerificationError(
+	private Function<Throwable, Mono<RequestWorkflowContext>> auditVerificationError(
 		RequestWorkflowContext ctx, String result) {
 
 		return error -> {
