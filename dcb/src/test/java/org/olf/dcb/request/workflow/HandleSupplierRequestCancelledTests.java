@@ -8,6 +8,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -80,6 +81,21 @@ class HandleSupplierRequestCancelledTests {
 		// Assert
 		assertThat("Should not be applicable after item has been dispatched",
 			applicable, is(false));
+	}
+
+	@Test
+	void shouldAlsoApplyWhenLocalSupplierRequestIsMissing() {
+		// Arrange
+		final var patronRequest = definePatronRequest(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+
+		defineSupplierRequest(patronRequest, HOLD_MISSING);
+
+		// Act
+		final var applicable = isApplicable(patronRequest);
+
+		// Assert
+		assertThat("Should also be applicable when local supplier request is missing",
+			applicable, is(true));
 	}
 
 	@Test
