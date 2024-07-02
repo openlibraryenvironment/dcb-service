@@ -6,15 +6,20 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
@@ -47,9 +52,11 @@ class HandleSupplierRequestCancelledTests {
 	}
 
 	@Test
-	void shouldProgressRequestWhenRequestHasBeenPlacedWithTheSupplier() {
+	void shouldProgressRequestWhenRequestHasBeenCancelled() {
 		// Arrange
 		final var patronRequest = definePatronRequest(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
 
 		// Act
 		final var updatedPatronRequest = handleCancelledSupplierRequest(patronRequest);
@@ -61,15 +68,32 @@ class HandleSupplierRequestCancelledTests {
 	}
 
 	@Test
-	void shouldNotProgressRequestWhenItemHasBeenDispatchedForPickup() {
+	void shouldNotApplyWhenItemHasBeenDispatchedForPickup() {
 		// Arrange
 		final var patronRequest = definePatronRequest(PICKUP_TRANSIT);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
 
 		// Assert
 		assertThat("Should not be applicable after item has been dispatched",
+			applicable, is(false));
+	}
+
+	@Test
+	void shouldNotApplyWhenLocalSupplierRequestHasNotCancelled() {
+		// Arrange
+		final var patronRequest = definePatronRequest(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+
+		defineSupplierRequest(patronRequest, HOLD_CONFIRMED);
+
+		// Act
+		final var applicable = isApplicable(patronRequest);
+
+		// Assert
+		assertThat("Should not be applicable when local supplier request has not been cancelled",
 			applicable, is(false));
 	}
 
@@ -88,14 +112,14 @@ class HandleSupplierRequestCancelledTests {
 
 	private PatronRequest handleCancelledSupplierRequest(PatronRequest patronRequest) {
 		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> {
-					if (!handleSupplierRequestCancelled.isApplicableFor(ctx)) {
-						return Mono.error(new RuntimeException("Handle supplier request cancelled is not applicable for request"));
-					}
+			.flatMap(ctx -> {
+				if (!handleSupplierRequestCancelled.isApplicableFor(ctx)) {
+					return Mono.error(new RuntimeException("Handle supplier request cancelled is not applicable for request"));
+				}
 
-					return handleSupplierRequestCancelled.attempt(ctx);
-				})
-				.thenReturn(patronRequest));
+				return handleSupplierRequestCancelled.attempt(ctx);
+			})
+			.thenReturn(patronRequest));
 	}
 
 	private Boolean isApplicable(PatronRequest patronRequest) {
@@ -119,5 +143,15 @@ class HandleSupplierRequestCancelledTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 		return patronRequest;
+	}
+
+	private void defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
+			.id(UUID.randomUUID())
+			.patronRequest(patronRequest)
+			.hostLmsCode("supplier-cancellation-host-lms")
+			.localItemId("48375735")
+			.localStatus(localStatus)
+			.build());
 	}
 }

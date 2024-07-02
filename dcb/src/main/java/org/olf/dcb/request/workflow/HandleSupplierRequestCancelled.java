@@ -1,12 +1,15 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -28,7 +31,11 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 
 	@Override
 	protected boolean checkApplicability(RequestWorkflowContext context) {
-		return true;
+		final var localRequestStatus = getValue(context,
+			RequestWorkflowContext::getSupplierRequest,
+				SupplierRequest::getLocalStatus, "");
+
+		return localRequestStatus.equals(HOLD_CANCELLED);
 	}
 
 	@Override
