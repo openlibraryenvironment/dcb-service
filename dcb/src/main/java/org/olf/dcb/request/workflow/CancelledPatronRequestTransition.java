@@ -100,8 +100,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 			final var localItemBarcode = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemBarcode, "LocalItemBarcode");
 			final var localRequestStatus = extractFromSupplierReq(ctx, SupplierRequest::getLocalStatus, "LocalStatus");
 
-			// In-case local hols was already cancelled
-			if (HOLD_CANCELLED.equals(localRequestStatus)) return Mono.just(ctx);
+			if (isLocalSupplierRequestCancelled(localRequestStatus)) return Mono.just(ctx);
 
 			return hostLmsService.getClientFor(hostLmsCode)
 				.flatMap(hostLmsClient -> hostLmsClient.cancelHoldRequest(CancelHoldRequestParameters.builder()
@@ -153,7 +152,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 		return request -> {
 
-			final var isCancelled = isLocalSupplierRequestCancelled(request);
+			final var isCancelled = isLocalSupplierRequestCancelled(request.getStatus());
 			var auditData = new HashMap<String, Object>();
 
 			auditData.put("is-local-supplier-request-cancelled", isCancelled);
@@ -190,8 +189,8 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		};
 	}
 
-	private static Boolean isLocalSupplierRequestCancelled(HostLmsRequest request) {
-		return HOLD_CANCELLED.equals(request.getStatus()) || HOLD_MISSING.equals(request.getStatus());
+	private static Boolean isLocalSupplierRequestCancelled(String status) {
+		return HOLD_CANCELLED.equals(status) || HOLD_MISSING.equals(status);
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> updatePatronRequestStatus() {
