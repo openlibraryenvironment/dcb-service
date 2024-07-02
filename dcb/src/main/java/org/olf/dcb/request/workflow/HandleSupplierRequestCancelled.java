@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,12 +23,12 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 	implements PatronRequestStateTransition {
 
 	HandleSupplierRequestCancelled() {
-		super(List.of());
+		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 	}
 
 	@Override
 	protected boolean checkApplicability(RequestWorkflowContext context) {
-		return false;
+		return true;
 	}
 
 	@Override

@@ -1,10 +1,13 @@
 package org.olf.dcb.request.workflow;
 
 import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +21,7 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -40,6 +44,20 @@ class HandleSupplierRequestCancelledTests {
 		supplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
+	}
+
+	@Test
+	void shouldProgressRequestWhenRequestHasBeenPlacedWithTheSupplier() {
+		// Arrange
+		final var patronRequest = definePatronRequest(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
+
+		// Act
+		final var updatedPatronRequest = handleCancelledSupplierRequest(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue()
+		));
 	}
 
 	@Test
@@ -66,6 +84,18 @@ class HandleSupplierRequestCancelledTests {
 		// Assert
 		assertThat("Should not be applicable for request with no status",
 			applicable, is(false));
+	}
+
+	private PatronRequest handleCancelledSupplierRequest(PatronRequest patronRequest) {
+		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> {
+					if (!handleSupplierRequestCancelled.isApplicableFor(ctx)) {
+						return Mono.error(new RuntimeException("Handle supplier request cancelled is not applicable for request"));
+					}
+
+					return handleSupplierRequestCancelled.attempt(ctx);
+				})
+				.thenReturn(patronRequest));
 	}
 
 	private Boolean isApplicable(PatronRequest patronRequest) {
