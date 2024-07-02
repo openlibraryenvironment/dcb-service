@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -66,6 +67,21 @@ class HandleSupplierRequestCancelledTests {
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue()
 		));
+	}
+
+	@Test
+	void shouldAlsoApplyWhenPatronRequestIsConfirmed() {
+		// Arrange
+		final var patronRequest = definePatronRequest(CONFIRMED);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		// Act
+		final var applicable = isApplicable(patronRequest);
+
+		// Assert
+		assertThat("Should also be applicable when patron request is confirmed",
+			applicable, is(true));
 	}
 
 	@Test

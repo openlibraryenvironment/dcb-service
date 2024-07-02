@@ -2,6 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -27,7 +28,7 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 	implements PatronRequestStateTransition {
 
 	HandleSupplierRequestCancelled() {
-		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED));
 	}
 
 	@Override
