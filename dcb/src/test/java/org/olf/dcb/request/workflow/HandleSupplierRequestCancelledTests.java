@@ -11,6 +11,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
@@ -81,6 +82,21 @@ class HandleSupplierRequestCancelledTests {
 
 		// Assert
 		assertThat("Should also be applicable when patron request is confirmed",
+			applicable, is(true));
+	}
+
+	@Test
+	void shouldAlsoApplyWhenPatronRequestIsPlacedAtBorrowingAgency() {
+		// Arrange
+		final var patronRequest = definePatronRequest(REQUEST_PLACED_AT_BORROWING_AGENCY);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		// Act
+		final var applicable = isApplicable(patronRequest);
+
+		// Assert
+		assertThat("Should also be applicable when patron request is placed at borrowing agency",
 			applicable, is(true));
 	}
 
