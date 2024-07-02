@@ -44,8 +44,16 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 	}
 
 	@Override
-	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-		return Mono.just(ctx);
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
+		return Mono.just(context)
+			.flatMap(this::markNotSuppliedByCurrentSupplier);
+	}
+
+	private Mono<RequestWorkflowContext> markNotSuppliedByCurrentSupplier(RequestWorkflowContext context) {
+		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
+
+		return Mono.just(context.setPatronRequest(
+			patronRequest.setStatus(NOT_SUPPLIED_CURRENT_SUPPLIER)));
 	}
 
 	@Override
