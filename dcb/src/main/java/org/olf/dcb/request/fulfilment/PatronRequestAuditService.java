@@ -13,10 +13,7 @@ import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
@@ -153,7 +150,9 @@ public class PatronRequestAuditService {
 			auditData.putAll(problem.getParameters());
 		} else {
 
-			auditData.put("Error", error.toString());
+			auditData.put("errorType", Objects.toString(error.getClass().getSimpleName(), "Error type not available"));
+			auditData.put("errorMessage", Objects.toString(error.getMessage(), "No error message available"));
+			auditData.put("stackTrace", error.getStackTrace());
 		}
 
 		return auditActionFailed(action, ctx, auditData)
