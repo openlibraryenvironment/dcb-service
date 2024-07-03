@@ -1,24 +1,28 @@
 package org.olf.dcb.request.fulfilment;
 
-import static java.util.Optional.empty;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static services.k_int.utils.StringUtils.truncate;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.function.Function;
-
+import io.micronaut.transaction.annotation.Transactional;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
-
-import io.micronaut.transaction.annotation.Transactional;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static java.util.Optional.empty;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static services.k_int.utils.StringUtils.truncate;
 
 @Slf4j
 @Singleton
@@ -132,15 +136,27 @@ public class PatronRequestAuditService {
 		PatronRequestStateTransition action, RequestWorkflowContext ctx,
 		HashMap<String, Object> auditData) {
 
-		return auditActionFailed(action, ctx, auditData, "EMPTY", "applyTransition caught an unhandled empty.")
+		auditData.put("Empty", "applyTransition caught an unhandled empty in return chain");
+
+		return auditActionFailed(action, ctx, auditData)
 			.then(Mono.empty()); // Resume the empty after auditing
 	}
 
-	public Mono<? extends PatronRequest> auditActionError(
-		PatronRequestStateTransition action, RequestWorkflowContext ctx,
+	public Mono<PatronRequest> auditActionError(PatronRequestStateTransition action, RequestWorkflowContext ctx,
 		HashMap<String, Object> auditData, Throwable error) {
 
-		return auditActionFailed(action, ctx, auditData, "ERROR", error.toString())
+		if (error instanceof Problem problem) {
+			if (isNotEmpty(problem.getDetail())) {
+				auditData.put("detail", problem.getDetail());
+			}
+
+			auditData.putAll(problem.getParameters());
+		} else {
+
+			auditData.put("Error", error.toString());
+		}
+
+		return auditActionFailed(action, ctx, auditData)
 			.then(Mono.error(error)); // Resume the error after auditing
 	}
 
@@ -187,11 +203,8 @@ public class PatronRequestAuditService {
 		).flatMap(audit -> Mono.from(patronRequestRepository.saveOrUpdate(audit.getPatronRequest())));
 	}
 
-	private Mono<PatronRequest> auditActionFailed(
-		PatronRequestStateTransition action, RequestWorkflowContext ctx,
-		HashMap<String, Object> auditData, String key, String value) {
-
-		auditData.put(key, value);
+	private Mono<PatronRequest> auditActionFailed(PatronRequestStateTransition action, RequestWorkflowContext ctx,
+		HashMap<String, Object> auditData) {
 
 		return auditEntry(ctx.getPatronRequest(), "Action failed : " + action.getName(), auditData);
 	}
