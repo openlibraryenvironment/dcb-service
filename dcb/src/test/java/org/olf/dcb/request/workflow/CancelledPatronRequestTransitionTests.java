@@ -1,21 +1,6 @@
 package org.olf.dcb.request.workflow;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasStatusCode;
-
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,19 +13,26 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
-import org.olf.dcb.test.AgencyFixture;
-import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.*;
 import org.zalando.problem.ThrowableProblem;
-
-import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasStatusCode;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -283,7 +275,8 @@ class CancelledPatronRequestTransitionTests {
 		// Assert
 		assertThat(patronRequest, allOf(
 			notNullValue(),
-			hasStatus(REQUEST_PLACED_AT_BORROWING_AGENCY)
+			hasStatus(ERROR),
+			hasErrorMessage("Unexpected response from: DELETE /iii/sierra-api/v6/patrons/holds/7357356")
 		));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);

@@ -12,6 +12,7 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
@@ -77,7 +78,17 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		return auditConditionMet(ctx)
 			.flatMap( cancelSupplierRequest() )
 			.flatMap( updatePatronRequestStatus() )
-			.flatMap( verifySupplierCancellation() );
+			.flatMap( verifySupplierCancellation() )
+			.transform( transformError(ctx) );
+	}
+
+	private Function<Mono<RequestWorkflowContext>, Publisher<RequestWorkflowContext>> transformError(
+		RequestWorkflowContext ctx) {
+		// work around as the patronRequestWorkflowServiceProvider accepts a patron request pub
+		return mono -> mono
+			.then(Mono.just(ctx.getPatronRequest()))
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(ctx.getPatronRequest()))
+			.thenReturn(ctx);
 	}
 
 	private Mono<RequestWorkflowContext> auditConditionMet(RequestWorkflowContext ctx) {
