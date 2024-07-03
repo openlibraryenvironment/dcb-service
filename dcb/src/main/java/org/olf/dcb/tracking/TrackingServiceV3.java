@@ -1,15 +1,9 @@
 package org.olf.dcb.tracking;
 
-import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-
-import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
@@ -25,8 +19,7 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
 import io.micrometer.core.annotation.Timed;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
@@ -36,9 +29,12 @@ import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+
 @Slf4j
+@Refreshable
 @Singleton
-@ExecuteOn(TaskExecutors.BLOCKING)
 public class TrackingServiceV3 implements TrackingService {
 
 	private final PatronRequestRepository patronRequestRepository;
@@ -79,41 +75,23 @@ public class TrackingServiceV3 implements TrackingService {
   @Override
   @Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
   public void run() {
-    
-    final AtomicLong taskStart = new AtomicLong(0);
+    log.debug("DCB Tracking Service run");
 
-		Flux.defer( () -> Flux.from(patronRequestRepository.findScheduledChecks()) )
-			.transformDeferred( atDebug(tracking_record -> log.debug("Scheduled check for {}",tracking_record)) )
-			.flatMap( this::doTracking, MAX_TRACKING_CONCURRENCY )
-			.transformDeferred( reactorFederatedLockService.withLockOrEmpty(LOCK_NAME) )
+		Flux.from(patronRequestRepository.findScheduledChecks())
+			.doOnNext( tracking_record -> log.debug("Scheduled check for {}",tracking_record))
+			.flatMap(this::doTracking, MAX_TRACKING_CONCURRENCY)
+			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(LOCK_NAME))
 			.count()
-			.doOnSubscribe( _s -> {
-				long now = System.currentTimeMillis();
-				log.debug("DCB Tracking Service run started [{}]", Instant.ofEpochMilli(now));
-				taskStart.set(now);
-			})
-			.doFinally( _s -> {
-				long now = System.currentTimeMillis();
-				Instant thenIn = Instant.ofEpochMilli(taskStart.get());
-				Instant nowIn = Instant.ofEpochMilli(now);
-				
-				Duration dur = Duration.between(thenIn, nowIn);
-				log.debug("DCB Tracking Service run ended [{}], after [{} h, {} m, {} s, {} ms]",
-						Instant.ofEpochMilli(now), dur.toHours(), dur.toMinutesPart(), dur.toSecondsPart(), dur.toMillisPart());
-			})
 			.subscribe(
 				total -> log.info("TRACKING Tracking completed for {} total Requests", total),
 				error -> log.error("TRACKING Error when updating tracking information", error));
 	}
-  
-  private static <T> Function<Flux<T>, Flux<T>> atDebug ( Consumer<T> consumer ) {
-  	return source -> {
-  		if ( !log.isDebugEnabled() ) {
-  			return source;
-  		}
-  		return source.doOnNext( consumer );
-  	};
-  }
+
+	private <T> Function<Flux<T>, Flux<T>> enrichWithLogging( String successMsg, String errorMsg ) {
+		return (source) -> source
+			.doOnComplete(() -> log.info(successMsg))
+			.doOnError(error -> log.error(errorMsg, error));
+	}
 
 	private Mono<RequestWorkflowContext> auditTrackingError(
 		String message, RequestWorkflowContext ctx, Throwable error) {
@@ -377,6 +355,15 @@ public class TrackingServiceV3 implements TrackingService {
 			log.warn("TRACKING Trackable local item - NULL");
 			return Mono.just(sr);
 		}
+	}
+
+  // Look up the patron request and add it to the supplier request as a full object instead of a stub
+	private Mono<SupplierRequest> enrichWithPatronRequest(SupplierRequest sr) {
+		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
+			.flatMap(pr -> {
+				sr.setPatronRequest(pr);
+				return Mono.just(sr);
+			});
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
