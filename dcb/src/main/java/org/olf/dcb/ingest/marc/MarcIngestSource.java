@@ -247,24 +247,18 @@ public interface MarcIngestSource<T> extends IngestSource {
 		return Flux.defer(() -> getResources(since, terminator))
 				.publishOn(Schedulers.boundedElastic())
 				.subscribeOn(Schedulers.boundedElastic())
-				
+				.concatMap(this::saveRawAndContinue)
+				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
 				.flatMap(resource -> {
-					return Mono.just(resource) // Reactor will blow up above if resource is null.						
-						.flatMap( r -> saveRawAndContinue(r)
-								.onErrorComplete()) // Complete the mono (Empty) and terminate for this resource. Let the upstream log any messages.
-
-						.publishOn(Schedulers.boundedElastic())
-						.subscribeOn(Schedulers.boundedElastic())
-						.map(this::initIngestRecordBuilder)
-						.zipWith(Mono.just( resourceToMarc(resource) ) )
-								// .map( this::createMatchKey ))
-						.map(TupleUtils.function(( ir, marcRecord ) -> {
-							return populateRecordFromMarc(ir, marcRecord).build();
-						}))
-						.onErrorResume(err -> {
-							log.error("Could not marshal resource [{}] into IngestRecord. \n{}", resource, err);
-							return Mono.empty();
-						});
+					return Mono.justOrEmpty(resource)
+							.publishOn(Schedulers.boundedElastic())
+							.subscribeOn(Schedulers.boundedElastic())
+							.map(this::initIngestRecordBuilder)
+							.zipWith(Mono.just( resourceToMarc(resource) ) )
+									// .map( this::createMatchKey ))
+							.map(TupleUtils.function(( ir, marcRecord ) -> {
+								return populateRecordFromMarc(ir, marcRecord).build();
+							}));
 				});
 	}
 
