@@ -1,8 +1,20 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
+import static java.lang.Boolean.FALSE;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.StringUtils.parseList;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
@@ -14,23 +26,11 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.SupplierRequestRepository;
-import org.reactivestreams.Publisher;
+
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
-import static java.lang.Boolean.FALSE;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
-import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.StringUtils.parseList;
 
 @Slf4j
 @Prototype
@@ -83,16 +83,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 			.flatMap( cancelSupplierRequest() )
 			.flatMap( updatePatronRequestStatus() )
 			.flatMap( verifySupplierCancellation() )
-			.transform( transformError(ctx) );
-	}
-
-	private Function<Mono<RequestWorkflowContext>, Publisher<RequestWorkflowContext>> transformError(
-		RequestWorkflowContext ctx) {
-		// work around as the patronRequestWorkflowServiceProvider accepts a patron request pub
-		return mono -> mono
-			.then(Mono.just(ctx.getPatronRequest()))
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(ctx.getPatronRequest()))
-			.thenReturn(ctx);
+			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(ctx));
 	}
 
 	private Mono<RequestWorkflowContext> auditConditionMet(RequestWorkflowContext ctx) {

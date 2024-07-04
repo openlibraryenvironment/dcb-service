@@ -182,6 +182,15 @@ public class PatronRequestWorkflowService {
 		};
 	}
 
+	Function<Publisher<RequestWorkflowContext>, Publisher<RequestWorkflowContext>> getErrorTransformerFor(
+		RequestWorkflowContext context) {
+
+		return publisher -> Mono.from(publisher)
+			.map(RequestWorkflowContext::getPatronRequest)
+			.transform(getErrorTransformerFor(context.getPatronRequest()))
+			.thenReturn(context);
+	}
+
 	public Function<Publisher<PatronRequest>, Flux<PatronRequest>> getErrorTransformerFor(
 		PatronRequest patronRequest) {
 
