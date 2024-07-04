@@ -6,6 +6,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.Optional;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
@@ -28,9 +30,13 @@ import reactor.core.publisher.Mono;
 public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTransition
 	implements PatronRequestStateTransition {
 
-	HandleSupplierRequestCancelled() {
+	private final SupplierRequestService supplierRequestService;
+
+	HandleSupplierRequestCancelled(SupplierRequestService supplierRequestService) {
 		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED,
 			REQUEST_PLACED_AT_BORROWING_AGENCY));
+
+		this.supplierRequestService = supplierRequestService;
 	}
 
 	@Override
@@ -46,7 +52,8 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
 		return Mono.just(context)
-			.flatMap(this::markNotSuppliedByCurrentSupplier);
+			.flatMap(this::markNotSuppliedByCurrentSupplier)
+			.flatMap(this::cancelSupplierRequest);
 	}
 
 	private Mono<RequestWorkflowContext> markNotSuppliedByCurrentSupplier(RequestWorkflowContext context) {
@@ -54,6 +61,15 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 
 		return Mono.just(context.setPatronRequest(
 			patronRequest.setStatus(NOT_SUPPLIED_CURRENT_SUPPLIER)));
+	}
+
+	private Mono<RequestWorkflowContext> cancelSupplierRequest(RequestWorkflowContext context) {
+		final var supplierRequest = getValue(context,
+			RequestWorkflowContext::getSupplierRequest, null);
+
+		return Mono.just(supplierRequest.setStatusCode(CANCELLED))
+			.flatMap(supplierRequestService::updateSupplierRequest)
+			.map(context::setSupplierRequest);
 	}
 
 	@Override

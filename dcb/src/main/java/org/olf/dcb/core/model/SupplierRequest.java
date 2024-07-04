@@ -28,6 +28,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 /**
@@ -42,6 +43,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @RequiredArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
+@Accessors(chain = true)
 @ToString(onlyExplicitlyIncluded = true)
 public class SupplierRequest {
 	@ToString.Include

@@ -14,8 +14,10 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_S
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasStatusCode;
 
 import java.util.UUID;
 
@@ -70,6 +72,12 @@ class HandleSupplierRequestCancelledTests {
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
 			hasStatus(NOT_SUPPLIED_CURRENT_SUPPLIER)
+		));
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			hasStatusCode(CANCELLED)
 		));
 	}
 
