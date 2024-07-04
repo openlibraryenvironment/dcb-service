@@ -17,6 +17,7 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
+import io.micronaut.context.BeanProvider;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -31,10 +32,12 @@ public class HandleSupplierRequestConfirmed extends AbstractPatronRequestStateTr
 	private final SupplierRequestService supplierRequestService;
 	private final HostLmsService hostLmsService;
 
-	public HandleSupplierRequestConfirmed(SupplierRequestService supplierRequestRepository,
+	public HandleSupplierRequestConfirmed(
+		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
+		SupplierRequestService supplierRequestRepository,
 		HostLmsService hostLmsService) {
 
-		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		super(patronRequestWorkflowServiceProvider, List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 		
 		this.supplierRequestService = supplierRequestRepository;
 		this.hostLmsService = hostLmsService;
