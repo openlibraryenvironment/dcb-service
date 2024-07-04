@@ -4,6 +4,7 @@ import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -29,6 +30,7 @@ import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromV
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.StringUtils.parseList;
 
 @Slf4j
 @Prototype
@@ -112,7 +114,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 			final var localItemId = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemId, "LocalItemId");
 			final var localItemBarcode = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemBarcode, "LocalItemBarcode");
 			final var localRequestStatus = extractFromSupplierReq(ctx, SupplierRequest::getLocalStatus, "LocalStatus");
-			final var localPatronBarcode = extractFromVirtualIdentity(ctx, PatronIdentity::getLocalBarcode, "VirtualPatronBarcode");
+			final var firstBarcodeInList = extractVirtualPatronBarcode(ctx);
 
 			if (isLocalSupplierRequestCancelled(localRequestStatus)) return Mono.just(ctx);
 
@@ -121,10 +123,21 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 					.localRequestId(localRequestId)
 					.localItemId(localItemId)
 					.localItemBarcode(localItemBarcode)
-					.patronBarcode(localPatronBarcode)
+					.patronBarcode(firstBarcodeInList)
 					.build()))
 				.thenReturn(ctx);
 		};
+	}
+
+	private String extractVirtualPatronBarcode(RequestWorkflowContext ctx) {
+		final var localBarcodesString = extractFromVirtualIdentity(ctx, PatronIdentity::getLocalBarcode, "VirtualPatronBarcode");
+		final var parsedBarcodes = parseList(localBarcodesString);
+
+		if (parsedBarcodes == null || parsedBarcodes.isEmpty()) {
+			throw new DcbError("Unable to extract virtual patron barcode in " + getName());
+		}
+
+		return parsedBarcodes.get(0);
 	}
 
 	private static HashMap<String, Object> createAuditDataMap(RequestWorkflowContext ctx, PatronRequest patronRequest,
