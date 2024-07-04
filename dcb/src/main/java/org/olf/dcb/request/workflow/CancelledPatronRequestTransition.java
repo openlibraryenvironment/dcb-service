@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -24,6 +25,7 @@ import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -110,6 +112,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 			final var localItemId = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemId, "LocalItemId");
 			final var localItemBarcode = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemBarcode, "LocalItemBarcode");
 			final var localRequestStatus = extractFromSupplierReq(ctx, SupplierRequest::getLocalStatus, "LocalStatus");
+			final var localPatronBarcode = extractFromVirtualIdentity(ctx, PatronIdentity::getLocalBarcode, "VirtualPatronBarcode");
 
 			if (isLocalSupplierRequestCancelled(localRequestStatus)) return Mono.just(ctx);
 
@@ -118,6 +121,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 					.localRequestId(localRequestId)
 					.localItemId(localItemId)
 					.localItemBarcode(localItemBarcode)
+					.patronBarcode(localPatronBarcode)
 					.build()))
 				.thenReturn(ctx);
 		};

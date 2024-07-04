@@ -82,5 +82,13 @@ public class RequestWorkflowContext {
 			.map(extractor)
 			.orElseThrow(() -> new DcbError("Unable to extract ctx.sr.'%s'".formatted(fieldName)));
 	}
-}
 
+	public static <T> T extractFromVirtualIdentity(RequestWorkflowContext ctx,
+		Function<PatronIdentity, T> extractor, String fieldName) {
+
+		return Optional.ofNullable(ctx)
+			.map(RequestWorkflowContext::getPatronVirtualIdentity)
+			.map(extractor)
+			.orElseThrow(() -> new DcbError("Unable to extract ctx.'%s'".formatted(fieldName)));
+	}
+}

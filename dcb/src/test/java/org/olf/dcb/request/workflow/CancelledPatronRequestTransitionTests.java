@@ -8,9 +8,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.Patron;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
 import org.olf.dcb.test.*;
@@ -20,6 +18,8 @@ import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.List;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.*;
@@ -57,6 +57,7 @@ class CancelledPatronRequestTransitionTests {
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private CancelledPatronRequestTransition cancelledPatronRequestTransition;
+	private DataHostLms supplierHostLMS;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -71,7 +72,7 @@ class CancelledPatronRequestTransitionTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
+		supplierHostLMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "title");
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
@@ -135,6 +136,8 @@ class CancelledPatronRequestTransitionTests {
 			.build();
 
 		patronFixture.savePatron(patron);
+		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, supplierHostLMS, "007",
+			false, "-", "LOCAL_SYSTEM_CODE", null);
 
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -157,6 +160,7 @@ class CancelledPatronRequestTransitionTests {
 				.patronRequest(patronRequest)
 				.statusCode(SupplierRequestStatusCode.PLACED)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
 		sierraPatronsAPIFixture.mockDeleteHold(localSupplyingHoldId);
@@ -184,9 +188,12 @@ class CancelledPatronRequestTransitionTests {
 		// Arrange
 		final var patron = Patron.builder()
 			.id(randomUUID())
+			.patronIdentities(List.of())
 			.build();
 
 		patronFixture.savePatron(patron);
+		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, supplierHostLMS, "007",
+			false, "-", "LOCAL_SYSTEM_CODE", null);
 
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -209,6 +216,7 @@ class CancelledPatronRequestTransitionTests {
 				.localItemBarcode("26123553")
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
 		sierraPatronsAPIFixture.mockDeleteHold(localSupplyingHoldId);
@@ -243,6 +251,8 @@ class CancelledPatronRequestTransitionTests {
 			.build();
 
 		patronFixture.savePatron(patron);
+		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, supplierHostLMS, "007",
+			false, "-", "LOCAL_SYSTEM_CODE", null);
 
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -264,6 +274,7 @@ class CancelledPatronRequestTransitionTests {
 				.localItemBarcode("26123553")
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
 		sierraPatronsAPIFixture.mockDeleteHoldError(localSupplyingHoldId);
