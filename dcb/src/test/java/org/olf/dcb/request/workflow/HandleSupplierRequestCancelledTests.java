@@ -16,6 +16,8 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasStatusCode;
 
@@ -63,7 +65,7 @@ class HandleSupplierRequestCancelledTests {
 		// Arrange
 		final var patronRequest = definePatronRequest(REQUEST_PLACED_AT_SUPPLYING_AGENCY);
 
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+		final var supplierRequestId = defineSupplierRequest(patronRequest, HOLD_CANCELLED).getId();
 
 		// Act
 		final var updatedPatronRequest = handleCancelledSupplierRequest(patronRequest);
@@ -78,6 +80,12 @@ class HandleSupplierRequestCancelledTests {
 
 		assertThat(updatedSupplierRequest, allOf(
 			hasStatusCode(CANCELLED)
+		));
+
+		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
+			notNullValue(),
+			hasBriefDescription("Supplier Request Cancelled (ID: \"%s\"".formatted(supplierRequestId.toString())),
+			hasAuditDataProperty("localRequestStatus", CANCELLED.toString())
 		));
 	}
 
@@ -204,8 +212,8 @@ class HandleSupplierRequestCancelledTests {
 		return patronRequest;
 	}
 
-	private void defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
+	private SupplierRequest defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
+		return supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 			.id(UUID.randomUUID())
 			.patronRequest(patronRequest)
 			.hostLmsCode("supplier-cancellation-host-lms")
