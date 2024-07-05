@@ -1,20 +1,8 @@
 package org.olf.dcb.request.workflow;
 
-import static java.lang.Boolean.FALSE;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
-import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.StringUtils.parseList;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsRequest;
@@ -25,11 +13,21 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.SupplierRequestRepository;
-
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+
+import static java.lang.Boolean.FALSE;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 
 @Slf4j
@@ -228,11 +226,11 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private static boolean isLocalBorrowingRequestCancelled(String localRequestStatus) {
-		return HOLD_MISSING.equals(localRequestStatus);
+		return HOLD_CANCELLED.equals(localRequestStatus);
 	}
 
 	private static boolean isLocalBorrowingRequestMissing(String localRequestStatus) {
-		return HOLD_CANCELLED.equals(localRequestStatus);
+		return HOLD_MISSING.equals(localRequestStatus);
 	}
 
 	@Override
