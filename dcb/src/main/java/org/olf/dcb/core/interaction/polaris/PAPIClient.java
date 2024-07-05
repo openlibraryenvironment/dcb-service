@@ -31,7 +31,6 @@ import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -194,7 +193,7 @@ public class PAPIClient {
 	// https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceHoldRequestCancel.htm#papiserviceholdrequestcancel_3571891891_1215927
 	public Mono<String> holdRequestCancel(String patronBarcode, String requestID, Integer wsid, Integer userid) {
 
-		final var path = createPath("patron", patronBarcode, "holdrequests", requestID, "cancelled");
+		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "holdrequests", requestID, "cancelled");
 
 		return createRequest(PUT, path, uri -> uri
 			.queryParam("wsid", wsid).queryParam("userid", userid))
