@@ -198,7 +198,7 @@ public class PAPIClient {
 
 		return createRequest(PUT, path, uri -> uri
 			.queryParam("wsid", wsid).queryParam("userid", userid))
-			.map(request -> request.body(emptyMap()))
+			.map(request -> request.body(""))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.flatMap(request -> client.retrieve(request, Argument.of(HoldRequestCancelResult.class)))
