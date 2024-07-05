@@ -1,32 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpMethod.PUT;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static java.lang.Integer.parseInt;
-import static java.lang.String.valueOf;
-import static java.util.Collections.singletonList;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
-import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
-import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
-import org.olf.dcb.utils.PropertyAccessUtils;
-import org.reactivestreams.Publisher;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
@@ -37,8 +12,29 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
+import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
+import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
+import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import static io.micronaut.http.HttpMethod.*;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static java.lang.Integer.parseInt;
+import static java.lang.String.valueOf;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 public class PAPIClient {
@@ -200,7 +196,9 @@ public class PAPIClient {
 
 		final var path = createPath("patron", patronBarcode, "holdrequests", requestID, "cancelled");
 
-		return createRequest(PUT, path, uri -> uri.queryParam("wsid", wsid).queryParam("userid", userid))
+		return createRequest(PUT, path, uri -> uri
+			.queryParam("wsid", wsid).queryParam("userid", userid))
+			.map(request -> request.body(emptyMap()))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.flatMap(request -> client.retrieve(request, Argument.of(HoldRequestCancelResult.class)))
@@ -346,10 +344,6 @@ public class PAPIClient {
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String errorMessage;
-		@JsonProperty("SysHoldRequestID")
-		private Integer sysHoldRequestID;
-		@JsonProperty("ReturnCode")
-		private Integer returnCode;
 	}
 
 	@Builder

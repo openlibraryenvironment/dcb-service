@@ -9,5 +9,5 @@ public class CancelHoldRequestParameters {
 	String localRequestId;
 	String localItemId;
 	String localItemBarcode;
-	String patronBarcode;
+	String patronId;
 }
