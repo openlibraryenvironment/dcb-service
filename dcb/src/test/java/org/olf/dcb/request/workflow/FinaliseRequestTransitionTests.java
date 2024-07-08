@@ -243,7 +243,7 @@ class FinaliseRequestTransitionTests {
 		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(ctx -> {
 				if (!finaliseRequestTransition.isApplicableFor(ctx)) {
-					return Mono.error(new RuntimeException("cancelledPatronRequestTransition is not applicable for request"));
+					return Mono.error(new RuntimeException("finaliseRequestTransition is not applicable for request"));
 				}
 
 				return finaliseRequestTransition.attempt(ctx);
