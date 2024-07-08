@@ -1,39 +1,30 @@
 package org.olf.dcb.request.fulfilment;
 
-import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.StringUtils.parseList;
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.storage.AgencyRepository;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
+import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.model.Agency;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.NoHomeIdentityException;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.request.resolution.SupplierRequestService;
-import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.storage.AgencyRepository;
-import org.zalando.problem.Problem;
-import org.zalando.problem.ThrowableProblem;
-
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
-import reactor.function.TupleUtils;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
+import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.StringUtils.parseList;
 
 
 @Slf4j
@@ -561,5 +552,14 @@ public class SupplyingAgencyService {
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap(client -> client.getRequest(localRequestId));
+	}
+
+	public Mono<Patron> getPatron(RequestWorkflowContext ctx) {
+
+		final var supplierRequest = ctx.getSupplierRequest();
+		final var virtualIdentity = ctx.getPatronVirtualIdentity();
+
+		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
+			.flatMap(hostLmsClient -> hostLmsClient.getPatronByLocalId(virtualIdentity.getLocalId()));
 	}
 }

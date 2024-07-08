@@ -1,33 +1,28 @@
 package org.olf.dcb.request.fulfilment;
 
-import static reactor.function.TupleUtils.function;
-
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.function.Function;
-
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronIdentityRepository;
-
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-import reactor.util.function.*;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple3;
+import reactor.util.function.Tuple5;
+
 import java.time.Duration;
+import java.util.Objects;
+import java.util.UUID;
+
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 @Slf4j
 @Prototype
@@ -82,7 +77,7 @@ public class BorrowingAgencyService {
 	}
 
 	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
-		if (patronRequest.getLocalItemId() != null) {
+		if (patronRequest.getLocalItemId() != null || !"MISSING".equals(patronRequest.getLocalItemStatus())) {
 			return client.deleteItem(patronRequest.getLocalItemId())
 				.thenReturn(client);
 		}
@@ -267,5 +262,14 @@ public class BorrowingAgencyService {
 	private Mono<SupplierRequest> fetchSupplierRequestFor(PatronRequest patronRequest) {
 		return supplierRequestService.findSupplierRequestFor(patronRequest)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to find SupplierRequest."))));
+	}
+
+	public Mono<HostLmsItem> getItem(PatronRequest patronRequest) {
+		if (patronRequest.getPatronHostlmsCode() != null) {
+			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
+				.flatMap(hostLmsClient -> hostLmsClient.getItem(patronRequest.getLocalItemId(), patronRequest.getLocalRequestId()));
+		}
+
+		return raiseError(new DcbError("Can not get virtual records status with null HostLmsCode"));
 	}
 }

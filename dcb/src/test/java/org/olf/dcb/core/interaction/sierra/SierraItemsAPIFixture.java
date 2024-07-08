@@ -1,25 +1,24 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.mockserver.model.JsonBody.json;
-
-import java.util.List;
-import java.util.Map;
-
-import org.mockserver.client.MockServerClient;
-import org.mockserver.model.HttpRequest;
-import org.mockserver.model.HttpResponse;
-import org.olf.dcb.test.TestResourceLoaderProvider;
-
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.items.Location;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.mockserver.model.JsonBody.json;
 
 @AllArgsConstructor
 public class SierraItemsAPIFixture {
@@ -112,6 +111,21 @@ public class SierraItemsAPIFixture {
 			.when(sierraMockServerRequests.post()
 				.withBody(json(body)))
 			.respond(sierraMockServerResponses.unauthorised());
+	}
+
+	public void mockDeleteItem(String itemId) {
+		deleteItem(itemId, sierraMockServerResponses.noContent());
+	}
+
+	private void deleteItem(String itemId, HttpResponse response) {
+		mockServer.clear(deleteItemRecord(itemId));
+
+		mockServer.when(deleteItemRecord(itemId))
+			.respond(response);
+	}
+
+	private HttpRequest deleteItemRecord(String itemId) {
+		return sierraMockServerRequests.delete("/" + itemId);
 	}
 
 	private HttpRequest getItemsForBib(String bibId) {

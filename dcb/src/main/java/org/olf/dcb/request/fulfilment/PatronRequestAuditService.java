@@ -15,6 +15,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.util.Optional.empty;
@@ -76,7 +77,15 @@ public class PatronRequestAuditService {
 		return auditData;
 	}
 
-	private void putIfNotNull(Map<String, Object> map, String key, Object value) {
+	private static void putOrNullFallback(Map<String, Object> map, String key, Object value) {
+		if (value != null) {
+			map.put(key, value);
+		} else {
+			map.put(key, "Value was null");
+		}
+	}
+
+	private static void putIfNotNull(Map<String, Object> map, String key, Object value) {
 		if (value != null) {
 			map.put(key, value);
 		}
@@ -206,5 +215,50 @@ public class PatronRequestAuditService {
 		HashMap<String, Object> auditData) {
 
 		return auditEntry(ctx.getPatronRequest(), "Action failed : " + action.getName(), auditData);
+	}
+
+	public static Mono<HashMap<String, Object>> auditThrowableMonoWrap(
+		HashMap<String, Object> auditData, String key, Throwable error) {
+
+		return Mono.just(auditThrowable(auditData, key, error));
+	}
+
+	public static HashMap<String, Object> auditThrowable(HashMap<String, Object> auditData, String key, Throwable error) {
+		try {
+			// Extract relevant stack trace information
+			List<Map<String, Object>> stackTraceList = Arrays.stream(error.getStackTrace())
+				.limit(5)  // Limit to the first 5 elements for brevity
+				.map(stackTraceElement -> {
+					Map<String, Object> stackTraceElementMap = new HashMap<>();
+					stackTraceElementMap.put("methodName", stackTraceElement.getMethodName());
+					stackTraceElementMap.put("fileName", stackTraceElement.getFileName());
+					stackTraceElementMap.put("lineNumber", stackTraceElement.getLineNumber());
+					stackTraceElementMap.put("nativeMethod", stackTraceElement.isNativeMethod());
+					stackTraceElementMap.put("className", stackTraceElement.getClassName());
+					return stackTraceElementMap;
+				})
+				.collect(Collectors.toList());
+
+			// Create the error map with the condensed stack trace
+			Map<String, Object> errorMap = new HashMap<>();
+			errorMap.put("message", error.getMessage());
+			errorMap.put("localizedMessage", error.getLocalizedMessage());
+			errorMap.put("stackTrace", stackTraceList);
+			errorMap.put("cause", error.getCause() != null ? error.getCause().toString() : null);
+
+			auditData.put(key, errorMap);
+		} catch (Exception e) {
+			auditData.put("Failed to convert error to map", e.toString());
+			auditData.put(key, error.toString());
+		}
+
+		return auditData;
+	}
+
+	public static HashMap<String, Object> putAuditData(HashMap<String, Object> auditData, String key, Object value) {
+
+		putOrNullFallback(auditData, key, value);
+
+		return auditData;
 	}
 }

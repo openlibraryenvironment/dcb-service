@@ -1,12 +1,13 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.mockserver.model.JsonBody.json;
-
-import org.mockserver.client.MockServerClient;
-import org.olf.dcb.test.TestResourceLoaderProvider;
-
 import lombok.AllArgsConstructor;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 import services.k_int.interaction.sierra.bibs.BibPatch;
+
+import static org.mockserver.model.JsonBody.json;
 
 @AllArgsConstructor
 public class SierraBibsAPIFixture {
@@ -42,5 +43,20 @@ public class SierraBibsAPIFixture {
 				.withBody(json(bibPatch)))
 			.respond(sierraMockServerResponses
 				.jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/bibs/" + returnId));
+	}
+
+	public void mockDeleteBib(String bibId) {
+		deleteBib(bibId, sierraMockServerResponses.noContent());
+	}
+
+	private void deleteBib(String bibId, HttpResponse response) {
+		mockServer.clear(deleteBibRecord(bibId));
+
+		mockServer.when(deleteBibRecord(bibId))
+			.respond(response);
+	}
+
+	private HttpRequest deleteBibRecord(String bibId) {
+		return sierraMockServerRequests.delete("/" + bibId);
 	}
 }
