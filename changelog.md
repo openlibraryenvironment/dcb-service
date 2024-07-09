@@ -1,11 +1,47 @@
 # Changelog
 
+## Version 6.21.0
+
+### Additions
+* [General]
+	* cleanup virtual records following cancellation [DCB-1289]
+
+### Changes
+* [Chore]
+	* parse barcode list before adding to CancelHoldRequestParameters [DCB-1174]
+* [Refactor]
+	* cancel hold in polaris client [DCB-1174]
+
+### Fixes
+* [General]
+	* remove convertContextToMap in RequestWorkflowContextHelper
+	* add virtual patron barcode to CancelHoldRequestParameters [DCB-1174]
+
+## Version 6.20.1-rc.1
+
+### Changes
+* [Chore]
+	* more error auditData on action failure
+	* add problem detail to auditData on action failure
+	* add HOLD_MISSING to cancellation check [DCB-1174]
+	* add logs for getting hold after placing
+* [Refactor]
+	* CancelledPatronRequestTransition to use workflow error transformer [DCB-1174]
+
+### Fixes
+* [General]
+	* gaurd against cancelling already cancelled holds [DCB-1174]
+
 ## Version 6.20.0
 
 ### Additions
 * [General]
 	* Disallow inactive patrons from requesting DCB-1253
 	* patron cancellation [DCB-1174]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
