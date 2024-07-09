@@ -1,11 +1,9 @@
 package org.olf.dcb.request.fulfilment;
 
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
@@ -13,13 +11,9 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
-
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
-import java.util.Map;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Slf4j
 @Singleton
@@ -70,42 +64,15 @@ public class RequestWorkflowContextHelper {
 		.flatMap(this::decorateContextWithLenderDetails)
 		.flatMap(this::resolvePickupLocationAgency)
 		.onErrorResume(error -> {
-			log.error("Error in RequestWorkflowContextHelper fromPatronRequest: {}", error.getMessage(), error);
+			log.error("Error in RequestWorkflowContextHelper fromPatronRequest: {}",
+				getValue(error, Throwable::getMessage, "No error message available"), error);
 			return patronRequestAuditService
-				.addAuditEntry(rwc.getPatronRequest(), "RWC : " + error.getMessage(), convertContextToMap(rwc, error))
+				.addAuditEntry(rwc.getPatronRequest(), "RWC : " +
+					getValue(error, Throwable::getMessage, "No error message available"))
 				.thenReturn(rwc);
 		})
 		.flatMap(this::report);
 	}
-
-	public Map<String, Object> convertContextToMap(RequestWorkflowContext ctx, Throwable throwable) {
-		Map<String, Object> map = new HashMap<>();
-		if (ctx != null) {
-			if (throwable != null) map.put("Error", throwable.toString());
-			if (ctx.getPatronAgencyCode() != null) map.put("patronAgencyCode", ctx.getPatronAgencyCode());
-			if (ctx.getPatronSystemCode() != null) map.put("patronSystemCode", ctx.getPatronSystemCode());
-			if (ctx.getPatronAgency() != null) map.put("patronAgency", ctx.getPatronAgency());
-			if (ctx.getPatronSystem() != null) map.put("patronSystem", ctx.getPatronSystem());
-			if (ctx.getPickupAgencyCode() != null) map.put("pickupAgencyCode", ctx.getPickupAgencyCode());
-			if (ctx.getPickupSystemCode() != null) map.put("pickupSystemCode", ctx.getPickupSystemCode());
-			if (ctx.getPickupAgency() != null) map.put("pickupAgency", ctx.getPickupAgency());
-			if (ctx.getPickupLocationLocalId() != null) map.put("pickupLocationLocalId", ctx.getPickupLocationLocalId());
-			if (ctx.getPickupLocation() != null) map.put("pickupLocation", ctx.getPickupLocation());
-			if (ctx.getLenderAgencyCode() != null) map.put("lenderAgencyCode", ctx.getLenderAgencyCode());
-			if (ctx.getLenderSystemCode() != null) map.put("lenderSystemCode", ctx.getLenderSystemCode());
-			if (ctx.getLenderAgency() != null) map.put("lenderAgency", ctx.getLenderAgency());
-			if (ctx.getPatronHomeIdentity() != null) map.put("patronHomeIdentity", ctx.getPatronHomeIdentity());
-			if (ctx.getPatronVirtualIdentity() != null) map.put("patronVirtualIdentity", ctx.getPatronVirtualIdentity());
-			if (ctx.getPatronRequest() != null) map.put("patronRequest", ctx.getPatronRequest());
-			if (ctx.getSupplierRequest() != null) map.put("supplierRequest", ctx.getSupplierRequest());
-			if (ctx.getSupplierHoldId() != null) map.put("supplierHoldId", ctx.getSupplierHoldId());
-			if (ctx.getSupplierHoldStatus() != null) map.put("supplierHoldStatus", ctx.getSupplierHoldStatus());
-			if (ctx.getPatron() != null) map.put("patron", ctx.getPatron());
-			if (ctx.getPatronRequestStateOnEntry() != null) map.put("patronRequestStateOnEntry", ctx.getPatronRequestStateOnEntry());
-		}
-		return map;
-	}
-
 	private Mono<RequestWorkflowContext> decorateWithPatronRequestStateOnEntry(RequestWorkflowContext requestWorkflowContext) {
 		requestWorkflowContext.patronRequestStateOnEntry = requestWorkflowContext.getPatronRequest().getStatus();
 		return Mono.just(requestWorkflowContext);
