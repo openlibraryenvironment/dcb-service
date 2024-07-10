@@ -1,33 +1,11 @@
 package org.olf.dcb.core.api;
 
-import static io.micronaut.http.HttpResponse.badRequest;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
-import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
-import org.olf.dcb.request.fulfilment.PatronRequestService;
-import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
-import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
-import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
-import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.tracking.TrackingService;
-
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Error;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
 import io.micronaut.serde.annotation.Serdeable;
@@ -42,8 +20,26 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
+import org.olf.dcb.request.fulfilment.PatronRequestService;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
+import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.tracking.TrackingService;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static io.micronaut.http.HttpResponse.badRequest;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 
 @Controller("/patrons/requests")
 @Validated
@@ -109,8 +105,7 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/{patronRequestId}/update", consumes = APPLICATION_JSON)
 	public Mono<UUID> updatePatronRequest(@NotNull final UUID patronRequestId) {
-		return trackingService.forceUpdate(patronRequestId)
-			.thenReturn(patronRequestId);
+		return trackingService.forceUpdate(patronRequestId);
 	}
 
 	@SingleResult
