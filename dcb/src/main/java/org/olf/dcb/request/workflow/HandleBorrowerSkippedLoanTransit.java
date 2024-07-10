@@ -1,7 +1,8 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -11,19 +12,16 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
-import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.tracking.model.StateChange;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 
 /**
  * HandleBorrowerSkippedLoanTransit.
- * The DCB status is READY_FOR_PICKUP or PICKUP_TRANSIT but the patron reqest is missing AND the item status is TRANSIT
+ * The DCB status is READY_FOR_PICKUP or PICKUP_TRANSIT but the patron request is missing AND the item status is TRANSIT
  * this indicates that EITHER we failed to detect the patron loan OR the request is cancelled and the item is on it's way back
  * to the lending system. We move directly to RETURN_TRANSIT.
  */
@@ -31,31 +29,33 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Named("BorrowerSkippedLoanTransit")
 public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTransition {
-	private final PatronRequestRepository patronRequestRepository;
-
 	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.READY_FOR_PICKUP);
 	private static final List<String> possibleLocalItemStatus = List.of(HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_MISSING, HostLmsItem.ITEM_AVAILABLE);
 	private static final List<String> possibleLocalRequestStatus = List.of(HostLmsRequest.HOLD_MISSING);
-	
-	public HandleBorrowerSkippedLoanTransit(PatronRequestRepository patronRequestRepository) {
-		this.patronRequestRepository = patronRequestRepository;
-	}
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		final var patronRequest = getValue(ctx, RequestWorkflowContext::getPatronRequest, null);
 
-		if ( ctx.getPatronRequest().getActiveWorkflow() != null ) {
-			if ( ctx.getPatronRequest().getActiveWorkflow().equals("RET-STD") ) {
-				return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-					getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) &&
-					possibleLocalRequestStatus.contains(ctx.getPatronRequest().getLocalRequestStatus()) ) ;
+		final var status = getValue(patronRequest, PatronRequest::getStatus, "Unknown");
+		final var localItemStatus = getValue(patronRequest, PatronRequest::getLocalItemStatus,
+			"Unknown");
+		final var localRequestStatus = getValue(patronRequest, PatronRequest::getLocalRequestStatus,
+			"Unknown");
+
+		if ( patronRequest.getActiveWorkflow() != null ) {
+
+			if ( patronRequest.getActiveWorkflow().equals("RET-STD") ) {
+				return ( ( getPossibleSourceStatus().contains(status) ) &&
+					getPossibleLocalItemStatus().contains(localItemStatus) &&
+					possibleLocalRequestStatus.contains(localRequestStatus) ) ;
 			}
-			else if ( ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL") ) {
+			else if ( patronRequest.getActiveWorkflow().equals("RET-LOCAL") ) {
 				// For now we repeat the same configuration for RET-LOCAL - to allow LOCAL loans to also bypass the loan stage
 				// There may be a better way to deal with RET-LOCAL requests.
-				return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-					getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) &&
-					possibleLocalRequestStatus.contains(ctx.getPatronRequest().getLocalRequestStatus()) ) ;
+				return ( ( getPossibleSourceStatus().contains(status) ) &&
+					getPossibleLocalItemStatus().contains(localItemStatus) &&
+					possibleLocalRequestStatus.contains(localRequestStatus) ) ;
 			}
 		}
 		return false;
