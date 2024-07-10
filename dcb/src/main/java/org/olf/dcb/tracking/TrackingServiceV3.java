@@ -1,11 +1,11 @@
 package org.olf.dcb.tracking;
 
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Function;
-
+import io.micrometer.core.annotation.Timed;
+import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.scheduling.annotation.Scheduled;
+import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -17,20 +17,20 @@ import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
-
-import io.micrometer.core.annotation.Timed;
-import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.scheduling.annotation.Scheduled;
-import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Slf4j
 @Refreshable
@@ -118,16 +118,14 @@ public class TrackingServiceV3 implements TrackingService {
 	 * @param pr_id ID of the patron request
 	 * @return patron request
 	 */
-	public Mono<PatronRequest> forceUpdate(UUID pr_id) {
+	public Mono<UUID> forceUpdate(UUID pr_id) {
 		log.debug("Manual tracking poll for patron request \"{}\"", pr_id);
 
-		return Mono.from(patronRequestRepository.findById(pr_id))
-			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
-			.map(this::incrementManualPollCounter)
-			.flatMap(patronRequestWorkflowService::auditManualPoll)
-			.flatMap(this::trackSystems)
-			.flatMap(patronRequestWorkflowService::progressUsing)
-			.flatMap(ctx -> Mono.just(ctx.getPatronRequest()));
+		return fetchWorkflowContext(pr_id)
+			.flatMap(ctx -> failSafeTracking(ctx, false))
+			.flatMap(ctx -> Mono.just(pr_id))
+			.doOnError(error -> log.error("TRACKING ForceUpdate Error caught {}", pr_id, error))
+			.onErrorResume(error -> Mono.just(pr_id));
 	}
 
 	/**
@@ -138,16 +136,36 @@ public class TrackingServiceV3 implements TrackingService {
 	 * @param tr
 	 * @return
 	 */
-	private Mono<PatronRequestRepository.ScheduledTrackingRecord> doTracking(PatronRequestRepository.ScheduledTrackingRecord tr) {
-		return Mono.from(patronRequestRepository.findById(tr.id()))
+	private Mono<PatronRequestRepository.ScheduledTrackingRecord> doTracking(
+		PatronRequestRepository.ScheduledTrackingRecord tr) {
+
+		return fetchWorkflowContext(tr.id())
+			.flatMap(ctx -> failSafeTracking(ctx, true))
+			.thenReturn(tr)
+			.doOnError(error -> log.error("TRACKING doTracking Error caught {}",
+				getValue(tr, PatronRequestRepository.ScheduledTrackingRecord::id, "Unable to get tr.id()"), error))
+			.onErrorResume(error ->  Mono.just(tr));
+	}
+
+	private Mono<RequestWorkflowContext> failSafeTracking(RequestWorkflowContext ctx, boolean isAutoTracking) {
+		final var pr_id = ctx.getPatronRequest().getId();
+		return Mono.just(isAutoTracking ? incrementAutoPollCounter(ctx) : incrementManualPollCounter(ctx))
+			.flatMap(context -> isAutoTracking ? trackSystems(context) : manuallyTrack(context))
+			.doOnError(error -> log.error("TRACKING Error occurred tracking patron request in local systems {}", pr_id, error))
+			.flatMap(patronRequestWorkflowService::progressUsing)
+			.doOnError(error -> log.error("TRACKING Error occurred progressing patron request {}", pr_id, error))
+			.onErrorResume(error -> Mono.just(ctx));
+	}
+
+	private Mono<RequestWorkflowContext> fetchWorkflowContext(UUID pr_id) {
+		return Mono.from(patronRequestRepository.findById(pr_id))
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
-			.doOnError(error -> log.error("Error occurred finding patron request (or context) {}", tr.id(), error))
-			.map(this::incrementAutoPollCounter)
-			.flatMap(this::trackSystems)
-			.doOnError(error -> log.error("Error occurred tracking patron request in local systems {}", tr.id(), error))
-			.flatMap(ctx -> patronRequestWorkflowService.progressUsing(ctx))
-			.doOnError(error -> log.error("Error occurred progressing patron request {}", tr.id(), error))
-			.thenReturn(tr);
+			.doOnError(error -> log.error("TRACKING Error occurred finding patron request (or context) {}", pr_id, error));
+	}
+
+	private Mono<RequestWorkflowContext> manuallyTrack(RequestWorkflowContext ctx) {
+		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), "Manual update actioned.")
+			.flatMap(audit -> trackSystems(ctx));
 	}
 
 	private <R> Mono<RequestWorkflowContext> trackSystems(RequestWorkflowContext ctx) {

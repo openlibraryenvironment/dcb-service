@@ -1,17 +1,9 @@
 package org.olf.dcb.request.workflow;
 
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Stream;
-
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -22,13 +14,20 @@ import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
 import org.zalando.problem.Problem;
 import org.zalando.problem.ThrowableProblem;
-
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.annotation.ExecuteOn;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 @Slf4j
 @Singleton
@@ -319,10 +318,5 @@ public class PatronRequestWorkflowService {
 		patronRequest = patronRequest.setElapsedTimeInCurrentStatus(elapsedTime);
 		
 		return requestWorkflowContext.setPatronRequest(patronRequest);
-	}
-
-	public Mono<RequestWorkflowContext> auditManualPoll(RequestWorkflowContext ctx) {
-		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), "Manual update actioned.")
-			.map(audit -> ctx);
 	}
 }
