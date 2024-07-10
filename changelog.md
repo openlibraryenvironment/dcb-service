@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 6.21.1
+
+### Changes
+* [Refactor]
+	* add error handling to tracking service v3
+
 ## Version 6.21.0
 
 ### Additions
@@ -8,6 +14,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* parse barcode list before adding to CancelHoldRequestParameters [DCB-1174]
 * [Refactor]
 	* cancel hold in polaris client [DCB-1174]
