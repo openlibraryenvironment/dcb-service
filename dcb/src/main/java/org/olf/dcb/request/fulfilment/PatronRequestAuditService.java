@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.util.Optional.empty;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.StringUtils.truncate;
 
 @Slf4j
@@ -67,13 +68,13 @@ public class PatronRequestAuditService {
 	}
 
 	private Map<String, Object> updateAuditData(Map<String, Object> auditData, PatronRequest patronRequest) {
-		putIfNotNull(auditData, "previousStatus", patronRequest.getPreviousStatus());
-		putIfNotNull(auditData, "autoPollCountForCurrentStatus", patronRequest.getAutoPollCountForCurrentStatus());
-		putIfNotNull(auditData, "manualPollCountForCurrentStatus", patronRequest.getManualPollCountForCurrentStatus());
-		putIfNotNull(auditData, "currentStatusTimestamp", patronRequest.getCurrentStatusTimestamp());
-		putIfNotNull(auditData, "nextExpectedStatus", patronRequest.getNextExpectedStatus());
-		putIfNotNull(auditData, "outOfSequenceFlag", patronRequest.getOutOfSequenceFlag());
-		putIfNotNull(auditData, "elapsedTimeInCurrentStatus", patronRequest.getElapsedTimeInCurrentStatus());
+		putIfNotNull(auditData, "previousStatus", getValueOrNull(patronRequest, PatronRequest::getPreviousStatus));
+		putIfNotNull(auditData, "autoPollCountForCurrentStatus", getValueOrNull(patronRequest, PatronRequest::getAutoPollCountForCurrentStatus));
+		putIfNotNull(auditData, "manualPollCountForCurrentStatus", getValueOrNull(patronRequest, PatronRequest::getManualPollCountForCurrentStatus));
+		putIfNotNull(auditData, "currentStatusTimestamp", getValueOrNull(patronRequest, PatronRequest::getCurrentStatusTimestamp));
+		putIfNotNull(auditData, "nextExpectedStatus", getValueOrNull(patronRequest, PatronRequest::getNextExpectedStatus));
+		putIfNotNull(auditData, "outOfSequenceFlag", getValueOrNull(patronRequest, PatronRequest::getOutOfSequenceFlag));
+		putIfNotNull(auditData, "elapsedTimeInCurrentStatus", getValueOrNull(patronRequest, PatronRequest::getElapsedTimeInCurrentStatus));
 		return auditData;
 	}
 
@@ -101,7 +102,9 @@ public class PatronRequestAuditService {
 			.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry))
 				.cast(PatronRequestAudit.class))
 			.doOnSuccess(this::log)
-			.doOnError(error -> log.error("Error attempting to write audit for {}", pra, error));
+			.doOnError(error -> log.error("Error attempting to write audit for {}", pra, error))
+			// protect against audit failures
+			.onErrorResume(error -> Mono.just(pra));
 	}
 
 	public Mono<PatronRequestAudit> addAuditEntry(UUID patronRequestId,
