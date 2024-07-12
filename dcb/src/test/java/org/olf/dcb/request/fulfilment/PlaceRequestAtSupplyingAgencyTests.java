@@ -1,34 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescriptionContains;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNestedAuditDataProperty;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasId;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
-import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasDetail;
-import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
-
-import java.util.List;
-import java.util.UUID;
-
+import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,20 +15,31 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
-import org.olf.dcb.test.AgencyFixture;
-import org.olf.dcb.test.ClusterRecordFixture;
-import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.*;
 import org.zalando.problem.ThrowableProblem;
-
-import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Function;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.*;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.*;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.*;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasDetail;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
 
 @Slf4j
 @MockServerMicronautTest
@@ -89,10 +73,11 @@ class PlaceRequestAtSupplyingAgencyTests {
 	private PatronService patronService;
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
+	@Inject
+	private PatronRequestWorkflowService patronRequestWorkflowService;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
-
 	private DataAgency supplyingAgency;
 
 	@BeforeEach
@@ -429,9 +414,15 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 	private PatronRequest placeAtSupplyingAgency(PatronRequest patronRequest) {
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap( ctx -> placePatronRequestAtSupplyingAgencyStateTransition.attempt(ctx) )
+			.flatMap(attemptTransition())
 			.thenReturn(patronRequest)
 			.block();
+	}
+
+	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> attemptTransition() {
+		return ctx -> Mono.just(ctx.getPatronRequest())
+			.flatMap(patronRequestWorkflowService.attemptTransitionWithErrorTransformer(
+				placePatronRequestAtSupplyingAgencyStateTransition, ctx));
 	}
 
 	private void savePatronTypeMappings() {

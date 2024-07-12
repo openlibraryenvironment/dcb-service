@@ -1,22 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
-
-import java.util.List;
-
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,22 +13,27 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
-import org.olf.dcb.test.AgencyFixture;
-import org.olf.dcb.test.BibRecordFixture;
-import org.olf.dcb.test.ClusterRecordFixture;
-import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.*;
 import org.zalando.problem.ThrowableProblem;
-
-import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.List;
+
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -73,13 +62,12 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
-
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
-
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-
+	@Inject
+	private PatronRequestWorkflowService patronRequestWorkflowService;
 	@Inject
 	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
 
@@ -501,7 +489,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 					return Mono.error(new RuntimeException("Place request at borrowing agency is not applicable for request"));
 				}
 
-				return placePatronRequestAtBorrowingAgencyStateTransition.attempt(ctx);
+				return Mono.just(ctx.getPatronRequest())
+					.flatMap(patronRequestWorkflowService.attemptTransitionWithErrorTransformer(
+						placePatronRequestAtBorrowingAgencyStateTransition, ctx));
 			})
 			.thenReturn(patronRequest));
 	}

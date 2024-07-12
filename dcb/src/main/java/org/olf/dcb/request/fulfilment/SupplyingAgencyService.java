@@ -81,10 +81,9 @@ public class SupplyingAgencyService {
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.zipWhen(psrc -> performSupplierPreflight(psrc) )
-			.flatMap(TupleUtils.function((psrc, preflightResult) -> reactToPreflight(preflightResult, psrc) ) )
+			.flatMap(TupleUtils.function((psrc, preflightResult) -> reactToPreflight(preflightResult, psrc) ) );
       // We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
-      // commenting out as of 2023-08-16. If audit log looks good will remove entirely.
-      .transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest));
+      // commenting out as of 2023-08-16. If audit log looks good will remove entirely.;
 	}
 
 	public Mono<Boolean> performSupplierPreflight(RequestWorkflowContext psrc) {

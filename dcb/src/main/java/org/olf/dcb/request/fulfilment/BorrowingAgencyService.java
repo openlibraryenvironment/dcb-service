@@ -59,7 +59,6 @@ public class BorrowingAgencyService {
 		return fetchRequiredData(patronRequest, ctx)
 			.flatMap(function(this::borrowingRequestFlow))
 			.map(patronRequest::placedAtBorrowingAgency)
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
 			;
 	}
 
