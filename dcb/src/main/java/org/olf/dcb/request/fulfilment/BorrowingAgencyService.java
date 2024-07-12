@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
@@ -62,9 +63,14 @@ public class BorrowingAgencyService {
 			;
 	}
 
-	public Mono<String> cleanUp(PatronRequest patronRequest) {
+	public Mono<String> cleanUp(RequestWorkflowContext requestWorkflowContext) {
+
+		final var patronRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPatronRequest);
+		final var hostLmsCode = getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode);
+
 		log.info("WORKFLOW cleanUp {}", patronRequest);
-		if (patronRequest.getPatronHostlmsCode() != null) {
+
+		if (hostLmsCode != null) {
 			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
 				.flatMap(client -> deleteItemIfPresent(client, patronRequest) )
 				.flatMap(client -> deleteBibIfPresent(client, patronRequest) )

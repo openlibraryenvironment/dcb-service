@@ -64,7 +64,7 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 		PatronRequest patronRequest = ctx.getPatronRequest();
 		log.debug("WORKFLOW FinaliseRequestTransition firing for {}", patronRequest);
 
-		return Mono.just(patronRequest)
+		return Mono.just(ctx)
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
 			.flatMap(checkForErrorString(ctx))

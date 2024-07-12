@@ -21,8 +21,10 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.StringUtils.parseList;
 
@@ -108,9 +110,30 @@ public class SupplyingAgencyService {
       .map(PatronRequest::placedAtSupplyingAgency);
 	}
 
-	public Mono<PatronRequest> cleanUp(PatronRequest patronRequest) {
-		log.info("WORKFLOW cleanup {}",patronRequest);
-		return Mono.just(patronRequest);
+	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext requestWorkflowContext) {
+
+		final var supplierRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getSupplierRequest);
+		final var hostLmsCode = getValueOrNull(supplierRequest, SupplierRequest::getHostLmsCode);
+		final var localRequestId =  getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
+
+		log.info("WORKFLOW attempting to cleanup local supplier hold :: {}", supplierRequest);
+
+		if (hostLmsCode == null || localRequestId == null) {
+			log.error("WORKFLOW could not cleanup supplier hold :: hostLmsCode={} localRequestId={}", hostLmsCode, localRequestId);
+			return Mono.just(requestWorkflowContext);
+		}
+
+		return hostLmsService.getClientFor(hostLmsCode)
+			.flatMap(client -> client.deleteHold(localRequestId))
+			.onErrorResume(logAndReturnErrorString())
+			.thenReturn(requestWorkflowContext);
+	}
+
+	private static Function<Throwable, Mono<String>> logAndReturnErrorString() {
+		return error -> {
+			log.error("WORKFLOW cleanup", error);
+			return Mono.just("ERROR");
+		};
 	}
 
 	private Mono<RequestWorkflowContext> checkAndCreatePatronAtSupplier(RequestWorkflowContext psrc) {
