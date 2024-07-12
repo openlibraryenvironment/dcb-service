@@ -53,6 +53,8 @@ class FinaliseRequestTransitionTests {
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
+	private PatronRequestWorkflowService patronRequestWorkflowService;
+	@Inject
 	private FinaliseRequestTransition finaliseRequestTransition;
 	private DataHostLms supplierHostLMS;
 
@@ -246,7 +248,8 @@ class FinaliseRequestTransitionTests {
 					return Mono.error(new RuntimeException("finaliseRequestTransition is not applicable for request"));
 				}
 
-				return finaliseRequestTransition.attempt(ctx);
+				return Mono.just(ctx.getPatronRequest())
+					.flatMap(patronRequestWorkflowService.attemptTransitionWithErrorTransformer(finaliseRequestTransition, ctx));
 			})
 			.thenReturn(patronRequest));
 	}

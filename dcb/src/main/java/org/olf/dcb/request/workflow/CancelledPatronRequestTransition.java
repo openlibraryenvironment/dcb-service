@@ -80,8 +80,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		return auditConditionMet(ctx)
 			.flatMap( cancelSupplierRequest() )
 			.flatMap( updatePatronRequestStatus() )
-			.flatMap( verifySupplierCancellation() )
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(ctx));
+			.flatMap( verifySupplierCancellation() );
 	}
 
 	private Mono<RequestWorkflowContext> auditConditionMet(RequestWorkflowContext ctx) {

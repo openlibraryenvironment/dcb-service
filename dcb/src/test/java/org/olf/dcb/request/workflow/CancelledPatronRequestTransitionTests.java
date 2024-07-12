@@ -56,6 +56,8 @@ class CancelledPatronRequestTransitionTests {
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
+	private PatronRequestWorkflowService patronRequestWorkflowService;
+	@Inject
 	private CancelledPatronRequestTransition cancelledPatronRequestTransition;
 	private DataHostLms supplierHostLMS;
 
@@ -300,7 +302,8 @@ class CancelledPatronRequestTransitionTests {
 					return Mono.error(new RuntimeException("cancelledPatronRequestTransition is not applicable for request"));
 				}
 
-				return cancelledPatronRequestTransition.attempt(ctx);
+				return Mono.just(ctx.getPatronRequest())
+					.flatMap(patronRequestWorkflowService.attemptTransitionWithErrorTransformer(cancelledPatronRequestTransition, ctx));
 			})
 			.thenReturn(patronRequest));
 	}

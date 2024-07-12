@@ -1,16 +1,14 @@
 package org.olf.dcb.request.workflow;
 
-import java.util.Optional;
-
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
-
 import io.micronaut.core.annotation.NonNull;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import reactor.core.publisher.Mono;
+
 import java.util.List;
+import java.util.Optional;
 
 public interface PatronRequestStateTransition {
 	

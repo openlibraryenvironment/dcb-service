@@ -159,7 +159,7 @@ public class PatronRequestWorkflowService {
 		auditData.put("workflowMessages", ctx.getWorkflowMessages());
 
 		return patronRequestAuditService.auditActionAttempted(action, ctx, auditData)
-			.flatMap(pr -> action.attempt(ctx))
+			.flatMap(attemptTransitionWithErrorTransformer(action, ctx))
 			.flatMap(incrementStateTransitionMetrics(ctx))
 			.flatMap(patronRequestAuditService.auditActionCompleted(action, auditData))
 			.onErrorResume(error -> patronRequestAuditService.auditActionError(action, ctx, auditData, error))
@@ -168,6 +168,12 @@ public class PatronRequestWorkflowService {
 				// Recursively call progress all in case there are subsequent steps we can apply
 				return this.progressAll(ctx.getPatronRequest());
 			});
+	}
+
+	public Function<PatronRequest, Mono<RequestWorkflowContext>> attemptTransitionWithErrorTransformer(
+		PatronRequestStateTransition action, RequestWorkflowContext ctx) {
+
+		return pr -> action.attempt(ctx).transform(getErrorTransformerFor(ctx));
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> incrementStateTransitionMetrics(
