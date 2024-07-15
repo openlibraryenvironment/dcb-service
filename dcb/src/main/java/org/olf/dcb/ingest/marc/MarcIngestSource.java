@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
@@ -238,28 +239,37 @@ public interface MarcIngestSource<T> extends IngestSource {
 	IngestRecordBuilder initIngestRecordBuilder(T resource);
 
 	Record resourceToMarc(T resource);
+	
+	@SingleResult
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	default Publisher<IngestRecord> processSingleResource( T resource ) {
+		return Mono.just(resource) // Reactor will blow up above if resource is null.						
+				.flatMap( r -> saveRawAndContinue(r)
+						.onErrorComplete()) // Complete the mono (Empty) and terminate for this resource. Let the upstream log any messages.
+
+				.publishOn(Schedulers.boundedElastic())
+				.subscribeOn(Schedulers.boundedElastic())
+				.map(this::initIngestRecordBuilder)
+				.zipWith(Mono.just( resourceToMarc(resource) ) )
+						// .map( this::createMatchKey ))
+				.map(TupleUtils.function(( ir, marcRecord ) -> {
+					return populateRecordFromMarc(ir, marcRecord).build();
+				}))
+				.onErrorResume(err -> {
+					log.error("Could not marshal resource [{}] into IngestRecord. \n{}", resource, err);
+					return Mono.empty();
+				});
+	}
 
 	@Override
 	public default Publisher<IngestRecord> apply(Instant since, Publisher<String> terminator) {
 
 		log.info("Read from the marc source and publish a stream of IngestRecords");
-
+		
 		return Flux.defer(() -> getResources(since, terminator))
-				.publishOn(Schedulers.boundedElastic())
-				.subscribeOn(Schedulers.boundedElastic())
-				.concatMap(this::saveRawAndContinue)
-				.doOnError(throwable -> log.warn("ONERROR saving raw record", throwable))
-				.flatMap(resource -> {
-					return Mono.justOrEmpty(resource)
-							.publishOn(Schedulers.boundedElastic())
-							.subscribeOn(Schedulers.boundedElastic())
-							.map(this::initIngestRecordBuilder)
-							.zipWith(Mono.just( resourceToMarc(resource) ) )
-									// .map( this::createMatchKey ))
-							.map(TupleUtils.function(( ir, marcRecord ) -> {
-								return populateRecordFromMarc(ir, marcRecord).build();
-							}));
-				});
+			.publishOn(Schedulers.boundedElastic())
+			.subscribeOn(Schedulers.boundedElastic())
+			.concatMap(this::processSingleResource);
 	}
 
 	@NonNull
