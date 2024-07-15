@@ -275,7 +275,7 @@ public interface MarcIngestSource<T> extends IngestSource {
 	@NonNull
 	RawSourceRepository getRawSourceRepository();
 
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Transactional(propagation = Propagation.MANDATORY)
 	public default Mono<T> saveRawAndContinue(final T resource) {
 		log.debug("Save raw {}", resource);
 		
