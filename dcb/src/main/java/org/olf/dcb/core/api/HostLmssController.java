@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +23,6 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,7 +34,7 @@ import reactor.core.publisher.Mono;
 
 @Controller("/hostlmss")
 @Validated
-@Secured(SecurityRule.IS_ANONYMOUS)
+@Secured(RoleNames.ADMINISTRATOR)
 @Tag(name = "Host LMS Api")
 public class HostLmssController {
 
