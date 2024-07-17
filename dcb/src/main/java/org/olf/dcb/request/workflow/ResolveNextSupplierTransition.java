@@ -7,6 +7,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import java.util.List;
 import java.util.Optional;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
@@ -23,8 +24,11 @@ import reactor.core.publisher.Mono;
 public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTransition
 	implements PatronRequestStateTransition {
 
-	ResolveNextSupplierTransition() {
+	private final HostLmsService hostLmsService;
+
+	ResolveNextSupplierTransition(HostLmsService hostLmsService) {
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
+		this.hostLmsService = hostLmsService;
 	}
 
 	@Override
