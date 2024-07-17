@@ -15,35 +15,65 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class ResolveNextSupplierTransitionTests {
+	private static final String BORROWING_HOST_LMS_CODE = "next-supplier-borrowing-tests";
+	@Inject
+	private SierraApiFixtureProvider sierraApiFixtureProvider;
 	@Inject
 	private PatronFixture patronFixture;
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
+	@Inject
+	private HostLmsFixture hostLmsFixture;
+
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private ResolveNextSupplierTransition resolveNextSupplierTransition;
+
+	@BeforeAll
+	void beforeAll(MockServerClient mockServerClient) {
+		final String TOKEN = "test-token";
+		final String BASE_URL = "https://resolve-next-borrowing-tests.com";
+		final String KEY = "key";
+		final String SECRET = "secret";
+
+		hostLmsFixture.deleteAll();
+
+		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
+
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+	}
 
 	@BeforeEach
 	void beforeEach() {
@@ -136,7 +166,7 @@ class ResolveNextSupplierTransitionTests {
 		return supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 			.id(UUID.randomUUID())
 			.patronRequest(patronRequest)
-			.hostLmsCode("supplier-cancellation-host-lms")
+			.hostLmsCode("next-supplier-supplying-host-lms")
 			.localItemId("48375735")
 			.localStatus(localStatus)
 			.build());
