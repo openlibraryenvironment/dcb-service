@@ -1,26 +1,5 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static io.micronaut.http.HttpMethod.*;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
-import static reactor.core.publisher.Mono.empty;
-
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.utils.CollectionUtils;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -29,20 +8,22 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.type.Argument;
-import io.micronaut.http.BasicAuth;
-import io.micronaut.http.HttpHeaders;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.MediaType;
-import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.*;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
 import jakarta.validation.constraints.NotNull;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.utils.CollectionUtils;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.LinkResult;
@@ -58,6 +39,19 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.patrons.*;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import static io.micronaut.http.HttpMethod.*;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
+import static reactor.core.publisher.Mono.empty;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 @Secondary
 @Prototype
@@ -322,7 +316,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			// This has to happen after other error handlers related to
 			// HttpClientResponseException
 			.onErrorMap(HttpClientResponseException.class,
-					responseException -> unexpectedResponseProblem(responseException, request, null));
+					responseException -> unexpectedResponseProblem(responseException, request, null))
+			.onErrorResume(error -> {
+				if (error instanceof ThrowableProblem) {
+					return Mono.error(error);
+				}
+
+				return raiseError(unexpectedResponseProblem(error, request, lms.getCode()));
+			});
 	}
 
 	/**
@@ -345,7 +346,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			// This has to go after more specific error handling
 			// as will convert any client response exception to a problem
 			.onErrorMap(HttpClientResponseException.class,
-					responseException -> unexpectedResponseProblem(responseException, request, null));
+					responseException -> unexpectedResponseProblem(responseException, request, null))
+			.onErrorResume(error -> {
+				if (error instanceof Problem) {
+					return Mono.error(error);
+				}
+
+				return raiseError(unexpectedResponseProblem(error, request, lms.getCode()));
+			});
 	}
 
 	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {

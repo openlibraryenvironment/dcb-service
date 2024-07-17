@@ -1012,6 +1012,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					return Mono.error(unexpectedResponseProblem(responseException, request, getHostLmsCode()));
 				}
 				return Mono.error(responseException); // Propagate the error
+			})
+			.onErrorResume(error -> {
+				if (error instanceof Problem) {
+					return Mono.error(error);
+				}
+
+				return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
 			});
 	}
 
@@ -1047,7 +1054,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			// as will convert any client response exception to a problem
 			.doOnError(HttpClientResponseException.class, error -> log.error("Unexpected response from Host LMS: {}", getHostLmsCode(), error))
 			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+				unexpectedResponseProblem(responseException, request, getHostLmsCode()))
+			.onErrorResume(error -> {
+				if (error instanceof Problem) {
+					return Mono.error(error);
+				}
+
+				return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
+			});
 	}
 
 	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
