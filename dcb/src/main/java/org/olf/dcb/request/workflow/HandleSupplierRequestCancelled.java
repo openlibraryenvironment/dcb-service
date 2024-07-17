@@ -21,7 +21,6 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
-import io.micronaut.context.BeanProvider;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -36,13 +35,10 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 	private final SupplierRequestService supplierRequestService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	HandleSupplierRequestCancelled(
-		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		SupplierRequestService supplierRequestService,
+	HandleSupplierRequestCancelled(SupplierRequestService supplierRequestService,
 		PatronRequestAuditService patronRequestAuditService) {
 
-		super(patronRequestWorkflowServiceProvider,
-			List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED,
+		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED,
 			REQUEST_PLACED_AT_BORROWING_AGENCY));
 
 		this.supplierRequestService = supplierRequestService;

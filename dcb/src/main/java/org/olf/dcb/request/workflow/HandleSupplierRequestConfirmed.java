@@ -37,7 +37,7 @@ public class HandleSupplierRequestConfirmed extends AbstractPatronRequestStateTr
 		SupplierRequestService supplierRequestRepository,
 		HostLmsService hostLmsService) {
 
-		super(patronRequestWorkflowServiceProvider, List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 		
 		this.supplierRequestService = supplierRequestRepository;
 		this.hostLmsService = hostLmsService;

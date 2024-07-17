@@ -11,7 +11,6 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
-import io.micronaut.context.BeanProvider;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -23,10 +22,8 @@ import reactor.core.publisher.Mono;
 public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTransition
 	implements PatronRequestStateTransition {
 
-	ResolveNextSupplierTransition(
-		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
-
-		super(patronRequestWorkflowServiceProvider, List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
+	ResolveNextSupplierTransition() {
+		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 	}
 
 	@Override
