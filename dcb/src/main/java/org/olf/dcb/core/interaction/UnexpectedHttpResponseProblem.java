@@ -1,13 +1,12 @@
 package org.olf.dcb.core.interaction;
 
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import org.zalando.problem.ThrowableProblem;
+
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-
-import org.zalando.problem.ThrowableProblem;
-
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
 public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 	public static <T> ThrowableProblem unexpectedResponseProblem(
@@ -20,6 +19,18 @@ public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 		HttpRequest<?> request, String hostLmsCode) {
 
 		super(determineTitle(hostLmsCode, request), null, responseException, request);
+	}
+
+	public static <T> ThrowableProblem unexpectedResponseProblem(
+		Throwable throwable, HttpRequest<T> request, String hostLmsCode) {
+
+		return new UnexpectedHttpResponseProblem(throwable, request, hostLmsCode);
+	}
+
+	private UnexpectedHttpResponseProblem(Throwable throwable,
+		HttpRequest<?> request, String hostLmsCode) {
+
+		super(determineTitle(hostLmsCode, request), null, throwable, request);
 	}
 
 	private static String determineTitle(String hostLmsCode, HttpRequest<?> request) {
