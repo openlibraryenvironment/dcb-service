@@ -1,56 +1,17 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static java.lang.Integer.parseInt;
-import static java.util.Calendar.YEAR;
-import static java.util.Objects.nonNull;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_OFFSITE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RECEIVED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_REQUESTED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RETURNED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
-import static org.olf.dcb.core.interaction.HostLmsItem.LIBRARY_USE_ONLY;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.MapUtils.getAsOptionalString;
-
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.json.tree.JsonNode;
+import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.BranchRecord;
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.configuration.LocationRecord;
-import org.olf.dcb.configuration.PickupLocationRecord;
-import org.olf.dcb.configuration.RefdataRecord;
+import org.olf.dcb.configuration.*;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -69,17 +30,7 @@ import org.olf.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.dcb.tracking.model.PatronTrackingEvent;
 import org.olf.dcb.tracking.model.PickupTrackingEvent;
 import org.olf.dcb.tracking.model.TrackingRecord;
-import org.olf.dcb.utils.PropertyAccessUtils;
 import org.reactivestreams.Publisher;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.json.tree.JsonNode;
-import jakarta.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -98,13 +49,30 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
-import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.PatronHoldPost;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronValidation;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.patrons.*;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.utils.UUIDUtils;
+
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static java.lang.Integer.parseInt;
+import static java.util.Calendar.YEAR;
+import static java.util.Objects.nonNull;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsItem.*;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.*;
+import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 
 
@@ -660,6 +628,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.names(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
 			.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 			.expirationDate(patronExpirationDate)
+			.pin("1234")
 			.build();
 
 		return Mono.from(client.patrons(patronPatch))
