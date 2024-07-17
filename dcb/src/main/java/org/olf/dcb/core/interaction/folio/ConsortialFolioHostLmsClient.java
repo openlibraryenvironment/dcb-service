@@ -28,7 +28,6 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -55,7 +54,6 @@ import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpec
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.ItemStatusCode.*;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
@@ -310,14 +308,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.onErrorMap(HttpResponsePredicates::isUnprocessableContent,
 					error -> interpretValidationError(error, request))
 				.onErrorMap(HttpResponsePredicates::isNotFound,
-					error -> interpretValidationError(error, request))
-				.onErrorResume(error -> {
-					if (error instanceof Problem) {
-						return Mono.error(error);
-					}
-
-					return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
-				}));
+					error -> interpretValidationError(error, request)));
 	}
 
 	private CannotPlaceRequestProblem interpretValidationError(Throwable error,
