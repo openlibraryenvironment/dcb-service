@@ -97,9 +97,14 @@ class ResolveNextSupplierTransitionTests {
 	@Test
 	void shouldProgressRequestWhenSupplierHasCancelled() {
 		// Arrange
-		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER);
+		final var borrowingLocalRequestId = "3635625";
+
+		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+			borrowingLocalRequestId);
 
 		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
 
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
@@ -109,12 +114,14 @@ class ResolveNextSupplierTransitionTests {
 			notNullValue(),
 			hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)
 		));
+
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 	
 	@Test
 	void shouldNotApplyWhenItemHasBeenDispatchedForPickup() {
 		// Arrange
-		final var patronRequest = definePatronRequest(PICKUP_TRANSIT);
+		final var patronRequest = definePatronRequest(PICKUP_TRANSIT, "3635625");
 
 		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
 
@@ -129,7 +136,7 @@ class ResolveNextSupplierTransitionTests {
 	@Test
 	void shouldTolerateNullPatronRequestStatus() {
 		// Arrange
-		final var patronRequest = definePatronRequest(null);
+		final var patronRequest = definePatronRequest(null, "3635625");
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
@@ -157,7 +164,9 @@ class ResolveNextSupplierTransitionTests {
 				.map(ctx -> resolveNextSupplierTransition.isApplicableFor(ctx)));
 	}
 
-	private PatronRequest definePatronRequest(PatronRequest.Status status) {
+	private PatronRequest definePatronRequest(PatronRequest.Status status,
+		String localRequestId) {
+
 		final var patron = patronFixture.definePatron("365636", "home-library",
 			borrowingHostLms, borrowingAgency);
 
@@ -166,9 +175,11 @@ class ResolveNextSupplierTransitionTests {
 			.patron(patron)
 			.status(status)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.localRequestId(localRequestId)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
+
 		return patronRequest;
 	}
 
