@@ -2,6 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +34,15 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
-		return Mono.just(context);
+		return Mono.just(context)
+			.flatMap(this::markNoItemsAvailableAtAnyAgency);
+	}
+
+	private Mono<RequestWorkflowContext> markNoItemsAvailableAtAnyAgency(RequestWorkflowContext context) {
+		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
+
+		return Mono.just(context.setPatronRequest(
+			patronRequest.setStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)));
 	}
 
 	@Override

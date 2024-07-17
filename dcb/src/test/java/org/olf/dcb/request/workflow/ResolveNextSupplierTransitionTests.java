@@ -8,6 +8,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -64,7 +65,7 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NOT_SUPPLIED_CURRENT_SUPPLIER)
+			hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)
 		));
 	}
 	
