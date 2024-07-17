@@ -3,11 +3,9 @@ package org.olf.dcb.request.workflow;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
-import java.util.function.Function;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.reactivestreams.Publisher;
 
 import io.micronaut.context.BeanProvider;
 import lombok.Getter;
@@ -50,10 +48,4 @@ abstract class AbstractPatronRequestStateTransition {
 	}
 
 	protected abstract boolean checkApplicability(RequestWorkflowContext context);
-
-	protected Function<Publisher<RequestWorkflowContext>, Publisher<RequestWorkflowContext>> getErrorTransformerFor(
-		RequestWorkflowContext context) {
-
-		return patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(context);
-	}
 }

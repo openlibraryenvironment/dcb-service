@@ -64,8 +64,7 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 		return Mono.just(context)
 			.flatMap(this::markNotSuppliedByCurrentSupplier)
 			.flatMap(this::cancelSupplierRequest)
-			.flatMap(this::auditCancellation)
-			.transform(getErrorTransformerFor(context));
+			.flatMap(this::auditCancellation);
 	}
 
 	private Mono<RequestWorkflowContext> auditCancellation(RequestWorkflowContext context) {
