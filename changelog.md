@@ -1,8 +1,34 @@
 # Changelog
 
+## Version 6.22.0
+
+### Additions
+* [General]
+	* add delay and retries when finding a virtual patron in polaris lms [DCB-1278]
+	* Delete Host LMS data
+	* add clean up of supplier side requests [DCB-1289]
+
+### Changes
+* [Chore]
+	* Reinstate single resource failure in ingest, not page.
+	* Reinstate null folding.
+	* error handling in PatronRequestAuditService
+* [Refactor]
+	* add error handling for unhandled request errors
+	* transfrom errors on all transitions that are attempted
+
+### Fixes
+* [General]
+	* add pin to new created virtual patrons in Sierra [DCB-1265]
+	* remove unneeded error handling in ConsortialFolioHostLmsClient
+	* Readd Admin role requirement.
+	* Don't nest new transaction so deeply.
+
 ## Version 6.21.1
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* add error handling to tracking service v3
 
