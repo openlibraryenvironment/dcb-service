@@ -19,11 +19,15 @@ import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static io.micronaut.http.HttpMethod.*;
@@ -34,6 +38,7 @@ import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 @Slf4j
 public class PAPIClient {
@@ -249,19 +254,57 @@ public class PAPIClient {
 	 * for more information
 	 */
 	public Mono<PatronSearchRow> patronSearch(String barcode) {
+
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 		final var ccl = "PATNF=" + barcode;
 
 		log.debug("Using ccl: {} to search for virtual patron.", ccl);
-		return makePatronSearchRequest(path, ccl);
+
+		AtomicInteger retryCount = new AtomicInteger(0);
+		final var findDelay = polarisConfig.getHoldFetchingDelay(5);
+		final var maxRetry = polarisConfig.getMaxHoldFetchingRetry(10);
+
+		return makePatronSearchRequest(path, ccl, findDelay)
+			.retryWhen(Retry.max(maxRetry + 1)
+				.filter(throwable -> throwable instanceof FindVirtualPatronException && retryCount.get() < maxRetry)
+				.doBeforeRetry(retrySignal -> log.debug("Fetch virtual patron retry: {}", retryCount.incrementAndGet())));
 	}
 
-	private Mono<PatronSearchRow> makePatronSearchRequest(String path, String ccl) {
+	private Mono<PatronSearchRow> makePatronSearchRequest(String path, String ccl, Integer findDelay) {
 		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
+			.delayElement(Duration.ofSeconds(findDelay))
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
 			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
-			.flatMap(this::checkForUniquePatronResult);
+			.flatMap(checkForUniquePatronResult(path, ccl));
+	}
+
+	private Function<PatronSearchResult, Mono<PatronSearchRow>> checkForUniquePatronResult(String path, String ccl) {
+		return patronSearchResult -> {
+
+			final var recordsFound = patronSearchResult.getTotalRecordsFound();
+
+			if (recordsFound < 1) {
+				log.warn("No virtual Patron found, returning an empty mono to create a new patron.");
+
+				return Mono.empty();
+			}
+
+			if (recordsFound > 1) {
+				log.error("More than one virtual patron found: {}", patronSearchResult);
+
+				raiseError(Problem.builder()
+					.withTitle(recordsFound + " records found for virtual patron.")
+					.withDetail(path)
+					.with("ccl", ccl)
+					.with("Full response", patronSearchResult)
+					.build());
+			}
+
+			// Return the PatronSearchRow
+			log.info("checkForUniquePatronResult passed: {}", patronSearchResult);
+			return Mono.just(patronSearchResult.getPatronSearchRows().get(0));
+		};
 	}
 
 	private static FindVirtualPatronException toFindVirtualPatronException(
@@ -269,25 +312,6 @@ public class PAPIClient {
 
 		return new FindVirtualPatronException(
 			"PAPIService returned [%d], with message: %s".formatted(code, message));
-	}
-
-	private Mono<PatronSearchRow> checkForUniquePatronResult(PatronSearchResult patronSearchResult) {
-		final var recordsFound = patronSearchResult.getTotalRecordsFound();
-
-		if (recordsFound < 1) {
-			log.warn("No virtual Patron found, returning an empty mono to create a new patron.");
-
-			return Mono.empty();
-		}
-
-		if (recordsFound > 1) {
-			log.error("More than one virtual patron found: {}", patronSearchResult);
-			throw new FindVirtualPatronException(recordsFound + " records found for virtual patron.");
-		}
-
-		// Return the PatronSearchRow
-		log.info("checkForUniquePatronResult passed: {}", patronSearchResult);
-		return Mono.just(patronSearchResult.getPatronSearchRows().get(0));
 	}
 
 	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
