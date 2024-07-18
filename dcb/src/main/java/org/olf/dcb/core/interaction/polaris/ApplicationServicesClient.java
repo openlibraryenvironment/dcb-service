@@ -1,54 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static io.micronaut.http.HttpMethod.DELETE;
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpMethod.PUT;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static java.lang.String.valueOf;
-import static java.time.ZoneOffset.UTC;
-import static java.time.format.DateTimeFormatter.ofPattern;
-import static java.util.Collections.singletonList;
-import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.BriefItemEntry;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmBibRecordDelete;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmItemRecordDelete;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.DuplicateHoldRequests;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.DuplicateRecords;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.FillsRequestTransferPrompt;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.LastCopyOrRecordOptions;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.NoDisplayInPAC;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Yes;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
-import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.ReactorUtils.raiseError;
-
-import java.net.URI;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.polaris.exceptions.CreateVirtualItemException;
-import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
-import org.olf.dcb.core.interaction.polaris.exceptions.PatronBlockException;
-import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
-import org.zalando.problem.Problem;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpResponse;
@@ -61,10 +13,44 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.CreateVirtualItemException;
+import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
+import org.zalando.problem.Problem;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple4;
 import reactor.util.function.Tuple5;
 import reactor.util.function.Tuples;
+
+import java.net.URI;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+import static io.micronaut.http.HttpMethod.*;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static java.lang.String.valueOf;
+import static java.time.ZoneOffset.UTC;
+import static java.time.format.DateTimeFormatter.ofPattern;
+import static java.util.Collections.singletonList;
+import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.*;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 @Slf4j
 class ApplicationServicesClient {
@@ -214,20 +200,38 @@ class ApplicationServicesClient {
 	public Mono<Integer> handlePatronBlock(Integer localPatronId) {
 		return getPatronBlocks(localPatronId)
 			.filter(list -> !list.isEmpty())
-			.flatMap(this::checkPatronBlock)
-			.flatMap(row -> deletePatronBlock(localPatronId, row.getBlockType(), row.getBlockID()))
+			.flatMap(list -> deleteUnwantedPatronBlocks(localPatronId, list))
 			.defaultIfEmpty( localPatronId );
 	}
 
 	// we only expect
-	private Mono<PatronBlockGetRow> checkPatronBlock(List<PatronBlockGetRow> patronBlockGetRows) {
+	private Mono<Integer> deleteUnwantedPatronBlocks(Integer localPatronId, List<PatronBlockGetRow> patronBlockGetRows) {
+
 		final Integer VERIFY_PATRON_DATA = 3;
-		return Mono.just(patronBlockGetRows)
-			.filter(list -> list.size() > 0)
-			.switchIfEmpty(Mono.error(new PatronBlockException("patron block list size more than 1")))
-			.map(list -> list.get(0))
-			.filter(block -> Objects.equals(block.getBlockType(), VERIFY_PATRON_DATA))
-			.switchIfEmpty(Mono.error(new PatronBlockException("patron block was of an unexpected type")));
+		final Integer REGISTRATION_HAS_EXPIRED = 100;
+		final var knownBlocksToHandle = List.of(VERIFY_PATRON_DATA, REGISTRATION_HAS_EXPIRED);
+
+		return Flux.fromIterable(patronBlockGetRows)
+			.flatMap(row -> {
+				if (knownBlocksToHandle.contains(row.getBlockType())) {
+
+					return deletePatronBlock(localPatronId, row.getBlockType(), row.getBlockID())
+						.map(localID -> Mono.empty());  // Remove this row after deletion
+				}
+				return Mono.just(row);  // Keep this row if it's not deleted
+			})
+			.collectList()
+			.flatMap(remainingBlocks -> {
+				if (!remainingBlocks.isEmpty()) {
+					return raiseError(Problem.builder()
+						.withTitle("Patron has unexpected blocks")
+						.withDetail(remainingBlocks.size() + " blocks found")
+						.with("localPatronId", localPatronId)
+						.with("remainingBlocks", remainingBlocks)
+						.build());
+				}
+				return Mono.just(localPatronId);
+			});
 	}
 
 	private Mono<List<PatronBlockGetRow>> getPatronBlocks(Integer localPatronId) {
