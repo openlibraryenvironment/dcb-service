@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 6.22.1
+
+### Changes
+* [Refactor]
+	* remove 'Registration Has Expired' block on virtual patron [DCB-1300]
+
 ## Version 6.22.0
 
 ### Additions
@@ -10,6 +16,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Reinstate single resource failure in ingest, not page.
 	* Reinstate null folding.
 	* error handling in PatronRequestAuditService
