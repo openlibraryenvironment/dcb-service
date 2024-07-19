@@ -1,8 +1,16 @@
 # Changelog
 
+## Version 6.22.2
+
+### Fixes
+* [General]
+	* remove pin to revert [DCB-1265]
+
 ## Version 6.22.1
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* remove 'Registration Has Expired' block on virtual patron [DCB-1300]
 
