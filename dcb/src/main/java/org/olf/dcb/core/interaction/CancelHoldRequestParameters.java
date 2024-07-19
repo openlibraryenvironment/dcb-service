@@ -8,6 +8,5 @@ import lombok.Value;
 public class CancelHoldRequestParameters {
 	String localRequestId;
 	String localItemId;
-	String localItemBarcode;
 	String patronId;
 }
