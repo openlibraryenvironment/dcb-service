@@ -628,7 +628,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.names(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
 			.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 			.expirationDate(patronExpirationDate)
-			.pin("1234")
 			.build();
 
 		return Mono.from(client.patrons(patronPatch))
