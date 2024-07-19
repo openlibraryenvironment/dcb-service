@@ -78,7 +78,9 @@ public class GraphQLFactory {
 						.dataFetcher("libraries", dataFetchers.getLibrariesDataFetcher())
 						.dataFetcher("consortia", dataFetchers.getConsortiaDataFetcher())
 						.dataFetcher("libraryGroups", dataFetchers.getLibraryGroupsDataFetcher())
-					.dataFetcher("libraryGroupMembers", dataFetchers.getAllLibraryGroupMembers())
+						.dataFetcher("libraryGroupMembers", dataFetchers.getAllLibraryGroupMembers())
+						.dataFetcher("dataChangeLog", dataFetchers.getDataChangeLogDataFetcher())
+
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring

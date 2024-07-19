@@ -100,6 +100,8 @@ dependencies {
 	implementation("io.micronaut.data:micronaut-data-r2dbc")
 	implementation("io.micronaut.data:micronaut-data-jdbc")
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
+	// Implementation for audit log - seems to be causing test failure just by being added
+	implementation("io.micrometer:context-propagation")
 
         implementation("io.micronaut.problem:micronaut-problem-json")
 
@@ -178,6 +180,9 @@ dependencies {
 	
 	implementation("jakarta.persistence:jakarta.persistence-api")
 	implementation("org.apache.lucene:lucene-queryparser")
+
+	// Implementation for audit log
+	implementation("io.micrometer:context-propagation")
 
 	runtimeOnly("org.yaml:snakeyaml")
 

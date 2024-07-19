@@ -17,14 +17,12 @@ import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.Accessors;
+import org.olf.dcb.core.audit.*;
 import services.k_int.data.querying.DefaultQueryField;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+
 
 @Data
 @Serdeable
@@ -34,8 +32,9 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @AllArgsConstructor
 @Builder
 @Accessors(chain = true)
+@Audit
 @ToString(onlyExplicitlyIncluded = true)
-public class DataAgency implements Agency {
+public class DataAgency implements Agency, Auditable {
 	public static final String BASIC_BARCODE_AND_PIN = "BASIC/BARCODE+PIN";
 	public static final String BASIC_BARCODE_AND_NAME = "BASIC/BARCODE+NAME";
 
@@ -83,9 +82,37 @@ public class DataAgency implements Agency {
 
 	private Double latitude;
 
+
+	@ToString.Include
+	@Nullable
 	// Does this agency participate in interlending
 	private Boolean isSupplyingAgency;
+
+	@ToString.Include
+	@Nullable
 	private Boolean isBorrowingAgency;
+
+	@ToString.Include
+	@Nullable
+	private String lastEditedBy;
+
+	@ToString.Include
+	@Nullable
+	private String reason;
+
+	@Override
+	public void setLastEditedBy(String lastEditedBy) {
+		this.lastEditedBy = lastEditedBy;
+	}
+
+	@Override
+	public String getLastEditedBy() {
+		return this.lastEditedBy;
+	}
+	@Override
+	public void setReason(String reason) {
+		this.reason = reason;
+	}
 
 	public static class DataAgencyBuilder {
 		public DataAgencyBuilder() {

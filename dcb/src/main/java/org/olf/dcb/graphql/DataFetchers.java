@@ -3,7 +3,6 @@ package org.olf.dcb.graphql;
 import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 import org.olf.dcb.core.model.*;
@@ -63,6 +62,8 @@ public class DataFetchers {
 
 	private final PostgresLibraryContactRepository postgresLibraryContactRepository;
 
+	private final PostgresDataChangeLogRepository postgresDataChangeLogRepository;
+
 
 	private final QueryService qs;
 
@@ -86,7 +87,7 @@ public class DataFetchers {
 											PostgresPersonRepository postgresPersonRepository,
 											PostgresLibraryGroupRepository postgresLibraryGroupRepository, LibraryGroupMemberRepository libraryGroupMemberRepository,
 											PostgresLibraryGroupMemberRepository postgresLibraryGroupMemberRepository,
-											PostgresLibraryContactRepository postgresLibraryContactRepository,
+											PostgresLibraryContactRepository postgresLibraryContactRepository, PostgresDataChangeLogRepository postgresDataChangeLogRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -111,6 +112,7 @@ public class DataFetchers {
 		this.libraryGroupMemberRepository = libraryGroupMemberRepository;
 		this.postgresLibraryGroupMemberRepository = postgresLibraryGroupMemberRepository;
 		this.postgresLibraryContactRepository = postgresLibraryContactRepository;
+		this.postgresDataChangeLogRepository = postgresDataChangeLogRepository;
 	}
 
 
@@ -209,6 +211,35 @@ public class DataFetchers {
 			}
 
 			return Mono.from(postgresPatronRequestAuditRepository.findAll(pageable)).toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<Page<DataChangeLog>>> getDataChangeLogDataFetcher() {
+		return env -> {
+			log.debug("getDataChangeLogDataFetcher {}",env);
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
+
+			if ( pageno == null ) pageno = Integer.valueOf(0);
+			if ( pagesize == null ) pagesize = Integer.valueOf(10);
+			if ( order == null ) order = "timestampLogged";
+			if ( direction == null ) direction = "ASC";
+
+			Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
+
+			Pageable pageable = Pageable
+				.from(pageno.intValue(), pagesize.intValue())
+				.order(order, orderBy);
+
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, DataChangeLog.class);
+				return Mono.from(postgresDataChangeLogRepository.findAll(spec, pageable)).toFuture();
+			}
+
+			return Mono.from(postgresDataChangeLogRepository.findAll(pageable)).toFuture();
 		};
 	}
 
@@ -590,6 +621,8 @@ public class DataFetchers {
 
 			log.debug("LibrariesDataFetcher::get({},{},{})", pageno, pagesize, query);
 			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
+
+			log.debug("GQL Context user name Libraries: {}", env.getGraphQlContext().get("currentUser").toString());
 
 			if ((query != null) && (query.length() > 0)) {
 				var spec = qs.evaluate(query, Library.class);

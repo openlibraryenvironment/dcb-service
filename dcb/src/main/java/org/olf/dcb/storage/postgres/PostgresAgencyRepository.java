@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import jakarta.transaction.Transactional;
 
+import org.olf.dcb.core.audit.Audit;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.AgencyRepository;
 
@@ -53,6 +54,7 @@ import io.micronaut.core.async.annotation.SingleResult;
 @Singleton
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
+@Audit
 public interface PostgresAgencyRepository extends 
         ReactiveStreamsPageableRepository<DataAgency, UUID>, 
         ReactiveStreamsJpaSpecificationExecutor<DataAgency>,

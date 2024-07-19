@@ -40,15 +40,27 @@ public class UpdateAgencyParticipationStatusDataFetcher implements DataFetcher<C
 			Boolean.parseBoolean(input_map.get("isSupplyingAgency").toString()) : null;
 		Boolean isBorrowingAgency = input_map.containsKey("isBorrowingAgency") ?
 			Boolean.parseBoolean(input_map.get("isBorrowingAgency").toString()) : null;
+		String reason = input_map.containsKey("reason") ?
+			input_map.get("reason").toString() : null;
+
+		// User should never be null as GraphQL endpoint requires auth: 'User not detected' exists to flag if something is going very wrong.
+		String userString = (env.getGraphQlContext().get("currentUser") != null) ? env.getGraphQlContext().get("currentUser").toString() : "User not detected";
+		log.debug("GQL Context user name: {}", env.getGraphQlContext().get("currentUser").toString());
 
 		Mono<DataAgency> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(agencyRepository.findOneByCode(code))
 				.flatMap(agency -> {
+					if (reason != null) {
+						agency.setReason(reason);
+					}
 					if (isSupplyingAgency != null) {
 						agency.setIsSupplyingAgency(isSupplyingAgency);
+						agency.setLastEditedBy(userString);
 					}
 					if (isBorrowingAgency != null) {
 						agency.setIsBorrowingAgency(isBorrowingAgency);
+						agency.setLastEditedBy(userString);
+
 					}
 					return Mono.from(agencyRepository.update(agency));
 				})

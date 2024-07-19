@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import jakarta.transaction.Transactional;
 
+import org.olf.dcb.core.audit.*;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
@@ -15,6 +16,7 @@ import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecification
 
 
 @Singleton
+@Audit
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
 public interface PostgresReferenceValueMappingRepository extends 
