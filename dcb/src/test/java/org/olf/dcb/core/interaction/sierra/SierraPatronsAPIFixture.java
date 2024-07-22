@@ -69,6 +69,10 @@ public class SierraPatronsAPIFixture {
 		mockServer.verify(deleteHoldRequest(holdId));
 	}
 
+	public void verifyNoDeleteHoldRequestMade(String holdId) {
+		mockServer.verify(deleteHoldRequest(holdId), never());
+	}
+
 	private void deleteHoldById(String holdId, HttpResponse response) {
 		mockServer.clear(deleteHoldRequest(holdId));
 

@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
@@ -12,6 +13,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.UUID;
 
@@ -144,6 +146,39 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat("Should not be applicable for request with no status",
 			applicable, is(false));
+	}
+
+	@Test
+	void shouldFailWhenPatronIsNotAssociatedWithHostLms() {
+		// Arrange
+		final var borrowingLocalRequestId = "6726357";
+
+		final var patron = patronFixture.definePatron("264535", "home-library",
+			null, null);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.localRequestId(borrowingLocalRequestId)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		// Act
+		final var error = assertThrows(RuntimeException.class,
+			() -> resolveNextSupplier(patronRequest));
+
+		// Assert
+		assertThat(error, allOf(
+			notNullValue(),
+			hasMessage("Patron is not associated with a Host LMS")
+		));
+
+		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 
 	private PatronRequest resolveNextSupplier(PatronRequest patronRequest) {
