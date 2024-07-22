@@ -1,6 +1,8 @@
 package org.olf.dcb.request.workflow;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -58,6 +60,13 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 		final var patronRequest = getValue(requestWorkflowContext,
 			RequestWorkflowContext::getPatronRequest, null);
+
+		final var localRequestStatus = getValue(patronRequest,
+			PatronRequest::getLocalRequestStatus, "");
+
+		if (localRequestStatus.equals(HOLD_MISSING) || localRequestStatus.equals(HOLD_CANCELLED)) {
+			return Mono.just(requestWorkflowContext);
+		}
 
 		final var homePatronIdentity = getValue(requestWorkflowContext, RequestWorkflowContext::getPatronHomeIdentity, null);
 

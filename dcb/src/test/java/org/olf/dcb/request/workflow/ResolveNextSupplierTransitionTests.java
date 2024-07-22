@@ -8,6 +8,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
@@ -119,7 +122,43 @@ class ResolveNextSupplierTransitionTests {
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
-	
+
+	@ParameterizedTest
+	@ValueSource(strings = {HOLD_MISSING, HOLD_CANCELLED})
+	void shouldNotCancelBorrowingRequestWhenMissingOrCancelled(String localRequestStatus) {
+		// Arrange
+		final var borrowingLocalRequestId = "7836734";
+
+		final var patron = patronFixture.definePatron("783174", "home-library",
+			borrowingHostLms, borrowingAgency);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.localRequestId(borrowingLocalRequestId)
+			.localRequestStatus(localRequestStatus)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)
+		));
+
+		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
+	}
+
 	@Test
 	void shouldNotApplyWhenItemHasBeenDispatchedForPickup() {
 		// Arrange
