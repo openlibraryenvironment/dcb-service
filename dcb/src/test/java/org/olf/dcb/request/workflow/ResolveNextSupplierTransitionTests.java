@@ -24,7 +24,6 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -159,16 +158,14 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	private PatronRequest definePatronRequest(PatronRequest.Status status) {
-		final var patron = Patron.builder()
-			.id(randomUUID())
-			.build();
-
-		patronFixture.savePatron(patron);
+		final var patron = patronFixture.definePatron("365636", "home-library",
+			borrowingHostLms, borrowingAgency);
 
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.status(status)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
