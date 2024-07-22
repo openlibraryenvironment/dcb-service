@@ -22,6 +22,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -58,6 +59,8 @@ class ResolveNextSupplierTransitionTests {
 	@Inject
 	private ResolveNextSupplierTransition resolveNextSupplierTransition;
 
+	private DataHostLms borrowingHostLms;
+
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
@@ -70,7 +73,8 @@ class ResolveNextSupplierTransitionTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
+		borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
+			KEY, SECRET, BASE_URL);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
