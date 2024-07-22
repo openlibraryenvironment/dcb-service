@@ -22,11 +22,13 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
@@ -51,6 +53,8 @@ class ResolveNextSupplierTransitionTests {
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
@@ -60,6 +64,7 @@ class ResolveNextSupplierTransitionTests {
 	private ResolveNextSupplierTransition resolveNextSupplierTransition;
 
 	private DataHostLms borrowingHostLms;
+	private DataAgency borrowingAgency;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -84,6 +89,10 @@ class ResolveNextSupplierTransitionTests {
 		supplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
+		agencyFixture.deleteAll();
+
+		borrowingAgency = agencyFixture.defineAgency("borrowing-agency", "Borrowing Agency",
+			borrowingHostLms);
 	}
 
 	@Test
