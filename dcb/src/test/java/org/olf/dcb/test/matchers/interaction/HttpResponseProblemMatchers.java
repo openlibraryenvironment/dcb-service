@@ -1,13 +1,13 @@
 package org.olf.dcb.test.matchers.interaction;
 
+import org.hamcrest.Matcher;
+import org.zalando.problem.ThrowableProblem;
+
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
-
-import org.hamcrest.Matcher;
-import org.zalando.problem.ThrowableProblem;
 
 public class HttpResponseProblemMatchers {
 	public static Matcher<ThrowableProblem> hasMessageForHostLms(String expectedHostLmsCode) {

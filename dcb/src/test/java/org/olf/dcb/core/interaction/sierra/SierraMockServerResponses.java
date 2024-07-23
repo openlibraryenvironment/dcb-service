@@ -1,19 +1,18 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.JsonBody;
+import org.olf.dcb.test.TestResourceLoader;
+
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.HttpStatusCode.BAD_REQUEST_400;
 import static org.mockserver.model.HttpStatusCode.INTERNAL_SERVER_ERROR_500;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
-
-import org.mockserver.model.HttpResponse;
-import org.mockserver.model.JsonBody;
-import org.olf.dcb.test.TestResourceLoader;
-
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Builder;
-import lombok.Data;
 
 public class SierraMockServerResponses {
 	private final TestResourceLoader resourceLoader;
@@ -49,6 +48,17 @@ public class SierraMockServerResponses {
 				.specificCode(0)
 				.httpStatus(404)
 				.name("Record not found")
+				.build()));
+	}
+
+	HttpResponse thisRecordIsNotAvailable() {
+		return jsonResponse(response().withStatusCode(INTERNAL_SERVER_ERROR_500.code()),
+			json(Error.builder()
+				.code(132)
+				.specificCode(2)
+				.httpStatus(500)
+				.name("XCirc error")
+				.description("This record is not available")
 				.build()));
 	}
 

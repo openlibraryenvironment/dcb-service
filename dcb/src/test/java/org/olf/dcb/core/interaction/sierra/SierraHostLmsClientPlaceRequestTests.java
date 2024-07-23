@@ -1,22 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasNoRequestedItemBarcode;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasNoRequestedItemId;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemId;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
-
-import java.util.UUID;
-
+import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -25,11 +10,23 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-
-import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.ThrowableProblem;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
+
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.*;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.*;
 
 @Slf4j
 @MockServerMicronautTest
@@ -176,6 +173,45 @@ class SierraHostLmsClientPlaceRequestTests {
 			hasNoRequestedItemBarcode(),
 			hasLocalStatus("CONFIRMED")
 		));
+	}
+
+	@Test
+	void shouldHandleSierraXCircThisRecordIsNotAvailableError() {
+		// Arrange
+		final var patronRequestId = UUID.randomUUID().toString();
+		final var localPatronId = "567215";
+		final Integer localBibId = 23423423;
+		final var localItemId = "6721574";
+
+		sierraPatronsAPIFixture.thisRecordIsNotAvailableResponse(localPatronId, "b");
+
+		sierraItemsAPIFixture.mockGetItemById("23423423",
+			SierraItem.builder()
+				.id(localItemId)
+				.statusCode("-")
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localBibId(localBibId.toString())
+					.localPatronId(localPatronId)
+					.patronRequestId(patronRequestId)
+					.build())));
+
+		// Assert
+		assertThat(problem, allOf(
+			hasRequestMethod("POST"),
+			hasRequestUrl("https://supplying-agency-service-tests.com/iii/sierra-api/v6/patrons/567215/holds/requests"),
+			hasRequestBody(is("PatronHoldPost(recordType=b, recordNumber=23423423, pickupLocation=null, " +
+				"neededBy=null, numberOfCopies=null, note=null)"))
+		));
+		assertThat(problem.toString(), containsString("XCirc error: This record is not available - [132 / 2]"));
+		assertThat(problem.toString(), containsString("additionalData"));
+		assertThat(problem.toString(), containsString("id=6721574"));
 	}
 
 	@Test

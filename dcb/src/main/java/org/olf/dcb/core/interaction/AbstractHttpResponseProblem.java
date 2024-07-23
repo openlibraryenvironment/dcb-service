@@ -34,6 +34,32 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 			determineParameters(throwable, request));
 	}
 
+	protected AbstractHttpResponseProblem(String title, String detail,
+		Throwable throwable, HttpRequest<?> request, Map<String, Object> additionalData) {
+
+		super(URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/overview"),
+			title, INTERNAL_SERVER_ERROR, detail, null, null,
+			determineParameters(throwable, request, additionalData));
+	}
+
+	private static Map<String, Object> determineParameters(
+		Throwable throwable, HttpRequest<?> request, Map<String, Object> additionalData) {
+
+		final var parameters = Map.of(
+			"errorMessage", getValue(throwable, Throwable::getMessage, "Unknown"),
+			"errorLocalizedMessage", getValue(throwable, Throwable::getLocalizedMessage, "Unknown"),
+			"cause", getValue(throwable, Throwable::getCause, "Unknown"),
+			"requestMethod", PropertyAccessUtils.getValue(request, HttpRequest::getMethodName, "Unknown"),
+			"requestUrl", getValue(request, HttpRequest::getUri, URI::toString, "Unknown"),
+			"requestBody", interpretRequestBody(request),
+			"httpVersion", getValue(request, HttpRequest::getHttpVersion, HttpVersion::name, "Unknown"),
+			"additionalData", additionalData
+		);
+
+		parameters.forEach((key, value) -> log.error("{}: {}", key, value));
+		return parameters;
+	}
+
 	private static Map<String, Object> determineParameters(
 		Throwable throwable, HttpRequest<?> request) {
 

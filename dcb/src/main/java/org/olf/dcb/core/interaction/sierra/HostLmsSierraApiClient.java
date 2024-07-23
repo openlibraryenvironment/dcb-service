@@ -15,7 +15,9 @@ import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
 import jakarta.validation.constraints.NotNull;
+import org.olf.dcb.core.interaction.AbstractHttpResponseProblem;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
+import org.olf.dcb.core.interaction.RecordIsNotAvailableProblem;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.utils.CollectionUtils;
@@ -23,7 +25,6 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zalando.problem.Problem;
-import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
 import services.k_int.interaction.sierra.LinkResult;
@@ -238,8 +239,32 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	@SingleResult
 	public Mono<Void> placeHoldRequest(String id, PatronHoldPost body) {
-		return createRequest(POST, "patrons/" + id + "/holds/requests").map(req -> req.body(body))
-				.flatMap(this::ensureToken).flatMap(req -> doExchange(req, Object.class)).then();
+		return createRequest(POST, "patrons/" + id + "/holds/requests")
+			.map(req -> req.body(body)).flatMap(this::ensureToken)
+			.flatMap(req -> doExchange(req, Object.class, handleHoldRequestError(body, req)))
+			.then();
+	}
+
+	public Function<Mono<HttpResponse<Object>>, Mono<HttpResponse<Object>>> handleHoldRequestError(
+		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req) {
+
+		return response -> response
+			.onErrorResume(sierraResponseErrorMatcher::isRecordNotAvailable, throwRecordIsNotAvailableProblem(body, req));
+	}
+
+	private Function<Throwable, Mono<HttpResponse<Object>>> throwRecordIsNotAvailableProblem(
+		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req) {
+
+		return throwable -> get("items/" + body.getRecordNumber(), Argument.of(SierraItem.class))
+			.map(SierraItem::toMap)
+			.onErrorResume(error -> Mono.just(Map.of("Failed to retrieve item information", error.toString())))
+			.flatMap(itemMap -> createErrorResponse(itemMap, req, throwable));
+	}
+
+	private Mono<HttpResponse<Object>> createErrorResponse(
+		Map<String, Object> itemMap, MutableHttpRequest<PatronHoldPost> req, Throwable throwable) {
+
+		return raiseError(new RecordIsNotAvailableProblem(lms.getCode(), req, throwable, itemMap));
 	}
 
 	@SingleResult
@@ -276,6 +301,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		});
 	}
 
+	private <T> Mono<T> get(String path, Argument<T> argumentType) { return get(path, argumentType, uriBuilder -> {}); }
+
 	private <T> Mono<T> get(String path, Argument<T> argumentType, Consumer<UriBuilder> uriBuilderConsumer) {
 
 		return createRequest(GET, path).map(req -> req.uri(uriBuilderConsumer)).flatMap(this::ensureToken)
@@ -310,15 +337,22 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
+		return doExchange(request, type, noExtraErrorHandlingExchange());
+	}
+
+	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type,
+		Function<Mono<HttpResponse<T>>, Mono<HttpResponse<T>>> errorHandlingTransformer) {
+
 		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
 			.doOnError(logRequestAndResponseDetails(request))
 			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
+			.transform(errorHandlingTransformer)
 			// This has to happen after other error handlers related to
 			// HttpClientResponseException
 			.onErrorMap(HttpClientResponseException.class,
 					responseException -> unexpectedResponseProblem(responseException, request, null))
 			.onErrorResume(error -> {
-				if (error instanceof ThrowableProblem) {
+				if (error instanceof AbstractHttpResponseProblem) {
 					return Mono.error(error);
 				}
 
@@ -379,6 +413,18 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
 		return doRetrieve(request, argumentType, noExtraErrorHandling());
+	}
+
+
+	/**
+	 * Utility method to specify that no specialised error handling will be needed
+	 * for this request
+	 *
+	 * @return transformer that provides no additionally error handling
+	 * @param <T> Type of response being handled
+	 */
+	private static <T> Function<Mono<HttpResponse<T>>, Mono<HttpResponse<T>>> noExtraErrorHandlingExchange() {
+		return Function.identity();
 	}
 
 	/**
