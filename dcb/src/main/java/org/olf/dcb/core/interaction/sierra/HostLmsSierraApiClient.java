@@ -460,11 +460,12 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	}
 
 	@SingleResult
-	public Publisher<LinkResult> checkOutItemToPatron(String itemBarcode, String patronBarcode) {
+	public Publisher<LinkResult> checkOutItemToPatron(String itemBarcode, String patronBarcode, String pin) {
 
-		CheckoutPatch checkoutPatch = CheckoutPatch.builder().itemBarcode(itemBarcode).patronBarcode(patronBarcode).build();
+		final var checkoutPatch = CheckoutPatch.builder().itemBarcode(itemBarcode).patronBarcode(patronBarcode);
+		final var patchWithPin = pin != null ? checkoutPatch.patronPin(pin).build() : checkoutPatch.build();
 
-		return postRequest("patrons/checkout").map(request -> request.body(checkoutPatch)).flatMap(this::ensureToken)
+		return postRequest("patrons/checkout").map(request -> request.body(patchWithPin)).flatMap(this::ensureToken)
 				.flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
 	}
 

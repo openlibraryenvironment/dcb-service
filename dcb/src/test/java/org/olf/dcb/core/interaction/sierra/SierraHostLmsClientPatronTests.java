@@ -1,22 +1,8 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static java.lang.Integer.parseInt;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasCanonicalPatronType;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibraryCode;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
-
-import java.util.List;
-
+import jakarta.inject.Inject;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,12 +12,18 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-
-import jakarta.inject.Inject;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.List;
+
+import static java.lang.Integer.parseInt;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.*;
 
 @Slf4j
 @MockServerMicronautTest
@@ -116,6 +108,27 @@ class SierraHostLmsClientPatronTests {
 			hasHomeLibraryCode("home-library"),
 			isNotBlocked(),
 			isNotDeleted()
+		));
+	}
+
+	@Test
+	@SneakyThrows
+	void shouldNotPassPinWhenThereIsNoConfigValueSetUponCheckout() {
+		// Arrange
+		final var patronBarcode = "5472792742";
+		final var itemBarcode = "247389084";
+
+		sierraPatronsAPIFixture.checkOutItemToPatron(itemBarcode, patronBarcode);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		// String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId
+		final var checkout = singleValueFrom(client.checkOutItemToPatron(null, itemBarcode, null, patronBarcode, null));
+
+		// Assert
+		assertThat(checkout, allOf(
+			notNullValue()
 		));
 	}
 }

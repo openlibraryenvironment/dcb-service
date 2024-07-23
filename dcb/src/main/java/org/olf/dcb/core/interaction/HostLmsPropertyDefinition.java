@@ -1,15 +1,14 @@
 package org.olf.dcb.core.interaction;
 
-import static services.k_int.utils.MapUtils.getAsOptionalString;
-
-import java.util.Map;
-
-import org.olf.dcb.core.model.HostLms;
-
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.olf.dcb.core.model.HostLms;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+
+import java.util.Map;
+
+import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 @Getter
 @AllArgsConstructor
@@ -69,6 +68,11 @@ public class HostLmsPropertyDefinition {
 				.map(Integer::parseInt)
 				.orElse(defaultValue);
 		}
+	}
+
+	public String getOptionalValueFrom(Map<String, Object> clientConfig, String defaultValue) {
+		return getAsOptionalString(clientConfig, getName())
+			.orElse(defaultValue);
 	}
 
 	public static class UrlHostLmsPropertyDefinition extends HostLmsPropertyDefinition {

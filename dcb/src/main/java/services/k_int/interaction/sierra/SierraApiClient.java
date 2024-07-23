@@ -1,16 +1,5 @@
 package services.k_int.interaction.sierra;
 
-import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
-
-import java.net.URI;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
-
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpStatus;
@@ -18,6 +7,9 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Put;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import services.k_int.interaction.auth.BasicAuthClient;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
@@ -31,12 +23,14 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.Params;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
-import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
-import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.PatronHoldPost;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronValidation;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.patrons.*;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
 
 public interface SierraApiClient extends BasicAuthClient {
 	String CONFIG_ROOT = "sierra.client";
@@ -146,7 +140,7 @@ public interface SierraApiClient extends BasicAuthClient {
 	Publisher<SierraPatronHold> getHold(@Nullable final Long holdId);
 
 	@SingleResult
-	Publisher<LinkResult> checkOutItemToPatron(String itemBarcode, String patronBarcode);
+	Publisher<LinkResult> checkOutItemToPatron(String itemBarcode, String patronBarcode, String pin);
 
 	@Delete("/items/{id}")
 	Publisher<HttpStatus> deleteItem(String id);

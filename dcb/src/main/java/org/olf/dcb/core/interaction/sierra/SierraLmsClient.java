@@ -94,6 +94,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final IntegerHostLmsPropertyDefinition PAGE_SIZE_PROPERTY = integerPropertyDefinition(
 		"page-size", "How many items to retrieve in each page", FALSE);
 
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_PIN = stringPropertyDefinition(
+		"virtual-patron-pin", "Virtual patrons pin to use", FALSE);
+
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private static final Integer FIXED_FIELD_158 = 158;
 
@@ -158,6 +161,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return delay;
 	}
 
+	private String getVirtualPatronPin(Map<String, Object> clientConfig) {
+		final var pin = VIRTUAL_PATRON_PIN.getOptionalValueFrom(clientConfig, null);
+		log.info("Virtual patron pin set to {} for HostLMS {}", pin, lms.getName());
+		return pin;
+	}
+
 	@Override
 	public HostLms getHostLms() {
 		return lms;
@@ -172,7 +181,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE),
 			GET_HOLDS_RETRY_ATTEMPTS_PROPERTY,
 			GET_PLACE_HOLD_DELAY_PROPERTY,
-			GET_FETCHING_HOLD_DELAY_PROPERTY);
+			GET_FETCHING_HOLD_DELAY_PROPERTY,
+			VIRTUAL_PATRON_PIN);
 	}
 
 	private Mono<BibResultSet> fetchPage(Instant since, int offset, int limit) {
@@ -628,6 +638,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.names(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
 			.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 			.expirationDate(patronExpirationDate)
+			.pin(getVirtualPatronPin(getConfig()))
 			.build();
 
 		return Mono.from(client.patrons(patronPatch))
@@ -1303,7 +1314,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 
 		// Sierra checkout operation uses patron barcode and item barcode
-		return Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode))
+		return Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode, getVirtualPatronPin(getConfig())))
 			.thenReturn("OK")
 			.switchIfEmpty(Mono.error(() ->
 				new RuntimeException("Check out of " + itemId + " to " + patronBarcode + " at " + lms.getCode() + " failed")));

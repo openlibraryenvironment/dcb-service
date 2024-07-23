@@ -13,6 +13,14 @@ import org.mockserver.model.RequestDefinition;
 import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.patrons.CheckoutPatch;
+
+import java.util.List;
+
+import static java.util.Arrays.asList;
+import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.never;
+import static org.mockserver.verify.VerificationTimes.once;
 
 import java.util.List;
 
@@ -114,6 +122,22 @@ public class SierraPatronsAPIFixture {
 			.build();
 
 		return sierraMockServerRequests.post(patronPatch);
+	}
+
+	public void checkOutItemToPatron(String itemBarcode, String patronBarcode) {
+		mockServer
+			.when(checkOutItemToPatron(itemBarcode, patronBarcode, null))
+			.respond(checkedOutItemToPatron());
+	}
+
+	private HttpRequest checkOutItemToPatron(String itemBarcode, String patronBarcode, String pin) {
+		final var checkoutPatch = CheckoutPatch.builder()
+			.itemBarcode(itemBarcode)
+			.patronBarcode(patronBarcode)
+			.patronPin(pin)
+			.build();
+
+		return sierraMockServerRequests.post("/checkout", checkoutPatch);
 	}
 
 	public void getPatronByLocalIdSuccessResponse(String id, Patron patron) {
@@ -327,6 +351,11 @@ public class SierraPatronsAPIFixture {
 	private HttpResponse patronPlacedResponse(int patronId) {
 		return sierraMockServerResponses
 			.jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/patrons/" + patronId);
+	}
+
+	private HttpResponse checkedOutItemToPatron() {
+		return sierraMockServerResponses
+			.jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/patrons/checkout/testPatronId");
 	}
 
 	private HttpResponse patronHoldFoundResponse() {
