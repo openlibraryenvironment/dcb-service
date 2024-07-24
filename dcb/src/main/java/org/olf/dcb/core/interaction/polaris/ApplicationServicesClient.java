@@ -89,7 +89,7 @@ class ApplicationServicesClient {
 			.zipWith(getLocalRequestBody(holdRequestParameters, activationDateUTC, noteWithActivationDateUTC))
 			.map(function(ApplicationServicesClient::addBodyToRequest))
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class)))
-			.flatMap(resp -> handlePolarisWorkflow(resp, DuplicateHoldRequests, Continue))
+			.flatMap(resp -> handlePolarisWorkflow(resp, PromoteItemRequestToBib, Continue))
 			.map(this::validateWorkflowResponse)
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
@@ -1198,9 +1198,10 @@ class ApplicationServicesClient {
 		public static final Integer NoDisplayInPAC = 66;
 		public static final Integer DuplicateRecords = 72;
 		public static final Integer ConfirmItemRecordDelete = 73;
-		public static final Integer DuplicateHoldRequests = 77;
+		// public static final Integer DuplicateHoldRequests = 77;
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
+		public static final Integer PromoteItemRequestToBib = 88;
 		@JsonProperty("WorkflowPromptID")
 		private Integer WorkflowPromptID;
 		@JsonProperty("Title")
