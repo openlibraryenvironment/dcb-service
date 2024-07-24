@@ -1,6 +1,27 @@
 # Changelog
 
+## Version 6.23.0
+
+### Additions
+* [General]
+	* Do not cancel borrowing request when already cancelled DCB-1230
+	* Cancel local borrowing request when no alternative supplier found DCB-1230
+	* Move request to no items available when supplier cancels request DCB-1230
+	* Audit supplier request cancellation DCB-1230
+	* Mark supplier request cancelled when local request is cancelled DCB-1230
+	* Mark patron request as not supplied when supplier request is cancelled DCB-1230
+	* extend logging to support issue triage for this record is not available error [DCB-1327]
+
+### Fixes
+* [General]
+	* add polaris workflow reply [DCB-1276]
+	* add virtual patron pin via sierra config [DCB-1335]
+
 ## Version 6.22.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
