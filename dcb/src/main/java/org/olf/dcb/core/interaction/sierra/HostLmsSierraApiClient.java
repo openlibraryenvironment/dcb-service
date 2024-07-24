@@ -465,6 +465,8 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		final var checkoutPatch = CheckoutPatch.builder().itemBarcode(itemBarcode).patronBarcode(patronBarcode);
 		final var patchWithPin = pin != null ? checkoutPatch.patronPin(pin).build() : checkoutPatch.build();
 
+		log.debug("Checkout patch used: {}", patchWithPin);
+
 		return postRequest("patrons/checkout").map(request -> request.body(patchWithPin)).flatMap(this::ensureToken)
 				.flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
 	}

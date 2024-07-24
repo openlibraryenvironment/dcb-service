@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.sierra;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -122,13 +123,15 @@ class SierraHostLmsClientPatronTests {
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		// String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId
 		final var checkout = singleValueFrom(client.checkOutItemToPatron(null, itemBarcode, null, patronBarcode, null));
 
 		// Assert
 		assertThat(checkout, allOf(
-			notNullValue()
+			notNullValue(),
+			Matchers.equalToIgnoringCase("ok")
 		));
+
+		sierraPatronsAPIFixture.verifyCheckoutMade(itemBarcode, patronBarcode, null);
 	}
+
 }

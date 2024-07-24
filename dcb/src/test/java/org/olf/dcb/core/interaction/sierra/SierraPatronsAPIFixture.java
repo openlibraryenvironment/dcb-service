@@ -22,13 +22,6 @@ import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.never;
 import static org.mockserver.verify.VerificationTimes.once;
 
-import java.util.List;
-
-import static java.util.Arrays.asList;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.verify.VerificationTimes.never;
-import static org.mockserver.verify.VerificationTimes.once;
-
 @Slf4j
 @AllArgsConstructor
 public class SierraPatronsAPIFixture {
@@ -122,6 +115,11 @@ public class SierraPatronsAPIFixture {
 			.build();
 
 		return sierraMockServerRequests.post(patronPatch);
+	}
+
+
+	public void verifyCheckoutMade(String itemBarcode, String patronBarcode, String pin) {
+		mockServer.verify(checkOutItemToPatron(itemBarcode, patronBarcode, pin), once());
 	}
 
 	public void checkOutItemToPatron(String itemBarcode, String patronBarcode) {
