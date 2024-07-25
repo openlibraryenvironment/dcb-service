@@ -84,7 +84,7 @@ class HandleSupplierRequestCancelledTests {
 
 		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
 			notNullValue(),
-			hasBriefDescription("Supplier Request Cancelled (ID: \"%s\"".formatted(supplierRequestId.toString())),
+			hasBriefDescription("Supplier Request Cancelled (ID: \"%s\")".formatted(supplierRequestId.toString())),
 			hasAuditDataProperty("localRequestStatus", CANCELLED.toString())
 		));
 	}

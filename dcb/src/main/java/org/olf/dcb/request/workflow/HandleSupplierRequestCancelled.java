@@ -77,7 +77,7 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 			SupplierRequest::getLocalStatus, "Unknown"));
 
 		return patronRequestAuditService.addAuditEntry(patronRequest,
-				"Supplier Request Cancelled (ID: \"%s\"".formatted(supplierRequestId), auditData)
+				"Supplier Request Cancelled (ID: \"%s\")".formatted(supplierRequestId), auditData)
 			.thenReturn(context);
 	}
 
