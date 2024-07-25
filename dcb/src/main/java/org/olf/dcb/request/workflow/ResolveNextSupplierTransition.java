@@ -23,6 +23,12 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+/**
+ * ResolveNextSupplierTransition - Called in response to a request in state NOT_SUPPLIED_CURRENT_SUPPLIER
+ * the needed action is to see if there are other possible suppliers for which there is not an outstanding
+ * supplier request, and if so, re-enter the workflow at the PlaceRequestAtSupplyingAgency step with that
+ * new provider
+ */
 @Slf4j
 @Singleton
 @Named("ResolveNextSupplier")
@@ -33,6 +39,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	ResolveNextSupplierTransition(HostLmsService hostLmsService) {
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
+
 		this.hostLmsService = hostLmsService;
 	}
 
