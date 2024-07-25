@@ -204,6 +204,12 @@ class PatronRequestResolutionServiceTests {
 					hasLocalId(onlyAvailableItemId),
 					hasBarcode(onlyAvailableItemBarcode)
 				)
+			),
+			hasFilteredItems(
+				allOf(
+					hasLocalId(onlyAvailableItemId),
+					hasBarcode(onlyAvailableItemBarcode)
+				)
 			)
 		));
 	}
@@ -407,5 +413,10 @@ class PatronRequestResolutionServiceTests {
 	@SafeVarargs
 	private static Matcher<Resolution> hasAllItems(Matcher<Item>... matchers) {
 		return hasProperty("allItems", contains(matchers));
+	}
+
+	@SafeVarargs
+	private static Matcher<Resolution> hasFilteredItems(Matcher<Item>... matchers) {
+		return hasProperty("filteredItems", contains(matchers));
 	}
 }
