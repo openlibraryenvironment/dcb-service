@@ -7,6 +7,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
@@ -155,9 +156,12 @@ class PatronRequestResolutionServiceTests {
 		final var onlyAvailableItemId = "651463";
 		final var onlyAvailableItemBarcode = "76653672456";
 
+		final var unavailableItemId = "372656";
+		final var unavailableItemBarcode = "6256486473634";
+
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			// Sierra item with due date is considered not available
-			CheckedOutItem("372656", "6256486473634"),
+			CheckedOutItem(unavailableItemId, unavailableItemBarcode),
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
 				ITEM_LOCATION_CODE)
 		));
@@ -190,7 +194,18 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			)));
+			),
+			hasAllItems(
+				allOf(
+					hasLocalId(unavailableItemId),
+					hasBarcode(unavailableItemBarcode)
+				),
+				allOf(
+					hasLocalId(onlyAvailableItemId),
+					hasBarcode(onlyAvailableItemBarcode)
+				)
+			)
+		));
 	}
 
 	@Test
@@ -387,5 +402,10 @@ class PatronRequestResolutionServiceTests {
 
 	private Matcher<Resolution> hasNoChosenItem() {
 		return hasProperty("chosenItem", is(nullValue()));
+	}
+
+	@SafeVarargs
+	private static Matcher<Resolution> hasAllItems(Matcher<Item>... matchers) {
+		return hasProperty("allItems", contains(matchers));
 	}
 }
