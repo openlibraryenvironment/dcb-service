@@ -109,7 +109,7 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 
 	@Override
 	public String getName() {
-		return "HandleSupplierRequestConfirmed";
+		return "HandleSupplierRequestCancelled";
 	}
 
 	@Override
