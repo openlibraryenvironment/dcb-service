@@ -8,9 +8,6 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
@@ -145,29 +142,6 @@ class GeoDistanceResolutionStrategyTests {
 
 		// Act
 		final var chosenItem = chooseItem(emptyList(), pickupLocationId.toString());
-
-		// Assert
-		assertThat(chosenItem, nullValue());
-	}
-
-	@Test
-	void shouldChooseNoItemNoRequestableItemsAreProvided() {
-		// Arrange
-		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
-
-		final var agency = defineAgencyLocatedAtChatsworth("example-agency");
-
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false,
-			0, agency);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false,
-			0, agency);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false,
-			0, agency);
-
-		// Act
-		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
-
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
 		// Assert
 		assertThat(chosenItem, nullValue());

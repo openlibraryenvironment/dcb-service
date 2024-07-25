@@ -5,9 +5,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 
@@ -41,15 +38,11 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	@Test
 	void shouldChooseFirstRequestableItemWhenMultipleItemsAreProvided() {
 		// Arrange
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false, 0);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false, 0);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false, 0);
 		final var firstAvailableItem = createItem("47463572", AVAILABLE, true, 0);
 		final var secondAvailableItem = createItem("97848745", AVAILABLE, true, 0);
 
 		// Act
-		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem,
-			firstAvailableItem, secondAvailableItem);
+		final var items = List.of(firstAvailableItem, secondAvailableItem);
 
 		final var chosenItem = chooseItem(items, randomUUID());
 
@@ -57,23 +50,6 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		assertThat(chosenItem, allOf(
 			hasLocalId("47463572")
 		));
-	}
-
-	@Test
-	void shouldReturnEmptyWhenNoRequestableItemsAreProvided() {
-		// Arrange
-		final var unavailableItem = createItem("23721346", UNAVAILABLE, false, 0);
-		final var unknownStatusItem = createItem("54737664", UNKNOWN, false, 0);
-		final var checkedOutItem = createItem("28375763", CHECKED_OUT, false, 0);
-
-		// Act
-		final var items = List.of(unavailableItem, unknownStatusItem, checkedOutItem);
-
-		final var chosenItem = chooseItem(items, randomUUID());
-
-		// Assert
-		assertThat("Empty publisher returned when no item can be chosen",
-			chosenItem, nullValue());
 	}
 
 	@Test

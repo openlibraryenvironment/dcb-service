@@ -271,6 +271,49 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
+	void shouldExcludeUnavailableItem() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "2656846";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var unavailableItemId = "372656";
+		final var unavailableItemBarcode = "6256486473634";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			// Sierra item with due date is considered not available
+			CheckedOutItem(unavailableItemId, unavailableItemBarcode)
+		));
+
+		final var patron = definePatron("872321", "home-library");
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem()
+		));
+	}
+
+	@Test
 	void shouldExcludeItemFromSameAgencyAsBorrower() {
 		// Arrange
 		final var bibRecordId = randomUUID();

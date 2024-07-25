@@ -31,13 +31,11 @@ public class ManualSelectionStrategy implements ResolutionStrategy {
 		return Mono.justOrEmpty(
 			items.stream()
 				.peek(item -> log.info(
-					"PR-{} - Consider item {} @ {} requestable:{} holds:{} ",
+					"PR-{} - Consider item {} @ {} holds:{} ",
 					patronRequestId,
 					item.getLocalId(),
 					item.getLocation(),
-					item.getIsRequestable(),
 					item.hasNoHolds()))
-				.filter(Item::getIsRequestable)
 				.filter(Item::hasNoHolds)
 				.filter(item -> manuallySelected(patronRequest, item))
 				.findFirst()
