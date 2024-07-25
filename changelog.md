@@ -12,6 +12,10 @@
 	* Mark patron request as not supplied when supplier request is cancelled DCB-1230
 	* extend logging to support issue triage for this record is not available error [DCB-1327]
 
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ### Fixes
 * [General]
 	* add polaris workflow reply [DCB-1276]
