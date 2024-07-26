@@ -1,10 +1,12 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import static java.util.Arrays.asList;
+import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.never;
+import static org.mockserver.verify.VerificationTimes.once;
+
+import java.util.List;
+
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
@@ -12,15 +14,14 @@ import org.mockserver.model.HttpResponse;
 import org.mockserver.model.RequestDefinition;
 import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.test.TestResourceLoaderProvider;
+
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.patrons.CheckoutPatch;
-
-import java.util.List;
-
-import static java.util.Arrays.asList;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.verify.VerificationTimes.never;
-import static org.mockserver.verify.VerificationTimes.once;
 
 @Slf4j
 @AllArgsConstructor
@@ -73,6 +74,10 @@ public class SierraPatronsAPIFixture {
 		mockServer.verify(deleteHoldRequest(holdId), never());
 	}
 
+	public void verifyNoDeleteHoldRequestMade() {
+		mockServer.verify(deleteHoldRequest(), never());
+	}
+
 	private void deleteHoldById(String holdId, HttpResponse response) {
 		mockServer.clear(deleteHoldRequest(holdId));
 
@@ -82,6 +87,10 @@ public class SierraPatronsAPIFixture {
 
 	private HttpRequest deleteHoldRequest(String holdId) {
 		return sierraMockServerRequests.delete("/holds/" + holdId);
+	}
+
+	private HttpRequest deleteHoldRequest() {
+		return sierraMockServerRequests.delete("/holds/*");
 	}
 
 	public void postPatronResponse(String uniqueId, int returnId) {

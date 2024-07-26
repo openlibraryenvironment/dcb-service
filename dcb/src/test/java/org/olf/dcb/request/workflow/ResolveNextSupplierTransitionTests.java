@@ -13,6 +13,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_S
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
@@ -145,8 +146,6 @@ class ResolveNextSupplierTransitionTests {
 
 		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
 
-		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
-
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
 
@@ -157,6 +156,43 @@ class ResolveNextSupplierTransitionTests {
 		));
 
 		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
+	}
+
+	@Test
+	void shouldNotCancelBorrowingRequestWhenRequestHasNotBeenPlacedYet() {
+		// Arrange
+		final var patron = patronFixture.definePatron("252556", "home-library",
+			borrowingHostLms, borrowingAgency);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.localRequestId(null)
+			.localRequestStatus(null)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)
+		));
+
+		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
+			notNullValue(),
+			hasBriefDescription("Could not cancel local borrowing request because no local ID is known (ID: \"%s\")"
+				.formatted(patronRequest.getId()))
+		));
+
+		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade();
 	}
 
 	@Test

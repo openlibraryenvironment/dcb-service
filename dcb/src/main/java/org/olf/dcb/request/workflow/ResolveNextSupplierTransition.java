@@ -14,6 +14,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -36,11 +37,15 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	implements PatronRequestStateTransition {
 
 	private final HostLmsService hostLmsService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
-	ResolveNextSupplierTransition(HostLmsService hostLmsService) {
+	ResolveNextSupplierTransition(HostLmsService hostLmsService,
+		PatronRequestAuditService patronRequestAuditService) {
+
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
 		this.hostLmsService = hostLmsService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@Override
@@ -56,30 +61,43 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<RequestWorkflowContext> cancelLocalBorrowingRequest(
-		RequestWorkflowContext requestWorkflowContext) {
+		RequestWorkflowContext context) {
 
-		final var borrowingHostLmsCode = getValue(requestWorkflowContext,
+		final var borrowingHostLmsCode = getValue(context,
 			RequestWorkflowContext::getPatronSystemCode, null);
 
 		if (isEmpty(borrowingHostLmsCode)) {
 			return Mono.error(new RuntimeException("Patron is not associated with a Host LMS"));
 		}
 
-		final var patronRequest = getValue(requestWorkflowContext,
+		final var patronRequest = getValue(context,
 			RequestWorkflowContext::getPatronRequest, null);
 
 		final var localRequestStatus = getValue(patronRequest,
 			PatronRequest::getLocalRequestStatus, "");
 
 		if (localRequestStatus.equals(HOLD_MISSING) || localRequestStatus.equals(HOLD_CANCELLED)) {
-			return Mono.just(requestWorkflowContext);
+			return Mono.just(context);
 		}
 
-		final var homePatronIdentity = getValue(requestWorkflowContext, RequestWorkflowContext::getPatronHomeIdentity, null);
+		final var homePatronIdentity = getValue(context, RequestWorkflowContext::getPatronHomeIdentity, null);
 
 		final var localRequestId = getValue(patronRequest, PatronRequest::getLocalRequestId, null);
 		final var localItemId = getValue(patronRequest, PatronRequest::getLocalItemId, null);
 		final var localPatronId = getValue(homePatronIdentity, PatronIdentity::getLocalId, null);
+
+		if (isEmpty(localRequestId)) {
+			final var patronRequestId = getValue(patronRequest,
+				PatronRequest::getId, null);
+
+			final var message = "Could not cancel local borrowing request because no local ID is known (ID: \"%s\")"
+				.formatted(patronRequestId);
+
+			log.warn(message);
+
+			return patronRequestAuditService.addAuditEntry(patronRequest, message)
+				.thenReturn(context);
+		}
 
 		return hostLmsService.getClientFor(borrowingHostLmsCode)
 			.flatMap(hostLmsClient -> hostLmsClient.cancelHoldRequest(CancelHoldRequestParameters.builder()
@@ -87,7 +105,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 				.localItemId(localItemId)
 				.patronId(localPatronId)
 				.build()))
-			.thenReturn(requestWorkflowContext);
+			.thenReturn(context);
 	}
 
 	private Mono<RequestWorkflowContext> markNoItemsAvailableAtAnyAgency(RequestWorkflowContext context) {
