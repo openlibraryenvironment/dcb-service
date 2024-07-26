@@ -101,7 +101,7 @@ dependencies {
 	implementation("io.micronaut.data:micronaut-data-jdbc")
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
 
-        implementation("io.micronaut.problem:micronaut-problem-json")
+  implementation("io.micronaut.problem:micronaut-problem-json")
 
 	runtimeOnly("org.postgresql:postgresql")
 	
@@ -173,7 +173,7 @@ dependencies {
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
 
-	implementation("io.micronaut.graphql:micronaut-graphql:4.2.2")
+	implementation("io.micronaut.graphql:micronaut-graphql")
 	implementation("com.graphql-java:graphql-java-extended-scalars:22.0");
 	
 	implementation("jakarta.persistence:jakarta.persistence-api")
