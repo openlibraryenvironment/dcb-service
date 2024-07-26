@@ -181,9 +181,6 @@ dependencies {
 	implementation("jakarta.persistence:jakarta.persistence-api")
 	implementation("org.apache.lucene:lucene-queryparser")
 
-	// Implementation for audit log
-	implementation("io.micrometer:context-propagation")
-
 	runtimeOnly("org.yaml:snakeyaml")
 
 	//aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
