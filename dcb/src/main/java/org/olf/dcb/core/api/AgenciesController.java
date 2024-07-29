@@ -64,20 +64,16 @@ public class AgenciesController {
 	)
 	@Get("/{?pageable*}")
 	public Mono<Page<AgencyDTO>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
-		if (pageable == null) {
-			pageable = Pageable.from(0, 100);
-		}
-
 		log.debug("agencies::list");
 
-		@Valid Pageable finalPageable = pageable;
+		final Pageable finalPageable = pageable == null ? Pageable.from(0, 100) : pageable;
 		return Flux.from(agencyRepository.queryAll())
 			// work around as fetching agency will not fetch hostLms or hostLmsId
 			.flatMap(this::addHostLms)
 			.flatMap(this::addLibraryLabels)
 			.map(mapToAgencyDTO())
 			.collectList()
-			.map(agencyDTOList -> Page.of(agencyDTOList, finalPageable, agencyDTOList.size()));
+			.map(agencyDTOList -> Page.of(agencyDTOList, finalPageable, (long)agencyDTOList.size()));
 	}
 
 	@Get("/{id}")

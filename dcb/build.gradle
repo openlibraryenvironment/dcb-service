@@ -103,7 +103,7 @@ dependencies {
 	// Implementation for audit log - seems to be causing test failure just by being added
 	implementation("io.micrometer:context-propagation")
 
-        implementation("io.micronaut.problem:micronaut-problem-json")
+  implementation("io.micronaut.problem:micronaut-problem-json")
 
 	runtimeOnly("org.postgresql:postgresql")
 	
@@ -120,6 +120,7 @@ dependencies {
 	runtimeOnly("io.r2dbc:r2dbc-pool")
 
 	implementation("io.micronaut.flyway:micronaut-flyway")
+	runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
         // II: These were commented out but unsure why - needed for observability on prod systems
 	// Metrics (Prometheus)
@@ -175,7 +176,7 @@ dependencies {
 	
 	testRuntimeOnly("org.testcontainers:postgresql")
 
-	implementation("io.micronaut.graphql:micronaut-graphql:4.2.2")
+	implementation("io.micronaut.graphql:micronaut-graphql")
 	implementation("com.graphql-java:graphql-java-extended-scalars:22.0");
 	
 	implementation("jakarta.persistence:jakarta.persistence-api")

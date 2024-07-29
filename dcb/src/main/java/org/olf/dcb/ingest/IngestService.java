@@ -108,7 +108,11 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 		return Flux.just( ingestSource )
 			.doOnNext(ingestRecordPublisher -> log.debug("returning record publisher: {}", ingestRecordPublisher.toString()))
 			
-			.flatMap( source -> source.apply(null, terminator) ) // Always pass (instead of lastRun) in null now as the last run is no longer a full run.
+			.flatMap( source -> {
+				return source.apply(null, terminator);
+			}) // Always pass (instead of lastRun) in null now as the last run is no longer a full run.
+			
+			.doOnNext(ir -> log.debug("Ingest source {}", ir))
 			.limitRate( INGEST_PASS_RECORDS_THRESHOLD / 10, 0 )
 			.onErrorResume( t -> {
 				log.error( "Error ingesting data {}", t.getMessage() );
@@ -138,7 +142,10 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 		return Flux.fromIterable(sourceProviders)
 			.flatMap(provider -> provider.getIngestSources())
 			.filter(source -> {
-				if ( source.isEnabled() ) return true;
+				if ( source.isEnabled() ) {
+					log.trace ("Ingest from source: {} is enabled", source.getName());
+					return true;
+				}
 				log.info ("Ingest from source: {} has been disabled in config", source.getName());
 	
 				return false;
@@ -170,7 +177,9 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 
 
 	protected Function<IngestSource, Publisher<IngestRecord>> subscribeToSource(final Mono<String> terminator) {
-		return source -> getRecordsFromSource(source, terminator);
+		return source -> {
+			return getRecordsFromSource(source, terminator);
+		};
 	}
 	
 

@@ -9,10 +9,10 @@ import java.util.UUID;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.storage.ClusterRecordRepository;
 
-import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-@Prototype
+@Singleton
 public class ClusterRecordFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

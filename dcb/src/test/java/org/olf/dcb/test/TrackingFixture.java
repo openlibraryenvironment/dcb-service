@@ -8,9 +8,10 @@ import java.util.UUID;
 import org.olf.dcb.tracking.TrackingService;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import services.k_int.federation.FederatedLockService;
 
-@Prototype
+@Singleton
 public class TrackingFixture {
 	private final TrackingService trackingService;
 	private final FederatedLockService federatedLockService;

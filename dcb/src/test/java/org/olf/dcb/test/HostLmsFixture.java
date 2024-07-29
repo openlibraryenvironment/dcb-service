@@ -22,10 +22,11 @@ import org.olf.dcb.storage.HostLmsRepository;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.client.HttpClient;
+import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Prototype
+@Singleton
 public class HostLmsFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

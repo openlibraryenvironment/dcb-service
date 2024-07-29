@@ -1,6 +1,7 @@
 package org.olf.dcb.test;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Library;
@@ -10,7 +11,7 @@ import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 @Slf4j
-@Prototype
+@Singleton
 public class LibraryFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

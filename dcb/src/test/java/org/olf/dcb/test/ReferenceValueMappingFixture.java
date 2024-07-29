@@ -9,10 +9,11 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Prototype
+@Singleton
 public class ReferenceValueMappingFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

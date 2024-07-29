@@ -13,8 +13,9 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 
-@Prototype
+@Singleton
 public class SupplierRequestsFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

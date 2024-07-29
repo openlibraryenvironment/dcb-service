@@ -17,9 +17,18 @@ import java.util.UUID;
 
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -31,23 +40,22 @@ import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.utils.PropertyAccessUtils;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
-import jakarta.inject.Singleton;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -551,7 +559,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		dsd.getItems().put(item_id,did);
 	}
 
-	@Builder
 	@Data
 	@AllArgsConstructor
 	@Serdeable
