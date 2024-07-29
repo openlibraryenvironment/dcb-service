@@ -249,22 +249,33 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req) {
 
 		return response -> response
-			.onErrorResume(sierraResponseErrorMatcher::isRecordNotAvailable, throwRecordIsNotAvailableProblem(body, req));
+			.onErrorResume(HttpClientResponseException.class, isRecordNotAvailable(body, req));
 	}
 
-	private Function<Throwable, Mono<HttpResponse<Object>>> throwRecordIsNotAvailableProblem(
-		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req) {
+	private Function<HttpClientResponseException, Mono<HttpResponse<Object>>> isRecordNotAvailable(
+		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> request) {
 
-		return throwable -> get("items/" + body.getRecordNumber(), Argument.of(SierraItem.class))
+		return httpClientResponseException -> {
+			if (sierraResponseErrorMatcher.isRecordNotAvailable(httpClientResponseException)) {
+				return throwRecordIsNotAvailableProblem(body, request, httpClientResponseException);
+			}
+			return Mono.error(httpClientResponseException);
+		};
+	}
+
+	private Mono<HttpResponse<Object>> throwRecordIsNotAvailableProblem(
+		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req, HttpClientResponseException ex) {
+
+		return fetchItemState(String.valueOf(body.getRecordNumber()))
+			.flatMap(additionalData -> raiseError(new RecordIsNotAvailableProblem(lms.getCode(), req, ex, additionalData)));
+	}
+
+	private Mono<Map<String, Object>> fetchItemState(String recordNumber) {
+		return get("items/" + recordNumber, Argument.of(SierraItem.class))
 			.map(SierraItem::toMap)
+			// if the item request fails we create a map with the exception response
 			.onErrorResume(error -> Mono.just(Map.of("Failed to retrieve item information", error.toString())))
-			.flatMap(itemMap -> createErrorResponse(itemMap, req, throwable));
-	}
-
-	private Mono<HttpResponse<Object>> createErrorResponse(
-		Map<String, Object> itemMap, MutableHttpRequest<PatronHoldPost> req, Throwable throwable) {
-
-		return raiseError(new RecordIsNotAvailableProblem(lms.getCode(), req, throwable, itemMap));
+			.map(itemMap -> Map.of("item", itemMap));
 	}
 
 	@SingleResult

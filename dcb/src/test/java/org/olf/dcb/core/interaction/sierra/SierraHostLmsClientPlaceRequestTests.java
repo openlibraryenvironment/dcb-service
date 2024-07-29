@@ -209,7 +209,8 @@ class SierraHostLmsClientPlaceRequestTests {
 			hasRequestBody(is("PatronHoldPost(recordType=b, recordNumber=23423423, pickupLocation=null, " +
 				"neededBy=null, numberOfCopies=null, note=null)"))
 		));
-		assertThat(problem.toString(), containsString("XCirc error: This record is not available - [132 / 2]"));
+		assertThat(problem.toString(), containsString("sierra-place-hold-tests XCirc Error: This record is not available"));
+		assertThat(problem.toString(), containsString("responseBody"));
 		assertThat(problem.toString(), containsString("additionalData"));
 		assertThat(problem.toString(), containsString("id=6721574"));
 	}
