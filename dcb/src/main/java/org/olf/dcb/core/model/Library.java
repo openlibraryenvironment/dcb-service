@@ -7,6 +7,7 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.Creator;
 
 import io.micronaut.data.annotation.*;
+import io.micronaut.security.annotation.UpdatedBy;
 import jakarta.validation.constraints.*;
 
 import io.micronaut.data.model.DataType;
@@ -16,6 +17,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Data
@@ -26,7 +28,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Builder
 @ToString(onlyExplicitlyIncluded = true)
 @MappedEntity
-public class Library {
+public class Library implements Auditable {
 	@ToString.Include
 	@NonNull
 	@Id
@@ -101,4 +103,17 @@ public class Library {
 	@Nullable
 	@Size(max = 200)
 	private String secretLabel;
+
+	@Nullable
+	@UpdatedBy
+	private String lastEditedBy;
+
+	@Nullable
+	private String reason;
+
+	@Nullable
+	private String changeCategory;
+
+	@Nullable
+	private String changeReferenceUrl;
 }

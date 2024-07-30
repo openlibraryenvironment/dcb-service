@@ -37,16 +37,6 @@ public class UpdateAgencyParticipationStatusDataFetcher implements DataFetcher<C
 		log.debug("updateAgencyParticipationStatusDataFetcher {}", input_map);
 
 		String code = input_map.get("code").toString();
-//		Boolean isSupplyingAgency = input_map.containsKey("isSupplyingAgency") ?
-//			Boolean.parseBoolean(input_map.get("isSupplyingAgency").toString()) : null;
-//		Boolean isBorrowingAgency = input_map.containsKey("isBorrowingAgency") ?
-//			Boolean.parseBoolean(input_map.get("isBorrowingAgency").toString()) : null;
-//		String reason = input_map.containsKey("reason") ?
-//			input_map.get("reason").toString() : null;
-//		String changeReferenceUrl = input_map.containsKey("changeReferenceUrl") ?
-//			input_map.get("changeReferenceUrl").toString() : null;
-//		String changeCategory = input_map.containsKey("changeCategory") ?
-//			input_map.get("changeCategory").toString() : null;
 
 		Optional<Boolean> isSupplyingAgency = Optional.ofNullable(input_map.get("isSupplyingAgency"))
 			.map(value -> Boolean.parseBoolean(value.toString()));
@@ -62,7 +52,6 @@ public class UpdateAgencyParticipationStatusDataFetcher implements DataFetcher<C
 
 		// User should never be null as GraphQL endpoint requires auth: 'User not detected' exists to flag if something is going very wrong.
 //		String userString = (env.getGraphQlContext().get("currentUser") != null) ? env.getGraphQlContext().get("currentUser").toString() : "User not detected";
-//		log.debug("GQL Context user name: {}", env.getGraphQlContext().get("currentUser").toString());
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
 			.map(Object::toString)
 			.orElse("User not detected");

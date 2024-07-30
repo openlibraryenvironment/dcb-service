@@ -50,6 +50,8 @@ public interface LibraryContactRepository {
 
 	Publisher<Void> delete(UUID id);
 
+	Publisher<Void> deleteAllByLibraryId(UUID id);
+
 	@SingleResult
 	@NonNull
 	default Publisher<LibraryContact> saveOrUpdate(@Valid @NotNull LibraryContact lc) {

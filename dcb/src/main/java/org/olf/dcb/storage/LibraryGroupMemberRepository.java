@@ -49,6 +49,8 @@ public interface LibraryGroupMemberRepository {
 
 	Publisher<Void> delete(UUID id);
 
+	Publisher<Void> deleteByLibraryId(UUID id);
+
 	@SingleResult
 	@NonNull
 	default Publisher<LibraryGroupMember> saveOrUpdate(@Valid @NotNull LibraryGroupMember gm) {
@@ -65,8 +67,6 @@ public interface LibraryGroupMemberRepository {
 	@NonNull
 	@SingleResult
 	Publisher<LibraryGroupMember> queryAllByLibrary(@NotNull Library library);
-
-	// may change to 'findAllBy'
 
 
 	@NonNull

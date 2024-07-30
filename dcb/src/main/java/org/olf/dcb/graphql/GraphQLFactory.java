@@ -41,7 +41,7 @@ public class GraphQLFactory {
 			InstanceClusterDataFetcher instanceClusterDataFetcher,
 			SourceBibDataFetcher sourceBibDataFetcher, AddLibraryToGroupDataFetcher addLibraryToGroupDataFetcher,
 			CreateLibraryGroupDataFetcher createLibraryGroupDataFetcher, CreateConsortiumDataFetcher createConsortiumDataFetcher,
-			UpdateAgencyParticipationStatusDataFetcher updateAgencyParticipationStatusDataFetcher,
+			UpdateAgencyParticipationStatusDataFetcher updateAgencyParticipationStatusDataFetcher, DeleteLibraryDataFetcher deleteLibraryDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -90,7 +90,8 @@ public class GraphQLFactory {
 						.dataFetcher("createLibraryGroup", createLibraryGroupDataFetcher)
 						.dataFetcher("createConsortium", createConsortiumDataFetcher)
 						.dataFetcher("addLibraryToGroup", addLibraryToGroupDataFetcher)
-						.dataFetcher("updateAgencyParticipationStatus", updateAgencyParticipationStatusDataFetcher))
+						.dataFetcher("updateAgencyParticipationStatus", updateAgencyParticipationStatusDataFetcher)
+						.dataFetcher("deleteLibrary", deleteLibraryDataFetcher))
 				.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())

@@ -4,6 +4,7 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.util.Map;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -52,6 +53,9 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 		List<Map<String, Object>> contactsInput = (List<Map<String, Object>>) input_map.get("contacts");
 		log.debug("createLibraryDataFetcher {}", input_map);
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+			.map(Object::toString)
+			.orElse("User not detected");
 
 		Library input = Library.builder()
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)
@@ -68,6 +72,9 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.discoverySystem(input_map.get("discoverySystem").toString())
 			.patronWebsite(input_map.get("patronWebsite").toString())
 			.hostLmsConfiguration(input_map.get("hostLmsConfiguration").toString())
+			.reason("Adding a new library")
+			.changeCategory("New member")
+			.lastEditedBy(userString)
 			.build();
 
 
