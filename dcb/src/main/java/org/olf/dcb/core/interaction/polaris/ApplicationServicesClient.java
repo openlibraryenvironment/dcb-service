@@ -86,7 +86,8 @@ class ApplicationServicesClient {
 			.zipWith(getLocalRequestBody(holdRequestParameters, activationDateUTC, noteWithActivationDateUTC))
 			.map(function(ApplicationServicesClient::addBodyToRequest))
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class)))
-			.flatMap(resp -> handlePolarisWorkflow(resp, PromoteItemRequestToBib, Continue))
+			.flatMap(resp -> replyIfPromptMatches(resp, ExceededTotalRequestLimit, Continue))
+			.flatMap(resp -> replyIfPromptMatches(resp, PromoteItemRequestToBib, Continue))
 			.map(this::validateWorkflowResponse)
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
@@ -94,6 +95,20 @@ class ApplicationServicesClient {
 				activationDateUTC,
 				noteWithActivationDateUTC,
 				holdRequestParameters));
+	}
+
+	private Mono<WorkflowResponse> replyIfPromptMatches(WorkflowResponse response, Integer promptID, Integer promptResult) {
+
+		boolean isInputRequired = InputRequired.equals(response.getWorkflowStatus());
+		boolean isPromptMatching = response.getPrompt() != null
+			&& response.getPrompt().getWorkflowPromptID() != null
+			&& promptID.equals(response.getPrompt().getWorkflowPromptID());
+
+		if (isInputRequired || isPromptMatching) {
+			return handlePolarisWorkflow(response, promptID, promptResult);
+		}
+
+		return Mono.just(response);
 	}
 
 	private static String addActivationDateToNote(HoldRequestParameters holdRequestParameters, String activationDateUTC) {
@@ -1196,12 +1211,14 @@ class ApplicationServicesClient {
 		public static final Integer FillsRequestTransferPrompt = 30;
 		public static final Integer BriefItemEntry = 55;
 		public static final Integer NoDisplayInPAC = 66;
+		public static final Integer ExceededTotalRequestLimit = 68; // found as part of DCB-1353
 		public static final Integer DuplicateRecords = 72;
 		public static final Integer ConfirmItemRecordDelete = 73;
 		// public static final Integer DuplicateHoldRequests = 77;
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
 		public static final Integer PromoteItemRequestToBib = 88;
+
 		@JsonProperty("WorkflowPromptID")
 		private Integer WorkflowPromptID;
 		@JsonProperty("Title")
