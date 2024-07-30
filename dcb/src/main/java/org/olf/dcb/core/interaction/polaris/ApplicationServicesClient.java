@@ -29,10 +29,7 @@ import reactor.util.function.Tuples;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -223,11 +220,14 @@ class ApplicationServicesClient {
 			.collectList()
 			.flatMap(remainingBlocks -> {
 				if (!remainingBlocks.isEmpty()) {
+
+					final var size = String.valueOf(remainingBlocks.size());
+
 					return raiseError(Problem.builder()
 						.withTitle("Patron has unexpected blocks")
-						.withDetail(remainingBlocks.size() + " blocks found")
-						.with("localPatronId", localPatronId)
-						.with("remainingBlocks", remainingBlocks)
+						.withDetail(size + " blocks found")
+						.with("localPatronId", String.valueOf(localPatronId))
+						.with("remainingBlocks", remainingBlocks.toString())
 						.build());
 				}
 				return Mono.just(localPatronId);
