@@ -67,7 +67,6 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 		return Mono.just(ctx)
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
-			.flatMap(checkForErrorString(ctx))
 			.then(Mono.just(patronRequest.setStatus(Status.FINALISED)))
 			.flatMap(auditStateOfVirtualRecordsAfterCleanUp(ctx));
 	}

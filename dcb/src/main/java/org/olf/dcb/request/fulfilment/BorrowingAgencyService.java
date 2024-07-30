@@ -18,9 +18,12 @@ import reactor.util.function.Tuple3;
 import reactor.util.function.Tuple5;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
@@ -33,6 +36,7 @@ public class BorrowingAgencyService {
 	private final SupplierRequestService supplierRequestService;
 	private final SharedIndexService sharedIndexService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
@@ -42,6 +46,7 @@ public class BorrowingAgencyService {
 		PatronIdentityRepository patronIdentityRepository,
 		SupplierRequestService supplierRequestService, SharedIndexService sharedIndexService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
+		PatronRequestAuditService patronRequestAuditService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
 		this.hostLmsService = hostLmsService;
@@ -49,6 +54,7 @@ public class BorrowingAgencyService {
 		this.supplierRequestService = supplierRequestService;
 		this.sharedIndexService = sharedIndexService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.patronRequestAuditService = patronRequestAuditService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
 
@@ -63,44 +69,112 @@ public class BorrowingAgencyService {
 			;
 	}
 
-	public Mono<String> cleanUp(RequestWorkflowContext requestWorkflowContext) {
+	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext requestWorkflowContext) {
 
 		final var patronRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPatronRequest);
 		final var hostLmsCode = getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode);
 
 		log.info("WORKFLOW cleanUp {}", patronRequest);
 
-		if (hostLmsCode != null) {
+		if (hostLmsCode != null && patronRequest != null) {
 			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
 				.flatMap(client -> deleteItemIfPresent(client, patronRequest) )
 				.flatMap(client -> deleteBibIfPresent(client, patronRequest) )
-				.thenReturn("OK")
-				.defaultIfEmpty("ERROR");
+				.thenReturn(requestWorkflowContext);
 		}
 
-		return Mono.just("ERROR");
+		final var message = "Borrower cleanup : Skipped";
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("hostLmsCode", getValue(hostLmsCode, "No value present"));
+		auditData.put("patronRequest", patronRequest != null ? "Exists" : "No value present");
+		return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+			.flatMap(audit -> Mono.just(requestWorkflowContext));
 	}
 
 	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
-		if (patronRequest.getLocalItemId() != null || !"MISSING".equals(patronRequest.getLocalItemStatus())) {
-			return client.deleteItem(patronRequest.getLocalItemId())
+		final var localItemStatus = getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus);
+		if (patronRequest.getLocalItemId() != null || !"MISSING".equals(localItemStatus)) {
+
+			final var localItemId = patronRequest.getLocalItemId();
+
+			return checkItemExists(client, localItemId, patronRequest)
+				.flatMap(_client -> _client.deleteItem(patronRequest.getLocalItemId()))
+
+				// Catch any skipped deletions
+				.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
+
+				// Genuine error we didn't account for
+				.onErrorResume(logAndReturnErrorString("Delete virtual item : Failed", patronRequest))
 				.thenReturn(client);
 		}
 		else {
-			return Mono.just(client);
+			final var message = "Delete virtual item : Skipped";
+			final var auditData = new HashMap<String, Object>();
+			auditData.put("localItemId", patronRequest.getLocalItemId() != null ? patronRequest.getLocalItemId() : "No value present");
+			auditData.put("localItemStatus", getValue(localItemStatus, "No value present"));
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just(client));
 		}
 	}
 
-  public Mono<HostLmsClient> deleteBibIfPresent(HostLmsClient client, PatronRequest patronRequest) {
+	private Function<Throwable, Mono<String>> logAndReturnErrorString(String message, PatronRequest patronRequest) {
+
+		return error -> {
+			final var auditData = new HashMap<String, Object>();
+			auditData.put("Error", error.toString());
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just("Error"));
+		};
+	}
+
+	private Mono<HostLmsClient> checkItemExists(HostLmsClient client, String localItemId, PatronRequest patronRequest) {
+
+		final var localRequestId = getValueOrNull(patronRequest, PatronRequest::getLocalRequestId);
+
+		return client.getItem(localItemId, localRequestId)
+			.flatMap(item -> {
+
+				// if the item exists a local id will be present
+				if (item != null && item.getLocalId() != null) {
+
+					// return the client to proceed with deletion
+					return Mono.just(client);
+				}
+
+				// no local id to delete, skip delete by passing back an empty
+				final var message = "Delete virtual item : Skipped";
+				final var auditData = new HashMap<String, Object>();
+				auditData.put("item", item);
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+			})
+			.onErrorResume(error -> {
+
+				// we encountered an error when confirming the item exists
+				final var message = "Delete virtual item : Skipped";
+				final var auditData = new HashMap<String, Object>();
+				auditData.put("Error", error.toString());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+			});
+	}
+
+	public Mono<HostLmsClient> deleteBibIfPresent(HostLmsClient client, PatronRequest patronRequest) {
 		if (patronRequest.getLocalBibId() != null) {
-			return client.deleteBib(patronRequest.getLocalBibId())
-        .thenReturn(client);
-    }
+
+			final var localBibId = patronRequest.getLocalBibId();
+
+			return client.deleteBib(localBibId)
+				// Genuine error we didn't account for
+				.onErrorResume(logAndReturnErrorString("Delete virtual bib : Failed", patronRequest))
+				.thenReturn(client);
+		}
     else {
-      return Mono.just(client);
+			final var message = "Delete virtual bib : Skipped";
+			final var auditData = new HashMap<String, Object>();
+			auditData.put("localBibId", patronRequest.getLocalBibId() != null ? patronRequest.getLocalBibId() : "No value present");
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just(client));
     }
   }
-
 
 	private Mono<Tuple2<PatronRequest, String>> createVirtualBib(
 		RequestWorkflowContext ctx, PatronRequest patronRequest, HostLmsClient hostLmsClient) {

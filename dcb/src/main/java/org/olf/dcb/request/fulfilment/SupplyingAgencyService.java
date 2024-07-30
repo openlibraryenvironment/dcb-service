@@ -20,10 +20,12 @@ import reactor.util.function.Tuples;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.StringUtils.parseList;
@@ -110,29 +112,82 @@ public class SupplyingAgencyService {
       .map(PatronRequest::placedAtSupplyingAgency);
 	}
 
-	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext requestWorkflowContext) {
+	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext context) {
 
-		final var supplierRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getSupplierRequest);
+		final var supplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
 		final var hostLmsCode = getValueOrNull(supplierRequest, SupplierRequest::getHostLmsCode);
 		final var localRequestId =  getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
 
 		log.info("WORKFLOW attempting to cleanup local supplier hold :: {}", supplierRequest);
 
 		if (hostLmsCode == null || localRequestId == null) {
+
+			final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
+
 			log.error("WORKFLOW could not cleanup supplier hold :: hostLmsCode={} localRequestId={}", hostLmsCode, localRequestId);
-			return Mono.just(requestWorkflowContext);
+			final var message = "Delete supplier hold : Skipped";
+			final var auditData = new HashMap<String, Object>();
+			auditData.put("WORKFLOW could not cleanup supplier hold because a required value was null", Map.of(
+				"hostLmsCode", getValue(hostLmsCode, "No value present"),
+				"localRequestId", getValue(localRequestId, "No value present")
+			));
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just(context));
 		}
 
 		return hostLmsService.getClientFor(hostLmsCode)
+			.flatMap(client -> checkHoldExists(client, localRequestId, context))
 			.flatMap(client -> client.deleteHold(localRequestId))
-			.onErrorResume(logAndReturnErrorString())
-			.thenReturn(requestWorkflowContext);
+
+			// Catch any skipped deletions
+			.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
+
+			// Genuine error we didn't account for
+			.onErrorResume(logAndReturnErrorString(context))
+			.thenReturn(context);
 	}
 
-	private static Function<Throwable, Mono<String>> logAndReturnErrorString() {
+	private Mono<HostLmsClient> checkHoldExists(
+		HostLmsClient client, String localRequestId, RequestWorkflowContext context) {
+
+		final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
+
+		return client.getRequest(localRequestId)
+			.flatMap(hostLmsRequest -> {
+
+				// if the hold exists a local id will be present
+				if (hostLmsRequest != null && hostLmsRequest.getLocalId() != null) {
+
+					// return the client to proceed with deletion
+					return Mono.just(client);
+				}
+
+				// no local id to delete, skip delete by passing back an empty
+				final var message = "Delete supplier hold : Skipped";
+				final var auditData = new HashMap<String, Object>();
+				auditData.put("hold", hostLmsRequest);
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+			})
+			.onErrorResume(error -> {
+
+				// we encountered an error when confirming the hold exists
+				final var message = "Delete supplier hold : Skipped";
+				final var auditData = new HashMap<String, Object>();
+				auditData.put("Error", error.toString());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+			});
+	}
+
+	private Function<Throwable, Mono<String>> logAndReturnErrorString(RequestWorkflowContext requestWorkflowContext) {
+
+		final var patronRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPatronRequest);
+
 		return error -> {
-			log.error("WORKFLOW cleanup", error);
-			return Mono.just("ERROR");
+			final var message = "Delete supplier hold : Failed";
+			final var auditData = new HashMap<String, Object>();
+			auditData.put("Error", error.toString());
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just("Error"));
 		};
 	}
 

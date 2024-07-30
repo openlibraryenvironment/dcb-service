@@ -40,6 +40,7 @@ import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 
 @Controller("/patrons/requests")
 @Validated
@@ -84,6 +85,7 @@ public class PatronRequestController {
 	 * TODO: We prolly want to change this, to not be so explicit. But I think that's part of a necessary
 	 * overhaul to the whole system.
 	 */
+	@Secured(CONSORTIUM_ADMIN)
 	@SingleResult
 	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
 	public Mono<PatronRequest> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
