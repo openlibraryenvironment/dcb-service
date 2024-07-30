@@ -257,13 +257,13 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 		return httpClientResponseException -> {
 			if (sierraResponseErrorMatcher.isRecordNotAvailable(httpClientResponseException)) {
-				return throwRecordIsNotAvailableProblem(body, request, httpClientResponseException);
+				return createRecordIsNotAvailableProblem(body, request, httpClientResponseException);
 			}
 			return Mono.error(httpClientResponseException);
 		};
 	}
 
-	private Mono<HttpResponse<Object>> throwRecordIsNotAvailableProblem(
+	private Mono<HttpResponse<Object>> createRecordIsNotAvailableProblem(
 		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req, HttpClientResponseException ex) {
 
 		return fetchItemState(String.valueOf(body.getRecordNumber()))
