@@ -25,8 +25,7 @@ public class PickupLocationPreflightCheck implements PreflightCheck {
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		final var pickupLocationCode = getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode);
 
-		return locationService.findByCode(pickupLocationCode)
-			.switchIfEmpty(Mono.defer(() -> locationService.findById(pickupLocationCode)))
+		return locationService.findByIdOrCode( pickupLocationCode )
 			.map(location -> passed())
 			.defaultIfEmpty(failed("UNKNOWN_PICKUP_LOCATION_CODE",
 				"\"%s\" is not a recognised pickup location code"

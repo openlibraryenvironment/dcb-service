@@ -35,6 +35,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
@@ -91,6 +92,8 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private final String apiKey;
 
 	private final ProcessStateService processStateService;
+	
+	private final R2dbcOperations r2dbcOperations;
 
   @Override
   public String getConcurrencyGroupKey() {
@@ -101,7 +104,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		RawSourceRepository rawSourceRepository, 
 		HttpClient client, 
 		ConversionService conversionService, 
-		ProcessStateService processStateService) {
+		ProcessStateService processStateService, R2dbcOperations r2dbcOperations) {
 
 		this.lms = hostLms;
 		this.rawSourceRepository = rawSourceRepository;
@@ -120,6 +123,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		
 		apiKey = MapUtils.getAsOptionalString(
 			lms.getClientConfig(), CONFIG_API_KEY).get();
+		this.r2dbcOperations = r2dbcOperations;
 	}
 	
 	@Override
@@ -458,5 +462,9 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		// return Mono.from(processStateService.updateState(id, processName, state.storred_state)).thenReturn(state);
 		return processStateService.updateState(id, processName, state.storred_state)
 			.thenReturn(state);
+	}
+
+	public R2dbcOperations getR2dbcOperations() {
+		return r2dbcOperations;
 	}
 }

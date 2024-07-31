@@ -8,8 +8,9 @@ import org.olf.dcb.core.model.Grant;
 import org.olf.dcb.storage.GrantRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 
-@Prototype
+@Singleton
 public class GrantFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

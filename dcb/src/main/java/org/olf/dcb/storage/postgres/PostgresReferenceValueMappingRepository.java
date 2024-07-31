@@ -16,7 +16,7 @@ import io.micronaut.data.repository.jpa.reactive.ReactiveStreamsJpaSpecification
 
 
 @Singleton
-@Audit
+//@Audit
 @R2dbcRepository(dialect = Dialect.POSTGRES)
 @Transactional
 public interface PostgresReferenceValueMappingRepository extends 

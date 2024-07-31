@@ -1,6 +1,7 @@
 package org.olf.dcb.test;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
@@ -17,7 +18,7 @@ import org.olf.dcb.storage.MatchPointRepository;
 import static java.time.Instant.now;
 import static org.olf.dcb.utils.DCBStringUtilities.generateBlockingString;
 
-@Prototype
+@Singleton
 public class BibRecordFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

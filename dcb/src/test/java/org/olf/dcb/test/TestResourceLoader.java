@@ -9,9 +9,10 @@ import org.mockserver.model.JsonBody;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.io.ResourceLoader;
+import jakarta.inject.Singleton;
 import lombok.SneakyThrows;
 
-@Prototype
+@Singleton
 public class TestResourceLoader {
 	private final String basePath;
 	private final ResourceLoader loader;

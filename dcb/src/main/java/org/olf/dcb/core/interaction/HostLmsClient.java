@@ -8,6 +8,8 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import reactor.core.publisher.Mono;
 
 public interface HostLmsClient extends Comparable<HostLmsClient> {
@@ -39,6 +41,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	List<HostLmsPropertyDefinition> getSettings();
 
+	@ExecuteOn( TaskExecutors.BLOCKING)
 	Mono<List<Item>> getItems(BibRecord bibRecord);
 
 	Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron);

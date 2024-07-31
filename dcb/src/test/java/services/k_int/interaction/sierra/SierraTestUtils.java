@@ -206,20 +206,25 @@ public interface SierraTestUtils {
 			revoker = new TimerTask() {
 				@Override
 				public void run() {
-					addExp(
-						mock.when(
-							request()
-								.withHeader("Authorization", tokenBearerHeader) // Odd expression meaning missing header
-							  .withHeader("host", hostname),
-			
-				      Times.unlimited(),
-				      TimeToLive.unlimited(),
-				      WEIGHT_PRIORITY_HIGH)
-								.respond(
-									response()
-					          .withStatusCode(HttpStatusCode.UNAUTHORIZED_401.code())
-					          .withBody(
-												json("{ \"message\": \"Token reovked at " + LocalDateTime.now().toString() + "\" }"))));
+					try {
+						addExp(
+							mock.when(
+								request()
+									.withHeader("Authorization", tokenBearerHeader) // Odd expression meaning missing header
+								  .withHeader("host", hostname),
+				
+					      Times.unlimited(),
+					      TimeToLive.unlimited(),
+					      WEIGHT_PRIORITY_HIGH)
+									.respond(
+										response()
+						          .withStatusCode(HttpStatusCode.UNAUTHORIZED_401.code())
+						          .withBody(
+													json("{ \"message\": \"Token reovked at " + LocalDateTime.now().toString() + "\" }"))));
+						
+					} catch ( IllegalStateException stateEx ) {
+						// Suppress as likely server has been shutdown 
+					}
 				}
 			};
 			
