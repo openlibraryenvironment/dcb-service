@@ -1,5 +1,30 @@
 # Changelog
 
+## Version 6.25.0
+
+### Additions
+* [General]
+	* handle missing virtual records during cleanup [DCB-1345]
+
+### Changes
+* [Refactor]
+	* clearnupPatronRequest to return UUID [DCB-1345]
+	* add response body to RecordIsNotAvailableProblem [DCB-1327]
+
+### Fixes
+* [General]
+	* use flatMap for progressing workflow [DCB-1345]
+	* handle exceeded total request limit in polaris [DCB-1353]
+	* Back out graphql change.
+	* Do not attempt to cancel borrowing request when hasn't been placed DCB-1230
+	* Incorrect transition name for supplier request cancellation DCB-1230
+
+## Version 6.24.0
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ## Version 6.23.0
 
 ### Additions
