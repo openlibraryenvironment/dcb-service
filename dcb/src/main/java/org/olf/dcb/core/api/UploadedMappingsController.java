@@ -70,7 +70,7 @@ public class UploadedMappingsController {
 
 	// This method posts a file of uploaded mappings of a given mapping category.
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
-	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String mappingCategory) {
-		return configurationService.importConfiguration(mappingCategory, code, file);
+	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String mappingCategory, String reason) {
+		return configurationService.importConfiguration(mappingCategory, code, file, reason);
 	}
 }

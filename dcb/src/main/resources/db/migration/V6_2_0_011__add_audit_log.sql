@@ -6,6 +6,7 @@ CREATE TABLE data_change_log (
     action_info varchar(50),
     changes jsonb,
     timestamp_logged timestamp,
+    
     reason text,
     old_data jsonb,
     new_data jsonb

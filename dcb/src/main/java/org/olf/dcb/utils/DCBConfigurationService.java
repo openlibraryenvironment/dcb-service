@@ -99,7 +99,7 @@ public class DCBConfigurationService {
 	// A 'mappingCategory' - for example 'ItemType' - this is supplied by the user from the admin app.
 	// A Host LMS code - for example 'ARCHWAY' - also supplied by the user from DCB Admin
 	// And a CompletedFileUpload for the CSV/TSV mappings file to be processed.
-	public Mono<UploadedConfigImport> importConfiguration(String mappingCategory, String code, CompletedFileUpload file) {
+	public Mono<UploadedConfigImport> importConfiguration(String mappingCategory, String code, CompletedFileUpload file, String reason) {
 		// This will support all mappings which get uploaded via a file, as opposed to being taken from a URL.
 		log.debug("importConfiguration({},{})",mappingCategory,file.getFilename());
 		String[] expectedHeaders;
@@ -114,7 +114,7 @@ public class DCBConfigurationService {
 				expectedHeaders = new String[]{"fromContext", "fromCategory", "fromValue", "toContext", "toCategory", "toValue"};
 				return cleanupMappings(mappingCategory, code)
 					.flatMap(cleanupResult ->
-						referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
+						referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult, reason)
 					);
 			}
 			// Numeric range mappings will be added subsequently in DCB-1153 and this code will be restored.
@@ -138,14 +138,14 @@ public class DCBConfigurationService {
 	}
 
 	// This method processes the uploaded file and builds the object to be returned.
-	private Mono<UploadedConfigImport> referenceValueMappingImport(CompletedFileUpload file, String code, String mappingCategory, String[] expectedHeaders, Long cleanupResult) {
+	private Mono<UploadedConfigImport> referenceValueMappingImport(CompletedFileUpload file, String code, String mappingCategory, String[] expectedHeaders, Long cleanupResult, String reason) {
 		try {
 			InputStreamReader reader = new InputStreamReader(file.getInputStream());
 			if (file.getFilename().contains(".tsv"))
 			{
 				List<String[]> tsvData = parseTsv(reader, expectedHeaders, mappingCategory, code);
 					return Flux.fromIterable(tsvData)
-						.concatMap(this::processReferenceValueMapping)
+						.concatMap(rvm -> processReferenceValueMapping(rvm, reason)) // Pass reason here
 						.collectList()
 						.map(mappings -> UploadedConfigImport.builder()
 							.message(mappings.size() + " mappings have been imported successfully.")
@@ -158,7 +158,7 @@ public class DCBConfigurationService {
 				List<String[]> csvData = parseCsv(reader, expectedHeaders, code);
 				{
 					return Flux.fromIterable(csvData)
-						.concatMap(this::processReferenceValueMapping)
+						.concatMap(rvm -> processReferenceValueMapping(rvm, reason)) // Pass reason here
 						.collectList()
 						.map(mappings -> UploadedConfigImport.builder()
 							.message(mappings.size() + " mappings have been imported successfully.")
@@ -360,6 +360,27 @@ public class DCBConfigurationService {
 			.toValue(rvm[5])
 			.lastImported(Instant.now())
 			.deleted(false)
+			.build();
+
+		// If there was an optional label, set it
+		if ( rvm.length > 6 )
+			rvmd.setLabel(rvm[6]);
+
+		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
+	}
+
+	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm, String reason) {
+		ReferenceValueMapping rvmd= ReferenceValueMapping.builder()
+			.id(UUIDUtils.dnsUUID(rvm[0]+":"+rvm[1]+":"+rvm[2]+":"+rvm[3]+":"+rvm[4]))
+			.fromContext(rvm[0])
+			.fromCategory(rvm[1])
+			.fromValue(rvm[2])
+			.toContext(rvm[3])
+			.toCategory(rvm[4])
+			.toValue(rvm[5])
+			.lastImported(Instant.now())
+			.deleted(false)
+			.reason(reason)
 			.build();
 
 		// If there was an optional label, set it
