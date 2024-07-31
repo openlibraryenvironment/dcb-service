@@ -100,7 +100,7 @@ dependencies {
 	implementation("io.micronaut.data:micronaut-data-r2dbc")
 	implementation("io.micronaut.data:micronaut-data-jdbc")
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
-	// Implementation for audit log - seems to be causing test failure just by being added
+	// Introduced in DCB-1302 because of this issue https://github.com/micronaut-projects/micronaut-security/issues/1468
 	implementation("io.micrometer:context-propagation")
 
   implementation("io.micronaut.problem:micronaut-problem-json")

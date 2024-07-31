@@ -3,6 +3,7 @@ package org.olf.dcb.core.api;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
+import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.security.RoleNames;
@@ -70,7 +71,7 @@ public class UploadedMappingsController {
 
 	// This method posts a file of uploaded mappings of a given mapping category.
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
-	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String mappingCategory, String reason) {
-		return configurationService.importConfiguration(mappingCategory, code, file, reason);
+	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String mappingCategory, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
+		return configurationService.importConfiguration(mappingCategory, code, file, reason, changeCategory, changeReferenceUrl);
 	}
 }

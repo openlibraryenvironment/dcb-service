@@ -51,6 +51,14 @@ public class DataChangeLog {
 	private String reason;
 
 	@Nullable
+	@Size(max = 200)
+	private String changeReferenceUrl;
+
+	@Nullable
+	@Size(max = 100)
+	private String changeCategory;
+
+	@Nullable
 	@TypeDef(type = DataType.JSON)
 	private String oldData;
 

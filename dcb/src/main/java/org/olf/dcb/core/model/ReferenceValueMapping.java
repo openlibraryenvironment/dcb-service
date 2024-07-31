@@ -96,8 +96,13 @@ public class ReferenceValueMapping implements Auditable {
 		@UpdatedBy
 		private String lastEditedBy;
 
-		@ToString.Include
 		@Nullable
 		private String reason;
+
+		@Nullable
+		private String changeCategory;
+
+		@Nullable
+		private String changeReferenceUrl;
 
 }

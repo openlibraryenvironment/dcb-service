@@ -99,7 +99,7 @@ public class DCBConfigurationService {
 	// A 'mappingCategory' - for example 'ItemType' - this is supplied by the user from the admin app.
 	// A Host LMS code - for example 'ARCHWAY' - also supplied by the user from DCB Admin
 	// And a CompletedFileUpload for the CSV/TSV mappings file to be processed.
-	public Mono<UploadedConfigImport> importConfiguration(String mappingCategory, String code, CompletedFileUpload file, String reason) {
+	public Mono<UploadedConfigImport> importConfiguration(String mappingCategory, String code, CompletedFileUpload file, String reason, String changeCategory, String changeReferenceUrl) {
 		// This will support all mappings which get uploaded via a file, as opposed to being taken from a URL.
 		log.debug("importConfiguration({},{})",mappingCategory,file.getFilename());
 		String[] expectedHeaders;
@@ -114,7 +114,7 @@ public class DCBConfigurationService {
 				expectedHeaders = new String[]{"fromContext", "fromCategory", "fromValue", "toContext", "toCategory", "toValue"};
 				return cleanupMappings(mappingCategory, code)
 					.flatMap(cleanupResult ->
-						referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult, reason)
+						referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult, reason, changeCategory, changeReferenceUrl)
 					);
 			}
 			// Numeric range mappings will be added subsequently in DCB-1153 and this code will be restored.
@@ -138,14 +138,16 @@ public class DCBConfigurationService {
 	}
 
 	// This method processes the uploaded file and builds the object to be returned.
-	private Mono<UploadedConfigImport> referenceValueMappingImport(CompletedFileUpload file, String code, String mappingCategory, String[] expectedHeaders, Long cleanupResult, String reason) {
+	private Mono<UploadedConfigImport> referenceValueMappingImport(CompletedFileUpload file, String code, String mappingCategory,
+																																 String[] expectedHeaders, Long cleanupResult, String reason,
+																																 String changeCategory, String changeReferenceUrl) {
 		try {
 			InputStreamReader reader = new InputStreamReader(file.getInputStream());
 			if (file.getFilename().contains(".tsv"))
 			{
 				List<String[]> tsvData = parseTsv(reader, expectedHeaders, mappingCategory, code);
 					return Flux.fromIterable(tsvData)
-						.concatMap(rvm -> processReferenceValueMapping(rvm, reason)) // Pass reason here
+						.concatMap(rvm -> processReferenceValueMapping(rvm, reason, changeCategory, changeReferenceUrl)) // Pass user supplied values here
 						.collectList()
 						.map(mappings -> UploadedConfigImport.builder()
 							.message(mappings.size() + " mappings have been imported successfully.")
@@ -158,7 +160,7 @@ public class DCBConfigurationService {
 				List<String[]> csvData = parseCsv(reader, expectedHeaders, code);
 				{
 					return Flux.fromIterable(csvData)
-						.concatMap(rvm -> processReferenceValueMapping(rvm, reason)) // Pass reason here
+						.concatMap(rvm -> processReferenceValueMapping(rvm, reason, changeCategory, changeReferenceUrl)) // Pass reason here
 						.collectList()
 						.map(mappings -> UploadedConfigImport.builder()
 							.message(mappings.size() + " mappings have been imported successfully.")
@@ -369,7 +371,7 @@ public class DCBConfigurationService {
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
 
-	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm, String reason) {
+	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm, String reason, String changeCategory, String changeReferenceUrl) {
 		ReferenceValueMapping rvmd= ReferenceValueMapping.builder()
 			.id(UUIDUtils.dnsUUID(rvm[0]+":"+rvm[1]+":"+rvm[2]+":"+rvm[3]+":"+rvm[4]))
 			.fromContext(rvm[0])
@@ -381,6 +383,8 @@ public class DCBConfigurationService {
 			.lastImported(Instant.now())
 			.deleted(false)
 			.reason(reason)
+			.changeCategory(changeCategory)
+			.changeReferenceUrl(changeReferenceUrl)
 			.build();
 
 		// If there was an optional label, set it

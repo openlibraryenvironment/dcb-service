@@ -34,7 +34,8 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 																						 HttpRequest httpRequest,
 																						 @Nullable MutableHttpResponse<String> httpResponse) {
 
-		log.debug("Username from SCC: {}", securityService.username().toString());
+		// Uncomment this if this method requires debugging. It will tell you if the username is being fetched properly.
+//		log.debug("Username from SCC: {}", securityService.username().toString());
 
 		// Gets the username if authentication is present, and then puts it into the GraphQL context.
 		// This means we can then access with context.get("currentUser") in our data fetchers.

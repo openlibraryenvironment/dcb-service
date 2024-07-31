@@ -99,6 +99,8 @@ input UpdateAgencyParticipationInput {
 	isSupplyingAgency: Boolean
 	isBorrowingAgency: Boolean
 	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
 }
 
 type ProcessState {
@@ -335,6 +337,8 @@ type DataChangeLog {
 	lastEditedBy: String!
 	timestampLogged: String!
 	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
 	changes: JSON!
 	oldData: JSON
 	newData: JSON

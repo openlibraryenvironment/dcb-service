@@ -99,4 +99,10 @@ public class DataAgency implements Agency, Auditable {
 	
 	@Nullable
 	private String reason;
+
+	@Nullable
+	private String changeCategory;
+
+	@Nullable
+	private String changeReferenceUrl;
 }

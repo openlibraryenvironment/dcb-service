@@ -6,8 +6,9 @@ CREATE TABLE data_change_log (
     action_info varchar(50),
     changes jsonb,
     timestamp_logged timestamp,
-    
     reason text,
+    change_reference_url varchar(200),
+    change_category varchar(100),
     old_data jsonb,
     new_data jsonb
 );
@@ -16,6 +17,10 @@ alter table agency add last_edited_by varchar(100);
 alter table reference_value_mapping add last_edited_by varchar(100);
 alter table agency add reason varchar(100);
 alter table reference_value_mapping add reason varchar(100);
+alter table agency add change_reference_url varchar(200);
+alter table reference_value_mapping add change_reference_url varchar(200);
+alter table agency add change_category varchar(200);
+alter table reference_value_mapping add change_category varchar(200);
 
 CREATE OR REPLACE FUNCTION audit_trigger() RETURNS TRIGGER AS $$
 DECLARE
@@ -26,7 +31,9 @@ DECLARE
     changes jsonb;
     key text;
     last_edited_by_value varchar(100);
-    reason_value varchar(100);
+    reason_value text;
+    change_category_value varchar(100);
+    change_reference_url_value varchar(200);
 BEGIN
     new_values := '{}';
     old_values := '{}';
@@ -39,7 +46,8 @@ BEGIN
     END IF;
 
     reason_value := NEW.reason;
-
+    change_category_value := NEW.change_category;
+    change_reference_url_value := NEW.change_reference_url;
 
     IF TG_OP = 'INSERT' THEN
          changes := to_jsonb(NEW);
@@ -83,7 +91,10 @@ BEGIN
              reason,
              old_data,
              new_data,
-             changes
+             changes,
+             change_category,
+						 change_reference_url
+
          ) VALUES (
              gen_random_uuid(),
              CASE
@@ -97,7 +108,9 @@ BEGIN
              reason_value,
              old_data,
              new_data,
-             changes
+             changes,
+             change_category_value,
+             change_reference_url_value
          );
      EXCEPTION WHEN OTHERS THEN
          RAISE NOTICE 'Error inserting data change log: %', SQLERRM;
