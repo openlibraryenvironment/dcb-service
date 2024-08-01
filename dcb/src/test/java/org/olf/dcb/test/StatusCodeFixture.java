@@ -8,8 +8,9 @@ import org.olf.dcb.core.model.StatusCode;
 import org.olf.dcb.storage.StatusCodeRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 
-@Prototype
+@Singleton
 public class StatusCodeFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

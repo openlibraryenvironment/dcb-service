@@ -23,7 +23,8 @@ import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import jakarta.inject.Singleton;
-import reactor.core.publisher.*;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
@@ -79,6 +80,8 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		}
 
 		log.debug("save or update library {}", input);
+
+		log.debug("GQL Context user name: {}", env.getGraphQlContext().get("currentUser").toString());
 
 		// Save the library first
 		return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(libraryRepository.saveOrUpdate(input))))

@@ -1,17 +1,66 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.json.tree.JsonNode;
-import jakarta.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static java.lang.Integer.parseInt;
+import static java.util.Calendar.YEAR;
+import static java.util.Objects.nonNull;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_OFFSITE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RECEIVED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_REQUESTED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RETURNED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsItem.LIBRARY_USE_ONLY;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.MapUtils.getAsOptionalString;
+
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.TimeZone;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.*;
+import org.olf.dcb.configuration.BranchRecord;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.configuration.LocationRecord;
+import org.olf.dcb.configuration.PickupLocationRecord;
+import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -32,6 +81,16 @@ import org.olf.dcb.tracking.model.PickupTrackingEvent;
 import org.olf.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
+
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.json.tree.JsonNode;
+import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -49,30 +108,13 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
-import services.k_int.interaction.sierra.patrons.*;
+import services.k_int.interaction.sierra.patrons.ItemPatch;
+import services.k_int.interaction.sierra.patrons.PatronHoldPost;
+import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.PatronValidation;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.utils.UUIDUtils;
-
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static java.lang.Integer.parseInt;
-import static java.util.Calendar.YEAR;
-import static java.util.Objects.nonNull;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.HostLmsItem.*;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.*;
-import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 
 
@@ -109,10 +151,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final NumericPatronTypeMapper numericPatronTypeMapper;
 	private final SierraItemMapper itemMapper;
 	private final ObjectRulesService objectRuleService;
-  private final PublisherTransformationService publishers;
 	
 	private final Integer getHoldsRetryAttempts;
 	private final SierraPatronMapper sierraPatronMapper;
+	
+	private final R2dbcOperations r2dbcOperations;
 
 	public SierraLmsClient(@Parameter HostLms lms,
 		HostLmsSierraApiClientFactory clientFactory,
@@ -124,7 +167,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		SierraItemMapper itemMapper,
 		ObjectRulesService objectRuleService,
 		PublisherTransformationService publisherTransformationService,
-		 SierraPatronMapper sierraPatronMapper) {
+		 SierraPatronMapper sierraPatronMapper, R2dbcOperations r2dbcOperations) {
 
 		this.lms = lms;
 
@@ -139,8 +182,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.conversionService = conversionService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.objectRuleService = objectRuleService;
-		this.publishers = publisherTransformationService;
 		this.sierraPatronMapper = sierraPatronMapper;
+		this.r2dbcOperations = r2dbcOperations;
 	}
 
 	private Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
@@ -290,7 +333,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 										log.debug("Updating state...");
 										return Mono.empty();
 									}))
-
+							.doOnNext( bib -> log.debug("SEEN: [{}]", bib.id()) )
 							.doOnComplete(() -> log.debug("Consumed {} items", page.entries().size()));
 				}));
 	}
@@ -349,8 +392,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return  _lmsBibSuppressionRuleset.blockOptional();
 	}
 	
-	private Mono<ObjectRuleset> _lmsItemSuppressionRuleset = null;
-	private synchronized Optional<ObjectRuleset> getLmsItemSuppressionRuleset() {
+	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
+	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
 		
 		if (_lmsBibSuppressionRuleset == null) {
 			var supSetName = lms.getItemSuppressionRulesetName();
@@ -365,11 +408,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 							
 							log.debug("Found item suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
 						}))
+				.map( Optional::of )
+				.defaultIfEmpty(Optional.empty())
 				.cache();
 		}
-		
-		// TODO: Blocking!!!! Needs refactoring
-		return  _lmsItemSuppressionRuleset.blockOptional();
+		return  _lmsItemSuppressionRuleset;
 	}
 	
 	private boolean derriveBibSuppressedFlag( BibResult resource ) {
@@ -509,6 +552,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.just("UNKNOWN");
 	}
 
+	private Mono<Item> mapItemWithRuleset( SierraItem item, String localBibId ) {
+		return getLmsItemSuppressionRuleset()
+			.flatMap( resultSet -> itemMapper.mapResultToItem(item, lms.getCode(), localBibId, resultSet));
+	}
+	
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		log.debug("getItems({})", bib);
 
@@ -522,7 +570,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					"fixedFields", "varFields"))))
 			.map(ResultSet::getEntries)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(result -> itemMapper.mapResultToItem(result, lms.getCode(), localBibId, getLmsItemSuppressionRuleset()))
+			.flatMap(result -> mapItemWithRuleset(result, localBibId))
 			.collectList();
 	}
 
@@ -1410,5 +1458,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
 		return client.getRootUri().toString();
+	}
+
+	public R2dbcOperations getR2dbcOperations() {
+		return r2dbcOperations;
 	}
 }

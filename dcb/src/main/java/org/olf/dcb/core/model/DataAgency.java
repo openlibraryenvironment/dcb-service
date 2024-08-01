@@ -15,14 +15,13 @@ import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
+import io.micronaut.security.annotation.UpdatedBy;
 import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.Accessors;
+import org.olf.dcb.core.audit.*;
 import services.k_int.data.querying.DefaultQueryField;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
@@ -34,12 +33,11 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @AllArgsConstructor
 @Builder
 @Accessors(chain = true)
-@ToString(onlyExplicitlyIncluded = true)
-public class DataAgency implements Agency {
+@ToString
+public class DataAgency implements Agency, Auditable {
 	public static final String BASIC_BARCODE_AND_PIN = "BASIC/BARCODE+PIN";
 	public static final String BASIC_BARCODE_AND_NAME = "BASIC/BARCODE+NAME";
 
-	@ToString.Include
 	@NonNull
 	@Id
 	@TypeDef(type = DataType.UUID)
@@ -47,44 +45,46 @@ public class DataAgency implements Agency {
 
 	@Nullable
 	@DateCreated
+	@ToString.Exclude
 	private Instant dateCreated;
 
 	@Nullable
 	@DateUpdated
+	@ToString.Exclude
 	private Instant dateUpdated;
 
-	@ToString.Include
 	@NonNull
 	@Size(max = 32)
 	@DefaultQueryField
 	private String code;
 
-	@ToString.Include
 	@NonNull
 	@Size(max = 200)
 	private String name;
 
-	@ToString.Include
 	@NonNull
 	@Relation(value = MANY_TO_ONE)
 	private DataHostLms hostLms;
 
-	@ToString.Include
 	@Nullable
 	@Size(max = 64)
 	private String authProfile;
 
-	@ToString.Include
 	@Nullable
 	@Size(max = 200)
 	private String idpUrl;
 
+	@ToString.Exclude
 	private Double longitude;
 
+	@ToString.Exclude
 	private Double latitude;
 
+	@Nullable
 	// Does this agency participate in interlending
 	private Boolean isSupplyingAgency;
+
+	@Nullable
 	private Boolean isBorrowingAgency;
 
 	public static class DataAgencyBuilder {
@@ -92,4 +92,17 @@ public class DataAgency implements Agency {
 		}
 		// Lombok will fill in the fields and methods
 	}
+	
+	@Nullable
+	@UpdatedBy
+	private String lastEditedBy;
+	
+	@Nullable
+	private String reason;
+
+	@Nullable
+	private String changeCategory;
+
+	@Nullable
+	private String changeReferenceUrl;
 }

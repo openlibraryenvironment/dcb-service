@@ -599,9 +599,11 @@ class PatronRequestApiTests {
 
 		// When placing a request with an invalid request body
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> patronRequestApiClient.placePatronRequest(randomUUID(),
-				KNOWN_PATRON_LOCAL_ID, null,
-				BORROWING_HOST_LMS_CODE, "home-library-code"));
+			() -> {
+				var resp =patronRequestApiClient.placePatronRequest(randomUUID(),
+					KNOWN_PATRON_LOCAL_ID, null,
+					BORROWING_HOST_LMS_CODE, "home-library-code");
+			});
 
 		// Then a bad request response should be returned
 		final var response = exception.getResponse();

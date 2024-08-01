@@ -100,6 +100,8 @@ dependencies {
 	implementation("io.micronaut.data:micronaut-data-r2dbc")
 	implementation("io.micronaut.data:micronaut-data-jdbc")
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
+	// Introduced in DCB-1302 because of this issue https://github.com/micronaut-projects/micronaut-security/issues/1468
+	implementation("io.micrometer:context-propagation")
 
   implementation("io.micronaut.problem:micronaut-problem-json")
 
@@ -118,6 +120,7 @@ dependencies {
 	runtimeOnly("io.r2dbc:r2dbc-pool")
 
 	implementation("io.micronaut.flyway:micronaut-flyway")
+	runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
         // II: These were commented out but unsure why - needed for observability on prod systems
 	// Metrics (Prometheus)

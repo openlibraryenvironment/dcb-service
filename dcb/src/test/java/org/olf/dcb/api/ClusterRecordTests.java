@@ -80,7 +80,7 @@ class ClusterRecordTests {
 	@Test
 	void getClusterRecords() {
 		// Arrange
-		ingestService.getBibRecordStream().collectList().block();
+		var list = ingestService.getBibRecordStream().collectList().block();
 
 		final var blockingClient = client.toBlocking();
 		final var request = HttpRequest.GET("/clusters?page=0&size=10");

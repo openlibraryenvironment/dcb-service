@@ -12,6 +12,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -106,12 +107,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private static final String DCB_BORROWING_FLOW = "DCB";
 	private static final String ILL_BORROWING_FLOW = "ILL";
 	private final PolarisConfig polarisConfig;
+	
+	private final R2dbcOperations r2dbcOperations;
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
 		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
 		ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper) {
+		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper, R2dbcOperations r2dbcOperations) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -129,6 +132,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.client = client;
+		this.r2dbcOperations = r2dbcOperations;
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
@@ -1376,5 +1380,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
 		return this.defaultBaseUrl.resolve("/").toString();
+	}
+
+	public R2dbcOperations getR2dbcOperations() {
+		return r2dbcOperations;
 	}
 }

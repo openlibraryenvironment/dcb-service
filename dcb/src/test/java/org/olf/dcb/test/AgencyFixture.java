@@ -8,10 +8,11 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.AgencyRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Prototype
+@Singleton
 public class AgencyFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

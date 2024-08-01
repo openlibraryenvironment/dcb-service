@@ -15,9 +15,10 @@ import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-@Prototype
+@Singleton
 public class PatronFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

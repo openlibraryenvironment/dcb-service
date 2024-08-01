@@ -51,5 +51,5 @@ public class PatronRequestAudit {
 
 	@Nullable
 	@TypeDef(type = DataType.JSON)
-	Map<String, Object> auditData;
+	private Map<String, Object> auditData;
 }

@@ -5,6 +5,7 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 
+//import org.olf.dcb.core.audit.Audit;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.AgencyGroupMember;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 
+// @Audit
 public interface AgencyRepository {
 
 	@NonNull

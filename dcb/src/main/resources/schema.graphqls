@@ -19,6 +19,7 @@ type Query {
 		libraryGroups(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): LibraryGroupPage!
 		libraryGroupMembers: [LibraryGroupMember]!
 		consortia(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ConsortiumPage!
+		dataChangeLog(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): DataChangeLogPage!
 }
 
 type Mutation {
@@ -97,6 +98,9 @@ input UpdateAgencyParticipationInput {
 	code: String!
 	isSupplyingAgency: Boolean
 	isBorrowingAgency: Boolean
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
 }
 
 type ProcessState {
@@ -325,6 +329,19 @@ type Consortium {
 	dateOfLaunch: String
 }
 
+type DataChangeLog {
+	id: ID!
+	entityId: String!
+	entityType: String!
+	actionInfo: String!
+	lastEditedBy: String!
+	timestampLogged: String!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+	changes: JSON!
+}
+
 """
 See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
 """
@@ -343,6 +360,12 @@ type AgencyGroupPage {
   content: [AgencyGroup]
   totalSize: Int
   pageable: Pageable
+}
+
+type DataChangeLogPage {
+	content: [DataChangeLog]
+	totalSize: Int
+	pageable: Pageable
 }
 
 type BibRecordPage {

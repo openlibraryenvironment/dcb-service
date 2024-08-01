@@ -9,8 +9,9 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.LocationRepository;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 
-@Prototype
+@Singleton
 public class LocationFixture {
 	private final DataAccess dataAccess = new DataAccess();
 

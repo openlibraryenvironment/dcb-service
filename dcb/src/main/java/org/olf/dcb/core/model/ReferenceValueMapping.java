@@ -13,11 +13,16 @@ import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
+import io.micronaut.security.annotation.UpdatedBy;
 import io.micronaut.serde.annotation.Serdeable;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.ToString;
+import lombok.experimental.Accessors;
+
+import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 /**
@@ -30,7 +35,8 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 @MappedEntity
-public class ReferenceValueMapping {
+@Accessors(chain = true)
+public class ReferenceValueMapping implements Auditable {
 
     @NotNull
     @NonNull
@@ -84,4 +90,19 @@ public class ReferenceValueMapping {
 		@Nullable
 		@Builder.Default
 		private Boolean deleted = false;
+
+		@ToString.Include
+		@Nullable
+		@UpdatedBy
+		private String lastEditedBy;
+
+		@Nullable
+		private String reason;
+
+		@Nullable
+		private String changeCategory;
+
+		@Nullable
+		private String changeReferenceUrl;
+
 }
