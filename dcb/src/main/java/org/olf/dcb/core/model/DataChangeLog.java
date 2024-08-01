@@ -58,14 +58,6 @@ public class DataChangeLog {
 	@Size(max = 100)
 	private String changeCategory;
 
-	@Nullable
-	@TypeDef(type = DataType.JSON)
-	private String oldData;
-
-	@Nullable
-	@TypeDef(type = DataType.JSON)
-	private String newData;
-
 	@NonNull
 	@TypeDef(type = DataType.JSON)
 	private String changes;

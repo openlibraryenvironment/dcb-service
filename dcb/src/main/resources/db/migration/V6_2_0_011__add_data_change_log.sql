@@ -8,9 +8,7 @@ CREATE TABLE data_change_log (
     timestamp_logged timestamp,
     reason text,
     change_reference_url varchar(200),
-    change_category varchar(100),
-    old_data jsonb,
-    new_data jsonb
+    change_category varchar(100)
 );
 
 alter table agency add last_edited_by varchar(100);
@@ -89,12 +87,9 @@ BEGIN
              last_edited_by,
              timestamp_logged,
              reason,
-             old_data,
-             new_data,
              changes,
              change_category,
 						 change_reference_url
-
          ) VALUES (
              gen_random_uuid(),
              CASE
@@ -106,8 +101,6 @@ BEGIN
              last_edited_by_value,
              current_timestamp,
              reason_value,
-             old_data,
-             new_data,
              changes,
              change_category_value,
              change_reference_url_value

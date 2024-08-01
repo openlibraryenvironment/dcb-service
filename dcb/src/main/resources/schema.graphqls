@@ -340,8 +340,6 @@ type DataChangeLog {
 	changeReferenceUrl: String
 	changeCategory: String
 	changes: JSON!
-	oldData: JSON
-	newData: JSON
 }
 
 """
