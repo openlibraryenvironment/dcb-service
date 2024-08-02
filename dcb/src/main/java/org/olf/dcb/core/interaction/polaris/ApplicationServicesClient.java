@@ -182,13 +182,17 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.exchange(request, LibraryHold.class, FALSE))
 			.map(HttpResponse::body)
 			.onErrorResume(error -> {
-				log.error("An error occured when trying to get hold {} : {}", id, error.getMessage());
+				log.error(client.getHostLmsCode() + " " + path, error);
+
 				if ((error instanceof HttpClientResponseException) &&
 					(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
-					// This is situation could mean the hold has been checked out to patron
+
+					// Note: When a patron checks out the item polaris will delete the hold
 					return Mono.just(LibraryHold.builder().sysHoldStatus("Missing").build());
+
 				} else {
-					return Mono.error(new HoldRequestException("Unexpected error when trying to get hold with id: " + id));
+
+					return raiseError(error);
 				}
 			});
 	}

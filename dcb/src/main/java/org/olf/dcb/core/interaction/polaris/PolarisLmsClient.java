@@ -1010,18 +1010,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Boolean useGenericHttpClientResponseExceptionHandler) {
 		return Mono.from(client.exchange(request, returnClass))
 			.doOnError(logRequestAndResponseDetails(request))
-			.onErrorResume(HttpClientResponseException.class, responseException -> {
-				if (useGenericHttpClientResponseExceptionHandler) {
-					// Generic error handling
-					return Mono.error(unexpectedResponseProblem(responseException, request, getHostLmsCode()));
-				}
-				return Mono.error(responseException); // Propagate the error
-			})
 			.onErrorResume(error -> {
-				if (error instanceof Problem) {
-					return Mono.error(error);
+
+				// we want to automatically handle HttpClientResponseExceptions
+				if (error instanceof HttpClientResponseException && useGenericHttpClientResponseExceptionHandler) {
+					return raiseError(unexpectedResponseProblem((HttpClientResponseException) error, request, getHostLmsCode()));
 				}
 
+				// we want to manually handle HttpClientResponseExceptions
+				else if (error instanceof HttpClientResponseException) { // useGenericHttpClientResponseExceptionHandler == false
+					return raiseError(error);
+				}
+
+				// an error happened before we got a response
 				return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
 			});
 	}
