@@ -1,5 +1,25 @@
 # Changelog
 
+## Version 6.26.0
+
+### Additions
+* [General]
+	* Support supplying a category and optional URL for changes [DCB-1302]
+	* Support supplying reason for mappings upload [DCB-1302]
+	* Introduce user data change log in DCB [DCB-1302]
+
+### Changes
+* [Chore]
+	* Simplify DataChangeLog class [DCB-1302]
+	* Update framework
+
+### Fixes
+* [General]
+	* stop empty mono returning at source [DCB-1375]
+	* handle mono empty returned for cleanup [DCB-1345]
+	* NullPointerException in deleteItemIfPresent [DCB-1345]
+	* Remove dupe dependency
+
 ## Version 6.25.0
 
 ### Additions
@@ -7,6 +27,8 @@
 	* handle missing virtual records during cleanup [DCB-1345]
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* clearnupPatronRequest to return UUID [DCB-1345]
 	* add response body to RecordIsNotAvailableProblem [DCB-1327]
