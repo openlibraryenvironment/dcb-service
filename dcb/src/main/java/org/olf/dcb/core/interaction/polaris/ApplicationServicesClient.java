@@ -230,18 +230,22 @@ class ApplicationServicesClient {
 		return Flux.fromIterable(patronBlockGetRows)
 			.flatMap(row -> {
 				if (knownBlocksToHandle.contains(row.getBlockType())) {
-
 					return deletePatronBlock(localPatronId, row.getBlockType(), row.getBlockID())
-						.map(localID -> Mono.empty());  // Remove this row after deletion
+						.flatMap(id -> Mono.<PatronBlockGetRow>empty())  // Remove this row after successful deletion
+						.onErrorResume(e -> {
+
+							log.error("Patron block deletion failed for patron block: {}", row, e);
+							return Mono.just(row); // Keep this row if deletion fails
+						});
 				}
-				return Mono.just(row);  // Keep this row if it's not deleted
+				return Mono.just(row);  // Keep this row if it's not a known block to handle
 			})
 			.collectList()
 			.flatMap(remainingBlocks -> {
+
+				// we still have patron blocks that are unhandled
 				if (!remainingBlocks.isEmpty()) {
-
 					final var size = String.valueOf(remainingBlocks.size());
-
 					return raiseError(Problem.builder()
 						.withTitle("Patron has unexpected blocks")
 						.withDetail(size + " blocks found")
@@ -249,6 +253,8 @@ class ApplicationServicesClient {
 						.with("remainingBlocks", remainingBlocks.toString())
 						.build());
 				}
+
+				// All patron blocks have been handled
 				return Mono.just(localPatronId);
 			});
 	}
