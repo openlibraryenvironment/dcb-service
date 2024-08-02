@@ -93,9 +93,10 @@ public class PatronRequestController {
 			.findById( patronRequestId )
 			.map( this::ensureValidStateForTransition )
 			.zipWhen( (req) -> Mono.just(cleanupPatronRequestTransition))
-			.flatMap( TupleUtils.function(workflowService::progressUsing ))
-			.map(PatronRequest::getId)
-			.doOnSuccess(uuid -> log.info("Successful cleanup for patron request {}", uuid))
+			.flatMap( TupleUtils.function(workflowService::progressUsing )) // Note: progressUsing can return an empty mono
+			.doOnSuccess(pr -> log.info("Successful cleanup for patron request {}", patronRequestId))
+			.thenReturn(patronRequestId)
+			.switchIfEmpty(Mono.defer(() -> Mono.just(patronRequestId)))
 			.doOnError(error -> log.error("Problem attempting to clean up request",error));
 	}
 
