@@ -92,13 +92,14 @@ public class BorrowingAgencyService {
 	}
 
 	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
-		final var localItemStatus = getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus);
-		if (patronRequest.getLocalItemId() != null || !"MISSING".equals(localItemStatus)) {
 
-			final var localItemId = patronRequest.getLocalItemId();
+		final var localItemId = getValueOrNull(patronRequest, PatronRequest::getLocalItemId);
+		final var localItemStatus = getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus);
+
+		if (localItemId != null && !"MISSING".equals(localItemStatus)) {
 
 			return checkItemExists(client, localItemId, patronRequest)
-				.flatMap(_client -> _client.deleteItem(patronRequest.getLocalItemId()))
+				.flatMap(_client -> _client.deleteItem(localItemId))
 
 				// Catch any skipped deletions
 				.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
