@@ -97,6 +97,7 @@ public class PatronRequestController {
 			.zipWhen( (req) -> Mono.just(cleanupPatronRequestTransition))
 			.flatMap( TupleUtils.function(workflowService::progressUsing ))
 			.map(PatronRequest::getId)
+			.doOnSuccess(uuid -> log.info("Successful cleanup for patron request {}", uuid))
 			.doOnError(error -> log.error("Problem attempting to clean up request",error));
 	}
 
