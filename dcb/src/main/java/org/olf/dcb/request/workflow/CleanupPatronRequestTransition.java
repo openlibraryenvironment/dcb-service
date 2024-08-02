@@ -1,30 +1,24 @@
 package org.olf.dcb.request.workflow;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
-
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.NonNull;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.core.annotation.NonNull;
 import reactor.core.publisher.Mono;
 
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import reactor.core.publisher.Mono;
+import java.util.List;
+import java.util.Optional;
 
 @Prototype
 public class CleanupPatronRequestTransition implements PatronRequestStateTransition {
 	
 	private static final Logger log = LoggerFactory.getLogger(CleanupPatronRequestTransition.class);
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.ERROR, Status.CANCELLED);
+	private static final List<Status> possibleSourceStatus = List.of(Status.ERROR);
 	
   private final PatronRequestAuditService patronRequestAuditService;
 
@@ -48,7 +42,7 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 		// Setting the status to completed should cause the cleanup routine to fire which will do all the work we need to FINALISE the request
     Status old_state = patronRequest.getStatus();
     patronRequest.setStatus(Status.COMPLETED);
-    return patronRequestAuditService.addAuditEntry(patronRequest, old_state, Status.COMPLETED)
+    return patronRequestAuditService.addAuditEntry(patronRequest, "Manual cleanup actioned.")
       .thenReturn(ctx);
 	}
 
