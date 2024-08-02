@@ -40,6 +40,7 @@ import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 
 @Controller("/patrons/requests")
 @Validated
@@ -84,6 +85,7 @@ public class PatronRequestController {
 	 * TODO: We prolly want to change this, to not be so explicit. But I think that's part of a necessary
 	 * overhaul to the whole system.
 	 */
+	@Secured(CONSORTIUM_ADMIN)
 	@SingleResult
 	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
 	public Mono<UUID> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
@@ -96,7 +98,10 @@ public class PatronRequestController {
 			.flatMap( TupleUtils.function(workflowService::progressUsing )) // Note: progressUsing can return an empty mono
 			.doOnSuccess(pr -> log.info("Successful cleanup for patron request {}", patronRequestId))
 			.thenReturn(patronRequestId)
-			.switchIfEmpty(Mono.defer(() -> Mono.just(patronRequestId)))
+			.switchIfEmpty(Mono.defer(() -> {
+				log.warn("Handling empty mono before clean up response :: pr {}", patronRequestId);
+				return Mono.just(patronRequestId);
+			}))
 			.doOnError(error -> log.error("Problem attempting to clean up request",error));
 	}
 
