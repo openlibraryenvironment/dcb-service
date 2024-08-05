@@ -334,7 +334,7 @@ type DataChangeLog {
 	entityId: String!
 	entityType: String!
 	actionInfo: String!
-	lastEditedBy: String!
+	lastEditedBy: String
 	timestampLogged: String!
 	reason: String
 	changeReferenceUrl: String
