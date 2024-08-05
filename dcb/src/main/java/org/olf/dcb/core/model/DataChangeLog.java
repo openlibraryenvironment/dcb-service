@@ -40,7 +40,7 @@ public class DataChangeLog {
 	@Size(max = 50)
 	private String actionInfo;
 
-	@NonNull
+	@Nullable
 	private String lastEditedBy;
 
 	@NonNull
