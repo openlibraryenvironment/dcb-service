@@ -29,12 +29,11 @@ public class FirstRequestableItemResolutionStrategy implements ResolutionStrateg
 		return Mono.justOrEmpty(
 			items.stream()
 				.peek(item -> log.info(
-						"PR-{} - Consider item {} @ {} holds:{} ",
+						"PR-{} - Consider item {} @ {}",
 					patronRequestId,
 					item.getLocalId(),
-					item.getLocation(),
-					item.hasNoHolds()))
-				.filter(Item::hasNoHolds)
+					item.getLocation()
+				))
 				.findFirst()
 		);
 	}

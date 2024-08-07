@@ -14,7 +14,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 
 class ChooseFirstRequestableItemResolutionStrategyTests {
@@ -24,7 +23,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	@Test
 	void shouldChooseOnlyRequestableItem() {
 		// Arrange
-		final var item = createItem("78458456", AVAILABLE, true, 0);
+		final var item = createItem("78458456");
 
 		// Act
 		final var chosenItem = chooseItem(List.of(item), randomUUID());
@@ -38,8 +37,8 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	@Test
 	void shouldChooseFirstRequestableItemWhenMultipleItemsAreProvided() {
 		// Arrange
-		final var firstAvailableItem = createItem("47463572", AVAILABLE, true, 0);
-		final var secondAvailableItem = createItem("97848745", AVAILABLE, true, 0);
+		final var firstAvailableItem = createItem("47463572");
+		final var secondAvailableItem = createItem("97848745");
 
 		// Act
 		final var items = List.of(firstAvailableItem, secondAvailableItem);
@@ -53,19 +52,7 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 	}
 
 	@Test
-	void shouldReturnEmptyWhenOnlyItemsWithExistingHoldsAreProvided() {
-		// Act
-		final var items = List.of(createItem("23721346", AVAILABLE, true, 1));
-
-		final var chosenItem = chooseItem(items, randomUUID());
-
-		// Assert
-		assertThat("Empty publisher returned when no item can be chosen",
-			chosenItem, nullValue());
-	}
-
-	@Test
-	void shouldReturnEmptyWhenNoItemsAreProvided() {
+	void shouldChooseNoItemWhenNoItemsAreProvided() {
 		// Act
 		final var chosenItem = chooseItem(List.of(), randomUUID());
 
@@ -78,20 +65,18 @@ class ChooseFirstRequestableItemResolutionStrategyTests {
 		return singleValueFrom(resolutionStrategy.chooseItem(items, clusterRecordId, null));
 	}
 
-	private static Item createItem(String id,
-		ItemStatusCode statusCode, Boolean requestable, int holdCount) {
-
+	private static Item createItem(String id) {
 		return Item.builder()
 			.localId(id)
-			.status(new ItemStatus(statusCode))
+			.status(new ItemStatus(AVAILABLE))
 			.location(Location.builder()
 				.code("code")
 				.name("name")
 				.build())
 			.barcode("barcode")
 			.callNumber("callNumber")
-			.isRequestable(requestable)
-			.holdCount(holdCount)
+			.isRequestable(true)
+			.holdCount(0)
 			.build();
 	}
 }

@@ -163,23 +163,6 @@ class GeoDistanceResolutionStrategyTests {
 	}
 
 	@Test
-	void shouldChooseNoItemWhenOnlyItemsWithExistingHoldsAreProvided() {
-		// Arrange
-		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
-
-		final var agency = defineAgencyLocatedAtChatsworth("example-agency");
-
-		// Act
-		final var items = List.of(
-			createItem("6736564", AVAILABLE, true, 1, agency));
-
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
-
-		// Assert
-		assertThat(chosenItem, nullValue());
-	}
-
-	@Test
 	void shouldChooseNoItemWhenNoPickupLocationDoesNotExist() {
 		// Act
 		final var chosenItem = chooseItem(emptyList(), randomUUID().toString());
