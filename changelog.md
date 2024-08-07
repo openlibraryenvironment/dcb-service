@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 6.27.0
+
+### Additions
+* [General]
+	* Add facilitity to execute arbritary select statements
+
+### Fixes
+* [General]
+	* Fix nullable status of lastEditedBy [DCB-1302]
+
 ## Version 6.26.0
 
 ### Additions
@@ -10,6 +20,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Simplify DataChangeLog class [DCB-1302]
 	* Update framework
 
