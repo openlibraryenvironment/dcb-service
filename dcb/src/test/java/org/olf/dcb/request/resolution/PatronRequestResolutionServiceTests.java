@@ -160,10 +160,8 @@ class PatronRequestResolutionServiceTests {
 		final var unavailableItemBarcode = "6256486473634";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			// Sierra item with due date is considered not available
 			CheckedOutItem(unavailableItemId, unavailableItemBarcode),
-			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
-				ITEM_LOCATION_CODE)
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
 		final var homeLibraryCode = "home-library";
@@ -286,11 +284,58 @@ class PatronRequestResolutionServiceTests {
 		final var unavailableItemBarcode = "6256486473634";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			// Sierra item with due date is considered not available
 			CheckedOutItem(unavailableItemId, unavailableItemBarcode)
 		));
 
 		final var patron = definePatron("872321", "home-library");
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem()
+		));
+	}
+
+	@Test
+	void shouldExcludeItemWhichAlreadyHasAlreadyBeenRequested() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "174663256";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var alreadyRequestedItemId = "6736345";
+		final var alreadyRequestedItemBarcode = "87265265673";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id(alreadyRequestedItemId)
+				.barcode(alreadyRequestedItemBarcode)
+				.locationCode(ITEM_LOCATION_CODE)
+				.statusCode("-")
+				.holdCount(1)
+				.build()
+		));
+
+		final var patron = definePatron("274563", "home-library");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
@@ -440,6 +485,7 @@ class PatronRequestResolutionServiceTests {
 			.barcode(barcode)
 			.locationCode(ITEM_LOCATION_CODE)
 			.statusCode("-")
+			// Sierra item with due date is considered not available
 			.dueDate(Instant.now().plus(3, HOURS))
 			.build();
 	}

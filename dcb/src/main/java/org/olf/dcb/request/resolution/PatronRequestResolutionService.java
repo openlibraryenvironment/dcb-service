@@ -166,6 +166,7 @@ public class PatronRequestResolutionService {
 		final var filteredItems = allItems.stream()
 			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
 			.filter(Item::getIsRequestable)
+			.filter(Item::hasNoHolds)
 			.toList();
 
 		return resolution.trackFilteredItems(filteredItems);
