@@ -17,7 +17,7 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.Location;
 
 class ChooseFirstRequestableItemResolutionStrategyTests {
-	private final FirstRequestableItemResolutionStrategy resolutionStrategy
+	private final ResolutionStrategy resolutionStrategy
 		= new FirstRequestableItemResolutionStrategy();
 
 	@Test

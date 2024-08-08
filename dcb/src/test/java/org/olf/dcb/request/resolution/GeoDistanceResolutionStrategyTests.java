@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.AgencyFixture;
@@ -52,8 +51,7 @@ class GeoDistanceResolutionStrategyTests {
 		final var agency = defineAgencyLocatedAtChatsworth("example-agency");
 
 		// Act
-		final var items = List.of(createItem("23721346", AVAILABLE, true,
-			0, agency));
+		final var items = List.of(createItem("23721346", agency));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -71,15 +69,13 @@ class GeoDistanceResolutionStrategyTests {
 
 		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch("marble-arch");
 
-		final var marbleArchItem = createItem("5634379", AVAILABLE, true,
-			0, marbleArchAgency);
+		final var marbleArchItem = createItem("5634379", marbleArchAgency);
 
 		final var chatsworthAgency = defineAgencyLocatedAtChatsworth("chatsworth");
 
 		final var chatsworthItemId = "5639532";
 
-		final var chatsworthItem = createItem(chatsworthItemId, AVAILABLE, true,
-			0, chatsworthAgency);
+		final var chatsworthItem = createItem(chatsworthItemId, chatsworthAgency);
 
 		// Act
 		final var items = List.of(marbleArchItem, chatsworthItem);
@@ -102,8 +98,7 @@ class GeoDistanceResolutionStrategyTests {
 		final var agency = defineAgencyLocatedAtMarbleArch("example-agency");
 
 		// Act
-		final var items = List.of(createItem("536524", AVAILABLE, true,
-			0, agency));
+		final var items = List.of(createItem("536524", agency));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -123,8 +118,7 @@ class GeoDistanceResolutionStrategyTests {
 			"Example Agency", null);
 
 		// Act
-		final var items = List.of(createItem("536524", AVAILABLE, true,
-			0, agency));
+		final var items = List.of(createItem("536524", agency));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -153,8 +147,7 @@ class GeoDistanceResolutionStrategyTests {
 		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		// Act
-		final var items = List.of(
-			createItem("6736564", AVAILABLE, true, 0, null));
+		final var items = List.of(createItem("6736564", null));
 
 		final var chosenItem = chooseItem(items, pickupLocationId.toString());
 
@@ -206,20 +199,18 @@ class GeoDistanceResolutionStrategyTests {
 			"Pickup Location", "pickup-location", 53.399433, -2.992117);
 	}
 
-	private static Item createItem(String id, ItemStatusCode statusCode,
-		Boolean requestable, int holdCount, DataAgency agency) {
-
+	private static Item createItem(String id, DataAgency agency) {
 		return Item.builder()
 			.localId(id)
-			.status(new ItemStatus(statusCode))
+			.status(new ItemStatus(AVAILABLE))
 			.location(Location.builder()
 				.code("code")
 				.name("name")
 				.build())
 			.barcode("barcode")
 			.callNumber("callNumber")
-			.isRequestable(requestable)
-			.holdCount(holdCount)
+			.isRequestable(true)
+			.holdCount(0)
 			.agency(agency)
 			.build();
 	}
