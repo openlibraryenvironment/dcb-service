@@ -3,6 +3,11 @@ alter table library add reason varchar(100);
 alter table library add change_reference_url varchar(200);
 alter table library add change_category varchar(200);
 
+alter table location add last_edited_by varchar(100);
+alter table location add reason varchar(100);
+alter table location add change_reference_url varchar(200);
+alter table location add change_category varchar(200);
+
 -- This needed some changes to handle delete properly, which is why it's re-defined here.
 CREATE OR REPLACE FUNCTION audit_trigger() RETURNS TRIGGER AS $$
 DECLARE
@@ -57,14 +62,16 @@ BEGIN
      END IF;
 
      -- Ensure changes is a valid JSON object
-     IF changes IS NULL OR changes = '{}'::jsonb THEN
+     IF changes IS NULL OR changes = '{}'::jsonb OR (changes ->> 'new_values' = '{}' AND changes ->> 'old_values' = '{}') THEN
          changes := '{"no_changes": true}'::jsonb;
      END IF;
 
      -- Log the changes for debugging
-     RAISE NOTICE 'Audit changes: %', changes;
+  	IF changes <> '{"no_changes": true}'::jsonb THEN
+        -- Log the changes for debugging
+        RAISE NOTICE 'Audit changes: %', changes;
 
-     BEGIN
+        BEGIN
          INSERT INTO data_change_log (
              id,
              entity_id,
@@ -92,8 +99,9 @@ BEGIN
              change_reference_url_value
          );
      EXCEPTION WHEN OTHERS THEN
-         RAISE NOTICE 'Error inserting data change log: %', SQLERRM;
-     END;
+            RAISE NOTICE 'Error inserting data change log: %', SQLERRM;
+        END;
+    END IF;
 
      IF TG_OP = 'DELETE' THEN
          RETURN OLD;
@@ -107,6 +115,8 @@ BEGIN
 -- Providing the backing for tracking all library entities in the Data Change Log.
 -- As well as locations.
 
+DROP TRIGGER IF EXISTS audit_trigger ON agency;
+DROP TRIGGER IF EXISTS audit_trigger ON reference_value_mapping;
 DROP TRIGGER IF EXISTS data_change_log_trigger_library ON library;
 
 CREATE TRIGGER data_change_log_trigger_insert_update_library
@@ -115,6 +125,30 @@ FOR EACH ROW EXECUTE FUNCTION audit_trigger();
 
 CREATE TRIGGER data_change_log_trigger_delete_library
 BEFORE DELETE ON library
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_insert_update_agency
+AFTER INSERT OR UPDATE ON agency
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_delete_agency
+BEFORE DELETE ON agency
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_insert_update_rvm
+AFTER INSERT OR UPDATE ON reference_value_mapping
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_delete_rvm
+BEFORE DELETE ON reference_value_mapping
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_location
+AFTER INSERT OR UPDATE ON location
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_delete_location
+BEFORE DELETE ON location
 FOR EACH ROW EXECUTE FUNCTION audit_trigger();
 
 -- Probably only want to catch UPDATES on here.
@@ -142,10 +176,4 @@ FOR EACH ROW EXECUTE FUNCTION audit_trigger();
 --BEFORE DELETE ON library_group
 --FOR EACH ROW EXECUTE FUNCTION audit_trigger();
 --
---CREATE TRIGGER data_change_log_trigger_location
---AFTER INSERT OR UPDATE ON location
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
---
---CREATE TRIGGER data_change_log_trigger_delete_location
---BEFORE DELETE ON location
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
