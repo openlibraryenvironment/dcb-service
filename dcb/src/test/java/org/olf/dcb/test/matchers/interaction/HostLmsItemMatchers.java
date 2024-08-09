@@ -18,4 +18,8 @@ public class HostLmsItemMatchers {
 	public static Matcher<HostLmsItem> hasBarcode(String expectedBarcode) {
 		return hasProperty("barcode", is(expectedBarcode));
 	}
+
+	public static Matcher<HostLmsItem> hasRawStatus(String expectedStatus) {
+		return hasProperty("rawStatus", is(expectedStatus));
+	}
 }
