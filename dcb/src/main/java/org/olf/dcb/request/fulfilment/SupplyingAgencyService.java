@@ -1,21 +1,10 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.request.resolution.SupplierRequestService;
-import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.storage.AgencyRepository;
-import org.zalando.problem.Problem;
-import org.zalando.problem.ThrowableProblem;
-import reactor.core.publisher.Mono;
-import reactor.function.TupleUtils;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
+import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.StringUtils.parseList;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -24,11 +13,31 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
-import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.StringUtils.parseList;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.model.Agency;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.storage.AgencyRepository;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
+
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 
 @Slf4j
@@ -274,6 +283,9 @@ public class SupplyingAgencyService {
 					// Have to pass both because Sierra and Polaris still use code only
 					.pickupLocationCode(context.getPickupAgencyCode())
 					.pickupAgency(context.getPickupAgency())
+					// Only used by FOLIO
+					// Similar information is also used to generate the note (Polaris / Sierra only)
+					.pickupLocation(context.getPickupLocation())
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())
 					// It is common in III systems to want the pickup location at the supplying library
