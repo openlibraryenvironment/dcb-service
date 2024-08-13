@@ -120,7 +120,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.group("undergrad")
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
-				.servicePointId(dnsUUID("FolioServicePoint:" + pickupAgency.getCode()).toString())
+				.servicePointId(dnsUUID("FolioServicePoint:" + pickupLocation.getName()).toString())
 				.servicePointName("Pickup Location")
 				.libraryCode("pickup-agency")
 				.build())
