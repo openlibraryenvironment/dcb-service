@@ -1,10 +1,25 @@
 # Changelog
 
+## Version 6.28.0
+
+### Additions
+* [General]
+	* Use pickup location name for service point ID in FOLIO supplying library DCB-1237
+	* Use pickup location name for service point in FOLIO supplying library DCB-1237
+
+### Fixes
+* [General]
+	* Tolerate no local IDs from Host LMS DCB-1402
+
 ## Version 6.27.0
 
 ### Additions
 * [General]
 	* Add facilitity to execute arbritary select statements
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
