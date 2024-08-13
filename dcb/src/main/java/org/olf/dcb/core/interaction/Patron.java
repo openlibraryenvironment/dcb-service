@@ -56,7 +56,10 @@ public class Patron {
 	}
 
 	public String getFirstLocalId() {
-		return getLocalId().stream().findFirst().orElse(null);
+		return getValue(this, Patron::getLocalId, new ArrayList<String>())
+			.stream()
+			.findFirst()
+			.orElse(null);
 	}
 
 	public String getFirstBarcode() {
