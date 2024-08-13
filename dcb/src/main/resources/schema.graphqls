@@ -30,7 +30,8 @@ type Mutation {
 		createLibraryGroup(input: LibraryGroupInput): LibraryGroup!
 		addLibraryToGroup(input: AddLibraryToGroupCommand): LibraryGroupMember!
 		updateAgencyParticipationStatus(input: UpdateAgencyParticipationInput): Agency!
-		deleteEntity(input: DeleteEntityInput): DeleteEntityPayload!
+		deleteLibrary(input: DeleteEntityInput): DeleteEntityPayload!
+		deleteLocation(input: DeleteEntityInput): DeleteEntityPayload!
 }
 
 input AddAgencyToGroupCommand {
@@ -84,8 +85,6 @@ input LibraryInput {
 
 input DeleteEntityInput {
 	id: ID!
-	entity: String!
-	name: String
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String

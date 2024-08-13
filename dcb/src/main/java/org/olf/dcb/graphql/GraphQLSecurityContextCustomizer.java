@@ -13,6 +13,7 @@ import org.reactivestreams.Publisher;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import reactor.core.publisher.Mono;
+import java.util.Collection;
 
 @Singleton
 @Primary
@@ -41,9 +42,21 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 		// This means we can then access with context.get("currentUser") in our data fetchers.
 		return Mono.fromCallable(() -> {
 			GraphQLContext context = executionInput.getGraphQLContext();
-			securityService.getAuthentication().ifPresent(auth ->
-				context.put("currentUser", auth.getName())
-			);
+			securityService.getAuthentication().ifPresent(auth -> {
+				// Get the username
+				String username = auth.getName();
+				// Get the roles (assuming roles are stored in the "roles" attribute)
+				// We are suppressing this warning because we know the roles we're getting from the security service will be in an acceptable format.
+				@SuppressWarnings("unchecked")
+				Collection<String> roles = (Collection<String>) auth.getAttributes().get("roles");
+
+				// Log the username and roles
+				log.debug("Roles: {}, Username: {}", roles, username);
+
+				// Store them in the GraphQL context
+				context.put("currentUser", username);
+				context.put("roles", roles);
+			});
 			return executionInput;
 		});
 	}

@@ -150,30 +150,3 @@ FOR EACH ROW EXECUTE FUNCTION audit_trigger();
 CREATE TRIGGER data_change_log_trigger_delete_location
 BEFORE DELETE ON location
 FOR EACH ROW EXECUTE FUNCTION audit_trigger();
-
--- Probably only want to catch UPDATES on here.
---CREATE TRIGGER data_change_log_trigger_library_contact
---AFTER INSERT OR UPDATE ON library_contact
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
---
---CREATE TRIGGER data_change_log_trigger_delete_library_contact
---BEFORE DELETE ON library_contact
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
---
---CREATE TRIGGER data_change_log_trigger_library_group_member
---AFTER INSERT OR UPDATE ON library_group_member
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
---
---CREATE TRIGGER data_change_log_trigger_delete_library_group_member
---BEFORE DELETE ON library_group_member
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
---
---CREATE TRIGGER data_change_log_trigger_library_group
---AFTER INSERT OR UPDATE ON library_group
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
---
---CREATE TRIGGER data_change_log_trigger_delete_library_group
---BEFORE DELETE ON library_group
---FOR EACH ROW EXECUTE FUNCTION audit_trigger();
---
-
