@@ -1,20 +1,21 @@
 package org.olf.dcb.core.interaction;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static org.zalando.problem.Status.INTERNAL_SERVER_ERROR;
+
+import java.net.URI;
+import java.util.Map;
+
+import org.olf.dcb.utils.PropertyAccessUtils;
+import org.zalando.problem.AbstractThrowableProblem;
+
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.HttpVersion;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.utils.PropertyAccessUtils;
-import org.zalando.problem.AbstractThrowableProblem;
-
-import java.net.URI;
-import java.util.Map;
-
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static org.zalando.problem.Status.INTERNAL_SERVER_ERROR;
 
 @Slf4j
 public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
@@ -67,7 +68,6 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 		return Map.of(
 			"errorMessage", getValue(throwable, Throwable::getMessage, "Unknown"),
 			"errorLocalizedMessage", getValue(throwable, Throwable::getLocalizedMessage, "Unknown"),
-			"cause", getValue(throwable, Throwable::getCause, "Unknown"),
 			"requestMethod", PropertyAccessUtils.getValue(request, HttpRequest::getMethodName, "Unknown"),
 			"requestUrl", getValue(request, HttpRequest::getUri, URI::toString, "Unknown"),
 			"requestBody", interpretRequestBody(request),
