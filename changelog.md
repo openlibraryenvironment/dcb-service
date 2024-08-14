@@ -1,11 +1,22 @@
 # Changelog
 
+## Version 6.28.1
+
+### Fixes
+* [General]
+	* Use agency name for service point in FOLIO supplying library DCB-1237 (reversion)
+	* Use agency name for service point ID in FOLIO supplying library DCB-1237 (reversion)
+
 ## Version 6.28.0
 
 ### Additions
 * [General]
 	* Use pickup location name for service point ID in FOLIO supplying library DCB-1237
 	* Use pickup location name for service point in FOLIO supplying library DCB-1237
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
