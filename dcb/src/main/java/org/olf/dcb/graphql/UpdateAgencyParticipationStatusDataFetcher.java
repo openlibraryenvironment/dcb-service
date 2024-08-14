@@ -56,8 +56,6 @@ public class UpdateAgencyParticipationStatusDataFetcher implements DataFetcher<C
 			.map(Object::toString)
 			.orElse("User not detected");
 
-		log.debug("GQL Context user name: {}", userString);
-
 		Mono<DataAgency> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(agencyRepository.findOneByCode(code))
 				.flatMap(agency -> {

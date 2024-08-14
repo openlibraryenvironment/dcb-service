@@ -39,7 +39,9 @@ public class CreateLibraryGroupDataFetcher implements DataFetcher<CompletableFut
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)
 			.code(input_map.get("code").toString())
 			.name(input_map.get("name").toString())
-			.type(input_map.get("type").toString()).build();
+			.type(input_map.get("type").toString())
+			.changeCategory("Initial setup")
+			.reason("Creation of new group").build();
 
 		log.debug("getCreateLibraryGroupDataFetcher {}/{}", input_map, input);
 

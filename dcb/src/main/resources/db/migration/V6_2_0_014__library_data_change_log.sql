@@ -3,6 +3,26 @@ alter table library add reason varchar(100);
 alter table library add change_reference_url varchar(200);
 alter table library add change_category varchar(200);
 
+alter table library_contact add last_edited_by varchar(100);
+alter table library_contact add reason varchar(100);
+alter table library_contact add change_reference_url varchar(200);
+alter table library_contact add change_category varchar(200);
+
+alter table person add last_edited_by varchar(100);
+alter table person add reason varchar(100);
+alter table person add change_reference_url varchar(200);
+alter table person add change_category varchar(200);
+
+alter table library_group add last_edited_by varchar(100);
+alter table library_group add reason varchar(100);
+alter table library_group add change_reference_url varchar(200);
+alter table library_group add change_category varchar(200);
+
+alter table library_group_member add last_edited_by varchar(100);
+alter table library_group_member add reason varchar(100);
+alter table library_group_member add change_reference_url varchar(200);
+alter table library_group_member add change_category varchar(200);
+
 alter table location add last_edited_by varchar(100);
 alter table location add reason varchar(100);
 alter table location add change_reference_url varchar(200);
@@ -114,9 +134,10 @@ BEGIN
 
 -- Providing the backing for tracking all library entities in the Data Change Log.
 -- As well as locations.
+-- And updating all entities to use the new trigger implementation above.
 
-DROP TRIGGER IF EXISTS audit_trigger ON agency;
-DROP TRIGGER IF EXISTS audit_trigger ON reference_value_mapping;
+DROP TRIGGER IF EXISTS data_change_log_trigger ON agency;
+DROP TRIGGER IF EXISTS data_change_log_trigger ON reference_value_mapping;
 DROP TRIGGER IF EXISTS data_change_log_trigger_library ON library;
 
 CREATE TRIGGER data_change_log_trigger_insert_update_library
@@ -149,4 +170,28 @@ FOR EACH ROW EXECUTE FUNCTION audit_trigger();
 
 CREATE TRIGGER data_change_log_trigger_delete_location
 BEFORE DELETE ON location
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_insert_update_person
+AFTER INSERT OR UPDATE ON person
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_delete_library_contact
+BEFORE DELETE ON library_contact
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_insert_update_library_group
+AFTER INSERT OR UPDATE ON library_group
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_delete_library_group
+BEFORE DELETE ON library_group
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_insert_update_library_group_member
+AFTER INSERT OR UPDATE ON library_group_member
+FOR EACH ROW EXECUTE FUNCTION audit_trigger();
+
+CREATE TRIGGER data_change_log_trigger_delete_library_group_member
+BEFORE DELETE ON library_group_member
 FOR EACH ROW EXECUTE FUNCTION audit_trigger();

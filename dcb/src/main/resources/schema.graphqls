@@ -32,6 +32,9 @@ type Mutation {
 		updateAgencyParticipationStatus(input: UpdateAgencyParticipationInput): Agency!
 		deleteLibrary(input: DeleteEntityInput): DeleteEntityPayload!
 		deleteLocation(input: DeleteEntityInput): DeleteEntityPayload!
+		updateLocation(input: UpdateLocationInput): Location!
+		updateLibrary(input: UpdateLibraryInput): Library!
+		updatePerson(input: UpdatePersonInput): Person!
 }
 
 input AddAgencyToGroupCommand {
@@ -116,6 +119,43 @@ input UpdateAgencyParticipationInput {
 	code: String!
 	isSupplyingAgency: Boolean
 	isBorrowingAgency: Boolean
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+input UpdateLocationInput {
+	id: ID!
+	type: String
+	latitude: Float
+	longitude: Float
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+
+input UpdateLibraryInput {
+	id: ID!
+	backupDowntimeSchedule: String
+	supportHours: String
+	latitude: Float
+	longitude: Float
+	fullName: String
+	shortName: String
+	abbreviatedName: String
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+input UpdatePersonInput {
+	id: ID!
+	firstName: String
+	lastName: String
+	role: String
+	isPrimaryContact: Boolean
+	email: String
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String

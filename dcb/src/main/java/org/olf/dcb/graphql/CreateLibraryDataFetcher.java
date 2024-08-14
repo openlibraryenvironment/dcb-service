@@ -88,8 +88,6 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 		log.debug("save or update library {}", input);
 
-		log.debug("GQL Context user name: {}", env.getGraphQlContext().get("currentUser").toString());
-
 		// Save the library first
 		return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(libraryRepository.saveOrUpdate(input))))
 			.flatMap(savedLibrary -> {
