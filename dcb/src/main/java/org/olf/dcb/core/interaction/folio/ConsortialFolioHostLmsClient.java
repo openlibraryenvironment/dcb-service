@@ -302,11 +302,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var transactionId = UUID.randomUUID().toString();
 
 		final var agencyCode = getValueOrNull(parameters.getPickupAgency(), Agency::getCode);
-		final var pickupLocationName = getValue(parameters.getPickupLocation(),
-			Location::getName, "Unknown");
-
 		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
-
 
 		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 			.body(CreateTransactionRequest.builder()
@@ -321,8 +317,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.group(parameters.getLocalPatronType())
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
-					.servicePointId(dnsUUID("FolioServicePoint:" + pickupLocationName).toString())
-					.servicePointName(pickupLocationName)
+					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
+					.servicePointName(getValue(parameters.getPickupLocation(), Location::getName, "Unknown"))
 					.libraryCode(agencyCode)
 					.build())
 				.build());
