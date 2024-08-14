@@ -1,72 +1,5 @@
 package org.olf.dcb.core.interaction.folio;
 
-import static io.micronaut.core.type.Argument.VOID;
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpMethod.PUT;
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
-import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
-import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.StringUtils.parseList;
-import static services.k_int.utils.UUIDUtils.dnsUUID;
-
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.Function;
-
-import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.FailedToGetItemsException;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
-import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.model.Agency;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.NoHomeBarcodeException;
-import org.olf.dcb.core.model.NoHomeIdentityException;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
@@ -85,8 +18,44 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+
+import static io.micronaut.core.type.Argument.VOID;
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static io.micronaut.http.HttpMethod.*;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsItem.*;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.*;
+import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
+import static org.olf.dcb.core.model.ItemStatusCode.*;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.StringUtils.parseList;
+import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 @Slf4j
 @Prototype
@@ -318,7 +287,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
 					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
-					.servicePointName(getValue(parameters.getPickupLocation(), Location::getName, "Unknown"))
+					.servicePointName(getValueOrNull(parameters.getPickupAgency(), Agency::getName))
 					.libraryCode(agencyCode)
 					.build())
 				.build());

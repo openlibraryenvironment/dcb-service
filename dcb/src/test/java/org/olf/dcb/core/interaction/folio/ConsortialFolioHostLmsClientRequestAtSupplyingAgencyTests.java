@@ -31,7 +31,6 @@ import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.Location;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -85,8 +84,6 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 
 		final var pickupAgency = definePickupAgency();
 
-		final var pickupLocation = definePickupLocation();
-
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
@@ -98,7 +95,6 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localPatronBarcode(patronBarcode)
 					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
-					.pickupLocation(pickupLocation)
 					.build()));
 
 		// Assert
@@ -121,7 +117,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
 				.servicePointId(dnsUUID("FolioServicePoint:" + pickupAgency.getCode()).toString())
-				.servicePointName("Pickup Location")
+				.servicePointName("Pickup Agency")
 				.libraryCode("pickup-agency")
 				.build())
 			.build());
@@ -140,6 +136,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.build()))
 				.build())));
 
+		final var pickupAgency = definePickupAgency();
+
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
@@ -151,8 +149,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localPatronId(UUID.randomUUID().toString())
 					.localPatronBarcode("8847474")
 					.localPatronType("undergrad")
-					.pickupAgency(definePickupAgency())
-					.pickupLocation(definePickupLocation())
+					.pickupAgency(pickupAgency)
 					.build())));
 
 		// Assert
@@ -176,6 +173,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.build()))
 				.build())));
 
+		final var pickupAgency = definePickupAgency();
+
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
@@ -187,8 +186,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localPatronId(UUID.randomUUID().toString())
 					.localPatronBarcode("2365865")
 					.localPatronType("undergrad")
-					.pickupAgency(definePickupAgency())
-					.pickupLocation(definePickupLocation())
+					.pickupAgency(pickupAgency)
 					.build())));
 
 		log.debug("Problem Parameters {}", problem.getParameters());
@@ -215,6 +213,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.path("/dcbService/transactions/9fc11ffd-3c07-4b75-a6db-045127c43dc1")
 				.build())));
 
+		final var pickupAgency = definePickupAgency();
+
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
@@ -226,8 +226,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localPatronId(UUID.randomUUID().toString())
 					.localPatronBarcode("5486193")
 					.localPatronType("undergrad")
-					.pickupAgency(definePickupAgency())
-					.pickupLocation(definePickupLocation())
+					.pickupAgency(pickupAgency)
 					.build())));
 
 		// Assert
@@ -243,6 +242,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			// This is a made up body that is only intended to demonstrate how it's captured
 			.withBody(json(Map.of("message", "something went wrong"))));
 
+		final var pickupAgency = definePickupAgency();
+
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
 
@@ -254,8 +255,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localPatronId(UUID.randomUUID().toString())
 					.localPatronBarcode("9265614")
 					.localPatronType("undergrad")
-					.pickupAgency(definePickupAgency())
-					.pickupLocation(definePickupLocation())
+					.pickupAgency(pickupAgency)
 					.build())));
 
 		// Assert
@@ -269,12 +269,5 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	private DataAgency definePickupAgency() {
 		return agencyFixture.defineAgency("pickup-agency",
 			"Pickup Agency", hostLmsFixture.findByCode(PICKUP_HOST_LMS_CODE));
-	}
-
-	private static Location definePickupLocation() {
-		return Location.builder()
-			.id(UUID.randomUUID())
-			.name("Pickup Location")
-			.build();
 	}
 }
