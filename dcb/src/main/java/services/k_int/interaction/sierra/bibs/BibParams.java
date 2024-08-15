@@ -4,14 +4,16 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import services.k_int.interaction.sierra.DateTimeRange;
 import services.k_int.interaction.sierra.DateTimeRange.DateTimeRangeBuilder;
 
-@Builder
+@Builder(toBuilder = true)
 @Data
+@Serdeable
 public class BibParams {
 
 	@Nullable
@@ -44,6 +46,21 @@ public class BibParams {
 	Set<String> locations;
 
 	public static class BibParamsBuilder {
+		public BibParamsBuilder createdDate(DateTimeRange range) {
+			createdDate = range;
+			return this;
+		}
+		
+		public BibParamsBuilder updatedDate(DateTimeRange range) {
+			updatedDate = range;
+			return this;
+		}
+		
+		public BibParamsBuilder deletedDate(DateTimeRange range) {
+			deletedDate = range;
+			return this;
+		}
+		
 		public BibParamsBuilder createdDate(Consumer<DateTimeRangeBuilder> consumer) {
 			createdDate = DateTimeRange.build(consumer);
 			return this;

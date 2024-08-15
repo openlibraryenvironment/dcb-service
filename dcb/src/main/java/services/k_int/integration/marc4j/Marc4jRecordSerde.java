@@ -2,6 +2,7 @@ package services.k_int.integration.marc4j;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import org.marc4j.marc.ControlField;
@@ -11,8 +12,6 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.marc4j.marc.impl.MarcFactoryImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -31,9 +30,11 @@ import io.micronaut.serde.SerdeRegistry;
 import io.micronaut.serde.config.SerdeConfiguration;
 import io.micronaut.serde.jackson.JacksonDecoder;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 
-@Requires(classes = Record.class)
+@Slf4j
 @Singleton
+@Requires(classes = Record.class)
 public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> implements Serde<Record> {
 	
 	// Instanciate the default class here. Works better with native compilation.
@@ -41,8 +42,6 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 	
 	private final SerdeConfiguration serdeConfiguration;
 	private final SerdeRegistry registry;
-
-	private static Logger log = LoggerFactory.getLogger(Marc4jRecordSerde.class);
 
 	private static final String KEY_LEADER = "leader";
 	private static final String KEY_INDICATOR_1 = "ind1";
@@ -84,7 +83,7 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 						field.encodeKey(fieldData.getTag());
 						final String val = fieldData.getData();
 						if (val == null) {
-							log.info("Field {} had a null value", fieldData.getTag());
+							log.debug("Field {} had a null value", fieldData.getTag());
 							field.encodeNull();
 						} else {
 							
@@ -259,6 +258,16 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 		}
 	}
 	
+	private boolean withNonNullString( Decoder decoder, Consumer<String> str ) throws IOException {
+		final String val = decoder.decodeStringNullable();
+		if (val == null) {
+			return false; // Null value
+		}
+		
+		str.accept( val ); // Consume the non null string.
+		return true;
+	}
+	
 	protected void decodeFieldsArray(final Decoder dec, final Record record) throws IOException {
 
 		try (Decoder fields = dec.decodeArray()) {
@@ -270,8 +279,11 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 					String currentKey;
 					while ((currentKey = field.decodeKey()) != null) {
 						if ( REGEX_CTRLFIELD.matcher(currentKey).matches() ) {
-							record.addVariableField(
-								factory.newControlField(currentKey, field.decodeString()));
+							
+							final String keyVal = currentKey;
+							withNonNullString(field,
+									val -> record.addVariableField(
+											factory.newControlField(keyVal, val)));
 
 						} else if ( REGEX_DATAFIELD.matcher(currentKey).matches() ) {
 							// Data field is object.
@@ -300,8 +312,11 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 														// Create a subfield per entry
 														while ((currentKey = subfield.decodeKey()) != null) {
 															if ( REGEX_SUBFIELD.matcher(currentKey).matches() ) {
-																df.addSubfield(
-																	factory.newSubfield(currentKey.charAt(0), subfield.decodeString()));
+																
+																final String keyVal = currentKey;
+																withNonNullString(subfield,
+																		val -> df.addSubfield(
+																				factory.newSubfield(keyVal.charAt(0), val)));
 															} else {
 																// subfield not matched
 																subfield.skipValue();

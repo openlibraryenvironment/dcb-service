@@ -22,7 +22,6 @@ public @interface FeatureGate {
 	public static final class FeatureGateOpen implements Condition {
 
 		public FeatureGateOpen() {
-			System.out.println("Evaluated");
 		}
 
 		@Override
