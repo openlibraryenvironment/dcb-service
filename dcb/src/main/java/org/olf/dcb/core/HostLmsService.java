@@ -95,6 +95,9 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<IngestSource> getIngestSourceFor(final HostLms hostLms) {
+
+    log.debug("getIngestSourceFor{(})",hostLms);
+
 		final var ingestSource = hostLms.getIngestSourceType() != null
 			? hostLms.getIngestSourceType()
 			: hostLms.getClientType();
@@ -114,6 +117,9 @@ public class HostLmsService implements IngestSourcesProvider {
 	
 	@Override
 	public Publisher<IngestSource> getIngestSources() {
+
+		log.debug("getIngestSources()");
+
 		return getAllHostLms()
 			.flatMap(this::getIngestSourceFor)
 			.onErrorContinue(InvalidHostLmsConfigurationException.class,
@@ -121,8 +127,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Flux<DataHostLms> getAllHostLms() {
-		// log.debug("getAllHostLms()");
-
+		log.debug("getAllHostLms()");
 		return Flux.from(hostLmsRepository.queryAll());
 	}
 
