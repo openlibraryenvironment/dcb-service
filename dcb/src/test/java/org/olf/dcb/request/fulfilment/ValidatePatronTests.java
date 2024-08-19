@@ -106,7 +106,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, "123456");
+		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			"validate-patron-transition-tests", 10, 25, "DCB", "15");
@@ -157,7 +157,7 @@ public class ValidatePatronTests {
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("248303",
 			SierraPatronsAPIFixture.Patron.builder()
-				.id(1000002)
+				.id(Integer.parseInt(localId))
 				.patronType(15)
 				.barcodes(List.of("647647746"))
 				.names(List.of("Bob"))
@@ -174,7 +174,7 @@ public class ValidatePatronTests {
 		assertThat(validatedPatronRequest, hasResolvedAgency(agency));
 		assertThat(patronRequest, hasStatus(PATRON_VERIFIED));
 	}
-
+	
 	@Test
 	void shouldFailWhenSierraRespondsWithNotFound() {
 		// Arrange
@@ -182,7 +182,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, "123456");
+		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
 
 		var patronRequest = savePatronRequest(patron);
 
@@ -217,7 +217,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, "123456");
+		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
 
 		var patronRequest = savePatronRequest(patron);
 
@@ -260,13 +260,13 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, "123456");
+		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
 
 		var patronRequest = savePatronRequest(patron);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
 			SierraPatronsAPIFixture.Patron.builder()
-				.id(1000002)
+				.id(Integer.parseInt(localId))
 				.patronType(15)
 				.homeLibraryCode(HOME_LIBRARY_CODE)
 				.barcodes(List.of("647647746"))
