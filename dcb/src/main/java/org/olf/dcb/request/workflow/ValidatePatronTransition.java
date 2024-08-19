@@ -45,7 +45,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
-	
+
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
 		HostLmsService hostLmsService, ReferenceValueMappingService referenceValueMappingService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
@@ -76,8 +76,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		log.info("ValidatePatronTransition CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}",
 			pi, hostLms);
 
-		return hostLmsService.getClientFor(hostLms)
-			.flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
+		return findLocalPatron(pi)
 			.flatMap(hostLmsPatron -> {
 				log.info("CIRC update patron identity with latest info from host {}", hostLmsPatron);
 
@@ -111,6 +110,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				}).flatMap(updatedPatronIdentity -> {
 					return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(updatedPatronIdentity));
 				});
+	}
+
+	private Mono<Patron> findLocalPatron(PatronIdentity pi) {
+		return hostLmsService.getClientFor(pi.getHostLms())
+			.flatMap(client -> client.getPatronByLocalId(pi.getLocalId()));
 	}
 
 	private Mono<PatronIdentity> resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode,
