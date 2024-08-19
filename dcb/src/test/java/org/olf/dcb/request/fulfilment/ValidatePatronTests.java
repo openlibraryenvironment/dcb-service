@@ -15,6 +15,7 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolvedAgency;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForRequest;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
@@ -174,7 +175,54 @@ public class ValidatePatronTests {
 		assertThat(validatedPatronRequest, hasResolvedAgency(agency));
 		assertThat(patronRequest, hasStatus(PATRON_VERIFIED));
 	}
-	
+
+	@Test
+	void shouldFailWhenLocalPatronHasBeenDeleted() {
+		// Arrange
+		final var localId = "463655";
+
+		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
+
+		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			"validate-patron-transition-tests", 10, 25, "DCB", "15");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			"validate-patron-transition-tests", HOME_LIBRARY_CODE, AGENCY_CODE);
+
+		var patronRequest = savePatronRequest(patron);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(Integer.parseInt(localId))
+				.patronType(15)
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of("36463563"))
+				.names(List.of("Sue"))
+				.deleted(true)
+				.build());
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap( ctx -> validatePatronTransition.attempt(ctx))
+				.block());
+
+		// Assert
+		final var expectedMessage = "Patron with local id [%s] and home library code home-library-code had a deleted flag."
+			.formatted(localId);
+
+		assertThat(exception, hasMessage(expectedMessage));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat(fetchedPatronRequest, allOf(
+			hasStatus(ERROR),
+			hasErrorMessage(expectedMessage)
+		));
+	}
+
 	@Test
 	void shouldFailWhenSierraRespondsWithNotFound() {
 		// Arrange
