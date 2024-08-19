@@ -22,6 +22,7 @@ import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -215,12 +216,7 @@ public class ValidatePatronTests {
 
 		assertThat(exception, hasMessage(expectedMessage));
 
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
-		assertThat(fetchedPatronRequest, allOf(
-			hasStatus(ERROR),
-			hasErrorMessage(expectedMessage)
-		));
+		checkPatronRequestHasError(patronRequest.getId(), expectedMessage);
 	}
 
 	@Test
@@ -247,15 +243,7 @@ public class ValidatePatronTests {
 
 		assertThat(exception.getMessage(), is(expectedMessage));
 
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
-		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
-
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
-
-		assertThat(fetchedPatronRequest, hasStatus(ERROR));
+		checkPatronRequestHasError(patronRequest.getId(), expectedMessage);
 	}
 
 	@Test
@@ -289,16 +277,9 @@ public class ValidatePatronTests {
 			hasRequestMethod("GET")
 		));
 
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
 		final var expectedMessage = "Unexpected response from: GET /iii/sierra-api/v6/patrons/236462";
 
-		assertThat(fetchedPatronRequest, allOf(
-			hasStatus(ERROR),
-			hasErrorMessage(expectedMessage)
-		));
-
-		assertThat(fetchedPatronRequest, hasStatus(ERROR));
+		checkPatronRequestHasError(patronRequest.getId(), expectedMessage);
 	}
 
 	@Test
@@ -328,19 +309,11 @@ public class ValidatePatronTests {
 				.block());
 
 		// Assert
-		final var expectedError = "Unable to map patronType validate-patron-transition-tests:15 To DCB context";
+		final var expectedMessage = "Unable to map patronType validate-patron-transition-tests:15 To DCB context";
 
-		assertThat(exception.getMessage(), is(expectedError));
+		assertThat(exception.getMessage(), is(expectedMessage));
 
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
-		assertThat("Request should have error status afterwards",
-			fetchedPatronRequest.getStatus(), is(ERROR));
-
-		assertThat("Request should have error message afterwards",
-			fetchedPatronRequest.getErrorMessage(), is(expectedError));
-
-		assertThat(fetchedPatronRequest, hasStatus(ERROR));
+		checkPatronRequestHasError(patronRequest.getId(), expectedMessage);
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms, String homeLibraryCode) {
@@ -363,5 +336,14 @@ public class ValidatePatronTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		return patronRequest;
+	}
+
+	private void checkPatronRequestHasError(UUID id, String expectedMessage) {
+		final var fetchedPatronRequest = patronRequestsFixture.findById(id);
+
+		assertThat(fetchedPatronRequest, allOf(
+			hasStatus(ERROR),
+			hasErrorMessage(expectedMessage)
+		));
 	}
 }
