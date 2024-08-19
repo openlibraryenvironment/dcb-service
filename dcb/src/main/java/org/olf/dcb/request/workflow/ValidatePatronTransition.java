@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -29,12 +29,12 @@ import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @Slf4j
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final PatronIdentityRepository patronIdentityRepository;
-	private final HostLmsService hostLmsService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyRepository agencyRepository;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
@@ -47,14 +47,13 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
 
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
-		HostLmsService hostLmsService, ReferenceValueMappingService referenceValueMappingService,
+		ReferenceValueMappingService referenceValueMappingService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		AgencyRepository agencyRepository,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		LocalPatronService localPatronService) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
-		this.hostLmsService = hostLmsService;
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.agencyRepository = agencyRepository;
@@ -68,7 +67,6 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	 * process.
 	 */
 	private Mono<PatronIdentity> validatePatronIdentity(PatronIdentity pi) {
-
 		final var hostLms = getValue(pi, PatronIdentity::getHostLms, null);
 
 		// We have a patron id from elsewhere, call the patrons home system to get a record which describes
@@ -94,14 +92,6 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				if (hostLmsPatron.getLocalBarcodes() == null)
 					log.warn("Patron does not have barcodes.. Will not be able to circulate items");
 
-				final var deleted = getValue(hostLmsPatron, Patron::getIsDeleted, false);
-
-				if (deleted) {
-					final var firstLocalId = getValue(hostLmsPatron, Patron::getFirstLocalId, null);
-
-					throw new PatronNotFoundInHostLmsException(firstLocalId, hostLms.getCode());
-				}
-
 				return Mono.just(pi);
 			}).flatMap(updatedPatronIdentity -> {
 					return Mono.fromDirect(resolveHomeLibraryCodeFromSystemToAgencyCode(
@@ -113,8 +103,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	}
 
 	private Mono<Patron> findLocalPatron(PatronIdentity pi) {
-		return hostLmsService.getClientFor(pi.getHostLms())
-			.flatMap(client -> client.getPatronByLocalId(pi.getLocalId()));
+		final var localId = getValue(pi, PatronIdentity::getLocalId, "Unknown");
+		final var hostLmsCode = getValue(pi, PatronIdentity::getHostLms, HostLms::getCode, "Unknown");
+
+		return localPatronService.findLocalPatronAndAgency(localId, hostLmsCode)
+			.map(TupleUtils.function((patron, agency) -> patron))
+			.switchIfEmpty(Mono.error(new PatronNotFoundInHostLmsException(localId, hostLmsCode)));
 	}
 
 	private Mono<PatronIdentity> resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode,
