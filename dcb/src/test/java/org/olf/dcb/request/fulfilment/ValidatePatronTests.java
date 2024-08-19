@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolvedAgency;
@@ -134,7 +135,7 @@ public class ValidatePatronTests {
 		// Assert
 		assertThat(validatedPatronRequest, hasLocalPatronType("15"));
 
-		assertSuccessfulTransitionAudit(patronRequest);
+		assertThat(patronRequest, hasStatus(PATRON_VERIFIED));
 	}
 
 	@Test
@@ -171,7 +172,7 @@ public class ValidatePatronTests {
 		// Assert
 		assertThat(validatedPatronRequest, is(notNullValue()));
 		assertThat(validatedPatronRequest, hasResolvedAgency(agency));
-		assertSuccessfulTransitionAudit(patronRequest);
+		assertThat(patronRequest, hasStatus(PATRON_VERIFIED));
 	}
 
 	@Test
@@ -206,7 +207,7 @@ public class ValidatePatronTests {
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is(expectedMessage));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest);
+		assertThat(fetchedPatronRequest, hasStatus(ERROR));
 	}
 
 	@Test
@@ -249,7 +250,7 @@ public class ValidatePatronTests {
 			hasErrorMessage(expectedMessage)
 		));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest);
+		assertThat(fetchedPatronRequest, hasStatus(ERROR));
 	}
 
 	@Test
@@ -291,7 +292,7 @@ public class ValidatePatronTests {
 		assertThat("Request should have error message afterwards",
 			fetchedPatronRequest.getErrorMessage(), is(expectedError));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest);
+		assertThat(fetchedPatronRequest, hasStatus(ERROR));
 	}
 
 	private Patron createPatron(String localId, DataHostLms hostLms, String homeLibraryCode) {
@@ -299,7 +300,7 @@ public class ValidatePatronTests {
 
 		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", homeLibraryCode, null);
 
-		patron.setPatronIdentities(patronService.findAllPatronIdentitiesByPatron(patron).collectList().block());
+		patron.setPatronIdentities(manyValuesFrom(patronService.findAllPatronIdentitiesByPatron(patron)));
 
 		return patron;
 	}
@@ -314,13 +315,5 @@ public class ValidatePatronTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		return patronRequest;
-	}
-
-	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-		assertThat(patronRequest.getStatus(), is(PATRON_VERIFIED));
-	}
-
-	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest) {
-		assertThat(patronRequest.getStatus(), is(ERROR));
 	}
 }
