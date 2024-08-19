@@ -71,6 +71,7 @@ public class ValidatePatronTests {
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private PatronService patronService;
+	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mockServerClient) {
@@ -86,7 +87,7 @@ public class ValidatePatronTests {
 
 		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295",
 			SierraPatronsAPIFixture.Patron.builder()
@@ -176,7 +177,7 @@ public class ValidatePatronTests {
 	}
 
 	@Test
-	void shouldFailWhenSierraRespondsWithNotFound(MockServerClient mockServerClient) {
+	void shouldFailWhenSierraRespondsWithNotFound() {
 		// Arrange
 		final var LOCAL_ID = "672954";
 		final var patronRequestId = randomUUID();
@@ -185,8 +186,6 @@ public class ValidatePatronTests {
 		final var patron = createPatron(LOCAL_ID, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
-
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId("672954");
 
@@ -213,7 +212,7 @@ public class ValidatePatronTests {
 	}
 
 	@Test
-	void shouldFailWhenSierraRespondsWithServerError(MockServerClient mockServerClient) {
+	void shouldFailWhenSierraRespondsWithServerError() {
 		// Arrange
 		final var patronRequestId = randomUUID();
 		final var localId = "236462";
@@ -221,8 +220,6 @@ public class ValidatePatronTests {
 		final var patron = createPatron(localId, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
-
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.badRequestWhenGettingPatronByLocalId("236462");
 
@@ -257,7 +254,7 @@ public class ValidatePatronTests {
 	}
 
 	@Test
-	void shouldFailWhenNoPatronTypeMappingIsDefined(MockServerClient mockServerClient) {
+	void shouldFailWhenNoPatronTypeMappingIsDefined() {
 		// Arrange
 		final var patronRequestId = randomUUID();
 		final var localId = "783742";
@@ -267,8 +264,6 @@ public class ValidatePatronTests {
 		final var patron = createPatron(localId, hostLms, "123456");
 
 		var patronRequest = savePatronRequest(patronRequestId, patron);
-
-		final var sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
 			SierraPatronsAPIFixture.Patron.builder()
