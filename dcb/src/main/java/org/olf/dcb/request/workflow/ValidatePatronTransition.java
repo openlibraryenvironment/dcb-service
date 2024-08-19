@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -37,6 +38,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final AgencyRepository agencyRepository;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final LocalPatronService localPatronService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
 	// this singleton.
@@ -48,7 +50,8 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		HostLmsService hostLmsService, ReferenceValueMappingService referenceValueMappingService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		AgencyRepository agencyRepository,
-		LocationToAgencyMappingService locationToAgencyMappingService) {
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		LocalPatronService localPatronService) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.hostLmsService = hostLmsService;
@@ -56,6 +59,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.agencyRepository = agencyRepository;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.localPatronService = localPatronService;
 	}
 
 	/**
