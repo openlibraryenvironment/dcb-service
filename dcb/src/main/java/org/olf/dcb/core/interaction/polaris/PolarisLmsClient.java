@@ -1,5 +1,72 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.marc4j.marc.Record;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
+import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
+import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.storage.RawSourceRepository;
+import org.reactivestreams.Publisher;
+import org.zalando.problem.Problem;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.retry.Retry;
+import services.k_int.utils.MapUtils;
+import services.k_int.utils.UUIDUtils;
+
+import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
@@ -16,99 +83,9 @@ import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 
-import java.io.IOException;
-import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
-import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
-import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
-import org.olf.dcb.core.interaction.shared.PublisherState;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.dataimport.job.SourceRecordDataSource;
-import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
-import org.olf.dcb.dataimport.job.model.SourceRecord;
-import org.olf.dcb.ingest.marc.MarcIngestSource;
-import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.ingest.model.RawSource;
-import org.olf.dcb.storage.RawSourceRepository;
-import org.reactivestreams.Publisher;
-import org.zalando.problem.Problem;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonArray;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.serde.ObjectMapper;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-import reactor.util.retry.Retry;
-import services.k_int.interaction.sierra.bibs.BibResult;
-import services.k_int.utils.MapUtils;
-import services.k_int.utils.UUIDUtils;
-
 @Slf4j
 @Prototype
-public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient, SourceRecordDataSource {
+public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient {
 	private final URI defaultBaseUrl;
 	private final URI applicationServicesOverrideURL;
 	private final HostLms lms;
@@ -124,7 +101,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final ApplicationServicesClient ApplicationServices;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
-	private final ObjectMapper objectMapper;
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
@@ -138,22 +114,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
 		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
 		ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper) {
+		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper, R2dbcOperations r2dbcOperations) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
 		this.lms = hostLms;
-		this.objectMapper = objectMapper;
-		this.conversionService = conversionService;
 		this.polarisConfig = convertConfig(hostLms);
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
 		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig);
-		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService);
+		this.PAPIService = new PAPIClient(this, polarisConfig);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
 		this.rawSourceRepository = rawSourceRepository;
+		this.conversionService = conversionService;
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.client = client;
@@ -161,15 +136,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
-		Map<String, Object> lmsConf = hostLms.getClientConfig();
-
-		try {
-			JsonNode conftree = objectMapper.writeValueToTree(lmsConf);
-			PolarisConfig conf = objectMapper.readValueFromTree(conftree, PolarisConfig.class);
-			return conf;
-		} catch (IOException e) {
-			throw new RuntimeException( e );
-		}
+		return new ObjectMapper()
+			.enable(SerializationFeature.INDENT_OUTPUT)
+			.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+			.convertValue(hostLms.getClientConfig(), PolarisConfig.class);
 	}
 
 	private URI applicationServicesOverrideURL() {
@@ -1415,120 +1385,5 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	public R2dbcOperations getR2dbcOperations() {
 		return r2dbcOperations;
-	}
-	
-	@Override
-	public boolean isSourceImportEnabled() {
-		return isEnabled();
-	}
-	
-	public BibsPagedGetParams mergeApiParameters(Optional<BibsPagedGetParams> parameters) {
-		
-		final int maxPageSize = 100;
-		
-		return parameters
-			// Create builder from the existing params.
-			.map( BibsPagedGetParams::toBuilder )
-			
-			// No current properties just set offset to 0
-			.orElse(BibsPagedGetParams.builder()
-					.lastId(0)) // Default 0
-			
-			// Ensure we add the constant parameters.
-			.nrecs(Optional.ofNullable(polarisConfig.getPageSize())
-					.map( pageSize -> {
-						if (pageSize > maxPageSize) {
-							log.info("Limiting POLARIS page size to {}", maxPageSize);
-							return maxPageSize;
-						}
-						
-						return pageSize;
-					})
-					.orElseGet(() -> {
-						log.info("Defaulting page size to {}", maxPageSize);
-						return maxPageSize;
-					}))
-			.build();
-		
-	}
-	
-	@Override
-	public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) {
-		try {
-
-			// Use the inbuilt marshalling to convert into the BibParams.
-			final Optional<BibsPagedGetParams> optParams = checkpoint.isPresent() ? Optional.of( objectMapper.readValueFromTree(checkpoint.get(), BibsPagedGetParams.class) ) : Optional.empty();
-			
-			final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
-	  	
-	  	final Instant now = Instant.now();
-			return Mono.just( apiParams )
-				.flatMap( params -> Mono.from( PAPIService.synch_BibsPagedGetRaw(params) ))
-				
-				.flatMap( bibsPaged -> {
-					 final int lastId = bibsPaged.get("LastID").getIntValue();
-					 return Mono.just( bibsPaged )
-						.mapNotNull( itemPage -> {
-							var entries = itemPage.get("GetBibsPagedRows");
-							if (entries == null) {
-								log.debug("[.GetBibsPagedRows] property received from polaris is null");
-							}
-							return entries;
-						})
-						.filter( entries -> {
-							if (entries.isArray()) {
-								return true;
-							}
-							
-							log.debug("[.GetBibsPagedRows] property received from polaris is not an array");
-							return false;
-						})
-						.cast( JsonArray.class )
-						.flatMap( jsonArr -> {
-							
-							try {
-								
-								// We return the current data with the Checkpoint that will return the next chunk.
-								final JsonNode newCheckpoint = objectMapper.writeValueToTree(apiParams.toBuilder()
-									.lastId(lastId)
-									.build());
-								
-								final var builder = SourceRecordImportChunk.builder()
-										.lastChunk( jsonArr.size() != apiParams.getNrecs())
-										.checkpoint( newCheckpoint );
-								
-								jsonArr.values().forEach(rawJson -> {
-									
-									try {
-										builder.dataEntry( SourceRecord.builder()
-						  				.hostLmsId( lms.getId() )
-						  				.lastFetched( now )
-						  				.remoteId( rawJson.get("BibliographicRecordID").coerceStringValue() )
-						  				.sourceRecordData( rawJson )
-						  				.build());
-					  			} catch (Throwable t) {  				
-					  				if (log.isDebugEnabled()) {
-					    				log.error( "Error creating SourceRecord from JSON '{}' \ncause: {}", rawJson, t);
-					  				} else {
-					  					log.error( "Error creating SourceRecord from JSON", t );
-					  				}
-					  			}
-								});
-								
-								return Mono.just( builder.build() );
-								
-							} catch (Exception e) {
-								return Mono.error( e );
-							}
-						});
-				});
-		} catch (Exception e) {
-			return Mono.error( e );
-		}
-	}
-
-	@Override
-	public BibsPagedRow convertSourceToInternalType(SourceRecord source) {
-		return conversionService.convertRequired(source.getSourceRecordData(), BibsPagedRow.class);
 	}
 }

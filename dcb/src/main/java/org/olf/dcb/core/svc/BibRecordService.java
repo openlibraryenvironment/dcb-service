@@ -23,8 +23,10 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.annotation.Timed;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -34,6 +36,8 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
+import services.k_int.utils.Functions;
+import services.k_int.utils.ReactorUtils;
 
 
 @Singleton
@@ -137,7 +141,7 @@ public class BibRecordService {
 				.then(Mono.just(savedBib));
 	}
 
-	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source) {
+	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source, long start_time) {
 
 //		long elapsed = System.currentTimeMillis() - start_time;
 
@@ -224,75 +228,63 @@ public class BibRecordService {
 			.flatMap(Mono::from);
 	}
 	
+	@Timed("bib.process")
+	@SingleResult
 	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<BibRecord> deleteAssociatedBib (final IngestRecord source) {
-		return getOrSeed(source).
-				flatMap(this::deleteBibAndUpdateCluster);
-	}
-	
-	
-	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<BibRecord> process(final IngestRecord source) {
+	public Publisher<BibRecord> process(final IngestRecord source) {
+
+    log.debug("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
+        source.getSourceSystem().getCode(),
+        source.getSourceRecordId(),
+        source.getClusterRecordId(),
+        source.getTitle(),
+        source.getSuppressFromDiscovery(),
+        source.getDeleted()
+        );
+
+
+		statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
+
+		// we could possibly use .elapsed() for this in the future
+		long start_time = System.currentTimeMillis();
+
+		// SO: TODO: Make this a predicate further upstream, to filter out the source resource.
+		// Will allow us to bail out of the resource early.
+		// We can raise events from with in that for the side effects.
+		// Add in some processing to abort if we don't have a title - probably we should treat this as a delete signal
 		
-		if (log.isTraceEnabled()) {
-			log.trace("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
-	        source.getSourceSystem().getCode(),
-	        source.getSourceRecordId(),
-	        source.getClusterRecordId(),
-	        source.getTitle(),
-	        source.getSuppressFromDiscovery(),
-	        source.getDeleted()
-	        );
+		if ( StringUtils.trimToNull(source.getTitle()) == null) {
+			statsService.notifyEvent("DroppedNullTitle",source.getSourceSystem().getCode());
+			log.warn("Record {} with empty title - bailing", source);
+			return Mono.empty();
 		}
 		
-		final boolean suppressed = Boolean.TRUE.equals( source.getSuppressFromDiscovery() );
-		final boolean deleted = Boolean.TRUE.equals( source.getDeleted() );
-		
-		if ( suppressed || deleted ) {
-			
-			// Suppress...			
-			return deleteAssociatedBib(source)
-				.flatMap( deletedBib -> {
-					statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
-					
-					if (log.isDebugEnabled()) {
-						final String removalReason = deleted ? "deleted" : "suppressed";
-						log.debug("Record {} flagged as {}, redact accordingly", source, removalReason);
-					}
-					
-					return Mono.empty();
-				});
-		}
-		
-		if ( StringUtils.trimToNull(source.getTitle()) == null ) {
-			return Mono.just(source)
-				.flatMap( s -> {
-					statsService.notifyEvent("DroppedNullTitle",s.getSourceSystem().getCode());
-					if (log.isTraceEnabled()) {
-						log.warn("None deleted record {} with empty title - bailing", s);
-					} else {
-						log.warn("None deleted record {} with empty title - bailing", s.getUuid());
-					}
-					return Mono.empty();
-				});
-		}
-		
-		// None deleted or suppressed items...
-		
-		return getOrSeed(source)
-			.map( bib -> {
-				statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
-				return bib;
-			})
-			.flatMap(bib -> {
+		return Mono.just(source)
+			.zipWhen( this::getOrSeed )
+			.flatMap(TupleUtils.function(( ir, bib ) -> {
+
+				final boolean suppressed = Boolean.TRUE.equals( ir.getSuppressFromDiscovery() );
+				final boolean deleted = Boolean.TRUE.equals( ir.getDeleted() );
 				
+				if ( suppressed || deleted ) {
+					// Suppress...
+					statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
+					log.debug("Record {} flagged as {}, ensure we redact accordingly.", source, deleted ? "deleted" : "suppressed");
+					
+					return deleteBibAndUpdateCluster(bib).then( Mono.empty() );
+				}
+				
+				// Default to just re-emitting the bib.
+				return Mono.just(bib);
+			}))
+			.flatMap((final BibRecord bib) -> {
 				final List<ProcessingStep> pipeline = new ArrayList<>();
 				pipeline.add(this::step1);
 				return Flux.fromIterable(pipeline).reduce(bib, (theBib, step) -> step.apply(bib, source));
 			})
-		 .flatMap(this::saveOrUpdate)
-		 .flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
-		 .flatMap(finalBib -> this.updateStatistics(finalBib, source) );
+		.flatMap(this::saveOrUpdate)
+		.flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
+		.flatMap( finalBib -> this.updateStatistics(finalBib, source, start_time) );
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)

@@ -14,7 +14,6 @@ import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
-import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.ingest.IngestSource;
@@ -31,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 public class HostLmsFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
-	private final HostLmsSierraApiClientFactory hostLmsSierraApiClientFactory;
 	private final HostLmsRepository hostLmsRepository;
 	private final HostLmsService hostLmsService;
 	private final PatronFixture patronFixture;
@@ -40,9 +38,8 @@ public class HostLmsFixture {
 
 	public HostLmsFixture(HostLmsRepository hostLmsRepository, HostLmsService hostLmsService,
 		PatronFixture patronFixture, NumericRangeMappingFixture numericRangeMappingFixture,
-		AgencyFixture agencyFixture, HostLmsSierraApiClientFactory hostLmsSierraApiClientFactory) {
+		AgencyFixture agencyFixture) {
 
-		this.hostLmsSierraApiClientFactory = hostLmsSierraApiClientFactory;
 		this.hostLmsRepository = hostLmsRepository;
 		this.hostLmsService = hostLmsService;
 		this.patronFixture = patronFixture;
@@ -184,9 +181,11 @@ public class HostLmsFixture {
 	}
 
 	public HostLmsSierraApiClient createLowLevelSierraClient(String code, HttpClient client) {
-		
 		final var hostLms = findByCode(code);
-		return (HostLmsSierraApiClient) hostLmsSierraApiClientFactory.createClientFor(hostLms);
+
+		// Need to create a client directly
+		// because injecting gives incorrectly configured client
+		return new HostLmsSierraApiClient(hostLms, client);
 	}
 
 	public DataHostLms findByCode(String code) {

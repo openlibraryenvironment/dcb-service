@@ -88,11 +88,6 @@ public class HostLmsService implements IngestSourcesProvider {
 		return findById(id)
 			.flatMap(this::getClientFor);
 	}
-	
-	public <T> Mono<T> withIngestSourceFor ( final HostLms hostLms, Function<IngestSource, T> work ) {
-		return getIngestSourceFor( hostLms )
-			.map( work );
-	}
 
 	public Mono<IngestSource> getIngestSourceFor(final HostLms hostLms) {
 		final var ingestSource = hostLms.getIngestSourceType() != null
@@ -111,7 +106,7 @@ public class HostLmsService implements IngestSourcesProvider {
 		return findByCode(code)
 			.flatMap(this::getIngestSourceFor);
 	}
-	
+
 	@Override
 	public Publisher<IngestSource> getIngestSources() {
 		return getAllHostLms()
@@ -120,7 +115,7 @@ public class HostLmsService implements IngestSourcesProvider {
 				(error, source) -> log.warn("{}", error.getMessage()));
 	}
 
-	public Flux<DataHostLms> getAllHostLms() {
+	private Flux<DataHostLms> getAllHostLms() {
 		// log.debug("getAllHostLms()");
 
 		return Flux.from(hostLmsRepository.queryAll());

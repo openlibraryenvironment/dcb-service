@@ -431,6 +431,7 @@ public class RecordClusteringService {
 		 	.flatMap(ids -> clusterRecords.findAllByDerivedTypeAndMatchPoints(bib.getDerivedType(), ids));
 	}
 	
+	@Timed("bib.cluster")
 	@Transactional(propagation = Propagation.NESTED)
 	public Mono<BibRecord> clusterBib ( final BibRecord bib ) {
 

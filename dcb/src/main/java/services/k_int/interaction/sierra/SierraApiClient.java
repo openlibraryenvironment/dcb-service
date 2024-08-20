@@ -10,7 +10,6 @@ import io.micronaut.http.annotation.Put;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.micronaut.json.tree.JsonNode;
 import services.k_int.interaction.auth.BasicAuthClient;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
@@ -37,20 +36,8 @@ public interface SierraApiClient extends BasicAuthClient {
 	String CONFIG_ROOT = "sierra.client";
 	Logger log = LoggerFactory.getLogger(SierraApiClient.class);
 	
-	URI getRootUri();
+	URI getRootUri(); 
 
-	@SingleResult
-	Publisher<JsonNode> bibsRawResponse(@Nullable final Integer limit, @Nullable final Integer offset,
-			@Nullable final String createdDate, @Nullable final String updatedDate, @Nullable final Iterable<String> fields,
-			@Nullable final Boolean deleted, @Nullable final String deletedDate, @Nullable final Boolean suppressed,
-			@Nullable final Iterable<String> locations);
-
-	@SingleResult
-	default Publisher<JsonNode> bibsRawResponse( BibParams params ) {
-		return bibsRawResponse(params.getLimit(), params.getOffset(), Objects.toString(params.getCreatedDate(), null),
-				Objects.toString(params.getUpdatedDate(), null), nullIfEmpty(params.getFields()), params.getDeleted(),
-				Objects.toString(params.getDeletedDate(), null), params.getSuppressed(), nullIfEmpty(params.getLocations()));
-	}	
 	@SingleResult
 	default Publisher<BibResultSet> bibs(BibParams params) {
 		return bibs(params.getLimit(), params.getOffset(), Objects.toString(params.getCreatedDate(), null),

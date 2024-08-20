@@ -2,6 +2,9 @@ package org.olf.dcb.configuration;
 
 import java.util.List;
 
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
+
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -17,10 +20,9 @@ import org.olf.dcb.storage.ShelvingLocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -33,6 +35,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
  * important to the requesting process such as branches, shelving locations and
  * agencies.
  */
+@Refreshable
 @Singleton
 public class ConfigurationService implements Runnable {
 

@@ -33,6 +33,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPP
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Slf4j
+@Refreshable
 @Singleton
 public class TrackingServiceV3 implements TrackingService {
 

@@ -18,7 +18,7 @@ public class HostLmsSierraApiClientFactory {
 		this.context = context;
 	}
 
-	public SierraApiClient createClientFor(final HostLms hostLms) {
+	SierraApiClient createClientFor(final HostLms hostLms) {
 		return context.createBean(HostLmsSierraApiClient.class, hostLms, client);
 	}
 }

@@ -26,6 +26,8 @@ import java.time.Duration;
 import io.micrometer.core.annotation.Timed;
 
 @Slf4j
+//@Refreshable
+//@Singleton
 public class TrackingServiceV0 implements Runnable {
 
 	public static final String LOCK_NAME = "tracking-service";

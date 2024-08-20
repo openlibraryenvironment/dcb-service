@@ -1,20 +1,25 @@
 package org.olf.dcb.stats;
 
+import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.inject.Singleton;
+
+import org.olf.dcb.core.svc.BibRecordService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.hazelcast.cluster.Member;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.cluster.Member;
 import com.hazelcast.map.IMap;
+import jakarta.annotation.PreDestroy;
 
 import io.micronaut.scheduling.annotation.Scheduled;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.inject.Singleton;
 
 
 /**

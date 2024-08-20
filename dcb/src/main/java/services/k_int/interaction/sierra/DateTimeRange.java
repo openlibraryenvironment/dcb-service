@@ -5,13 +5,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
-import lombok.Builder;
 
-@Builder
-@Serdeable
+import jakarta.annotation.Nullable;
+
+@lombok.Builder
 public class DateTimeRange {
 
 	@NotNull
@@ -30,8 +28,8 @@ public class DateTimeRange {
 			return fromStr;
 		}
 
-		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Get_a_list_of_bibs_get_1
-		// Sierra seems to want the Z specifier, so add it in explicit
+                // https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/bibs/Get_a_list_of_bibs_get_1
+                // Sierra seems to want the Z specifier, so add it in explicit
 		return String.format("[%sZ,%sZ]", fromStr, toStr);
 	}
 
@@ -41,9 +39,9 @@ public class DateTimeRange {
 		return builder.build();
 	}
 
-	public static class DateTimeRangeBuilder {
-		public DateTimeRangeBuilder() {
-		}
-		// Lombok will fill in the fields and methods
-	}
+
+        public static class DateTimeRangeBuilder {
+                public DateTimeRangeBuilder() { }
+                // Lombok will fill in the fields and methods
+        }
 }

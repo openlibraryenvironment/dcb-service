@@ -86,13 +86,11 @@ public class IngestRecord implements CoreBibliographicMetadata {
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
 
-	public static class IngestRecordBuilder {
-		
-		IngestRecordBuilder() {
-			this.canonicalMetadata( new HashMap<>() );
-		}
-		
+	public static class IngestRecordBuilder {		
 		private IngestRecordBuilder addToMd( String key, Object val ) {
+			if (canonicalMetadata == null) {
+				canonicalMetadata(new HashMap<>());
+			}
 			canonicalMetadata.put(key, val);
 			return this;
 		}
