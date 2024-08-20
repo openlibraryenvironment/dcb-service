@@ -71,9 +71,6 @@ public class SourceRecordService implements JobChunkProcessor {
 	
 	@Transactional(readOnly = true)
 	protected Flux<SourceRecordImportJob> getSourceRecordDataSources() {
-
-    log.debug("getSourceRecordDataSources()");
-
 		return Flux.from(lmsService.getIngestSources())
 				.transform(
 						concurrency.toGroupedSubscription(this::createJobInstanceForSource));
@@ -153,11 +150,8 @@ public class SourceRecordService implements JobChunkProcessor {
 
 	@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
-  @Scheduled(initialDelay = "2m", fixedDelay = "${dcb.sourcerecords.interval:5m}")
+	@Scheduled(initialDelay = "20s")
 	protected void scheduleSourceRecordJob() {
-
-    log.debug("scheduleSourceRecordJob()");
-
 		getSourceRecordDataSources()
 			.flatMap( jobService::processJobInstance )
 			.map(chunk -> Optional.ofNullable(chunk.getData()) // Extract resource count.
