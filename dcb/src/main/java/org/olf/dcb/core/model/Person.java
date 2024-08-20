@@ -1,11 +1,16 @@
 package org.olf.dcb.core.model;
 
-import java.util.*;
+import java.util.UUID;
 
-import io.micronaut.core.annotation.*;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.annotation.NonNull;
 
-import io.micronaut.data.annotation.*;
-import io.micronaut.data.annotation.sql.*;
+
+import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Id;
+import io.micronaut.data.annotation.TypeDef;
+import io.micronaut.security.annotation.UpdatedBy;
 import jakarta.validation.constraints.Size;
 
 import io.micronaut.data.model.DataType;
@@ -15,6 +20,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.olf.dcb.core.audit.Auditable;
 
 @Data
 @Serdeable
@@ -24,7 +30,7 @@ import lombok.ToString;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 
-public class Person {
+public class Person implements Auditable {
 	@ToString.Include
 	@NonNull
 	@Id
@@ -48,4 +54,17 @@ public class Person {
 	private String email;
 
 	private Boolean isPrimaryContact;
+
+	@Nullable
+	@UpdatedBy
+	private String lastEditedBy;
+
+	@Nullable
+	private String reason;
+
+	@Nullable
+	private String changeCategory;
+
+	@Nullable
+	private String changeReferenceUrl;
 }

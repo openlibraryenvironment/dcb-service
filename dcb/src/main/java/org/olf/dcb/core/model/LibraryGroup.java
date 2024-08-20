@@ -5,8 +5,10 @@ import java.util.UUID;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Creator;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.*;
 import io.micronaut.data.annotation.Id;
+import io.micronaut.security.annotation.UpdatedBy;
 import jakarta.validation.constraints.Size;
 
 import io.micronaut.data.model.DataType;
@@ -16,6 +18,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Data
@@ -26,7 +29,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Builder
 @ToString(onlyExplicitlyIncluded = true)
 @MappedEntity
-public class LibraryGroup {
+public class LibraryGroup implements Auditable {
 
 	@ToString.Include
 	@NonNull
@@ -46,5 +49,19 @@ public class LibraryGroup {
 	@NonNull
 	@Size(max = 32)
 	private String type;
+
+
+	@Nullable
+	@UpdatedBy
+	private String lastEditedBy;
+
+	@Nullable
+	private String reason;
+
+	@Nullable
+	private String changeCategory;
+
+	@Nullable
+	private String changeReferenceUrl;
 
 }

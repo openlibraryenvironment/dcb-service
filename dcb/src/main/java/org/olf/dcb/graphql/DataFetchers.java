@@ -1,10 +1,10 @@
 package org.olf.dcb.graphql;
 
-import java.util.UUID;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.ingest.model.RawSource;
@@ -233,6 +233,18 @@ public class DataFetchers {
 			Pageable pageable = Pageable
 				.from(pageno.intValue(), pagesize.intValue())
 				.order(order, orderBy);
+
+			String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+				.map(Object::toString)
+				.orElse("User not detected");
+
+			Collection<String> roles = env.getGraphQlContext().get("roles");
+
+			// Check if the user has the required role
+			if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN") && !roles.contains("LIBRARY_ADMIN"))) {
+				log.warn("getDataChangeLog: Access denied for user {} with roles {}: user does not have the required role to access the data change log.", userString, roles);
+				throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");
+			}
 
 			if ((query != null) && (query.length() > 0)) {
 				var spec = qs.evaluate(query, DataChangeLog.class);
@@ -621,8 +633,6 @@ public class DataFetchers {
 
 			log.debug("LibrariesDataFetcher::get({},{},{})", pageno, pagesize, query);
 			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
-
-			log.debug("GQL Context user name Libraries: {}", env.getGraphQlContext().get("currentUser").toString());
 
 			if ((query != null) && (query.length() > 0)) {
 				var spec = qs.evaluate(query, Library.class);

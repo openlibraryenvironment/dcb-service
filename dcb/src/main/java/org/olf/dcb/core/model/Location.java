@@ -2,6 +2,7 @@ package org.olf.dcb.core.model;
 
 import java.util.UUID;
 
+import io.micronaut.security.annotation.UpdatedBy;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -23,6 +24,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
 import lombok.NoArgsConstructor;
+import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import java.time.Instant;
 
@@ -33,7 +35,7 @@ import java.time.Instant;
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
 @Builder
-public class Location {
+public class Location implements Auditable {
 
 	@NotNull
 	@NonNull
@@ -114,4 +116,17 @@ public class Location {
 	// obviously some systems use strings (or UUIDs) and some use integers - so we store it as a string. Each hostLmsClient
 	// will need to do some conversion to coerce the value here into what it needs.
 	private String localId;
+
+	@Nullable
+	@UpdatedBy
+	private String lastEditedBy;
+
+	@Nullable
+	private String reason;
+
+	@Nullable
+	private String changeCategory;
+
+	@Nullable
+	private String changeReferenceUrl;
 }

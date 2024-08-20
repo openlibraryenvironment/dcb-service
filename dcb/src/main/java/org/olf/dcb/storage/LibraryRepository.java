@@ -33,6 +33,10 @@ public interface LibraryRepository {
 
 	@NonNull
 	@SingleResult
+	Publisher<? extends Library> findByFullName(@NonNull String name);
+
+	@NonNull
+	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
 
 	@NonNull
