@@ -1,6 +1,33 @@
 # Changelog
 
+## Version 7.0.0
+
+### Additions
+* [Data   Import]
+	* **BREAKING** -  New Job runner and ingest flows
+* [General]
+	* manually finalise incomplete requests [DCB-1346]
+	* Support editing of locations, libraries and contacts [DCB-1408]
+	* Add support for deleting locations [DCB-1342]
+	* Add delete library capability [DCB-1342]
+
+### Changes
+* [Chore]
+	* Rename migration file
+	* Add fixedDelay to source record service, some additional logging to confirm source harvesting
+	* Ensure delete operations are secured by role [DCB-1342]
+
+### Fixes
+* [General]
+	* use context hierarchy to getAgencyForShelvingLocation [DCB-1426]
+	* NullPointerException in log message [DCB-1426]
+	* Tests cast client to none parent class
+
 ## Version 6.28.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
