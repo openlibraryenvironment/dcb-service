@@ -265,9 +265,13 @@ public class BorrowingAgencyService {
 
 	private Mono<ReferenceValueMapping> getAgencyForShelvingLocation(String context, String code) {
 		return locationToAgencyMappingService.findLocationToAgencyMapping(context, code)
-			.doOnSuccess(rvm -> log.debug("getAgencyForShelvingLocation looked up "+rvm.getToValue()+" for " + context+":"+code))
+			.doOnSuccess(rvm -> log.debug("getAgencyForShelvingLocation looked up "+ getToValue(rvm) +" for " + context+":"+code))
 			.switchIfEmpty(Mono.defer(() -> Mono.error(
 				new DcbError("Failed to resolve shelving loc "+context+":"+code+" to agency"))));
+	}
+
+	private static String getToValue(ReferenceValueMapping rvm) {
+		return rvm.getToValue() != null ? rvm.getToValue() : "null value";
 	}
 
 	private Mono<LocalRequest> borrowingRequestFlow(RequestWorkflowContext ctx,
