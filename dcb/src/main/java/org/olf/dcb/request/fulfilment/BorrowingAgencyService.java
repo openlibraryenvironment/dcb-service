@@ -271,7 +271,7 @@ public class BorrowingAgencyService {
 	}
 
 	private static String getToValue(ReferenceValueMapping rvm) {
-		return rvm.getToValue() != null ? rvm.getToValue() : "null value";
+		return rvm != null && rvm.getToValue() != null ? rvm.getToValue() : "null value";
 	}
 
 	private Mono<LocalRequest> borrowingRequestFlow(RequestWorkflowContext ctx,
