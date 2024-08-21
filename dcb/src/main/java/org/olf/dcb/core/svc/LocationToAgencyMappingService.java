@@ -1,21 +1,22 @@
 package org.olf.dcb.core.svc;
 
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
+
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.core.publisher.Mono.empty;
 import static reactor.core.publisher.Mono.justOrEmpty;
 import static reactor.function.TupleUtils.function;
-
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -69,8 +70,35 @@ public class LocationToAgencyMappingService {
 			return empty();
 		}
 
-		return referenceValueMappingService.findMapping("Location", fromContext,
-			locationCode, "AGENCY", "DCB");
+		return getContextHierarchyFor(fromContext)
+			.flatMap(sourceContexts -> referenceValueMappingService.findMappingUsingHierarchy(
+				"Location", sourceContexts, locationCode, "AGENCY", "DCB"));
+	}
+
+	/**
+	 * A way to fetch a context hierarchy for a given context.
+	 */
+	private Mono<List<String>> getContextHierarchyFor(String context) {
+
+		// guard clause for non-hostlms contexts
+		if ("DCB".equals(context)) return Mono.just(List.of(context));
+
+		return hostLmsService.getClientFor(context)
+			.map(hostLmsClient -> (List<String>) hostLmsClient.getConfig().get("contextHierarchy"))
+			// Keep non-null & non-empty lists
+			.filter(list -> list != null && !list.isEmpty())
+			// Fallback for non-null & non-empty lists
+			.switchIfEmpty(Mono.defer(() -> {
+				log.error("[CONTEXT-HIERARCHY-EMPTY] " +
+					"- Fetching 'contextHierarchy' returned an EMPTY list for context: '{}'", context);
+				return Mono.just(List.of(context));
+			}))
+			// Fallback for error
+			.onErrorResume(error -> {
+				log.error("[CONTEXT-HIERARCHY-ERROR] " +
+					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
+				return Mono.just(List.of(context));
+			});
 	}
 
 	public Mono<String> findDefaultAgencyCode(String hostLmsCode) {

@@ -1,16 +1,15 @@
 package org.olf.dcb.core.svc;
 
-import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.storage.ReferenceValueMappingRepository;
-
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import static services.k_int.utils.ReactorUtils.consumeOnSuccess;
 
 @Slf4j
 @Singleton
@@ -67,11 +66,28 @@ public class ReferenceValueMappingService {
 		Flux<String> contexts = Flux.fromIterable(targetContexts);
 
 		return contexts
-			.doOnNext(ctx -> log.debug("Check context {}",ctx) )
+			.doOnNext(ctx -> log.debug("Check targetContext {}",ctx) )
 			.concatMap( ctx -> findMapping(sourceCategory,sourceContext,sourceValue,targetCategory,ctx))
 			.doOnNext(rvm -> log.debug("result {}",rvm) )
 			.next();
-	
+
+	}
+
+	public Mono<ReferenceValueMapping> findMappingUsingHierarchy(
+		String sourceCategory,
+		List<String> sourceContexts,
+		String sourceValue,
+		String targetCategory,
+		String targetContext) {
+
+		Flux<String> contexts = Flux.fromIterable(sourceContexts);
+
+		return contexts
+			.doOnNext(ctx -> log.debug("Check sourceContext {}",ctx) )
+			.concatMap( ctx -> findMapping(sourceCategory,ctx,sourceValue,targetCategory,targetContext))
+			.doOnNext(rvm -> log.debug("result {}",rvm) )
+			.next();
+
 	}
 	 	
 }
