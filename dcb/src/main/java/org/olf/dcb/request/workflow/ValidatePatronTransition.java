@@ -1,12 +1,15 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.PatronDeletedInHostLmsException;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -62,11 +65,14 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	 */
 	private Mono<PatronIdentity> validatePatronIdentity(PatronIdentity pi) {
 
+		final var hostLms = getValue(pi, PatronIdentity::getHostLms, null);
+
 		// We have a patron id from elsewhere, call the patrons home system to get a record which describes
 		// the patron.
-		log.info("ValidatePatronTransition CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}", pi, pi.getHostLms());
+		log.info("ValidatePatronTransition CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}",
+			pi, hostLms);
 
-		return hostLmsService.getClientFor(pi.getHostLms())
+		return hostLmsService.getClientFor(hostLms)
 			.flatMap(client -> client.getPatronByLocalId(pi.getLocalId()))
 			.flatMap(hostLmsPatron -> {
 				log.info("CIRC update patron identity with latest info from host {}", hostLmsPatron);
@@ -85,16 +91,18 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				if (hostLmsPatron.getLocalBarcodes() == null)
 					log.warn("Patron does not have barcodes.. Will not be able to circulate items");
 
-				if (hostLmsPatron.getIsDeleted() != null && hostLmsPatron.getIsDeleted()) {
-					throw new PatronDeletedInHostLmsException(
-						"Patron with local id " + hostLmsPatron.getLocalId() +
-							" and home library code " + hostLmsPatron.getLocalHomeLibraryCode() +
-							" had a deleted flag.");
+				final var deleted = getValue(hostLmsPatron, Patron::getIsDeleted, false);
+
+				if (deleted) {
+					final var firstLocalId = getValue(hostLmsPatron, Patron::getFirstLocalId, null);
+
+					throw new PatronNotFoundInHostLmsException(firstLocalId, hostLms.getCode());
 				}
 
 				return Mono.just(pi);
 			}).flatMap(updatedPatronIdentity -> {
-					return Mono.fromDirect(resolveHomeLibraryCodeFromSystemToAgencyCode(pi.getHostLms().getCode(),
+					return Mono.fromDirect(resolveHomeLibraryCodeFromSystemToAgencyCode(
+						hostLms.getCode(),
 							pi.getLocalHomeLibraryCode(), pi));
 				}).flatMap(updatedPatronIdentity -> {
 					return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(updatedPatronIdentity));

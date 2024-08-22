@@ -211,8 +211,8 @@ public class ValidatePatronTests {
 				.block());
 
 		// Assert
-		final var expectedMessage = "Patron with local id [%s] and home library code home-library-code had a deleted flag."
-			.formatted(localId);
+		final var expectedMessage = "Patron \"%s\" is not recognised in \"%s\""
+			.formatted(localId, BORROWING_HOST_LMS_CODE);
 
 		assertThat(exception, hasMessage(expectedMessage));
 
