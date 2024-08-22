@@ -108,11 +108,11 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 	private Person createPersonFromInput(Map<String, Object> contactInput) {
 		return Person.builder()
 			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + contactInput.get("firstName") + contactInput.get("lastName") + contactInput.get("role") + contactInput.get("email")))
-			.firstName(contactInput.get("firstName").toString())
-			.lastName(contactInput.get("lastName").toString())
+			.firstName(contactInput.get("firstName").toString().trim())
+			.lastName(contactInput.get("lastName").toString().trim())
 			.role(contactInput.get("role").toString())
 			.isPrimaryContact(contactInput.get("isPrimaryContact") != null ? Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
-			.email(contactInput.get("email").toString())
+			.email(contactInput.get("email").toString().trim())
 			.build();
 	}
 

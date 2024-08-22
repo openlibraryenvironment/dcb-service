@@ -129,6 +129,7 @@ input UpdateLocationInput {
 	type: String
 	latitude: Float
 	longitude: Float
+	name: String
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
