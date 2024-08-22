@@ -48,6 +48,8 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
                 (Double) input_map.get("latitude") : null;
 		Double longitude = input_map.containsKey("longitude") ?
 			(Double) input_map.get("longitude") : null;
+		Optional<String> name = Optional.ofNullable(input_map.get("name"))
+			.map(Object::toString);
 		Optional<String> reason = Optional.ofNullable(input_map.get("reason"))
 			.map(Object::toString);
 		Optional<String> changeReferenceUrl = Optional.ofNullable(input_map.get("changeReferenceUrl"))
@@ -76,6 +78,7 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 					if (longitude != null) {
 						location.setLongitude(longitude);
 					}
+					name.ifPresent(location::setName);
 					location.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(location::setChangeReferenceUrl);
 					changeCategory.ifPresent(location::setChangeCategory);
