@@ -22,6 +22,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
@@ -1318,19 +1319,23 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private HostLmsItem sierraItemToHostLmsItem(SierraItem item) {
 		log.debug("convert {} to HostLmsItem", item);
 
-		if ((item.getStatus() == null) || (item.getBarcode() == null) || (item.getId() == null)) {
+		final var status = item.getStatus();
+
+		if ((status == null) || (item.getBarcode() == null) || (item.getId() == null)) {
 			log.warn("Detected a sierra item with null status: {}", item);
 		}
 
-		final var resolvedStatus = item.getStatus() != null
-			? mapSierraItemStatusToDCBHoldStatus(item.getStatus())
-			: (item.getDeleted() ? "MISSING" : "UNKNOWN");
+		final var deleted = getValue(item, SierraItem::getDeleted, false);
+
+		final var resolvedStatus = status != null
+			? mapSierraItemStatusToDCBHoldStatus(status)
+			: (deleted ? "MISSING" : "UNKNOWN");
 
 		return HostLmsItem.builder()
 			.localId(item.getId())
 			.barcode(item.getBarcode())
 			.status(resolvedStatus)
-			.rawStatus(item.getStatus().getCode() != null ? item.getStatus().getCode() : null)
+			.rawStatus(getValue(status, Status::getCode, null))
 			.build();
 	}
 

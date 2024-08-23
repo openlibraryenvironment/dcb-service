@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
@@ -84,6 +85,35 @@ class SierraHostLmsClientGetItemTests {
 			hasBarcode(barcode),
 			hasStatus(ITEM_AVAILABLE),
 			hasRawStatus("-")
+		));
+	}
+
+	@Test
+	@SneakyThrows
+	void shouldTolerateNullStatusForDeletedItem() {
+		// Arrange
+		final var localItemId = "6736342";
+		final var barcode = "108573653";
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode(barcode)
+				.deleted(true)
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var item = singleValueFrom(client.getItem(localItemId, null));
+
+		// Assert
+		assertThat(item, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasBarcode(barcode),
+			hasStatus(ITEM_MISSING),
+			hasRawStatus(null)
 		));
 	}
 }
