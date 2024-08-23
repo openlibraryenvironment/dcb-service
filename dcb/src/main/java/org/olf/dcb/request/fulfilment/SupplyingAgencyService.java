@@ -174,6 +174,7 @@ public class SupplyingAgencyService {
 				final var message = "Delete supplier hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditData.put("Error", error.toString());
+				auditData.put("StackTrace", Objects.toString(error.getStackTrace()));
 				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
 			});
 	}
@@ -186,6 +187,8 @@ public class SupplyingAgencyService {
 			final var message = "Delete supplier hold : Failed";
 			final var auditData = new HashMap<String, Object>();
 			auditData.put("Error", error.toString());
+ 			auditData.put("StackTrace", Objects.toString(error.getStackTrace()));
+
 			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
 				.flatMap(audit -> Mono.just("Error"));
 		};
