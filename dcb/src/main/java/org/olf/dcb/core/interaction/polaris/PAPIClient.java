@@ -282,19 +282,21 @@ public class PAPIClient {
 	private Function<PatronSearchResult, Mono<PatronSearchRow>> checkForUniquePatronResult(String path, String ccl) {
 		return patronSearchResult -> {
 
-			final var recordsFound = patronSearchResult.getTotalRecordsFound();
+			final var patronSearchRows = getValueOrNull(patronSearchResult, PatronSearchResult::getPatronSearchRows);
+			final var rowSize = (patronSearchRows != null) ? patronSearchRows.size() : 0;
 
-			if (recordsFound < 1) {
+			if (rowSize < 1) {
+
 				log.warn("No virtual Patron found, returning an empty mono to create a new patron.");
 
 				return Mono.empty();
 			}
 
-			if (recordsFound > 1) {
+			if (rowSize > 1) {
 				log.error("More than one virtual patron found: {}", patronSearchResult);
 
 				raiseError(Problem.builder()
-					.withTitle(recordsFound + " records found for virtual patron.")
+					.withTitle(rowSize + " records found for virtual patron.")
 					.withDetail(path)
 					.with("ccl", ccl)
 					.with("Full response", patronSearchResult)
