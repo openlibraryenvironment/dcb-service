@@ -1196,10 +1196,32 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		log.debug("getPatronByLocalId({})", localPatronId);
 
+		if (safeParseLong(localPatronId) == null) {
+			log.error("GUARD CLAUSE : localPatronId '{}' cannot be parsed as long", localPatronId);
+
+			return Mono.error(patronNotFound(localPatronId, getHostLmsCode()));
+		}
+
 		return Mono.from(client.getPatron(Long.valueOf(localPatronId)))
 			.flatMap(patronRecord -> sierraPatronMapper.sierraPatronToHostLmsPatron(patronRecord,
 				this.lms.getCode()))
 			.switchIfEmpty(Mono.error(patronNotFound(localPatronId, getHostLmsCode())));
+	}
+
+	private Long safeParseLong(String str) {
+		try {
+			return Long.parseLong(str);
+		} catch (NumberFormatException e) {
+			log.debug("NumberFormatException caught for string {} returning null", str);
+			return null;
+		}
+	}
+
+	public Mono<Patron> getPatronByBarcode(String localPatronBarcode) {
+		log.debug("getPatronByLocalBarcode({})", localPatronBarcode);
+
+		return patronFind("b", localPatronBarcode)
+			.switchIfEmpty(Mono.error(patronNotFound(localPatronBarcode, getHostLmsCode())));
 	}
 
 	public Mono<Patron> getPatronByUsername(String username) {

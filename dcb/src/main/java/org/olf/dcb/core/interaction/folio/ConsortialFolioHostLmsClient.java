@@ -463,6 +463,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Mono<Patron> getPatronByBarcode(String localPatronBarcode) {
+
+		return findUserByBarcode(localPatronBarcode)
+			.doOnError(error -> log.error("Error occurred while fetching patron by local barcode: {}", localPatronBarcode, error));
+	}
+
+	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
 		// we use barcode for patron lookup not username
 		return findUserByBarcode(localUsername)

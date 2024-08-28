@@ -839,10 +839,31 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
+
+		if (safeParseInteger(localPatronId) == null) {
+			log.error("GUARD CLAUSE : localPatronId '{}' cannot be parsed as integer", localPatronId);
+
+			return Mono.error(patronNotFound(localPatronId, getHostLmsCode()));
+		}
+
 		return ApplicationServices.getPatron(localPatronId)
 			.flatMap(this::enrichWithCanonicalPatronType)
 			.zipWhen(this::getPatronCirculationBlocks, PolarisLmsClient::isBlocked)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(localPatronId, getHostLmsCode()))));
+	}
+
+	public Integer safeParseInteger(String str) {
+		try {
+			return Integer.parseInt(str);
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	@Override
+	public Mono<Patron> getPatronByBarcode(String localPatronBarcode) {
+		return ApplicationServices.getPatronIdByIdentifier(localPatronBarcode, "barcode")
+			.flatMap(this::getPatronByLocalId);
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron) {
