@@ -69,6 +69,8 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	// Look up patron by their internal id - e.g. 1234
 	Mono<Patron> getPatronByLocalId(String localPatronId);
 
+	Mono<Patron> getPatronByBarcode(String localPatronBarcode);
+
 	// Look up patron by the string they use to identify themselves on the login screen - e.g. fred.user
 	Mono<Patron> getPatronByUsername(String username);
 

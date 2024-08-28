@@ -319,6 +319,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var localPatronId = "365573";
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("b", localPatronId);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()

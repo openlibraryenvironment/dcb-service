@@ -230,7 +230,9 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patron);
 
-		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId("672954");
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("b", localId);
+
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,

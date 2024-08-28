@@ -550,6 +550,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final var localPatronId = "673825";
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("b", localPatronId);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -567,6 +568,43 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				"Patron \"%s\" is not recognised in \"%s\""
 					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
 		));
+	}
+
+	@Test
+	void shouldPassWhenPatronCanBeFoundInHostLmsByBarcodeFallback() {
+		// Arrange
+		final var localPatronId = 673825;
+		final var localPatronBarcode = "3100222227777";
+		final var localPatronType = 15;
+
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronBarcode);
+		sierraPatronsAPIFixture.patronFoundResponse("b", localPatronBarcode,
+			Patron.builder()
+				.id(localPatronId)
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.names(List.of("Harry Potter"))
+				.barcodes(List.of("3100222227777"))
+				.build());
+
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+			true);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronBarcode)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
 	}
 
 	@Test

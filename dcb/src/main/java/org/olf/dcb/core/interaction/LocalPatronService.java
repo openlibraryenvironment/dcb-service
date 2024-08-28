@@ -34,13 +34,31 @@ public class LocalPatronService {
 		String localPatronId, String hostLmsCode) {
 
 		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap(client -> client.getPatronByLocalId(localPatronId))
+			.flatMap(client -> getPatronByIdentifier(localPatronId, client))
 			.doOnSuccess(patron -> log.debug("Found patron: {} from Host LMS: {}", patron, hostLmsCode))
 			// Could be done inside the Host LMS client method
 			// Was not done initially due to potentially affecting other uses
 			.filter(Patron::isNotDeleted)
 			// This uses a tuple because the patron does not directly have an association with an agency
 			.zipWhen(patron -> findAgencyForPatron(patron, hostLmsCode));
+	}
+
+	private Mono<Patron> getPatronByIdentifier(String identifier, HostLmsClient client) {
+
+		log.info("Getting patron by local id {}", identifier);
+		return client.getPatronByLocalId(identifier)
+			.onErrorResume(error -> {
+
+				if (error instanceof PatronNotFoundInHostLmsException) {
+
+					log.warn("FALLBACK : getting patron by barcode {}", identifier);
+					return client.getPatronByBarcode(identifier);
+				}
+
+				log.error("Get patron by barcode was skipped for error", error);
+				return Mono.error(error);
+			})
+			.doOnError(error -> log.error("Getting patron by identifier '{}' failed with error", identifier, error));
 	}
 
 	private Mono<DataAgency> findAgencyForPatron(Patron patron, String hostLmsCode) {
