@@ -9,7 +9,7 @@ public class TrackingHelpers {
 	// See: https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2870575137/Tracking+v3+matrix
   //
 	public static Optional<Duration> getDurationFor(Status pr_status) {
-		return getDevDurationFor(pr_status);
+		return getLiveDurationFor(pr_status);
 	}
 
 	public static Optional<Duration> getDevDurationFor(Status pr_status) {
