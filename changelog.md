@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 7.1.0
+
+### Additions
+* [General]
+	* identify patron using barcode when placing DCB request [DCB-1425]
+	* Support editing location names [DCB-1462]
+
+### Fixes
+* [General]
+	* NullPointerException in PAPIClient [DCB-1469]
+	* Tolerate null status for deleted Sierra item DCB-1396
+	* Remove whitespace in contact names and emails [DCB-1408]
+
 ## Version 7.0.0
 
 ### Additions
@@ -13,6 +26,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Rename migration file
 	* Add fixedDelay to source record service, some additional logging to confirm source harvesting
 	* Ensure delete operations are secured by role [DCB-1342]
