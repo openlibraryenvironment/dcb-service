@@ -26,6 +26,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
@@ -269,29 +270,39 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<Item> mapHoldingToItem(Holding holding, String instanceId) {
-		return Mono.justOrEmpty(holding.getStatus())
-			.flatMap(status -> itemStatusMapper.mapStatus(status, hostLms.getCode(), folioFallback()))
+		return Mono.justOrEmpty(getValueOrNull(holding, Holding::getStatus))
+			.flatMap(status -> itemStatusMapper.mapStatus(status, getHostLmsCode(), folioFallback()))
 			.map(status -> Item.builder()
-				.localId(holding.getId())
+				.localId(getValueOrNull(holding, Holding::getId))
 				.localBibId(instanceId)
-				.barcode(holding.getBarcode())
-				.callNumber(holding.getCallNumber())
+				.barcode(getValueOrNull(holding, Holding::getBarcode))
+				.callNumber(getValueOrNull(holding, Holding::getCallNumber))
 				.status(status)
-				.dueDate(holding.getDueDate())
-				.holdCount(holding.getTotalHoldRequests())
-				.localItemType(getValueOrNull(holding.getMaterialType(), MaterialType::getName))
-				.localItemTypeCode(getValueOrNull(holding.getMaterialType(), MaterialType::getName))
+				.dueDate(getValueOrNull(holding, Holding::getDueDate))
+				.holdCount(getValueOrNull(holding, Holding::getTotalHoldRequests))
+				.localItemType(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
+				.localItemTypeCode(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
 				.location(Location.builder()
-					.name(holding.getLocation())
-					.code(holding.getLocationCode())
+					.name(getValueOrNull(holding, Holding::getLocation))
+					.code(getValueOrNull(holding, Holding::getLocationCode))
 					.build())
 				.rawVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 				.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
-				.suppressed(holding.getSuppressFromDiscovery())
+				.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
 				.deleted(false)
 				.build())
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
-			.flatMap(item -> materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(item, getHostLmsCode()));
+			.flatMap(this::mapLocationToAgency)
+			.flatMap(this::mapMaterialTypeToItemType);
+	}
+
+	private Mono<Item> mapLocationToAgency(Item item) {
+		return locationToAgencyMappingService
+			.enrichItemAgencyFromLocation(item, getHostLmsCode());
+	}
+
+	private Mono<Item> mapMaterialTypeToItemType(Item item) {
+		return materialTypeToItemTypeMappingService
+			.enrichItemWithMappedItemType(item, getHostLmsCode());
 	}
 
 	@Override

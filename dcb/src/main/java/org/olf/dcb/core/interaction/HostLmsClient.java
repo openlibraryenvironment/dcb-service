@@ -1,5 +1,8 @@
 package org.olf.dcb.core.interaction;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
 import java.util.List;
 import java.util.Map;
 
@@ -28,11 +31,11 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	HostLms getHostLms();
 
 	default String getHostLmsCode() {
-		return getHostLms().getCode();
+		return getValueOrNull(getHostLms(), HostLms::getCode);
 	}
 
 	default Map<String, Object> getConfig() {
-		return getHostLms().getClientConfig();
+		return getValue(getHostLms(), HostLms::getClientConfig, Map.of());
 	}
 
 	default String getDefaultAgencyCode() {
