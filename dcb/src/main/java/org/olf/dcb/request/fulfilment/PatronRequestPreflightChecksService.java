@@ -3,17 +3,20 @@ package org.olf.dcb.request.fulfilment;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static java.util.Collections.emptyList;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.StringUtils.truncate;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.UnhandledExceptionProblem;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
 import org.olf.dcb.utils.CollectionUtils;
+import org.zalando.problem.Problem;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +42,10 @@ public class PatronRequestPreflightChecksService {
 		return performChecks(command)
 			// Has to go before flatMap that possibly raises error
 			.onErrorMap(UnhandledExceptionProblem::new)
+			.doOnError(UnhandledExceptionProblem.class, unhandledExceptionProblem ->
+				log.error("Unhandled error in preflight checks, message: {}, additional info: {}",
+					getValue(unhandledExceptionProblem, Problem::getDetail, "No Message"),
+					getValue(unhandledExceptionProblem, Problem::getParameters, Map.of())))
 			.flatMap(results -> {
 				if (allPassed(results)) {
 					log.info("request passed preflight {}", command);
