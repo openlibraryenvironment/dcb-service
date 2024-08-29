@@ -18,12 +18,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
-import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasCode;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -36,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +42,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.Event;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
@@ -707,6 +704,45 @@ class PatronRequestApiTests {
 		final var response = exception.getResponse();
 
 		assertThat(response.getStatus(), is(NOT_FOUND));
+	}
+
+	@Test
+	void shouldRollbackPatronRequestToPreviousStateSuccessfully() {
+		log.info("\n\nshouldRollbackPatronRequestToPreviousStateSuccessfully\n\n");
+
+		// Arrange
+		final var patronRequestId = UUID.randomUUID();
+		final var bibClusterId = UUID.randomUUID();
+		final var LOCAL_ID = "local-identity";
+		final var homeHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE);
+		final var existingPatron = patronFixture.savePatron("home-library");
+		final var patronIdentity = patronFixture.saveIdentityAndReturn(existingPatron, homeHostLms,
+			LOCAL_ID, true, "-", BORROWING_HOST_LMS_CODE, null);
+
+		patronRequestsFixture.savePatronRequest(PatronRequest.builder()
+			.id(patronRequestId)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.requestingIdentity(patronIdentity)
+			.bibClusterId(bibClusterId)
+			.status(ERROR)
+			.previousStatus(RETURN_TRANSIT)
+			.errorMessage("This is a test error message")
+			.build());
+
+		// Act
+		patronRequestApiClient.rollbackPatronRequest(patronRequestId);
+
+		// Assert
+		final var rolledBackPatronRequest = patronRequestsFixture.findById(patronRequestId);
+
+		assertThat("Should have rolled back current status",
+			rolledBackPatronRequest.getStatus(), is(RETURN_TRANSIT));
+		assertThat("Should have set the previous status",
+			rolledBackPatronRequest.getPreviousStatus(), is(ERROR));
+		assertThat("Should no longer have an error message",
+			rolledBackPatronRequest.getErrorMessage(), Matchers.nullValue());
+		assertThat("Should set the next expected status",
+			rolledBackPatronRequest.getNextExpectedStatus(), is(RETURN_TRANSIT.getNextExpectedStatus()));
 	}
 
 	private static Matcher<Object> isPlacedAtBorrowingAgency() {

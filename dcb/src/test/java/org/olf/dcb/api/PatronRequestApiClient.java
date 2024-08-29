@@ -64,6 +64,16 @@ class PatronRequestApiClient {
 		return blockingClient.exchange(request, PlacedPatronRequest.class);
 	}
 
+	HttpResponse<UUID> rollbackPatronRequest(UUID patronRequestId) {
+
+		final var blockingClient = httpClient.toBlocking();
+
+		final var request = HttpRequest.POST("/patrons/requests/" + patronRequestId + "/rollback", patronRequestId)
+			.bearerAuth(accessToken);
+
+		return blockingClient.exchange(request, UUID.class);
+	}
+
 	@Serdeable
 	@Value
 	@Builder
