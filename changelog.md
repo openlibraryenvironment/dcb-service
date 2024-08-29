@@ -1,11 +1,31 @@
 # Changelog
 
+## Version 7.2.0
+
+### Additions
+* [General]
+	* rollback request api [DCB-1492]
+
+### Changes
+* [Test]
+	* shouldRollbackPatronRequestToPreviousStateSuccessfully [DCB-1492]
+
+### Fixes
+* [General]
+	* Don't allow users to edit location types [DCB-1405]
+	* NullPointerException during finalisation [DCB-1398]
+	* Map FOLIO item volume to live availability DCB-1491
+
 ## Version 7.1.0
 
 ### Additions
 * [General]
 	* identify patron using barcode when placing DCB request [DCB-1425]
 	* Support editing location names [DCB-1462]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
