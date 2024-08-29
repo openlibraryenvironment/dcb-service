@@ -115,6 +115,15 @@ public class PatronRequestController {
 		return trackingService.forceUpdate(patronRequestId);
 	}
 
+	/**
+	 * Explicitly attempts to roll back this request by setting the previous status
+	 */
+	@SingleResult
+	@Post(value = "/{patronRequestId}/rollback", consumes = APPLICATION_JSON)
+	public Mono<UUID> rollbackPatronRequest(@NotNull final UUID patronRequestId) {
+		return patronRequestService.initialiseRollback(patronRequestId);
+	}
+
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequest(

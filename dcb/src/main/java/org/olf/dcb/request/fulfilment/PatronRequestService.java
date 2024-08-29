@@ -1,12 +1,20 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.function.TupleUtils.function;
 
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
+import io.micronaut.context.BeanProvider;
+import jakarta.validation.constraints.NotNull;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
@@ -30,12 +38,15 @@ public class PatronRequestService {
 	private final FindOrCreatePatronService findOrCreatePatronService;
 	private final PatronRequestPreflightChecksService preflightChecksService;
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+	private final BeanProvider<PatronRequestAuditService> patronRequestAuditService;
 
 	public PatronRequestService(PatronRequestRepository patronRequestRepository,
 		PatronRequestWorkflowService requestWorkflow, PatronService patronService,
 		FindOrCreatePatronService findOrCreatePatronService,
 		PatronRequestPreflightChecksService preflightChecksService,
-		PatronRequestAuditRepository patronRequestAuditRepository) {
+		PatronRequestAuditRepository patronRequestAuditRepository, 
+		BeanProvider<PatronRequestAuditService> patronRequestAuditService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflow = requestWorkflow;
@@ -43,6 +54,7 @@ public class PatronRequestService {
 		this.findOrCreatePatronService = findOrCreatePatronService;
 		this.preflightChecksService = preflightChecksService;
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	public Mono<? extends PatronRequest> placePatronRequest(
@@ -136,5 +148,71 @@ public class PatronRequestService {
 
 	public Mono<List<PatronRequestAudit>> findAllAuditsFor(PatronRequest patronRequest) {
 		return Flux.from(patronRequestAuditRepository.findByPatronRequest(patronRequest)).collectList();
+	}
+
+	public Mono<UUID> initialiseRollback(@NotNull UUID patronRequestId) {
+		log.debug("initialiseRollback({})", patronRequestId);
+
+		return Mono.from(patronRequestRepository.findById(patronRequestId))
+			.flatMap( auditRollbackActioned() )
+			.filter( applicableRollbackStatuses() )
+			.flatMap( rollbackRequest() )
+
+			// For when rollback was skipped or produced an empty
+			.switchIfEmpty(Mono.defer(() -> {
+				final var auditDataMap = new HashMap<String, Object>();
+				auditDataMap.put("reason", "caught empty when attempting to rollback");
+				return patronRequestAuditService.get()
+					.addAuditEntry(patronRequestId, "Rollback failed.", auditDataMap)
+					.map(PatronRequestAudit::getPatronRequest);
+			}))
+
+			// Something unexpected happened
+			.onErrorResume(error -> {
+				final var auditDataMap = new HashMap<String, Object>();
+				auditDataMap.put("error", error.toString());
+				auditDataMap.put("stacktrace", error.getStackTrace());
+				return patronRequestAuditService.get()
+					.addAuditEntry(patronRequestId, "Rollback failed.", auditDataMap)
+					.map(PatronRequestAudit::getPatronRequest);
+			})
+			.map(PatronRequest::getId);
+	}
+
+	private static Predicate<PatronRequest> applicableRollbackStatuses() {
+
+		// The list of statuses that can be rolled back
+		final List<PatronRequest.Status> applicableStatuses = List.of(ERROR);
+
+		return patronRequest -> applicableStatuses.contains(patronRequest.getStatus());
+	}
+
+	private Function<PatronRequest, Mono<? extends PatronRequest>> rollbackRequest() {
+		return patronRequest -> {
+
+			final var previousStatus = patronRequest.getPreviousStatus();
+
+			patronRequest.setStatus(previousStatus);
+			patronRequest.setErrorMessage(null);
+			patronRequest.setNextScheduledPoll(Instant.now());
+
+			return updatePatronRequest(patronRequest);
+		};
+	}
+
+	private Function<PatronRequest, Mono<? extends PatronRequest>> auditRollbackActioned() {
+		return patronRequest -> {
+
+			final var auditDataMap = new HashMap<String, Object>();
+			auditDataMap.put("rollback-from-status", patronRequest.getStatus());
+			auditDataMap.put("rollback-to-status", patronRequest.getPreviousStatus());
+
+			return audit(patronRequest, "Rollback actioned.", auditDataMap)
+				.map(PatronRequestAudit::getPatronRequest);
+		};
+	}
+
+	private Mono<PatronRequestAudit> audit(PatronRequest patronRequest, String message, Map<String, Object> auditData) {
+		return patronRequestAuditService.get().addAuditEntry(patronRequest, message, auditData);
 	}
 }
