@@ -36,6 +36,10 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoLocalItemTypeCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoParsedVolumeStatement;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoRawVolumeStatement;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasParsedVolumeStatement;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasRawVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasUnknownCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
@@ -132,6 +136,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				.materialType(MaterialType.builder()
 					.name("book")
 					.build())
+				.volume("volume one")
 				.build(),
 			Holding.builder()
 				.id("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3")
@@ -167,6 +172,8 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasLocalItemTypeCode("book"),
 					hasCanonicalItemType("canonical-book"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
+					hasRawVolumeStatement("volume one"),
+					hasParsedVolumeStatement("volume one"),
 					isSuppressed(),
 					isNotDeleted(),
 					hasAgencyCode("known-agency"),
@@ -185,6 +192,8 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasNoLocalItemTypeCode(),
 					hasCanonicalItemType("UNKNOWN"),
 					hasLocation("Social Service Administration", "SSA"),
+					hasNoRawVolumeStatement(),
+					hasNoParsedVolumeStatement(),
 					isNotSuppressed(),
 					isNotDeleted(),
 					hasNoAgency(),

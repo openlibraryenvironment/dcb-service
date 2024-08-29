@@ -36,6 +36,22 @@ public class ItemMatchers {
 		return hasProperty("callNumber", is(nullValue()));
 	}
 
+	public static Matcher<Item> hasRawVolumeStatement(String expectedStatement) {
+		return hasProperty("rawVolumeStatement", is(expectedStatement));
+	}
+
+	public static Matcher<Item> hasNoRawVolumeStatement() {
+		return hasProperty("rawVolumeStatement", is(nullValue()));
+	}
+
+	public static Matcher<Item> hasParsedVolumeStatement(String expectedStatement) {
+		return hasProperty("parsedVolumeStatement", is(expectedStatement));
+	}
+
+	public static Matcher<Item> hasNoParsedVolumeStatement() {
+		return hasProperty("parsedVolumeStatement", is(nullValue()));
+	}
+
 	public static Matcher<Item> hasLocation(String expectedName, String expectedCode) {
 		return hasProperty("location", allOf(
 			hasProperty("name", is(expectedName)),
