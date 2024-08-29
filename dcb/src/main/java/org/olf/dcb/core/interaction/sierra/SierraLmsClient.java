@@ -1300,6 +1300,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
 		log.debug("updateItemStatus({},{})", itemId, crs);
+
+		// Guard clause for NullPointerException DCB-1398
+		if (CanonicalItemState.COMPLETED.equals(crs)) {
+			log.info("GUARD CLAUSE : " + getName() + " cannot update item status for CanonicalItemState.COMPLETED");
+
+			return Mono.just("OK");
+		}
+
 		// See
 		// https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html#Standard
 		// In Sierra "-" == AVAILABLE, !=ON_HOLDSHELF, $=BILLED PAID, m=MISSING,

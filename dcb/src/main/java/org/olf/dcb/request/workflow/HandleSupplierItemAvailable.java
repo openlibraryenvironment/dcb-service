@@ -8,7 +8,6 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -17,16 +16,12 @@ import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
-import org.olf.dcb.tracking.model.StateChange;
 
 import io.micronaut.context.BeanProvider;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import static reactor.function.TupleUtils.function;
 
 @Slf4j
 @Singleton
@@ -83,12 +78,11 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 
-		ctx.getPatronRequest().setStatus(PatronRequest.Status.COMPLETED);
-
 		// DCB-851 update borrowing lib
 		return updateBorrowerThatItemHasBeenReceivedBack(ctx.getPatronRequest())
-			.flatMap( ok -> Mono.from(supplierRequestRepository.saveOrUpdate(ctx.getSupplierRequest()) ) )
-			.flatMap( ssr -> Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest())) )
+			.map( ok -> ctx.getPatronRequest().setStatus(PatronRequest.Status.COMPLETED))
+			.doOnSuccess( pr -> Mono.from(supplierRequestRepository.saveOrUpdate(ctx.getSupplierRequest()) ) )
+			.flatMap( pr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
 			.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers item back on the shelf after loan. Completing request") )
 			.thenReturn(ctx);
 	}
