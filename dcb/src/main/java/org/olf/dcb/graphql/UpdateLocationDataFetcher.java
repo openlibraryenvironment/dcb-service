@@ -42,14 +42,14 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 
 		UUID id = input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null;
 
-		String locationType = input_map.containsKey("type") ?
-			(input_map.get("type").toString()) : null;
 		Double latitude = input_map.containsKey("latitude") ?
                 (Double) input_map.get("latitude") : null;
 		Double longitude = input_map.containsKey("longitude") ?
 			(Double) input_map.get("longitude") : null;
 		Optional<String> name = Optional.ofNullable(input_map.get("name"))
 			.map(Object::toString);
+		Optional<Boolean> isPickupLocation = Optional.ofNullable(input_map.get("isPickup"))
+			.map(value -> Boolean.parseBoolean(value.toString()));
 		Optional<String> reason = Optional.ofNullable(input_map.get("reason"))
 			.map(Object::toString);
 		Optional<String> changeReferenceUrl = Optional.ofNullable(input_map.get("changeReferenceUrl"))
@@ -63,15 +63,12 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 
 		// Check if the user has the required role to edit location information
 		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN") && !roles.contains("LIBRARY_ADMIN"))) {
-			log.warn("updateLibraryDataFetcher: Access denied for user {}: user does not have the required role to update a location.", userString);
+			log.warn("updateLocationDataFetcher: Access denied for user {}: user does not have the required role to update a location.", userString);
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");		}
 
 		Mono<Location> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(locationRepository.findById(id))
 				.flatMap(location -> {
-					if (locationType != null) {
-						location.setType(locationType);
-					}
 					if (latitude != null) {
 						location.setLatitude(latitude);
 					}
@@ -79,6 +76,7 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 						location.setLongitude(longitude);
 					}
 					name.ifPresent(location::setName);
+					isPickupLocation.ifPresent(location::setIsPickup);
 					location.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(location::setChangeReferenceUrl);
 					changeCategory.ifPresent(location::setChangeCategory);

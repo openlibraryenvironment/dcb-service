@@ -126,9 +126,9 @@ input UpdateAgencyParticipationInput {
 
 input UpdateLocationInput {
 	id: ID!
-	type: String
 	latitude: Float
 	longitude: Float
+	isPickup: Boolean
 	name: String
 	reason: String
 	changeReferenceUrl: String
