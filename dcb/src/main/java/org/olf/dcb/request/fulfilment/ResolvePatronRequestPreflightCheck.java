@@ -71,15 +71,20 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.defaultIfEmpty(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
 				"Failed due to empty reactive chain")))
-			.timeout(Duration.ofSeconds(30), Mono.just(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST", "Failed due to timeout"))));
+			.timeout(Duration.ofSeconds(30), Mono.just(List.of(
+				failed("NO_ITEM_SELECTABLE_FOR_REQUEST", "Failed due to timeout"))));
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
 		log.debug("mapToPatron {}", command);
 
-		return localPatronService.findLocalPatronAndAgency(
-				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId),
-				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
+		final var localPatronId = getValueOrNull(command,
+			PlacePatronRequestCommand::getRequestorLocalId);
+
+		final var borrowingHostLmsCode = getValueOrNull(command,
+			PlacePatronRequestCommand::getRequestorLocalSystemCode);
+
+		return localPatronService.findLocalPatronAndAgency(localPatronId, borrowingHostLmsCode)
 			.doOnSuccess(consumer((patron, agency) -> log.debug("Finished fetching patron: {} and agency: {}", patron, agency)))
 			.map(function((patron, agency) -> {
 				final var homeIdentity = PatronIdentity.builder()
