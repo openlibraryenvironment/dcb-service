@@ -39,6 +39,8 @@ class PAPIAuthFilter {
 	private final PolarisLmsClient client;
 	private final String URI_PARAMETERS;
 	private Boolean overrideMethod;
+	private final static DateTimeFormatter FORMATTER = DateTimeFormatter.RFC_1123_DATE_TIME
+			.withZone(ZoneId.of("UTC"));
 
 	PAPIAuthFilter(PolarisLmsClient client, PolarisConfig polarisConfig) {
 		this.client = client;
@@ -215,10 +217,7 @@ class PAPIAuthFilter {
 	}
 
 	private String generateUTCFormattedDateTime() {
-		final var formatter = DateTimeFormatter
-			.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z")
-			.withZone(ZoneId.of("UTC"));
-		return formatter.format(Instant.now());
+		return FORMATTER.format(Instant.now());
 	}
 
 	@Builder
