@@ -31,6 +31,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
@@ -347,20 +348,22 @@ class PlaceRequestAtSupplyingAgencyTests {
 			hasErrorMessage(partOfTruncatedErrorMessage)
 		));
 
-		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(fetchedPatronRequest);
+		final var audits = patronRequestsFixture.findAuditEntries(fetchedPatronRequest);
 
-		assertThat(onlyAuditEntry, allOf(
-			briefDescriptionContains(partOfTruncatedErrorMessage),
-			hasFromStatus(RESOLVED),
-			hasToStatus(ERROR),
-			hasAuditDataDetail(expectedDetail),
-			hasAuditDataProperty("responseStatusCode", 500),
-			hasNestedAuditDataProperty("responseBody","code", 109),
-			hasNestedAuditDataProperty("responseBody","description", "Invalid configuration"),
-			hasNestedAuditDataProperty("responseBody","httpStatus", 500),
-			hasNestedAuditDataProperty("responseBody","name", "Internal server error"),
-			hasNestedAuditDataProperty("responseBody","specificCode", 0)
-		));
+		assertThat("There should be one matching audit entry",
+			audits, hasItem(allOf(
+				briefDescriptionContains(partOfTruncatedErrorMessage),
+				hasFromStatus(RESOLVED),
+				hasToStatus(ERROR),
+				hasAuditDataDetail(expectedDetail),
+				hasAuditDataProperty("responseStatusCode", 500),
+				hasNestedAuditDataProperty("responseBody", "code", 109),
+				hasNestedAuditDataProperty("responseBody", "description", "Invalid configuration"),
+				hasNestedAuditDataProperty("responseBody", "httpStatus", 500),
+				hasNestedAuditDataProperty("responseBody", "name", "Internal server error"),
+				hasNestedAuditDataProperty("responseBody", "specificCode", 0)
+			))
+		);
 	}
 
 	private void patronRequestWasPlaced(PatronRequest patronRequest, UUID expectedId) {

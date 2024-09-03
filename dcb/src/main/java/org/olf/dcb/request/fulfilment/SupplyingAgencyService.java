@@ -2,6 +2,11 @@ package org.olf.dcb.request.fulfilment;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Patron;
@@ -429,9 +434,12 @@ public class SupplyingAgencyService {
 
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
+			// Note: findVirtualPatron can return an empty mono which triggers virtual patron creation
 			.flatMap(hostLmsClient -> hostLmsClient.findVirtualPatron(psrc.getPatron()))
       // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
-			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest));
+			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest))
+			.flatMap( auditVirtualPatron(patronRequest, "Virtual patron : found") )
+			;
 	}
 
 	private Mono<PatronIdentity> updateLocalPatronIdentityForLmsPatron(
@@ -556,7 +564,8 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest) {
 
 		return createPatronAtSupplier(patronRequest, client, requestingIdentity, hostLmsCode, supplierRequest)
-			.flatMap(function((localId, patronType) -> checkForPatronIdentity(patronRequest, hostLmsCode, localId, patronType, requestingIdentity.getLocalBarcode())));
+			.flatMap(function((localId, patronType) -> checkForPatronIdentity(patronRequest, hostLmsCode, localId, patronType, requestingIdentity.getLocalBarcode())))
+			.flatMap( auditVirtualPatron(patronRequest, "Virtual patron : created") );
 	}
 
 	private Mono<Tuple2<String, String>> createPatronAtSupplier(
@@ -641,5 +650,43 @@ public class SupplyingAgencyService {
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(hostLmsClient -> hostLmsClient.getPatronByLocalId(virtualIdentity.getLocalId()));
+	}
+
+	private Function<PatronIdentity, Mono<PatronIdentity>> auditVirtualPatron(PatronRequest patronRequest, String message) {
+		return patronIdentity -> {
+
+			final var auditData = new HashMap<String, Object>();
+
+			var virtualPatron =  VirtualPatron.builder()
+				.dcbPatronIdentityID(patronIdentity.getId().toString())
+				.localSystemId(patronIdentity.getLocalId());
+
+			try { // adding unique id to the audit data
+				var determineUniqueId = patronIdentity.getPatron().determineUniqueId();
+				virtualPatron.determinedUniqueId(determineUniqueId);
+			} catch (Exception e) {
+				log.error("Failed to add unique id to virtual patron audit", e);
+				virtualPatron.determinedUniqueId(e.toString());
+			}
+
+			auditData.put("virtualPatron", virtualPatron.build());
+
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.thenReturn(patronIdentity);
+		};
+	}
+
+	// TODO
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class VirtualPatron {
+		@Nullable
+		private String localSystemId;
+		@Nullable
+		private String dcbPatronIdentityID;
+		@Nullable
+		private String determinedUniqueId;
 	}
 }
