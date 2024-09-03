@@ -112,7 +112,6 @@ public class PAPIClient {
 			.patronBranchID(patron.getLocalItemLocationId())
 			.nameFirst(patron.getLocalBarcodes().get(0))
 			.nameLast(patron.getUniqueIds().get(0))
-			.userName(patron.getUniqueIds().get(0))
 			.patronCode(parseInt(patron.getLocalPatronType()))
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.birthdate("1999-11-01")
