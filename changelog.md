@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 7.2.1
+
+### Fixes
+* [General]
+	* Polaris uses RFC 1123 for dates.
+
 ## Version 7.2.0
 
 ### Additions
@@ -7,6 +13,8 @@
 	* rollback request api [DCB-1492]
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Test]
 	* shouldRollbackPatronRequestToPreviousStateSuccessfully [DCB-1492]
 
