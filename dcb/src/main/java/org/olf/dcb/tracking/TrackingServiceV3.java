@@ -1,6 +1,7 @@
 package org.olf.dcb.tracking;
 
 import io.micrometer.core.annotation.Timed;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;

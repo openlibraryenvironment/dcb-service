@@ -23,7 +23,9 @@ import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.IngestSource;
+import org.olf.dcb.ingest.conversion.SourceToIngestRecordConverter;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -47,7 +49,7 @@ import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import services.k_int.integration.marc4j.Marc4jRecordUtils;
 
-public interface MarcIngestSource<T> extends IngestSource {
+public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordConverter {
 
 	public static final String NS_GOLDRUSH = "GOLDRUSH";
 	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
@@ -252,14 +254,46 @@ public interface MarcIngestSource<T> extends IngestSource {
 				.map(this::initIngestRecordBuilder)
 				.zipWith(Mono.just( resourceToMarc(resource) ) )
 						// .map( this::createMatchKey ))
-				.map(TupleUtils.function(( ir, marcRecord ) -> {
-					return populateRecordFromMarc(ir, marcRecord).build();
-				}))
+				.map(TupleUtils.function(this::populateRecordFromMarc))
+				.map( IngestRecordBuilder::build )
 				.onErrorResume(err -> {
 					log.error("Could not marshal resource [{}] into IngestRecord. \n{}", resource, err);
 					return Mono.empty();
 				});
 	}
+	
+	T convertSourceToInternalType( SourceRecord source );
+	
+	
+	@Override
+	default IngestRecord convertSourceToIngestRecord( @NonNull SourceRecord source ) {
+		
+		// This is less than ideal. The whole flow of this needs work, and properly moving to
+		// the internal Micronaut Marshaling/Conversion suite of utilities.
+		
+		// Convert to internal source type.
+		T internalRecord = convertSourceToInternalType(source);
+		
+		// Initialize the ingestRecordBuilder from data that isn't necessarily contained
+		// in the Marc-based section of this record.
+		IngestRecordBuilder irBuilder = initIngestRecordBuilder(internalRecord);
+		
+		// Grab a standardised Marc view. This is possibly null if we have a record
+		// representing a deleted resource as the marc record portion is often not
+		// available in the remote system.
+		Record marc = resourceToMarc(internalRecord);
+		if ( marc == null ) {
+			log.debug("Couldn't get Marc portion of source [{}], default empty", source);
+		} else {
+			irBuilder = populateRecordFromMarc(irBuilder, marc);
+		}		
+		
+		// Build the record
+		IngestRecord ir = irBuilder.build();
+		
+		return ir;
+	}
+	
 
 	@Override
 	public default Publisher<IngestRecord> apply(Instant since, Publisher<String> terminator) {

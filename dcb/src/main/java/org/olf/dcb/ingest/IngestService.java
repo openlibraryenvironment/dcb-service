@@ -10,13 +10,13 @@ import java.util.function.Function;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.ingest.job.IngestJob;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.hazelcast.core.HazelcastInstance;
-
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.context.event.ApplicationEventListener;
 import io.micronaut.core.convert.ConversionService;
@@ -37,14 +37,13 @@ import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.concurrency.ConcurrencyGroupService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
-//@Refreshable
 @Singleton
-//@Parallel
+@Requires(missingBeans = IngestJob.class)
 public class IngestService implements Runnable, ApplicationEventListener<ApplicationShutdownEvent> {
 
 	public static final String TRANSFORMATIONS_RECORDS = "ingest-records";
 	public static final String TRANSFORMATIONS_BIBS = "ingest-bibs";
-	
+		
 	@Value("${dcb.shutdown.maxwait:0}")
 	protected long maxWaitTime;
 	

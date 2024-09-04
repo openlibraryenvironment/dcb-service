@@ -5,10 +5,13 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Integer.parseInt;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
+import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -20,6 +23,9 @@ import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.dataimport.job.SourceRecordDataSource;
+import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
@@ -43,11 +49,15 @@ import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonArray;
 import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
+import services.k_int.interaction.oaipmh.ListRecordsParams;
+import services.k_int.interaction.oaipmh.ListRecordsParams.ListRecordsParamsBuilder;
 import services.k_int.interaction.oaipmh.ListRecordsResponse;
 import services.k_int.interaction.oaipmh.OaiRecord;
 import services.k_int.interaction.oaipmh.OaiRecord.Metadata;
@@ -56,7 +66,7 @@ import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
 @Prototype
-public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
+public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRecordDataSource {
 	private static final String CONCURRENCY_GROUP_KEY = "folio-oai";
 	
 	private static final String CONFIG_API_KEY = "apikey";
@@ -64,7 +74,6 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private static final String CONFIG_METADATA_PREFIX = "metadata-prefix";
 
 	private static final String CONFIG_RECORD_SYNTAX = "record-syntax";
-	private static final String PARAM_API_KEY = "apikey";
 
 	private static final String PARAM_METADATA_PREFIX = "metadataPrefix";
 
@@ -94,6 +103,8 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 	private final ProcessStateService processStateService;
 	
 	private final R2dbcOperations r2dbcOperations;
+	
+	private final ObjectMapper objectMapper;
 
   @Override
   public String getConcurrencyGroupKey() {
@@ -104,7 +115,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		RawSourceRepository rawSourceRepository, 
 		HttpClient client, 
 		ConversionService conversionService, 
-		ProcessStateService processStateService, R2dbcOperations r2dbcOperations) {
+		ProcessStateService processStateService, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper) {
 
 		this.lms = hostLms;
 		this.rawSourceRepository = rawSourceRepository;
@@ -114,6 +125,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		
 		this.conversionService = conversionService;
 		this.processStateService = processStateService;
+		this.objectMapper = objectMapper;
 		
 		recordSyntax = MapUtils.getAsOptionalString(
 			lms.getClientConfig(), CONFIG_RECORD_SYNTAX).get();
@@ -190,7 +202,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 			var error = resp.error();
 			if (error != null) {
 				return switch( error.code() ) {
-					case noRecordsMatch -> Mono.empty();
+					case noRecordsMatch -> Mono.just( new ListRecordsResponse(null, Collections.emptyList()) );
 					case badResumptionToken -> {
 						final String message = error.detail() != null ? String.format("%s: %s", error.code(), error.detail()) : error.code().toString();
 						yield Mono.error(new OaiResumptionTokenError(message));
@@ -207,47 +219,6 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		});
 	}
 	
-	protected Mono<ListRecordsResponse> fetchPage(Instant since, Optional<String> resumptionToken) {
-		log.info("Creating subscribeable batch;  root={}/{} since={}, resumptionToken={}",  lms.getCode(), rootUri, since, resumptionToken);
-	
-		return Mono.from(this.get("/oai", Argument.of( Response.class ), params -> {
-			
-			params.queryParam("verb", "ListRecords");
-			resumptionToken
-				.filter(StringUtils::hasText)
-				.ifPresentOrElse(val -> {
-					params.queryParam("resumptionToken", val);
-				}, () -> {
-					
-					// Exclude when resumption token present.
-					if (since != null) {
-						params.queryParam("from", since.truncatedTo(ChronoUnit.SECONDS).toString());
-					}
-	
-					params
-						.queryParam(PARAM_RECORD_SYNTAX, recordSyntax)
-						.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
-	
-				});
-
-			log.info("Final FOLIO OAI params:{}",params);
-			
-		}))
-		.transform( this::handleErrors )
-		.onErrorResume( OaiResumptionTokenError.class , re -> {
-			// If we have a retryable state and a resumption token.... Then recursively return this,
-			// But without a token.
-			if (resumptionToken.isPresent()) {
-				
-				log.atInfo().log("Retrying without a resumption token and a 'since' of [{}]", since);
-				return fetchPage(since, Optional.empty());
-			}
-			
-			// Else bubble it up.
-			return Mono.error(re);
-		})
-		.doOnSubscribe(_s -> log.info("Fetching batch from Folio OAI PMH {} with since={} resumptionToken={}", lms.getName(), since, resumptionToken));
-	}
 	
 	private Publisher<OaiRecord> pageAllResults(Publisher<String> terminator) {
 
@@ -324,11 +295,6 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 			}));
 	}
 
-	private void defaultParams ( UriBuilder uri ) {
-		// Suppply API Key as a header rather than a parameter
-		// uri
-		//   .queryParam(PARAM_API_KEY, apiKey);
-	}
 	
 	private <T> Mono<T> get(String path, Argument<T> argumentType,
 		Consumer<UriBuilder> uriBuilderConsumer) {
@@ -336,7 +302,6 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 		return createRequest(GET, path)
 			.map(req -> req
 					.header(HttpHeaders.AUTHORIZATION, apiKey)
-					.uri(this::defaultParams)
 					.uri(uriBuilderConsumer))
 			.flatMap(req -> doRetrieve(req, argumentType));
 	}
@@ -466,5 +431,231 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord> {
 
 	public R2dbcOperations getR2dbcOperations() {
 		return r2dbcOperations;
+	}
+	
+	protected Mono<ListRecordsResponse> fetchPage(Instant since, Optional<String> resumptionToken) {
+		log.info("Creating subscribeable batch;  root={}/{} since={}, resumptionToken={}",  lms.getCode(), rootUri, since, resumptionToken);
+	
+		return Mono.from(this.get("/oai", Argument.of( Response.class ), params -> {
+			
+			params.queryParam("verb", "ListRecords");
+			resumptionToken
+				.filter(StringUtils::hasText)
+				.ifPresentOrElse(val -> {
+					params.queryParam("resumptionToken", val);
+				}, () -> {
+					
+					// Exclude when resumption token present.
+					if (since != null) {
+						params.queryParam("from", since.truncatedTo(ChronoUnit.SECONDS).toString());
+					}
+	
+					params
+						.queryParam(PARAM_RECORD_SYNTAX, recordSyntax)
+						.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
+	
+				});
+
+			log.info("Final FOLIO OAI params:{}",params);
+			
+		}))
+		.transform( this::handleErrors )
+		.onErrorResume( OaiResumptionTokenError.class , re -> {
+			// If we have a retryable state and a resumption token.... Then recursively return this,
+			// But without a token.
+			if (resumptionToken.isPresent()) {
+				
+				log.atInfo().log("Retrying without a resumption token and a 'since' of [{}]", since);
+				return fetchPage(since, Optional.empty());
+			}
+			
+			// Else bubble it up.
+			return Mono.error(re);
+		})
+		.doOnSubscribe(_s -> log.info("Fetching batch from Folio OAI PMH {} with since={} resumptionToken={}", lms.getName(), since, resumptionToken));
+	}
+	
+	@Override
+	public boolean isSourceImportEnabled() {
+		return isEnabled();
+	}
+	
+	public Consumer<UriBuilder> mergeApiParameters(Optional<ListRecordsParams> parameters) {
+		
+		final ListRecordsParams lrParams = parameters.map( ListRecordsParams::toBuilder )
+			.orElse( ListRecordsParams.builder() )
+			.metadataPrefix(metadataPrefix)
+			.build();
+		
+		return params -> {
+			
+			// Add the verb
+			params.queryParam("verb", lrParams.getVerb());
+			
+			// The resumption token is exclusive when present.
+			final String resumptionToken = lrParams.getResumptionToken();
+			
+			if (StringUtils.hasText(resumptionToken)) {
+				params.queryParam("resumptionToken", resumptionToken);
+				log.debug("Final FOLIO OAI params [{}]", params);
+				return;
+			}
+			
+			// No resumption token.
+			Optional.ofNullable( lrParams.getFrom() )
+				.ifPresent( from -> params.queryParam("from", from.truncatedTo(ChronoUnit.SECONDS).toString()));
+			
+			Optional.ofNullable( lrParams.getUntil() )
+			.ifPresent( until -> params.queryParam("until", until.truncatedTo(ChronoUnit.SECONDS).toString()));
+
+			// Always add the record syntax custom parameter.
+			params
+				.queryParam(PARAM_METADATA_PREFIX, lrParams.getMetadataPrefix())
+				.queryParam(PARAM_RECORD_SYNTAX, recordSyntax);
+			
+			log.debug("Final FOLIO OAI params [{}]", params);
+			
+		};
+	}
+	
+	private Mono<ListRecordsResponse> listRecords ( Optional<ListRecordsParams> params ) {
+		
+		final Consumer<UriBuilder> apiParams = mergeApiParameters(params);
+  	return Mono.from(get("/oai", Argument.of( Response.class ), apiParams))
+			.transform( this::handleErrors )
+			.onErrorResume( OaiResumptionTokenError.class , re -> {
+				
+				// No token.
+				if (params.map( ListRecordsParams::getResumptionToken )
+						.filter( StringUtils::hasText )
+						.isEmpty()) {
+					return Mono.error(re);
+				}
+
+				
+				log.info("Retrying without a resumption token, params [{}]", params.map(Objects::toString).orElse("<empty>"));
+				
+				// We had a token so this error is valid. Retry without.
+				return listRecords( params.map( p -> p.toBuilder().resumptionToken(null).build() ));
+			});
+	}
+
+	private Mono<JsonNode> reactiveObjectMap ( @NonNull Object obj ) {
+		try {
+			return Mono.justOrEmpty( objectMapper.writeValueToTree(obj) );
+		} catch ( IOException e ) {
+			return Mono.error( e );
+		}
+	}
+	
+	private ListRecordsParams buildNextParams(Optional<ListRecordsParams> currentParams, JsonArray currentResults, ListRecordsResponse fullResponse, Instant fetchTime) {
+	  // Always preserve the "start" params even if we have a resumption. This allows for better handling
+		// if the token expires during a harvest.
+		ListRecordsParamsBuilder lrp = currentParams
+				.map(ListRecordsParams::toBuilder)
+				.orElseGet(ListRecordsParams::builder);
+		
+		final boolean emptyResultSet = currentResults.size() < 1;
+		
+		// Derive resumption token taking into account empty string and empty result sets. 
+		final String resToken = emptyResultSet ? null : Optional.ofNullable( fullResponse.resumptionToken() )
+				.filter(StringUtils::hasText)
+				.orElse(null);
+		
+		if (resToken == null) {
+			lrp = lrp.from(fetchTime); // Set from to "now" to perform delta.
+		}
+		
+		// Add the token to the builder (possibly nulling out)
+		return lrp.resumptionToken(resToken)
+			.build();
+	}
+	
+	@Override
+	public Mono<SourceRecordImportChunk> getChunk(Optional<JsonNode> checkpoint) {
+		try {
+
+			// Use the inbuilt marshalling to convert into the BibParams.
+			final Optional<ListRecordsParams> optParams = checkpoint.isPresent() ? Optional.of( objectMapper.readValueFromTree(checkpoint.get(), ListRecordsParams.class) ) : Optional.empty();
+			
+	  	final Instant now = Instant.now();
+	  	
+	  	return Mono.just(optParams)
+	  		.flatMap(this::listRecords)
+	  		.flatMap( lrr -> {
+	  			
+	  			return Mono.just(lrr)
+	  				.mapNotNull( ListRecordsResponse::records )
+			  		.flatMap( this::reactiveObjectMap )
+			  		.filter( entries -> {
+							if (entries.isArray()) {
+								return true;
+							}
+							
+							log.debug("[.records] property received from Folio OAI could not be parsed as JSON array");
+							return false;
+						})
+			  		.cast( JsonArray.class )
+			  		
+						.flatMap(jsonArr -> {
+							
+							final var nextParams = buildNextParams(optParams, jsonArr, lrr, now);
+							final boolean isLastChunk = Optional.ofNullable(nextParams)
+								.map(ListRecordsParams::getResumptionToken)
+								.isEmpty();
+							
+							// Create chunk builder and set last chunk marker.
+							final var builder = SourceRecordImportChunk.builder()
+									.lastChunk( isLastChunk );
+							
+							// Attempt to set the checkpoint.
+							try {
+								builder.checkpoint( objectMapper.writeValueToTree(nextParams) );
+							} catch (IOException e) {
+								log.error("Error converting to params", e);
+								builder.checkpoint(null);
+							}							
+							
+							// Add each resource.
+							jsonArr.values().forEach(rawJson -> {
+								
+								if (log.isTraceEnabled()) {
+									log.trace(rawJson.getValue().toString());
+								}
+								
+								try {
+									builder.dataEntry( SourceRecord.builder()
+					  				.hostLmsId( lms.getId() )
+					  				.lastFetched( now )
+					  				.remoteId( rawJson.get("header").get("identifier").coerceStringValue() )
+					  				.sourceRecordData( rawJson )
+					  				.build());
+				  			} catch (Throwable t) {
+				  				if (log.isDebugEnabled()) {
+				    				log.error( "Error creating SourceRecord from JSON '{}' \n{}", rawJson.getValue(), t);
+				  				} else {
+				  					log.error( "Error creating SourceRecord from JSON", t.getMessage() );
+				  				}
+				  			}
+							});
+
+							return Mono.just( builder.build() ); 
+						});
+	  		});
+		} catch (Exception e) {
+			return Mono.error( e );
+		}
+	}
+
+	@Override
+	public OaiRecord convertSourceToInternalType(SourceRecord source) {
+		
+		JsonNode oaiSrc = source.getSourceRecordData();
+		
+		if (oaiSrc == null) {
+			return null;
+		}
+		
+		return conversionService.convertRequired(oaiSrc, OaiRecord.class);
 	}
 }

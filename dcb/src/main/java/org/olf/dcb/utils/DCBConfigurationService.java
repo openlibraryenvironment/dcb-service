@@ -213,8 +213,7 @@ public class DCBConfigurationService {
 	// Method for parsing the uploaded CSV/TSV file. Runs validation on the supplied data.
 	public static List<String[]> parseCsv(Reader reader, String[] expectedHeaders, String code) {
 		String validationError = "";
-		try {
-			CSVReader csvReader = new CSVReader(reader);
+		try (CSVReader csvReader = new CSVReader(reader)) {
 			// Get the header line so we can compare
 			String[] headers = csvReader.readNext();
 			// Check if the headers match the expectedHeaders
