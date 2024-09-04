@@ -1,6 +1,6 @@
-package services.k_int.stability;
+package services.k_int.features;
 
-import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.ElementType.*;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 import java.lang.annotation.Retention;
@@ -13,7 +13,7 @@ import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.AnnotationMetadataProvider;
 
 @Retention(RUNTIME)
-@Target(TYPE)
+@Target({TYPE, PACKAGE})
 @Requires(condition = FeatureGate.FeatureGateOpen.class)
 public @interface FeatureGate {
 
@@ -22,7 +22,6 @@ public @interface FeatureGate {
 	public static final class FeatureGateOpen implements Condition {
 
 		public FeatureGateOpen() {
-			System.out.println("Evaluated");
 		}
 
 		@Override

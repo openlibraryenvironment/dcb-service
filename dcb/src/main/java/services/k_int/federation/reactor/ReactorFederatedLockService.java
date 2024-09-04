@@ -1,5 +1,8 @@
 package services.k_int.federation.reactor;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 
@@ -19,11 +22,20 @@ import services.k_int.federation.FederatedLockService;
 @Singleton
 public class ReactorFederatedLockService {
 
-	private static final String SCHEDULER_NAME = "federation-task-manager";
+	private static final String SCHEDULER_NAME = "reactor-lock-manager-";
+	private final AtomicInteger threadNumber = new AtomicInteger(1);
 	private final FederatedLockService lockService;
+	private final Scheduler lockScheduler;
 
 	public ReactorFederatedLockService(FederatedLockService lockService) {
 		this.lockService = lockService;
+		
+		// Custom threading. Single executor to reuse 1 thread for internal control.
+		lockScheduler = Schedulers.fromExecutorService(Executors.newSingleThreadScheduledExecutor(new	ThreadFactory() {
+		    public Thread newThread(Runnable runnable) {
+		        return new Thread(runnable, SCHEDULER_NAME + threadNumber.getAndIncrement());
+		    }
+		}));
 	}
 
 	private Lock lockOrFail(Lock lock) throws UnableToObtainLockException {
@@ -56,8 +68,6 @@ public class ReactorFederatedLockService {
 
 			// Create a single thread Scheduler, as the locks need to be owned by the
 			// thread that wishes to relinquish after obtaining the lock.
-			final Scheduler lockScheduler = Schedulers.newSingle(SCHEDULER_NAME);
-
 			final Lock lock = lockService.getNamedLock(lockName);
 
 			// Lazily get a reference to the named lock.
@@ -69,8 +79,6 @@ public class ReactorFederatedLockService {
 				.doFinally(_signal -> {
 					relinquish(lock);
 					log.debug("Relinquished lock[{}]", lockName);
-					
-					lockScheduler.dispose();
 				});
 		};
 
@@ -90,8 +98,6 @@ public class ReactorFederatedLockService {
 
 			// Create a single thread Scheduler, as the locks need to be owned by the
 			// thread that wishes to relinquish after obtaining the lock.
-			final Scheduler lockScheduler = Schedulers.newSingle(SCHEDULER_NAME);
-
 			final LockContext lockContext = new LockContext(lockService.getNamedLock(lockName));
 
 			// Lazily get a reference to the named lock.
@@ -114,7 +120,6 @@ public class ReactorFederatedLockService {
 					if (lockContext.isObtained()) {
 						relinquish(lockContext.getLock());
 						log.debug("Relinquished lock[{}]", lockName);
-						lockScheduler.dispose();
 					}
 				});
 		};

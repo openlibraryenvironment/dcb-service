@@ -3,7 +3,6 @@ package org.olf.dcb.core.model;
 import static io.micronaut.data.model.DataType.JSON;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;

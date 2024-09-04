@@ -76,7 +76,7 @@ class PAPIAuthFilter {
 
 			return createStaffAuthRequest(domain, username, password)
 				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)))
-				.doOnError(e -> Mono.error(new PAPIAuthException("Staff Auth Failed", e)));
+				.onErrorMap(e -> new PAPIAuthException("Staff Auth Failed", e));
 		});
 	}
 

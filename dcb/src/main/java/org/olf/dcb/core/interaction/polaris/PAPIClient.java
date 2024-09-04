@@ -1,36 +1,8 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
-import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
-import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
-import org.reactivestreams.Publisher;
-import org.zalando.problem.Problem;
-import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
-
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static io.micronaut.http.HttpMethod.*;
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
@@ -40,6 +12,42 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
+import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
+import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
+import org.reactivestreams.Publisher;
+import org.zalando.problem.Problem;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
+
 @Slf4j
 public class PAPIClient {
 	private final PolarisLmsClient client;
@@ -47,8 +55,9 @@ public class PAPIClient {
 	private final String PUBLIC_PARAMETERS;
 	private final String PROTECTED_PARAMETERS;
 	private final PolarisConfig polarisConfig;
+	private final ConversionService conversionService;
 
-	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig) {
+	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService) {
 		this.client = client;
 		this.polarisConfig = polarisConfig;
 		this.authFilter = new PAPIAuthFilter(client, polarisConfig);
@@ -58,6 +67,7 @@ public class PAPIClient {
 		String BASE_PARAMETERS = "/PAPIService/REST";
 		this.PUBLIC_PARAMETERS = BASE_PARAMETERS + "/public" + PAPI_PARAMETERS;
 		this.PROTECTED_PARAMETERS = BASE_PARAMETERS + "/protected" + PAPI_PARAMETERS;
+		this.conversionService = conversionService;
 	}
 
 	/*
@@ -228,13 +238,30 @@ public class PAPIClient {
 	*/
 	@SingleResult
 	public Publisher<BibsPagedResult> synch_BibsPagedGet(String startdatemodified, Integer lastId, Integer nrecs) {
+		
+		return Mono.from( synch_BibsPagedGetRaw (startdatemodified, lastId, nrecs) )
+			.map( node -> conversionService.convertRequired(node, BibsPagedResult.class));
+	}
+
+	@SingleResult
+	public Publisher<JsonNode> synch_BibsPagedGetRaw( BibsPagedGetParams params ) {
+		
+		String dateStr = Optional.ofNullable(params.getStartdatemodified())
+					.map( inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString() )
+					.orElse(null);
+		
+		return synch_BibsPagedGetRaw( dateStr, params.getLastId(), params.getNrecs() );
+	}
+	
+	@SingleResult
+	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, Integer lastId, Integer nrecs) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
 		return createRequest(GET, path, uri -> uri
 				.queryParam("startdatemodified", startdatemodified)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(BibsPagedResult.class))));
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(JsonNode.class))));
 	}
 
 	public Mono<List<ItemGetRow>> synch_ItemGetByBibID(String localBibId) {
