@@ -1,23 +1,23 @@
 package org.olf.dcb.request.workflow;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.tracking.model.StateChange;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 
 /**
@@ -34,6 +34,8 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	private static final List<Status> possibleSourceStatus = List.of(Status.LOANED);
 	private static final List<String> possibleLocalItemStatus = List.of(
 		HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_AVAILABLE);
+	private static final List<String> possibleSupplierLocalItemStatus = List.of(
+		HostLmsItem.ITEM_AVAILABLE);
 	
 	public HandleBorrowerRequestReturnTransit(PatronRequestRepository patronRequestRepository) {
 		this.patronRequestRepository = patronRequestRepository;
@@ -41,8 +43,24 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			getPossibleLocalItemStatus().contains(ctx.getPatronRequest().getLocalItemStatus()) );
+
+		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+
+		return isPatronRequestStatusApplicable(patronRequest) &&
+			( isPatronRequestLocalItemStatusApplicable(patronRequest) || isSupplierLocalItemStatusApplicable(supplierRequest) );
+	}
+
+	private boolean isPatronRequestStatusApplicable(PatronRequest patronRequest) {
+		return getPossibleSourceStatus().contains(patronRequest.getStatus());
+	}
+
+	private boolean isPatronRequestLocalItemStatusApplicable(PatronRequest patronRequest) {
+		return getPossibleLocalItemStatus().contains(patronRequest.getLocalItemStatus());
+	}
+
+	private boolean isSupplierLocalItemStatusApplicable(SupplierRequest supplierRequest) {
+		return possibleSupplierLocalItemStatus.contains(supplierRequest.getLocalItemStatus());
 	}
 
 	@Override
