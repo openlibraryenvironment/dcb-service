@@ -35,7 +35,7 @@ public class LocalPatronService {
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap(client -> getPatronByIdentifier(localPatronId, client))
-			.doOnSuccess(patron -> log.debug("Found patron: {} from Host LMS: {}", patron, hostLmsCode))
+			.doOnSuccess(patron -> log.info("Found patron: {} from Host LMS: {}", patron, hostLmsCode))
 			// Could be done inside the Host LMS client method
 			// Was not done initially due to potentially affecting other uses
 			.filter(Patron::isNotDeleted)
@@ -44,15 +44,16 @@ public class LocalPatronService {
 	}
 
 	private Mono<Patron> getPatronByIdentifier(String identifier, HostLmsClient client) {
-
 		log.info("Getting patron by local id {}", identifier);
+
 		return client.getPatronByLocalId(identifier)
+			.doOnSuccess(patron -> log.info("Found patron by ID: {}", patron))
 			.onErrorResume(error -> {
-
 				if (error instanceof PatronNotFoundInHostLmsException) {
-
 					log.warn("FALLBACK : getting patron by barcode {}", identifier);
-					return client.getPatronByBarcode(identifier);
+
+					return client.getPatronByBarcode(identifier)
+						.doOnSuccess(patron -> log.info("Found patron by barcode: {}", patron));
 				}
 
 				log.error("Get patron by barcode was skipped for error", error);
@@ -63,6 +64,7 @@ public class LocalPatronService {
 
 	private Mono<DataAgency> findAgencyForPatron(Patron patron, String hostLmsCode) {
 		return findHomeLocationMapping(patron, hostLmsCode)
+			.doOnSuccess(agencyCode -> log.info("Found location to agency code mapping: {}", agencyCode))
 			.switchIfEmpty(defer(() -> findDefaultAgencyCode(hostLmsCode)))
 			.flatMap(agencyService::findByCode)
 			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(
@@ -70,7 +72,7 @@ public class LocalPatronService {
 	}
 
 	private Mono<String> findHomeLocationMapping(Patron patron, String hostLmsCode) {
-		log.debug("Finding home location mapping for host LMS code: \"{}\", patron: {}", hostLmsCode, patron);
+		log.info("Finding home location mapping for host LMS code: \"{}\", patron: {}", hostLmsCode, patron);
 
 		return locationToAgencyMappingService.findLocationToAgencyMapping(
 				hostLmsCode, getValueOrNull(patron, Patron::getLocalHomeLibraryCode))
@@ -78,6 +80,7 @@ public class LocalPatronService {
 	}
 
 	private Mono<String> findDefaultAgencyCode(String hostLmsCode) {
-		return locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode);
+		return locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode)
+			.doOnSuccess(agencyCode -> log.info("Found default agency code: {}", agencyCode));
 	}
 }

@@ -76,7 +76,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
-		log.debug("mapToPatron {}", command);
+		log.info("mapToPatron {}", command);
 
 		final var localPatronId = getValueOrNull(command,
 			PlacePatronRequestCommand::getRequestorLocalId);
@@ -85,7 +85,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			PlacePatronRequestCommand::getRequestorLocalSystemCode);
 
 		return localPatronService.findLocalPatronAndAgency(localPatronId, borrowingHostLmsCode)
-			.doOnSuccess(consumer((patron, agency) -> log.debug("Finished fetching patron: {} and agency: {}", patron, agency)))
+			.doOnSuccess(consumer((patron, agency) -> log.info("Finished fetching patron: {} and agency: {}", patron, agency)))
 			.map(function((patron, agency) -> {
 				final var homeIdentity = PatronIdentity.builder()
 					.homeIdentity(true)
