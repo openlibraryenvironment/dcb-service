@@ -9,21 +9,27 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.storage.SourceRecordRepository;
 import org.slf4j.event.Level;
 
+import io.micronaut.context.event.ApplicationEventListener;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.event.EntityEventContext;
+import io.micronaut.data.event.EntityEventListener;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.runtime.context.scope.refresh.RefreshEvent;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.scheduling.annotation.Scheduled;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
+import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -36,10 +42,12 @@ import services.k_int.jobs.ReactiveJobRunnerService;
 import services.k_int.micronaut.concurrency.ConcurrencyGroupService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
+
 @Slf4j
+@Singleton
 @ExecuteOn(TaskExecutors.BLOCKING)
 @ApplicableChunkTypes( SourceRecordImportChunk.class )
-public class SourceRecordService implements JobChunkProcessor {
+public class SourceRecordService implements JobChunkProcessor, ApplicationEventListener<RefreshEvent>, EntityEventListener<DataHostLms>{
 
 	private final HostLmsService lmsService;
 	private final SourceRecordRepository sourceRecords;
@@ -55,7 +63,7 @@ public class SourceRecordService implements JobChunkProcessor {
 		this.concurrency = concurrency;
 		this.lockService = lockService;
 	}
-
+	
 	private Mono<SourceRecordImportJob> createJobInstanceForSource( IngestSource ingestSource ) {
 		if (!SourceRecordDataSource.class.isAssignableFrom(ingestSource.getClass())) {
 			log.error("Ingest source [{}] does not implement [{}]", SourceRecordDataSource.class);
@@ -160,22 +168,74 @@ public class SourceRecordService implements JobChunkProcessor {
 	private void errorSubscriber ( Throwable t ) {
 		log.error("Error during import job", t);
 	}
+	
+	private Flux<JobChunk<SourceRecord>> processSingleJob( SourceRecordImportJob job ) {
+		return Flux.just( job )
+			.flatMap( jobService::processJobInstance )
+			.takeUntil( chunk -> {
+				
+				// Take until will make this chunk the last chunk, but still emit it.
+				if (interruption.isEmpty()) return false;
+				
+				log.info( "Gracefully interrupting job {}. Cause: {}", job.getName(), interruption.get() );
+				
+				return true;
+			})
+			.onErrorResume( err -> {
+				log.atError()
+					.setCause(err)
+					.log("Terminating job {} because of Error", job.getName());
+				return Mono.empty();
+			})
+		;
+	}
+	
+	private long getDataCountForChunk(JobChunk<SourceRecord> chunk) {
+		return Optional.ofNullable(chunk.getData()) // Extract resource count.
+			.map( Collection::size )
+			.map( Integer::longValue )
+			.orElse(0L);
+	}
 
 	@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
-	@Scheduled(initialDelay = "20s")
+	@Scheduled(initialDelay = "20s", fixedDelay = "2m")
 	protected void scheduleSourceRecordJob() {
 		getSourceRecordDataSources()
-			.flatMap( jobService::processJobInstance )
-			.map(chunk -> Optional.ofNullable(chunk.getData()) // Extract resource count.
-					.map( Collection::size )
-					.map( Integer::longValue )
-					.orElse(0L))
+			.flatMap( this::processSingleJob )
+			.map( this::getDataCountForChunk )
 			.reduce( Long::sum )
 			.elapsed()
 			.transformDeferred(lockService.withLockOrEmpty("import-job"))
 			.subscribe(
 					TupleUtils.consumer(this::jobSubscriber),
 					this::errorSubscriber);
+	}
+	
+
+	private Optional<String> interruption = Optional.empty();
+	
+	private void generateInterrupt( @NonNull String reason ) {
+		interruption = Optional.of( reason );
+	}
+	
+	@Override
+	public void onApplicationEvent(RefreshEvent event) {
+		generateInterrupt( "Refresh event" );
+	}
+	
+	@Override
+	public void postPersist(@NonNull EntityEventContext<DataHostLms> context) {
+		generateInterrupt( "HostLms [%s] added".formatted(context.getEntity().name) );
+	}
+	
+	@Override
+	public void postUpdate(@NonNull EntityEventContext<DataHostLms> context) {
+		generateInterrupt( "HostLms [%s] updated".formatted(context.getEntity().name) );
+	}
+	
+	@Override
+	public void postRemove(@NonNull EntityEventContext<DataHostLms> context) {
+		generateInterrupt( "HostLms [%s] removed".formatted(context.getEntity().name) );
 	}
 }
