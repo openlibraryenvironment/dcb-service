@@ -27,6 +27,7 @@ import org.olf.dcb.storage.PatronIdentityRepository;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
@@ -80,6 +81,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 				// Update the patron identity with the current patron type and set the last
 				// validated date to now()
+				pi.setLocalId(extractLocalIdFrom(hostLmsPatron));
 				pi.setLocalPtype(hostLmsPatron.getLocalPatronType());
 				pi.setCanonicalPtype(hostLmsPatron.getCanonicalPatronType());
 				pi.setLastValidated(Instant.now());
@@ -100,6 +102,27 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				}).flatMap(updatedPatronIdentity -> {
 					return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(updatedPatronIdentity));
 				});
+	}
+
+	private static String extractLocalIdFrom(Patron hostLmsPatron) {
+
+		if (hostLmsPatron.getLocalId() == null || hostLmsPatron.getLocalId().isEmpty()) {
+			throw Problem.builder()
+				.withTitle("ValidatePatronIdentity failed")
+				.withDetail("HostLmsPatron didn't return a local patron id")
+				.with("hostLmsPatron", hostLmsPatron)
+				.build();
+		}
+
+		else if (hostLmsPatron.getLocalId().size() > 1) {
+			throw Problem.builder()
+				.withTitle("ValidatePatronIdentity failed")
+				.withDetail("HostLmsPatron returned more than one local patron ID")
+				.with("hostLmsPatron", hostLmsPatron)
+				.build();
+		}
+
+		return hostLmsPatron.getLocalId().get(0);
 	}
 
 	private Mono<Patron> findLocalPatron(PatronIdentity pi) {
