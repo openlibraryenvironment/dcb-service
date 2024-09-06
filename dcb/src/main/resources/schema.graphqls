@@ -568,6 +568,7 @@ type BibRecord {
   sourceSystemId: ID
   sourceRecordId: String
   sourceRecord: RawSource
+  matchPoints: [MatchPoint]
 }
 
 type RawSource {
@@ -575,4 +576,10 @@ type RawSource {
   hostLmsId: ID!
   remoteId: String
   json: JSON
+}
+
+type MatchPoint {
+  id: ID!
+  value: ID!
+  bibId: ID!
 }

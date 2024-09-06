@@ -6,7 +6,7 @@ import java.util.concurrent.CompletableFuture;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.model.clustering.*;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.LibraryGroupMemberRepository;
@@ -48,6 +48,7 @@ public class DataFetchers {
 	private final PostgresClusterRecordRepository postgresClusterRecordRepository;
 	private final PostgresReferenceValueMappingRepository postgresReferenceValueMappingRepository;
 	private final PostgresNumericRangeMappingRepository postgresNumericRangeMappingRepository;
+	private final PostgresMatchPointRepository postgresMatchPointRepository;
 
 	private final PostgresLibraryRepository postgresLibraryRepository;
 
@@ -88,6 +89,7 @@ public class DataFetchers {
 											PostgresLibraryGroupRepository postgresLibraryGroupRepository, LibraryGroupMemberRepository libraryGroupMemberRepository,
 											PostgresLibraryGroupMemberRepository postgresLibraryGroupMemberRepository,
 											PostgresLibraryContactRepository postgresLibraryContactRepository, PostgresDataChangeLogRepository postgresDataChangeLogRepository,
+											PostgresMatchPointRepository postgresMatchPointRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -95,13 +97,13 @@ public class DataFetchers {
 		this.postgresPatronRequestRepository = postgresPatronRequestRepository;
 		this.postgresSupplierRequestRepository = postgresSupplierRequestRepository;
 		this.postgresBibRepository = postgresBibRepository;
-                this.postgresRawSourceRepository = postgresRawSourceRepository;
-                this.postgresHostLmsRepository = postgresHostLmsRepository;
-                this.postgresLocationRepository = postgresLocationRepository;
-                this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
-                this.postgresProcessStateRepository = postgresProcessStateRepository;
-                this.postgresPatronRequestAuditRepository = postgresPatronRequestAuditRepository;
-                this.postgresPatronIdentityRepository = postgresPatronIdentityRepository;
+		this.postgresRawSourceRepository = postgresRawSourceRepository;
+		this.postgresHostLmsRepository = postgresHostLmsRepository;
+		this.postgresLocationRepository = postgresLocationRepository;
+		this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
+		this.postgresProcessStateRepository = postgresProcessStateRepository;
+		this.postgresPatronRequestAuditRepository = postgresPatronRequestAuditRepository;
+		this.postgresPatronIdentityRepository = postgresPatronIdentityRepository;
 		this.postgresClusterRecordRepository = postgresClusterRecordRepository;
 		this.postgresReferenceValueMappingRepository = postgresReferenceValueMappingRepository;
 		this.postgresNumericRangeMappingRepository = postgresNumericRangeMappingRepository;
@@ -113,6 +115,7 @@ public class DataFetchers {
 		this.postgresLibraryGroupMemberRepository = postgresLibraryGroupMemberRepository;
 		this.postgresLibraryContactRepository = postgresLibraryContactRepository;
 		this.postgresDataChangeLogRepository = postgresDataChangeLogRepository;
+		this.postgresMatchPointRepository = postgresMatchPointRepository;
 	}
 
 
@@ -150,40 +153,47 @@ public class DataFetchers {
 		};
 	}
 
-        public DataFetcher<CompletableFuture<List<AgencyGroupMember>>> getAgencyGroupMembersDataFetcher() {
-                return env -> {
-                        log.debug("getAgencyGroupMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
-                        return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource())).collectList().toFuture();
-                };
-        }
+	public DataFetcher<CompletableFuture<List<MatchPoint>>> getMatchPointsForBibRecordDataFetcher() {
+		return env -> {
+			BibRecord br = (BibRecord) env.getSource();
+			return Flux.from(postgresMatchPointRepository.findAllByBibId(br.getId())).collectList().toFuture();
+		};
+	}
 
-				public DataFetcher<CompletableFuture<Page<PatronRequest>>> getPatronRequestsDataFetcher() {
-                return env -> {
-                        Integer pageno = env.getArgument("pageno");
-                        Integer pagesize = env.getArgument("pagesize");
-                        String query = env.getArgument("query");
-                        String order = env.getArgument("order");
-                        String direction = env.getArgument("orderBy");
+	public DataFetcher<CompletableFuture<List<AgencyGroupMember>>> getAgencyGroupMembersDataFetcher() {
+		return env -> {
+			log.debug("getAgencyGroupMembersDataFetcher args={}/ctx={}/root={}/src={}", env.getArguments(), env.getGraphQlContext(), env.getRoot(), env.getSource());
+			return Flux.from(agencyGroupMemberRepository.findByGroup(env.getSource())).collectList().toFuture();
+		};
+	}
 
-												if ( pageno == null ) pageno = Integer.valueOf(0);
-                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
-                        if ( order == null ) order = "dateCreated";
-                        if ( direction == null ) direction = "ASC";
+	public DataFetcher<CompletableFuture<Page<PatronRequest>>> getPatronRequestsDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
 
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
+			if ( pageno == null ) pageno = Integer.valueOf(0);
+			if ( pagesize == null ) pagesize = Integer.valueOf(10);
+			if ( order == null ) order = "dateCreated";
+			if ( direction == null ) direction = "ASC";
 
-                        Pageable pageable = Pageable
-                                .from(pageno.intValue(), pagesize.intValue())
-                                .order(order, orderBy);
+			Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
+
+			Pageable pageable = Pageable
+				.from(pageno.intValue(), pagesize.intValue())
+				.order(order, orderBy);
                 
-                        if ((query != null) && (query.length() > 0)) {
-                                var spec = qs.evaluate(query, PatronRequest.class);
-                                return Mono.from(postgresPatronRequestRepository.findAll(spec, pageable)).toFuture();
-                        }
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, PatronRequest.class);
+				return Mono.from(postgresPatronRequestRepository.findAll(spec, pageable)).toFuture();
+			}
                         
-                        return Mono.from(postgresPatronRequestRepository.findAll(pageable)).toFuture();
-                };
-        }
+			return Mono.from(postgresPatronRequestRepository.findAll(pageable)).toFuture();
+		};
+	}
 
 	public DataFetcher<CompletableFuture<Page<PatronRequestAudit>>> getAuditsDataFetcher() {
 		return env -> {
