@@ -361,7 +361,7 @@ public class RecordClusteringService {
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
-	protected Mono<List<MatchPoint>> reconcileMatchPoints( Collection<MatchPoint> currentMatchPoints, BibRecord bib ) {
+	protected Mono<Collection<MatchPoint>> reconcileMatchPoints( Collection<MatchPoint> currentMatchPoints, BibRecord bib ) {
 		
 		return Flux.fromIterable( currentMatchPoints )
 			.map( MatchPoint::getValue )
@@ -369,10 +369,25 @@ public class RecordClusteringService {
 			.map( curry(bib.getId(), matchPointRepository::deleteAllByBibIdAndValueNotIn) )
 			.flatMap(Mono::from)
 			.doOnNext( del -> {
-				if (log.isDebugEnabled() && del > 0) log.debug("Deleted {} existing matchpoints that are no longer valid", del);
+				if (del > 0) log.info("Deleted {} existing matchpoints that are no longer valid", del);
 			})
-			.thenMany( Mono.just(currentMatchPoints).flatMapMany( matchPointRepository::saveAll ) )
-			.collectList();
+			.then( differentMatchPoints(bib.getId(), currentMatchPoints) )
+			.flatMapMany( matchPointRepository::saveAll )
+			.count()
+			.map( added -> {
+				if (added > 0) log.info("Added {} new matchpoints", added);
+				return currentMatchPoints;
+			});
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<List<MatchPoint>> differentMatchPoints ( UUID bibId, Collection<MatchPoint> currentMatchPoints ) {
+		return Flux.from( matchPointRepository.findAllByBibId( bibId ) )
+			.map( MatchPoint::getValue )
+			.collectList()
+			.map( exclude -> currentMatchPoints.stream()
+					.filter( mp -> !exclude.contains( mp.getValue() ))
+					.toList());
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
