@@ -11,6 +11,7 @@ import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.Query;
@@ -73,13 +74,17 @@ public interface BibRepository {
 
 	@NonNull
 	@SingleResult
+	@Vetoed
 	Publisher<Void> updateByContributesToInList(@NonNull Collection<ClusterRecord> contributesToList,
 			@NonNull ClusterRecord contributesTo);
 
+
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<Void> cleanUp();
 
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<Void> commit();

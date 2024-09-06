@@ -8,12 +8,12 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import reactor.core.publisher.Mono;
 
 
 public interface ClusterRecordRepository {
@@ -64,9 +64,11 @@ public interface ClusterRecordRepository {
 	Publisher<Page<UUID>> findIdByDateUpdatedLessThanEqualsOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
 	@NonNull
+	@Vetoed
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
 	
 	@NonNull
+	@Vetoed
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 
 	@NonNull
@@ -74,11 +76,14 @@ public interface ClusterRecordRepository {
 	Publisher<Void> delete(@NonNull UUID id);
 	
 	@SingleResult
+	@Vetoed
 	Publisher<Long> touch( @NonNull UUID id );
 
 	@NonNull
 	Publisher<ClusterRecord> findAllByIdInList(@NonNull Collection<UUID> id);
 
+
+	@Vetoed
 	@NonNull
 	Publisher<ClusterRecord> findByIdInListWithBibs(@NonNull Collection<UUID> id);
 }
