@@ -47,7 +47,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 @Singleton
 @ExecuteOn(TaskExecutors.BLOCKING)
 @ApplicableChunkTypes( SourceRecordImportChunk.class )
-public class SourceRecordService implements JobChunkProcessor, ApplicationEventListener<RefreshEvent>, EntityEventListener<DataHostLms>{
+public class SourceRecordService implements JobChunkProcessor, ApplicationEventListener<RefreshEvent>, EntityEventListener<DataHostLms> {
 
 	private final HostLmsService lmsService;
 	private final SourceRecordRepository sourceRecords;
@@ -201,6 +201,10 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	@ExecuteOn(TaskExecutors.BLOCKING)
 	@Scheduled(initialDelay = "20s", fixedDelay = "2m")
 	protected void scheduleSourceRecordJob() {
+		
+		// Empty interrupts before we start.
+		interruption = Optional.empty();
+		
 		getSourceRecordDataSources()
 			.flatMap( this::processSingleJob )
 			.map( this::getDataCountForChunk )
