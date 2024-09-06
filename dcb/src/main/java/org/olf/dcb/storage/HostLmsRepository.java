@@ -6,6 +6,7 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -24,6 +25,7 @@ public interface HostLmsRepository {
 
 	@NonNull
 	@SingleResult
+	@Vetoed
 	Publisher<DataHostLms> findById(@NonNull UUID id);
 
 	@NonNull
