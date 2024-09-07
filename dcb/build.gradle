@@ -334,3 +334,56 @@ graalvmNative {
 tasks.withType(ShadowJar) {
     setZip64(true)
 }
+
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+def oderedAnnotationDeps = new HashMap<String, Integer>()
+
+configurations.annotationProcessor { ap ->
+	ap.incoming.afterResolve { resolution ->
+
+		println ap.name
+		int count = 0
+    resolution.resolutionResult.allComponents.each	{ comp ->
+    	comp.dependencies.each { dependency ->
+    	
+    		if (ResolvedDependencyResult.class.isAssignableFrom( dependency.getClass() )) { 
+    			ResolvedDependencyResult resDep = dependency as ResolvedDependencyResult
+    			final String key = "${resDep.selected}";
+    			if (oderedAnnotationDeps.containsKey( key )) return;
+    			
+	    	  //println dependency
+	      	oderedAnnotationDeps[key] = count++
+      	}
+      }
+    }
+    // println oderedAnnotationDeps
+  }
+}
+
+eclipse {
+  factorypath {
+  	file {
+	  	whenMerged { fp ->
+	  	
+	  	  final String regex = '^.*\\/([^\\.\\/]+(\\.[^\\.\\/]+)+)\\/([^\\/]+)\\/(\\d+[^\\/]+)\\/.*$'
+	  	  final String subst = '$1:$3:$4';
+	  	
+				// Change the enties
+				List entries = fp.getEntries().sort { s1, s2 ->
+				  final String sub1 = s1.canonicalPath.replaceAll( regex, subst )
+				  final String sub2 = s2.canonicalPath.replaceAll( regex, subst )
+				
+					int val1 = oderedAnnotationDeps.get( sub1 ) ?: Integer.MAX_VALUE
+					int val2 = oderedAnnotationDeps.get( sub2 ) ?: Integer.MAX_VALUE
+					
+					val1 <=> val2
+				}				
+				
+				fp.getEntries().each { fpent ->
+					println fpent
+				}
+			}
+		}
+  }
+}
+

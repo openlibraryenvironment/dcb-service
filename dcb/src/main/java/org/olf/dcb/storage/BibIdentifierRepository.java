@@ -10,6 +10,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 
 public interface BibIdentifierRepository {
@@ -46,10 +47,12 @@ public interface BibIdentifierRepository {
 
     @NonNull
     @SingleResult
+    @Vetoed
     Publisher<Void> cleanUp();
 
     @NonNull
     @SingleResult
+    @Vetoed
     Publisher<Void> commit();
 }
 

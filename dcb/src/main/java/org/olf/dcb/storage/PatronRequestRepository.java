@@ -22,6 +22,7 @@ import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.annotation.Vetoed;
 import reactor.core.publisher.Mono;
 
 
@@ -48,6 +49,7 @@ public interface PatronRequestRepository {
 	@SingleResult
 	Publisher<Void> delete(UUID id);
 	
+	@Vetoed
 	Publisher<PatronRequest> findAllTrackableRequests(Iterable<Status> terminalStates, Iterable<String> supplierStatuses, Iterable<String> supplierItemStatuses);
 
 	// local_request_id must be not null, it must currently be in a tracked state and the request itself must be trackable
