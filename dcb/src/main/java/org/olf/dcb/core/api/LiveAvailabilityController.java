@@ -29,6 +29,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import io.micronaut.core.annotation.Nullable;
 
 @Slf4j
 @Controller
@@ -52,11 +53,12 @@ public class LiveAvailabilityController {
 	@SingleResult
 	@Get(value = "/items/availability", produces = APPLICATION_JSON)
 	public Mono<AvailabilityResponseView> getLiveAvailability(
-		@NotNull @QueryValue("clusteredBibId") final UUID clusteredBibId) {
+		@NotNull @QueryValue("clusteredBibId") final UUID clusteredBibId,
+		@Nullable @QueryValue("filters") final String filters) {
 
-		log.info("REST, getLiveAvailability: {}", clusteredBibId);
+		log.info("REST, getLiveAvailability: {} {}", clusteredBibId, filters);
 
-		return liveAvailabilityService.checkAvailability(clusteredBibId, timeout)
+		return liveAvailabilityService.checkAvailability(clusteredBibId, timeout, ( filters != null ) ? filters : "all")
 			.onErrorReturn(NoBibsForClusterRecordException.class, emptyReport())
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId));
 	}
