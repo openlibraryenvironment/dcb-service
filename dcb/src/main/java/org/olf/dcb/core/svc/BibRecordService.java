@@ -305,6 +305,11 @@ public class BibRecordService {
 	public Mono<Page<BibRecord>> getPageOfHostLmsBibs ( @NonNull UUID sourceSystemId, @NonNull Pageable page ) {
 		return Mono.from( bibRepo.findAllBySourceSystemId(sourceSystemId, page) );
 	}
+	
+	@Transactional
+	public Mono<Page<BibRecord>> getPageOfBibs(@NonNull Pageable page) {
+		return Mono.from( bibRepo.queryAll(page) );
+	}
 
 	public Publisher<Void> cleanup() {
 		return bibRepo.cleanUp();
