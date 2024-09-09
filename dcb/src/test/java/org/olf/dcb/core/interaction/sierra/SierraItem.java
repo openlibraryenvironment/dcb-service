@@ -1,9 +1,12 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import java.time.Instant;
+import java.util.Map;
 
+import io.micronaut.core.annotation.Nullable;
 import lombok.Builder;
 import lombok.Value;
+import services.k_int.interaction.sierra.FixedField;
 
 
 @Value
@@ -20,4 +23,5 @@ public class SierraItem {
 	int holdCount;
 	Boolean suppressed;
 	Boolean deleted;
+	Map<Integer, FixedField> fixedFields;
 }

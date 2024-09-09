@@ -195,6 +195,7 @@ class LiveAvailabilityApiTests {
 				.locationName("Example Location")
 				.suppressed(true)
 				.deleted(false)
+				.itemType("999")
 				.build()));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
@@ -235,6 +236,7 @@ class LiveAvailabilityApiTests {
 				.locationName("Example Location")
 				.suppressed(false)
 				.deleted(true)
+				.itemType("999")
 				.build()));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(

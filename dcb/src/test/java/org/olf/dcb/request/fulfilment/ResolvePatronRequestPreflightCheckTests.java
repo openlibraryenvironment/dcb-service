@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -34,6 +35,7 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -144,6 +146,9 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var onlyAvailableItemId = "352545";
 		final var onlyAvailableItemBarcode = "82365396";
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			"resolution-cataloguing", 1, 1, "loanable-item");
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
@@ -543,6 +548,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 			.barcode(barcode)
 			.locationCode(locationCode)
 			.statusCode("-")
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 			.build();
 	}
 
