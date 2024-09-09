@@ -2,6 +2,7 @@ package org.olf.dcb.item.availability;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
+import java.util.function.Predicate;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 
 import java.time.Duration;
@@ -90,14 +91,14 @@ public class LiveAvailabilityService {
 	}
 
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
-		return checkAvailability( clusteredBibId, Optional.empty() );
+		return checkAvailability( clusteredBibId, Optional.empty(), Optional.ofNullable("all") );
 	}
 	
-	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Duration timeout) {
-		return checkAvailability(clusteredBibId, Optional.ofNullable(timeout));
+	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Duration timeout, String filters) {
+		return checkAvailability(clusteredBibId, Optional.ofNullable(timeout), Optional.ofNullable(filters) );
 	}
 	
-	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Optional<Duration> timeout) {
+	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Optional<Duration> timeout, Optional<String> filters) {
 		log.debug("getAvailableItems({})", clusteredBibId);
 
 		final List<Tag> commonTags = List.of(Tag.of("cluster", clusteredBibId.toString()));
@@ -105,7 +106,7 @@ public class LiveAvailabilityService {
 		return Mono.defer( () -> Mono.just(System.nanoTime()) )
 			.flatMap( start -> Mono.just( clusteredBibId )
 				.flatMapMany( this::getClusterMembers )
-				.flatMap( b -> checkBibAvailabilityAtHost(timeout, b, commonTags))
+				.flatMap( b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters))
 				.map( this::determineRequestability )
 				.doOnNext ( b -> log.debug("Requestability check result == {}",b) )
 				.reduce(emptyReport(), AvailabilityReport::combineReports)
@@ -132,26 +133,39 @@ public class LiveAvailabilityService {
 	}
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bibRecord, List<Tag> parentTags) {
+		Optional<Duration> timeout, BibRecord bibRecord, List<Tag> parentTags, Optional<String> filters) {
 		
 		return hostLmsService.getClientFor(bibRecord.getSourceSystemId())
-		  .flatMap(hostLms -> this.checkBibAvailabilityAtHost(timeout, bibRecord, parentTags, hostLms))
+		  .flatMap(hostLms -> this.checkBibAvailabilityAtHost(timeout, bibRecord, parentTags, hostLms, filters))
 			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
 	
+	/**
+	 * This method allows the filter options of checkBibAvailabilityAtHost to be programatically controlled
+	 * by the caller. Initially this is a binary all (The default) or non - to switch off filtering and allow
+	 * the service to report the actual availability of all items, rather than silently dropping non-available
+	 * ones.
+	 */
+	private Predicate<Item> conditionallyFilter(Optional<String> filters, Predicate<Item> filterPredicate) {
+		// If filters is not set, the default is all
+		// If the value of filters is "none" return true, effectively bypassing all filters
+		return item -> ( (filters.orElse("all").equalsIgnoreCase("none" ) ) || filterPredicate.test(item) );
+	}
+
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms) {
+		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms, Optional<String> filters) {
+
 		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("bib", bib.getId().toString()), Tag.of("lms", hostLms.getHostLmsCode())));
 		commonTags.addAll(parentTags);
 		
 		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )
 			.flatMap( start -> hostLms.getItems(bib)
 					.flatMapIterable(identity())
-					.filter(Item::notSuppressed)
-					.filter(Item::notDeleted)
-					.filter(Item::hasAgency)
-					.filter(Item::hasHostLms)
-					.filter(Item::AgencyIsSupplying)
+					.filter(conditionallyFilter(filters, Item::notSuppressed))
+					.filter(conditionallyFilter(filters, Item::notDeleted))
+					.filter(conditionallyFilter(filters, Item::hasAgency))
+					.filter(conditionallyFilter(filters, Item::hasHostLms))
+					.filter(conditionallyFilter(filters, Item::AgencyIsSupplying))
 					.collectList()
 					.map(AvailabilityReport::ofItems)
 					.map(Functions.curry(bib, this::addValueToCache))

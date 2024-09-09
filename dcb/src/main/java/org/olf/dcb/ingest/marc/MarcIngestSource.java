@@ -382,6 +382,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, final Record marcRecord) {
 		Map<String, Object> canonical_metadata = new HashMap<>();
 		IngestRecord ir = irb.build();
+		canonical_metadata.put("sourceRecordId", ir.getSourceRecordId());
 		canonical_metadata.put("title", ir.getTitle());
 		canonical_metadata.put("identifiers", ir.getIdentifiers());
 		canonical_metadata.put("derivedType", ir.getDerivedType());
@@ -391,6 +392,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		// canonical_metadata.put("materialType",ir.getMaterialType());
 		canonical_metadata.put("author", ir.getAuthor());
 		canonical_metadata.put("otherAuthors", ir.getOtherAuthors());
+
+		DataField seriesStatement = (DataField) marcRecord.getVariableField("490");
+		if ( seriesStatement != null ) {
+			setIfSubfieldPresent(seriesStatement, 'a', canonical_metadata, "seriesStatement");
+		}
 
 		DataField publisher1 = (DataField) marcRecord.getVariableField("264");
 		if (publisher1 != null) {
