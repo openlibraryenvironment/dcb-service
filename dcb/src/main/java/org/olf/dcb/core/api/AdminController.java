@@ -7,16 +7,17 @@ import java.util.UUID;
 
 import org.olf.dcb.core.api.serde.ImportCommand;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.core.model.ProcessState;
+import org.olf.dcb.core.model.RecordCountSummary;
+import org.olf.dcb.core.svc.HouseKeepingService;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater.ReindexOp;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.storage.BibRepository;
 //import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ProcessStateRepository;
 import org.olf.dcb.utils.DCBConfigurationService;
 import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
@@ -27,6 +28,7 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
@@ -41,8 +43,8 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
 @Controller("/admin")
@@ -60,6 +62,7 @@ public class AdminController {
 //	private final StatsService statsService;
 	private final DCBConfigurationService configurationService;
 	private final Optional<SharedIndexLiveUpdater> sharedIndexUpdater;
+	private final HouseKeepingService housekeeping;
 
 	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService,
 //			StatsService statsService,
@@ -67,7 +70,7 @@ public class AdminController {
 			ProcessStateRepository processStateRepository,
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
-			Optional<SharedIndexLiveUpdater> sharedIndexUpdater) {
+			Optional<SharedIndexLiveUpdater> sharedIndexUpdater, HouseKeepingService housekeeping) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
@@ -77,6 +80,7 @@ public class AdminController {
 		this.configurationService = configurationService;
 		this.bibRepository = bibRepository;
 		this.sharedIndexUpdater = sharedIndexUpdater;
+		this.housekeeping = housekeeping;
 	}
 
 	// ToDo: The tests seem to want to be able to call this without any auth - that
@@ -157,6 +161,13 @@ public class AdminController {
 					.thenReturn(HttpResponse.accepted())))
 			
 			.defaultIfEmpty(HttpResponse.notFound());
+	}
+	
+	@Post(uri = "/dedupe/matchpoints", produces = MediaType.TEXT_PLAIN)
+	public Mono<MutableHttpResponse<String>> dedupeMatchPoints() {
+		return housekeeping
+			.dedupeMatchPoints()
+			.map(HttpResponse.accepted()::<String>body);
 	}
 
 }
