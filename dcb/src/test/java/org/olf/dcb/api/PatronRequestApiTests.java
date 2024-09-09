@@ -28,6 +28,7 @@ import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
@@ -60,6 +61,7 @@ import org.olf.dcb.test.clients.ChecksFailure;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -146,6 +148,7 @@ class PatronRequestApiTests {
 				.locationName("King 6th Floor")
 				.barcode(SUPPLYING_ITEM_BARCODE)
 				.itemType("999")
+				.fixedFields(Map.of(61, FixedField.builder().value("999").build()))
 				.holdCount(0)
 			.build()));
 
@@ -153,6 +156,8 @@ class PatronRequestApiTests {
 			SierraItem.builder()
 				.id("7916922")
 				.statusCode("-")
+				.itemType("999")
+				.fixedFields(Map.of(61, FixedField.builder().value("999").build()))
 				.build());
 
 		// patron service
@@ -215,6 +220,9 @@ class PatronRequestApiTests {
 			SUPPLYING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
 		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE,
 			BORROWING_AGENCY_CODE);
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			SUPPLYING_HOST_LMS_CODE, 999, 999, "loanable-item");
 	}
 
 	@Test
@@ -260,6 +268,8 @@ class PatronRequestApiTests {
 				.id(localSupplyingItemId)
 				.barcode(SUPPLYING_ITEM_BARCODE)
 				.statusCode("-")
+				.itemType("999")
+				.fixedFields(Map.of(61, FixedField.builder().value("999").build()))
 				.build());
 
 		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId,
@@ -283,6 +293,8 @@ class PatronRequestApiTests {
 				.id(KNOWN_PATRON_LOCAL_ID)
 				.barcode(SUPPLYING_ITEM_BARCODE)
 				.statusCode("-")
+				.itemType("999")
+				.fixedFields(Map.of(61, FixedField.builder().value("999").build()))
 				.build());
 
 		// We need to take the placedRequestResponse and somehow inject it's ID into the
@@ -424,6 +436,8 @@ class PatronRequestApiTests {
 				.id("674355")
 				.barcode(SUPPLYING_ITEM_BARCODE)
 				.statusCode("-")
+				.itemType("999")
+				.fixedFields(Map.of(61, FixedField.builder().value("999").build()))
 				.build());
 
 		// Borrowing Host LMS mocks
@@ -442,6 +456,8 @@ class PatronRequestApiTests {
 				.id(localBorrowingItemId)
 				.barcode(SUPPLYING_ITEM_BARCODE)
 				.statusCode("-")
+				.itemType("999")
+				.fixedFields(Map.of(61, FixedField.builder().value("999").build()))
 				.build());
 
 		log.info("Waiting for placed at supplying agency");

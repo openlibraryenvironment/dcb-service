@@ -144,6 +144,9 @@ class PolarisLmsClientTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, "15", "345test");
 
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CATALOGUING_HOST_LMS_CODE, 3, 3, "loanable-item");
+
 		agencyFixture.defineAgency("345test", "Test College",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
@@ -179,7 +182,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalBibId(bibId));
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
-		assertThat(firstItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(firstItem, hasCanonicalItemType("loanable-item"));
 		assertThat(firstItem, hasNoHoldCount());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());

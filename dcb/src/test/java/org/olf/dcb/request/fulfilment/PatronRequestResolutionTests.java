@@ -21,11 +21,13 @@ import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.test.*;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import static java.util.Collections.emptyList;
@@ -152,6 +154,9 @@ class PatronRequestResolutionTests {
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			"465675", clusterRecord);
 
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
+
 		sierraItemsAPIFixture.itemsForBibId("465675", List.of(
 			SierraItem.builder()
 				.id("1000001")
@@ -159,12 +164,16 @@ class PatronRequestResolutionTests {
 				.locationCode(ITEM_LOCATION_CODE)
 				.statusCode("-")
 				.dueDate(Instant.parse("2021-02-25T12:00:00Z"))
+				.itemType("1")
+				.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 				.build(),
 			SierraItem.builder()
 				.id("1000002")
 				.barcode("6565750674")
 				.locationCode(ITEM_LOCATION_CODE)
 				.statusCode("-")
+				.itemType("1")
+				.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 				.build()
 		));
 
@@ -464,8 +473,8 @@ class PatronRequestResolutionTests {
 			hasNestedAuditDataProperty("selectedItem", "barcode", "6565750674"),
 			hasNestedAuditDataProperty("selectedItem", "requestable", true),
 			hasNestedAuditDataProperty("selectedItem", "statusCode", "AVAILABLE"),
-			hasNestedAuditDataProperty("selectedItem", "localItemType", "null"),
-			hasNestedAuditDataProperty("selectedItem", "canonicalItemType", "UNKNOWN"),
+			hasNestedAuditDataProperty("selectedItem", "localItemType", "1"),
+			hasNestedAuditDataProperty("selectedItem", "canonicalItemType", "loanable-item"),
 			hasNestedAuditDataProperty("selectedItem", "holdCount", 0),
 			hasNestedAuditDataProperty("selectedItem", "agencyCode", SUPPLYING_AGENCY_CODE)
 		));
