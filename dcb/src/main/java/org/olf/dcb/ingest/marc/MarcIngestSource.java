@@ -398,6 +398,13 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			setIfSubfieldPresent(seriesStatement, 'a', canonical_metadata, "seriesStatement");
 		}
 
+		DataField seriesAddedEntry = (DataField) marcRecord.getVariableField("830");
+		if ( seriesAddedEntry != null ) {
+			setIfSubfieldPresent(seriesAddedEntry, 'a', canonical_metadata, "serUniformTitle");
+			setIfSubfieldPresent(seriesAddedEntry, 'v', canonical_metadata, "serSeqDesignation");
+			setIfSubfieldPresent(seriesAddedEntry, 'v', canonical_metadata, "serMedium");
+		}
+
 		DataField publisher1 = (DataField) marcRecord.getVariableField("264");
 		if (publisher1 != null) {
 			setIfSubfieldPresent(publisher1, 'a', canonical_metadata, "placeOfPublication");
