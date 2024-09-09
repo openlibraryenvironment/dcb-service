@@ -121,4 +121,7 @@ public interface PatronRequestRepository {
 	@Join("requestingIdentity")
 	Publisher<PatronRequest> findAllByPatronHostlmsCodeAndBibClusterIdOrderByDateCreatedDesc(
 		@NotNull @NonNull String patronHostlmsCode, @NotNull @NonNull UUID bibClusterId);
+
+	Publisher<PatronRequest> findAllByPickupLocationCode(String pickupLocationCode);
+
 }
