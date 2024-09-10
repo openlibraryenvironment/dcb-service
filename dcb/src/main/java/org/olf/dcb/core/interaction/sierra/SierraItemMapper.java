@@ -94,8 +94,9 @@ public class SierraItemMapper {
 				.rawVolumeStatement(rawVolumeStatement)
 				.parsedVolumeStatement(parsedVolumeStatement)
 				.build())
-			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode))
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode));
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
+			.flatMap(itemTypeMapper::enrichItemWithMappedItemType);
+
 	}
 
 	@Nullable

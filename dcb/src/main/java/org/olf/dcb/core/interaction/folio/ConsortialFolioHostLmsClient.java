@@ -310,7 +310,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private Mono<Item> mapMaterialTypeToItemType(Item item) {
 		return materialTypeToItemTypeMappingService
-			.enrichItemWithMappedItemType(item, getHostLmsCode());
+			.enrichItemWithMappedItemType(item);
 	}
 
 	@Override

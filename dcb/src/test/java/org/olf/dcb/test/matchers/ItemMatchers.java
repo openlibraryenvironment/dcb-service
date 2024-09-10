@@ -117,7 +117,7 @@ public class ItemMatchers {
 	}
 
 	public static Matcher<Item> hasUnknownCanonicalItemType() {
-		return hasCanonicalItemType("UNKNOWN");
+		return hasCanonicalItemType("UNKNOWN - No mapping found");
 	}
 
 	public static Matcher<Item> hasHoldCount(Integer expectedHoldCount) {

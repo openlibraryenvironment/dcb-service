@@ -10,6 +10,7 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.function.Function;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
@@ -116,6 +117,23 @@ public class LocationToAgencyMappingService {
 		return Mono.just(incomingItem)
 			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
 			.map(function(Item::setAgency))
+			.flatMap(setOwningContext())
 			.defaultIfEmpty(incomingItem);
+	}
+
+
+	private Function<Item, Mono<Item>> setOwningContext() {
+		return item -> {
+			final var agency = getValueOrNull(item, Item::getAgency);
+			final var hostLms = getValueOrNull(agency, DataAgency::getHostLms);
+
+			if (hostLms == null) {
+				log.error("Could not add owning context as agency hostlms was null");
+				return Mono.just(item);
+			}
+
+			return hostLmsService.findById(hostLms.getId())
+				.map(dataHostLms -> item.setOwningContext(dataHostLms.getCode()));
+		};
 	}
 }

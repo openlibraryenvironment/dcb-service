@@ -49,7 +49,7 @@ public class AvailabilityResponseView {
 		final var agency = getValueOrNull(item, Item::getAgency);
 		final var agencyCode = getValueOrNull(agency, DataAgency::getCode);
 		final var agencyName = getValueOrNull(agency, DataAgency::getName);
-		final String owningContext = "UNKNOWN";
+		final var owningContext = getValueOrNull(item, Item::getOwningContext);
 
 		final var mappedAgency = agency != null
 			? new Agency(agencyCode, agencyName)

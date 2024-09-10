@@ -1,10 +1,13 @@
 package org.olf.dcb.core.interaction.shared;
 
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Singleton
@@ -22,7 +25,10 @@ public class NumericItemTypeMapper {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
-	public Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostLmsCode) {
+	public Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item) {
+
+		final var hostLmsCode = getValueOrNull(item, Item::getOwningContext);
+
 		return getCanonicalItemType(hostLmsCode, item.getLocalItemTypeCode())
 			.defaultIfEmpty(UNKNOWN_UNEXPECTED_FAILURE)
 			.map(item::setCanonicalItemType);

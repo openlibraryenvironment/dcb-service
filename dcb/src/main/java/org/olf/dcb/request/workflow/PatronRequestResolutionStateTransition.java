@@ -112,6 +112,10 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private Mono<Resolution> checkMappedCanonicalItemType(Resolution resolution) {
 
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
+
+		// NO_ITEMS_AVAILABLE_AT_ANY_AGENCY
+		if (chosenItem == null) return Mono.just(resolution);
+
 		final var canonicalItemType = getValue(chosenItem, Item::getCanonicalItemType, "null");
 		final var localItemType = getValue(chosenItem, Item::getLocalItemType, "null");
 		final var hostLmsCode = getValue(chosenItem, Item::getHostLmsCode, "null");

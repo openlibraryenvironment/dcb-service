@@ -47,7 +47,7 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		final var enrichedItem = enrichItemWithItemType(item);
 
 		// Assert
-		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN - NULL localItemTypeCode"));
 	}
 
 	@Test
@@ -58,7 +58,7 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		final var enrichedItem = enrichItemWithItemType(item);
 
 		// Assert
-		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN - No mapping found"));
 	}
 
 	@Test
@@ -73,17 +73,18 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		final var enrichedItem = enrichItemWithItemType(item);
 
 		// Assert
-		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN - No mapping found"));
 	}
 
 	private static Item exampleItem(String materialTypeName) {
 		return Item.builder()
 			.localItemTypeCode(materialTypeName)
+			.owningContext("folio-host-lms")
 			.build();
 	}
 
 	private Item enrichItemWithItemType(Item item) {
-		return materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(item, "folio-host-lms")
+		return materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(item)
 			.block();
 	}
 }

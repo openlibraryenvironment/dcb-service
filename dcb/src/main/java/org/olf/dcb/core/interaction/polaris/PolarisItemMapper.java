@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
+import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import jakarta.inject.Singleton;
@@ -26,17 +27,19 @@ public class PolarisItemMapper {
 	private final NumericItemTypeMapper itemTypeMapper;
 
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final AgencyService agencyService;
 
 	public static ItemStatusMapper.FallbackMapper polarisFallback() {
 		return fallbackBasedUponAvailableStatuses("In");
 	}
 
 	PolarisItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
-		LocationToAgencyMappingService locationToAgencyMappingService) {
+										LocationToAgencyMappingService locationToAgencyMappingService, AgencyService agencyService) {
 
 		this.itemStatusMapper = itemStatusMapper;
 		this.itemTypeMapper = itemTypeMapper;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.agencyService = agencyService;
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
@@ -65,7 +68,7 @@ public class PolarisItemMapper {
         .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getVolumeNumber()))
 				.build())
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
-				.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item, hostLmsCode));
+				.flatMap(itemTypeMapper::enrichItemWithMappedItemType);
 	}
 
 	private static Instant convertFrom(String dueDate) {

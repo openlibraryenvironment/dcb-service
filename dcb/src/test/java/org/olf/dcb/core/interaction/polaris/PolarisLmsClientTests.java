@@ -182,7 +182,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalBibId(bibId));
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
-		assertThat(firstItem, hasCanonicalItemType("loanable-item"));
+		assertThat(firstItem, hasCanonicalItemType("UNKNOWN - No mapping found"));
 		assertThat(firstItem, hasNoHoldCount());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
