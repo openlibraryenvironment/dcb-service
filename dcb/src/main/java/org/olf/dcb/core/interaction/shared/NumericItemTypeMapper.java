@@ -4,15 +4,19 @@ import org.olf.dcb.storage.NumericRangeMappingRepository;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
-
-import static services.k_int.utils.ReactorUtils.raiseError;
 
 @Slf4j
 @Singleton
 public class NumericItemTypeMapper {
 	private final NumericRangeMappingRepository numericRangeMappingRepository;
+
+	// Static constants for failure reasons
+	public static final String UNKNOWN_NULL_LOCAL_ITEM_TYPE = "UNKNOWN - NULL localItemTypeCode";
+	public static final String UNKNOWN_NULL_HOSTLMSCODE = "UNKNOWN - NULL hostLmsCode";
+	public static final String UNKNOWN_INVALID_LOCAL_ITEM_TYPE = "UNKNOWN - Invalid localItemTypeCode";
+	public static final String UNKNOWN_NO_MAPPING_FOUND = "UNKNOWN - No mapping found";
+	public static final String UNKNOWN_UNEXPECTED_FAILURE = "UNKNOWN - Unexpected failure";
 
 	public NumericItemTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository) {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
@@ -20,13 +24,7 @@ public class NumericItemTypeMapper {
 
 	public Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item, String hostLmsCode) {
 		return getCanonicalItemType(hostLmsCode, item.getLocalItemTypeCode())
-			.switchIfEmpty(raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("Unexpected failure")
-				.with("hostLmsCode", hostLmsCode)
-				.with("localItemTypeCode", item.getLocalItemTypeCode())
-				.build())
-			)
+			.defaultIfEmpty(UNKNOWN_UNEXPECTED_FAILURE)
 			.map(item::setCanonicalItemType);
 	}
 
@@ -34,44 +32,25 @@ public class NumericItemTypeMapper {
 		log.debug("getCanonicalItemType({}, {})", system, localItemTypeCode);
 
 		if (system == null) {
-			log.error("No hostLmsCode provided");
-			return raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("No hostLmsCode provided")
-				.build());
+			log.warn("No hostLmsCode provided - returning {}", UNKNOWN_NULL_HOSTLMSCODE);
+			return Mono.just(UNKNOWN_NULL_HOSTLMSCODE);
 		}
 
 		if (localItemTypeCode == null) {
-			log.error("No localItemType provided");
-			return raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("No localItemType provided")
-				.with("hostLmsCode", system)
-				.build());
+			log.warn("No localItemType provided - returning {}", UNKNOWN_NULL_LOCAL_ITEM_TYPE);
+			return Mono.just(UNKNOWN_NULL_LOCAL_ITEM_TYPE);
 		}
 
-		// Sierra item types are integers. They are usually mapped by a range
-		// I have a feeling that creating a static cache of system->localItemType mappings will have solid performance
-		// benefits
 		try {
 			Long l = Long.valueOf(localItemTypeCode);
 			log.debug("Look up item type {}", l);
 			return Mono.from(numericRangeMappingRepository.findMappedValueFor(system, "ItemType", "DCB", l))
 				.doOnNext(nrm -> log.debug("nrm: {}", nrm))
-				.switchIfEmpty(raiseError(Problem.builder()
-					.withTitle("NumericItemTypeMapper")
-					.withDetail("No canonical item type found for localItemTypeCode " + l)
-					.with("hostLmsCode", system)
-					.build())
-				);
+				.defaultIfEmpty(UNKNOWN_NO_MAPPING_FOUND);
 		} catch (Exception e) {
-			log.error("Problem trying to convert {} into  long value", localItemTypeCode);
-			return raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("Problem trying to convert " + localItemTypeCode + " into  long value")
-				.with("hostLmsCode", system)
-				.with("Error", e.toString())
-				.build());
+			log.warn("Problem trying to convert {} into long value - returning {}",
+				localItemTypeCode, UNKNOWN_INVALID_LOCAL_ITEM_TYPE);
+			return Mono.just(UNKNOWN_INVALID_LOCAL_ITEM_TYPE);
 		}
 	}
 }
