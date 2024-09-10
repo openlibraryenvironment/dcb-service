@@ -79,43 +79,43 @@ echo
 echo Agency 1-1
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-1-1`'",    "code":"DA-1-1",      "name":"Dummy1Agency1 (Sheffield, UK)",   "hostLMSCode": "DUMMY1", "authProfile": "BASIC/BARCODE+PIN", "latitude":53.383331, "longitude":-1.466667 }'
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-1-1`'",    "code":"DA-1-1",      "name":"Dummy1Agency1 (Sheffield, UK)",   "hostLMSCode": "DUMMY1", "authProfile": "BASIC/BARCODE+PIN", "latitude":53.383331, "longitude":-1.466667, "isSupplyingAgency":true, "isBorrowingAgency":true }'
 
 echo
 echo Agency 1-2
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-1-2`'",    "code":"DA-1-2",      "name":"Dummy1Agency2 (Leeds, UK)",       "hostLMSCode": "DUMMY1", "authProfile": "BASIC/BARCODE+PIN", "latitude":53.801277, "longitude":-1.548567 }'
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-1-2`'",    "code":"DA-1-2",      "name":"Dummy1Agency2 (Leeds, UK)",       "hostLMSCode": "DUMMY1", "authProfile": "BASIC/BARCODE+PIN", "latitude":53.801277, "longitude":-1.548567, "isSupplyingAgency":true, "isBorrowingAgency":true }'
 
 echo
 echo Agency 2-1
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-2-1`'",    "code":"DA-2-1",      "name":"Dummy2Agency1 (Boston, USA)",     "hostLMSCode": "DUMMY2", "authProfile": "BASIC/BARCODE+PIN",  "latitude":42.361145, "longitude":-71.057083 }'
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-2-1`'",    "code":"DA-2-1",      "name":"Dummy2Agency1 (Boston, USA)",     "hostLMSCode": "DUMMY2", "authProfile": "BASIC/BARCODE+PIN",  "latitude":42.361145, "longitude":-71.057083, "isSupplyingAgency":true, "isBorrowingAgency":true }'
 
 echo
 echo Agency 2-2
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-2-2`'",    "code":"DA-2-2",      "name":"Dummy2Agency2 (Columbia, MO, USA)", "hostLMSCode": "DUMMY2", "authProfile": "BASIC/BARCODE+PIN", "latitude":38.951561, "longitude":-92.328636 }'
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-2-2`'",    "code":"DA-2-2",      "name":"Dummy2Agency2 (Columbia, MO, USA)", "hostLMSCode": "DUMMY2", "authProfile": "BASIC/BARCODE+PIN", "latitude":38.951561, "longitude":-92.328636, "isSupplyingAgency":true, "isBorrowingAgency":true }'
 
 echo
 echo Agency 3-1
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-3-1`'",    "code":"DA-3-1",      "name":"Dummy3Agency1 (Grand Junction, CO, USA)",               "hostLMSCode": "DUMMY3", "authProfile": "BASIC/BARCODE+PIN", "latitude":39.0588, "longitude": -108.5587 }'
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-3-1`'",    "code":"DA-3-1",      "name":"Dummy3Agency1 (Grand Junction, CO, USA)",               "hostLMSCode": "DUMMY3", "authProfile": "BASIC/BARCODE+PIN", "latitude":39.0588, "longitude": -108.5587, "isSupplyingAgency":true, "isBorrowingAgency":true }'
 
 echo
 echo Agency 3-2
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-3-2`'", "code":"DA-3-2", "name":"Dummy3Agency2", "hostLMSCode": "DUMMY3", "authProfile": "BASIC/BARCODE+PIN" }'
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-3-2`'", "code":"DA-3-2", "name":"Dummy3Agency2", "hostLMSCode": "DUMMY3", "authProfile": "BASIC/BARCODE+PIN", "isSupplyingAgency":true, "isBorrowingAgency":true }'
 
 echo
 echo Agency 4-1
 echo
 curl -X POST $TARGET/agencies -H "Content-Type: application/json"  -H "Authorization: Bearer $TOKEN" -d '{ 
-  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-4-1`'",    "code":"DA-4-1",      "name":"Dummy4Agency1 (Grand Junction, CO, USA)",               "hostLMSCode": "DUMMY4", "authProfile": "BASIC/BARCODE+PIN", "latitude":39.0588, "longitude": -108.5587 }'
+  "id":"'`uuidgen --sha1 -n $AGENCIES_NS_UUID --name DA-4-1`'",    "code":"DA-4-1",      "name":"Dummy4Agency1 (Grand Junction, CO, USA)",               "hostLMSCode": "DUMMY4", "authProfile": "BASIC/BARCODE+PIN", "latitude":39.0588, "longitude": -108.5587, "isSupplyingAgency":true, "isBorrowingAgency":true }'
 
 
 echo
