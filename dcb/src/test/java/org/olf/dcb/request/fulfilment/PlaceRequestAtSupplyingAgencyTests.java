@@ -20,10 +20,12 @@ import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTran
 import org.olf.dcb.test.*;
 import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -212,6 +214,9 @@ class PlaceRequestAtSupplyingAgencyTests {
 				.id(localItemId)
 				.barcode("67324231")
 				.statusCode("-")
+				// needs to align with NumericRangeMapping
+				.itemType("1")
+				.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 				.build());
 
 		// Act

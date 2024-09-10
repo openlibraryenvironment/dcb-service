@@ -183,6 +183,12 @@ class LiveAvailabilityServiceTests {
 				.build()
 		));
 
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			firstHostLms.getCode(), 999, 999, "loanable-item");
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			secondHostLms.getCode(), 999, 999, "loanable-item");
+
 		// Act
 		final var report = checkAvailability(clusterRecord);
 
@@ -224,6 +230,9 @@ class LiveAvailabilityServiceTests {
 				.build()
 		));
 
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			firstHostLms.getCode(), 1, 1, "loanable-item");
+
 		// Act
 		final var report = checkAvailability(clusterRecord);
 
@@ -261,6 +270,9 @@ class LiveAvailabilityServiceTests {
 				.locationName("Known Location")
 				.build()
 		));
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			firstHostLms.getCode(), 1, 1, "loanable-item");
 
 		// Act
 		final var report = checkAvailability(clusterRecord);
@@ -305,6 +317,9 @@ class LiveAvailabilityServiceTests {
 				.build()
 		));
 
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			firstHostLms.getCode(), 1, 1, "loanable-item");
+
 		// Act
 		final var report = checkAvailability(clusterRecord);
 
@@ -348,6 +363,9 @@ class LiveAvailabilityServiceTests {
 				.locationName("Known Location")
 				.build()
 		));
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			firstHostLms.getCode(), 1, 1, "loanable-item");
 
 		// Act
 		final var report = checkAvailability(clusterRecord);

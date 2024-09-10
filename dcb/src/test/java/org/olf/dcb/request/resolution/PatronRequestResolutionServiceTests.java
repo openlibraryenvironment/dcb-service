@@ -21,6 +21,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocationCode;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,6 +48,7 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -139,6 +141,11 @@ class PatronRequestResolutionServiceTests {
 
 		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE,
 			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
+
+		// Needs to align with sierra item type responses
+		// For simplicity all sierra item types are expected to be on 1 in this class
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
 	}
 
 	@Test
@@ -476,6 +483,9 @@ class PatronRequestResolutionServiceTests {
 			.barcode(barcode)
 			.locationCode(itemLocationCode)
 			.statusCode("-")
+			// needs to align with NumericRangeMapping
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 			.build();
 	}
 
@@ -487,6 +497,9 @@ class PatronRequestResolutionServiceTests {
 			.statusCode("-")
 			// Sierra item with due date is considered not available
 			.dueDate(Instant.now().plus(3, HOURS))
+			// needs to align with NumericRangeMapping
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 			.build();
 	}
 

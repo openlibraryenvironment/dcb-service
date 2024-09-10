@@ -17,6 +17,7 @@ import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
@@ -418,6 +419,32 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				allOf(
 					hasLocalId(declaredLostItemId),
 					hasStatus(UNAVAILABLE)
+				)
+			));
+	}
+
+	@Test
+	void shouldTolerateMissingStatus() {
+		// Arrange
+		final var instanceId = randomUUID().toString();
+
+		final var itemId = randomUUID().toString();
+
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
+			Holding.builder()
+				.id(itemId)
+				.build()
+		);
+
+		// Act
+		final var items = getItems(instanceId);
+
+		// Assert
+		assertThat("Item should still be present", items,
+			containsInAnyOrder(
+				allOf(
+					hasLocalId(itemId),
+					hasStatus(UNKNOWN)
 				)
 			));
 	}

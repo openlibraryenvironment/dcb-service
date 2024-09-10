@@ -309,7 +309,7 @@ public class RecordClusteringService {
 			.as(Flux::from);
 	}
 	
-	private Flux<MatchPoint> generateMatchPoints ( final BibRecord bib ) {
+	public Flux<MatchPoint> generateMatchPoints ( final BibRecord bib ) {
 		log.trace("collectMatchPoints for bib");
 		return Flux.concat(
 				generateIdMatchPoints(bib),
