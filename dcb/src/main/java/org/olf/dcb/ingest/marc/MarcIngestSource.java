@@ -412,6 +412,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			}
 		}
 
+		DataField title_field = (DataField) marcRecord.getVariableField("245");
+		if (title_field != null) {
+      setIfSubfieldPresent(title_field, 'n', canonical_metadata, "titleNumberOfPart");
+    }
+
 		for (VariableField vf : (List<VariableField>) marcRecord.getVariableFields("500")) {
 			addToCanonicalMetadata("notes", vf, "a", canonical_metadata);
 		}
