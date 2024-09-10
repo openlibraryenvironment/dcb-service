@@ -60,6 +60,7 @@ import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.NoHomeBarcodeException;
 import org.olf.dcb.core.model.NoHomeIdentityException;
@@ -265,13 +266,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// DCB is only interested in items and thus needs to differentiate between
 			// holdings in the response that are items and those that are only holdings
 			// For more information on the flow inside RTAC - https://github.com/folio-org/mod-rtac/blob/3e7f25445ff79b60690fa2025f3a426d9e57fd21/src/main/java/org/folio/mappers/FolioToRtacMapper.java#L112
-			.filter(holdings -> itemStatuses.contains(holdings.getStatus()))
+			//
+			// Holdings without a status should be tolerated
+			.filter(holdings -> itemStatuses.contains(getValue(holdings, Holding::getStatus, "Unknown")))
 			.flatMap(holding -> mapHoldingToItem(holding, outerHoldings.getInstanceId()));
 	}
 
 	private Mono<Item> mapHoldingToItem(Holding holding, String instanceId) {
-		return Mono.justOrEmpty(getValueOrNull(holding, Holding::getStatus))
-			.flatMap(status -> itemStatusMapper.mapStatus(status, getHostLmsCode(), folioFallback()))
+		return mapStatus(holding)
 			.map(status -> Item.builder()
 				.localId(getValueOrNull(holding, Holding::getId))
 				.localBibId(instanceId)
@@ -293,6 +295,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.build())
 			.flatMap(this::mapLocationToAgency)
 			.flatMap(this::mapMaterialTypeToItemType);
+	}
+
+	private Mono<ItemStatus> mapStatus(Holding holding) {
+		final var status = getValueOrNull(holding, Holding::getStatus);
+
+		return itemStatusMapper.mapStatus(status, getHostLmsCode(), folioFallback());
 	}
 
 	private Mono<Item> mapLocationToAgency(Item item) {

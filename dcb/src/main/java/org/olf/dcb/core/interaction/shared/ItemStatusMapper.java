@@ -30,6 +30,10 @@ public class ItemStatusMapper {
 	public Mono<ItemStatus> mapStatus(String statusCode, String hostLmsCode,
 		FallbackMapper fallbackMapper) {
 
+		if (statusCode == null) {
+			return Mono.just(new ItemStatus(UNKNOWN));
+		}
+
 		return mapStatus(statusCode, null, hostLmsCode, false, fallbackMapper);
 	}
 
