@@ -1,6 +1,43 @@
 # Changelog
 
+## Version 7.3.0
+
+### Additions
+* [General]
+	* introduce owning context from agency [DCB-1509]
+	* add owningContext to AvailabilityResponseView
+	* Added transient field to the MatchPoint
+	* Add an optional filters parameter to liveAvailabilty which can control filtering - which is needed for interfaces where we need to show item status even if it is not available
+	* Ingest V2
+
+### Changes
+* [Chore]
+	* Add number subfield from title into canaonical metadata
+	* Update graphql_prs script to provide more info about requests
+	* update perftest script to allow borrowing & supplying
+	* Add 490 and 830 properties to canonical metadata
+	* Admin action for dedupe.
+	* Add series statement to canonical metadata
+* [Refactor]
+	* use static constants for failures in the NumericItemTypeMapper
+	* NumericItemTypeMapper to raise a problem [DCB-1521]
+
+### Fixes
+* [General]
+	* use correct hostLmsCode in problem [DCB-1509]
+	* error during finalise we get the response item links breakable [DCB-1374]
+	* Duplicated MatchPoints for single bibs
+	* Ensure we clear the interrupt message.
+	* set local patron id during patron identity validation [DCB-1425]
+	* Revert lock system.
+	* allow supplier item status available to trigger HandleBorrowerRequestReturnTransit [DCB-1517]
+	* remove username field when creating virtual patron in polaris hostlms
+
 ## Version 7.2.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
