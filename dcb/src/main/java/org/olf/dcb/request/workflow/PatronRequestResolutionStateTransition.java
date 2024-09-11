@@ -118,13 +118,13 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var canonicalItemType = getValue(chosenItem, Item::getCanonicalItemType, "null");
 		final var localItemType = getValue(chosenItem, Item::getLocalItemType, "null");
-		final var hostLmsCode = getValue(chosenItem, Item::getHostLmsCode, "null");
+		final var owningContext = getValue(chosenItem, Item::getOwningContext, "null");
 
 		return switch (canonicalItemType) {
 			case UNKNOWN_NULL_LOCAL_ITEM_TYPE -> raiseError(Problem.builder()
 				.withTitle("NumericItemTypeMapper")
 				.withDetail("No localItemType provided")
-				.with("hostLmsCode", hostLmsCode)
+				.with("hostLmsCode", owningContext)
 				.build());
 			case UNKNOWN_NULL_HOSTLMSCODE -> raiseError(Problem.builder()
 				.withTitle("NumericItemTypeMapper")
@@ -133,17 +133,17 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			case UNKNOWN_INVALID_LOCAL_ITEM_TYPE -> raiseError(Problem.builder()
 				.withTitle("NumericItemTypeMapper")
 				.withDetail("Problem trying to convert " + localItemType + " into long value")
-				.with("hostLmsCode", hostLmsCode)
+				.with("hostLmsCode", owningContext)
 				.build());
 			case UNKNOWN_NO_MAPPING_FOUND -> raiseError(Problem.builder()
 				.withTitle("NumericItemTypeMapper")
 				.withDetail("No canonical item type found for localItemTypeCode " + localItemType)
-				.with("hostLmsCode", hostLmsCode)
+				.with("hostLmsCode", owningContext)
 				.build());
 			case UNKNOWN_UNEXPECTED_FAILURE, "null" -> raiseError(Problem.builder()
 				.withTitle("NumericItemTypeMapper")
 				.withDetail("Unexpected failure")
-				.with("hostLmsCode", hostLmsCode)
+				.with("hostLmsCode", owningContext)
 				.with("localItemTypeCode", localItemType)
 				.build());
 
