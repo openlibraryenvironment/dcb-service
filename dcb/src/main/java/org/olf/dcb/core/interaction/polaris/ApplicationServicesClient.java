@@ -104,7 +104,7 @@ class ApplicationServicesClient {
 			&& response.getPrompt().getWorkflowPromptID() != null
 			&& promptID.equals(response.getPrompt().getWorkflowPromptID());
 
-		if (isInputRequired || isPromptMatching) {
+		if (isInputRequired && isPromptMatching) {
 			return handlePolarisWorkflow(response, promptID, promptResult);
 		}
 
@@ -135,17 +135,22 @@ class ApplicationServicesClient {
 		return workflowResponse;
 	}
 
-	private static void validateWorkflowStatus(WorkflowResponse workflowResponse) {
-		if (workflowResponse.getWorkflowStatus() < CompletedSuccessfully) {
-			log.error("Polaris response: " + workflowResponse);
+	private static void validateWorkflowStatus(WorkflowResponse response) {
+		if (response.getWorkflowStatus() < CompletedSuccessfully) {
+			log.error("Polaris response: " + response);
 
-			if (workflowResponse.getPrompt() != null && workflowResponse.getPrompt().getTitle() != null) {
-				final var titleOfError = workflowResponse.getPrompt().getTitle();
-
-				throw new PolarisWorkflowException(titleOfError);
-			}
-
-			throw new PolarisWorkflowException("Unknown response");
+			throw Problem.builder()
+				.withType(ERR0210)
+				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
+				.withDetail(response.getPrompt() != null && response.getPrompt().getTitle() != null ? response.getPrompt().getTitle() : "Response didn't have a title")
+				.with("Message", response.getPrompt() != null && response.getPrompt().getMessage() != null ? response.getPrompt().getMessage() : "No message")
+				.with("Information messages", response.getInformationMessages() != null ? response.getInformationMessages() : "No messages")
+				.with("Workflow prompt ID", response.getPrompt().getWorkflowPromptID() != null ? response.getPrompt().getWorkflowPromptID() : "No prompt id")
+				.with("Workflow doc", "https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview")
+				.with("Workflow status", response.getWorkflowStatus() != null ? response.getWorkflowStatus() : "No status")
+				.with("Workflow request GUID", response.getWorkflowRequestGuid() != null ? response.getWorkflowRequestGuid() : "No guid")
+				.with("Full response", response)
+				.build();
 		}
 	}
 
@@ -550,6 +555,7 @@ class ApplicationServicesClient {
 				.build()))
 			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
 			.flatMap(response -> handlePolarisWorkflow(response, ConfirmItemRecordDelete, Continue))
+			.flatMap(response -> replyIfPromptMatches(response, BreakableDeletionLinks, Continue))
 			.flatMap(response -> handlePolarisWorkflow(response, LastCopyOrRecordOptions, Retain));
 	}
 
@@ -1224,6 +1230,7 @@ class ApplicationServicesClient {
 		public static final Integer ExceededTotalRequestLimit = 68; // found as part of DCB-1353
 		public static final Integer DuplicateRecords = 72;
 		public static final Integer ConfirmItemRecordDelete = 73;
+		public static final Integer BreakableDeletionLinks = 75; // found as part of DCB-1374
 		// public static final Integer DuplicateHoldRequests = 77;
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
