@@ -117,23 +117,23 @@ public class LocationToAgencyMappingService {
 		return Mono.just(incomingItem)
 			.zipWhen(item -> findLocationToAgencyMapping(item, hostLmsCode))
 			.map(function(Item::setAgency))
-			.flatMap(setOwningContext())
+			.map(setOwningContext())
 			.defaultIfEmpty(incomingItem);
 	}
 
 
-	private Function<Item, Mono<Item>> setOwningContext() {
+	private Function<Item, Item> setOwningContext() {
 		return item -> {
-			final var agency = getValueOrNull(item, Item::getAgency);
-			final var hostLms = getValueOrNull(agency, DataAgency::getHostLms);
 
-			if (hostLms == null) {
-				log.error("Could not add owning context as agency hostlms was null");
-				return Mono.just(item);
+			// fetch hostlmscode from the items agency
+			final var hostLmsCode = getValueOrNull(item, Item::getHostLmsCode);
+
+			if (hostLmsCode == null) {
+				log.error("Could not add the owningConext as getHostLmsCode was null");
+				return item;
 			}
 
-			return hostLmsService.findById(hostLms.getId())
-				.map(dataHostLms -> item.setOwningContext(dataHostLms.getCode()));
+			return item.setOwningContext(hostLmsCode);
 		};
 	}
 }
