@@ -133,7 +133,7 @@ class LiveAvailabilityApiTests {
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
-			CATALOGUING_HOST_LMS_CODE, 999, 999, "BKM");
+			CIRCULATING_HOST_LMS_CODE, 999, 999, "BKM");
 
 		// Act
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);
@@ -154,7 +154,7 @@ class LiveAvailabilityApiTests {
 					hasStatus("AVAILABLE"),
 					hasNoHolds(),
 					hasLocalItemType("999"),
-					hasCanonicalItemType("UNKNOWN - No mapping found"),
+					hasCanonicalItemType("BKM"),
 					hasLocation(locationCode, "King 6th Floor"),
 					hasAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME),
 					hasHostLms(CIRCULATING_HOST_LMS_CODE)
@@ -169,7 +169,7 @@ class LiveAvailabilityApiTests {
 					hasStatus("CHECKED_OUT"),
 					hasNoHolds(),
 					hasLocalItemType("999"),
-					hasCanonicalItemType("UNKNOWN - No mapping found"),
+					hasCanonicalItemType("BKM"),
 					hasLocation(locationCode, "King 6th Floor"),
 					hasAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME),
 					hasHostLms(CIRCULATING_HOST_LMS_CODE)
