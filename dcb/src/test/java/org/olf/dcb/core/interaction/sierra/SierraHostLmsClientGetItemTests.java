@@ -1,16 +1,20 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasStatus;
+
+import java.time.Instant;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -84,6 +88,36 @@ class SierraHostLmsClientGetItemTests {
 			hasLocalId(localItemId),
 			hasBarcode(barcode),
 			hasStatus(ITEM_AVAILABLE),
+			hasRawStatus("-")
+		));
+	}
+
+	@Test
+	@SneakyThrows
+	void shouldMapAvailableWithDueDateToLoaned() {
+		// Arrange
+		final var localItemId = "2565626632";
+		final var barcode = "028476477";
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode(barcode)
+				.statusCode("-")
+				.dueDate(Instant.now().plus(5, DAYS))
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var item = singleValueFrom(client.getItem(localItemId, null));
+
+		// Assert
+		assertThat(item, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasBarcode(barcode),
+			hasStatus(ITEM_LOANED),
 			hasRawStatus("-")
 		));
 	}
