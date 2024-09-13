@@ -230,7 +230,7 @@ public class PatronRequestAuditService {
 		try {
 			// Extract relevant stack trace information
 			List<Map<String, Object>> stackTraceList = Arrays.stream(error.getStackTrace())
-				.limit(5)  // Limit to the first 5 elements for brevity
+				.limit(3)  // Limit to the first 3 elements for brevity
 				.map(stackTraceElement -> {
 					Map<String, Object> stackTraceElementMap = new HashMap<>();
 					stackTraceElementMap.put("methodName", stackTraceElement.getMethodName());
@@ -255,6 +255,7 @@ public class PatronRequestAuditService {
 			auditData.put(key, error.toString());
 		}
 
+		//log.info("Returning auditData: {}", auditData);
 		return auditData;
 	}
 

@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.statemodel.DCBGuardCondition;
@@ -84,8 +85,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 						auditData.put("virtual-patron-barcode", Arrays.toString(patron_barcodes));
 						auditData.put("home-item-barcode", home_item_barcode);
 						auditData.put("lender-system-code", rwc.getLenderSystemCode());
-						auditData.put("Error", error.toString());
-            auditData.put("StackTrace", Objects.toString(error.getStackTrace()));
+						auditThrowable(auditData, "StackTrace", error);
 
 						// Intentionally transform Error
 						// A virtual checkout is deemed as more of a notification than a critical action
