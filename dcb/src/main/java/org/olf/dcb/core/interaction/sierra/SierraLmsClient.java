@@ -1028,16 +1028,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
 	private String mapSierraItemStatusToDCBHoldStatus(Status status) {
-		if (status == null || status.getCode() == null) {
+		final var statusCode = getValue(status, Status::getCode, null);
+
+		if (statusCode == null) {
 			return null;
 		}
 
-		if ((status.getDuedate() != null) && (!status.getCode().trim().isEmpty())) {
+		if ((status.getDuedate() != null) && (!statusCode.trim().isEmpty())) {
 			log.info("Item has a due date, setting item status to LOANED");
 			return ITEM_LOANED;
 		}
 
-		return switch (status.getCode()) {
+		return switch (statusCode) {
 			case "-" -> ITEM_AVAILABLE;
 			case "t" -> ITEM_TRANSIT; // IN Transit
 			case "@" -> ITEM_OFFSITE;
@@ -1047,7 +1049,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case "%" -> ITEM_RETURNED;
 			case "m" -> ITEM_MISSING;
 			case "&" -> ITEM_REQUESTED;
-			default -> status.getCode();
+			default -> statusCode;
 		};
 	}
 
