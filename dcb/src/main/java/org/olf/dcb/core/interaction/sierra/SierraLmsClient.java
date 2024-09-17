@@ -1029,12 +1029,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
 	private String mapSierraItemStatusToDCBHoldStatus(Status status) {
 		final var statusCode = getValue(status, Status::getCode, null);
+		final var dueDate = getValue(status, Status::getDuedate, null);
 
 		if (statusCode == null) {
 			return null;
 		}
 
-		if ((status.getDuedate() != null) && (!statusCode.trim().isEmpty())) {
+		if ((dueDate != null) && (!statusCode.trim().isEmpty())) {
 			log.info("Item has a due date, setting item status to LOANED");
 			return ITEM_LOANED;
 		}
