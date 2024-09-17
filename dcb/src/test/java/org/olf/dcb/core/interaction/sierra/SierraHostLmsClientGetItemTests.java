@@ -69,7 +69,7 @@ class SierraHostLmsClientGetItemTests {
 	@SneakyThrows
 	void shouldFindItemByLocalId() {
 		// Arrange
-		final var localItemId = "37636433";
+		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
 		final var barcode = "23646535";
 
 		sierraItemsAPIFixture.mockGetItemById(localItemId,
@@ -98,7 +98,7 @@ class SierraHostLmsClientGetItemTests {
 	@SneakyThrows
 	void shouldMapAvailableWithDueDateToLoaned() {
 		// Arrange
-		final var localItemId = "2565626632";
+		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
 		final var barcode = "028476477";
 
 		sierraItemsAPIFixture.mockGetItemById(localItemId,
@@ -158,7 +158,7 @@ class SierraHostLmsClientGetItemTests {
 	@SneakyThrows
 	void shouldTolerateNullStatusForDeletedItem() {
 		// Arrange
-		final var localItemId = "6736342";
+		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
 		final var barcode = "108573653";
 
 		sierraItemsAPIFixture.mockGetItemById(localItemId,
