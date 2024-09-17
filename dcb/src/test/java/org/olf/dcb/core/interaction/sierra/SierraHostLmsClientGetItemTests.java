@@ -129,7 +129,7 @@ class SierraHostLmsClientGetItemTests {
 	@ValueSource(strings = {"t", "@", "#", "!", "o", "%", "m", "&"})
 	void shouldMapAnyOtherStatusWithDueDateToLoaned(String statusCode) {
 		// Arrange
-		final var localItemId = generateLocalItemId();
+		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
 
 		sierraItemsAPIFixture.mockGetItemById(localItemId,
 			SierraItem.builder()
@@ -181,12 +181,5 @@ class SierraHostLmsClientGetItemTests {
 			hasStatus(ITEM_MISSING),
 			hasRawStatus(null)
 		));
-	}
-
-	private static String generateLocalItemId() {
-		final int lowerBound = 1000000;
-		final int upperBound = 8000000;
-
-		return Integer.toString((int) (Math.random() * (upperBound - lowerBound)) + lowerBound);
 	}
 }
