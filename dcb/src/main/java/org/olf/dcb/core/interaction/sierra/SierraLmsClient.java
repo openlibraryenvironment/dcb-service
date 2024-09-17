@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
@@ -1027,7 +1028,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
-	private String mapSierraItemStatusToDCBHoldStatus(Status status) {
+	private String mapSierraItemStatusToDCBItemStatus(Status status) {
 		final var statusCode = getValue(status, Status::getCode, null);
 		final var dueDate = getValue(status, Status::getDuedate, null);
 
@@ -1035,13 +1036,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			return null;
 		}
 
-		if ((dueDate != null) && (!statusCode.trim().isEmpty())) {
-			log.info("Item has a due date, setting item status to LOANED");
-			return ITEM_LOANED;
-		}
-
 		return switch (statusCode) {
-			case "-" -> ITEM_AVAILABLE;
+			case "-" -> {
+				if (isNotEmpty(dueDate)) {
+					log.info("Item has a due date, setting item status to LOANED");
+					yield ITEM_LOANED;
+				} else {
+					yield ITEM_AVAILABLE;
+				}
+			}
 			case "t" -> ITEM_TRANSIT; // IN Transit
 			case "@" -> ITEM_OFFSITE;
 			case "#" -> ITEM_RECEIVED;
@@ -1486,7 +1489,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final var deleted = getValue(item, SierraItem::getDeleted, false);
 
 		final var resolvedStatus = status != null
-			? mapSierraItemStatusToDCBHoldStatus(status)
+			? mapSierraItemStatusToDCBItemStatus(status)
 			: (deleted ? "MISSING" : "UNKNOWN");
 
 		return HostLmsItem.builder()

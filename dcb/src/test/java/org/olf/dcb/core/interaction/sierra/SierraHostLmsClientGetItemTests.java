@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -126,15 +126,16 @@ class SierraHostLmsClientGetItemTests {
 
 	@ParameterizedTest
 	@SneakyThrows
-	@ValueSource(strings = {"t", "@", "#", "!", "o", "%", "m", "&"})
-	void shouldMapAnyOtherStatusWithDueDateToLoaned(String statusCode) {
+	@CsvSource({"t,TRANSIT", "@,OFFSITE", "#,RECEIVED", "!,HOLDSHELF", "o,LIBRARY_USE_ONLY", "%,RETURNED", "m,MISSING", "&,REQUESTED"})
+	void shouldIgnoreDueDateWhenAnyStatusOtherThanAvailable(String statusCode, String expectedStatus) {
 		// Arrange
 		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
+		final var localItemBarcode = "0184573765";
 
 		sierraItemsAPIFixture.mockGetItemById(localItemId,
 			SierraItem.builder()
 				.id(localItemId)
-				.barcode("0184573765")
+				.barcode(localItemBarcode)
 				.statusCode(statusCode)
 				.dueDate(Instant.now().plus(5, DAYS))
 				.build());
@@ -148,8 +149,8 @@ class SierraHostLmsClientGetItemTests {
 		assertThat(item, allOf(
 			notNullValue(),
 			hasLocalId(localItemId),
-			hasBarcode("0184573765"),
-			hasStatus(ITEM_LOANED),
+			hasBarcode(localItemBarcode),
+			hasStatus(expectedStatus),
 			hasRawStatus(statusCode)
 		));
 	}
