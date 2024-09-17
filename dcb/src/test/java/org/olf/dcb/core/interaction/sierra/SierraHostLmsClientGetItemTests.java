@@ -19,6 +19,8 @@ import java.time.Instant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -122,6 +124,36 @@ class SierraHostLmsClientGetItemTests {
 		));
 	}
 
+	@ParameterizedTest
+	@SneakyThrows
+	@ValueSource(strings = {"t", "@", "#", "!", "o", "%", "m", "&"})
+	void shouldMapAnyOtherStatusWithDueDateToLoaned(String statusCode) {
+		// Arrange
+		final var localItemId = generateLocalItemId();
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode("0184573765")
+				.statusCode(statusCode)
+				.dueDate(Instant.now().plus(5, DAYS))
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var item = singleValueFrom(client.getItem(localItemId, null));
+
+		// Assert
+		assertThat(item, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasBarcode("0184573765"),
+			hasStatus(ITEM_LOANED),
+			hasRawStatus(statusCode)
+		));
+	}
+
 	@Test
 	@SneakyThrows
 	void shouldTolerateNullStatusForDeletedItem() {
@@ -149,5 +181,12 @@ class SierraHostLmsClientGetItemTests {
 			hasStatus(ITEM_MISSING),
 			hasRawStatus(null)
 		));
+	}
+
+	private static String generateLocalItemId() {
+		final int lowerBound = 1000000;
+		final int upperBound = 8000000;
+
+		return Integer.toString((int) (Math.random() * (upperBound - lowerBound)) + lowerBound);
 	}
 }
