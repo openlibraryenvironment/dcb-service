@@ -1,6 +1,9 @@
 package org.olf.dcb.sql;
 
 import jakarta.inject.Singleton;
+
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -15,6 +18,9 @@ import io.micronaut.data.connection.jdbc.operations.DefaultDataSourceConnectionO
 
 @Singleton
 public class GenericSelectService {
+	private static final String RESOURCE_NAMED_SQL_PREFIX = "namedSql/";
+	private static final String RESOURCE_NAMED_SQL_POSTFIX = ".sql";
+	
 	private static final Logger log = LoggerFactory.getLogger(GenericSelectService.class);
 
 	private static final String SELECT_PREFIX = "select ";
@@ -25,6 +31,40 @@ public class GenericSelectService {
     		DefaultDataSourceConnectionOperations transactionManager
     ) {
     	this.transactionManager = transactionManager;
+    }
+
+    /**
+     * Executes the named sql in the resources
+     * @param name The name used to extract the sql from the resources
+     * @return A map containing the results of executing the named sql from the resources
+     */
+    public Map<String, Object> selectNamed(String name) {
+    	Map<String, Object> result = new HashMap<String, Object>();
+
+    	// Attempt to get the sql from the resources
+    	try {
+	    	InputStream sqlInputStream = getClass().getClassLoader().getResourceAsStream(RESOURCE_NAMED_SQL_PREFIX + name + RESOURCE_NAMED_SQL_POSTFIX);
+	    	if (sqlInputStream == null) {
+	    		result.put("error", "Unable to obtain sql with name \"" + name + "\" from the resources");
+	    		
+	    	} else {
+	    		// Turn the stream into a string
+		    	String sql = new String(sqlInputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+		    	// Did we find some sql
+		    	if ((sql == null) || sql.isBlank()) {
+		    		result.put("error", "Unable to resource name \"" + name + "\" into a string");
+		    	} else {
+		    		// Execute the sql
+		    		result = select(sql);
+		    	}
+	    	}
+    	} catch (Exception e) {
+    		result.put("error", "Exception caught while trying to obtain named sql: " + e.toString());
+    	}
+    	
+    	// Return the results to the caller
+    	return(result);
     }
 
     /**
