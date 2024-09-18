@@ -1,5 +1,23 @@
 # Changelog
 
+## Version 7.4.0
+
+### Additions
+* [General]
+	* Only check due date when Sierra item is available DCB-1553
+
+### Changes
+* [Chore]
+	* simplify setting owning context [DCB-1509]
+* [Refactor]
+	* tests to support canonicalItemType mapping [DCB-1509]
+
+### Fixes
+* [General]
+	* Add safeguards to location deletion [DCB-1496]
+	* back out of moving stalled request to RETURN_TRANSIT [DCB-1517]
+	* adding stacktrace to audit [DCB-1465]
+
 ## Version 7.3.0
 
 ### Additions
@@ -12,6 +30,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add number subfield from title into canaonical metadata
 	* Update graphql_prs script to provide more info about requests
 	* update perftest script to allow borrowing & supplying
