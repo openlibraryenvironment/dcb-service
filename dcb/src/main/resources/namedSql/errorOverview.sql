@@ -150,10 +150,10 @@ select case
 			   'errors/itemWithBarcodeAlreadyExists'
 		   when pra.audit_data->>'Message' like 'The following links will be broken if you continue deleting item record%'
 		   then
-			   'Item record links breakable, DCB-1504'
+			   'errors/itemRecordLinksBreakable'
 		   when pra.audit_data->>'Message' like 'Title: %This item is not holdable.'
 		   then
-			   'errors/itemRecordLinksBreakable'
+			   'errors/itemNotHoldable'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Item with id % already has an open DCB transaction%'
 		   then
 			   'errors/itemHasDcbTransaction'
