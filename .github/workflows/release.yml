@@ -3,7 +3,9 @@ on:
   push:
     paths-ignore:
       - 'src/docs/asciidoc/**' # If all modified paths fall only in this set then this will be ignored
-    branches: [ main ]
+    branches:
+      - main
+      - 'testrel-*'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -53,8 +55,10 @@ jobs:
           DOCKER_REPOSITORY_PATH: ${{ secrets.DOCKER_KINT_REPOSITORY_PATH }}
           DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_KINT_REGISTRY_URL }}
           TESTCONTAINERS_RYUK_DISABLED: true
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/dcb" | sed -e 's#//#/#' -e 's#^/##'`
+          export DCB_NAME_PART=$([ "$BRANCH_NAME" = "main" ] && echo "dcb" || echo dcb-${BRANCH_NAME} )
+          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew check jacocoTestReport dockerPush --no-daemon
 
       - name: Build And Push Docker Native Image
@@ -63,8 +67,10 @@ jobs:
           DOCKER_REPOSITORY_PATH: ${{ secrets.DOCKER_KINT_REPOSITORY_PATH }}
           DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_KINT_REGISTRY_URL }}
           TESTCONTAINERS_RYUK_DISABLED: true
+          BRANCH_NAME: ${{ github.ref_name }}
         run: |
-          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/dcb" | sed -e 's#//#/#' -e 's#^/##'`
+          export DCB_NAME_PART=$([ "$BRANCH_NAME" = "main" ] && echo "dcb" || echo dcb-${BRANCH_NAME} )
+          export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew dockerPushNative --no-daemon
 
       - name: Publish Test Results
