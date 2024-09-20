@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
@@ -178,8 +179,7 @@ public class SupplyingAgencyService {
 				// we encountered an error when confirming the hold exists
 				final var message = "Delete supplier hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
-				auditData.put("Error", error.toString());
-				auditData.put("StackTrace", Objects.toString(error.getStackTrace()));
+				auditThrowable(auditData, "StackTrace", error);
 				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
 			});
 	}
@@ -191,9 +191,7 @@ public class SupplyingAgencyService {
 		return error -> {
 			final var message = "Delete supplier hold : Failed";
 			final var auditData = new HashMap<String, Object>();
-			auditData.put("Error", error.toString());
- 			auditData.put("StackTrace", Objects.toString(error.getStackTrace()));
-
+			auditThrowable(auditData, "StackTrace", error);
 			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
 				.flatMap(audit -> Mono.just("Error"));
 		};

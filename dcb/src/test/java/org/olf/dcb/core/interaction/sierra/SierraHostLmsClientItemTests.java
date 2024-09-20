@@ -129,7 +129,7 @@ class SierraHostLmsClientItemTests {
 				.build()
 		));
 
-		numericRangeMappingFixture.createMapping(CATALOGUING_HOST_LMS_CODE,
+		numericRangeMappingFixture.createMapping(CIRCULATING_HOST_LMS_CODE,
 			"ItemType", 999L, 999L, "DCB", "BKM");
 
 		agencyFixture.defineAgency("sierra-agency", "Sierra Agency",
@@ -172,7 +172,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
-				hasCanonicalItemType("BKM"),
+				hasCanonicalItemType("UNKNOWN - NULL hostLmsCode"),
 				hasHoldCount(1),
 				hasNoAgency(),
 				hasNoHostLmsCode(),
@@ -189,7 +189,7 @@ class SierraHostLmsClientItemTests {
 				hasLocalBibId("65423515"),
 				hasLocalItemType("999"),
 				hasLocalItemTypeCode("999"),
-				hasCanonicalItemType("BKM"),
+				hasCanonicalItemType("UNKNOWN - NULL hostLmsCode"),
 				hasHoldCount(2),
 				hasNoAgency(),
 				hasNoHostLmsCode(),

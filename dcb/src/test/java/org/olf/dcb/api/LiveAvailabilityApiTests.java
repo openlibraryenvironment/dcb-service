@@ -133,7 +133,7 @@ class LiveAvailabilityApiTests {
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
-			CATALOGUING_HOST_LMS_CODE, 999, 999, "BKM");
+			CIRCULATING_HOST_LMS_CODE, 999, 999, "BKM");
 
 		// Act
 		final var report = liveAvailabilityApiClient.getAvailabilityReport(clusterRecordId);

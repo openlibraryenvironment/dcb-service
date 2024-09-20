@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
@@ -1027,18 +1028,23 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// Informed by
 	// https://techdocs.iii.com/sierraapi/Content/zObjects/holdObjectDescription.htm
-	private String mapSierraItemStatusToDCBHoldStatus(Status status) {
-		if (status == null || status.getCode() == null) {
+	private String mapSierraItemStatusToDCBItemStatus(Status status) {
+		final var statusCode = getValue(status, Status::getCode, null);
+		final var dueDate = getValue(status, Status::getDuedate, null);
+
+		if (statusCode == null) {
 			return null;
 		}
 
-		if ((status.getDuedate() != null) && (!status.getCode().trim().isEmpty())) {
-			log.info("Item has a due date, setting item status to LOANED");
-			return ITEM_LOANED;
-		}
-
-		return switch (status.getCode()) {
-			case "-" -> ITEM_AVAILABLE;
+		return switch (statusCode) {
+			case "-" -> {
+				if (isNotEmpty(dueDate)) {
+					log.info("Item has a due date, setting item status to LOANED");
+					yield ITEM_LOANED;
+				} else {
+					yield ITEM_AVAILABLE;
+				}
+			}
 			case "t" -> ITEM_TRANSIT; // IN Transit
 			case "@" -> ITEM_OFFSITE;
 			case "#" -> ITEM_RECEIVED;
@@ -1047,7 +1053,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case "%" -> ITEM_RETURNED;
 			case "m" -> ITEM_MISSING;
 			case "&" -> ITEM_REQUESTED;
-			default -> status.getCode();
+			default -> statusCode;
 		};
 	}
 
@@ -1483,7 +1489,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final var deleted = getValue(item, SierraItem::getDeleted, false);
 
 		final var resolvedStatus = status != null
-			? mapSierraItemStatusToDCBHoldStatus(status)
+			? mapSierraItemStatusToDCBItemStatus(status)
 			: (deleted ? "MISSING" : "UNKNOWN");
 
 		return HostLmsItem.builder()

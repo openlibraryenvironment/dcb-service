@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +49,7 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		final var enrichedItem = enrichItemWithItemType(item);
 
 		// Assert
-		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(enrichedItem, hasCanonicalItemType(UNKNOWN_NULL_LOCAL_ITEM_TYPE));
 	}
 
 	@Test
@@ -58,7 +60,7 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		final var enrichedItem = enrichItemWithItemType(item);
 
 		// Assert
-		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(enrichedItem, hasCanonicalItemType(UNKNOWN_NO_MAPPING_FOUND));
 	}
 
 	@Test
@@ -73,17 +75,18 @@ class MaterialTypeToItemTypeMappingServiceTests {
 		final var enrichedItem = enrichItemWithItemType(item);
 
 		// Assert
-		assertThat(enrichedItem, hasCanonicalItemType("UNKNOWN"));
+		assertThat(enrichedItem, hasCanonicalItemType(UNKNOWN_NO_MAPPING_FOUND));
 	}
 
 	private static Item exampleItem(String materialTypeName) {
 		return Item.builder()
 			.localItemTypeCode(materialTypeName)
+			.owningContext("folio-host-lms")
 			.build();
 	}
 
 	private Item enrichItemWithItemType(Item item) {
-		return materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(item, "folio-host-lms")
+		return materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(item)
 			.block();
 	}
 }

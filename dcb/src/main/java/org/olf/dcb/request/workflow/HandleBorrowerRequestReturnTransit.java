@@ -45,10 +45,10 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 
 		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
-		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		//final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
 
 		return isPatronRequestStatusApplicable(patronRequest) &&
-			( isPatronRequestLocalItemStatusApplicable(patronRequest) || isSupplierLocalItemStatusApplicable(supplierRequest) );
+			( isPatronRequestLocalItemStatusApplicable(patronRequest) );
 	}
 
 	private boolean isPatronRequestStatusApplicable(PatronRequest patronRequest) {

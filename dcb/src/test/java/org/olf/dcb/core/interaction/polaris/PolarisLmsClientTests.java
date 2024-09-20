@@ -145,7 +145,7 @@ class PolarisLmsClientTests {
 			CATALOGUING_HOST_LMS_CODE, "15", "345test");
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
-			CATALOGUING_HOST_LMS_CODE, 3, 3, "loanable-item");
+			CIRCULATING_HOST_LMS_CODE, 3, 3, "loanable-item");
 
 		agencyFixture.defineAgency("345test", "Test College",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));

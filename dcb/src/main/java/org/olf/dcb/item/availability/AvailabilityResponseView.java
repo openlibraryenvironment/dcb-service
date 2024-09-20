@@ -49,6 +49,7 @@ public class AvailabilityResponseView {
 		final var agency = getValueOrNull(item, Item::getAgency);
 		final var agencyCode = getValueOrNull(agency, DataAgency::getCode);
 		final var agencyName = getValueOrNull(agency, DataAgency::getName);
+		final var owningContext = getValueOrNull(item, Item::getOwningContext);
 
 		final var mappedAgency = agency != null
 			? new Agency(agencyCode, agencyName)
@@ -57,7 +58,9 @@ public class AvailabilityResponseView {
 		return new ARVItem(item.getLocalId(),
 			new Status(item.getStatus().getCode().name()), item.getDueDate(),
 			new Location(item.getLocation().getCode(), item.getLocation().getName()),
-			item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
+			item.getBarcode(), item.getCallNumber(), 
+      item.getHostLmsCode(),
+			owningContext,
 			item.getIsRequestable(), 
 			item.getSuppressed(), 
 			item.getHoldCount(), item.getLocalItemType(),
@@ -80,6 +83,13 @@ public class AvailabilityResponseView {
 		private final String barcode;
 		private final String callNumber;
 		private final String hostLmsCode;
+
+		// owningContext was added to allow an item to be owned by a library - this is for the shared system setup
+    // E.G. the System COOLCAT is shared by several libraries. It is important in the context of resolution to
+    // now which context is in force - because for one library and item type may map to CIRC but for another
+    // it may map to NONCIRC. This is a first step to surfacing this mapped value in an RTAC response
+		private final String owningContext;
+
 		private final Boolean isRequestable;
 		@Nullable
 		private final Boolean isSuppressed;

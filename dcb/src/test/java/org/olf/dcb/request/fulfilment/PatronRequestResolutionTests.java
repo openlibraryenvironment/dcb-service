@@ -155,7 +155,7 @@ class PatronRequestResolutionTests {
 			"465675", clusterRecord);
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
-			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
+			CIRCULATING_HOST_LMS_CODE, 1, 1, "loanable-item");
 
 		sierraItemsAPIFixture.itemsForBibId("465675", List.of(
 			SierraItem.builder()

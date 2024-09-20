@@ -32,6 +32,7 @@ import java.util.function.Function;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Slf4j
@@ -97,12 +98,8 @@ public class TrackingServiceV3 implements TrackingService {
 
 	private Mono<RequestWorkflowContext> auditTrackingError(
 		String message, RequestWorkflowContext ctx, Throwable error) {
-
 		final var auditData = new HashMap<String, Object>();
-		auditData.put("Error", error.toString());
-    auditData.put("StackTrace", Objects.toString(error.getStackTrace()));
-
-
+		auditThrowable(auditData, "StackTrace", error);
 		return patronRequestAuditService.auditTrackingError(message, ctx.getPatronRequest(), auditData)
 			.flatMap(audit -> Mono.just(ctx)); // Resume tracking after auditing
 	}

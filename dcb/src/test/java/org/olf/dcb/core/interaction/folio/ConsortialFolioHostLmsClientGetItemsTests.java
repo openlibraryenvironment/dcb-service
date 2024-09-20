@@ -14,6 +14,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -42,7 +43,6 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoRawVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasParsedVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasRawVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasUnknownCanonicalItemType;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.ItemMatchers.isSuppressed;
@@ -171,7 +171,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasHoldCount(1),
 					hasLocalItemType("book"),
 					hasLocalItemTypeCode("book"),
-					hasCanonicalItemType("canonical-book"),
+					hasCanonicalItemType("UNKNOWN - No mapping found"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					hasRawVolumeStatement("volume one"),
 					hasParsedVolumeStatement("volume one"),
@@ -191,7 +191,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasHoldCount(2),
 					hasNoLocalItemType(),
 					hasNoLocalItemTypeCode(),
-					hasCanonicalItemType("UNKNOWN"),
+					hasCanonicalItemType("UNKNOWN - NULL hostLmsCode"),
 					hasLocation("Social Service Administration", "SSA"),
 					hasNoRawVolumeStatement(),
 					hasNoParsedVolumeStatement(),
@@ -332,7 +332,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				hasLocalId("ed26adb1-2e23-4aa6-a8cc-2f9892b10cf2"),
 				hasLocalItemType(materialType),
 				hasLocalItemTypeCode(materialType),
-				hasUnknownCanonicalItemType()
+				hasProperty("canonicalItemType", is(UNKNOWN_NO_MAPPING_FOUND))
 			)
 		));
 	}

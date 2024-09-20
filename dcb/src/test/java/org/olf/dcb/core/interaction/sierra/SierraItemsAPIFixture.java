@@ -176,6 +176,13 @@ public class SierraItemsAPIFixture {
 			.build();
 	}
 
+	public String generateLocalItemId() {
+		final int lowerBound = 1000000;
+		final int upperBound = 8000000;
+
+		return Integer.toString((int) (Math.random() * (upperBound - lowerBound)) + lowerBound);
+	}
+
 	@Serdeable
 	@Data
 	@Builder

@@ -11,9 +11,11 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Controller("/sql")
@@ -30,8 +32,13 @@ public class SqlController {
 		this.genericSelectService = genericSelectService;
 	}
 
+	@Get(uri = "/", produces = APPLICATION_JSON)
+	public Map<String, Object> executeNamedSql(@Parameter String name) {
+		return genericSelectService.selectNamed(name);
+	}
+	
 	@Post(uri = "/", produces = APPLICATION_JSON)
-	public Map<String, Object> importCfg(@Body String sql) {
+	public Map<String, Object> execute(@Body String sql) {
 		return genericSelectService.select(sql);
 	}
 
