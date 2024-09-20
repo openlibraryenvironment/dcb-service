@@ -1,0 +1,17 @@
+select pra.audit_date::date "Date", rhl.name "Requester", shl.name "Supplier", pr.status_code "Status", pra.patron_request_id "RequestId",
+       pra.audit_data->>'requestUrl' "RequestURL",
+	   concat('https://libraries-dcb-hub-admin-scaffold-uat-git-production-knowint.vercel.app/patronRequests/audits/', pra.id) "URL"
+from patron_request_audit pra, patron_request pr, host_lms rhl, host_lms shl, supplier_request sr, agency a
+where pra.audit_data->>'Error' = 'org.olf.dcb.core.interaction.polaris.exceptions.UnknownItemStatusException: Local item status In-Repair is unknown.' and
+	  not exists (select 1
+				  from patron_request_audit pra1
+				  where pra1.patron_request_id = pra.patron_request_id and
+						pra1.audit_date > pra.audit_date and
+						pra1.audit_data->>'Error' = 'org.olf.dcb.core.interaction.polaris.exceptions.UnknownItemStatusException: Local item status In-Repair is unknown.') and
+	  pra.from_status != 'ERROR' and
+	  pr.id = pra.patron_request_id and
+  	  rhl.code = pr.patron_hostlms_code and
+	  sr.patron_request_id = pr.id and
+	  a.id = sr.resolved_agency_id and
+	  shl.id = a.host_lms_id
+order by 1 desc, 2, 3
