@@ -99,7 +99,7 @@ public class TrackingServiceV3 implements TrackingService {
 	private Mono<RequestWorkflowContext> auditTrackingError(
 		String message, RequestWorkflowContext ctx, Throwable error) {
 		final var auditData = new HashMap<String, Object>();
-		auditThrowable(auditData, "StackTrace", error);
+		auditThrowable(auditData, "Throwable", error);
 		return patronRequestAuditService.auditTrackingError(message, ctx.getPatronRequest(), auditData)
 			.flatMap(audit -> Mono.just(ctx)); // Resume tracking after auditing
 	}

@@ -255,6 +255,19 @@ public class PatronRequestAuditService {
 			auditData.put(key, error.toString());
 		}
 
+		if (error instanceof Problem problem) {
+
+			if (isNotEmpty(problem.getDetail())) {
+				auditData.put("title", problem.getDetail());
+			}
+
+			if (isNotEmpty(problem.getDetail())) {
+				auditData.put("detail", problem.getDetail());
+			}
+
+			auditData.putAll(problem.getParameters());
+		}
+
 		//log.info("Returning auditData: {}", auditData);
 		return auditData;
 	}
