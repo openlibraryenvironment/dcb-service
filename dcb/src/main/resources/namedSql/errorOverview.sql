@@ -109,7 +109,11 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented'
 		   then
 			   'Item checkout to close not implemented, DCB-1520'
-		   else concat('not caught: ', pra.id, ', ', pra.brief_description)
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%'
+		   then
+			   'Unable to create item with barcode as already exists, DCB-1576'
+		   else
+			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "description",
 	   case
 		   when pra.audit_data->'responseBody'->>'description' = 'There is a problem with your library record.  Please see a librarian.'
@@ -222,7 +226,11 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented'
 		   then
 			   'errors/itemCheckedOutToClosedNotImplemented'
-		   else concat('not caught: ', pra.id, ', ', pra.brief_description)
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%'
+		   then
+			   'errors/itemAlreadyExists'
+		   else
+			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "namedSql",
 	   count(*) "total",
 	   max(pra.audit_date::date) "mostRecent",
@@ -268,7 +276,8 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->>'errorMessage' like 'Connect Error: Connection refused: %' or
 		  pra.audit_data->>'Message' like 'The following links will be broken if you continue deleting item record%' or
 		  pra.audit_data->>'Message' like 'Title: %This item is not holdable.' or
-		  pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented'
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented' or
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%'
 	  )
 group by 1, 2
 union
