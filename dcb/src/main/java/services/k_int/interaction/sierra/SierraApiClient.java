@@ -3,10 +3,7 @@ package services.k_int.interaction.sierra;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpStatus;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Delete;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Put;
+import io.micronaut.http.annotation.*;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +98,10 @@ public interface SierraApiClient extends BasicAuthClient {
 
 	@SingleResult
 	Publisher<LinkResult> patrons(final PatronPatch patronPatch);
+
+	@SingleResult
+	@Post("/patrons/query")
+	Publisher<QueryResultSet> patronsQuery(final Integer offset, final Integer limit, final QueryEntry queryEntry);
 
 	@SingleResult
 	Publisher<LinkResult> bibs(final BibPatch bibPatch);

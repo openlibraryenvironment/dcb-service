@@ -25,7 +25,10 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.core.publisher.Mono.empty;
+import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -33,16 +36,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.marc4j.marc.Record;
@@ -52,18 +46,8 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -103,10 +87,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
-import services.k_int.interaction.sierra.DateTimeRange;
-import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.VarField;
+import services.k_int.interaction.sierra.*;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -163,7 +144,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final SierraItemMapper itemMapper;
 	private final ObjectRulesService objectRuleService;
   private final ObjectMapper objectMapper;
-	
+	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
+
 	private final Integer getHoldsRetryAttempts;
 	private final SierraPatronMapper sierraPatronMapper;
 	
@@ -784,7 +766,61 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Look up virtual patron using generated unique ID string
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 
-		return patronFind("u", uniqueId);
+		log.debug("findVirtualPatron, uniqueId:{}", uniqueId);
+
+		final var queryEntry = buildPatronQuery(uniqueId);
+		final var offset = 0;
+		final var limit = 10;
+
+		return Mono.from(client.patronsQuery(offset, limit, queryEntry))
+			.map(queryResultSet -> {
+
+				final var entries = getValueOrNull(queryResultSet, QueryResultSet::getEntries);
+				final var entriesSize = (entries != null) ? entries.size() : 0;
+
+				if (entriesSize < 1) {
+					log.warn("No virtual Patron found.");
+
+					throw VirtualPatronNotFound.builder()
+						.withDetail(entriesSize + " records found")
+						.with("offset", offset)
+						.with("limit", limit)
+						.with("queryEntry", queryEntry)
+						.with("Response", queryResultSet)
+						.build();
+				}
+
+				if (entriesSize > 1) {
+					log.error("More than one virtual patron found: {}", queryResultSet);
+
+					throw MultipleVirtualPatronsFound.builder()
+						.withDetail(entriesSize + " records found")
+						.with("offset", offset)
+						.with("limit", limit)
+						.with("queryEntry", queryEntry)
+						.with("Response", queryResultSet)
+						.build();
+				}
+
+				final var localPatronId = deRestify(entries.get(0).getLink());
+
+				if (localPatronId == null) {
+					log.error("localPatronId could not be extracted from: {}", entries);
+
+					throw Problem.builder()
+						.withTitle("Virtual patron ID could not be extracted")
+						.withDetail(entriesSize + " records found")
+						.with("offset", offset)
+						.with("limit", limit)
+						.with("queryEntry", queryEntry)
+						.with("Response", queryResultSet)
+						.build();
+				}
+
+				log.debug("findVirtualPatron, patron id successfully extracted: {}", localPatronId);
+				return localPatronId;
+			})
+			.flatMap(this::getPatronByLocalId);
 	}
 
 	@Override

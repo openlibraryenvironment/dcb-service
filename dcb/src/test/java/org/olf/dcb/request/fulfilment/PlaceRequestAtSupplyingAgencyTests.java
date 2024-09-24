@@ -124,7 +124,11 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronFoundResponse("u", "872321@supplying-agency",
+		// NOTE: test behaviour means calling the same patronsQueryFoundResponse method with the same local id will cause confusion
+		// a workaround used here is to use different local ids to differentiate the mock requests/responses
+		final var WORKAROUND_LOCAL_ID = "1000003";
+		sierraPatronsAPIFixture.patronsQueryFoundResponse("872321@supplying-agency", WORKAROUND_LOCAL_ID);
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(WORKAROUND_LOCAL_ID,
 			SierraPatronsAPIFixture.Patron.builder()
 				.id(1000002)
 				.patronType(22)
@@ -134,13 +138,14 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002", SierraPatronsAPIFixture.Patron.builder()
-			.id(1000002)
-			.patronType(15)
-			.homeLibraryCode("testccc")
-			.barcodes(List.of("647647746"))
-			.names(List.of("Bob"))
-			.build());
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002",
+			SierraPatronsAPIFixture.Patron.builder()
+				.id(1000002)
+				.patronType(15)
+				.homeLibraryCode("testccc")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
 
 		final var localItemId = "45736543";
 
@@ -170,7 +175,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		// 	hasLocalItemBarcode("67324231")
 		// ));
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("872321@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.verifyPatronQueryRequestMade("872321@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("872321@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestMade("1000002");
 
@@ -192,7 +197,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronFoundResponse("u", "32453@%s".formatted(SUPPLYING_AGENCY_CODE),
+		sierraPatronsAPIFixture.patronsQueryFoundResponse("32453@%s".formatted(SUPPLYING_AGENCY_CODE), "1000002");
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002",
 			SierraPatronsAPIFixture.Patron.builder()
 				.id(1000002)
 				.patronType(15)
@@ -232,7 +238,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		 	hasLocalItemBarcode("67324231")
 		 ));
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("32453@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.verifyPatronQueryRequestMade("32453@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyUpdatePatronRequestNotMade("1000002");
 
@@ -254,7 +260,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponse("u", "546730@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.patronsQueryNotFoundResponse("546730@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.postPatronResponse("546730@%s".formatted(SUPPLYING_AGENCY_CODE), 1000003);
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000003", "b", 563653);
@@ -285,7 +291,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		// Assert
 		patronRequestWasPlaced(placedPatronRequest, patronRequestId);
 
-		sierraPatronsAPIFixture.verifyFindPatronRequestMade("546730@%s".formatted(
+		sierraPatronsAPIFixture.verifyPatronQueryRequestMade("546730@%s".formatted(
 			SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyCreatePatronRequestMade(
 			"546730@%s".formatted(SUPPLYING_AGENCY_CODE));
@@ -310,7 +316,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
-		sierraPatronsAPIFixture.patronNotFoundResponse("u", "931824@%s".formatted(SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.patronsQueryNotFoundResponse("931824@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.postPatronResponse("931824@%s".formatted(SUPPLYING_AGENCY_CODE),
 			localPatronId);
 

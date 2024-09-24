@@ -37,6 +37,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -127,10 +129,13 @@ class ConsortialFolioHostLmsClientPatronTests {
 		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode);
 
 		// Act
-		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
+		final var exception = assertThrows(
+			VirtualPatronNotFound.class,
+			() -> singleValueFrom(client.findVirtualPatron(patron)));
 
 		// Assert
-		assertThat(foundPatron, is(nullValue()));
+		assertThat(exception, hasMessage(
+			"Virtual Patron Not Found"));
 	}
 
 	@Test
@@ -307,12 +312,12 @@ class ConsortialFolioHostLmsClientPatronTests {
 				.build());
 
 		// Act
-		final var exception = assertThrows(MultipleUsersFoundException.class, () ->
+		final var exception = assertThrows(MultipleVirtualPatronsFound.class, () ->
 			singleValueFrom(client.findVirtualPatron(patron)));
 
 		// Assert
 		assertThat(exception, hasMessage(
-			"Multiple users found in Host LMS: \"folio-lms-client-patron-tests\" for query: \"barcode==\"6349673\"\""));
+			"Multiple Virtual Patrons Found: Multiple users found in Host LMS: \"folio-lms-client-patron-tests\" for query: \"barcode==\"6349673\"\""));
 	}
 
 	@Test
