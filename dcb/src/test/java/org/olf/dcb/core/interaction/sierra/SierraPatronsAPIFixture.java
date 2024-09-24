@@ -4,7 +4,9 @@ import static java.util.Arrays.asList;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.never;
 import static org.mockserver.verify.VerificationTimes.once;
+import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
@@ -20,6 +22,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.QueryEntry;
+import services.k_int.interaction.sierra.QueryResultSet;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.patrons.CheckoutPatch;
 
@@ -196,6 +200,31 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.put("/" + patronId);
 	}
 
+	public void patronsQueryFoundResponse(String uniqueId, String localPatronId) {
+
+		final var queryEntry = buildPatronQuery(uniqueId);
+
+		mockServer
+			.when(patronsQuery(queryEntry))
+			.respond(successfulPatronsQuery(localPatronId));
+	}
+
+	public void verifyPatronQueryRequestMade(String uniqueId) {
+
+		final var queryEntry = buildPatronQuery(uniqueId);
+
+		mockServer.verify(patronsQuery(queryEntry), once());
+	}
+
+	public void patronsQueryNotFoundResponse(String uniqueId) {
+
+		final var queryEntry = buildPatronQuery(uniqueId);
+
+		mockServer
+			.when(patronsQuery(queryEntry))
+			.respond(unsuccessfulPatronsQuery());
+	}
+
 	public void patronFoundResponse(String tag, String uniqueId, Patron patron) {
 		mockServer
 			.when(findPatron(tag, uniqueId))
@@ -216,6 +245,12 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.get("/find")
 			.withQueryStringParameter("varFieldTag", tag)
 			.withQueryStringParameter("varFieldContent", content);
+	}
+
+	private HttpRequest patronsQuery(QueryEntry queryEntry) {
+		return sierraMockServerRequests.post("/query", queryEntry)
+			.withQueryStringParameter("offset", "0")
+			.withQueryStringParameter("limit", "10");
 	}
 
 	public void mockPlacePatronHoldRequest(String patronId,
@@ -353,6 +388,34 @@ public class SierraPatronsAPIFixture {
 	public void addPatronGetExpectation(String patronId) {
 		mockServer.when(getPatron(patronId))
 			.respond(sierraPatronRecord(patronId));
+	}
+
+	private HttpResponse successfulPatronsQuery(String localPatronId) {
+
+		final var queryResultSet = QueryResultSet.builder()
+			.total(1)
+			.start(0)
+			.entries(Collections.singletonList(
+				QueryResultSet.Entry.builder().link("https://sandbox.iii.com/iii/sierra-api/v6/patrons/"+localPatronId).build()
+			))
+			.build();
+
+		return sierraMockServerResponses.jsonSuccess(json(queryResultSet));
+	}
+	private HttpResponse unsuccessfulPatronsQuery() {
+
+//		{
+//			"total": 0,
+//			"start": 0,
+//			"entries": []
+//		}
+		final var queryResultSet = QueryResultSet.builder()
+			.total(0)
+			.start(0)
+			.entries(List.of())
+			.build();
+
+		return sierraMockServerResponses.jsonSuccess(json(queryResultSet));
 	}
 
 	private HttpResponse successfulPatron(Patron patron) {

@@ -11,15 +11,13 @@ import static reactor.core.publisher.Mono.empty;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.olf.dcb.core.interaction.AbstractHttpResponseProblem;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.RecordIsNotAvailableProblem;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.utils.CollectionUtils;
 import org.reactivestreams.Publisher;
@@ -53,9 +51,7 @@ import io.micronaut.retry.annotation.Retryable;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
-import services.k_int.interaction.sierra.LinkResult;
-import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.SierraError;
+import services.k_int.interaction.sierra.*;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchResultSet;
@@ -228,10 +224,29 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	@SingleResult
 	public Publisher<SierraPatronRecord> patronFind(String varFieldTag, String varFieldContent) {
 		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Find_a_patron_by_varField_fieldTag_and_varField_content_get_6
-		return get("patrons/find", Argument.of(SierraPatronRecord.class),
-				uri -> uri.queryParam("varFieldTag", varFieldTag).queryParam("varFieldContent", varFieldContent).queryParam(
-						"fields",
-						"id,names,barcodes,deleted,suppressed,expirationDate,patronType,blockInfo,autoBlockInfo,homeLibraryCode,message,uniqueIds,emails,fixedFields"));
+
+		Consumer<UriBuilder> uriBuilderConsumer = uri -> uri
+			.queryParam("varFieldTag", varFieldTag)
+			.queryParam("varFieldContent", varFieldContent)
+			.queryParam("fields",
+			"id,names,barcodes,deleted,suppressed,expirationDate,patronType,blockInfo,autoBlockInfo,homeLibraryCode,message,uniqueIds,emails,fixedFields");
+
+		return get("patrons/find", Argument.of(SierraPatronRecord.class), uriBuilderConsumer);
+	}
+
+	@SingleResult
+	public Publisher<QueryResultSet> patronsQuery(Integer offset, Integer limit, QueryEntry queryEntry) {
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Filter_the_records_by_a_query_in_JSON_format_post_13
+
+		Consumer<UriBuilder> uriBuilderConsumer = uri -> uri
+			.queryParam("offset", offset)
+			.queryParam("limit", limit);
+
+		return postRequest("patrons/query")
+			.map(req -> req.uri(uriBuilderConsumer))
+			.map(req -> req.body(queryEntry))
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, Argument.of(QueryResultSet.class)));
 	}
 
 	@SingleResult

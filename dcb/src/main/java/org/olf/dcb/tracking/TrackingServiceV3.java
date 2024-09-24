@@ -1,7 +1,6 @@
 package org.olf.dcb.tracking;
 
 import io.micrometer.core.annotation.Timed;
-import io.micronaut.core.version.annotation.Version;
 import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
@@ -27,7 +26,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Objects;
 import java.util.function.Function;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;

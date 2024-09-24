@@ -28,6 +28,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
@@ -38,20 +39,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.FailedToGetItemsException;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
@@ -538,11 +526,32 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			log.debug("Finding virtual patron using barcode: {} from barcode list: {}.",
 				firstBarcodeInList, barcodeListString);
 
-			return findUserByBarcode(firstBarcodeInList);
+			return findUsersWithReturnValues(firstBarcodeInList);
 		} catch (NoHomeIdentityException | NoHomeBarcodeException e) {
 			return Mono.error(FailedToFindVirtualPatronException.noBarcode(
 				getValueOrNull(patron, org.olf.dcb.core.model.Patron::getId)));
 		}
+	}
+
+	private Mono<Patron> findUsersWithReturnValues(String barcode) {
+
+		final var query = exactEqualityQuery("barcode", barcode);
+
+		return findUsers(query)
+			.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty())
+				.switchIfEmpty(raiseError(VirtualPatronNotFound.builder()
+					.with("barcode", barcode)
+					.with("query", query)
+					.with("Response", response)
+					.build()))
+				.onErrorResume(MultipleUsersFoundException.class, error -> raiseError(
+					MultipleVirtualPatronsFound.builder()
+						.withDetail(error.getMessage())
+						.with("barcode", barcode)
+						.with("Response", response)
+						.build())
+				)
+			);
 	}
 
 	private Mono<Patron> findUserByBarcode(String barcode) {

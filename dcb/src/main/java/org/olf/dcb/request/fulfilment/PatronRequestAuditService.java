@@ -9,6 +9,7 @@ import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.zalando.problem.AbstractThrowableProblem;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
 
@@ -169,6 +170,24 @@ public class PatronRequestAuditService {
 
 		return auditActionFailed(action, ctx, auditData)
 			.then(Mono.error(error)); // Resume the error after auditing
+	}
+
+	public Mono<PatronRequestAudit> auditThrowableAbstractProblem(PatronRequest patronRequest, String message,
+																													 AbstractThrowableProblem problem) {
+
+		final var auditData = new HashMap<String, Object>();
+
+		if (isNotEmpty(problem.getTitle())) {
+			auditData.put("title", problem.getTitle());
+		}
+
+		if (isNotEmpty(problem.getDetail())) {
+			auditData.put("detail", problem.getDetail());
+		}
+
+		auditData.putAll(problem.getParameters());
+
+		return addAuditEntry(patronRequest, message, auditData); // Resume the error after auditing
 	}
 
 	public Mono<PatronRequest> auditTrackingError(
