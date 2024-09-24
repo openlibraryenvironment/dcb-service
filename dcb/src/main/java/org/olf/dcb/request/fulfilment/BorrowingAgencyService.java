@@ -123,7 +123,7 @@ public class BorrowingAgencyService {
 
 		return error -> {
 			final var auditData = new HashMap<String, Object>();
-			auditThrowable(auditData, "StackTrace", error);
+			auditThrowable(auditData, "Throwable", error);
 
 			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
 				.flatMap(audit -> Mono.just("Error"));
@@ -154,7 +154,7 @@ public class BorrowingAgencyService {
 				// we encountered an error when confirming the item exists
 				final var message = "Delete virtual item : Skipped";
 				final var auditData = new HashMap<String, Object>();
-				auditThrowable(auditData, "StackTrace", error);
+				auditThrowable(auditData, "Throwable", error);
 				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
 			});
 	}

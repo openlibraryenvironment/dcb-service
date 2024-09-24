@@ -163,8 +163,17 @@ class PatronRequestApiTests {
 		// patron service
 		final var expectedUniqueId = "%s@%s".formatted(KNOWN_PATRON_LOCAL_ID, BORROWING_AGENCY_CODE);
 
-		sierraPatronsAPIFixture.patronNotFoundResponse("u", expectedUniqueId);
-		sierraPatronsAPIFixture.postPatronResponse(expectedUniqueId, 2745326);
+		// Note: tests rely on these mocks for finding the virtual patron successfully
+		// therefore these tests rely upon finding the virtual patron first time around
+		// Step 1: query the patrons on the hostlms with a successful resp of finding ONE patron
+		// Step 2: use the returned patron id to then get the patron by local id
+		sierraPatronsAPIFixture.patronsQueryFoundResponse(expectedUniqueId, "2745326");
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("2745326", SierraPatronsAPIFixture.Patron.builder()
+			.id(2745326)
+			.patronType(15)
+			.names(List.of("Joe Bloggs"))
+			.homeLibraryCode("testbbb")
+			.build());
 
 		// supplying agency service
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("2745326", "i", null);
@@ -238,6 +247,10 @@ class PatronRequestApiTests {
 		savePatronTypeMappings();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		// This mapping will need to align with patronFoundResponse
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("pr-api-tests-supplying-agency",
+			15, 15, "DCB", "UNDERGRAD");
 
 		// Act
 		// We use location UUID for pickup location now and not a code
@@ -406,6 +419,10 @@ class PatronRequestApiTests {
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		// This mapping will need to align with patronFoundResponse
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("pr-api-tests-supplying-agency",
+			15, 15, "DCB", "UNDERGRAD");
 
 		savePatronTypeMappings();
 

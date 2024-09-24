@@ -85,7 +85,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 						auditData.put("virtual-patron-barcode", Arrays.toString(patron_barcodes));
 						auditData.put("home-item-barcode", home_item_barcode);
 						auditData.put("lender-system-code", rwc.getLenderSystemCode());
-						auditThrowable(auditData, "StackTrace", error);
+						auditThrowable(auditData, "Throwable", error);
 
 						// Intentionally transform Error
 						// A virtual checkout is deemed as more of a notification than a critical action
