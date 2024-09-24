@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 7.4.1
+
+### Changes
+* [Chore]
+	* add audit for reason tracking borrowing system skipped
+	* build - Enable any branch whos name starts testrel- to be published as a docker container with the name dcb-BRANCHNAME - for example dcb-testrel-clustering3
+* [Refactor]
+	* Distinguish patron search failure and no results [DCB-1562]
+
+### Fixes
+* [General]
+	* diagnostic audit data for virtual checkout failure
+
 ## Version 7.4.0
 
 ### Additions
@@ -8,6 +21,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* simplify setting owning context [DCB-1509]
 * [Refactor]
 	* tests to support canonicalItemType mapping [DCB-1509]
