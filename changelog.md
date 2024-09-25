@@ -1,9 +1,16 @@
 # Changelog
 
+## Version 7.4.2
+
+### Fixes
+* [General]
+	* washington university failing to authenticate [DCB-1574]
+
 ## Version 7.4.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add audit for reason tracking borrowing system skipped
 	* build - Enable any branch whos name starts testrel- to be published as a docker container with the name dcb-BRANCHNAME - for example dcb-testrel-clustering3
 * [Refactor]
