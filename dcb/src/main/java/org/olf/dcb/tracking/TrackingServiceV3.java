@@ -184,7 +184,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 			log.warn("PR {} in state {} skipped tracking of borrowing system", rwc.getPatronRequest().getId(), state);
 
-			return skipTracking(rwc,"Tracking skipped : Borrowing System");
+			return skipTracking(rwc,"Tracking skipped : Borrowing System", state);
 
 		} else {
 
@@ -197,9 +197,12 @@ public class TrackingServiceV3 implements TrackingService {
 		}
 	}
 
-	private Mono<RequestWorkflowContext> skipTracking(RequestWorkflowContext rwc, String message) {
+	private Mono<RequestWorkflowContext> skipTracking(RequestWorkflowContext rwc, String message, PatronRequest.Status status) {
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("Reason", "Cannot track PatronRequest in status " + status);
+
 		return patronRequestAuditService
-			.addAuditEntry(rwc.getPatronRequest(), message)
+			.addAuditEntry(rwc.getPatronRequest(), message, auditData)
 			.thenReturn(rwc);
 	}
 
