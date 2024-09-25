@@ -34,13 +34,13 @@ select case
 			   'Maximum overdues, DCB-????'
 		   when pra.audit_data->>'detail' like 'Item with barcode: % already exists in host%'
 		   then
-			   'Item with barcode already exists, DCB-1374'
+			   'Item with barcode already exists, DCB-1275'
 		   when pra.audit_data->>'Message' like 'The following links will be broken if you continue deleting item record%'
 		   then
-			   'Item record links breakable, DCB-1504'
+			   'Item record links breakable, DCB-1374'
 		   when pra.audit_data->>'Message' like 'Title: %This item is not holdable.'
 		   then
-			   'Item not holdable, DCB-????'
+			   'Item not holdable, DCB-1504'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Item with id % already has an open DCB transaction%'
 		   then
 			   'Item has DCB transaction, DCB-1449'
@@ -73,7 +73,7 @@ select case
 			   'Connection closed, DCB-1484'
 		   when pra.audit_data->>'errorMessage' like 'Connect Error: Connection refused: %'
 		   then
-			   'Connection refused, DCB-????'
+			   'Connection refused, DCB-1484'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to find existing item with id % and barcode %'
 		   then
 			   'Cannot place request, DCB-1434'
@@ -91,7 +91,7 @@ select case
 			   'Unauthorised, DCB-1453'
 		   when pra.audit_data->>'detail' like 'Unable to find existing user with barcode %'
 		   then
-			   'Unable to find existing user, DCB-????'
+			   'Unable to find existing user, DCB-1434'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Cannot cancel transaction dcbTransactionId: %'
 		   then
 			   'Unable to cancel patron, DCB-1458'
