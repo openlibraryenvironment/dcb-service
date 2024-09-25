@@ -175,8 +175,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Mono<Patron> getPatronByBarcode(String localPatronId) {
-		log.warn("Get patron by barcode is not currently implemented for Dummy");
+	public Mono<Patron> getPatronByIdentifier(String id) {
+		log.warn("Get patron by identifier is not currently implemented for Dummy");
 		return null;
 	}
 
