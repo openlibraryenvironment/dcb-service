@@ -550,7 +550,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final var localPatronId = "673825";
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
-		sierraPatronsAPIFixture.patronNotFoundResponse("b", localPatronId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", localPatronId);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -571,14 +571,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
-	void shouldPassWhenPatronCanBeFoundInHostLmsByBarcodeFallback() {
+	void shouldPassWhenPatronCanBeFoundInHostLmsByIdentifierFallback() {
 		// Arrange
 		final var localPatronId = 673825;
-		final var localPatronBarcode = "3100222227777";
+		final var id = "3100222227777";
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronBarcode);
-		sierraPatronsAPIFixture.patronFoundResponse("b", localPatronBarcode,
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(id);
+		sierraPatronsAPIFixture.patronFoundResponse("u", id,
 			Patron.builder()
 				.id(localPatronId)
 				.patronType(localPatronType)
@@ -597,7 +597,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(PlacePatronRequestCommand.Requestor.builder()
 				.localSystemCode(BORROWING_HOST_LMS_CODE)
-				.localId(localPatronBarcode)
+				.localId(id)
 				.build())
 			.build();
 

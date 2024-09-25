@@ -131,6 +131,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_PIN = stringPropertyDefinition(
 		"virtual-patron-pin", "Virtual patrons pin to use", FALSE);
 
+	private static final HostLmsPropertyDefinition PATRON_SEARCH_TAG = stringPropertyDefinition(
+		"patron-search-tag", "VarFieldTag to search for patron by", FALSE);
+
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private static final Integer FIXED_FIELD_158 = 158;
 
@@ -203,6 +206,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final var pin = VIRTUAL_PATRON_PIN.getOptionalValueFrom(clientConfig, null);
 		log.info("Virtual patron pin set to {} for HostLMS {}", pin, lms.getName());
 		return pin;
+	}
+
+	private String getPatronSearchTag(Map<String, Object> clientConfig) {
+		final var tag = PATRON_SEARCH_TAG.getOptionalValueFrom(clientConfig, "u");
+		log.info("Patron search tag set to {} for HostLMS {}", tag, lms.getName());
+		return tag;
 	}
 
 	@Override
@@ -1384,11 +1393,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 	}
 
-	public Mono<Patron> getPatronByBarcode(String localPatronBarcode) {
-		log.debug("getPatronByLocalBarcode({})", localPatronBarcode);
+	public Mono<Patron> getPatronByIdentifier(String id) {
+		log.debug("getPatronByIdentifier({})", id);
 
-		return patronFind("b", localPatronBarcode)
-			.switchIfEmpty(Mono.error(patronNotFound(localPatronBarcode, getHostLmsCode())));
+		final var tag = getPatronSearchTag(getConfig());
+
+		return patronFind(tag, id)
+			.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
 	}
 
 	public Mono<Patron> getPatronByUsername(String username) {
