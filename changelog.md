@@ -2,6 +2,10 @@
 
 ## Version 7.4.2
 
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ### Fixes
 * [General]
 	* washington university failing to authenticate [DCB-1574]
