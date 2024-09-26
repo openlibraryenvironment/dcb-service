@@ -231,7 +231,7 @@ public class ValidatePatronTests {
 		var patronRequest = savePatronRequest(patron);
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localId);
-		sierraPatronsAPIFixture.patronNotFoundResponse("b", localId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", localId);
 
 
 		// Act

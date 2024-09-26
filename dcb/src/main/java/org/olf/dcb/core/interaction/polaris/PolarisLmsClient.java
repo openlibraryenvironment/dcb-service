@@ -891,8 +891,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<Patron> getPatronByBarcode(String localPatronBarcode) {
-		return ApplicationServices.getPatronIdByIdentifier(localPatronBarcode, "barcode")
+	public Mono<Patron> getPatronByIdentifier(String id) {
+
+		// TODO: config value with default
+		final var identifierType = "barcode";
+
+		return ApplicationServices.getPatronIdByIdentifier(id, identifierType)
 			.flatMap(this::getPatronByLocalId);
 	}
 
