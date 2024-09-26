@@ -47,6 +47,8 @@ public class PolarisConfig {
 	private Integer holdFetchingDelay;
 	@JsonProperty("hold-fetching-max-retry")
 	private Integer holdFetchingMaxRetry;
+	@JsonProperty("patron-search-identifier")
+	private String patronSearchIdentifier;
 	@JsonProperty("papi")
 	private PapiConfig papi;
 	@JsonProperty("services")
@@ -203,6 +205,11 @@ public class PolarisConfig {
 	public Integer getMaxHoldFetchingRetry(Integer defaultMaxRetry) {
 
 		return valueWithDefault(this.holdFetchingMaxRetry, Integer.class, defaultMaxRetry);
+	}
+
+	public String getPatronSearchIdentifier() {
+
+		return optionalValue(this.patronSearchIdentifier, String.class);
 	}
 
 

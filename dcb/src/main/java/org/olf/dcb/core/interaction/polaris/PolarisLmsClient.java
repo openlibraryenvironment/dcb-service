@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
@@ -893,11 +894,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<Patron> getPatronByIdentifier(String id) {
 
-		// TODO: config value with default
-		final var identifierType = "barcode";
+		final var identifierType = polarisConfig.getPatronSearchIdentifier();
 
+		// When the identifier has not been set in the hostlms for patron search we default to finding the patron by localid
+		if (isEmpty(identifierType)) {
+			log.warn("getPatronByIdentifier, no tag set in hostlms config");
+			log.info("getPatronByIdentifier, using localId: {}", id);
+
+			return getPatronByLocalId(id)
+				.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
+		}
+
+		log.info("getPatronByIdentifier, id: {} identifierType: {}", id, identifierType);
 		return ApplicationServices.getPatronIdByIdentifier(id, identifierType)
-			.flatMap(this::getPatronByLocalId);
+			.flatMap(this::getPatronByLocalId)
+			.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron) {

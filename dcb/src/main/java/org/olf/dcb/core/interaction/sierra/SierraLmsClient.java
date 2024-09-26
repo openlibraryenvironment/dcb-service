@@ -209,7 +209,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	private String getPatronSearchTag(Map<String, Object> clientConfig) {
-		final var tag = PATRON_SEARCH_TAG.getOptionalValueFrom(clientConfig, "u");
+		final var tag = PATRON_SEARCH_TAG.getOptionalValueFrom(clientConfig, null);
 		log.info("Patron search tag set to {} for HostLMS {}", tag, lms.getName());
 		return tag;
 	}
@@ -1398,6 +1398,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		final var tag = getPatronSearchTag(getConfig());
 
+		// When the tag has not been set in the hostlms for patron search we default to finding patron by localid
+		if (isEmpty(tag)) {
+			log.warn("getPatronByIdentifier, no tag set in hostlms config");
+			log.info("getPatronByIdentifier, using localId: {}", id);
+
+			return getPatronByLocalId(id)
+				.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
+		}
+
+		log.info("getPatronByIdentifier, id: {} tag: {}", id, tag);
 		return patronFind(tag, id)
 			.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
 	}
