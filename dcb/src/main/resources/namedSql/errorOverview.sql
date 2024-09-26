@@ -76,7 +76,7 @@ select case
 			   'Connection refused, DCB-1484'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to find existing item with id % and barcode %'
 		   then
-			   'Cannot place request, DCB-1434'
+			   'Cannot place request, DCB-????'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%CQLParseException: expected boolean, got ''/'': barcode==%'
 		   then
 			   'Barcode ends with slash, DCB-1470'
