@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 7.4.3
+
+### Changes
+* [Refactor]
+	* patron search functionality [DCB-1574]
+
 ## Version 7.4.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]

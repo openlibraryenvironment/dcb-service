@@ -9,6 +9,7 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
@@ -86,6 +87,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		= urlPropertyDefinition("base-url", "Base URL of the FOLIO system", TRUE);
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
 		= stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE);
+	private static final HostLmsPropertyDefinition PATRON_SEARCH_IDENTIFIER
+		= stringPropertyDefinition("patron-search-identifier", "The identifier used to search for a patron", FALSE);
 
 	private static final List<String> itemStatuses = List.of(
 		"Aged to lost",
@@ -503,9 +506,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> getPatronByIdentifier(String id) {
-		// defaulting to barcode, may need expansion is we want to support more identifiers by config
-		return findUserByBarcode(id)
-			.doOnError(error -> log.error("Error occurred while fetching patron by local barcode: {}", id, error));
+
+		final var identifierType = PATRON_SEARCH_IDENTIFIER.getRequiredConfigValue(hostLms);
+
+		// When the identifier has not been set in the hostlms for patron search we default to finding patron by localid
+		if (isEmpty(identifierType)) {
+			log.warn("getPatronByIdentifier, no identifier set in hostlms config");
+			log.info("getPatronByIdentifier, using localId: {}", id);
+
+			return getPatronByLocalId(id)
+				.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
+		}
+
+		log.info("getPatronByIdentifier, id: {} identifierType: {}", id, identifierType);
+		return findUserByQuery(identifierType, id)
+			.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())))
+			.doOnError(error -> log.error("Error occurred while fetching patron by identifierType: {} id:{}", identifierType, id, error));
 	}
 
 	@Override
@@ -552,6 +568,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.build())
 				)
 			);
+	}
+
+	private Mono<Patron> findUserByQuery(String identifier, String id) {
+		final var query = exactEqualityQuery(identifier, id);
+
+		return findUsers(query)
+			.flatMap(response -> mapFirstUserToPatron(response, query, Mono.empty()));
 	}
 
 	private Mono<Patron> findUserByBarcode(String barcode) {
@@ -962,6 +985,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			canonicalPatronType);
 
 		return Mono.just(true);
+	}
+
+	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
+		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
 	}
 
 	@Data
