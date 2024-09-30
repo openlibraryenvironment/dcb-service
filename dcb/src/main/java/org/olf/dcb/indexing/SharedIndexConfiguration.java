@@ -13,6 +13,7 @@ public record SharedIndexConfiguration (
 	String name,
 	Optional<String> username,
 	Optional<String> password,
+	Optional<Integer> version,
 	
 	Optional<Integer> maxResourceListSize,
 	Optional<Duration> minUpdateFrequency
