@@ -21,6 +21,8 @@ where pra.brief_description like 'Tracking failed : %' and
 	  not pra.audit_data->>'Error' like '%org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException: Unexpected error when trying to get hold with id: %' and
 	  not pra.audit_data->>'Error' like '%502 Service temporarily unavailable.%' and
 	  not pra.audit_data->>'Error' = 'org.olf.dcb.core.interaction.polaris.exceptions.UnknownItemStatusException: Local item status In-Repair is unknown.' and
+	  not pra.audit_data->>'Error' = 'org.olf.dcb.core.interaction.polaris.exceptions.UnhandledItemStatusException: Local item status Claim Missing Parts is unhandled.' and
+	  not pra.audit_data->>'Error' like '%errorMessage=Connect Error%' and
 	  not exists (select 1 
 				  from patron_request_audit pra1 
 				  where pra1.patron_request_id = pra.patron_request_id and
