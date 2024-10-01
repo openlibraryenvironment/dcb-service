@@ -184,5 +184,5 @@ dcb:
     # Wait up to 60s on shutdown for ingest processes to end
     maxwait: 0
   index:
-#    name: mobius-si
+    name: dcb-shared
     version: 1
