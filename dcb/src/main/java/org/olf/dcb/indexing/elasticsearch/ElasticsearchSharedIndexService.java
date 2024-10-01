@@ -65,7 +65,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
 		if (conf.version().isEmpty()) {
-			this.indexVersion = 1;
+			this.indexVersion = SharedIndexConfiguration.LATEST_INDEX_VERSION;
 		} else {
 			this.indexVersion = conf.version().get();
 		}
