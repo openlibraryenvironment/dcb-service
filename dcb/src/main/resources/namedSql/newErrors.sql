@@ -49,7 +49,8 @@ where pr.error_message not like 'Could not update item % status for hostlms: %' 
 						 pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented' or
 						 pra.audit_data->>'detail' like '%XCirc Error: This record is not available' or
 						 pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%' or
-						 pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.')
+						 pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
+						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%')
 				 ) and
 	  pr.status_code = 'ERROR' and
   	  rhl.code = pr.patron_hostlms_code and
