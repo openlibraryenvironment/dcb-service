@@ -1,8 +1,23 @@
 # Changelog
 
+## Version 7.4.4
+
+### Changes
+* [Chore]
+	* Added a new error that we know about
+	* Updated the tracking failed and added a new script for tracking failures
+
+### Fixes
+* [General]
+	* DCB-1307 Tests seem to have a problem if the index block is defined, so have moved the default version of the index  out of application.yml
+	* DCB-1307 Defaulting the index name to be dcb-shared to see if that fixes the tests
+	* DCB-1307 When creating the index we now take the definition of the index from the resources/sharedIndex
+
 ## Version 7.4.3
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* patron search functionality [DCB-1574]
 
