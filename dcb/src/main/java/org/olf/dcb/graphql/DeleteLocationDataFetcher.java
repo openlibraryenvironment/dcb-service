@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class DeleteLocationDataFetcher implements DataFetcher<CompletableFuture<Map<String, Object>>> {
 
-	private static Logger log = LoggerFactory.getLogger(DeleteLibraryDataFetcher.class);
+	private static Logger log = LoggerFactory.getLogger(DeleteLocationDataFetcher.class);
 	private LocationRepository locationRepository;
 	private PatronRequestRepository patronRequestRepository;
 	private R2dbcOperations r2dbcOperations;
@@ -122,7 +122,6 @@ public class DeleteLocationDataFetcher implements DataFetcher<CompletableFuture<
 
 
 	}
-	// Could this just be a boolean?
 	private Map<String, Object> createResult(boolean success, String message) {
 		Map<String, Object> result = new HashMap<>();
 		result.put("success", success);
