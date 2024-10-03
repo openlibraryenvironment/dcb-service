@@ -44,6 +44,10 @@ public class GraphQLFactory {
 			UpdateAgencyParticipationStatusDataFetcher updateAgencyParticipationStatusDataFetcher, DeleteLibraryDataFetcher deleteLibraryDataFetcher,
 			DeleteLocationDataFetcher deleteLocationDataFetcher, UpdateLocationDataFetcher updateLocationDataFetcher,
 			UpdateLibraryDataFetcher updateLibraryDataFetcher, UpdateContactDataFetcher updateContactDataFetcher,
+			UpdateReferenceValueMappingDataFetcher updateReferenceValueMappingDataFetcher,
+			UpdateNumericRangeMappingDataFetcher updateNumericRangeMappingDataFetcher,
+			DeleteReferenceValueMappingDataFetcher deleteReferenceValueMappingDataFetcher,
+			DeleteNumericRangeMappingDataFetcher deleteNumericRangeMappingDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -82,7 +86,6 @@ public class GraphQLFactory {
 						.dataFetcher("libraryGroups", dataFetchers.getLibraryGroupsDataFetcher())
 						.dataFetcher("libraryGroupMembers", dataFetchers.getAllLibraryGroupMembers())
 						.dataFetcher("dataChangeLog", dataFetchers.getDataChangeLogDataFetcher())
-
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
@@ -97,8 +100,12 @@ public class GraphQLFactory {
 						.dataFetcher("deleteLocation", deleteLocationDataFetcher)
 						.dataFetcher("updateLocation", updateLocationDataFetcher)
 						.dataFetcher("updateLibrary", updateLibraryDataFetcher)
-						.dataFetcher("updatePerson", updateContactDataFetcher))
-				.type("Agency",
+						.dataFetcher("updatePerson", updateContactDataFetcher)
+						.dataFetcher("updateReferenceValueMapping", updateReferenceValueMappingDataFetcher)
+						.dataFetcher("updateNumericRangeMapping", updateNumericRangeMappingDataFetcher)
+						.dataFetcher("deleteReferenceValueMapping", deleteReferenceValueMappingDataFetcher)
+						.dataFetcher("deleteNumericRangeMapping", deleteNumericRangeMappingDataFetcher))
+			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())
 						.dataFetcher("hostLms", dataFetchers.getHostLmsForAgencyDataFetcher()))
