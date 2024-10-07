@@ -8,12 +8,14 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Library;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.NumericRangeMapping;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 import org.olf.dcb.storage.ObjectRulesetRepository;
@@ -33,6 +35,7 @@ public class ExportService {
 	
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
+	private final LibraryRepository libraryRepository;
 	private final LocationRepository locationRepository;
 	private final NumericRangeMappingRepository numericRangeMappingRepository;
 	private final ObjectRulesetRepository objectRulesetRepository;
@@ -41,6 +44,7 @@ public class ExportService {
 	public ExportService(
 		AgencyRepository agencyRepository,
 		HostLmsRepository hostLmsRepository,
+		LibraryRepository libraryRepository,
 		LocationRepository locationRepository,
 		NumericRangeMappingRepository numericRangeMappingRepository,
 		ObjectRulesetRepository objectRulesetRepository,
@@ -48,6 +52,7 @@ public class ExportService {
 	) {
 		this.agencyRepository = agencyRepository;
 		this.hostLmsRepository = hostLmsRepository;
+		this.libraryRepository = libraryRepository;
 		this.locationRepository = locationRepository;
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 		this.objectRulesetRepository = objectRulesetRepository;
@@ -79,13 +84,14 @@ public class ExportService {
 		// Process the agencies associated with the exported host lms
 		List<DataAgency> agencies = new ArrayList<DataAgency>();
 		result.put("agencies", agencies);
+		List<String> agencyCodes = new ArrayList<String>();
 		Flux.from(agencyRepository.findByHostLmsIds(ids))
 			.doOnError(e -> {
 				String errorMessage = "Exception while processing agency for export: " + e.toString();
 				log.error(errorMessage, e);
 				errors.add(errorMessage);
 			})
-			.flatMap(agency -> processDataAgency(agency, agencies, errors))
+			.flatMap(agency -> processDataAgency(agency, agencies, agencyCodes, errors))
 			.blockLast();
 		
 		// Process the reference value mappings associated with the exported host lms
@@ -124,6 +130,20 @@ public class ExportService {
 			.flatMap(location -> processDataLocation(location, locations, errors))
 			.blockLast();
 		
+		// Finally process the libraries
+		if (!agencyCodes.isEmpty()) {
+			List<Library> libraries = new ArrayList<Library>();
+			result.put("libraries", libraries);
+			Flux.from(libraryRepository.findByAgencyCodes(agencyCodes))
+				.doOnError(e -> {
+					String errorMessage = "Exception while processing library for export: " + e.toString();
+					log.error(errorMessage, e);
+					errors.add(errorMessage);
+				})
+				.flatMap(library -> processDataLibrary(library, libraries, errors))
+				.blockLast();
+		}
+		
 		// Finally process the rulesets if we have any
 		if (!rulesetNames.isEmpty()) {
 			List<ObjectRuleset> objectRulesets = new ArrayList<ObjectRuleset>();
@@ -136,7 +156,6 @@ public class ExportService {
 				})
 				.flatMap(objectRuleset -> processDataObjectRuleset(objectRuleset, objectRulesets, errors))
 				.blockLast();
-			
 		}
 		
 		return(result);
@@ -185,9 +204,11 @@ public class ExportService {
 	private Mono<DataAgency> processDataAgency(
 			DataAgency agency,
 			List<DataAgency> agencies,
+			List<String> agencyCodes,
 			List<String> errors
 	) {
 		agencies.add(agency);
+		agencyCodes.add(agency.getCode());
 		return(Mono.just(agency));
 	}
 
@@ -216,6 +237,15 @@ public class ExportService {
 	) {
 		locations.add(location);
 		return(Mono.just(location));
+	}
+
+	private Mono<Library> processDataLibrary(
+			Library library,
+			List<Library> libraries,
+			List<String> errors
+	) {
+		libraries.add(library);
+		return(Mono.just(library));
 	}
 
 	private Mono<ObjectRuleset> processDataObjectRuleset(
