@@ -1,5 +1,7 @@
 package org.olf.dcb.storage;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.DataHostLms;
@@ -8,6 +10,7 @@ import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
@@ -42,6 +45,9 @@ public interface HostLmsRepository {
 
 	@NonNull
 	Publisher<DataHostLms> queryAll();
+
+	@Query(value = "SELECT * from host_lms where id in (:ids) order by name", nativeQuery = true)
+	Publisher<DataHostLms> findByIds(@NonNull Collection<UUID> ids);
 
 	Publisher<Void> delete(UUID id);
 
