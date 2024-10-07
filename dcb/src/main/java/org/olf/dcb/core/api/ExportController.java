@@ -3,7 +3,6 @@ package org.olf.dcb.core.api;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Secured(RoleNames.ADMINISTRATOR)
 @Tag(name = "Export API")
 public class ExportController {
+	@SuppressWarnings("unused")
 	private static final Logger log = LoggerFactory.getLogger(ExportController.class);
 
 	private final ExportService exportService;
@@ -62,7 +62,7 @@ public class ExportController {
 				errors.add("No valid UUID ids supplied");
 			} else {
 				// We did so export these host lms and related data
-				result = exportService.export(idsList, result);
+				result = exportService.export(idsList, result, errors);
 			}
 		}
 

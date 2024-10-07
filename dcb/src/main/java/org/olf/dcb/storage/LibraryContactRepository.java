@@ -1,20 +1,21 @@
 package org.olf.dcb.storage;
 
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.data.model.Page;
-import io.micronaut.data.model.Pageable;
-
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.graphql.*;
-import org.reactivestreams.Publisher;
-
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.UUID;
 
-import reactor.core.publisher.Mono;
+import org.olf.dcb.core.model.Library;
+import org.olf.dcb.core.model.LibraryContact;
+import org.olf.dcb.core.model.Person;
+import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import reactor.core.publisher.Mono;
 
 public interface LibraryContactRepository {
 
@@ -44,6 +45,8 @@ public interface LibraryContactRepository {
 
 	Publisher<Page<LibraryContact>> findAll(@Valid Pageable pageable);
 
+	@Query(value = "SELECT * from library_contact where library_id in (:libraryIds)", nativeQuery = true)
+	Publisher<LibraryContact> findByLibraryIds(@NonNull Collection<UUID> libraryIds);
 
 	@NonNull
 	Publisher<? extends LibraryContact> queryAll();

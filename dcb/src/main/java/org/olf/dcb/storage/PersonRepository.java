@@ -1,17 +1,19 @@
 package org.olf.dcb.storage;
 
+import java.util.Collection;
+import java.util.UUID;
+
+import org.olf.dcb.core.model.Person;
+import org.reactivestreams.Publisher;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import org.olf.dcb.core.model.Library;
-import org.olf.dcb.core.model.Person;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 public interface PersonRepository {
 	@NonNull
@@ -40,6 +42,9 @@ public interface PersonRepository {
 
 	@NonNull
 	Publisher<Person> queryAll();
+
+	@Query(value = "SELECT * from person where id in (:ids)", nativeQuery = true)
+	Publisher<Person> findByIds(@NonNull Collection<UUID> ids);
 
 	Publisher<Void> delete(UUID id);
 
