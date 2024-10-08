@@ -118,6 +118,9 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%'
 		   then
 			   'Hold requests not allowed for this patron and item combination, DCB-1597'
+		   when pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
+		   then
+			   'Folio Internal Server Error, DCB-1613'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "description",
@@ -241,6 +244,9 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%'
 		   then
 			   'errors/holdRequestsNotAllowed'
+		   when pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
+		   then
+			   'errors/folioInternalError'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "namedSql",
@@ -291,7 +297,8 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented' or
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%' or
 		  pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
-		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%'
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%' or
+		  pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
 	  )
 group by 1, 2
 union

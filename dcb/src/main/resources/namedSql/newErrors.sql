@@ -50,7 +50,9 @@ where pr.error_message not like 'Could not update item % status for hostlms: %' 
 						 pra.audit_data->>'detail' like '%XCirc Error: This record is not available' or
 						 pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%' or
 						 pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
-						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%')
+						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%' or
+						 pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
+					 )
 				 ) and
 	  pr.status_code = 'ERROR' and
   	  rhl.code = pr.patron_hostlms_code and
