@@ -1,19 +1,21 @@
 package org.olf.dcb.storage;
 
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.data.model.Page;
-import io.micronaut.data.model.Pageable;
-
-import org.olf.dcb.core.model.*;
-import org.reactivestreams.Publisher;
-
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.UUID;
 
-import reactor.core.publisher.Mono;
+import org.olf.dcb.core.model.Library;
+import org.olf.dcb.core.model.LibraryGroup;
+import org.olf.dcb.core.model.LibraryGroupMember;
+import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import reactor.core.publisher.Mono;
 
 public interface LibraryGroupMemberRepository {
 
@@ -79,5 +81,6 @@ public interface LibraryGroupMemberRepository {
 
 	Publisher<LibraryGroup> findLibraryGroupById(UUID id);
 
-
+	@Query(value = "SELECT * from library_group_member where library_id in (:libraryIds)", nativeQuery = true)
+	Publisher<LibraryGroupMember> findByLibraryIds(@NonNull Collection<UUID> libraryIds);
 }

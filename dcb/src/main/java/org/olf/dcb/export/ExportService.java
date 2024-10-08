@@ -21,6 +21,8 @@ public class ExportService {
 	private final ExportAgencyService agencyService;
 	private final ExportHostLmsService hostLmsService;
 	private final ExportLibraryContactService libraryContactService;
+	private final ExportLibraryGroupService libraryGroupService;
+	private final ExportLibraryGroupMemberService libraryGroupMemberService;
 	private final ExportLibraryService libraryService;
 	private final ExportLocationService locationService;
 	private final ExportNumericRangeMappingService numericRangeMappingService;
@@ -32,6 +34,8 @@ public class ExportService {
 		ExportAgencyService agencyService,
 		ExportHostLmsService hostLmsService,
 		ExportLibraryContactService libraryContactService,
+		ExportLibraryGroupService libraryGroupService,
+		ExportLibraryGroupMemberService libraryGroupMemberService,
 		ExportLibraryService libraryService,
 		ExportLocationService locationService,
 		ExportNumericRangeMappingService numericRangeMappingService,
@@ -43,6 +47,8 @@ public class ExportService {
 		this.hostLmsService = hostLmsService;
 		this.libraryContactService = libraryContactService;
 		this.libraryService = libraryService;
+		this.libraryGroupService = libraryGroupService;
+		this.libraryGroupMemberService = libraryGroupMemberService;
 		this.locationService = locationService;
 		this.numericRangeMappingService = numericRangeMappingService;
 		this.objectRulesetService = objectRulesetService;
@@ -76,6 +82,8 @@ public class ExportService {
 
 		// Finally the library related config
 		libraryService.export(agencyCodes, libraryIds, result, errors);
+		libraryGroupService.export(libraryIds, result, errors);
+		libraryGroupMemberService.export(libraryIds, result, errors);
 		libraryContactService.export(libraryIds, personIds, result, errors);
 		personService.export(personIds, result, errors);
 
