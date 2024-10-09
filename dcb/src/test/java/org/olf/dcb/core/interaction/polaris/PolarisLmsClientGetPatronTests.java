@@ -118,7 +118,7 @@ class PolarisLmsClientGetPatronTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var response = singleValueFrom(client.getPatronByLocalId(localId));
+		final var response = singleValueFrom(client.getPatronByIdentifier(localId));
 
 		// Assert
 		assertThat(response, allOf(

@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
@@ -103,7 +102,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.retry.Retry;
-import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -892,23 +890,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<Patron> getPatronByIdentifier(String id) {
-
-		final var identifierType = polarisConfig.getPatronSearchIdentifier();
-
-		// When the identifier has not been set in the hostlms for patron search we default to finding the patron by localid
-		if (isEmpty(identifierType)) {
-			log.warn("getPatronByIdentifier, no tag set in hostlms config");
-			log.info("getPatronByIdentifier, using localId: {}", id);
-
-			return getPatronByLocalId(id)
-				.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
-		}
-
-		log.info("getPatronByIdentifier, id: {} identifierType: {}", id, identifierType);
-		return ApplicationServices.getPatronIdByIdentifier(id, identifierType)
-			.flatMap(this::getPatronByLocalId)
-			.switchIfEmpty(Mono.error(patronNotFound(id, getHostLmsCode())));
+	public Mono<Patron> getPatronByIdentifier(String identifier) {
+			return getPatronByLocalId(identifier)
+				.switchIfEmpty(Mono.error(patronNotFound(identifier, getHostLmsCode())));
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron) {
