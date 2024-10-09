@@ -1,9 +1,32 @@
 # Changelog
 
+## Version 8.0.0
+
+### Additions
+* [General]
+	* **BREAKING** -  Remove ability to choose identifier for Polaris and FOLIO DCB-1574
+* [General]
+	* DCB-1568 Added the library  contact and person to the export
+	* DCB-1568 Added the library to the export
+	* DCB-1568 Export of library configuration
+	* Support editing and deleting mappings via DCB Admin [DCB-1407]
+
+### Changes
+* [Chore]
+	* Refer to configuration property in missing value warning DCB-1574
+	* Remove ability to choose identifier when finding Polaris patron DCB-1574
+
+### Fixes
+* [General]
+	* Remove ability to choose identifier when finding FOLIO patron DCB-1574
+	* DCB-1568 Converted the export to use the SiteConfiguration class instead of using a Map
+	* DCB-1568 Added library group and library group members to the export
+
 ## Version 7.4.4
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Added a new error that we know about
 	* Updated the tracking failed and added a new script for tracking failures
 
