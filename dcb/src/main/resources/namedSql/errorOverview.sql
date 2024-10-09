@@ -121,6 +121,9 @@ select case
 		   when pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
 		   then
 			   'Folio Internal Server Error, DCB-1613'
+		   when pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
+		   then
+			   'No holds to process for local patron, DCB-1615'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "description",
@@ -247,6 +250,9 @@ select case
 		   when pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
 		   then
 			   'errors/folioInternalError'
+		   when pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
+		   then
+			   'errors/noHoldsToProcess'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "namedSql",
@@ -298,7 +304,8 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%' or
 		  pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%' or
-		  pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
+		  pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%' or
+		  pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
 	  )
 group by 1, 2
 union

@@ -51,7 +51,8 @@ where pr.error_message not like 'Could not update item % status for hostlms: %' 
 						 pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%' or
 						 pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
 						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%' or
-						 pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
+						 pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%' or
+						 pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
 					 )
 				 ) and
 	  pr.status_code = 'ERROR' and
