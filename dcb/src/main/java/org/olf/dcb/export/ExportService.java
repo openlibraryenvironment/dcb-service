@@ -3,9 +3,9 @@ package org.olf.dcb.export;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,10 +56,9 @@ public class ExportService {
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
-	public Map<String, Object> export(
+	public void export(
 		Collection<UUID> hostLmsIds,
-		Map<String, Object> result,
-		List<String> errors
+		SiteConfiguration siteConfiguration
 	) {
 		// The values we need to lookup the reference mappings with
 		List<String> contextValues = new ArrayList<String>();
@@ -69,24 +68,22 @@ public class ExportService {
 		List<UUID> personIds = new ArrayList<UUID>();
 
 		// The lists contextValues and rulesetNames are populated by hostLmsService.export so this needs to be executed before these lists are used 
-		hostLmsService.export(hostLmsIds, contextValues, rulesetNames, result, errors);
+		hostLmsService.export(hostLmsIds, contextValues, rulesetNames, siteConfiguration);
 		
 		// The list agencyCodes is populated by agencyService.export so this needs to be executed before this list is used 
-		agencyService.export(hostLmsIds, agencyCodes, result, errors);
+		agencyService.export(hostLmsIds, agencyCodes, siteConfiguration);
 		
 		// Now for the rest of the configuration
-		locationService.export(hostLmsIds, result, errors);
-		numericRangeMappingService.export(contextValues, result, errors);
-		objectRulesetService.export(rulesetNames, result, errors);
-		referenceValueMappingService.export(contextValues, result, errors);
+		locationService.export(hostLmsIds, siteConfiguration);
+		numericRangeMappingService.export(contextValues, siteConfiguration);
+		objectRulesetService.export(rulesetNames, siteConfiguration);
+		referenceValueMappingService.export(contextValues, siteConfiguration);
 
 		// Finally the library related config
-		libraryService.export(agencyCodes, libraryIds, result, errors);
-		libraryGroupService.export(libraryIds, result, errors);
-		libraryGroupMemberService.export(libraryIds, result, errors);
-		libraryContactService.export(libraryIds, personIds, result, errors);
-		personService.export(personIds, result, errors);
-
-		return(result);
+		libraryService.export(agencyCodes, libraryIds, siteConfiguration);
+		libraryGroupService.export(libraryIds, siteConfiguration);
+		libraryGroupMemberService.export(libraryIds, siteConfiguration);
+		libraryContactService.export(libraryIds, personIds, siteConfiguration);
+		personService.export(personIds, siteConfiguration);
 	}
 }

@@ -1,12 +1,10 @@
 package org.olf.dcb.export;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Person;
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.PersonRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,34 +27,28 @@ public class ExportPersonService {
 		this.personRepository = personRepository;
 	}
 
-	public Map<String, Object> export(
+	public void export(
 		Collection<UUID> personIds,
-		Map<String, Object> result,
-		List<String> errors
+		SiteConfiguration siteConfiguration
 	) {
 		// Process the library contacts
-		List<Person> persons = new ArrayList<Person>();
-		result.put("persons", persons);
 		if (!personIds.isEmpty()) {
 			Flux.from(personRepository.findByIds(personIds))
 				.doOnError(e -> {
 					String errorMessage = "Exception while processing person for export: " + e.toString();
 					log.error(errorMessage, e);
-					errors.add(errorMessage);
+					siteConfiguration.errors.add(errorMessage);
 				})
-				.flatMap(person -> processDataPerson(person, persons, errors))
+				.flatMap(person -> processDataPerson(person, siteConfiguration))
 				.blockLast();
 		}
-		
-		return(result);
 	}
 
 	private Mono<Person> processDataPerson(
 			Person person,
-			List<Person> persons,
-			List<String> errors
+			SiteConfiguration siteConfiguration
 	) {
-		persons.add(person);
+		siteConfiguration.persons.add(person);
 		return(Mono.just(person));
 	}
 }

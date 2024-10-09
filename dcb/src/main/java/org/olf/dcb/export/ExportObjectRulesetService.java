@@ -1,10 +1,8 @@
 package org.olf.dcb.export;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.ObjectRulesetRepository;
 import org.slf4j.Logger;
@@ -28,34 +26,28 @@ public class ExportObjectRulesetService {
 		this.objectRulesetRepository = objectRulesetRepository;
 	}
 
-	public Map<String, Object> export(
+	public void export(
 		Collection<String> rulesetNames,
-		Map<String, Object> result,
-		List<String> errors
+		SiteConfiguration siteConfiguration
 	) {
 		// Process the rulesets
-		List<ObjectRuleset> objectRulesets = new ArrayList<ObjectRuleset>();
-		result.put("objectRulesets", objectRulesets);
 		if (!rulesetNames.isEmpty()) {
 			Flux.from(objectRulesetRepository.findByNames(rulesetNames))
 				.doOnError(e -> {
 					String errorMessage = "Exception while processing object rulesets for export: " + e.toString();
 					log.error(errorMessage, e);
-					errors.add(errorMessage);
+					siteConfiguration.errors.add(errorMessage);
 				})
-				.flatMap(objectRuleset -> processDataObjectRuleset(objectRuleset, objectRulesets, errors))
+				.flatMap(objectRuleset -> processDataObjectRuleset(objectRuleset, siteConfiguration))
 				.blockLast();
 		}
-		
-		return(result);
 	}
 
 	private Mono<ObjectRuleset> processDataObjectRuleset(
 			ObjectRuleset objectRuleset,
-			List<ObjectRuleset> objectRulesets,
-			List<String> errors
+			SiteConfiguration siteConfiguration
 	) {
-		objectRulesets.add(objectRuleset);
+		siteConfiguration.objectRulesets.add(objectRuleset);
 		return(Mono.just(objectRuleset));
 	}
 }

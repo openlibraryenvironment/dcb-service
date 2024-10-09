@@ -1,11 +1,9 @@
 package org.olf.dcb.export;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
 import org.olf.dcb.core.model.NumericRangeMapping;
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,32 +26,26 @@ public class ExportNumericRangeMappingService {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
 	}
 
-	public Map<String, Object> export(
+	public void export(
 		Collection<String> contextValues,
-		Map<String, Object> result,
-		List<String> errors
+		SiteConfiguration siteConfiguration
 	) {
 		// Process the numeric range mappings associated with the exported host lms
-		List<NumericRangeMapping> numericRangeMappings = new ArrayList<NumericRangeMapping>();
-		result.put("numericRangeMappings", numericRangeMappings);
 		Flux.from(numericRangeMappingRepository.findByContexts(contextValues))
 			.doOnError(e -> {
 				String errorMessage = "Exception while processing numeric range mapping for export: " + e.toString();
 				log.error(errorMessage, e);
-				errors.add(errorMessage);
+				siteConfiguration.errors.add(errorMessage);
 			})
-			.flatMap(numericRangeMapping -> processDataNumericRangeMapping(numericRangeMapping, numericRangeMappings, errors))
+			.flatMap(numericRangeMapping -> processDataNumericRangeMapping(numericRangeMapping, siteConfiguration))
 			.blockLast();
-		
-		return(result);
 	}
 
 	private Mono<NumericRangeMapping> processDataNumericRangeMapping(
 			NumericRangeMapping numericRangeMapping,
-			List<NumericRangeMapping> numericRangeMappings,
-			List<String> errors
+			SiteConfiguration siteConfiguration
 	) {
-		numericRangeMappings.add(numericRangeMapping);
+		siteConfiguration.numericRangeMappings.add(numericRangeMapping);
 		return(Mono.just(numericRangeMapping));
 	}
 }

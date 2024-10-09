@@ -1,12 +1,11 @@
 package org.olf.dcb.export;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Library;
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.LibraryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,36 +28,30 @@ public class ExportLibraryService {
 		this.libraryRepository = libraryRepository;
 	}
 
-	public Map<String, Object> export(
+	public void export(
 		Collection<String> agencyCodes,
 		List<UUID> libraryIds,
-		Map<String, Object> result,
-		List<String> errors
+		SiteConfiguration siteConfiguration
 	) {
 		// Process the libraries
 		if (!agencyCodes.isEmpty()) {
-			List<Library> libraries = new ArrayList<Library>();
-			result.put("libraries", libraries);
 			Flux.from(libraryRepository.findByAgencyCodes(agencyCodes))
 				.doOnError(e -> {
 					String errorMessage = "Exception while processing library for export: " + e.toString();
 					log.error(errorMessage, e);
-					errors.add(errorMessage);
+					siteConfiguration.errors.add(errorMessage);
 				})
-				.flatMap(library -> processDataLibrary(library, libraries, libraryIds, errors))
+				.flatMap(library -> processDataLibrary(library, siteConfiguration, libraryIds))
 				.blockLast();
 		}
-		
-		return(result);
 	}
 
 	private Mono<Library> processDataLibrary(
 			Library library,
-			List<Library> libraries,
-			List<UUID> libraryIds,
-			List<String> errors
+			SiteConfiguration siteConfiguration,
+			List<UUID> libraryIds
 	) {
-		libraries.add(library);
+		siteConfiguration.libraries.add(library);
 		libraryIds.add(library.getId());
 		return(Mono.just(library));
 	}

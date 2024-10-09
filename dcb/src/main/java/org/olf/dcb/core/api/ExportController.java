@@ -3,12 +3,11 @@ package org.olf.dcb.core.api;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.export.ExportService;
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.security.RoleNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,10 +35,9 @@ public class ExportController {
 	}
 
 	@Get(uri = "/", produces = APPLICATION_JSON)
-	public Map<String, Object> export(@Parameter String ids) {
-		Map<String, Object> result = new HashMap<String, Object>(); 
-		List<String> errors = new ArrayList<String>();
-		result.put("errors", errors);
+	public SiteConfiguration export(@Parameter String ids) {
+		SiteConfiguration siteConfiguration = SiteConfiguration.create(); 
+		List<String> errors = siteConfiguration.errors;
 		
 		if (ids == null) {
 			errors.add("No ids supplied to perform export");
@@ -62,11 +60,11 @@ public class ExportController {
 				errors.add("No valid UUID ids supplied");
 			} else {
 				// We did so export these host lms and related data
-				result = exportService.export(idsList, result, errors);
+				exportService.export(idsList, siteConfiguration);
 			}
 		}
 
 		// Finally return the result
-		return(result);
+		return(siteConfiguration);
 	}
 }

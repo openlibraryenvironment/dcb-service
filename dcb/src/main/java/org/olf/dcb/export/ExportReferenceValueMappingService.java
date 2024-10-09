@@ -1,11 +1,9 @@
 package org.olf.dcb.export;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,32 +26,26 @@ public class ExportReferenceValueMappingService {
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
-	public Map<String, Object> export(
+	public void export(
 		Collection<String> contextValues,
-		Map<String, Object> result,
-		List<String> errors
+		SiteConfiguration siteConfiguration
 	) {
 		// Process the reference value mappings associated
-		List<ReferenceValueMapping> referenceValueMappings = new ArrayList<ReferenceValueMapping>();
-		result.put("referenceValueMappings", referenceValueMappings);
 		Flux.from(referenceValueMappingRepository.findByContexts(contextValues))
 			.doOnError(e -> {
 				String errorMessage = "Exception while processing reference value mapping for export: " + e.toString();
 				log.error(errorMessage, e);
-				errors.add(errorMessage);
+				siteConfiguration.errors.add(errorMessage);
 			})
-			.flatMap(referenceValueMapping -> processDataReferenceValueMapping(referenceValueMapping, referenceValueMappings, errors))
+			.flatMap(referenceValueMapping -> processDataReferenceValueMapping(referenceValueMapping, siteConfiguration))
 			.blockLast();
-		
-		return(result);
 	}
 
 	private Mono<ReferenceValueMapping> processDataReferenceValueMapping(
 			ReferenceValueMapping referenceValueMapping,
-			List<ReferenceValueMapping> referenceValueMappings,
-			List<String> errors
+			SiteConfiguration siteConfiguration
 	) {
-		referenceValueMappings.add(referenceValueMapping);
+		siteConfiguration.referenceValueMappings.add(referenceValueMapping);
 		return(Mono.just(referenceValueMapping));
 	}
 }

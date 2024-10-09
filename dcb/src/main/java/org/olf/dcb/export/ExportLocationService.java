@@ -1,12 +1,10 @@
 package org.olf.dcb.export;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.LocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,32 +27,26 @@ public class ExportLocationService {
 		this.locationRepository = locationRepository;
 	}
 
-	public Map<String, Object> export(
+	public void export(
 		Collection<UUID> hostLmsIds,
-		Map<String, Object> result,
-		List<String> errors
+		SiteConfiguration siteConfiguration
 	) {
 		// Process the locations associated with the exported host lms
-		List<Location> locations = new ArrayList<Location>();
-		result.put("locations", locations);
 		Flux.from(locationRepository.findByHostLmsIds(hostLmsIds))
 			.doOnError(e -> {
 				String errorMessage = "Exception while processing locations for export: " + e.toString();
 				log.error(errorMessage, e);
-				errors.add(errorMessage);
+				siteConfiguration.errors.add(errorMessage);
 			})
-			.flatMap(location -> processDataLocation(location, locations, errors))
+			.flatMap(location -> processDataLocation(location, siteConfiguration))
 			.blockLast();
-		
-		return(result);
 	}
 
 	private Mono<Location> processDataLocation(
 			Location location,
-			List<Location> locations,
-			List<String> errors
+			SiteConfiguration siteConfiguration
 	) {
-		locations.add(location);
+		siteConfiguration.locations.add(location);
 		return(Mono.just(location));
 	}
 }
