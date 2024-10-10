@@ -17,6 +17,7 @@ import org.olf.dcb.rules.ObjectRuleset;
 
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
@@ -27,6 +28,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Data
 @ExcludeFromGeneratedCoverageReport
 @Serdeable
+@ToString
 public class SiteConfiguration {
 	public List<DataAgency> agencies;
 	public List<DataHostLms> lmsHosts;

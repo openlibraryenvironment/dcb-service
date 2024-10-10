@@ -56,7 +56,6 @@ public class ExportHostLmsService {
 	) {
 		// Add the host to our array
 		siteConfiguration.lmsHosts.add(dataHost);
-log.error("Chas ************ Adding lmsHost ********");
 		Map<String, Object> clientConfig = dataHost.getClientConfig();
 		if (clientConfig == null) {
 			siteConfiguration.errors.add("No client config specified for lms host: " + dataHost.getName());
