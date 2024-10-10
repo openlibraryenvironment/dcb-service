@@ -6,7 +6,6 @@ import static org.hamcrest.CoreMatchers.equalToObject;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
@@ -281,7 +280,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 			.build());
 
 		// Act
-		final var fetchedPatron = singleValueFrom(client.getPatronByLocalId(id));
+		final var fetchedPatron = singleValueFrom(client.getPatronByIdentifier(id));
 
 		// Assert
 		assertThat(fetchedPatron, allOf(
