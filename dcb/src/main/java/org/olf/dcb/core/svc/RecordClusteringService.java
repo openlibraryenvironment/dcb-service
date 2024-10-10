@@ -297,8 +297,11 @@ public class RecordClusteringService {
 		return bibRecords.findAllIdentifiersForBib( bib )
 				.filter( this::completeIdentifiersPredicate )
 				
-				.map( id -> String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue()) )
-				.map( MatchPoint::buildFromString ) ;
+				.map( id -> {
+					String s = String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue());
+					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace());
+					return mp;
+        } );
 	}
 
 	private Flux<MatchPoint> recordMatchPoints ( BibRecord bib ) {

@@ -65,6 +65,8 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		// Leader fields
 		enrichWithLeaderInformation(ingestRecord, marcRecord);
 
+		enrichWithFormOfItemInformation(ingestRecord, marcRecord);
+
 		// Title(s)
 		enrichWithTitleInformation(ingestRecord, marcRecord);
 
@@ -102,6 +104,64 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		// In marc21 07 is Bibliographic Level
 		ingestRecord.derivedType(typeFromLeader(marcRecord.getLeader()));
 		return ingestRecord;
+	}
+
+	default IngestRecordBuilder enrichWithFormOfItemInformation(final IngestRecordBuilder ir, final Record record) {
+
+		ControlField field008 = (ControlField) record.getVariableField("008");
+		if ( field008 != null ) {
+			String data008 = field008.getData();
+			if ( ( data008 != null ) && ( data008.length() >= 23 ) ) {
+				char formOfRecord = data008.charAt(23);
+				switch ( formOfRecord ) {
+					case 'a':
+						ir.formOfItem("Microfilm");
+						ir.derivedFormOfItem("Physical");
+						break;
+					case 'b':
+						ir.formOfItem("Microfiche");
+						ir.derivedFormOfItem("Physical");
+						break;
+					case 'c':
+						ir.formOfItem("Micropaque");
+						ir.derivedFormOfItem("Physical");
+						break;
+					case 'd':
+						ir.formOfItem("Large Print");
+						ir.derivedFormOfItem("Physical");
+						break;
+					case 'f':
+						ir.formOfItem("Braille");
+						ir.derivedFormOfItem("Physical");
+						break;
+					case 'o':
+						ir.formOfItem("Online");
+						ir.derivedFormOfItem("Electronic");
+						break;
+					case 'q':
+						ir.formOfItem("Direct Electronic");
+						ir.derivedFormOfItem("Electronic");
+						break;
+					case 'r':
+						ir.formOfItem("Regular Print");
+						ir.derivedFormOfItem("Physical");
+						break;
+					case 's':
+						ir.formOfItem("Electronic");
+						ir.derivedFormOfItem("Electronic");
+						break;
+					case '|':
+						ir.formOfItem("Not Encoded");
+						ir.derivedFormOfItem("Not Encoded");
+						break;
+					default:
+						ir.formOfItem("Unknown");
+						ir.derivedFormOfItem("Unknown");
+						break;
+				}
+			}
+		}
+		return ir;
 	}
 
 	default IngestRecordBuilder enrichWithAuthorInformation(final IngestRecordBuilder ingestRecord,
@@ -386,6 +446,8 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		canonical_metadata.put("title", ir.getTitle());
 		canonical_metadata.put("identifiers", ir.getIdentifiers());
 		canonical_metadata.put("derivedType", ir.getDerivedType());
+		canonical_metadata.put("formOfItem", ir.getFormOfItem());
+		canonical_metadata.put("derivedFormOfItem", ir.getDerivedFormOfItem());
 		canonical_metadata.put("recordStatus", ir.getRecordStatus());
 		// canonical_metadata.put("typeOfRecord",ir.getTypeOfRecord());
 		// canonical_metadata.put("bibLevel",ir.getBibLevel());
