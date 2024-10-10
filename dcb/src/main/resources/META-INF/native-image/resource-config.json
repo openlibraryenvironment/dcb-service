@@ -3,10 +3,7 @@
     {
       "type": "ch.qos.logback.contrib.jackson.JacksonJsonFormatter",
       "methods": [
-        {
-          "name": "setPrettyPrint",
-          "parameterTypes": ["boolean"] 
-        }
+        { "name": "setPrettyPrint", "parameterTypes": ["boolean"] }
       ],
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
