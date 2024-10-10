@@ -324,6 +324,7 @@ tasks {
 graalvmNative {
     binaries {
         main {
+            buildArgs.add('--exact-reachability-metadata')
             buildArgs.add('-march=x86-64-v2')
             buildArgs.add('-H:+AddAllCharsets')
         }
