@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -39,16 +38,11 @@ public class ExportLibraryGroupMemberService {
 					log.error(errorMessage, e);
 					siteConfiguration.errors.add(errorMessage);
 				})
-				.flatMap(libraryGroupMember -> processDataLibraryGroupMember(libraryGroupMember, siteConfiguration))
+				.map((LibraryGroupMember libraryGroupMember) -> {
+					siteConfiguration.libraryGroupMembers.add(libraryGroupMember);
+					return(libraryGroupMember);
+				})
 				.blockLast();
 		}
-	}
-
-	private Mono<LibraryGroupMember> processDataLibraryGroupMember(
-			LibraryGroupMember libraryGroupMember,
-			SiteConfiguration siteConfiguration
-	) {
-		siteConfiguration.libraryGroupMembers.add(libraryGroupMember);
-		return(Mono.just(libraryGroupMember));
 	}
 }

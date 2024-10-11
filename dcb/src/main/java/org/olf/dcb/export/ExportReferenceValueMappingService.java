@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -37,15 +36,10 @@ public class ExportReferenceValueMappingService {
 				log.error(errorMessage, e);
 				siteConfiguration.errors.add(errorMessage);
 			})
-			.flatMap(referenceValueMapping -> processDataReferenceValueMapping(referenceValueMapping, siteConfiguration))
+			.map((ReferenceValueMapping referenceValueMapping) -> {
+				siteConfiguration.referenceValueMappings.add(referenceValueMapping);
+				return(referenceValueMapping);
+			})
 			.blockLast();
-	}
-
-	private Mono<ReferenceValueMapping> processDataReferenceValueMapping(
-			ReferenceValueMapping referenceValueMapping,
-			SiteConfiguration siteConfiguration
-	) {
-		siteConfiguration.referenceValueMappings.add(referenceValueMapping);
-		return(Mono.just(referenceValueMapping));
 	}
 }

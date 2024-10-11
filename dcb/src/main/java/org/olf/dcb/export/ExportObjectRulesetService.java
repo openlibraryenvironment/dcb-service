@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -38,16 +37,11 @@ public class ExportObjectRulesetService {
 					log.error(errorMessage, e);
 					siteConfiguration.errors.add(errorMessage);
 				})
-				.flatMap(objectRuleset -> processDataObjectRuleset(objectRuleset, siteConfiguration))
+				.map((ObjectRuleset objectRuleset) -> {
+					siteConfiguration.objectRulesets.add(objectRuleset);
+					return(objectRuleset);
+				})
 				.blockLast();
 		}
-	}
-
-	private Mono<ObjectRuleset> processDataObjectRuleset(
-			ObjectRuleset objectRuleset,
-			SiteConfiguration siteConfiguration
-	) {
-		siteConfiguration.objectRulesets.add(objectRuleset);
-		return(Mono.just(objectRuleset));
 	}
 }

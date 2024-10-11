@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -37,15 +36,10 @@ public class ExportNumericRangeMappingService {
 				log.error(errorMessage, e);
 				siteConfiguration.errors.add(errorMessage);
 			})
-			.flatMap(numericRangeMapping -> processDataNumericRangeMapping(numericRangeMapping, siteConfiguration))
+			.map((NumericRangeMapping numericRangeMapping) -> {
+				siteConfiguration.numericRangeMappings.add(numericRangeMapping);
+				return(numericRangeMapping);
+			})
 			.blockLast();
-	}
-
-	private Mono<NumericRangeMapping> processDataNumericRangeMapping(
-			NumericRangeMapping numericRangeMapping,
-			SiteConfiguration siteConfiguration
-	) {
-		siteConfiguration.numericRangeMappings.add(numericRangeMapping);
-		return(Mono.just(numericRangeMapping));
 	}
 }

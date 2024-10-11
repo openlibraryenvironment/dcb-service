@@ -57,7 +57,10 @@ public interface AgencyRepository {
 	@NonNull
 	@SingleResult
 	Publisher<DataHostLms> findHostLmsById(@NonNull UUID id);
-	
+
 	@Query(value = "SELECT * from agency where host_lms_id in (:hostLmsIds) order by name", nativeQuery = true)
 	Publisher<DataAgency> findByHostLmsIds(@NonNull Collection<UUID> hostLmsIds);
+
+	@Query(value = "SELECT host_lms_id from agency where code in (:agencyCodes) and host_lms_id is not null order by name", nativeQuery = true)
+	Publisher<UUID> findHostLmsIdByAgencyCodes(@NonNull Collection<String> agencyCodes);
 }

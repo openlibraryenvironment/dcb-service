@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -40,17 +39,11 @@ public class ExportAgencyService {
 				log.error(errorMessage, e);
 				siteConfiguration.errors.add(errorMessage);
 			})
-			.flatMap(agency -> processDataAgency(agency, siteConfiguration, agencyCodes))
+			.map((DataAgency agency) -> {
+				siteConfiguration.agencies.add(agency);
+				agencyCodes.add(agency.getCode());
+				return(agency);
+			})
 			.blockLast();
-	}
-
-	private Mono<DataAgency> processDataAgency(
-			DataAgency agency,
-			SiteConfiguration siteConfiguration,
-			List<String> agencyCodes
-	) {
-		siteConfiguration.agencies.add(agency);
-		agencyCodes.add(agency.getCode());
-		return(Mono.just(agency));
 	}
 }

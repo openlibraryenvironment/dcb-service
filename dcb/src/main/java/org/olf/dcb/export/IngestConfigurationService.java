@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -53,7 +52,7 @@ public class IngestConfigurationService {
 		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
-	public Mono<IngestResult> ingest(
+	public void ingest(
 		SiteConfiguration siteConfiguration,
 		IngestResult ingestResult 
 	) {
@@ -71,7 +70,6 @@ public class IngestConfigurationService {
 		libraryGroupMemberService.ingest(siteConfiguration, ingestResult);
 		personService.ingest(siteConfiguration, ingestResult);
 		libraryContactService.ingest(siteConfiguration, ingestResult);
-		return(Mono.just(ingestResult));
 	}
 }
 
