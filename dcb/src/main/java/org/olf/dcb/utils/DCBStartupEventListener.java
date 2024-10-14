@@ -106,6 +106,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.ingestSourceClass(tolerateNoType(hostLms.getIngestSourceType()))
 			.clientConfig(hostLms.getClientConfig())
 			.suppressionRulesetName(hostLms.getSuppressionRulesetName())
+			.itemSuppressionRulesetName(hostLms.getItemSuppressionRulesetName())
 			.build();
 
 		// we don't want to proceed until this is done

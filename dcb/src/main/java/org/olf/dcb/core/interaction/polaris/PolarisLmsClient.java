@@ -67,6 +67,8 @@ import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
@@ -124,6 +126,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
 	private final ObjectMapper objectMapper;
+	private final ObjectRulesService objectRuleService;
+
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
@@ -135,9 +139,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
-		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
-		ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper) {
+									 ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
+									 ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
+									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
+									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
+									 ObjectRulesService objectRuleService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -157,6 +163,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.client = client;
 		this.r2dbcOperations = r2dbcOperations;
+		this.objectRuleService = objectRuleService;
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
@@ -658,8 +665,39 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(this::fetchFullItemStatus)
 			.flatMap(this::setMaterialTypeCode)
-			.flatMap(result -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
+			.flatMap(mapItemWithRuleset(localBibId))
 			.collectList();
+	}
+
+	private Function<PAPIClient.ItemGetRow, Publisher<Item>> mapItemWithRuleset(String localBibId) {
+		return result -> getLmsItemSuppressionRuleset()
+			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId, objectRuleset));
+	}
+
+	// bib suppression not supported in Polaris
+	private final Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
+
+	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
+	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
+
+		if (_lmsBibSuppressionRuleset == null) {
+			var supSetName = lms.getItemSuppressionRulesetName();
+
+			_lmsItemSuppressionRuleset = Mono.justOrEmpty( supSetName )
+				.flatMap( name -> objectRuleService.findByName(name)
+					.doOnSuccess(val -> {
+						if (val == null) {
+							log.warn("Host LMS [{}] specified using ruleset [{}] for item suppression, but no ruleset with that name could be found", lms.getCode(), name);
+							return;
+						}
+
+						log.debug("Found item suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
+					}))
+				.map( Optional::of )
+				.defaultIfEmpty(Optional.empty())
+				.cache();
+		}
+		return  _lmsItemSuppressionRuleset;
 	}
 
 	@Override
