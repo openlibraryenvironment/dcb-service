@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
 
 import java.time.Instant;
@@ -8,9 +9,14 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.json.tree.JsonNode;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.svc.AgencyService;
@@ -18,6 +24,7 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.rules.ObjectRuleset;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -25,7 +32,7 @@ import reactor.core.publisher.Mono;
 public class PolarisItemMapper {
 	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
-
+	private final ConversionService conversionService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final AgencyService agencyService;
 
@@ -34,16 +41,19 @@ public class PolarisItemMapper {
 	}
 
 	PolarisItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
-										LocationToAgencyMappingService locationToAgencyMappingService, AgencyService agencyService) {
+										ConversionService conversionService, LocationToAgencyMappingService
+											locationToAgencyMappingService, AgencyService agencyService) {
 
 		this.itemStatusMapper = itemStatusMapper;
 		this.itemTypeMapper = itemTypeMapper;
+		this.conversionService = conversionService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.agencyService = agencyService;
 	}
 
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
-		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId) {
+		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId,
+		@NonNull Optional<ObjectRuleset> itemSuppressionRules) {
 
 		log.debug("map polaris item {} {} {}",itemGetRow,hostLmsCode,localBibId);
 
@@ -62,13 +72,47 @@ public class PolarisItemMapper {
 				.localBibId(localBibId)
 				.localItemType(itemGetRow.getMaterialType())
 				.localItemTypeCode(itemGetRow.getMaterialTypeID())
-				.suppressed(!itemGetRow.getIsDisplayInPAC())
+				.suppressed(deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules))
 				.deleted(false)
         .rawVolumeStatement(itemGetRow.getVolumeNumber())
         .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getVolumeNumber()))
 				.build())
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 				.flatMap(itemTypeMapper::enrichItemWithMappedItemType);
+	}
+
+	private boolean deriveItemSuppressedFlag(@NonNull PAPIClient.ItemGetRow itemGetRow,
+		@NonNull Optional<ObjectRuleset> itemSuppressionRules) {
+
+		// do we display in pac? if false we need true for suppression
+		// if display in pac is set to true then suppression is false
+		if ( Boolean.TRUE.equals(!itemGetRow.getIsDisplayInPAC()) ) {
+			log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}",
+				itemGetRow.getItemRecordID(), "isDisplayInPAC is false");
+			return true;
+		}
+
+		// ObjectRuleset expects a map to evaluate?!
+		final Map<String, Object> itemGetRowMap = convertToMapFrom(itemGetRow);
+
+		// Grab the suppression rules set against the Host Lms
+		// False is the default value for suppression if we can't find the named ruleset
+		// or if there isn't one.
+		return itemSuppressionRules
+			.map( rules -> rules.negate().test(itemGetRowMap) ) // Negate as the rules evaluate "true" for inclusion
+			.map(flag -> {
+				if (flag) log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}",
+					itemGetRow.getItemRecordID(), "ruleset condition match");
+				return flag;
+			})
+			.orElse(FALSE);
+	}
+
+	private Map<String, Object> convertToMapFrom(PAPIClient.ItemGetRow itemGetRow) {
+		final var rawJson = conversionService.convertRequired(itemGetRow, JsonNode.class);
+		@SuppressWarnings("unchecked")
+		final Map<String, Object> itemGetRowMap = conversionService.convertRequired(rawJson, Map.class);
+		return itemGetRowMap;
 	}
 
 	private static Instant convertFrom(String dueDate) {
