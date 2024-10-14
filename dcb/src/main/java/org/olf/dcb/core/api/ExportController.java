@@ -7,12 +7,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.export.ExportService;
 import org.olf.dcb.export.IngestConfigurationService;
 import org.olf.dcb.export.model.IngestResult;
 import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,15 +39,18 @@ public class ExportController {
 
 	private final AgencyRepository agencyRepository;
 	private final ExportService exportService;
+	private final HostLmsRepository hostLmsRepository;
 	private final IngestConfigurationService ingestConfigurationService;
 
 	public ExportController(
 		AgencyRepository agencyRepository,
 		ExportService exportService,
+		HostLmsRepository hostLmsRepository,
 		IngestConfigurationService ingestConfigurationService
 	) {
 		this.agencyRepository = agencyRepository;
 		this.exportService = exportService;
+		this.hostLmsRepository = hostLmsRepository;
 		this.ingestConfigurationService = ingestConfigurationService;
 	}
 
@@ -89,7 +94,18 @@ public class ExportController {
 		
 		// Did we find any host lms uuids
 		if (idsList.isEmpty()) {
-			errors.add("Failed to determine any libraries to export");
+			// Nothing has been explicitly specified, so we export everything
+			Flux.from(hostLmsRepository.queryAll())
+				.map((DataHostLms dataHostLms) -> {
+					idsList.add(dataHostLms.id);
+					return(dataHostLms);
+				})
+				.blockLast();
+		}
+
+		// Is there anything to export
+		if (idsList.isEmpty()) {
+			errors.add("Failed to determine any libraries to export the configuration for");
 		} else {
 			// We did so export these host lms and related data
 			exportService.export(idsList, siteConfiguration);
