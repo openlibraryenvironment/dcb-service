@@ -44,6 +44,10 @@ public interface NumericRangeMappingRepository {
 	@Query(value = "SELECT * from numeric_range_mapping where context in (:contexts) order by context, domain, lower_bound", nativeQuery = true)
 	Publisher<NumericRangeMapping> findByContexts(@NonNull Collection<String> contexts);
 
+	// Actually delete all the records for the specified context and not just mark them as deleted
+	@Query(value = "delete from numeric_range_mapping where context in (:context)", nativeQuery = true)
+	Publisher<Void> deleteByContext(@NonNull String context);
+	
 	Publisher<Void> delete(UUID id);
 
 	@Query("UPDATE numeric_range_mapping  SET deleted = true WHERE context = :context")

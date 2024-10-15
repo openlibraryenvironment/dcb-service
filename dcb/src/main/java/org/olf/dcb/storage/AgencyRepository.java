@@ -63,4 +63,7 @@ public interface AgencyRepository {
 
 	@Query(value = "SELECT host_lms_id from agency where code in (:agencyCodes) and host_lms_id is not null order by name", nativeQuery = true)
 	Publisher<UUID> findHostLmsIdByAgencyCodes(@NonNull Collection<String> agencyCodes);
+	
+	@Query(value = "delete from agency where host_lms_id = :hostLmsId", nativeQuery = true)
+	Publisher<Void> deleteByHostLmsId(@NonNull UUID hostLmsId);
 }

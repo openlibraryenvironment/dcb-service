@@ -59,4 +59,7 @@ public interface LocationRepository {
 	
 	@Query(value = "SELECT * from location where host_system_id in (:hostLmsIds) order by name", nativeQuery = true)
 	Publisher<Location> findByHostLmsIds(@NonNull Collection<UUID> hostLmsIds);
+	
+	@Query(value = "delete from location where host_system_id = :hostLmsId", nativeQuery = true)
+	Publisher<Void> deleteByHostLmsId(@NonNull UUID hostLmsId);
 }

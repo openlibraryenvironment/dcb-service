@@ -97,6 +97,10 @@ public interface ReferenceValueMappingRepository {
 
 	@Query(value = "SELECT * from reference_value_mapping where from_context in (:contexts) or to_context in (:contexts) order by from_context, from_category, from_value", nativeQuery = true)
 	Publisher<ReferenceValueMapping> findByContexts(@NonNull Collection<String> contexts);
+
+	// Actually delete all the records for the specified context and not just mark them as deleted
+	@Query(value = "delete from reference_value_mapping where from_context in (:context) or to_context in (:context)", nativeQuery = true)
+	Publisher<Void> deleteByContext(@NonNull String context);
 	
 	@SingleResult
 	@NonNull
