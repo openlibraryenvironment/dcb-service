@@ -91,7 +91,7 @@ public class ExportController {
 				errors.add("Exception thrown while trying to convert agency codes to host lms ids: " + e.toString());
 			}
 		}
-		
+
 		// Did we find any host lms uuids
 		if (idsList.isEmpty()) {
 			// Nothing has been explicitly specified, so we export everything
@@ -101,6 +101,14 @@ public class ExportController {
 					return(dataHostLms);
 				})
 				.blockLast();
+		} else {
+			// Do any of these have a parent host lms that does the catalogueing for them
+			Flux.from(hostLmsRepository.findParentsByIds(idsList))
+			.map((DataHostLms dataHostLms) -> {
+				idsList.add(dataHostLms.id);
+				return(dataHostLms);
+			})
+			.blockLast();
 		}
 
 		// Is there anything to export

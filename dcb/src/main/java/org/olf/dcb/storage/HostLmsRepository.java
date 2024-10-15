@@ -49,6 +49,17 @@ public interface HostLmsRepository {
 	@Query(value = "SELECT * from host_lms where id in (:ids) order by name", nativeQuery = true)
 	Publisher<DataHostLms> findByIds(@NonNull Collection<UUID> ids);
 
+	// This query finds the cataloguing host lms (parent) if any of the supplied host lms ids (child) just have a circulation role 
+	@Query(value = """
+select *
+from host_lms parentLms, host_lms childLms
+where json_array_length(childlms.client_config::json->'roles') = 1 and
+	  (childlms.client_config->'roles')::jsonb ? 'CIRCULATION' and
+	  childlms.id in (:ids) and
+	  (parentlms.client_config->'roles')::jsonb ? 'CATALOGUE' and
+	  (childlms.client_config->'contextHierarchy')::jsonb ? parentlms.code""", nativeQuery = true)
+	Publisher<DataHostLms> findParentsByIds(@NonNull Collection<UUID> ids);
+
 	Publisher<Void> delete(UUID id);
 
 	default Mono<DataHostLms> saveOrUpdate(DataHostLms hostLMS) {
