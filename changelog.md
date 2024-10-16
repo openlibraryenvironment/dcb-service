@@ -1,5 +1,26 @@
 # Changelog
 
+## Version 8.1.0
+
+### Additions
+* [General]
+	* polaris item suppression by collection [DCB-1527]
+	* DCB-1568 We now have the import that will take the output of the export
+
+### Changes
+* [Chore]
+	* ^Cd item suppression ruleset test script
+	* add reachability-metadata.json
+	* Add initialise at build time args to graalvm command
+	* add additional reflection metadata to graalvm config
+
+### Fixes
+* [General]
+	* DCB-1568 We now delete the existing configuration as part of the import
+	* DCB-1568 Ensured the catalogueing lms is exported when only a catalogueing host is exported
+	* DCB-1568 If no host lms ids or agency codes are specified we export all host lms ids
+	* DCB-1568 We can export using agency codes, have also replaced flatMap with map in the export services
+
 ## Version 8.0.0
 
 ### Additions
@@ -13,6 +34,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Refer to configuration property in missing value warning DCB-1574
 	* Remove ability to choose identifier when finding Polaris patron DCB-1574
 
