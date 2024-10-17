@@ -56,8 +56,6 @@ public interface ReferenceValueMappingRepository {
 	@Query("UPDATE reference_value_mapping SET deleted = true WHERE (from_context = :context OR to_context = :context) AND (from_category = :category OR to_category = :category)")
 	Publisher<Long> markAsDeleted(@NotNull String context, @NotNull String category);
 
-
-
 	// Find all deleted mappings. This method could be extended for a specific context / category in future if needed.
 	@Query("SELECT * FROM reference_value_mapping WHERE deleted = true")
 	Publisher<ReferenceValueMapping> findDeleted();
