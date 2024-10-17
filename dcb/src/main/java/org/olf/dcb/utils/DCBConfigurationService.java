@@ -30,6 +30,7 @@ import com.opencsv.CSVParserBuilder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -94,124 +95,96 @@ public class DCBConfigurationService {
 			.doOnNext( icr -> log.info("Import completed {}", icr) );
 	}
 
-	// Below are the override methods for uploaded mappings.
-	// These methods take:
-	// A 'mappingCategory' - for example 'ItemType' - this is supplied by the user from the admin app.
-	// A Host LMS code - for example 'ARCHWAY' - also supplied by the user from DCB Admin
-	// And a CompletedFileUpload for the CSV/TSV mappings file to be processed.
-	public Mono<UploadedConfigImport> importConfiguration(String mappingCategory, String code, CompletedFileUpload file, String reason, String changeCategory, String changeReferenceUrl) {
-		// This will support all mappings which get uploaded via a file, as opposed to being taken from a URL.
-		log.debug("importConfiguration({},{})",mappingCategory,file.getFilename());
-		String[] expectedHeaders;
-		boolean noCode = code == null || code.isEmpty() || code.equals("undefined");
+	/**
+	 * The importConfiguration method called from the UploadMappingsController. Takes a file of uploaded mappings for import.
+	 * The parameters reason, changeCategory, and changeReferenceUrl are supplied by the user for the purposes of the data change log.
+	 *
+	 * @param mappingType The type of mapping - reference value or numeric range.
+	 * @param mappingCategory The category of mapping - ItemType, patronType or Location.
+	 * @param code The Host LMS code - corresponds to context or domain.
+	 * @param file The mappings file (.tsv or .csv format).
+	 */
+	public Mono<UploadedConfigImport> importConfiguration(String mappingType, String mappingCategory, String code, CompletedFileUpload file, String reason, String changeCategory, String changeReferenceUrl) {
+		log.debug("importConfiguration({}, {}, {})", mappingType, mappingCategory, file.getFilename());
+		if (code == null || code.isEmpty() || code.equals("undefined")) {
+			return Mono.error(new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry."));
+		}
+		return Mono.defer(() -> {
+			try {
+				ParseResult parseResult = parseFile(file, mappingType, mappingCategory, code);
+				List <String[]> data = parseResult.getParsedData();
+				List <IgnoredMapping> ignoredMappings = parseResult.getIgnoredMappings();
+				return processImport(mappingType, mappingCategory, code, data, ignoredMappings, reason, changeCategory, changeReferenceUrl).doOnNext( uci -> log.info("The import of uploaded mappings has completed. Message: {}, records imported: {}, records marked as deleted: {}, records ignored: {}", uci.getMessage(), uci.getRecordsImported(), uci.getRecordsDeleted(), uci.ignoredMappings.size()) );
+			} catch (FileUploadValidationException e) {
+				return Mono.error(e);
+			} catch (IOException e) {
+				return Mono.error(new FileUploadValidationException("Error reading file: " + e.getMessage()));
+			}
+		});
+	}
 
-		switch (mappingCategory) {
-			// Two main categories: ReferenceValueMappings and NumericRangeMappings.
-			case "Reference value mappings" -> {
-				if (noCode) {
-					throw new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry.");
-				}
-				expectedHeaders = new String[]{"fromContext", "fromCategory", "fromValue", "toContext", "toCategory", "toValue"};
-				return cleanupMappings(mappingCategory, code)
-					.flatMap(cleanupResult ->
-						referenceValueMappingImport(file, code, mappingCategory, expectedHeaders, cleanupResult, reason, changeCategory, changeReferenceUrl)
-					);
-			}
-			// Numeric range mappings will be added subsequently in DCB-1153 and this code will be restored.
-			case "Numeric range mappings" -> {
-				if (noCode) {
-					throw new FileUploadValidationException("You must provide a Host LMS code to import mappings. Please select a Host LMS in DCB Admin and retry.");
-				}
-				expectedHeaders = new String[]{"context", "domain", "lowerBound", "upperBound", "toValue", "toContext"};
-				return cleanupMappings(mappingCategory, code)
-					.flatMap(cleanupResult ->
-						numericRangeImport(file, code, mappingCategory, expectedHeaders, cleanupResult)
-					);
-			}
-				default -> {
-				// Throw an error if a user tries to upload a file of unsupported category type.
-				// Will currently never be seen in admin app as CirculationStatus is pre-set,
-				// but could be seen if someone manually performed a POST request.
-				throw new FileUploadValidationException("This mapping category is currently unsupported.");
-			}
+	// Methods for determining which file parsing method is required, and getting the correct expected headers for validation.
+	private ParseResult parseFile(CompletedFileUpload file, String mappingType, String mappingCategory, String code) throws IOException, FileUploadValidationException {
+		InputStreamReader reader = new InputStreamReader(file.getInputStream());
+		String[] expectedHeaders = getExpectedHeaders(mappingType);
+
+		if (file.getFilename().endsWith(".tsv")) {
+			return parseTsv(reader, expectedHeaders, mappingCategory, mappingType, code);
+		} else {
+			return parseCsv(reader, expectedHeaders, code, mappingCategory, mappingType);
 		}
 	}
 
-	// This method processes the uploaded file and builds the object to be returned.
-	private Mono<UploadedConfigImport> referenceValueMappingImport(CompletedFileUpload file, String code, String mappingCategory,
-																																 String[] expectedHeaders, Long cleanupResult, String reason,
-																																 String changeCategory, String changeReferenceUrl) {
-		try {
-			InputStreamReader reader = new InputStreamReader(file.getInputStream());
-			if (file.getFilename().contains(".tsv"))
-			{
-				List<String[]> tsvData = parseTsv(reader, expectedHeaders, mappingCategory, code);
-					return Flux.fromIterable(tsvData)
-						.concatMap(rvm -> processReferenceValueMapping(rvm, reason, changeCategory, changeReferenceUrl)) // Pass user supplied values here
-						.collectList()
-						.map(mappings -> UploadedConfigImport.builder()
-							.message(mappings.size() + " mappings have been imported successfully.")
-							.lastImported(Instant.now())
-							.recordsImported((long) mappings.size())
-							.recordsDeleted(cleanupResult)
-							.build());
-			}
-			else {
-				List<String[]> csvData = parseCsv(reader, expectedHeaders, code);
-				{
-					return Flux.fromIterable(csvData)
-						.concatMap(rvm -> processReferenceValueMapping(rvm, reason, changeCategory, changeReferenceUrl)) // Pass reason here
-						.collectList()
-						.map(mappings -> UploadedConfigImport.builder()
-							.message(mappings.size() + " mappings have been imported successfully.")
-							.lastImported(Instant.now())
-							.recordsImported((long) mappings.size())
-							.recordsDeleted(cleanupResult)
-							.build());
-				}
-			}
-		} catch (IOException e) {
-			throw new FileUploadValidationException("Error reading file.");
-		}
+	private String[] getExpectedHeaders(String mappingType) {
+		return switch (mappingType) {
+			case "Reference value mappings" -> new String[]{"fromContext", "fromCategory", "fromValue", "toContext", "toCategory", "toValue"};
+			case "Numeric range mappings" -> new String[]{"context", "domain", "lowerBound", "upperBound", "toValue", "toContext"};
+			default -> throw new IllegalArgumentException("Unsupported mapping type: " + mappingType);
+		};
 	}
 
-	private Mono<UploadedConfigImport> numericRangeImport(CompletedFileUpload file, String code, String mappingCategory, String[] expectedHeaders, Long cleanupResult) {
-		try {
-			InputStreamReader reader = new InputStreamReader(file.getInputStream());
-			if (file.getFilename().contains(".tsv"))
-			{
-				List<String[]> tsvData = parseTsv(reader, expectedHeaders, mappingCategory, code);
-				return Flux.fromIterable(tsvData)
-					.concatMap(this::processNumericRangeMapping)
-					.collectList()
-					.map(mappings -> UploadedConfigImport.builder()
-						.message(mappings.size() + " mappings have been imported successfully.")
-						.lastImported(Instant.now())
-						.recordsImported((long) mappings.size())
-						.recordsDeleted(cleanupResult)
-						.build());
-			}
-			else {
-				List<String[]> csvData = parseCsv(reader, expectedHeaders, code);
-				{
-					return Flux.fromIterable(csvData)
-						.concatMap(this::processNumericRangeMapping)
-						.collectList()
-						.map(mappings -> UploadedConfigImport.builder()
-							.message(mappings.size() + " mappings have been imported successfully.")
-							.lastImported(Instant.now())
-							.recordsImported((long) mappings.size())
-							.recordsDeleted(cleanupResult)
-							.build());
+// Methods for processing the import of reference value mappings OR numeric range mappings.
+	private Mono<UploadedConfigImport> processImport(String mappingType, String mappingCategory, String code, List<String[]> data, List <IgnoredMapping> ignoredMappings, String reason, String changeCategory, String changeReferenceUrl) {
+		return cleanupMappings(mappingType, mappingCategory, code)
+			.flatMap(cleanupResult -> {
+				if ("Reference value mappings".equals(mappingType)) {
+					return processReferenceValueMappings(data, cleanupResult, ignoredMappings, reason, changeCategory, changeReferenceUrl);
+				} else {
+					return processNumericRangeMappings(data, cleanupResult, ignoredMappings, reason, changeCategory, changeReferenceUrl);
 				}
-			}
-		} catch (IOException e) {
-			throw new FileUploadValidationException("Error reading file.");
-		}
+			});
 	}
 
-	// Method for parsing the uploaded CSV/TSV file. Runs validation on the supplied data.
-	public static List<String[]> parseCsv(Reader reader, String[] expectedHeaders, String code) {
+	private Mono<UploadedConfigImport> processReferenceValueMappings(List<String[]> data, Long cleanupResult, List <IgnoredMapping> ignoredMappings, String reason, String changeCategory, String changeReferenceUrl) {
+		return Flux.fromIterable(data)
+			.concatMap(rvm -> processReferenceValueMapping(rvm, reason, changeCategory, changeReferenceUrl))
+			.collectList()
+			.map(mappings -> UploadedConfigImport.builder()
+				.message(mappings.size() + " mappings have been imported successfully.")
+				.lastImported(Instant.now())
+				.recordsImported((long) mappings.size())
+				.recordsDeleted(cleanupResult)
+				.recordsIgnored(ignoredMappings.size())
+				.ignoredMappings(ignoredMappings)
+				.build());
+	}
+
+	private Mono<UploadedConfigImport> processNumericRangeMappings(List<String[]> data, Long cleanupResult,List <IgnoredMapping> ignoredMappings, String reason, String changeCategory, String changeReferenceUrl) {
+		return Flux.fromIterable(data)
+			.concatMap(nrm -> processNumericRangeMapping(nrm, reason, changeCategory, changeReferenceUrl))
+			.collectList()
+			.map(mappings -> UploadedConfigImport.builder()
+				.message(mappings.size() + " mappings have been imported successfully.")
+				.lastImported(Instant.now())
+				.recordsImported((long) mappings.size())
+				.recordsDeleted(cleanupResult)
+				.recordsIgnored(ignoredMappings.size())
+				.ignoredMappings(ignoredMappings)
+				.build());
+	}
+
+	// Methods for parsing the uploaded CSV/TSV file and running header and line-by-line validation.
+	public static ParseResult parseCsv(Reader reader, String[] expectedHeaders, String code, String mappingCategory, String mappingType) {
 		String validationError = "";
 		try (CSVReader csvReader = new CSVReader(reader)) {
 			// Get the header line so we can compare
@@ -225,29 +198,66 @@ public class DCBConfigurationService {
 			}
 			String[] line;
 			List<String[]> csvData = new ArrayList<>();
+			List<IgnoredMapping> ignoredMappings = new ArrayList<>();
 			int lineNumber = 2;
 			while ((line = csvReader.readNext()) != null) {
-				// Make sure that the contexts match what's expected, and that there isn't a clash between them and what the user has supplied.
-				if ((line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
+				// Line by line validation for numeric range mappings
+				// Validate that the context and domain match what's expected, and that there isn't a clash between them and what the user has supplied.
+				if (mappingType.equalsIgnoreCase("Numeric range mappings")) {
+					if (!line[0].equals(code))
+					{
+						validationError="The context does not match the Host LMS code you supplied. Please check your file and try again.";
+						throw new FileUploadValidationException(validationError);
+					}
+					else if (!Objects.equals(mappingCategory, "all") && !line[1].equals(mappingCategory))
+					{
+						// If there is a mis-match between category and domain, treat this mapping as invalid, add it to the ignored list, and proceed to the next one.
+						// If category is "all", we don't need to run this validation.
+						validationError="The category of this mapping does not match the domain in the file you have supplied and it will not be imported.";
+						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
+						ignoredMappings.add(ignoredMapping);
+					}
+					else {
+						csvData.add(line);
+					}
+					lineNumber++;
+				}
+				else
+				// Line by line validation for reference value mappings
+				// Validate that the contexts and categories match what's expected, and that there isn't a clash between them and what the user has supplied.
 				{
-					csvData.add(line);
+					// If the fromContext or toContext are invalid (not matching either DCB or the supplied Host LMS code), we will throw an error
+					if (!(line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
+					{
+						validationError="Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.";
+						// We do throw an exception here, because if the context doesn't match the code something has gone badly wrong.
+						throw new FileUploadValidationException(validationError);
+					}
+					// If category is specified as all, we do not need to run this validation
+					else if (!Objects.equals(mappingCategory, "all") && !(line[1].equals(mappingCategory )|| line[4].equals(mappingCategory)))
+					{
+						// If there is a mis-match between the supplied category and the one in the file, treat this mapping as invalid, add it to the ignored list, and proceed to the next one.
+						// This means that if a user selects "ItemType" and supplies all their mappings, DCB adds only the ItemType mappings
+						// Which saves them the job of having to pick them out themselves.
+						validationError="The fromCategory or toCategory of the mapping on line "+lineNumber+" of your file does not match the category "+mappingCategory+" you have specified. it will not be imported.";
+						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
+						ignoredMappings.add(ignoredMapping);
+					}
+					else {
+						csvData.add(line);
+					}
+					lineNumber++;
 				}
-				else {
-					validationError="Either the fromContext or toContext values in your .csv file do not match the Host LMS code you supplied. Please check your file and try again.";
-					throw new FileUploadValidationException(validationError);
-				}
-				lineNumber++;
 			}
-			return csvData;
+			return ParseResult.builder().ignoredMappings(ignoredMappings).parsedData(csvData).build();
 		} catch (Exception e) {
 			log.debug("A FileValidationException has occurred. Details:"+validationError);
 			throw new FileUploadValidationException(validationError);
 		}
 	}
 
-	public static List<String[]> parseTsv(Reader reader, String[] expectedHeaders, String mappingCategory, String code) {
+	public static ParseResult parseTsv(Reader reader, String[] expectedHeaders, String mappingCategory, String mappingType, String code) {
 		String validationError = "";
-		log.debug("Parsing for"+ mappingCategory, code);
 		try {
 			CSVReader TSVReader = new CSVReaderBuilder(reader)
 				.withCSVParser(new CSVParserBuilder().withSeparator('\t').build())
@@ -261,38 +271,55 @@ public class DCBConfigurationService {
 					". Please check your TSV file and retry.";
 				throw new FileUploadValidationException(validationError);
 			}
-			// Validate NRMs also
 			String[] line;
 			List<String[]> tsvData = new ArrayList<>();
+			List<IgnoredMapping> ignoredMappings = new ArrayList<>();
 			int lineNumber = 2;
 			while ((line = TSVReader.readNext()) != null) {
-					// Line by line validation goes here
-					// Validate that the contexts match what's expected, and that there isn't a clash between them and what the user has supplied.
-				if (mappingCategory.equalsIgnoreCase("Numeric range mappings")) {
-					if (line[0].equals(code))
+					// Line by line validation for numeric range mappings
+					// Validate that the context and domain match what's expected, and that there isn't a clash between them and what the user has supplied.
+				if (mappingType.equalsIgnoreCase("Numeric range mappings")) {
+					if (!line[0].equals(code))
 					{
-						tsvData.add(line);
-					}
-					else {
 						validationError="The context does not match the Host LMS code you supplied. Please check your file and try again.";
 						throw new FileUploadValidationException(validationError);
+					}
+					else if (!Objects.equals(mappingCategory, "all") && !line[1].equals(mappingCategory))
+					{
+						validationError="The category of this mapping does not match the domain in the file you have supplied and it will not be imported.";
+						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
+						ignoredMappings.add(ignoredMapping);
+					}
+					else {
+						tsvData.add(line);
 					}
 					lineNumber++;
 				}
 				else
+				// Line by line validation for reference value mappings
+				// Validate that the contexts and categories match what's expected, and that there isn't a clash between them and what the user has supplied.
 				{
-					if ((line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
+					// If the fromContext or toContext are invalid (not matching either DCB or the supplied Host LMS code), we will throw an error
+					if (!(line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
 					{
-						tsvData.add(line);
-					}
-					else {
 						validationError="Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.";
 						throw new FileUploadValidationException(validationError);
+					}
+					// If the category supplied does not match the fromCategory or toCategory, throw a validation error.
+					// If category is specified as all, we do not need to run this validation
+					else if (!Objects.equals(mappingCategory, "all") && !(line[1].equals(mappingCategory )|| line[4].equals(mappingCategory)))
+					{
+						validationError="The fromCategory or toCategory of the mapping on line "+lineNumber+" of your file does not match the category "+mappingCategory+" you have specified. it will not be imported.";
+						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
+						ignoredMappings.add(ignoredMapping);
+					}
+					else {
+						tsvData.add(line);
 					}
 					lineNumber++;
 				}
 			}
-			return tsvData;
+			return ParseResult.builder().ignoredMappings(ignoredMappings).parsedData(tsvData).build();
 		} catch (Exception e) {
 			log.debug("A FileValidationException has occurred. Details:"+validationError);
 			throw new FileUploadValidationException(validationError);
@@ -300,16 +327,22 @@ public class DCBConfigurationService {
 	}
 
 	@Transactional
-	protected Mono<Long> cleanupMappings(String category, String context) {
+	protected Mono<Long> cleanupMappings(String mappingType, String mappingCategory, String context) {
 		// This method marks any existing mappings for the given category and context as deleted.
-		switch (category) {
-			// Mark all existing reference value mappings for a Host LMS as deleted.
-			case "Reference value mappings":
-				return Mono.from(referenceValueMappingRepository.markAsDeleted(context));
-			case "Numeric range mappings":
-				return Mono.from(numericRangeMappingRepository.markAsDeleted(context));
-			default:
-				return Mono.from(referenceValueMappingRepository.markAsDeleted(context));
+		if (mappingCategory.equals("all")) {
+			// If "all" selected, we can mark as deleted based on context only.
+			if (mappingType.equals("Reference value mappings")) {
+				return Mono.from(referenceValueMappingRepository.markAsDeleted(context)).doOnNext(affectedRows -> log.info("Marked {} rows as deleted", affectedRows));
+			} else {
+				return Mono.from(numericRangeMappingRepository.markAsDeleted(context)).doOnNext(affectedRows -> log.info("Marked {} rows as deleted", affectedRows));
+			}
+		} else {
+			// Otherwise there has been a specific category selected and we need to take this into account
+			if (mappingType.equals("Reference value mappings")) {
+				return Mono.from(referenceValueMappingRepository.markAsDeleted(context, mappingCategory)).doOnNext(affectedRows -> log.info("Marked {} rows as deleted", affectedRows));
+			} else {
+				return Mono.from(numericRangeMappingRepository.markAsDeleted(context, mappingCategory)).doOnNext(affectedRows -> log.info("Marked {} rows as deleted", affectedRows));
+			}
 		}
 	}
 
@@ -411,6 +444,25 @@ public class DCBConfigurationService {
 		return Mono.from(numericRangeMappingRepository.saveOrUpdate(nrm));
 	}
 
+	private Mono<NumericRangeMapping> processNumericRangeMapping(String[] nrmr, String reason, String changeCategory, String changeReferenceUrl) {
+		NumericRangeMapping nrm = NumericRangeMapping.builder()
+			.id(UUIDUtils.dnsUUID(nrmr[0]+":"+nrmr[1]+":"+nrmr[2]+":"+nrmr[5]))
+			.context(nrmr[0])
+			.domain(nrmr[1])
+			.lowerBound(Long.valueOf(nrmr[2]))
+			.upperBound(Long.valueOf(nrmr[3]))
+			.targetContext(nrmr[5])
+			.mappedValue(nrmr[4])
+			.lastImported(Instant.now())
+			.deleted(false)
+			.reason(reason)
+			.changeCategory(changeCategory)
+			.changeReferenceUrl(changeReferenceUrl)
+			.build();
+
+		return Mono.from(numericRangeMappingRepository.saveOrUpdate(nrm));
+	}
+
 	@Data
 	@Builder
 	@Serdeable
@@ -434,5 +486,29 @@ public class DCBConfigurationService {
 			Long recordsImported;
 			Instant lastImported;
 			Long recordsDeleted;
+			Integer recordsIgnored;
+			@Serdeable.Serializable
+			List<IgnoredMapping> ignoredMappings;
+	}
+
+	@Data
+	@Builder
+	@Serdeable
+	@AllArgsConstructor
+	@NoArgsConstructor
+	@Introspected
+	public static class ParseResult {
+		List<String[]> parsedData;
+		List<IgnoredMapping> ignoredMappings;
+	}
+	@Data
+	@Builder
+	@Serdeable
+	@AllArgsConstructor
+	@NoArgsConstructor
+	@Introspected
+	public static class IgnoredMapping {
+		String reason;
+		Integer lineNumber;
 	}
 }
