@@ -4,7 +4,7 @@ import static io.micronaut.core.util.StringUtils.isEmpty;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
@@ -112,12 +112,12 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
 
 		return Mono.just(context.setPatronRequest(
-			patronRequest.setStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)));
+			patronRequest.setStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)));
 	}
 
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
-		return Optional.of(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+		return Optional.of(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 	}
 
 	@Override
@@ -137,6 +137,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	public List<DCBTransitionResult> getOutcomes() {
-		return List.of(new DCBTransitionResult("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY", NO_ITEMS_AVAILABLE_AT_ANY_AGENCY.toString()));
+		return List.of(new DCBTransitionResult("NO_ITEMS_SELECTABLE_AT_ANY_AGENCY", NO_ITEMS_SELECTABLE_AT_ANY_AGENCY.toString()));
 	}
 }

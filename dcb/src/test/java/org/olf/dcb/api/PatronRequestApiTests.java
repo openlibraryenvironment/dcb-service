@@ -786,7 +786,7 @@ class PatronRequestApiTests {
 
 	private static Matcher<Object> isNotAvailableToRequest() {
 		return hasProperty("status",
-			hasProperty("code", is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY")
+			hasProperty("code", is("NO_ITEMS_SELECTABLE_AT_ANY_AGENCY")
 		));
 	}
 

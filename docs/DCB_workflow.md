@@ -10,7 +10,7 @@ Current states
                 SUBMITTED_TO_DCB,
                 PATRON_VERIFIED,
                 RESOLVED,
-                NO_ITEMS_AVAILABLE_AT_ANY_AGENCY,
+                NO_ITEMS_SELECTABLE_AT_ANY_AGENCY,
                 REQUEST_PLACED_AT_SUPPLYING_AGENCY,
                 REQUEST_PLACED_AT_BORROWING_AGENCY,
                 RECEIVED_AT_PICKUP,

@@ -113,7 +113,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 
-		// NO_ITEMS_AVAILABLE_AT_ANY_AGENCY
+		// NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
 		if (chosenItem == null) return Mono.just(resolution);
 
 		final var canonicalItemType = getValue(chosenItem, Item::getCanonicalItemType, "null");

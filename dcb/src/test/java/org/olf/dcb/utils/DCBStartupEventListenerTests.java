@@ -137,7 +137,7 @@ class DCBStartupEventListenerTests {
 			hasStatusCode("DCBRequest", "PATRON_VERIFIED", false),
 			hasStatusCode("DCBRequest", "RESOLVED", false),
 			hasStatusCode("DCBRequest", "NOT_SUPPLIED_CURRENT_SUPPLIER", true),
-			hasStatusCode("DCBRequest", "NO_ITEMS_AVAILABLE_AT_ANY_AGENCY", false),
+			hasStatusCode("DCBRequest", "NO_ITEMS_SELECTABLE_AT_ANY_AGENCY", false),
 			hasStatusCode("DCBRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", true),
 			hasStatusCode("DCBRequest", "REQUEST_PLACED_AT_BORROWING_AGENCY", true),
 			hasStatusCode("DCBRequest", "CONFIRMED", true),

@@ -163,7 +163,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "PATRON_VERIFIED", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "RESOLVED", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "NOT_SUPPLIED_CURRENT_SUPPLIER", Boolean.TRUE)))
-			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "NO_ITEMS_AVAILABLE_AT_ANY_AGENCY", Boolean.FALSE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "NO_ITEMS_SELECTABLE_AT_ANY_AGENCY", Boolean.FALSE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "REQUEST_PLACED_AT_SUPPLYING_AGENCY", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "REQUEST_PLACED_AT_BORROWING_AGENCY", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "CONFIRMED", Boolean.TRUE)))

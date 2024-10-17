@@ -1,7 +1,7 @@
 package org.olf.dcb.core.model;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
@@ -62,9 +62,9 @@ public class PatronRequest {
 
 		// Added in preparation for moving to next supplier - when a supplier cancels a request we
 		// want to resubmit the request to the next possible supplier, creating a new supplier_request
-		// or if there are no more suppliers possible, move to NO_ITEMS_AVAILABLE_AT_ANY_AGENCY
+		// or if there are no more suppliers possible, move to NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
 		NOT_SUPPLIED_CURRENT_SUPPLIER,
-		NO_ITEMS_AVAILABLE_AT_ANY_AGENCY,
+		NO_ITEMS_SELECTABLE_AT_ANY_AGENCY,
 		REQUEST_PLACED_AT_SUPPLYING_AGENCY,
 		// The supplying agency has confirmed the actual item which will be shipped
 		CONFIRMED,
@@ -88,7 +88,7 @@ public class PatronRequest {
 			path.put(PATRON_VERIFIED, RESOLVED);
 			path.put(RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY);
 			path.put(NOT_SUPPLIED_CURRENT_SUPPLIER, NOT_SUPPLIED_CURRENT_SUPPLIER);
-			path.put(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY, NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+			path.put(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY, NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 			path.put(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED);
 			path.put(CONFIRMED, REQUEST_PLACED_AT_BORROWING_AGENCY);
 			path.put(REQUEST_PLACED_AT_BORROWING_AGENCY, PICKUP_TRANSIT);
@@ -398,7 +398,7 @@ public class PatronRequest {
 	public PatronRequest resolveToNoItemsSelectable() {
 		log.debug("resolveToNoItemsAvailable()");
 
-		return setStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY);
+		return setStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 	}
 
 	public PatronRequest addLocalItemDetails(HostLmsItem hostLmsItem) {
