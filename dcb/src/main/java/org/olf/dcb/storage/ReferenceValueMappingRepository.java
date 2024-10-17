@@ -50,10 +50,10 @@ public interface ReferenceValueMappingRepository {
 	Publisher<Void> delete(UUID id);
 
 	// For when we want to delete all existing RVMs for a given Host LMS, and we're not bothered about category.
-	@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_context =:context OR to_context =:context")
+	@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_context =:context OR to_context =:context AND (deleted = false OR deleted IS NULL)")
 	Publisher<Long> markAsDeleted(@NotNull String context);
 
-	@Query("UPDATE reference_value_mapping SET deleted = true WHERE (from_context = :context OR to_context = :context) AND (from_category = :category OR to_category = :category)")
+	@Query("UPDATE reference_value_mapping SET deleted = true WHERE (from_context = :context OR to_context = :context) AND (from_category = :category OR to_category = :category) AND (deleted = false OR deleted IS NULL)")
 	Publisher<Long> markAsDeleted(@NotNull String context, @NotNull String category);
 
 	// Find all deleted mappings. This method could be extended for a specific context / category in future if needed.

@@ -46,10 +46,10 @@ public interface NumericRangeMappingRepository {
 
 	Publisher<Void> delete(UUID id);
 
-	@Query("UPDATE numeric_range_mapping SET deleted = true WHERE context =:context")
+	@Query("UPDATE numeric_range_mapping SET deleted = true WHERE context =:context AND (deleted = false OR deleted IS NULL)")
 	Publisher<Long> markAsDeleted(@NotNull String context);
 
-	@Query("UPDATE numeric_range_mapping SET deleted = true WHERE context =:context AND domain =:category")
+	@Query("UPDATE numeric_range_mapping SET deleted = true WHERE context =:context AND domain =:category AND (deleted = false OR deleted IS NULL)")
 	Publisher<Long> markAsDeleted(@NotNull String context, @NotNull String category);
 
 	@SingleResult
