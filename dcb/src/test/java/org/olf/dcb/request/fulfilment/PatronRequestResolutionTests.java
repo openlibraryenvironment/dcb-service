@@ -120,7 +120,7 @@ class PatronRequestResolutionTests {
 			"", "http://some-system", "item");
 
 		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, "",
-			"", "http://some-system", "item");
+			"", "http://some-borrowing-system", "item");
 	}
 
 	@BeforeEach
@@ -186,6 +186,7 @@ class PatronRequestResolutionTests {
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

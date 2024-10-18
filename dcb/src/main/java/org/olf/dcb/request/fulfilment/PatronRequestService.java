@@ -115,6 +115,7 @@ public class PatronRequestService {
 			.pickupLocationCode(command.getPickupLocationCode())
 			.status(SUBMITTED_TO_DCB)
 			.description(trimmedDescription)
+			.patronHostlmsCode(command.getRequestorLocalSystemCode())
 			.build();
 	}
 

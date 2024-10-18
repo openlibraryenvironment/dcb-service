@@ -31,6 +31,7 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
+	public static final String BASE_URL = "base-url";
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
 	private final BibRecordService bibRecordService;
@@ -164,5 +165,17 @@ public class HostLmsService implements IngestSourcesProvider {
 		
 		// Need to fetch all bibs, soft delete them and then expunge the source records from the database.
 		
+	}
+
+	/**
+	 * Retrieves the base URL configuration for a given host LMS code.
+	 *
+	 * @param hostLmsCode the code identifying the host LMS
+	 * @return Mono containing the base URL, or null if not found
+	 */
+	public Mono<String> getHostLmsBaseUrl(String hostLmsCode) {
+		return getClientFor(hostLmsCode)
+			.map(HostLmsClient::getConfig)
+			.map(config -> (String) config.get(BASE_URL));
 	}
 }
