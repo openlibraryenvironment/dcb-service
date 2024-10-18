@@ -73,8 +73,9 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 class PatronRequestApiTests {
 	private static final String SUPPLYING_HOST_LMS_CODE = "pr-api-tests-supplying-agency";
+	private static final String SUPPLYING_BASE_URL = "https://supplier-patron-request-api-tests.com";
 	private static final String BORROWING_HOST_LMS_CODE = "pr-api-tests-borrowing-agency";
-
+	private static final String BORROWING_BASE_URL = "https://borrower-patron-request-api-tests.com";
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 	private static final String PICKUP_LOCATION_CODE = "ABC123";
 	private static final String SUPPLYING_LOCATION_CODE = "ab6";
@@ -121,19 +122,21 @@ class PatronRequestApiTests {
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
-		final String BASE_URL = "https://patron-request-api-tests.com";
+
 		final String KEY = "patron-request-key";
 		final String SECRET = "patron-request-secret";
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BORROWING_BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, SUPPLYING_BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		locationFixture.deleteAll();
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		final var supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
-		final var borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
+		final var supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY, SECRET, SUPPLYING_BASE_URL);
+		final var borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BORROWING_BASE_URL);
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);

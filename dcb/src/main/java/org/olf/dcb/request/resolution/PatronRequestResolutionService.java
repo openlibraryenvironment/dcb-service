@@ -5,22 +5,22 @@ import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionStrategy.MANUAL_SELECTION;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.NoHomeIdentityException;
-import org.olf.dcb.core.model.Patron;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.Problem;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
@@ -31,14 +31,17 @@ public class PatronRequestResolutionService {
 	private final LiveAvailabilityService liveAvailabilityService;
 	private final List<ResolutionStrategy> allResolutionStrategies;
 	private final String itemResolver;
+	private final HostLmsService hostLmsService;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		@Value("${dcb.itemresolver.code}") String itemResolver,
-		List<ResolutionStrategy> allResolutionStrategies)
+		List<ResolutionStrategy> allResolutionStrategies,
+		HostLmsService hostLmsService)
 	{
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
+		this.hostLmsService = hostLmsService;
 
 		log.debug("Available item resolver strategies (selected={})", this.itemResolver);
 
@@ -54,7 +57,7 @@ public class PatronRequestResolutionService {
 		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
 			.zipWhen(this::getAvailableItems, Resolution::trackAllItems)
-			.map(this::filterItems)
+			.flatMap(this::filterItems)
 			.flatMap(this::decideResolutionStrategy)
 			.flatMap(function(this::applyResolutionStrategy))
 			.doOnError(error -> log.warn(
@@ -141,7 +144,7 @@ public class PatronRequestResolutionService {
 			.doOnNext(item -> log.debug("Selected item {}", item));
 	}
 
-	private Resolution filterItems(Resolution resolution) {
+	private Mono<Resolution> filterItems(Resolution resolution) {
 		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
 		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
 		final var optionalHomeIdentity = getValueOrNull(patron, Patron::getHomeIdentity);
@@ -163,18 +166,66 @@ public class PatronRequestResolutionService {
 
 		final var allItems = resolution.getAllItems();
 
-		final var filteredItems = allItems.stream()
+		return Flux.fromIterable(allItems)
 			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
 			.filter(Item::getIsRequestable)
 			.filter(Item::hasNoHolds)
-			.toList();
-
-		return resolution.trackFilteredItems(filteredItems);
+			.filterWhen(item -> fromSameServer(item, patronRequest))
+			.collectList()
+			.map(resolution::trackFilteredItems);
 	}
 
 	private static boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
 		final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
 
 		return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+	}
+
+	/**
+	 * Determines if an item should be excluded based on server configuration comparison.
+	 * Returns true if the item should be kept, false if it should be excluded.
+	 *
+	 * @param item the item to check
+	 * @param patronRequest the property to compare against
+	 * @return Mono<Boolean> indicating if the item should be kept
+	 */
+	private Mono<Boolean> fromSameServer(Item item, PatronRequest patronRequest) {
+		final var itemLmsCode = getValueOrNull(item, Item::getHostLmsCode);
+		final var borrowingLmsCode = getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode);
+
+		if (itemLmsCode == null || borrowingLmsCode == null) return raiseError(Problem.builder()
+			.withTitle("Missing required value to evaluate item fromSameServer")
+			.withDetail("Could not compare LMS codes")
+			.with("itemLmsCode", itemLmsCode)
+			.with("borrowingLmsCode", borrowingLmsCode)
+			.build());
+
+		return Mono.zip(
+			hostLmsService.getHostLmsBaseUrl(itemLmsCode),
+			hostLmsService.getHostLmsBaseUrl(borrowingLmsCode)
+		).map(tuple -> {
+			final var itemBaseUrl = getValueOrNull(tuple, Tuple2::getT1);
+			final var borrowingBaseUrl = getValueOrNull(tuple, Tuple2::getT2);
+
+			if (itemBaseUrl == null || borrowingBaseUrl == null) {
+				throw Problem.builder()
+					.withTitle("Missing required value to evaluate item fromSameServer")
+					.withDetail("Could not compare base-url")
+					.with("itemBaseUrl", itemBaseUrl)
+					.with("borrowingBaseUrl", borrowingBaseUrl)
+					.build();
+			}
+
+			boolean isSameServer = itemBaseUrl.equals(borrowingBaseUrl);
+			boolean isDifferentLms = !itemLmsCode.equals(borrowingLmsCode);
+			boolean shouldExclude = isSameServer && isDifferentLms;
+
+			if (shouldExclude) {
+				log.warn("Excluding item from same server: itemLms={}, borrowingLms={}, baseUrl={}",
+					itemLmsCode, borrowingLmsCode, itemBaseUrl);
+			}
+
+			return !shouldExclude;
+		});
 	}
 }
