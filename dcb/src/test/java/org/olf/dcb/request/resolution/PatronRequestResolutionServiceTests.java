@@ -63,6 +63,7 @@ class PatronRequestResolutionServiceTests {
 
 	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
 	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
+	private final String SAME_SERVER_AGENCY_CODE = "same-server-agency";
 
 	private final String PICKUP_LOCATION_CODE = "pickup-location";
 	private final String ITEM_LOCATION_CODE = "item-location";
@@ -443,6 +444,12 @@ class PatronRequestResolutionServiceTests {
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
 				itemLocationCode)
 		));
+
+		agencyFixture.defineAgency(SAME_SERVER_AGENCY_CODE, SAME_SERVER_AGENCY_CODE,
+			hostLmsFixture.findByCode(SAME_SERVER_SUPPLYING_HOST_LMS_CODE));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(SAME_SERVER_SUPPLYING_HOST_LMS_CODE,
+			itemLocationCode, SAME_SERVER_AGENCY_CODE);
 
 		final var homeLibraryCode = "home-library";
 
