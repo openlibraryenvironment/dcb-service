@@ -227,7 +227,7 @@ public class DCBConfigurationService {
 				// Validate that the contexts and categories match what's expected, and that there isn't a clash between them and what the user has supplied.
 				{
 					// If the fromContext or toContext are invalid (not matching either DCB or the supplied Host LMS code), we will throw an error
-					if (!(line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
+					if(!((line[0].equalsIgnoreCase("DCB") && line[3].equalsIgnoreCase(code)) || (line[0].equalsIgnoreCase(code) && line[3].equalsIgnoreCase("DCB"))))
 					{
 						validationError="Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.";
 						// We do throw an exception here, because if the context doesn't match the code something has gone badly wrong.
@@ -300,7 +300,7 @@ public class DCBConfigurationService {
 				// Validate that the contexts and categories match what's expected, and that there isn't a clash between them and what the user has supplied.
 				{
 					// If the fromContext or toContext are invalid (not matching either DCB or the supplied Host LMS code), we will throw an error
-					if (!(line[0].equalsIgnoreCase("DCB") || line[0].equalsIgnoreCase(code)) && ((line[3].equalsIgnoreCase("DCB")) || line[3].equalsIgnoreCase(code)))
+					if(!((line[0].equalsIgnoreCase("DCB") && line[3].equalsIgnoreCase(code)) || (line[0].equalsIgnoreCase(code) && line[3].equalsIgnoreCase("DCB"))))
 					{
 						validationError="Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.";
 						throw new FileUploadValidationException(validationError);
