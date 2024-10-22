@@ -1,5 +1,26 @@
 # Changelog
 
+## Version 8.2.0
+
+### Additions
+* [General]
+	* resolution to exclude items from a different library on the same server [DCB-1102]
+	* Support uploading mappings by category [DCB-1620]
+
+### Changes
+* [Chore]
+	* clarified patronHostLmsCode field for future alignment [DCB-1641]
+	* Restrict update participation status to CONSORTIUM_ADMIN [DCB-1567]
+	* migrate existing request statuses NO_ITEMS_AVAILABLE_AT_ANY_AGENCY [DCB-1102]
+* [Refactor]
+	* rename NO_ITEMS_AVAILABLE_AT_ANY_AGENCY status [DCB-1102]
+
+### Fixes
+* [General]
+	* Alter markAsDeleted query to return the correct deleted count
+	* include agency in shouldExcludeItemFromSameServerAsTheBorrower test [DCB-1102]
+	* Fix incorrect deleted mapping count being returned [DCB-1620]
+
 ## Version 8.1.0
 
 ### Additions
@@ -9,6 +30,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* ^Cd item suppression ruleset test script
 	* add reachability-metadata.json
 	* Add initialise at build time args to graalvm command
