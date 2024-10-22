@@ -215,7 +215,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			.map( resolvedPatronIdentity -> {
 				if ( ( resolvedPatronIdentity != null ) && ( resolvedPatronIdentity.getHostLms() != null ) ) {
 					patronRequest.setRequestingIdentity(resolvedPatronIdentity);
+
+					// TODO: We could be setting this already when we mapToPatronRequest,
+					// to be tested in full workflow testing before removing
 					patronRequest.setPatronHostlmsCode(resolvedPatronIdentity.getHostLms().getCode());
+
 					ctx.getWorkflowMessages().add("Resolved patron home agency to "+resolvedPatronIdentity.getHostLms().getCode());
 				}
 				else {

@@ -123,6 +123,8 @@ public class PatronRequest {
 	@DateUpdated
 	private Instant dateUpdated;
 
+	// A shortcut for the patron's home identity host lms code
+	// should be aligned with PlacePatronRequestCommand.requestor.localSystemCode
 	@Nullable
 	@Size(max = 200)
 	private String patronHostlmsCode;
