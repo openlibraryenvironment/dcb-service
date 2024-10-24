@@ -2,6 +2,7 @@ package org.olf.dcb.graphql;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
@@ -585,32 +586,87 @@ public class DataFetchers {
                         return Mono.from(postgresNumericRangeMappingRepository.findAll(pageable)).toFuture();
                 };
         }
+	public DataFetcher<CompletableFuture<Page<ReferenceValueMapping>>> getReferenceValueMappingsDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
 
-        public DataFetcher<CompletableFuture<Page<ReferenceValueMapping>>> getReferenceValueMappingsDataFetcher() {
-                return env -> {                 
-                        Integer pageno = env.getArgument("pageno");
-                        Integer pagesize = env.getArgument("pagesize");
-                        String query = env.getArgument("query");
-                        String order = env.getArgument("order");
-                        String direction = env.getArgument("orderBy");
+			if (pageno == null) pageno = 0;
+			if (pagesize == null) pagesize = 10;
+			if (order == null) order = "id";
+			if (direction == null) direction = "ASC";
 
-												if ( pageno == null ) pageno = Integer.valueOf(0);
-                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
-                        if ( order == null ) order = "id";
-                        if ( direction == null ) direction = "ASC";
+			// Creates the sorting direction
+			Sort.Order.Direction orderBy = Sort.Order.Direction.valueOf(direction);
 
-												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
-                        Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
-                                .order(order, orderBy);
+			// This is special handling for lastImported sort to ensure that it is sorted NULLS LAST in DESC order
+			// Implemented in data fetcher as I was unable to implement at repository level
+			// Postgres seems to do NULLS FIRST by default for descending order
+			if (order.equals("lastImported")) {
+				if ((query != null) && (query.length() > 0)) {
+					var spec = qs.evaluate(query, ReferenceValueMapping.class);
 
-                        if ((query != null) && (query.length() > 0)) {
-                                var spec = qs.evaluate(query, ReferenceValueMapping.class);
-                                return Mono.from(postgresReferenceValueMappingRepository.findAll(spec, pageable)).toFuture();
-                        }
+					// Fetch all records based on the specification, preserving the query
+					Integer finalPageno = pageno;
+					Integer finalPagesize = pagesize;
+					return Mono.from(postgresReferenceValueMappingRepository.findAll(spec, Pageable.unpaged()))
+						.flatMap(page -> {
+							// Sort the records with lastImported values NULLS LAST and respect the sort direction
+							List<ReferenceValueMapping> sortedList = page.getContent().stream()
+								.sorted(orderBy == Sort.Order.Direction.DESC
+									? Comparator.comparing(ReferenceValueMapping::getLastImported,
+									Comparator.nullsLast(Comparator.reverseOrder()))
+									: Comparator.comparing(ReferenceValueMapping::getLastImported,
+									Comparator.nullsLast(Comparator.naturalOrder())))
+								.collect(Collectors.toList());
 
-                        return Mono.from(postgresReferenceValueMappingRepository.findAll(pageable)).toFuture();
-                };
-        }
+							// Then applies pagination
+							int fromIndex = finalPageno * finalPagesize;
+							int toIndex = Math.min(fromIndex + finalPagesize, sortedList.size());
+							List<ReferenceValueMapping> paginatedList = sortedList.subList(fromIndex, toIndex);
+							Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno, finalPagesize), sortedList.size());
+							return Mono.just(resultPage);
+						}).toFuture();
+				}
+
+				// If no query is provided, fetch all records
+				Integer finalPageno1 = pageno;
+				Integer finalPagesize1 = pagesize;
+				return Mono.from(postgresReferenceValueMappingRepository.findAll(Pageable.unpaged()))
+					.flatMap(page -> {
+						// Sort the records with lastImported values NULLS LAST and respect the sort direction
+						List<ReferenceValueMapping> sortedList = page.getContent().stream()
+							.sorted(orderBy == Sort.Order.Direction.DESC
+								? Comparator.comparing(ReferenceValueMapping::getLastImported,
+								Comparator.nullsLast(Comparator.reverseOrder()))
+								: Comparator.comparing(ReferenceValueMapping::getLastImported,
+								Comparator.nullsLast(Comparator.naturalOrder())))
+							.collect(Collectors.toList());
+
+						// Then apply pagination
+						int fromIndex = finalPageno1 * finalPagesize1;
+						int toIndex = Math.min(fromIndex + finalPagesize1, sortedList.size());
+						List<ReferenceValueMapping> paginatedList = sortedList.subList(fromIndex, toIndex);
+						Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno1, finalPagesize1), sortedList.size());
+						return Mono.just(resultPage);
+					}).toFuture();
+			} else {
+				// If it's not a last imported sort, we don't want to do the above as it's not great for performance.
+				// So we should just handle it as usual.
+				Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
+					.order(order, orderBy);
+				if ((query != null) && (query.length() > 0)) {
+					var spec = qs.evaluate(query, ReferenceValueMapping.class);
+					return Mono.from(postgresReferenceValueMappingRepository.findAll(spec, pageable)).toFuture();
+				}
+				return Mono.from(postgresReferenceValueMappingRepository.findAll(pageable)).toFuture();
+			}
+		};
+	}
+
 
 	public DataFetcher<CompletableFuture<List<Location>>> getAgencyLocationsDataFetcher() {
 		return env -> {
