@@ -124,6 +124,12 @@ select case
 		   when pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
 		   then
 			   'No holds to process for local patron, DCB-1615'
+		   when pra.brief_description = 'Multiple Virtual Patrons Found'
+		   then
+			   'Nultiple virtual patrons found, DCB-1653'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%'
+		   then
+			   'Pickup locations no longer available, DCB-1654'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "description",
@@ -253,6 +259,12 @@ select case
 		   when pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
 		   then
 			   'errors/noHoldsToProcess'
+		   when pra.brief_description = 'Multiple Virtual Patrons Found'
+		   then
+			   'errors/multipleVirtualPatrons'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%'
+		   then
+			   'errors/invalidPickupLocation'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "namedSql",
@@ -305,7 +317,9 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%' or
 		  pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%' or
-		  pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
+		  pra.audit_data->>'detail' like 'No holds to process for local patron id:%' or
+		  pra.brief_description = 'Multiple Virtual Patrons Found' or
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%'
 	  )
 group by 1, 2
 union
