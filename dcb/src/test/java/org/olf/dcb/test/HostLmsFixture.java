@@ -103,7 +103,13 @@ public class HostLmsFixture {
 	}
 
 	public void createPolarisHostLms(String code, String staffUsername,
-		String staffPassword, String baseUrl, String domain, String accessId, String accessKey) {
+		String staffPassword, String baseUrl, String domain, String accessId, String accessKey){
+
+		createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain, accessId, accessKey, null);
+	}
+
+	public void createPolarisHostLms(String code, String staffUsername,
+		String staffPassword, String baseUrl, String domain, String accessId, String accessKey, String defaultAgencyCode) {
 
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("staff-username", staffUsername);
@@ -115,6 +121,10 @@ public class HostLmsFixture {
 		clientConfig.put("page-size", 100);
 		clientConfig.put("logon-branch-id", "73");
 		clientConfig.put("logon-user-id", "1");
+
+		if (defaultAgencyCode != null) {
+			clientConfig.put("default-agency-code", defaultAgencyCode);
+		}
 
 		// Purposely set to 0 to decrease overall time of tests
 		clientConfig.put("hold-fetching-delay", "0");
