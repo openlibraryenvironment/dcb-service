@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 8.2.1
+
+### Changes
+* [Chore]
+	* Added a couple of errors we are now taking into account
+	* New migration for updating next_expected_status
+	* Sort reference value mappings by lastImported nulls last [DCB-1620]
+
+### Fixes
+* [General]
+	* use shelf location to determine whether polaris items are displayed [DCB-1614]
+	* migration for NO_ITEMS_AVAILABLE_AT_ANY_AGENCY [DCB-1102]
+
 ## Version 8.2.0
 
 ### Additions
@@ -9,6 +22,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* clarified patronHostLmsCode field for future alignment [DCB-1641]
 	* Restrict update participation status to CONSORTIUM_ADMIN [DCB-1567]
 	* migrate existing request statuses NO_ITEMS_AVAILABLE_AT_ANY_AGENCY [DCB-1102]
