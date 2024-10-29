@@ -54,7 +54,8 @@ where pr.error_message not like 'Could not update item % status for hostlms: %' 
 						 pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%' or
 						 pra.audit_data->>'detail' like 'No holds to process for local patron id:%' or
 						 pra.brief_description = 'Multiple Virtual Patrons Found' or
-						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%'
+						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%' or
+						 pra.brief_description = 'Staff Auth Failed'
 					 )
 				 ) and
 	  pr.status_code = 'ERROR' and
