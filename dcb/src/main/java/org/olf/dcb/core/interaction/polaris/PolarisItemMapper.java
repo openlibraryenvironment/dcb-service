@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.polaris;
 
 import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,6 +20,9 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.json.tree.JsonNode;
 import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
@@ -41,8 +45,8 @@ public class PolarisItemMapper {
 	}
 
 	PolarisItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
-										ConversionService conversionService, LocationToAgencyMappingService
-											locationToAgencyMappingService, AgencyService agencyService) {
+		ConversionService conversionService, LocationToAgencyMappingService locationToAgencyMappingService,
+		AgencyService agencyService) {
 
 		this.itemStatusMapper = itemStatusMapper;
 		this.itemTypeMapper = itemTypeMapper;
@@ -51,34 +55,100 @@ public class PolarisItemMapper {
 		this.agencyService = agencyService;
 	}
 
+	/**
+	 * Maps a Polaris item to a DCB Item.
+	 *
+	 * @param itemGetRow item from the polaris API to map
+	 * @param hostLmsCode the host LMS code
+	 * @param localBibId the local bib ID
+	 * @param itemSuppressionRules the item suppression rules
+	 * @return a Mono containing a fully mapped DCB Item
+	 */
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
 		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId,
 		@NonNull Optional<ObjectRuleset> itemSuppressionRules) {
 
-		log.debug("map polaris item {} {} {}",itemGetRow,hostLmsCode,localBibId);
+		log.debug("map polaris item {} {} {}", itemGetRow, hostLmsCode, localBibId);
 
 		return itemStatusMapper.mapStatus(itemGetRow.getCircStatusName(),
 				hostLmsCode, polarisFallback())
-			.map(itemStatus -> org.olf.dcb.core.model.Item.builder()
-				.localId(String.valueOf(itemGetRow.getItemRecordID()))
-				.status(itemStatus)
-				.dueDate(convertFrom(itemGetRow.getDueDate()))
-				.location(org.olf.dcb.core.model.Location.builder()
-					.code(String.valueOf(itemGetRow.getLocationID()))
-					.name(itemGetRow.getLocationName())
-					.build())
-				.barcode(itemGetRow.getBarcode())
-				.callNumber(itemGetRow.getCallNumber())
-				.localBibId(localBibId)
-				.localItemType(itemGetRow.getMaterialType())
-				.localItemTypeCode(itemGetRow.getMaterialTypeID())
-				.suppressed(deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules))
-				.deleted(false)
-        .rawVolumeStatement(itemGetRow.getVolumeNumber())
-        .parsedVolumeStatement(parseVolumeStatement(itemGetRow.getVolumeNumber()))
-				.build())
-				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
-				.flatMap(itemTypeMapper::enrichItemWithMappedItemType);
+			.map(status -> {
+				final var localId = String.valueOf(itemGetRow.getItemRecordID());
+				final var dueDate = convertFrom(itemGetRow.getDueDate());
+				final var location = getLocation(itemGetRow);
+				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules);
+				final var parsedVolumeStatement = parseVolumeStatement(itemGetRow.getVolumeNumber());
+
+				return org.olf.dcb.core.model.Item.builder()
+					.localId(localId)
+					.status(status)
+					.dueDate(dueDate)
+					.location(location)
+					.barcode(itemGetRow.getBarcode())
+					.callNumber(itemGetRow.getCallNumber())
+					.localBibId(localBibId)
+					.localItemType(itemGetRow.getMaterialType())
+					.localItemTypeCode(itemGetRow.getMaterialTypeID())
+					.suppressed(suppressionFlag)
+					.deleted(false)
+					.rawVolumeStatement(itemGetRow.getVolumeNumber())
+					.parsedVolumeStatement(parsedVolumeStatement)
+					.build();
+			})
+			.flatMap(item -> enrichItemWithAgency(item, hostLmsCode))
+			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item))
+			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
+	}
+
+	/**
+	 * Enriches the item with the agency mapped from the location code,
+	 * using a fallback default agency if no location code is found.
+	 * If no agency is found from a mapping then no default agency is used.
+	 *
+	 * @param item the item to enrich
+	 * @param hostLmsCode the host LMS code
+	 * @return a Mono containing the enriched item
+	 */
+	private Mono<Item> enrichItemWithAgency(Item item, String hostLmsCode) {
+		return Optional.ofNullable(getValueOrNull(item, Item::getLocationCode))
+			.map(locationCode -> useLocationMappingToFindAgency(item, hostLmsCode))
+			.orElseGet(() -> useDefaultAgency(item, hostLmsCode));
+	}
+
+	private Mono<Item> useLocationMappingToFindAgency(Item item, String hostLmsCode) {
+		return locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode)
+			.switchIfEmpty(Mono.defer(() -> {
+
+				log.warn("No agency found for shelving location description: {}", item.getLocationCode());
+
+				return Mono.just(item);
+			}));
+	}
+
+	public Mono<Item> useDefaultAgency(Item item, String hostLmsCode) {
+		return locationToAgencyMappingService.findDefaultAgencyCode(hostLmsCode)
+			.flatMap(agencyService::findByCode)
+			.map(item::setAgency)
+			.map(Item::setOwningContext)
+			.switchIfEmpty(Mono.defer(() -> {
+
+				log.warn("No default agency found for Host LMS: {}", hostLmsCode);
+
+				return Mono.just(item);
+			}));
+	}
+
+	private org.olf.dcb.core.model.Location getLocation(PAPIClient.ItemGetRow itemGetRow) {
+
+		final var shelfLocation = getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+
+		if (shelfLocation == null) Location.builder().build();
+
+		// Note: We get back the shelf location description from the API
+		return org.olf.dcb.core.model.Location.builder()
+			.code(shelfLocation)
+			.name(shelfLocation)
+			.build();
 	}
 
 	private boolean deriveItemSuppressedFlag(@NonNull PAPIClient.ItemGetRow itemGetRow,
