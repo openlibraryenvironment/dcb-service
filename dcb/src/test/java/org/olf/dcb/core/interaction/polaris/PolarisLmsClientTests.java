@@ -14,28 +14,13 @@ import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAI
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasCallNumber;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasCanonicalItemType;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasDueDate;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemType;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalItemTypeCode;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHoldCount;
-import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
-import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
+import static org.olf.dcb.test.matchers.ItemMatchers.*;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
@@ -70,7 +55,6 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHol
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
-import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -81,7 +65,6 @@ import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
-import org.zalando.problem.Problem;
 import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
@@ -119,7 +102,7 @@ class PolarisLmsClientTests {
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createPolarisHostLms(CATALOGUING_HOST_LMS_CODE, KEY,
-			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
+			SECRET, BASE_URL, DOMAIN, KEY, SECRET, "default-agency-code");
 
 		hostLmsFixture.createPolarisHostLms(CIRCULATING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
@@ -139,15 +122,13 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldBeAbleToGetItemsByBibId() {
+	void shouldBeAbleToGetItemsByBibIdWithDefaultAgency() {
 		// Arrange
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE, "15", "345test");
-
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			CIRCULATING_HOST_LMS_CODE, 3, 3, "loanable-item");
 
-		agencyFixture.defineAgency("345test", "Test College",
+		// mock will return null shelf location so a fall back to the default agency will be used
+		agencyFixture.defineAgency("default-agency-code", "Default Agency",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		final var bibId = "643425";
@@ -174,9 +155,9 @@ class PolarisLmsClientTests {
 
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
-		assertThat(firstItem, hasStatus(UNAVAILABLE));
+		assertThat(firstItem, ItemMatchers.hasStatus(UNAVAILABLE));
 		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
-		assertThat(firstItem, hasLocation("SLPL Kingshighway", "15"));
+		assertThat(firstItem, hasNoLocation());
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
 		assertThat(firstItem, hasLocalBibId(bibId));
@@ -186,9 +167,110 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasNoHoldCount());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
-		assertThat(firstItem, hasAgencyCode("345test"));
-		assertThat(firstItem, hasAgencyName("Test College"));
+		assertThat(firstItem, hasAgencyCode("default-agency-code"));
+		assertThat(firstItem, hasAgencyName("Default Agency"));
 		assertThat(firstItem, hasHostLmsCode(CIRCULATING_HOST_LMS_CODE));
+		assertThat(firstItem, hasOwningContext(CIRCULATING_HOST_LMS_CODE));
+	}
+
+	@Test
+	void shouldBeAbleToGetItemsByBibIdWithShelfLocationMapping() {
+		// Arrange
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CIRCULATING_HOST_LMS_CODE, 3, 3, "loanable-item");
+
+		agencyFixture.defineAgency("mapped-agency-code", "Mapped Agency",
+			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		// Note: 'Bestseller' is the returned shelf location from mock mockGetItemsForBibWithShelfLocations
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CIRCULATING_HOST_LMS_CODE, "Bestseller", "mapped-agency-code");
+
+		final var bibId = "643425";
+
+		mockPolarisFixture.mockGetItemsForBibWithShelfLocations(bibId);
+		mockPolarisFixture.mockGetMaterialTypes();
+		mockPolarisFixture.mockGetItemStatuses();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CIRCULATING_HOST_LMS_CODE);
+
+		final var itemsList = singleValueFrom(client
+			.getItems(BibRecord.builder()
+				.sourceRecordId(bibId)
+				.build()));
+
+		// Assert
+		assertThat(itemsList, hasSize(3));
+
+		final var firstItem = itemsList.stream()
+			.filter(item -> "3512742".equals(item.getLocalId()))
+			.findFirst()
+			.orElse(null);
+
+		assertThat(firstItem, is(notNullValue()));
+		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
+		assertThat(firstItem, ItemMatchers.hasStatus(UNAVAILABLE));
+		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
+		assertThat(firstItem, hasLocation("Bestseller", "Bestseller"));
+		assertThat(firstItem, hasBarcode("3430470102"));
+		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
+		assertThat(firstItem, hasLocalBibId(bibId));
+		assertThat(firstItem, hasLocalItemType("Book"));
+		assertThat(firstItem, hasLocalItemTypeCode("3"));
+		assertThat(firstItem, hasCanonicalItemType("loanable-item"));
+		assertThat(firstItem, hasNoHoldCount());
+		assertThat(firstItem, isNotSuppressed());
+		assertThat(firstItem, isNotDeleted());
+		assertThat(firstItem, hasAgencyCode("mapped-agency-code"));
+		assertThat(firstItem, hasAgencyName("Mapped Agency"));
+		assertThat(firstItem, hasHostLmsCode(CIRCULATING_HOST_LMS_CODE));
+		assertThat(firstItem, hasOwningContext(CIRCULATING_HOST_LMS_CODE));
+	}
+
+	@Test
+	void shouldBeAbleToGetItemsByBibIdWithNoAgency() {
+		// Arrange
+		final var bibId = "643425";
+
+		mockPolarisFixture.mockGetItemsForBib(bibId);
+		mockPolarisFixture.mockGetMaterialTypes();
+		mockPolarisFixture.mockGetItemStatuses();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CIRCULATING_HOST_LMS_CODE);
+
+		final var itemsList = singleValueFrom(client
+			.getItems(BibRecord.builder()
+				.sourceRecordId(bibId)
+				.build()));
+
+		// Assert
+		assertThat(itemsList, hasSize(3));
+
+		final var firstItem = itemsList.stream()
+			.filter(item -> "3512742".equals(item.getLocalId()))
+			.findFirst()
+			.orElse(null);
+
+		assertThat(firstItem, is(notNullValue()));
+		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
+		assertThat(firstItem, ItemMatchers.hasStatus(UNAVAILABLE));
+		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
+		assertThat(firstItem, hasNoLocation());
+		assertThat(firstItem, hasBarcode("3430470102"));
+		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
+		assertThat(firstItem, hasLocalBibId(bibId));
+		assertThat(firstItem, hasLocalItemType("Book"));
+		assertThat(firstItem, hasLocalItemTypeCode("3"));
+		// Note: if there is no agency we cannot use the owning context to get the canonical item type
+		assertThat(firstItem, hasCanonicalItemType("UNKNOWN - NULL hostLmsCode"));
+		assertThat(firstItem, hasNoHoldCount());
+		assertThat(firstItem, isNotSuppressed());
+		assertThat(firstItem, isNotDeleted());
+		assertThat(firstItem, hasNoAgency());
+		assertThat(firstItem, hasNoHostLmsCode());
+		assertThat(firstItem, hasNoOwningContext());
 	}
 
 	@Test

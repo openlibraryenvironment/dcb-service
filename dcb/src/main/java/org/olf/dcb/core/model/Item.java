@@ -9,6 +9,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.Optional;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -99,5 +100,14 @@ public class Item implements Comparable<Item> {
 	private Comparator<Item> CompareByLocationCodeThenCallNumber() {
 		return comparing(Item::getLocationCode, nullsLast(naturalOrder()))
 			.thenComparing(Item::getCallNumber, nullsLast(naturalOrder()));
+	}
+
+	public static Item setOwningContext(Item item) {
+		return Optional.ofNullable(getValueOrNull(item, Item::getHostLmsCode))
+			.map(code -> {
+				item.owningContext = code;
+				return item;
+			})
+			.orElse(item);
 	}
 }
