@@ -197,10 +197,10 @@ select case
 			   'errors/failedToCancelHoldRequest'
 		   when pra.audit_data->>'detail' = 'Duplicate hold requests exist'
 		   then
-			   'errors/duplicateHoldExists'
+			   'errors/duplicateHoldsExist'
 		   when pra.audit_data->'Full response'->'Prompt'->>'Title' = 'Duplicate hold requests exist'
 		   then
-			   'errors/duplicateHoldsExist'
+			   'errors/duplicateHoldExists'
 		   when pra.audit_data->>'errorMessage' like 'Connect Error: connection timed out after%'
 		   then
 			   'errors/connectionTimeout'
