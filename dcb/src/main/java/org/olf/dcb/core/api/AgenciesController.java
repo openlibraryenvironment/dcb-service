@@ -15,6 +15,8 @@ import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LibraryRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -35,6 +37,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import services.k_int.utils.UUIDUtils;
 
 @Controller("/agencies")
 @Validated
@@ -42,6 +45,7 @@ import reactor.util.function.Tuples;
 @Tag(name = "Admin API")
 @Slf4j
 public class AgenciesController {
+	private static final Logger log = LoggerFactory.getLogger(AgenciesController.class);
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
 	private final LibraryRepository libraryRepository;
@@ -88,6 +92,11 @@ public class AgenciesController {
 	public Mono<AgencyDTO> postAgency(@Body AgencyDTO agencyToSave) {
 		log.debug("REST, save or update agency: {}", agencyToSave);
 
+		// Should we always set the id, since it should follow a set format ??
+		if (UUIDUtils.isEmpty(agencyToSave.getId())) {
+			agencyToSave.setId(UUIDUtils.generateAgencyId(agencyToSave.getCode()));
+		}
+		
 		return Mono.from(hostLmsRepository.findByCode(agencyToSave.getHostLMSCode()))
 			.flatMap(hostLms -> {
 				if (hostLms == null) {

@@ -31,6 +31,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Controller("/hostlmss")
 @Validated
@@ -67,6 +68,10 @@ public class HostLmssController {
 
 	@Post("/")
 	public Mono<DataHostLms> postHostLMS(@Body DataHostLms hostLMS) {
+		// Should we always set the id, since it should follow a set format ??
+		if (UUIDUtils.isEmpty(hostLMS.getId())) {
+			hostLMS.setId(UUIDUtils.generateHostLmsId(hostLMS.getCode()));
+		}
 		return Mono.from(hostLMSRepository.existsById(hostLMS.getId()))
 				.flatMap(exists -> Mono.fromDirect(exists ? hostLMSRepository.update(hostLMS) : hostLMSRepository.save(hostLMS)));
 	}
