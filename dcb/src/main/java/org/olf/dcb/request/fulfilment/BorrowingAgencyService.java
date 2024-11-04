@@ -7,7 +7,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -36,7 +36,7 @@ public class BorrowingAgencyService {
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final SupplierRequestService supplierRequestService;
 	private final SharedIndexService sharedIndexService;
-	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final AgencyService agencyService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
@@ -46,7 +46,7 @@ public class BorrowingAgencyService {
 	public BorrowingAgencyService(HostLmsService hostLmsService,
 		PatronIdentityRepository patronIdentityRepository,
 		SupplierRequestService supplierRequestService, SharedIndexService sharedIndexService,
-		LocationToAgencyMappingService locationToAgencyMappingService,
+		AgencyService agencyService,
 		PatronRequestAuditService patronRequestAuditService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
 
@@ -54,7 +54,7 @@ public class BorrowingAgencyService {
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.supplierRequestService = supplierRequestService;
 		this.sharedIndexService = sharedIndexService;
-		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.agencyService = agencyService;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 	}
@@ -217,16 +217,16 @@ public class BorrowingAgencyService {
 		PatronRequest patronRequest, PatronIdentity borrowingIdentity, HostLmsClient hostLmsClient,
 		SupplierRequest supplierRequest, String bibRecordTitle) {
 
-		return getAgencyForShelvingLocation(supplierRequest.getHostLmsCode(), supplierRequest.getLocalItemLocationCode())
-			.flatMap(referenceValueMapping -> Mono.zip(
-				virtualItemRequest(patronRequest, borrowingIdentity, hostLmsClient, supplierRequest, referenceValueMapping),
+		return getSupplyingAgencyCode(supplierRequest)
+			.flatMap(supplyingAgencyCode -> Mono.zip(
+				virtualItemRequest(patronRequest, borrowingIdentity, hostLmsClient, supplierRequest, supplyingAgencyCode),
 				Mono.just(bibRecordTitle),
-				Mono.just(referenceValueMapping.getToValue())
+				Mono.just(supplyingAgencyCode)
 			));
 	}
 
 	private Mono<PatronRequest> virtualItemRequest(PatronRequest patronRequest, PatronIdentity patronIdentity,
-		HostLmsClient hostLmsClient, SupplierRequest supplierRequest, ReferenceValueMapping referenceValueMapping) {
+		HostLmsClient hostLmsClient, SupplierRequest supplierRequest, String supplyingAgencyCode) {
 
 		log.info("virtualItemRequest(...)");
 
@@ -236,10 +236,6 @@ public class BorrowingAgencyService {
 		log.info("virtualItemRequest for localBibId {}/{}", localBibId, supplierRequest.getLocalItemLocationCode());
 		log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
 			supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
-
-		// Resolve the shelving location of the selected item into an agency code
-		String agencyCode = referenceValueMapping.getToValue();
-		supplierRequest.setLocalAgency(agencyCode);
 
 		// So far, when creating items, we have used the supplying library code as the location for the item. This is so that
 		// the borrowing library knows where to return the item. We pass this as locationCode in the CreateItemCommand.
@@ -254,7 +250,7 @@ public class BorrowingAgencyService {
 				localBibId,
 
 				// supplier information
-				agencyCode,
+				supplyingAgencyCode,
 				supplierRequest.getHostLmsCode(),
 				supplierRequest.getLocalItemBarcode(),
 				supplierRequest.getCanonicalItemType(),
@@ -264,15 +260,20 @@ public class BorrowingAgencyService {
 			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to create virtual item."))));
 	}
 
-	private Mono<ReferenceValueMapping> getAgencyForShelvingLocation(String context, String code) {
-		return locationToAgencyMappingService.findLocationToAgencyMapping(context, code)
-			.doOnSuccess(rvm -> log.debug("getAgencyForShelvingLocation looked up "+ getToValue(rvm) +" for " + context+":"+code))
-			.switchIfEmpty(Mono.defer(() -> Mono.error(
-				new DcbError("Failed to resolve shelving loc "+context+":"+code+" to agency"))));
-	}
+	private Mono<String> getSupplyingAgencyCode(SupplierRequest supplierRequest) {
 
-	private static String getToValue(ReferenceValueMapping rvm) {
-		return rvm != null && rvm.getToValue() != null ? rvm.getToValue() : "null value";
+		final var agency = getValueOrNull(supplierRequest, SupplierRequest::getResolvedAgency);
+		final var agencyUUID = getValueOrNull(agency, Agency::getId);
+
+		log.debug("getSupplyingAgencyCode(agency: {}, agencyUUID: {})", agency, agencyUUID);
+
+		// Check the resolved agency is valid before use
+		return Mono.justOrEmpty(agencyUUID)
+			.flatMap(agencyService::findById)
+			.doOnSuccess(foundAgency -> log.debug("Found valid supplying agency for UUID {}", agencyUUID))
+			.map(Agency::getCode)
+			.switchIfEmpty(Mono.defer(() -> Mono.error(
+				new DcbError("Failed to find valid supplying agency for resolved agency UUID: " + agencyUUID))));
 	}
 
 	private Mono<LocalRequest> borrowingRequestFlow(RequestWorkflowContext ctx,
