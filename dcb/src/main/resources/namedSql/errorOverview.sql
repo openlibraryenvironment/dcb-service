@@ -338,7 +338,8 @@ select case
 		   when pr.error_message like 'Could not update item % status for hostlms: %'
 		   then
 			   'Could not update item status, DCB-1398'
-		   when pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529'
+		   when (pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529' or 
+				 pr.error_message = 'Unable to create virtual patron at polaris - error code: -3612')
 		   then
 			   'Unable to create virtual patron, DCB-1401'
 		   when pr.error_message = 'Property cause is reserved'
@@ -351,6 +352,9 @@ select case
 		   when pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %'
 		   then
 			   'Unable to map canonical item type, DCB-1454'
+		   when pr.error_message like 'Failed to resolve shelving loc %:null to agency'
+		   then
+			   'Failed to resolve shelving location, DCB-1669'
 /*
 		   when 
 		   then
@@ -365,7 +369,8 @@ select case
 		   when pr.error_message like 'Could not update item % status for hostlms: %'
 		   then
 			   'errors/couldNotUpdateItemStatus'
-		   when pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529'
+		   when (pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529' or
+				 pr.error_message = 'Unable to create virtual patron at polaris - error code: -3612')
 		   then
 			   'errors/unableToCreateVirtualPatron'
 		   when pr.error_message = 'Property cause is reserved'
@@ -378,6 +383,9 @@ select case
 		   when pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %'
 		   then
 			   'errors/unableToMapCanonicalItemType'
+		   when pr.error_message like 'Failed to resolve shelving loc %:null to agency'
+		   then
+			   'errors/failedToResolveShelvingLocation'
 /*
 		   when 
 		   then
@@ -394,11 +402,13 @@ where pr.date_updated::date > TO_DATE('20240611','YYYYMMDD') and
 	  (
 		   pr.error_message like 'Could not update item % status for hostlms: %' or
 		   pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529' or
+		   pr.error_message = 'Unable to create virtual patron at polaris - error code: -3612' or
 		   pr.error_message = 'Property cause is reserved' or
 		   pr.error_message like 'Unable to map canonical patron type "YOUNG ADULT" to a patron type on Host LMS:%' or
 		   pr.error_message like 'No mapping found from ptype%' or
 		   pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %' or
-		   pr.error_message = 'Patron has unexpected blocks'
+		   pr.error_message = 'Patron has unexpected blocks' or
+		   pr.error_message like 'Failed to resolve shelving loc %:null to agency'
 	  )
 group by 1, 2
 )
