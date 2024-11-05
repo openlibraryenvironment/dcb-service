@@ -9,7 +9,7 @@ where pr.error_message not like 'Could not update item % status for hostlms: %' 
 	  pr.error_message not like 'No mapping found from ptype%' and
 	  pr.error_message not like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %' and
 	  pr.error_message != 'Patron has unexpected blocks' and
-	  pr.error_message not like 'Failed to resolve shelving loc %:null to agency' and
+	  pr.error_message not like 'Failed to resolve shelving loc % to agency' and
 	  not exists (select 1 from patron_request_audit pra
 	              where pra.patron_request_id = pr.id and
 				        (pra.audit_data->>'errorMessage' = 'Connection closed before response was received' or

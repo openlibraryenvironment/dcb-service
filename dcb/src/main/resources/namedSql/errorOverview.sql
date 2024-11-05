@@ -352,7 +352,7 @@ select case
 		   when pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %'
 		   then
 			   'Unable to map canonical item type, DCB-1454'
-		   when pr.error_message like 'Failed to resolve shelving loc %:null to agency'
+		   when pr.error_message like 'Failed to resolve shelving loc % to agency'
 		   then
 			   'Failed to resolve shelving location, DCB-1669'
 /*
@@ -383,7 +383,7 @@ select case
 		   when pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %'
 		   then
 			   'errors/unableToMapCanonicalItemType'
-		   when pr.error_message like 'Failed to resolve shelving loc %:null to agency'
+		   when pr.error_message like 'Failed to resolve shelving loc % to agency'
 		   then
 			   'errors/failedToResolveShelvingLocation'
 /*
@@ -408,7 +408,7 @@ where pr.date_updated::date > TO_DATE('20240611','YYYYMMDD') and
 		   pr.error_message like 'No mapping found from ptype%' or
 		   pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %' or
 		   pr.error_message = 'Patron has unexpected blocks' or
-		   pr.error_message like 'Failed to resolve shelving loc %:null to agency'
+		   pr.error_message like 'Failed to resolve shelving loc % to agency'
 	  )
 group by 1, 2
 )
