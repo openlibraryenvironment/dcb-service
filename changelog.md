@@ -1,9 +1,24 @@
 # Changelog
 
+## Version 8.2.2
+
+### Changes
+* [Chare]
+	* The 2 duplicate scripts were referencing each other scripts
+* [Chore]
+	* DCB-1645 Changed NO_ITEMS_AVAILABLE_AT_ANY_AGENCY to NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
+	* added an extra error that we trap in the error overview
+
+### Fixes
+* [General]
+	* borrowing agnecy uses resolved agency from supplier request [DCB-1669]
+	* DCB-1657 Added routines that will build the uuid correctly for host lme, agency, location, numeric range mapping and reference value mapping, the associated controllers have been updated so hat if a null or zero uuid is passed in then the id will be generated
+
 ## Version 8.2.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Added a couple of errors we are now taking into account
 	* New migration for updating next_expected_status
 	* Sort reference value mappings by lastImported nulls last [DCB-1620]
