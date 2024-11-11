@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.PatronRequest.Status;
 
 import static java.util.Arrays.asList;
+import static org.olf.dcb.core.AppConfig.CIRCULATION_TRACKING_PROFILE_KEY;
 
 @Slf4j
 public class TrackingHelpers {
@@ -35,16 +36,16 @@ public class TrackingHelpers {
 	}
 
 	private static String getNormalisedProfile(String circulationTrackingProfile) {
-		if (circulationTrackingProfile == null) {
+		if (circulationTrackingProfile == null  || circulationTrackingProfile.isEmpty()) {
 			log.warn("No circulation tracking profile is defined. " +
-				"Set the circulation tracking profile to 'PRODUCTION' or 'DEVELOPMENT'.");
+				"Set the '{}' to 'PRODUCTION' or 'DEVELOPMENT'.", CIRCULATION_TRACKING_PROFILE_KEY);
 			return DEFAULT_PROFILE;
 		}
 
 		final String normalisedProfile = circulationTrackingProfile.toUpperCase();
 		if (!RECOGNISED_PROFILES.contains(normalisedProfile)) {
 			log.warn("Circulation tracking profile '{}' is not recognised. " +
-				"Set the circulation tracking profile to 'PRODUCTION' or 'DEVELOPMENT'.", normalisedProfile);
+				"Set the '{}' to 'PRODUCTION' or 'DEVELOPMENT'.", normalisedProfile, CIRCULATION_TRACKING_PROFILE_KEY);
 			return DEFAULT_PROFILE;
 		}
 		return normalisedProfile;

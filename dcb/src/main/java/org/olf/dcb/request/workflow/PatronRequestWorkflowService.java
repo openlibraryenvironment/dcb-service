@@ -5,7 +5,6 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.AppConfig;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -29,6 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.olf.dcb.core.AppConfig.CIRCULATION_TRACKING_PROFILE_KEY;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 @Slf4j
@@ -41,7 +41,7 @@ public class PatronRequestWorkflowService {
 	private final List<PatronRequestStateTransition> allTransitions;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 
-	@Value("${" + AppConfig.ROOT + ".circulation.tracking-profile:}")
+	@Value("${" + CIRCULATION_TRACKING_PROFILE_KEY + ":}")
 	String circulationTrackingProfile;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
