@@ -1,9 +1,11 @@
 package org.olf.dcb.request.workflow;
 
+import io.micronaut.context.annotation.Value;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.AppConfig;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -33,12 +35,14 @@ import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 @Singleton
 @ExecuteOn(value = TaskExecutors.IO)
 public class PatronRequestWorkflowService {
+
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAuditService patronRequestAuditService;
-
 	private final List<PatronRequestStateTransition> allTransitions;
-
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+
+	@Value("${" + AppConfig.ROOT + ".circulation.tracking-profile:}")
+	String circulationTrackingProfile;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
@@ -276,7 +280,7 @@ public class PatronRequestWorkflowService {
 	private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
 		final var patronRequest = ctx.getPatronRequest();
 
-		final var duration = TrackingHelpers.getDurationFor(patronRequest.getStatus());
+		final var duration = TrackingHelpers.getDurationFor(patronRequest.getStatus(), circulationTrackingProfile);
 
 		Instant next_poll = null;
 
