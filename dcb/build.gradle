@@ -324,9 +324,16 @@ tasks {
 graalvmNative {
     binaries {
         main {
+            buildArgs.add('--verbose')
             buildArgs.add('-march=x86-64-v2')
             buildArgs.add('-H:+AddAllCharsets')
-            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter')
+            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j.LoggerFactory,ch.qos.logback')
+            buildArgs.add('--add-opens=java.base/java.nio=ALL-UNNAMED')
+            buildArgs.add('--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED')
+            buildArgs.add('--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED')
+            buildArgs.add('--trace-class-initialization=ch.qos.logback.classic.Logger')
+            buildArgs.add('--trace-object-instantiation=ch.qos.logback.core.AsyncAppenderBase$Worker')
+            buildArgs.add('--initialize-at-run-time=io.netty')
             // buildArgs.add('--exact-reachability-metadata')
         }
     }
