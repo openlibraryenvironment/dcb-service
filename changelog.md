@@ -1,11 +1,23 @@
 # Changelog
 
+## Version 8.2.3
+
+### Changes
+* [Chore]
+	* add 'flag key' to log warnings [DCB-1473]
+	* Updated the failed to resolve shelving location check to be more generic
+* [Refactor]
+	* set circulation tracking intervals for production context [DCB-1473]
+* [Test]
+	* add API level test for placing 3-legged request [DCB-1677]
+
 ## Version 8.2.2
 
 ### Changes
 * [Chare]
 	* The 2 duplicate scripts were referencing each other scripts
 * [Chore]
+	* Changelog - Generate the changelog
 	* DCB-1645 Changed NO_ITEMS_AVAILABLE_AT_ANY_AGENCY to NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
 	* added an extra error that we trap in the error overview
 
