@@ -39,22 +39,32 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 //		log.debug("Username from SCC: {}", securityService.username().toString());
 
 		// Gets the username if authentication is present, and then puts it into the GraphQL context.
-		// This means we can then access with context.get("currentUser") in our data fetchers.
+		//
+
 		return Mono.fromCallable(() -> {
 			GraphQLContext context = executionInput.getGraphQLContext();
 			securityService.getAuthentication().ifPresent(auth -> {
-				// Get the username
-				String username = auth.getName();
+				// Get the user info
+				String userID = auth.getName();
+				String prefName = (String) auth.getAttributes().get("preferred_username");
+				String email = (String) auth.getAttributes().get("email");
+				String name = (String) auth.getAttributes().get("name");
+
+				log.debug(prefName);
+				log.debug("Email {}, name {}", email, name);
 				// Get the roles (assuming roles are stored in the "roles" attribute)
 				// We are suppressing this warning because we know the roles we're getting from the security service will be in an acceptable format.
 				@SuppressWarnings("unchecked")
 				Collection<String> roles = (Collection<String>) auth.getAttributes().get("roles");
 
-				// Log the username and roles
-				log.debug("Roles: {}, Username: {}", roles, username);
+				// Log the userID and roles
+				log.debug("Roles: {}, Username: {}", roles, userID);
 
 				// Store them in the GraphQL context
-				context.put("currentUser", username);
+				context.put("currentUser", userID);
+				context.put("userName", prefName);
+				context.put("userEmail", email);
+				context.put("userFullName", name);
 				context.put("roles", roles);
 			});
 			return executionInput;

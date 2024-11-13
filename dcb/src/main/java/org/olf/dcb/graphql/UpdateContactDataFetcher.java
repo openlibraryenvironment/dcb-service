@@ -69,7 +69,6 @@ public class UpdateContactDataFetcher implements DataFetcher<CompletableFuture<P
 		Mono<Person> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(personRepository.findById(id))
 				.flatMap(person -> {
-					// Surely there's a better way of doing this - possibly a check on input_map for all keys?
 					if (role != null) {
 						person.setRole(role);
 					}

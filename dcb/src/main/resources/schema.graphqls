@@ -39,6 +39,7 @@ type Mutation {
 		updateNumericRangeMapping(input: UpdateNumericRangeMappingInput): NumericRangeMapping!
 		deleteReferenceValueMapping(input: DeleteEntityInput): DeleteEntityPayload!
 		deleteNumericRangeMapping(input: DeleteEntityInput): DeleteEntityPayload!
+		updateConsortium(input: UpdateConsortiumInput): Consortium!
 }
 
 input AddAgencyToGroupCommand {
@@ -67,7 +68,37 @@ input ConsortiumInput {
 	name: String!
 	groupName: String!
 	dateOfLaunch: String!
+	headerImageUrl: String
+	aboutImageUrl: String
+	description: String
+	catalogueSearchUrl: String
+	websiteUrl: String
+	displayName: String!
+	reason: String!
+	changeCategory: String!
+	changeReferenceUrl: String
+	contacts: [PersonInput]
+	functionalSettings: [FunctionalSettingInput]
 }
+
+input UpdateConsortiumInput {
+	id: ID!
+	headerImageUrl: String
+	headerImageUploader: String
+	headerImageUploaderEmail: String
+	aboutImageUrl: String
+	aboutImageUploader: String
+	aboutImageUploaderEmail: String
+	description: String
+	catalogueSearchUrl: String
+	websiteUrl: String
+	displayName: String
+	reason: String!
+	changeCategory: String!
+	changeReferenceUrl: String
+	contacts: [UpdatePersonInput]
+}
+
 
 input LibraryInput {
 	id: ID
@@ -138,7 +169,6 @@ input UpdateLocationInput {
 	changeCategory: String
 }
 
-
 input UpdateLibraryInput {
 	id: ID!
 	backupDowntimeSchedule: String
@@ -180,7 +210,19 @@ input UpdateReferenceValueMappingInput {
 	changeReferenceUrl: String
 	changeCategory: String
 }
+input FunctionalSettingInput {
+	id: ID
+	name: String!
+	enabled: Boolean!
+	description: String
+}
 
+input UpdateFunctionalSettingInput {
+	id: ID!
+	name: String
+	enabled: Boolean
+	description: String
+}
 
 type ProcessState {
   id: ID
@@ -407,6 +449,28 @@ type Consortium {
 	name: String!
 	libraryGroup: LibraryGroup!
 	dateOfLaunch: String
+	headerImageUrl: String
+	headerImageUploader: String
+	headerImageUploaderEmail: String
+	aboutImageUrl: String
+	aboutImageUploader: String
+	aboutImageUploaderEmail: String
+	description: String
+	catalogueSearchUrl: String
+	websiteUrl: String
+	displayName: String
+	contacts: [Person]
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+	functionalSettings: [FunctionalSetting]
+}
+
+type FunctionalSetting {
+	id: ID!
+	name: String!
+	enabled: Boolean!
+	description: String
 }
 
 type DataChangeLog {
