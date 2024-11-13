@@ -29,6 +29,7 @@ public interface ConsortiumRepository {
 	@SingleResult
 	Publisher<? extends Consortium> findById(@NonNull UUID id);
 
+
 	@NonNull
 	@SingleResult
 	Publisher<Consortium> findOneByName(@NonNull String name);
@@ -49,6 +50,10 @@ public interface ConsortiumRepository {
 
 	@NonNull
 	Publisher<Consortium> queryAll();
+
+	@NonNull
+	@SingleResult
+	Publisher<Consortium> findOneByIsPrimaryConsortium(@NonNull boolean isPrimaryConsortium);
 
 	Publisher<Void> delete(UUID id);
 

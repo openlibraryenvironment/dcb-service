@@ -1,10 +1,8 @@
 package org.olf.dcb.core.model;
 
-import java.sql.Blob;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import co.elastic.clients.elasticsearch.xpack.usage.Audit;
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -101,5 +99,10 @@ public class Consortium implements Auditable {
 
 	@Nullable
 	private String aboutImageUploaderEmail; // Info about upload
+
+	@NonNull
+	private Boolean isPrimaryConsortium; // Is this the primary consortium? If so, follow its functional settings
+	// Intended for potential multi-consortium support.
+	// Developers can use findOneByIsPrimaryConsortium to get the primary consortium.
 
 }

@@ -47,7 +47,7 @@ public class GraphQLFactory {
 			UpdateReferenceValueMappingDataFetcher updateReferenceValueMappingDataFetcher,
 			UpdateNumericRangeMappingDataFetcher updateNumericRangeMappingDataFetcher,
 			DeleteReferenceValueMappingDataFetcher deleteReferenceValueMappingDataFetcher,
-			DeleteNumericRangeMappingDataFetcher deleteNumericRangeMappingDataFetcher, UpdateConsortiumDataFetcher updateConsortiumDataFetcher,
+			DeleteNumericRangeMappingDataFetcher deleteNumericRangeMappingDataFetcher, UpdateConsortiumDataFetcher updateConsortiumDataFetcher,UpdateFunctionalSettingDataFetcher updateFunctionalSettingDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -105,7 +105,8 @@ public class GraphQLFactory {
 						.dataFetcher("updateNumericRangeMapping", updateNumericRangeMappingDataFetcher)
 						.dataFetcher("deleteReferenceValueMapping", deleteReferenceValueMappingDataFetcher)
 						.dataFetcher("deleteNumericRangeMapping", deleteNumericRangeMappingDataFetcher)
-						.dataFetcher("updateConsortium", updateConsortiumDataFetcher))
+						.dataFetcher("updateConsortium", updateConsortiumDataFetcher)
+						.dataFetcher("updateFunctionalSetting", updateFunctionalSettingDataFetcher))
 			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())

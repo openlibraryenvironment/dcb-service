@@ -58,10 +58,10 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			input_map.get("displayName").toString() : null;
 		String headerImageUrl = input_map.containsKey("headerImageUrl") ?
 			input_map.get("headerImageUrl").toString() : null;
+		Boolean isPrimaryConsortium = input_map.containsKey("isPrimaryConsortium") ?
+			Boolean.parseBoolean(input_map.get("isPrimaryConsortium").toString()) : null;
 		String headerImageUploader = env.getGraphQlContext().get("userName");
 		String headerImageUploaderEmail = env.getGraphQlContext().get("userEmail");
-
-
 		Collection<String> roles = env.getGraphQlContext().get("roles");
 
 		// Check if the user has the required role to edit consortium information
@@ -74,6 +74,9 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 				.flatMap(consortium -> {
 					if (displayName != null) {
 						consortium.setDisplayName(displayName);
+					}
+					if (isPrimaryConsortium !=null ) {
+						consortium.setIsPrimaryConsortium(isPrimaryConsortium);
 					}
 					// If a new URL is provided, set the user info for the upload so we know who uploaded it
 					if (headerImageUrl != null) {

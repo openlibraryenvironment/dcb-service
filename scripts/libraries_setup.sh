@@ -81,8 +81,8 @@ echo
 
 # Create the associated consortium, providing the name of the consortium group you just created.
 echo Create a new consortium
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -X POST "$TARGET/graphql" -d '{ "query": "mutation { createConsortium(input: { name: \"MOBIUS\", groupName: \"MOBIUS_CONSORTIUM\", dateOfLaunch:\"2024-05-22\" }) { id, name, libraryGroup { id, name } } }" }'
-
+echo "Create a new consortium"
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -X POST "$TARGET/graphql" -d '{ "query": "mutation { createConsortium(input: { name: \"MOBIUS\", groupName: \"MOBIUS_CONSORTIUM\", displayName: \"MOBIUS_CONSORTIUM\", dateOfLaunch: \"2024-05-22\", isPrimaryConsortium: true, contacts: [ { firstName: \"Jane\", lastName: \"Doe\", role: \"Consortium admin\", isPrimaryContact: true, email: \"jane.doe@mobius.com\" } ],functionalSettings: [ { name: \"Pickup anywhere\", enabled: true, description: \"Pickup anywhere policy\" } ], reason: \"Libraries setup script\", changeCategory: \"Initial setup\" }) { id, name, libraryGroup { id, name }, contacts { id, firstName, lastName }, functionalSettings { id, name } } }" }'
 # Add libraries to the consortium group.
 
 MUTATION_TEMPLATE='mutation { addLibraryToGroup(input: { library: \"%s", libraryGroup: \"%s" }) { id } }'

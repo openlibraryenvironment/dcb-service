@@ -71,8 +71,10 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 	public CompletableFuture<Consortium> get(DataFetchingEnvironment env) {
 		Map input_map = env.getArgument("input");
 		List<Map<String, Object>> functionalSettingsInput = (List<Map<String, Object>>) input_map.get("functionalSettings");
+		List<Map<String, Object>> contactsInput = (List<Map<String, Object>>) input_map.get("contacts");
 
-
+		Boolean isPrimaryConsortium = input_map.containsKey("isPrimaryConsortium") ?
+			Boolean.parseBoolean(input_map.get("isPrimaryConsortium").toString()) : null;
 
 		// Pre-requisite: There must already be a LibraryGroup that we want to associate to this Consortium
 		// It will have a one-to-one relationship (as long as the type is "consortium" - otherwise no relationship)
@@ -86,21 +88,22 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 					// If a library group matching the conditions is found, we can create the associated consortium
 					// Input date must be in format YYYY-MM-DD
 					LocalDate launchDate = LocalDate.parse(input_map.get("dateOfLaunch").toString(), DateTimeFormatter.ISO_LOCAL_DATE );
+
 					Consortium consortium = Consortium.builder()
 						.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Consortium:" + input_map.get("name").toString()))
 						.name(input_map.get("name").toString())
 						.dateOfLaunch(launchDate)
+						.isPrimaryConsortium(isPrimaryConsortium)
 						.libraryGroup(libraryGroup).build();
 					// Save consortium first. Then associate contacts and settings
 					log.debug("STARTING SAVE OF CONSORTIUM");
 
 						return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(consortiumRepository.saveOrUpdate(consortium))))
 							.flatMap(savedConsortium -> {
-//								Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
-//									.map(this::createPersonFromInput)
-//									.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
-//									.collectList();
-								log.debug("SavedConsortium before mono: {}", savedConsortium);
+								Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
+									.map(this::createPersonFromInput)
+									.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
+									.collectList();
 								Mono<? extends List<? extends FunctionalSetting>> functionalSettingMono = Flux.fromIterable(functionalSettingsInput)
 									.map(this::createFunctionalSettingFromInput)
 									.flatMap(functionalSetting -> Mono.from(functionalSettingRepository.saveOrUpdate(functionalSetting)).doOnSuccess(functionalSetting1 -> log.debug("FS saved")))
@@ -111,9 +114,12 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 								return functionalSettingMono.flatMap(functionalSettings -> {
 									log.debug("Inside functional settings mono");
 									return associateFunctionalSettingsWithConsortium(savedConsortium, (List<FunctionalSetting>) functionalSettings)
-										.then(Mono.just(savedConsortium));
+										.then(contactsMono.flatMap(contacts -> {
+											return associateContactsWithConsortium(savedConsortium, (List<Person>) contacts)
+												.then(Mono.just(savedConsortium));
+										}));
 								});
-				});
+							});
 				}
 				else {
 					// If not, we cannot create a consortium.
@@ -137,7 +143,6 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 		return Flux.fromIterable(contacts)
 			.flatMap(contact -> {
 				ConsortiumContact consortiumContact = new ConsortiumContact();
-				// Think about this ID
 				consortiumContact.setId(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "ConsortiumContact:" + consortium.getName() + contact.getFirstName() + contact.getLastName() + contact.getRole()));
 				consortiumContact.setConsortium(consortium);
 				consortiumContact.setPerson(contact);

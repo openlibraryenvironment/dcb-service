@@ -40,6 +40,7 @@ type Mutation {
 		deleteReferenceValueMapping(input: DeleteEntityInput): DeleteEntityPayload!
 		deleteNumericRangeMapping(input: DeleteEntityInput): DeleteEntityPayload!
 		updateConsortium(input: UpdateConsortiumInput): Consortium!
+		updateFunctionalSetting(input: UpdateFunctionalSettingInput): FunctionalSetting!
 }
 
 input AddAgencyToGroupCommand {
@@ -79,6 +80,7 @@ input ConsortiumInput {
 	changeReferenceUrl: String
 	contacts: [PersonInput]
 	functionalSettings: [FunctionalSettingInput]
+	isPrimaryConsortium: Boolean!
 }
 
 input UpdateConsortiumInput {
@@ -97,6 +99,7 @@ input UpdateConsortiumInput {
 	changeCategory: String!
 	changeReferenceUrl: String
 	contacts: [UpdatePersonInput]
+	isPrimaryConsortium: Boolean
 }
 
 
@@ -222,6 +225,9 @@ input UpdateFunctionalSettingInput {
 	name: String
 	enabled: Boolean
 	description: String
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
 }
 
 type ProcessState {
@@ -464,6 +470,7 @@ type Consortium {
 	changeReferenceUrl: String
 	changeCategory: String
 	functionalSettings: [FunctionalSetting]
+	isPrimaryConsortium: Boolean
 }
 
 type FunctionalSetting {
