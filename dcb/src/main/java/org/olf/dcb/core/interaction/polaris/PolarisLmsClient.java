@@ -1266,6 +1266,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return lms.getName();
 	}
 
+  // N.B.   public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) is now the main entry point for harvest v2 NOT this method
 	@Override
 	public Publisher<BibsPagedRow> getResources(Instant since, Publisher<String> terminator) {
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
@@ -1510,6 +1511,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		
 	}
 	
+  /**
+   * N.B. This is now the main entry point for harvestV2
+   */
 	@Override
 	public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) {
 		try {
@@ -1518,8 +1522,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			final Optional<BibsPagedGetParams> optParams = checkpoint.isPresent() ? Optional.of( objectMapper.readValueFromTree(checkpoint.get(), BibsPagedGetParams.class) ) : Optional.empty();
 			
 			final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
-	  	
 	  	final Instant now = Instant.now();
+
+      log.info("Polaris get bibs page from {} with params {}",lms.getName(),apiParams);
+
 			return Mono.just( apiParams )
 				.flatMap( params -> Mono.from( PAPIService.synch_BibsPagedGetRaw(params) ))
 				
