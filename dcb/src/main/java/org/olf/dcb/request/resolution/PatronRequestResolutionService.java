@@ -54,6 +54,8 @@ public class PatronRequestResolutionService {
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
 
+		patronRequest.incrementResolutionCount();
+
 		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
 			.zipWhen(this::getAvailableItems, Resolution::trackAllItems)

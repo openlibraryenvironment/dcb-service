@@ -282,7 +282,7 @@ public class PatronRequest {
 	
 	@Nullable
 	private String requesterNote;
-	
+
 	@JsonProperty("status")
 	public Status getStatus() {
 		return this.status;
@@ -393,6 +393,9 @@ public class PatronRequest {
 	@Nullable
 	private Boolean isLoanedToPatron;
 
+	@Nullable
+	private Integer resolutionCount;
+
 	public PatronRequest resolve() {
 		return setStatus(RESOLVED);
 	}
@@ -450,6 +453,15 @@ public class PatronRequest {
 			pollCountForCurrentStatus = 1;
 		} else {
 			pollCountForCurrentStatus++;
+		}
+	}
+
+	public void incrementResolutionCount() {
+		if (this.resolutionCount == null) {
+			this.resolutionCount = 1;
+		}
+		else {
+			this.resolutionCount++;
 		}
 	}
 }
