@@ -58,14 +58,16 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			input_map.get("displayName").toString() : null;
 		String headerImageUrl = input_map.containsKey("headerImageUrl") ?
 			input_map.get("headerImageUrl").toString() : null;
-		Boolean isPrimaryConsortium = input_map.containsKey("isPrimaryConsortium") ?
-			Boolean.parseBoolean(input_map.get("isPrimaryConsortium").toString()) : null;
 		String headerImageUploader = env.getGraphQlContext().get("userName");
 		String headerImageUploaderEmail = env.getGraphQlContext().get("userEmail");
+		String aboutImageUrl = input_map.containsKey("aboutImageUrl") ?
+			input_map.get("aboutImageUrl").toString() : null;
+		String aboutImageUploader = env.getGraphQlContext().get("userName");
+		String aboutImageUploaderEmail = env.getGraphQlContext().get("userEmail");
 		Collection<String> roles = env.getGraphQlContext().get("roles");
 
 		// Check if the user has the required role to edit consortium information
-		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN") && !roles.contains("LIBRARY_ADMIN"))) {
+		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
 			log.warn("updateConsortiumDataFetcher: Access denied for user {}: user does not have the required role to update a consortium.", userString);
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");		}
 
@@ -75,14 +77,16 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 					if (displayName != null) {
 						consortium.setDisplayName(displayName);
 					}
-					if (isPrimaryConsortium !=null ) {
-						consortium.setIsPrimaryConsortium(isPrimaryConsortium);
-					}
 					// If a new URL is provided, set the user info for the upload so we know who uploaded it
 					if (headerImageUrl != null) {
 						consortium.setHeaderImageUrl(headerImageUrl);
 						consortium.setHeaderImageUploader(headerImageUploader);
 						consortium.setHeaderImageUploaderEmail(headerImageUploaderEmail);
+					}
+					if (aboutImageUrl != null) {
+						consortium.setAboutImageUrl(aboutImageUrl);
+						consortium.setAboutImageUploader(aboutImageUploader);
+						consortium.setAboutImageUploaderEmail(aboutImageUploaderEmail);
 					}
 					consortium.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(consortium::setChangeReferenceUrl);

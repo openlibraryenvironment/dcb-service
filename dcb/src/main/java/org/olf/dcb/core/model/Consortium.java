@@ -26,6 +26,15 @@ import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import lombok.ToString;
 
+/** <p> A class representing the Consortium entity within DCB. This class contains information about a consortium.
+ * </p><br>
+ * <p>A consortium may have a one-to-many relationship with its functional settings.
+ * It must have a one-to-one relationship with a LibraryGroup of type "Consortium", which will hold the associated libraries.
+ * </p><br>
+ * At the time of writing, only one Consortium is intended to exist within a DCB instance.
+ * To find a consortium's functional settings, obtain the consortium through its repository methods
+ * and then call the FunctionalSettingRepository's 'findByConsortium' method.
+ * */
 @Data
 @Accessors(chain=true)
 @Serdeable
@@ -99,10 +108,5 @@ public class Consortium implements Auditable {
 
 	@Nullable
 	private String aboutImageUploaderEmail; // Info about upload
-
-	@NonNull
-	private Boolean isPrimaryConsortium; // Is this the primary consortium? If so, follow its functional settings
-	// Intended for potential multi-consortium support.
-	// Developers can use findOneByIsPrimaryConsortium to get the primary consortium.
 
 }

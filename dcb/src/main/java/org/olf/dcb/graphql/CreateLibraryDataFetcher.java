@@ -53,7 +53,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 		List<Map<String, Object>> contactsInput = (List<Map<String, Object>>) input_map.get("contacts");
 		log.debug("createLibraryDataFetcher {}", input_map);
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
 

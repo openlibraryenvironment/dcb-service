@@ -8,14 +8,13 @@ alter table consortium add website_url varchar(200);
 alter table consortium add catalogue_search_url varchar(200);
 alter table consortium add description varchar(400);
 
-alter table consortium add header_image_url varchar(200);
+alter table consortium add header_image_url varchar(400);
 alter table consortium add header_image_uploader varchar(200);
 alter table consortium add header_image_uploader_email varchar(200);
 
-alter table consortium add about_image_url varchar(200);
+alter table consortium add about_image_url varchar(400);
 alter table consortium add about_image_uploader varchar(200);
 alter table consortium add about_image_uploader_email varchar(200);
-alter table consortium add is_primary_consortium boolean;
 
 CREATE TABLE functional_setting (
 	id uuid PRIMARY KEY,

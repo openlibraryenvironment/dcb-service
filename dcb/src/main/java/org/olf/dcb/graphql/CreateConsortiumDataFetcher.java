@@ -6,17 +6,16 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import org.olf.dcb.core.api.exceptions.ConsortiumCreationException;
-import org.olf.dcb.core.model.FunctionalSetting;
-import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
-import org.olf.dcb.core.model.Person;
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumContact;
-
-
-
+import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSettingType;
+import org.olf.dcb.core.model.Person;
 
 import org.olf.dcb.storage.FunctionalSettingRepository;
 import org.olf.dcb.storage.ConsortiumFunctionalSettingRepository;
@@ -24,9 +23,6 @@ import org.olf.dcb.storage.ConsortiumContactRepository;
 import org.olf.dcb.storage.PersonRepository;
 import org.olf.dcb.storage.ConsortiumRepository;
 import org.olf.dcb.storage.LibraryGroupRepository;
-
-
-
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,9 +69,6 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 		List<Map<String, Object>> functionalSettingsInput = (List<Map<String, Object>>) input_map.get("functionalSettings");
 		List<Map<String, Object>> contactsInput = (List<Map<String, Object>>) input_map.get("contacts");
 
-		Boolean isPrimaryConsortium = input_map.containsKey("isPrimaryConsortium") ?
-			Boolean.parseBoolean(input_map.get("isPrimaryConsortium").toString()) : null;
-
 		// Pre-requisite: There must already be a LibraryGroup that we want to associate to this Consortium
 		// It will have a one-to-one relationship (as long as the type is "consortium" - otherwise no relationship)
 		// And we must supply the name when we create the Consortium.
@@ -89,15 +82,42 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 					// Input date must be in format YYYY-MM-DD
 					LocalDate launchDate = LocalDate.parse(input_map.get("dateOfLaunch").toString(), DateTimeFormatter.ISO_LOCAL_DATE );
 
+					String displayName = Optional.ofNullable(input_map.get("displayName"))
+						.map(Object::toString)
+						.orElse("");
+
+					String headerImageUrl = Optional.ofNullable(input_map.get("headerImageUrl"))
+						.map(Object::toString)
+						.orElse("");
+
+					String aboutImageUrl = Optional.ofNullable(input_map.get("aboutImageUrl"))
+						.map(Object::toString)
+						.orElse("");
+
+					String catalogueSearchUrl = Optional.ofNullable(input_map.get("catalogueSearchUrl"))
+						.map(Object::toString)
+						.orElse("");
+
+					String description = Optional.ofNullable(input_map.get("description"))
+						.map(Object::toString)
+						.orElse("");
+
+					String websiteUrl = Optional.ofNullable(input_map.get("websiteUrl"))
+						.map(Object::toString)
+						.orElse("");
+
 					Consortium consortium = Consortium.builder()
 						.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Consortium:" + input_map.get("name").toString()))
 						.name(input_map.get("name").toString())
+						.displayName(displayName)
+						.headerImageUrl(headerImageUrl)
+						.aboutImageUrl(aboutImageUrl)
+						.catalogueSearchUrl(catalogueSearchUrl)
+						.description(description)
+						.websiteUrl(websiteUrl)
 						.dateOfLaunch(launchDate)
-						.isPrimaryConsortium(isPrimaryConsortium)
 						.libraryGroup(libraryGroup).build();
 					// Save consortium first. Then associate contacts and settings
-					log.debug("STARTING SAVE OF CONSORTIUM");
-
 						return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(consortiumRepository.saveOrUpdate(consortium))))
 							.flatMap(savedConsortium -> {
 								Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
@@ -106,13 +126,9 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 									.collectList();
 								Mono<? extends List<? extends FunctionalSetting>> functionalSettingMono = Flux.fromIterable(functionalSettingsInput)
 									.map(this::createFunctionalSettingFromInput)
-									.flatMap(functionalSetting -> Mono.from(functionalSettingRepository.saveOrUpdate(functionalSetting)).doOnSuccess(functionalSetting1 -> log.debug("FS saved")))
-									.collectList().doOnSuccess(functionalSettings -> log.debug("Functional setting list created {}", functionalSettings));
-
-								log.debug("SavedConsortium: {}", savedConsortium);
-
+									.flatMap(functionalSetting -> Mono.from(functionalSettingRepository.saveOrUpdate(functionalSetting)))
+									.collectList();
 								return functionalSettingMono.flatMap(functionalSettings -> {
-									log.debug("Inside functional settings mono");
 									return associateFunctionalSettingsWithConsortium(savedConsortium, (List<FunctionalSetting>) functionalSettings)
 										.then(contactsMono.flatMap(contacts -> {
 											return associateContactsWithConsortium(savedConsortium, (List<Person>) contacts)
@@ -152,31 +168,35 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 	}
 
 	private FunctionalSetting createFunctionalSettingFromInput(Map<String, Object> settingInput) {
-		// Disallow non-valid settings here. The list will need to be maintained.
-		log.debug("Creating FS from input");
+		String settingName = settingInput.get("name").toString();
+		// Check for validity. We use a FunctionalSettingType enum for this.
+		if (!FunctionalSettingType.isValid(settingName)) {
+			throw new IllegalArgumentException(
+				String.format("Invalid functional setting name: '%s'. The functional settings currently available are: %s",
+					settingName,
+					FunctionalSettingType.getValidNames())
+			);
+		}
+		FunctionalSettingType type = FunctionalSettingType.valueOf(settingInput.get("name").toString());
+		log.debug("createConsortiumDataFetcher: Functional setting created of type: {}", type);
 		return FunctionalSetting.builder()
-			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "FunctionalSetting:" + settingInput.get("name")))
-			.name(settingInput.get("name").toString())
+			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "FunctionalSetting:" + settingInput.get("name").toString()))
+			.name(type)
 			.enabled(Boolean.valueOf(settingInput.get("enabled").toString()))
 			.description(settingInput.get("description").toString())
 			.build();
 	}
 
 	private Mono<Void> associateFunctionalSettingsWithConsortium(Consortium consortium, List<FunctionalSetting> functionalSettings) {
-		log.debug("Associating");
 		return Flux.fromIterable(functionalSettings)
 			.flatMap(functionalSetting -> {
-				log.debug("Creating consortium functional setting");
 				ConsortiumFunctionalSetting consortiumFunctionalSetting = new ConsortiumFunctionalSetting();
-				// Think about this ID
-				consortiumFunctionalSetting.setId(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "ConsortiumFunctionalSetting:" + functionalSetting.getName()));
+				consortiumFunctionalSetting.setId(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "ConsortiumFunctionalSetting:" + functionalSetting.getName() + "consortium: {}"+consortium.getName()));
 				consortiumFunctionalSetting.setConsortium(consortium);
 				consortiumFunctionalSetting.setFunctionalSetting(functionalSetting);
-				log.debug("Saving consortium functional setting");
-				return Mono.from(consortiumFunctionalSettingRepository.saveOrUpdate(consortiumFunctionalSetting)).doOnSuccess(consortiumFunctionalSetting1 -> log.debug("Successfully saved CFS: {}", consortiumFunctionalSetting1));
+				return Mono.from(consortiumFunctionalSettingRepository.saveOrUpdate(consortiumFunctionalSetting));
 			})
 			.then();
 	}
 
 }
-

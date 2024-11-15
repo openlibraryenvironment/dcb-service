@@ -21,6 +21,17 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.olf.dcb.core.audit.Auditable;
 
+/** <p> A class representing a functional setting of an entity - for example whether 'pickup anywhere' functionality is enabled.
+ * </p><br>
+ * <p> This class contains information such as a functional setting's name, its enabled status and an optional description.
+ * Valid names are stored in the FunctionalSettingType enum.
+ * </p><br>
+ * <p>A consortium will have a one-to-many relationship with its functional settings.
+ * This could also be replicated for other entities such as libraries.
+ * </p><br>
+ * The UpdateFunctionalSetting data fetcher provides the functionality for a functional setting to be toggled via DCB Admin.
+ * */
+
 @Data
 @Serdeable
 @Builder
@@ -37,8 +48,8 @@ public class FunctionalSetting implements Auditable {
 	private UUID id;
 
 	@NonNull
-	@Size(max = 200)
-	private String name;
+	@TypeDef(type = DataType.STRING)
+	private FunctionalSettingType name;
 
 	@NonNull
 	private Boolean enabled;

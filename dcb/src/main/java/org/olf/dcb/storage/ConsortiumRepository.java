@@ -6,7 +6,8 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.Consortium;
+import org.olf.dcb.core.model.LibraryGroup;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -38,7 +39,8 @@ public interface ConsortiumRepository {
 	@SingleResult
 	Publisher<Consortium> findOneByLibraryGroup(@NonNull LibraryGroup libraryGroup);
 
-
+	@NonNull
+	Publisher<Consortium> findFirst();
 
 	@NonNull
 	@SingleResult
@@ -50,10 +52,6 @@ public interface ConsortiumRepository {
 
 	@NonNull
 	Publisher<Consortium> queryAll();
-
-	@NonNull
-	@SingleResult
-	Publisher<Consortium> findOneByIsPrimaryConsortium(@NonNull boolean isPrimaryConsortium);
 
 	Publisher<Void> delete(UUID id);
 
