@@ -7,6 +7,8 @@ import org.mockserver.model.HttpResponse;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 
+import java.util.List;
+
 import static org.mockserver.model.JsonBody.json;
 
 @AllArgsConstructor
@@ -58,5 +60,12 @@ public class SierraBibsAPIFixture {
 
 	private HttpRequest deleteBibRecord(String bibId) {
 		return sierraMockServerRequests.delete("/" + bibId);
+	}
+
+	public static BibPatch COMMON_BIB_PATCH() {
+		return BibPatch.builder()
+			.authors(List.of("Stafford Beer"))
+			.titles(List.of("Brain of the Firm"))
+			.build();
 	}
 }

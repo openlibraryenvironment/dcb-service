@@ -258,8 +258,8 @@ type PatronRequest {
   localItemType: String
   localBibId: String
   description: String
-	nextScheduledPoll: String
-	errorMessage: String
+  nextScheduledPoll: String
+  errorMessage: String
   activeWorkflow: String
   requesterNote: String
   suppliers: [SupplierRequest]
@@ -269,15 +269,16 @@ type PatronRequest {
   pollCountForCurrentStatus: Int
   manualPollCountForCurrentStatus: Int
   autoPollCountForCurrentStatus: Int
-	currentStatusTimestamp: String
-	nextExpectedStatus: String
-	outOfSequenceFlag: Boolean
-	elapsedTimeInCurrentStatus: Float
-	rawLocalItemStatus: String
-	rawLocalRequestStatus: String
-	localItemHostlmsCode: String
-	localItemAgencyCode: String
-	isManuallySelectedItem: Boolean
+  currentStatusTimestamp: String
+  nextExpectedStatus: String
+  outOfSequenceFlag: Boolean
+  elapsedTimeInCurrentStatus: Float
+  rawLocalItemStatus: String
+  rawLocalRequestStatus: String
+  localItemHostlmsCode: String
+  localItemAgencyCode: String
+  isManuallySelectedItem: Boolean
+  resolutionCount: Int
 }
 
 type PatronRequestAudit {

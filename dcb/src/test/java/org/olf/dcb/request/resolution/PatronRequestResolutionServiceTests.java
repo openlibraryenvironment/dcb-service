@@ -222,7 +222,8 @@ class PatronRequestResolutionServiceTests {
 					hasLocalId(onlyAvailableItemId),
 					hasBarcode(onlyAvailableItemBarcode)
 				)
-			)
+			),
+			hasResolutionCount(1)
 		));
 	}
 
@@ -280,7 +281,9 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			)));
+			),
+			hasResolutionCount(1)
+		));
 	}
 
 	@Test
@@ -316,12 +319,13 @@ class PatronRequestResolutionServiceTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		final var resolution = resolve(patronRequest);
+		final Resolution resolution = resolve(patronRequest);
 
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem()
+			hasNoChosenItem(),
+			hasResolutionCount(1)
 		));
 	}
 
@@ -369,7 +373,8 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem()
+			hasNoChosenItem(),
+			hasResolutionCount(1)
 		));
 	}
 
@@ -419,7 +424,8 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem()
+			hasNoChosenItem(),
+			hasResolutionCount(1)
 		));
 	}
 
@@ -473,7 +479,8 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem()
+			hasNoChosenItem(),
+			hasResolutionCount(1)
 		));
 	}
 
@@ -583,5 +590,10 @@ class PatronRequestResolutionServiceTests {
 	@SafeVarargs
 	private static Matcher<Resolution> hasFilteredItems(Matcher<Item>... matchers) {
 		return hasProperty("filteredItems", contains(matchers));
+	}
+
+	private static Matcher<Resolution> hasResolutionCount(Integer expectedResolutionCount) {
+		return hasProperty("patronRequest",
+			hasProperty("resolutionCount", is(expectedResolutionCount)));
 	}
 }

@@ -1,15 +1,54 @@
 package org.olf.dcb.tracking;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.PatronRequest.Status;
 
+import static java.util.Arrays.asList;
+import static org.olf.dcb.core.AppConfig.CIRCULATION_TRACKING_PROFILE_KEY;
+
+@Slf4j
 public class TrackingHelpers {
-	// See: https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2870575137/Tracking+v3+matrix
-  //
-	public static Optional<Duration> getDurationFor(Status pr_status) {
-		return getLiveDurationFor(pr_status);
+
+	private static final String DEV_PROFILE = "DEVELOPMENT";
+	private static final String PROD_PROFILE = "PRODUCTION";
+	private static final List<String> RECOGNISED_PROFILES = asList(DEV_PROFILE, PROD_PROFILE);
+	private static final String DEFAULT_PROFILE = PROD_PROFILE;
+
+	/**
+	 * Retrieves the appropriate duration for the given patron request status and circulation tracking profile.
+	 *
+	 * @param prStatus                   the status of the patron request
+	 * @param circulationTrackingProfile the circulation tracking profile, defaults to PRODUCTION if not set
+	 * @return the duration for the given status and profile
+	 */
+	public static Optional<Duration> getDurationFor(Status prStatus, String circulationTrackingProfile) {
+		final String profile = getNormalisedProfile(circulationTrackingProfile);
+
+		return switch (profile) {
+			case DEV_PROFILE -> getDevDurationFor(prStatus);
+			case PROD_PROFILE -> getLiveDurationFor(prStatus);
+			default -> getLiveDurationFor(prStatus);
+		};
+	}
+
+	private static String getNormalisedProfile(String circulationTrackingProfile) {
+		if (circulationTrackingProfile == null  || circulationTrackingProfile.isEmpty()) {
+			log.warn("No circulation tracking profile is defined. " +
+				"Set the '{}' to 'PRODUCTION' or 'DEVELOPMENT'.", CIRCULATION_TRACKING_PROFILE_KEY);
+			return DEFAULT_PROFILE;
+		}
+
+		final String normalisedProfile = circulationTrackingProfile.toUpperCase();
+		if (!RECOGNISED_PROFILES.contains(normalisedProfile)) {
+			log.warn("Circulation tracking profile '{}' is not recognised. " +
+				"Set the '{}' to 'PRODUCTION' or 'DEVELOPMENT'.", normalisedProfile, CIRCULATION_TRACKING_PROFILE_KEY);
+			return DEFAULT_PROFILE;
+		}
+		return normalisedProfile;
 	}
 
 	public static Optional<Duration> getDevDurationFor(Status pr_status) {

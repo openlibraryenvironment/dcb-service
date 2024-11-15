@@ -33,10 +33,7 @@ import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
@@ -71,7 +68,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 @Slf4j
-class PatronRequestApiTests {
+class StandardWorkflowPatronRequestApiTests {
 	private static final String SUPPLYING_HOST_LMS_CODE = "pr-api-tests-supplying-agency";
 	private static final String SUPPLYING_BASE_URL = "https://supplier-patron-request-api-tests.com";
 	private static final String BORROWING_HOST_LMS_CODE = "pr-api-tests-borrowing-agency";
@@ -235,6 +232,11 @@ class PatronRequestApiTests {
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			SUPPLYING_HOST_LMS_CODE, 999, 999, "loanable-item");
+	}
+
+	@AfterAll
+	void tearDown() {
+		patronRequestApiClient.removeTokenFromValidTokens();
 	}
 
 	@Test
