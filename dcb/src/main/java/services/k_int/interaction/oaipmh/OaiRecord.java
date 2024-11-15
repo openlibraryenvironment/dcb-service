@@ -4,6 +4,8 @@ import java.time.Instant;
 
 import org.marc4j.marc.Record;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micronaut.serde.annotation.Serdeable;
 
 @Serdeable
@@ -19,6 +21,13 @@ public record OaiRecord (
 	}
 	
 	@Serdeable
-	public static record Header(String identifier, Instant datestamp, String setSpec) {
+	public static record Header(
+		String identifier,
+		Instant datestamp,
+		// Note: As this property is called setSpec this causes an issue for the object mapper as it removed the "set"
+		// and looks for a property called "spec", hence we need to specify it as "spec" in the JsonProperty
+		@JsonProperty("spec")
+		String setSpec
+	) {
 	}
 }

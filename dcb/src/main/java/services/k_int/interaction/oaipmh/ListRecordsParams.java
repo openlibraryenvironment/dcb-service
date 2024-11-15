@@ -15,4 +15,5 @@ public class ListRecordsParams {
 	private final Instant until;
 	private final String resumptionToken;
 	private final String metadataPrefix;
+	private final String set;
 }
