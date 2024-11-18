@@ -92,7 +92,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	
 	private final String metadataPrefix;
 	
-	private final String set;
+	private final String oaiSet;
 	
 	private final ProcessStateService processStateService;
 	
@@ -131,10 +131,10 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		// Has the set been configured
 		if (configuredSet.isPresent()) {
 			// It has been configured, so we will use it
-			set = configuredSet.get();
+			oaiSet = configuredSet.get();
 		} else {
 			// We are not using a set
-			set = null;
+			oaiSet = null;
 		}
 			
 		this.r2dbcOperations = r2dbcOperations;
@@ -489,8 +489,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 					}
 	
 					params.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
-					if ((set != null) && StringUtils.hasText(set)) {
-						params.queryParam(PARAM_SET, set);
+					if ((oaiSet != null) && StringUtils.hasText(oaiSet)) {
+						params.queryParam(PARAM_SET, oaiSet);
 					}
 					
 					// Add any non standard query parameters
@@ -527,7 +527,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		final ListRecordsParams lrParams = parameters.map( ListRecordsParams::toBuilder )
 			.orElse( ListRecordsParams.builder() )
 			.metadataPrefix(metadataPrefix)
-			.set(set)
+			.set(oaiSet)
 			.build();
 		
 		return params -> {
