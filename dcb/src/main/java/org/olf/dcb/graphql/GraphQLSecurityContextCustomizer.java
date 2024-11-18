@@ -36,10 +36,10 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 																						 @Nullable MutableHttpResponse<String> httpResponse) {
 
 		// Uncomment this if this method requires debugging. It will tell you if the username is being fetched properly.
-//		log.debug("Username from SCC: {}", securityService.username().toString());
+		// log.debug("Username from SCC: {}", securityService.username().toString());
 
-		// Gets the username if authentication is present, and then puts it into the GraphQL context.
-		//
+		// This method gets the current user's information, if present, and saves it into the GraphQl context
+		// Thus giving us access to user information when performing GraphQL operations (i.e. for data change log purposes).
 
 		return Mono.fromCallable(() -> {
 			GraphQLContext context = executionInput.getGraphQLContext();
@@ -50,15 +50,13 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 				String email = (String) auth.getAttributes().get("email");
 				String name = (String) auth.getAttributes().get("name");
 
-				log.debug(prefName);
-				log.debug("Email {}, name {}", email, name);
 				// Get the roles (assuming roles are stored in the "roles" attribute)
 				// We are suppressing this warning because we know the roles we're getting from the security service will be in an acceptable format.
 				@SuppressWarnings("unchecked")
 				Collection<String> roles = (Collection<String>) auth.getAttributes().get("roles");
 
 				// Log the userID and roles
-				log.debug("Roles: {}, Username: {}", roles, userID);
+				log.debug("Roles: {}, Username: {}, Email: {}, User ID: {}", roles, prefName, email, userID);
 
 				// Store them in the GraphQL context
 				context.put("currentUser", userID);

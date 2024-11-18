@@ -33,7 +33,9 @@ import lombok.ToString;
  * </p><br>
  * At the time of writing, only one Consortium is intended to exist within a DCB instance.
  * To find a consortium's functional settings, obtain the consortium through its repository methods
- * and then call the FunctionalSettingRepository's 'findByConsortium' method.
+ * and then call the ConsortiumFunctionalRepository's 'findByConsortium' method.
+ * Please see the getFunctionalSettingsForConsortiumDataFetcher for an example of how this can be done.
+ * It can be found in DataFetchers.java.
  * */
 @Data
 @Accessors(chain=true)

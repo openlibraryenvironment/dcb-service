@@ -61,7 +61,6 @@ public class CreateContactDataFetcher implements DataFetcher<CompletableFuture<C
 				log.warn("addContactDataFetcher: Access denied for user {}: user does not have the required role to update a consortium contact.", userString);
 				throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");
 			}
-			// Build the person with the input. Check we have everything first.
 			Person newPerson = Person.builder()
 				.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + input_map.get("firstName") + input_map.get("lastName") + input_map.get("role") + input_map.get("email")))
 				.firstName(input_map.get("firstName").toString())
@@ -74,9 +73,7 @@ public class CreateContactDataFetcher implements DataFetcher<CompletableFuture<C
 			changeCategory.ifPresent(newPerson::setChangeCategory);
 			reason.ifPresent(newPerson::setReason);
 
-			// See if we can take the last edited stuff off the consortium contact - as it should really only be the person.
 			ConsortiumContact contact = ConsortiumContact.builder().build();
-
 			return Mono.from(r2dbcOperations.withTransaction(status ->
 				// First save the person
 				Mono.from(personRepository.save(newPerson))

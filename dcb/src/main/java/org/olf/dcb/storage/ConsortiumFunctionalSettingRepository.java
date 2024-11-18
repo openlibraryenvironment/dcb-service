@@ -5,7 +5,6 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
-import org.olf.dcb.core.model.Person;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
