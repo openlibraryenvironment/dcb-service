@@ -58,6 +58,10 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			input_map.get("displayName").toString() : null;
 		String description = input_map.containsKey("description") ?
 			input_map.get("description").toString() : null;
+		String websiteUrl = input_map.containsKey("websiteUrl") ?
+			input_map.get("websiteUrl").toString() : null;
+		String catalogueSearchUrl = input_map.containsKey("catalogueSearchUrl") ?
+			input_map.get("catalogueSearchUrl").toString() : null;
 		String headerImageUrl = input_map.containsKey("headerImageUrl") ?
 			input_map.get("headerImageUrl").toString() : null;
 		String headerImageUploader = env.getGraphQlContext().get("userName");
@@ -81,6 +85,12 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 					}
 					if (description != null) {
 						consortium.setDescription(description);
+					}
+					if (catalogueSearchUrl != null) {
+						consortium.setCatalogueSearchUrl(catalogueSearchUrl);
+					}
+					if (websiteUrl != null) {
+						consortium.setWebsiteUrl(websiteUrl);
 					}
 					// If a new URL is provided, set the user info for the upload so we know who uploaded it
 					if (headerImageUrl != null) {
