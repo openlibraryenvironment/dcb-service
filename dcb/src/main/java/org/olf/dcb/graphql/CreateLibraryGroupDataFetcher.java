@@ -3,6 +3,7 @@ package org.olf.dcb.graphql;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -34,12 +35,16 @@ public class CreateLibraryGroupDataFetcher implements DataFetcher<CompletableFut
 	@Override
 	public CompletableFuture<LibraryGroup> get(DataFetchingEnvironment env) {
 		Map input_map = env.getArgument("input");
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
+			.map(Object::toString)
+			.orElse("User not detected");
 
 		LibraryGroup input = LibraryGroup.builder()
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)
 			.code(input_map.get("code").toString())
 			.name(input_map.get("name").toString())
 			.type(input_map.get("type").toString())
+			.lastEditedBy(userString)
 			.changeCategory("Initial setup")
 			.reason("Creation of new group").build();
 

@@ -4,11 +4,14 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
 import org.olf.dcb.core.api.exceptions.ConsortiumCreationException;
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumContact;
@@ -64,16 +67,31 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public CompletableFuture<Consortium> get(DataFetchingEnvironment env) {
 		Map input_map = env.getArgument("input");
 		List<Map<String, Object>> functionalSettingsInput = (List<Map<String, Object>>) input_map.get("functionalSettings");
 		List<Map<String, Object>> contactsInput = (List<Map<String, Object>>) input_map.get("contacts");
+		Collection<String> roles = env.getGraphQlContext().get("roles");
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
+			.map(Object::toString)
+			.orElse("User not detected");
+		Optional<String> reason = Optional.ofNullable(input_map.get("reason"))
+			.map(Object::toString);
+		Optional<String> changeReferenceUrl = Optional.ofNullable(input_map.get("changeReferenceUrl"))
+			.map(Object::toString);
+		Optional<String> changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
+			.map(Object::toString);
 
 		// Pre-requisite: There must already be a LibraryGroup that we want to associate to this Consortium
 		// It will have a one-to-one relationship (as long as the type is "consortium" - otherwise no relationship)
 		// And we must supply the name when we create the Consortium.
 
 		log.debug("createConsortiumDataFetcher {}", input_map);
+		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
+			log.warn("createConsortiumDataFetcher: Access denied for user {}: user does not have the required role to create a consortium.", userString);
+			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to create a consortium.");
+		}
 
 		return Mono.from(libraryGroupRepository.findOneByNameAndTypeIgnoreCase(input_map.get("groupName").toString(), "Consortium"))
 			.flatMap(libraryGroup -> {
@@ -116,12 +134,17 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 						.description(description)
 						.websiteUrl(websiteUrl)
 						.dateOfLaunch(launchDate)
-						.libraryGroup(libraryGroup).build();
+						.libraryGroup(libraryGroup)
+						.lastEditedBy(userString)
+						.build();
+					changeReferenceUrl.ifPresent(consortium::setChangeReferenceUrl);
+					changeCategory.ifPresent(consortium::setChangeCategory);
+					reason.ifPresent(consortium::setReason);
 					// Save consortium first. Then associate contacts and settings
 						return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(consortiumRepository.saveOrUpdate(consortium))))
 							.flatMap(savedConsortium -> {
 								Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
-									.map(this::createPersonFromInput)
+									.map(contactInput -> createPersonFromInput(contactInput, userString))
 									.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
 									.collectList();
 								Mono<? extends List<? extends FunctionalSetting>> functionalSettingMono = Flux.fromIterable(functionalSettingsInput)
@@ -144,7 +167,7 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 				}
 			).toFuture();
 	}
-	private Person createPersonFromInput(Map<String, Object> contactInput) {
+	private Person createPersonFromInput(Map<String, Object> contactInput, String username) {
 		return Person.builder()
 			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + contactInput.get("firstName") + contactInput.get("lastName") + contactInput.get("role") + contactInput.get("email")))
 			.firstName(contactInput.get("firstName").toString().trim())
@@ -152,6 +175,7 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			.role(contactInput.get("role").toString())
 			.isPrimaryContact(contactInput.get("isPrimaryContact") != null ? Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
 			.email(contactInput.get("email").toString().trim())
+			.lastEditedBy(username)
 			.build();
 	}
 
