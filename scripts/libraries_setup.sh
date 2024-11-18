@@ -19,6 +19,11 @@ TOKEN=$(curl -s \
   -d "password=$DCB_ADMIN_PASS" \
   -d "grant_type=password" \
   "$KEYCLOAK_BASE/protocol/openid-connect/token" | jq -r '.access_token')
+if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+  echo "Error: Login failed. Unable to retrieve access token. Please check the supplied Keycloak config" >&2
+  exit 1
+fi
+
 echo "Logged in successfully with token."
 
 export LN=0
