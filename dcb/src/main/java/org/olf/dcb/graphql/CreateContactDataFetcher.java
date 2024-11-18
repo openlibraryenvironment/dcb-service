@@ -58,7 +58,7 @@ public class CreateContactDataFetcher implements DataFetcher<CompletableFuture<C
 			Collection<String> roles = env.getGraphQlContext().get("roles");
 			log.debug("createContactDataFetcher input: {}, consortiumId: {}", input_map, consortiumId);
 			if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
-				log.warn("addContactDataFetcher: Access denied for user {}: user does not have the required role to update a consortium contact.", userString);
+				log.warn("createContactDataFetcher: Access denied for user {}: user does not have the required role to update a consortium contact.", userString);
 				throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");
 			}
 			Person newPerson = Person.builder()

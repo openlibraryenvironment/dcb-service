@@ -56,6 +56,8 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			.map(Object::toString);
 		String displayName = input_map.containsKey("displayName") ?
 			input_map.get("displayName").toString() : null;
+		String description = input_map.containsKey("description") ?
+			input_map.get("description").toString() : null;
 		String headerImageUrl = input_map.containsKey("headerImageUrl") ?
 			input_map.get("headerImageUrl").toString() : null;
 		String headerImageUploader = env.getGraphQlContext().get("userName");
@@ -76,6 +78,9 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 				.flatMap(consortium -> {
 					if (displayName != null) {
 						consortium.setDisplayName(displayName);
+					}
+					if (description != null) {
+						consortium.setDescription(description);
 					}
 					// If a new URL is provided, set the user info for the upload so we know who uploaded it
 					if (headerImageUrl != null) {
