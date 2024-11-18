@@ -1549,11 +1549,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						})
 						.cast( JsonArray.class )
 						.flatMap( jsonArr -> {
+
+							// If we have a full page, then we assume there is a subsequent page
+							boolean is_last_chunk =  jsonArr.size() != apiParams.getNrecs();
 							
 							try {
 								
+								// if is_last_chunk we should set startdatemodified to the highest startdatemodified we have seen so far
+								// so that in the next run we start with the most recently modified record.
+
+								// If we don't do this, and the records go 1, 2, 3, 4, 5, 6 in the first pass, leaving next-id = 6
+								// and the next page of data is 1,2,3,4,5,6.... 2,3,4,2,6 then the ingest will pick up at record 6 and skip
+								// the edits for 2,3,4,4.. which will cause problems. 
+
 								// We return the current data with the Checkpoint that will return the next chunk.
 								final JsonNode newCheckpoint = objectMapper.writeValueToTree(apiParams.toBuilder()
+									.startdatemodified( null )
 									.lastId(lastId)
 									.build());
 								
