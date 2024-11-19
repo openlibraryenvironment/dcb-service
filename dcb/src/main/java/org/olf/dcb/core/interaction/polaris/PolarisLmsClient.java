@@ -21,6 +21,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1519,68 +1520,85 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		try {
 
 			// Use the inbuilt marshalling to convert into the BibParams.
-			final Optional<BibsPagedGetParams> optParams = checkpoint.isPresent() ? Optional.of( objectMapper.readValueFromTree(checkpoint.get(), BibsPagedGetParams.class) ) : Optional.empty();
-			
-			final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
-	  	final Instant now = Instant.now();
+			final Optional<ExtendedBibsPagedGetParams> optExtParams = checkpoint.isPresent() ? Optional.of( objectMapper.readValueFromTree(checkpoint.get(), ExtendedBibsPagedGetParams.class) ) : Optional.empty();
+			final ExtendedBibsPagedGetParams extParams = optExtParams.isPresent() ? optExtParams.get() : new ExtendedBibsPagedGetParams();
 
-      log.info("Polaris get bibs page from {} with params {}",lms.getName(),apiParams);
+			// Extract the bibs paged params needed for the HTTP request from the extended params we store against the checkpoint
+			final Optional<BibsPagedGetParams> optParams = optExtParams.isPresent() ? Optional.of(optExtParams.get().toBibsPagedGetParams()) : Optional.empty();
 
-			return Mono.just( apiParams )
-				.flatMap( params -> Mono.from( PAPIService.synch_BibsPagedGetRaw(params) ))
+
+				// Instant highestDateUpdatedSeen = optExtParams.isPresent() ? optExtParams.get().getHighestDateUpdatedSeen() : null;
 				
-				.flatMap( bibsPaged -> {
-					 final int lastId = bibsPaged.get("LastID").getIntValue();
-					 return Mono.just( bibsPaged )
-						.mapNotNull( itemPage -> {
-							var entries = itemPage.get("GetBibsPagedRows");
-							if (entries == null) {
-								log.debug("[.GetBibsPagedRows] property received from polaris is null");
-							}
-							return entries;
-						})
-						.filter( entries -> {
-							if (entries.isArray()) {
-								return true;
-							}
-							
-							log.debug("[.GetBibsPagedRows] property received from polaris is not an array");
-							return false;
-						})
-						.cast( JsonArray.class )
-						.flatMap( jsonArr -> {
+				final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
+				final Instant now = Instant.now();
 
-							// If we have a full page, then we assume there is a subsequent page
-							boolean is_last_chunk =  jsonArr.size() != apiParams.getNrecs();
-							
-							try {
-								
-								// if is_last_chunk we should set startdatemodified to the highest startdatemodified we have seen so far
-								// so that in the next run we start with the most recently modified record.
+				log.info("Polaris get bibs page from {} with params {}",lms.getName(),apiParams);
 
-								// If we don't do this, and the records go 1, 2, 3, 4, 5, 6 in the first pass, leaving next-id = 6
-								// and the next page of data is 1,2,3,4,5,6.... 2,3,4,2,6 then the ingest will pick up at record 6 and skip
-								// the edits for 2,3,4,4.. which will cause problems. 
+				return Mono.just( apiParams )
+					.flatMap( params -> Mono.from( PAPIService.synch_BibsPagedGetRaw(params) ))
+					
+					.flatMap( bibsPaged -> {
 
-								// We return the current data with the Checkpoint that will return the next chunk.
-								final JsonNode newCheckpoint = objectMapper.writeValueToTree(apiParams.toBuilder()
-									.startdatemodified( null )
-									.lastId(lastId)
-									.build());
+						 int lastId = bibsPaged.get("LastID").getIntValue();
+
+						 return Mono.just( bibsPaged )
+							.mapNotNull( itemPage -> {
+								var entries = itemPage.get("GetBibsPagedRows");
+								if (entries == null) {
+									log.debug("[.GetBibsPagedRows] property received from polaris is null");
+								}
+								return entries;
+							})
+							.filter( entries -> {
+								if (entries.isArray()) {
+									return true;
+								}
 								
-								final var builder = SourceRecordImportChunk.builder()
-										.lastChunk( jsonArr.size() != apiParams.getNrecs())
-										.checkpoint( newCheckpoint );
+								log.debug("[.GetBibsPagedRows] property received from polaris is not an array");
+								return false;
+							})
+							.cast( JsonArray.class )
+							.flatMap( jsonArr -> {
+
+								// If we have a full page, then we assume there is a subsequent page
+								boolean is_last_chunk =  jsonArr.size() != apiParams.getNrecs();
 								
-								jsonArr.values().forEach(rawJson -> {
+								try {
 									
-									try {
-										builder.dataEntry( SourceRecord.builder()
-						  				.hostLmsId( lms.getId() )
-						  				.lastFetched( now )
-						  				.remoteId( rawJson.get("BibliographicRecordID").coerceStringValue() )
-						  				.sourceRecordData( rawJson )
-						  				.build());
+									// if is_last_chunk we should set startdatemodified to the highest startdatemodified we have seen so far
+									// so that in the next run we start with the most recently modified record.
+
+									// If we don't do this, and the records go 1, 2, 3, 4, 5, 6 in the first pass, leaving next-id = 6
+									// and the next page of data is 1,2,3,4,5,6.... 2,3,4,2,6 then the ingest will pick up at record 6 and skip
+									// the edits for 2,3,4,4.. which will cause problems. 
+
+									final boolean isLastChunk = jsonArr.size() != apiParams.getNrecs();
+									
+									final var builder = SourceRecordImportChunk.builder()
+											.lastChunk( isLastChunk );
+
+									// polaris date format for last modified: 1970-01-01T00:00:00.001Z
+									DateTimeFormatter lmdateparser = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+										.withZone(ZoneOffset.UTC);
+									
+									jsonArr.values().forEach(rawJson -> {
+
+										try {
+											builder.dataEntry( SourceRecord.builder()
+												.hostLmsId( lms.getId() )
+												.lastFetched( now )
+												.remoteId( rawJson.get("BibliographicRecordID").coerceStringValue() )
+												.sourceRecordData( rawJson )
+												.build());
+
+											String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
+											ZonedDateTime zonedDateTime = ZonedDateTime.parse(recordModificationDate, lmdateparser);
+											Instant modification_instant = zonedDateTime.toInstant();
+											if ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
+											     ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) {
+											extParams.setHighestDateUpdatedSeen(modification_instant);
+										}
+
 					  			} catch (Throwable t) {  				
 					  				if (log.isDebugEnabled()) {
 					    				log.error( "Error creating SourceRecord from JSON '{}' \ncause: {}", rawJson, t);
@@ -1589,6 +1607,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					  				}
 					  			}
 								});
+
+								if ( isLastChunk ) {
+									// If this is the last chunk, set the highest updated date seen, null out our transient and set recno to 0;
+									extParams.setStartdatemodified(extParams.getHighestDateUpdatedSeen());
+									extParams.setLastId(Integer.valueOf(0));
+								}
+
+								// We return the current data with the Checkpoint that will return the next chunk.
+								final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
+
+								builder.checkpoint( newCheckpoint );
 								
 								return Mono.just( builder.build() );
 								

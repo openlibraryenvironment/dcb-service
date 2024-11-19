@@ -76,6 +76,8 @@ public interface CoreBibliographicMetadata {
 	static final String MD_PLACE_OF_PUB = "placeOfPublication";
 	static final String MD_AUTHOR = "author";
 	static final String MD_DERIVED_TYPE = "derivedType";
+	static final String MD_DERIVED_FORM_OF_ITEM = "derivedFormOfItem";
+	static final String MD_FORM_OF_ITEM = "formOfItem";
 	static final String MD_RECORD_STATUS = "recordStatus";
 	static final String MD_EDITION = "edition";
 	static final String MD_LARGE_PRINT = "largePrint";
@@ -84,11 +86,29 @@ public interface CoreBibliographicMetadata {
 	public default String getDerivedType() {
 		return getMetadataValue(MD_DERIVED_TYPE, String.class);
 	}
-	
+
 	public default CoreBibliographicMetadata setDerivedType(String derivedType) {
 		return setMetadataValue(MD_DERIVED_TYPE, derivedType);
 	}
 
+  @Nullable
+  public default String getDerivedFormOfItem() {
+    return getMetadataValue(MD_DERIVED_FORM_OF_ITEM, String.class);
+  }
+
+  public default CoreBibliographicMetadata setDerivedFormOfItem(String derivedFormOfItem) {
+    return setMetadataValue(MD_DERIVED_FORM_OF_ITEM, derivedFormOfItem);
+  }
+
+  @Nullable
+  public default String getFormOfItem() {
+    return getMetadataValue(MD_FORM_OF_ITEM, String.class);
+  }
+
+	public default CoreBibliographicMetadata setFormOfItem(String formOfItem) {
+		return setMetadataValue(MD_FORM_OF_ITEM, formOfItem);
+	}
+	
 	@Nullable
 	public default String getRecordStatus() {
 		return getMetadataValue(MD_RECORD_STATUS, String.class);
