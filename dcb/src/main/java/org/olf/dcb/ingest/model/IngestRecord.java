@@ -157,6 +157,16 @@ public class IngestRecord implements CoreBibliographicMetadata {
 			return this;
 		}
 
+		public IngestRecordBuilder formOfItem(String formOfItem) {
+			addToMd(CoreBibliographicMetadata.MD_FORM_OF_ITEM, formOfItem);
+			return this;
+		}
+
+		public IngestRecordBuilder derivedFormOfItem(String derivedFormOfItem) {
+			addToMd(CoreBibliographicMetadata.MD_DERIVED_FORM_OF_ITEM, derivedFormOfItem);
+			return this;
+		}
+
 		public IngestRecordBuilder addOtherAuthor(Consumer<AuthorBuilder> consumer) {
 			otherAuthor(Author.build(consumer));
 			return this;

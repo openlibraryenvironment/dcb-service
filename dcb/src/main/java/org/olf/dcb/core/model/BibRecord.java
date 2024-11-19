@@ -143,6 +143,20 @@ public class BibRecord implements CoreBibliographicMetadata {
 		return CoreBibliographicMetadata.super.getPlaceOfPublication();
 	}
 
+  @Override
+  @Transient
+  @Nullable
+  public String getFormOfItem() {
+    return CoreBibliographicMetadata.super.getFormOfItem();
+  }
+
+  @Override
+  @Transient
+  @Nullable
+  public String getDerivedFormOfItem() {
+    return CoreBibliographicMetadata.super.getDerivedFormOfItem();
+  }
+
 	@Override
 	@Transient
 	@Nullable
