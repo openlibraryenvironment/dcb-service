@@ -1591,13 +1591,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.sourceRecordData( rawJson )
 												.build());
 
-											String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
-											ZonedDateTime zonedDateTime = ZonedDateTime.parse(recordModificationDate, lmdateparser);
-											Instant modification_instant = zonedDateTime.toInstant();
-											if ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
-											     ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) {
-											extParams.setHighestDateUpdatedSeen(modification_instant);
-										}
+											var recordModificationDate = rawJson.get("ModificationDate");
+											log.info("Record modification date : {}",recordModificationDate);
+											if ( recordModificationDate != null )
+												log.info("Record modification date is instance of {}",recordModificationDate.getClass().getName());
+
+
+											// String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
+											// ZonedDateTime zonedDateTime = ZonedDateTime.parse(recordModificationDate, lmdateparser);
+											// Instant modification_instant = zonedDateTime.toInstant();
+											// if ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
+											//      ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) {
+											// extParams.setHighestDateUpdatedSeen(modification_instant);
+										  // }
 
 					  			} catch (Throwable t) {  				
 					  				if (log.isDebugEnabled()) {
