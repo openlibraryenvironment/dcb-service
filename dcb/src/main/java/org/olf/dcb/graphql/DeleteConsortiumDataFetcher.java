@@ -22,6 +22,7 @@ import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import jakarta.inject.Singleton;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Singleton
@@ -73,42 +74,78 @@ public class DeleteConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			log.warn("deleteConsortiumDataFetcher: Access denied for user {}: user does not have the required role to delete a consortium.", userString);
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");
 		}
-		return Mono.from(r2dbcOperations.withTransaction(status ->
-				Mono.from(consortiumRepository.findById(entityId))
-					.flatMap(consortium -> {
-						if (consortium == null) {
-							return Mono.error(new IllegalArgumentException("Consortium not found"));
+
+		return Mono.from(consortiumRepository.findById(entityId))
+			.flatMap(consortium -> {
+				if (consortium == null) {
+					log.error("Consortium not found for ID: {}", entityId);
+					return Mono.just(createResult(false, "Consortium not found"));
+				}
+
+				UUID libraryGroupId = consortium.getLibraryGroup() != null ?
+					consortium.getLibraryGroup().getId() : null;
+
+				log.debug("Found consortium with id: {}, libraryGroupId: {}", entityId, libraryGroupId);
+
+				if (libraryGroupId == null) {
+					// If no library group, just delete the single consortium + associated info
+					return Mono.from(deleteConsortium(entityId,
+							input_map.containsKey("reason") ? input_map.get("reason").toString() : null,
+							input_map.containsKey("changeCategory") ? input_map.get("changeCategory").toString() : null,
+							input_map.containsKey("changeReferenceUrl") ? input_map.get("changeReferenceUrl").toString() : null,
+							userString))
+						.thenReturn(createResult(true, "The consortium and its associated data were deleted successfully"));
+				}
+
+				// Handles the deletion of consortia that have library groups associated with them.
+				// Also handles legacy case of consortia sharing a library group
+				return Flux.from(consortiumRepository.findByLibraryGroupId(libraryGroupId))
+					.collectList()
+					.flatMap(consortia -> {
+						boolean multipleConsortia = consortia.size() > 1;
+						if (multipleConsortia) {
+								log.debug("Found {} legacy consortia sharing library group {}. These consortia will be deleted.", consortia.size(), libraryGroupId);
+						} else {
+								log.debug("Found one consortium {} with an associated library group {}. This consortium will be deleted", consortia, libraryGroupId);
 						}
-
-						UUID libraryGroupId = consortium.getLibraryGroup() != null ?
-							consortium.getLibraryGroup().getId() : null;
-
-						// Update consortium with audit info and null out library group
-						consortium.setReason(reason);
-						consortium.setLastEditedBy(userString);
-						consortium.setChangeCategory(changeCategory);
-						consortium.setChangeReferenceUrl(changeReferenceUrl);
-						consortium.setLibraryGroup(null);  // Null out the library group reference so we can delete the consortia + group safely.
-
-						return Mono.from(consortiumRepository.update(consortium))
-							.then(Mono.when(
-								Mono.from(consortiumContactRepository.deleteAllByConsortiumId(entityId)),
-								Mono.from(consortiumFunctionalSettingRepository.deleteAllByConsortiumId(entityId))
-							))
-							.then(Mono.from(consortiumRepository.delete(entityId)))
-							.then(libraryGroupId != null ?
-								Mono.from(libraryGroupRepository.delete(libraryGroupId)) :
-								Mono.empty()
-							);
-					})
-					.thenReturn(true)
-			))
-			.map(success -> createResult(success, success ? "Consortium and associated data deleted successfully" : "Failed to delete consortium"))
+						return Flux.fromIterable(consortia)
+							.flatMap(c -> deleteConsortium(
+								c.getId(),
+								input_map.containsKey("reason") ? input_map.get("reason").toString() : null,
+								input_map.containsKey("changeCategory") ? input_map.get("changeCategory").toString() : null,
+								input_map.containsKey("changeReferenceUrl") ? input_map.get("changeReferenceUrl").toString() : null,
+								userString))
+							.then(Mono.from(libraryGroupRepository.delete(libraryGroupId)))
+							.thenReturn(createResult(true, multipleConsortia ? "The legacy consortia and their shared library group were deleted successfully" : "The consortium and its associated library group was deleted successfully"));
+					});
+			})
 			.onErrorResume(e -> {
-				log.error("Error deleting consortium", e);
+				log.error("Error during consortium deletion", e);
 				return Mono.just(createResult(false, "Error deleting consortium: " + e.getMessage()));
 			})
+			.defaultIfEmpty(createResult(false, "No consortium was found with the UUID provided"))
 			.toFuture();
+	}
+
+	private Mono<Void> deleteConsortium(UUID consortiumId, String reason, String changeCategory,
+																			String changeReferenceUrl, String userString) {
+		log.debug("Deleting consortium {} and associated information. This will not delete a consortium's libraries.", consortiumId);
+		return Mono.from(consortiumRepository.findById(consortiumId))
+			.flatMap(consortium -> {
+				// Update consortium with audit info and null out library group
+				consortium.setReason(reason);
+				consortium.setLastEditedBy(userString);
+				consortium.setChangeCategory(changeCategory);
+				consortium.setChangeReferenceUrl(changeReferenceUrl);
+				consortium.setLibraryGroup(null);
+
+				return Mono.from(consortiumRepository.update(consortium))
+					.then(Mono.when(
+						Mono.from(consortiumContactRepository.deleteAllByConsortiumId(consortiumId)),
+						Mono.from(consortiumFunctionalSettingRepository.deleteAllByConsortiumId(consortiumId))
+					))
+					.then(Mono.from(consortiumRepository.delete(consortiumId)));
+			});
 	}
 
 	private Map<String, Object> createResult(boolean success, String message) {

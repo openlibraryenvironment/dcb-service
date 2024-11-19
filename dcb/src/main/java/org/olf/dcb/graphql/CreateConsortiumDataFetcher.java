@@ -96,70 +96,77 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 		return Mono.from(libraryGroupRepository.findOneByNameAndTypeIgnoreCase(input_map.get("groupName").toString(), "Consortium"))
 			.flatMap(libraryGroup -> {
 				if (libraryGroup != null) {
-					// If a library group matching the conditions is found, we can create the associated consortium
-					// Input date must be in format YYYY-MM-DD
-					LocalDate launchDate = LocalDate.parse(input_map.get("dateOfLaunch").toString(), DateTimeFormatter.ISO_LOCAL_DATE );
+					// If a library group matching the conditions is found, we can attempt to create the associated consortium
+					return Mono.from(consortiumRepository.existsByLibraryGroup(libraryGroup))
+						.flatMap(exists -> {
+								if (exists) {
+									// Do not allow a new consortium to be created for a group that already has one
+									return Mono.error(new ConsortiumCreationException("A consortium already exists for the specified library group."));
+								}
+							// Input date must be in format YYYY-MM-DD
+								LocalDate launchDate = LocalDate.parse(input_map.get("dateOfLaunch").toString(), DateTimeFormatter.ISO_LOCAL_DATE );
 
-					String displayName = Optional.ofNullable(input_map.get("displayName"))
-						.map(Object::toString)
-						.orElse("");
+								String displayName = Optional.ofNullable(input_map.get("displayName"))
+									.map(Object::toString)
+									.orElse("");
 
-					String headerImageUrl = Optional.ofNullable(input_map.get("headerImageUrl"))
-						.map(Object::toString)
-						.orElse("");
+								String headerImageUrl = Optional.ofNullable(input_map.get("headerImageUrl"))
+									.map(Object::toString)
+									.orElse("");
 
-					String aboutImageUrl = Optional.ofNullable(input_map.get("aboutImageUrl"))
-						.map(Object::toString)
-						.orElse("");
+								String aboutImageUrl = Optional.ofNullable(input_map.get("aboutImageUrl"))
+									.map(Object::toString)
+									.orElse("");
 
-					String catalogueSearchUrl = Optional.ofNullable(input_map.get("catalogueSearchUrl"))
-						.map(Object::toString)
-						.orElse("");
+								String catalogueSearchUrl = Optional.ofNullable(input_map.get("catalogueSearchUrl"))
+									.map(Object::toString)
+									.orElse("");
 
-					String description = Optional.ofNullable(input_map.get("description"))
-						.map(Object::toString)
-						.orElse("");
+								String description = Optional.ofNullable(input_map.get("description"))
+									.map(Object::toString)
+									.orElse("");
 
-					String websiteUrl = Optional.ofNullable(input_map.get("websiteUrl"))
-						.map(Object::toString)
-						.orElse("");
+								String websiteUrl = Optional.ofNullable(input_map.get("websiteUrl"))
+									.map(Object::toString)
+									.orElse("");
 
-					Consortium consortium = Consortium.builder()
-						.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Consortium:" + input_map.get("name").toString()))
-						.name(input_map.get("name").toString())
-						.displayName(displayName)
-						.headerImageUrl(headerImageUrl)
-						.aboutImageUrl(aboutImageUrl)
-						.catalogueSearchUrl(catalogueSearchUrl)
-						.description(description)
-						.websiteUrl(websiteUrl)
-						.dateOfLaunch(launchDate)
-						.libraryGroup(libraryGroup)
-						.lastEditedBy(userString)
-						.build();
-					changeReferenceUrl.ifPresent(consortium::setChangeReferenceUrl);
-					changeCategory.ifPresent(consortium::setChangeCategory);
-					reason.ifPresent(consortium::setReason);
-					// Save consortium first. Then associate contacts and settings
-						return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(consortiumRepository.saveOrUpdate(consortium))))
-							.flatMap(savedConsortium -> {
-								Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
-									.map(contactInput -> createPersonFromInput(contactInput, userString))
-									.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
-									.collectList();
-								Mono<? extends List<? extends FunctionalSetting>> functionalSettingMono = Flux.fromIterable(functionalSettingsInput)
-									.map(this::createFunctionalSettingFromInput)
-									.flatMap(functionalSetting -> Mono.from(functionalSettingRepository.saveOrUpdate(functionalSetting)))
-									.collectList();
-								return functionalSettingMono.flatMap(functionalSettings -> {
-									return associateFunctionalSettingsWithConsortium(savedConsortium, (List<FunctionalSetting>) functionalSettings)
-										.then(contactsMono.flatMap(contacts -> {
-											return associateContactsWithConsortium(savedConsortium, (List<Person>) contacts)
-												.then(Mono.just(savedConsortium));
-										}));
-								});
+								Consortium consortium = Consortium.builder()
+									.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Consortium:" + input_map.get("name").toString()))
+									.name(input_map.get("name").toString())
+									.displayName(displayName)
+									.headerImageUrl(headerImageUrl)
+									.aboutImageUrl(aboutImageUrl)
+									.catalogueSearchUrl(catalogueSearchUrl)
+									.description(description)
+									.websiteUrl(websiteUrl)
+									.dateOfLaunch(launchDate)
+									.libraryGroup(libraryGroup)
+									.lastEditedBy(userString)
+									.build();
+								changeReferenceUrl.ifPresent(consortium::setChangeReferenceUrl);
+								changeCategory.ifPresent(consortium::setChangeCategory);
+								reason.ifPresent(consortium::setReason);
+								// Save consortium first. Then associate contacts and settings
+								return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(consortiumRepository.saveOrUpdate(consortium))))
+									.flatMap(savedConsortium -> {
+										Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
+											.map(contactInput -> createPersonFromInput(contactInput, userString))
+											.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
+											.collectList();
+										Mono<? extends List<? extends FunctionalSetting>> functionalSettingMono = Flux.fromIterable(functionalSettingsInput)
+											.map(this::createFunctionalSettingFromInput)
+											.flatMap(functionalSetting -> Mono.from(functionalSettingRepository.saveOrUpdate(functionalSetting)))
+											.collectList();
+										return functionalSettingMono.flatMap(functionalSettings -> {
+											return associateFunctionalSettingsWithConsortium(savedConsortium, (List<FunctionalSetting>) functionalSettings)
+												.then(contactsMono.flatMap(contacts -> {
+													return associateContactsWithConsortium(savedConsortium, (List<Person>) contacts)
+														.then(Mono.just(savedConsortium));
+												}));
+										});
+									});
 							});
-				}
+						}
 				else {
 					// If not, we cannot create a consortium.
 					return Mono.error(new ConsortiumCreationException("Consortium creation has failed because a compatible library group was not found. You must supply the name of an existing LibraryGroup of type consortium."));
