@@ -25,6 +25,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.text.SimpleDateFormat;
@@ -61,9 +62,11 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -105,6 +108,7 @@ import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
 import services.k_int.interaction.sierra.DateTimeRange;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.QueryResultSet;
 import services.k_int.interaction.sierra.SierraApiClient;
 import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.bibs.BibParams;
@@ -150,6 +154,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_PIN = stringPropertyDefinition(
 		"virtual-patron-pin", "Virtual patrons pin to use", FALSE);
 
+	private static final HostLmsPropertyDefinition PATRON_SEARCH_TAG = stringPropertyDefinition(
+		"patron-search-tag", "VarFieldTag to search for patron by", FALSE);
+
 	private static final String UUID5_PREFIX = "ingest-source:sierra-lms";
 	private static final Integer FIXED_FIELD_158 = 158;
 
@@ -163,7 +170,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final SierraItemMapper itemMapper;
 	private final ObjectRulesService objectRuleService;
   private final ObjectMapper objectMapper;
-	
+	private final SierraResponseErrorMatcher sierraResponseErrorMatcher = new SierraResponseErrorMatcher();
+
 	private final Integer getHoldsRetryAttempts;
 	private final SierraPatronMapper sierraPatronMapper;
 	
@@ -221,6 +229,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final var pin = VIRTUAL_PATRON_PIN.getOptionalValueFrom(clientConfig, null);
 		log.info("Virtual patron pin set to {} for HostLMS {}", pin, lms.getName());
 		return pin;
+	}
+
+	private String getPatronSearchTag(Map<String, Object> clientConfig) {
+		final var tag = PATRON_SEARCH_TAG.getOptionalValueFrom(clientConfig, null);
+		log.info("Patron search tag set to {} for HostLMS {}", tag, lms.getName());
+		return tag;
 	}
 
 	@Override
@@ -784,7 +798,61 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Look up virtual patron using generated unique ID string
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 
-		return patronFind("u", uniqueId);
+		log.debug("findVirtualPatron, uniqueId:{}", uniqueId);
+
+		final var queryEntry = buildPatronQuery(uniqueId);
+		final var offset = 0;
+		final var limit = 10;
+
+		return Mono.from(client.patronsQuery(offset, limit, queryEntry))
+			.map(queryResultSet -> {
+
+				final var entries = getValueOrNull(queryResultSet, QueryResultSet::getEntries);
+				final var entriesSize = (entries != null) ? entries.size() : 0;
+
+				if (entriesSize < 1) {
+					log.warn("No virtual Patron found.");
+
+					throw VirtualPatronNotFound.builder()
+						.withDetail(entriesSize + " records found")
+						.with("offset", offset)
+						.with("limit", limit)
+						.with("queryEntry", queryEntry)
+						.with("Response", queryResultSet)
+						.build();
+				}
+
+				if (entriesSize > 1) {
+					log.error("More than one virtual patron found: {}", queryResultSet);
+
+					throw MultipleVirtualPatronsFound.builder()
+						.withDetail(entriesSize + " records found")
+						.with("offset", offset)
+						.with("limit", limit)
+						.with("queryEntry", queryEntry)
+						.with("Response", queryResultSet)
+						.build();
+				}
+
+				final var localPatronId = deRestify(entries.get(0).getLink());
+
+				if (localPatronId == null) {
+					log.error("localPatronId could not be extracted from: {}", entries);
+
+					throw Problem.builder()
+						.withTitle("Virtual patron ID could not be extracted")
+						.withDetail(entriesSize + " records found")
+						.with("offset", offset)
+						.with("limit", limit)
+						.with("queryEntry", queryEntry)
+						.with("Response", queryResultSet)
+						.build();
+				}
+
+				log.debug("findVirtualPatron, patron id successfully extracted: {}", localPatronId);
+				return localPatronId;
+			})
+			.flatMap(this::getPatronByLocalId);
 	}
 
 	@Override
@@ -1348,11 +1416,23 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 	}
 
-	public Mono<Patron> getPatronByBarcode(String localPatronBarcode) {
-		log.debug("getPatronByLocalBarcode({})", localPatronBarcode);
+	public Mono<Patron> getPatronByIdentifier(String identifier) {
+		log.debug("getPatronByIdentifier({})", identifier);
 
-		return patronFind("b", localPatronBarcode)
-			.switchIfEmpty(Mono.error(patronNotFound(localPatronBarcode, getHostLmsCode())));
+		final var tag = getPatronSearchTag(getConfig());
+
+		// When the tag has not been set in the Host LMS for patron search we default to finding patron by local ID
+		if (isEmpty(tag)) {
+			log.warn("getPatronByIdentifier, no \"{}\" configuration value found", PATRON_SEARCH_TAG.getName());
+			log.info("getPatronByIdentifier, using localId: {}", identifier);
+
+			return getPatronByLocalId(identifier)
+				.switchIfEmpty(Mono.error(patronNotFound(identifier, getHostLmsCode())));
+		}
+
+		log.info("getPatronByIdentifier, identifier: {} tag: {}", identifier, tag);
+		return patronFind(tag, identifier)
+			.switchIfEmpty(Mono.error(patronNotFound(identifier, getHostLmsCode())));
 	}
 
 	public Mono<Patron> getPatronByUsername(String username) {

@@ -3,11 +3,13 @@ select pr.date_updated::date "Date", rhl.name "Requester", shl.name "Supplier", 
 from patron_request pr, host_lms rhl, host_lms shl, supplier_request sr, agency a
 where pr.error_message not like 'Could not update item % status for hostlms: %' and
 	  pr.error_message != 'Unable to create virtual patron at polaris - error code: -3529' and
+	  pr.error_message != 'Unable to create virtual patron at polaris - error code: -3612' and
 	  pr.error_message != 'Property cause is reserved' and
 	  pr.error_message not like 'Unable to map canonical patron type "YOUNG ADULT" to a patron type on Host LMS:%' and
 	  pr.error_message not like 'No mapping found from ptype%' and
 	  pr.error_message not like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %' and
 	  pr.error_message != 'Patron has unexpected blocks' and
+	  pr.error_message not like 'Failed to resolve shelving loc % to agency' and
 	  not exists (select 1 from patron_request_audit pra
 	              where pra.patron_request_id = pr.id and
 				        (pra.audit_data->>'errorMessage' = 'Connection closed before response was received' or
@@ -47,7 +49,16 @@ where pr.error_message not like 'Could not update item % status for hostlms: %' 
 						 pra.audit_data->>'Message' like 'The following links will be broken if you continue deleting item record%' or
 						 pra.audit_data->>'Message' like 'Title: %This item is not holdable.' or
 						 pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented' or
-						 pra.audit_data->>'detail' like '%XCirc Error: This record is not available')
+						 pra.audit_data->>'detail' like '%XCirc Error: This record is not available' or
+						 pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%' or
+						 pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
+						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%' or
+						 pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%' or
+						 pra.audit_data->>'detail' like 'No holds to process for local patron id:%' or
+						 pra.brief_description = 'Multiple Virtual Patrons Found' or
+						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%' or
+						 pra.brief_description = 'Staff Auth Failed'
+					 )
 				 ) and
 	  pr.status_code = 'ERROR' and
   	  rhl.code = pr.patron_hostlms_code and

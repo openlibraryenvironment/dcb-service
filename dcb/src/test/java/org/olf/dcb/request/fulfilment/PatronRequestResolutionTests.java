@@ -120,7 +120,7 @@ class PatronRequestResolutionTests {
 			"", "http://some-system", "item");
 
 		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, "",
-			"", "http://some-system", "item");
+			"", "http://some-borrowing-system", "item");
 	}
 
 	@BeforeEach
@@ -186,6 +186,7 @@ class PatronRequestResolutionTests {
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -259,7 +260,7 @@ class PatronRequestResolutionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), empty());
@@ -314,7 +315,7 @@ class PatronRequestResolutionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), empty());
@@ -351,7 +352,7 @@ class PatronRequestResolutionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY));
+		assertThat(fetchedPatronRequest, hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY));
 
 		assertThat("Should not find any supplier requests",
 			supplierRequestsFixture.findAllFor(patronRequest), empty());

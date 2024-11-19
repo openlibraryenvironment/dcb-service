@@ -35,6 +35,10 @@ type Mutation {
 		updateLocation(input: UpdateLocationInput): Location!
 		updateLibrary(input: UpdateLibraryInput): Library!
 		updatePerson(input: UpdatePersonInput): Person!
+		updateReferenceValueMapping(input: UpdateReferenceValueMappingInput): ReferenceValueMapping!
+		updateNumericRangeMapping(input: UpdateNumericRangeMappingInput): NumericRangeMapping!
+		deleteReferenceValueMapping(input: DeleteEntityInput): DeleteEntityPayload!
+		deleteNumericRangeMapping(input: DeleteEntityInput): DeleteEntityPayload!
 }
 
 input AddAgencyToGroupCommand {
@@ -92,7 +96,6 @@ input DeleteEntityInput {
 	changeReferenceUrl: String
 	changeCategory: String
 }
-
 
 type DeleteEntityPayload {
 	success: Boolean!
@@ -161,6 +164,23 @@ input UpdatePersonInput {
 	changeReferenceUrl: String
 	changeCategory: String
 }
+
+input UpdateNumericRangeMappingInput {
+	id: ID!
+	mappedValue: String
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+input UpdateReferenceValueMappingInput {
+	id: ID!
+	toValue: String
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
 
 type ProcessState {
   id: ID
@@ -238,8 +258,8 @@ type PatronRequest {
   localItemType: String
   localBibId: String
   description: String
-	nextScheduledPoll: String
-	errorMessage: String
+  nextScheduledPoll: String
+  errorMessage: String
   activeWorkflow: String
   requesterNote: String
   suppliers: [SupplierRequest]
@@ -249,15 +269,16 @@ type PatronRequest {
   pollCountForCurrentStatus: Int
   manualPollCountForCurrentStatus: Int
   autoPollCountForCurrentStatus: Int
-	currentStatusTimestamp: String
-	nextExpectedStatus: String
-	outOfSequenceFlag: Boolean
-	elapsedTimeInCurrentStatus: Float
-	rawLocalItemStatus: String
-	rawLocalRequestStatus: String
-	localItemHostlmsCode: String
-	localItemAgencyCode: String
-	isManuallySelectedItem: Boolean
+  currentStatusTimestamp: String
+  nextExpectedStatus: String
+  outOfSequenceFlag: Boolean
+  elapsedTimeInCurrentStatus: Float
+  rawLocalItemStatus: String
+  rawLocalRequestStatus: String
+  localItemHostlmsCode: String
+  localItemAgencyCode: String
+  isManuallySelectedItem: Boolean
+  resolutionCount: Int
 }
 
 type PatronRequestAudit {

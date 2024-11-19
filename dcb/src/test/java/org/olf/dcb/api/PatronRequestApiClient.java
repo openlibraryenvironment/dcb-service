@@ -74,6 +74,10 @@ class PatronRequestApiClient {
 		return blockingClient.exchange(request, UUID.class);
 	}
 
+	public void removeTokenFromValidTokens() {
+			TestStaticTokenValidator.invalidateToken(accessToken);
+	}
+
 	@Serdeable
 	@Value
 	@Builder

@@ -34,13 +34,13 @@ select case
 			   'Maximum overdues, DCB-????'
 		   when pra.audit_data->>'detail' like 'Item with barcode: % already exists in host%'
 		   then
-			   'Item with barcode already exists, DCB-1374'
+			   'Item with barcode already exists, DCB-1275'
 		   when pra.audit_data->>'Message' like 'The following links will be broken if you continue deleting item record%'
 		   then
-			   'Item record links breakable, DCB-1504'
+			   'Item record links breakable, DCB-1374'
 		   when pra.audit_data->>'Message' like 'Title: %This item is not holdable.'
 		   then
-			   'Item not holdable, DCB-????'
+			   'Item not holdable, DCB-1504'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Item with id % already has an open DCB transaction%'
 		   then
 			   'Item has DCB transaction, DCB-1449'
@@ -73,10 +73,10 @@ select case
 			   'Connection closed, DCB-1484'
 		   when pra.audit_data->>'errorMessage' like 'Connect Error: Connection refused: %'
 		   then
-			   'Connection refused, DCB-????'
+			   'Connection refused, DCB-1484'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to find existing item with id % and barcode %'
 		   then
-			   'Cannot place request, DCB-1434'
+			   'Cannot place request, DCB-????'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%CQLParseException: expected boolean, got ''/'': barcode==%'
 		   then
 			   'Barcode ends with slash, DCB-1470'
@@ -91,7 +91,7 @@ select case
 			   'Unauthorised, DCB-1453'
 		   when pra.audit_data->>'detail' like 'Unable to find existing user with barcode %'
 		   then
-			   'Unable to find existing user, DCB-????'
+			   'Unable to find existing user, DCB-1434'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Cannot cancel transaction dcbTransactionId: %'
 		   then
 			   'Unable to cancel patron, DCB-1458'
@@ -109,7 +109,32 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented'
 		   then
 			   'Item checkout to close not implemented, DCB-1520'
-		   else concat('not caught: ', pra.id, ', ', pra.brief_description)
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%'
+		   then
+			   'Unable to create item with barcode as already exists, DCB-1576'
+		   when pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.'
+		   then
+			   'Item record XXXX not found, DCB-1579'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%'
+		   then
+			   'Hold requests not allowed for this patron and item combination, DCB-1597'
+		   when pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
+		   then
+			   'Folio Internal Server Error, DCB-1613'
+		   when pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
+		   then
+			   'No holds to process for local patron, DCB-1615'
+		   when pra.brief_description = 'Multiple Virtual Patrons Found'
+		   then
+			   'Nultiple virtual patrons found, DCB-1653'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%'
+		   then
+			   'Pickup locations no longer available, DCB-1654'
+		   when pra.brief_description = 'Staff Auth Failed'
+		   then
+			   'Staff authentication failed, DCB-????'
+		   else
+			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "description",
 	   case
 		   when pra.audit_data->'responseBody'->>'description' = 'There is a problem with your library record.  Please see a librarian.'
@@ -172,10 +197,10 @@ select case
 			   'errors/failedToCancelHoldRequest'
 		   when pra.audit_data->>'detail' = 'Duplicate hold requests exist'
 		   then
-			   'errors/duplicateHoldExists'
+			   'errors/duplicateHoldsExist'
 		   when pra.audit_data->'Full response'->'Prompt'->>'Title' = 'Duplicate hold requests exist'
 		   then
-			   'errors/duplicateHoldsExist'
+			   'errors/duplicateHoldExists'
 		   when pra.audit_data->>'errorMessage' like 'Connect Error: connection timed out after%'
 		   then
 			   'errors/connectionTimeout'
@@ -222,7 +247,32 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented'
 		   then
 			   'errors/itemCheckedOutToClosedNotImplemented'
-		   else concat('not caught: ', pra.id, ', ', pra.brief_description)
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%'
+		   then
+			   'errors/itemAlreadyExists'
+		   when pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.'
+		   then
+			   'errors/itemRecordNotFound'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%'
+		   then
+			   'errors/holdRequestsNotAllowed'
+		   when pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%'
+		   then
+			   'errors/folioInternalError'
+		   when pra.audit_data->>'detail' like 'No holds to process for local patron id:%'
+		   then
+			   'errors/noHoldsToProcess'
+		   when pra.brief_description = 'Multiple Virtual Patrons Found'
+		   then
+			   'errors/multipleVirtualPatrons'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%'
+		   then
+			   'errors/invalidPickupLocation'
+		   when pra.brief_description = 'Staff Auth Failed'
+		   then
+			   'errors/staffAuthFailed'
+		   else
+			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "namedSql",
 	   count(*) "total",
 	   max(pra.audit_date::date) "mostRecent",
@@ -268,7 +318,15 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->>'errorMessage' like 'Connect Error: Connection refused: %' or
 		  pra.audit_data->>'Message' like 'The following links will be broken if you continue deleting item record%' or
 		  pra.audit_data->>'Message' like 'Title: %This item is not holdable.' or
-		  pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented'
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' = 'updateTransactionStatus:: status update from ITEM_CHECKED_OUT to CLOSED is not implemented' or
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Unable to create item with barcode % as it exists in inventory%' or
+		  pra.audit_data->'responseBody'->>'Message' like 'Item Record with ID % not found.' or
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Hold requests are not allowed for this patron and item combination%' or
+		  pra.audit_data->>'responseBody' like 'HTTP 500 Internal Server Error.%If the issue persists, please report it to EBSCO Connect.%' or
+		  pra.audit_data->>'detail' like 'No holds to process for local patron id:%' or
+		  pra.brief_description = 'Multiple Virtual Patrons Found' or
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%' or
+		  pra.brief_description = 'Staff Auth Failed'
 	  )
 group by 1, 2
 union
@@ -280,7 +338,8 @@ select case
 		   when pr.error_message like 'Could not update item % status for hostlms: %'
 		   then
 			   'Could not update item status, DCB-1398'
-		   when pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529'
+		   when (pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529' or 
+				 pr.error_message = 'Unable to create virtual patron at polaris - error code: -3612')
 		   then
 			   'Unable to create virtual patron, DCB-1401'
 		   when pr.error_message = 'Property cause is reserved'
@@ -293,6 +352,9 @@ select case
 		   when pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %'
 		   then
 			   'Unable to map canonical item type, DCB-1454'
+		   when pr.error_message like 'Failed to resolve shelving loc % to agency'
+		   then
+			   'Failed to resolve shelving location, DCB-1669'
 /*
 		   when 
 		   then
@@ -307,7 +369,8 @@ select case
 		   when pr.error_message like 'Could not update item % status for hostlms: %'
 		   then
 			   'errors/couldNotUpdateItemStatus'
-		   when pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529'
+		   when (pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529' or
+				 pr.error_message = 'Unable to create virtual patron at polaris - error code: -3612')
 		   then
 			   'errors/unableToCreateVirtualPatron'
 		   when pr.error_message = 'Property cause is reserved'
@@ -320,6 +383,9 @@ select case
 		   when pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %'
 		   then
 			   'errors/unableToMapCanonicalItemType'
+		   when pr.error_message like 'Failed to resolve shelving loc % to agency'
+		   then
+			   'errors/failedToResolveShelvingLocation'
 /*
 		   when 
 		   then
@@ -336,11 +402,13 @@ where pr.date_updated::date > TO_DATE('20240611','YYYYMMDD') and
 	  (
 		   pr.error_message like 'Could not update item % status for hostlms: %' or
 		   pr.error_message = 'Unable to create virtual patron at polaris - error code: -3529' or
+		   pr.error_message = 'Unable to create virtual patron at polaris - error code: -3612' or
 		   pr.error_message = 'Property cause is reserved' or
 		   pr.error_message like 'Unable to map canonical patron type "YOUNG ADULT" to a patron type on Host LMS:%' or
 		   pr.error_message like 'No mapping found from ptype%' or
 		   pr.error_message like 'Unable to map canonical item type "UNKNOWN" to a item type on Host LMS: %' or
-		   pr.error_message = 'Patron has unexpected blocks'
+		   pr.error_message = 'Patron has unexpected blocks' or
+		   pr.error_message like 'Failed to resolve shelving loc % to agency'
 	  )
 group by 1, 2
 )

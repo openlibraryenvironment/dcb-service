@@ -33,10 +33,7 @@ import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
@@ -71,10 +68,11 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 @Slf4j
-class PatronRequestApiTests {
+class StandardWorkflowPatronRequestApiTests {
 	private static final String SUPPLYING_HOST_LMS_CODE = "pr-api-tests-supplying-agency";
+	private static final String SUPPLYING_BASE_URL = "https://supplier-patron-request-api-tests.com";
 	private static final String BORROWING_HOST_LMS_CODE = "pr-api-tests-borrowing-agency";
-
+	private static final String BORROWING_BASE_URL = "https://borrower-patron-request-api-tests.com";
 	private static final String KNOWN_PATRON_LOCAL_ID = "872321";
 	private static final String PICKUP_LOCATION_CODE = "ABC123";
 	private static final String SUPPLYING_LOCATION_CODE = "ab6";
@@ -121,19 +119,21 @@ class PatronRequestApiTests {
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
-		final String BASE_URL = "https://patron-request-api-tests.com";
+
 		final String KEY = "patron-request-key";
 		final String SECRET = "patron-request-secret";
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, BORROWING_BASE_URL)
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, SUPPLYING_BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		locationFixture.deleteAll();
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		final var supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
-		final var borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL);
+		final var supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY, SECRET, SUPPLYING_BASE_URL);
+		final var borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BORROWING_BASE_URL);
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
@@ -163,8 +163,17 @@ class PatronRequestApiTests {
 		// patron service
 		final var expectedUniqueId = "%s@%s".formatted(KNOWN_PATRON_LOCAL_ID, BORROWING_AGENCY_CODE);
 
-		sierraPatronsAPIFixture.patronNotFoundResponse("u", expectedUniqueId);
-		sierraPatronsAPIFixture.postPatronResponse(expectedUniqueId, 2745326);
+		// Note: tests rely on these mocks for finding the virtual patron successfully
+		// therefore these tests rely upon finding the virtual patron first time around
+		// Step 1: query the patrons on the hostlms with a successful resp of finding ONE patron
+		// Step 2: use the returned patron id to then get the patron by local id
+		sierraPatronsAPIFixture.patronsQueryFoundResponse(expectedUniqueId, "2745326");
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("2745326", SierraPatronsAPIFixture.Patron.builder()
+			.id(2745326)
+			.patronType(15)
+			.names(List.of("Joe Bloggs"))
+			.homeLibraryCode("testbbb")
+			.build());
 
 		// supplying agency service
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("2745326", "i", null);
@@ -225,6 +234,11 @@ class PatronRequestApiTests {
 			SUPPLYING_HOST_LMS_CODE, 999, 999, "loanable-item");
 	}
 
+	@AfterAll
+	void tearDown() {
+		patronRequestApiClient.removeTokenFromValidTokens();
+	}
+
 	@Test
 	void shouldBeAbleToPlaceRequestThatProgressesImmediately() {
 		log.info("\n\nshouldBeAbleToPlaceRequestThatProgressesImmediately\n\n");
@@ -238,6 +252,10 @@ class PatronRequestApiTests {
 		savePatronTypeMappings();
 
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		// This mapping will need to align with patronFoundResponse
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("pr-api-tests-supplying-agency",
+			15, 15, "DCB", "UNDERGRAD");
 
 		// Act
 		// We use location UUID for pickup location now and not a code
@@ -406,6 +424,10 @@ class PatronRequestApiTests {
 		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
+
+		// This mapping will need to align with patronFoundResponse
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("pr-api-tests-supplying-agency",
+			15, 15, "DCB", "UNDERGRAD");
 
 		savePatronTypeMappings();
 
@@ -769,7 +791,7 @@ class PatronRequestApiTests {
 
 	private static Matcher<Object> isNotAvailableToRequest() {
 		return hasProperty("status",
-			hasProperty("code", is("NO_ITEMS_AVAILABLE_AT_ANY_AGENCY")
+			hasProperty("code", is("NO_ITEMS_SELECTABLE_AT_ANY_AGENCY")
 		));
 	}
 

@@ -1,5 +1,158 @@
 # Changelog
 
+## Version 8.2.3
+
+### Changes
+* [Chore]
+	* add 'flag key' to log warnings [DCB-1473]
+	* Updated the failed to resolve shelving location check to be more generic
+* [Refactor]
+	* set circulation tracking intervals for production context [DCB-1473]
+* [Test]
+	* add API level test for placing 3-legged request [DCB-1677]
+
+## Version 8.2.2
+
+### Changes
+* [Chare]
+	* The 2 duplicate scripts were referencing each other scripts
+* [Chore]
+	* Changelog - Generate the changelog
+	* DCB-1645 Changed NO_ITEMS_AVAILABLE_AT_ANY_AGENCY to NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
+	* added an extra error that we trap in the error overview
+
+### Fixes
+* [General]
+	* borrowing agnecy uses resolved agency from supplier request [DCB-1669]
+	* DCB-1657 Added routines that will build the uuid correctly for host lme, agency, location, numeric range mapping and reference value mapping, the associated controllers have been updated so hat if a null or zero uuid is passed in then the id will be generated
+
+## Version 8.2.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Added a couple of errors we are now taking into account
+	* New migration for updating next_expected_status
+	* Sort reference value mappings by lastImported nulls last [DCB-1620]
+
+### Fixes
+* [General]
+	* use shelf location to determine whether polaris items are displayed [DCB-1614]
+	* migration for NO_ITEMS_AVAILABLE_AT_ANY_AGENCY [DCB-1102]
+
+## Version 8.2.0
+
+### Additions
+* [General]
+	* resolution to exclude items from a different library on the same server [DCB-1102]
+	* Support uploading mappings by category [DCB-1620]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* clarified patronHostLmsCode field for future alignment [DCB-1641]
+	* Restrict update participation status to CONSORTIUM_ADMIN [DCB-1567]
+	* migrate existing request statuses NO_ITEMS_AVAILABLE_AT_ANY_AGENCY [DCB-1102]
+* [Refactor]
+	* rename NO_ITEMS_AVAILABLE_AT_ANY_AGENCY status [DCB-1102]
+
+### Fixes
+* [General]
+	* Alter markAsDeleted query to return the correct deleted count
+	* include agency in shouldExcludeItemFromSameServerAsTheBorrower test [DCB-1102]
+	* Fix incorrect deleted mapping count being returned [DCB-1620]
+
+## Version 8.1.0
+
+### Additions
+* [General]
+	* polaris item suppression by collection [DCB-1527]
+	* DCB-1568 We now have the import that will take the output of the export
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* ^Cd item suppression ruleset test script
+	* add reachability-metadata.json
+	* Add initialise at build time args to graalvm command
+	* add additional reflection metadata to graalvm config
+
+### Fixes
+* [General]
+	* DCB-1568 We now delete the existing configuration as part of the import
+	* DCB-1568 Ensured the catalogueing lms is exported when only a catalogueing host is exported
+	* DCB-1568 If no host lms ids or agency codes are specified we export all host lms ids
+	* DCB-1568 We can export using agency codes, have also replaced flatMap with map in the export services
+
+## Version 8.0.0
+
+### Additions
+* [General]
+	* **BREAKING** -  Remove ability to choose identifier for Polaris and FOLIO DCB-1574
+* [General]
+	* DCB-1568 Added the library  contact and person to the export
+	* DCB-1568 Added the library to the export
+	* DCB-1568 Export of library configuration
+	* Support editing and deleting mappings via DCB Admin [DCB-1407]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Refer to configuration property in missing value warning DCB-1574
+	* Remove ability to choose identifier when finding Polaris patron DCB-1574
+
+### Fixes
+* [General]
+	* Remove ability to choose identifier when finding FOLIO patron DCB-1574
+	* DCB-1568 Converted the export to use the SiteConfiguration class instead of using a Map
+	* DCB-1568 Added library group and library group members to the export
+
+## Version 7.4.4
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Added a new error that we know about
+	* Updated the tracking failed and added a new script for tracking failures
+
+### Fixes
+* [General]
+	* DCB-1307 Tests seem to have a problem if the index block is defined, so have moved the default version of the index  out of application.yml
+	* DCB-1307 Defaulting the index name to be dcb-shared to see if that fixes the tests
+	* DCB-1307 When creating the index we now take the definition of the index from the resources/sharedIndex
+
+## Version 7.4.3
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+* [Refactor]
+	* patron search functionality [DCB-1574]
+
+## Version 7.4.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
+### Fixes
+* [General]
+	* washington university failing to authenticate [DCB-1574]
+
+## Version 7.4.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* add audit for reason tracking borrowing system skipped
+	* build - Enable any branch whos name starts testrel- to be published as a docker container with the name dcb-BRANCHNAME - for example dcb-testrel-clustering3
+* [Refactor]
+	* Distinguish patron search failure and no results [DCB-1562]
+
+### Fixes
+* [General]
+	* diagnostic audit data for virtual checkout failure
+
 ## Version 7.4.0
 
 ### Additions
@@ -8,6 +161,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* simplify setting owning context [DCB-1509]
 * [Refactor]
 	* tests to support canonicalItemType mapping [DCB-1509]

@@ -30,6 +30,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Controller("/locations")
 @Validated
@@ -80,8 +81,18 @@ public class LocationController {
 
 		log.debug("postLocation {}", location.toString());
 
+		UUID locationId = location.id();
+		// Should we always set the id, since it should follow a set format ??
+		if (UUIDUtils.isEmpty(locationId)) {
+			locationId = UUIDUtils.generateLocationId(location.agencyCode(), location.code());
+		}
+		UUID agencyId = location.agency();
+		if ((agencyId == null) && (location.agencyCode() != null)) {
+			agencyId = UUIDUtils.generateAgencyId(location.agencyCode());
+		}
+		
 		// Look up any agency if given on the incoming DTO
-		DataAgency agency = location.agency() != null ? Mono.from(agencyRepository.findById(location.agency())).block()
+		DataAgency agency = agencyId != null ? Mono.from(agencyRepository.findById(agencyId)).block()
 				: null;
 
 		DataHostLms hostSystem = location.hostLms() != null
@@ -89,14 +100,14 @@ public class LocationController {
 				: null;
 
 		// We allow HUB locations which are not attached to an agency
-		if ((location.type().equals("HUB")) || (location.agency() != null) && (agency != null)) {
+		if ((location.type().equals("HUB")) || (agencyId != null) && (agency != null)) {
 			// If we weren't given an host system, see if we can infer one from the agency.
 			if ((hostSystem == null) && (agency != null))
 				hostSystem = agency.getHostLms();
 
 			// Convert AgencyDTO into DataAgency with correctly linked HostLMS
 			Location l = Location.builder()
-				.id(location.id())
+				.id(locationId)
 				.code(location.code())
 				.name(location.name())
 				.type(location.type())

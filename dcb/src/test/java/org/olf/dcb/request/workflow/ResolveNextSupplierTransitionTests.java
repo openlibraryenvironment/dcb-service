@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_AVAILABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
@@ -118,7 +118,7 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
 		));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
@@ -152,7 +152,7 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
 		));
 
 		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
@@ -183,7 +183,7 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_AVAILABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
 		));
 
 		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(

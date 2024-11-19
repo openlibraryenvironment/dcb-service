@@ -46,19 +46,8 @@ public class LocalPatronService {
 	private Mono<Patron> getPatronByIdentifier(String identifier, HostLmsClient client) {
 		log.info("Getting patron by local id {}", identifier);
 
-		return client.getPatronByLocalId(identifier)
+		return client.getPatronByIdentifier(identifier)
 			.doOnSuccess(patron -> log.info("Found patron by ID: {}", patron))
-			.onErrorResume(error -> {
-				if (error instanceof PatronNotFoundInHostLmsException) {
-					log.warn("FALLBACK : getting patron by barcode {}", identifier);
-
-					return client.getPatronByBarcode(identifier)
-						.doOnSuccess(patron -> log.info("Found patron by barcode: {}", patron));
-				}
-
-				log.error("Get patron by barcode was skipped for error", error);
-				return Mono.error(error);
-			})
 			.doOnError(error -> log.error("Getting patron by identifier '{}' failed with error", identifier, error));
 	}
 

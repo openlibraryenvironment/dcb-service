@@ -29,10 +29,9 @@ import reactor.core.publisher.Mono;
 
 @Controller("/uploadedMappings")
 @Validated
-@Secured(RoleNames.ADMINISTRATOR)
+@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
 @Tag(name = "Uploaded Mappings API")
 @Consumes(MULTIPART_FORM_DATA)
-// @Introspected SO: Think this is here by mistake. Commenting just in case
 public class UploadedMappingsController {
 	private final DCBConfigurationService configurationService;
 	private ReferenceValueMappingRepository referenceValueMappingRepository;
@@ -69,9 +68,10 @@ public class UploadedMappingsController {
 		return Flux.from(referenceValueMappingRepository.findDeleted());
 	}
 
-	// This method posts a file of uploaded mappings of a given mapping category.
+	// This method posts a file of uploaded mappings of a given mapping type and category.
+	// i.e. Reference value mappings of category ItemType
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
-	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String mappingCategory, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
-		return configurationService.importConfiguration(mappingCategory, code, file, reason, changeCategory, changeReferenceUrl);
+	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String mappingType, String mappingCategory, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
+		return configurationService.importConfiguration(mappingType, mappingCategory, code, file, reason, changeCategory, changeReferenceUrl);
 	}
 }

@@ -175,7 +175,7 @@ public class ObjectRuleset implements Predicate<Object> {
 					.collect(Collectors.joining("\\E|\\Q")) + "\\E)$");
 
 			if (log.isTraceEnabled()) {
-				log.trace("Testing property [{}] of [{}] for value equalling any of [{}]", property, values);
+				log.trace("Testing property [{}] of [{}] for value equalling any of [{}]", property, strValue, values);
 			}
 			
 			return matches;

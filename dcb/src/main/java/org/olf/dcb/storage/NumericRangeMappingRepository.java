@@ -2,6 +2,8 @@ package org.olf.dcb.storage;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.Collection;
 import java.util.UUID;
 import org.olf.dcb.core.model.NumericRangeMapping;
 import org.reactivestreams.Publisher;
@@ -39,10 +41,20 @@ public interface NumericRangeMappingRepository {
 	@Query("SELECT * FROM numeric_range_mapping WHERE deleted = false OR deleted IS NULL")
 	Publisher<NumericRangeMapping> queryAll();
 
- 	Publisher<Void> delete(UUID id);
+	@Query(value = "SELECT * from numeric_range_mapping where context in (:contexts) order by context, domain, lower_bound", nativeQuery = true)
+	Publisher<NumericRangeMapping> findByContexts(@NonNull Collection<String> contexts);
 
-	@Query("UPDATE numeric_range_mapping  SET deleted = true WHERE context = :context")
+	// Actually delete all the records for the specified context and not just mark them as deleted
+	@Query(value = "delete from numeric_range_mapping where context in (:context)", nativeQuery = true)
+	Publisher<Void> deleteByContext(@NonNull String context);
+	
+	Publisher<Void> delete(UUID id);
+
+	@Query("UPDATE numeric_range_mapping SET deleted = true WHERE context =:context AND NOT deleted=true")
 	Publisher<Long> markAsDeleted(@NotNull String context);
+
+	@Query("UPDATE numeric_range_mapping SET deleted = true WHERE (context =:context AND domain =:category) AND NOT deleted=true")
+	Publisher<Long> markAsDeleted(@NotNull String context, @NotNull String category);
 
 	@SingleResult
 	@NonNull

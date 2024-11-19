@@ -1,12 +1,12 @@
 package org.olf.dcb.storage;
 
+import java.util.Collection;
 import java.util.UUID;
 
 import io.micronaut.data.annotation.Query;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
-//import org.olf.dcb.core.audit.Audit;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.reactivestreams.Publisher;
 
@@ -15,7 +15,7 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import reactor.core.publisher.Mono;
-// @Audit
+
 public interface ReferenceValueMappingRepository {
 
 	@NonNull
@@ -50,8 +50,11 @@ public interface ReferenceValueMappingRepository {
 	Publisher<Void> delete(UUID id);
 
 	// For when we want to delete all existing RVMs for a given Host LMS, and we're not bothered about category.
-	@Query("UPDATE reference_value_mapping SET deleted = true WHERE from_context = :context OR to_context =:context")
+	@Query("UPDATE reference_value_mapping SET deleted = true WHERE (from_context = :context OR to_context = :context) AND NOT deleted = true")
 	Publisher<Long> markAsDeleted(@NotNull String context);
+
+	@Query("UPDATE reference_value_mapping SET deleted = true WHERE (from_context = :context OR to_context = :context) AND (from_category = :category OR to_category = :category) AND NOT deleted=true")
+	Publisher<Long> markAsDeleted(@NotNull String context, @NotNull String category);
 
 	// Find all deleted mappings. This method could be extended for a specific context / category in future if needed.
 	@Query("SELECT * FROM reference_value_mapping WHERE deleted = true")
@@ -95,6 +98,13 @@ public interface ReferenceValueMappingRepository {
 		@NonNull String targetContext,
 		@NonNull String targetValue);
 
+	@Query(value = "SELECT * from reference_value_mapping where from_context in (:contexts) or to_context in (:contexts) order by from_context, from_category, from_value", nativeQuery = true)
+	Publisher<ReferenceValueMapping> findByContexts(@NonNull Collection<String> contexts);
+
+	// Actually delete all the records for the specified context and not just mark them as deleted
+	@Query(value = "delete from reference_value_mapping where from_context in (:context) or to_context in (:context)", nativeQuery = true)
+	Publisher<Void> deleteByContext(@NonNull String context);
+	
 	@SingleResult
 	@NonNull
 	default Publisher<ReferenceValueMapping> saveOrUpdate(@Valid @NotNull @NonNull ReferenceValueMapping rvm) {

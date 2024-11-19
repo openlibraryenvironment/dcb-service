@@ -67,6 +67,8 @@ import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
@@ -102,7 +104,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.retry.Retry;
-import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -125,6 +126,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
 	private final ObjectMapper objectMapper;
+	private final ObjectRulesService objectRuleService;
+
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
@@ -136,9 +139,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
-		ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
-		ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
-		NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper) {
+									 ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
+									 ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
+									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
+									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
+									 ObjectRulesService objectRuleService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -158,6 +163,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.numericPatronTypeMapper = numericPatronTypeMapper;
 		this.client = client;
 		this.r2dbcOperations = r2dbcOperations;
+		this.objectRuleService = objectRuleService;
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
@@ -659,8 +665,39 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(this::fetchFullItemStatus)
 			.flatMap(this::setMaterialTypeCode)
-			.flatMap(result -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId))
+			.flatMap(mapItemWithRuleset(localBibId))
 			.collectList();
+	}
+
+	private Function<PAPIClient.ItemGetRow, Publisher<Item>> mapItemWithRuleset(String localBibId) {
+		return result -> getLmsItemSuppressionRuleset()
+			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId, objectRuleset));
+	}
+
+	// bib suppression not supported in Polaris
+	private final Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
+
+	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
+	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
+
+		if (_lmsBibSuppressionRuleset == null) {
+			var supSetName = lms.getItemSuppressionRulesetName();
+
+			_lmsItemSuppressionRuleset = Mono.justOrEmpty( supSetName )
+				.flatMap( name -> objectRuleService.findByName(name)
+					.doOnSuccess(val -> {
+						if (val == null) {
+							log.warn("Host LMS [{}] specified using ruleset [{}] for item suppression, but no ruleset with that name could be found", lms.getCode(), name);
+							return;
+						}
+
+						log.debug("Found item suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
+					}))
+				.map( Optional::of )
+				.defaultIfEmpty(Optional.empty())
+				.cache();
+		}
+		return  _lmsItemSuppressionRuleset;
 	}
 
 	@Override
@@ -891,9 +928,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<Patron> getPatronByBarcode(String localPatronBarcode) {
-		return ApplicationServices.getPatronIdByIdentifier(localPatronBarcode, "barcode")
-			.flatMap(this::getPatronByLocalId);
+	public Mono<Patron> getPatronByIdentifier(String identifier) {
+			return getPatronByLocalId(identifier)
+				.switchIfEmpty(Mono.error(patronNotFound(identifier, getHostLmsCode())));
 	}
 
 	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron) {
@@ -1229,6 +1266,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return lms.getName();
 	}
 
+  // N.B.   public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) is now the main entry point for harvest v2 NOT this method
 	@Override
 	public Publisher<BibsPagedRow> getResources(Instant since, Publisher<String> terminator) {
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
@@ -1473,6 +1511,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		
 	}
 	
+  /**
+   * N.B. This is now the main entry point for harvestV2
+   */
 	@Override
 	public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) {
 		try {
@@ -1481,8 +1522,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			final Optional<BibsPagedGetParams> optParams = checkpoint.isPresent() ? Optional.of( objectMapper.readValueFromTree(checkpoint.get(), BibsPagedGetParams.class) ) : Optional.empty();
 			
 			final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
-	  	
 	  	final Instant now = Instant.now();
+
+      log.info("Polaris get bibs page from {} with params {}",lms.getName(),apiParams);
+
 			return Mono.just( apiParams )
 				.flatMap( params -> Mono.from( PAPIService.synch_BibsPagedGetRaw(params) ))
 				
@@ -1506,11 +1549,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						})
 						.cast( JsonArray.class )
 						.flatMap( jsonArr -> {
+
+							// If we have a full page, then we assume there is a subsequent page
+							boolean is_last_chunk =  jsonArr.size() != apiParams.getNrecs();
 							
 							try {
 								
+								// if is_last_chunk we should set startdatemodified to the highest startdatemodified we have seen so far
+								// so that in the next run we start with the most recently modified record.
+
+								// If we don't do this, and the records go 1, 2, 3, 4, 5, 6 in the first pass, leaving next-id = 6
+								// and the next page of data is 1,2,3,4,5,6.... 2,3,4,2,6 then the ingest will pick up at record 6 and skip
+								// the edits for 2,3,4,4.. which will cause problems. 
+
 								// We return the current data with the Checkpoint that will return the next chunk.
 								final JsonNode newCheckpoint = objectMapper.writeValueToTree(apiParams.toBuilder()
+									.startdatemodified( null )
 									.lastId(lastId)
 									.build());
 								

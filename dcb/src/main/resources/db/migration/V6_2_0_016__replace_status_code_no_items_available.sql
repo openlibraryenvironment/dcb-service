@@ -1,0 +1,3 @@
+UPDATE patron_request
+SET status_code = 'NO_ITEMS_SELECTABLE_AT_ANY_AGENCY'
+WHERE status_code = 'NO_ITEMS_AVAILABLE_AT_ANY_AGENCY';

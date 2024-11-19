@@ -179,7 +179,7 @@ public class SupplyingAgencyService {
 				// we encountered an error when confirming the hold exists
 				final var message = "Delete supplier hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
-				auditThrowable(auditData, "StackTrace", error);
+				auditThrowable(auditData, "Throwable", error);
 				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
 			});
 	}
@@ -191,7 +191,7 @@ public class SupplyingAgencyService {
 		return error -> {
 			final var message = "Delete supplier hold : Failed";
 			final var auditData = new HashMap<String, Object>();
-			auditThrowable(auditData, "StackTrace", error);
+			auditThrowable(auditData, "Throwable", error);
 			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
 				.flatMap(audit -> Mono.just("Error"));
 		};
@@ -417,10 +417,9 @@ public class SupplyingAgencyService {
 		SupplierRequest supplierRequest = psrc.getSupplierRequest();
 
 		return checkIfPatronExistsAtSupplier(psrc)
-			.switchIfEmpty(Mono.defer(() -> {
-				log.warn("checkIfPatronExistsAtSupplier is false, creating new patron record prid={}",patronRequest.getId());
-				return createPatronAtSupplier(patronRequest, supplierRequest);
-			}));
+			// VirtualPatronNotFound will trigger createPatronAtSupplier
+			.onErrorResume(VirtualPatronNotFound.class, handleVirtualPatronNotFound(patronRequest, supplierRequest))
+			.onErrorResume(MultipleVirtualPatronsFound.class, handleMultipleVirtualPatronsFound(patronRequest, supplierRequest));
 	}
 
 	private Mono<PatronIdentity> checkIfPatronExistsAtSupplier(RequestWorkflowContext psrc) {
@@ -432,12 +431,26 @@ public class SupplyingAgencyService {
 
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			// Note: findVirtualPatron can return an empty mono which triggers virtual patron creation
 			.flatMap(hostLmsClient -> hostLmsClient.findVirtualPatron(psrc.getPatron()))
       // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
 			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest))
-			.flatMap( auditVirtualPatron(patronRequest, "Virtual patron : found") )
-			;
+			.flatMap( auditVirtualPatron(patronRequest, "Virtual patron : found") );
+	}
+
+	private Function<VirtualPatronNotFound, Mono<PatronIdentity>> handleVirtualPatronNotFound(
+		PatronRequest patronRequest, SupplierRequest supplierRequest) {
+
+		return error -> patronRequestAuditService.auditThrowableAbstractProblem(patronRequest, "Virtual patron : not found", error)
+			.doOnSuccess(__ -> log.warn("checkIfPatronExistsAtSupplier is false, creating new patron record prid={}",patronRequest.getId()))
+			.flatMap(audit -> createPatronAtSupplier(patronRequest, supplierRequest));
+	}
+
+	private Function<MultipleVirtualPatronsFound, Mono<PatronIdentity>> handleMultipleVirtualPatronsFound(
+		PatronRequest patronRequest, SupplierRequest supplierRequest) {
+
+		return error -> patronRequestAuditService.auditThrowableAbstractProblem(patronRequest, "Virtual patron : multiple found", error)
+			.doOnSuccess(__ -> log.warn("Multiple virtual patrons found at supplier={}",supplierRequest.getHostLmsCode()))
+			.flatMap(audit -> Mono.error(error));
 	}
 
 	private Mono<PatronIdentity> updateLocalPatronIdentityForLmsPatron(

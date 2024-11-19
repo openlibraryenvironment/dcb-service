@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Controller("/numericRangeMapping")
 @Validated
@@ -57,8 +58,12 @@ public class NumericRangeMappingController {
 
 	@Post("/")
 	public Mono<NumericRangeMapping> postHostLMS(@Body NumericRangeMapping nrm) {
+		// Should we always set the id, since it should follow a set format ??
+		if (UUIDUtils.isEmpty(nrm.getId())) {
+			nrm.setId(UUIDUtils.generateRangeMappingId(nrm.getContext(), nrm.getDomain(), nrm.getLowerBound()));
+		}
+
 		return Mono.from(numericRangeMappingRepository.existsById(nrm.getId())).flatMap(exists -> Mono
 				.fromDirect(exists ? numericRangeMappingRepository.update(nrm) : numericRangeMappingRepository.save(nrm)));
 	}
-
 }

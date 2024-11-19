@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Controller("/referenceValueMappings")
 @Validated
@@ -57,6 +58,10 @@ public class ReferenceValueMappingsController {
 
 	@Post("/")
 	public Mono<ReferenceValueMapping> postHostLMS(@Body ReferenceValueMapping rvm) {
+		// Should we always set the id, since it should follow a set format ??
+		if (UUIDUtils.isEmpty(rvm.getId())) {
+			rvm.setId(UUIDUtils.generateReferenceMappingId(rvm.getFromContext(), rvm.getFromCategory(), rvm.getFromValue(), rvm.getToContext(), rvm.getToCategory()));
+		}
 		return Mono.from(referenceValueMappingRepository.existsById(rvm.getId())).flatMap(exists -> Mono
 				.fromDirect(exists ? referenceValueMappingRepository.update(rvm) : referenceValueMappingRepository.save(rvm)));
 	}

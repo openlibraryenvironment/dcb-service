@@ -126,12 +126,14 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	}
 
 	private Mono<Patron> findLocalPatron(PatronIdentity pi) {
-		final var localId = getValue(pi, PatronIdentity::getLocalId, "Unknown");
+		// when we get a localId here, beware, it may be whatever identifier DCB was passed
+		// the hostLmsClient class will handle this in getPatronByIdentifier
+		final var identifier = getValue(pi, PatronIdentity::getLocalId, "Unknown");
 		final var hostLmsCode = getValue(pi, PatronIdentity::getHostLms, HostLms::getCode, "Unknown");
 
-		return localPatronService.findLocalPatronAndAgency(localId, hostLmsCode)
+		return localPatronService.findLocalPatronAndAgency(identifier, hostLmsCode)
 			.map(TupleUtils.function((patron, agency) -> patron))
-			.switchIfEmpty(Mono.error(new PatronNotFoundInHostLmsException(localId, hostLmsCode)));
+			.switchIfEmpty(Mono.error(new PatronNotFoundInHostLmsException(identifier, hostLmsCode)));
 	}
 
 	private Mono<PatronIdentity> resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode,
@@ -213,7 +215,11 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			.map( resolvedPatronIdentity -> {
 				if ( ( resolvedPatronIdentity != null ) && ( resolvedPatronIdentity.getHostLms() != null ) ) {
 					patronRequest.setRequestingIdentity(resolvedPatronIdentity);
+
+					// TODO: We could be setting this already when we mapToPatronRequest,
+					// to be tested in full workflow testing before removing
 					patronRequest.setPatronHostlmsCode(resolvedPatronIdentity.getHostLms().getCode());
+
 					ctx.getWorkflowMessages().add("Resolved patron home agency to "+resolvedPatronIdentity.getHostLms().getCode());
 				}
 				else {

@@ -3,6 +3,8 @@ package org.olf.dcb.graphql;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.AgencyRepository;
@@ -11,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -49,12 +52,17 @@ public class UpdateAgencyParticipationStatusDataFetcher implements DataFetcher<C
 		Optional<String> changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
 			.map(Object::toString);
 
-
-		// User should never be null as GraphQL endpoint requires auth: 'User not detected' exists to flag if something is going very wrong.
-//		String userString = (env.getGraphQlContext().get("currentUser") != null) ? env.getGraphQlContext().get("currentUser").toString() : "User not detected";
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
 			.map(Object::toString)
 			.orElse("User not detected");
+
+		Collection<String> roles = env.getGraphQlContext().get("roles");
+
+		// Check if the user has the required role
+		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
+			log.warn("updateAgencyParticipationStatusDataFetcher: Access denied for user {}: user does not have the required role to update a library's participation status.", userString);
+			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");
+		}
 
 		Mono<DataAgency> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(agencyRepository.findOneByCode(code))

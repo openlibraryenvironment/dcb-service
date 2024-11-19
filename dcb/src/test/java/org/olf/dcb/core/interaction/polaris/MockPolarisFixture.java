@@ -152,6 +152,10 @@ public class MockPolarisFixture {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
 	}
 
+	public void mockGetItemsForBibWithShelfLocations(String bibId) {
+		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get-with-shelf-locations.json");
+	}
+
 	public void mockGetItem(String itemId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId, "item-by-id.json");
 	}

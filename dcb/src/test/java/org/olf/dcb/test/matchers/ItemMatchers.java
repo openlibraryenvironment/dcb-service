@@ -140,6 +140,12 @@ public class ItemMatchers {
 		return hasProperty("deleted", is(false));
 	}
 
+	public static Matcher<Item> hasNoLocation() {
+		return hasProperty("location", allOf(
+			hasProperty("name", is(nullValue())),
+			hasProperty("code", is(nullValue()))));
+	}
+
 	public static Matcher<Item> hasNoAgency() {
 		return hasProperty("agency", is(nullValue()));
 	}
@@ -150,5 +156,13 @@ public class ItemMatchers {
 
 	public static Matcher<Item> hasAgencyName(String expectedAgencyName) {
 		return hasProperty("agency", hasProperty("name", is(expectedAgencyName)));
+	}
+
+	public static Matcher<Item> hasOwningContext(String owningContext) {
+		return hasProperty("owningContext", is(owningContext));
+	}
+
+	public static Matcher<Item> hasNoOwningContext() {
+		return hasProperty("owningContext", is(nullValue()));
 	}
 }

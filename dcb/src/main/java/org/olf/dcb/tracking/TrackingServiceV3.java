@@ -1,7 +1,6 @@
 package org.olf.dcb.tracking;
 
 import io.micrometer.core.annotation.Timed;
-import io.micronaut.core.version.annotation.Version;
 import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
@@ -27,7 +26,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Objects;
 import java.util.function.Function;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
@@ -99,7 +97,7 @@ public class TrackingServiceV3 implements TrackingService {
 	private Mono<RequestWorkflowContext> auditTrackingError(
 		String message, RequestWorkflowContext ctx, Throwable error) {
 		final var auditData = new HashMap<String, Object>();
-		auditThrowable(auditData, "StackTrace", error);
+		auditThrowable(auditData, "Throwable", error);
 		return patronRequestAuditService.auditTrackingError(message, ctx.getPatronRequest(), auditData)
 			.flatMap(audit -> Mono.just(ctx)); // Resume tracking after auditing
 	}
@@ -186,7 +184,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 			log.warn("PR {} in state {} skipped tracking of borrowing system", rwc.getPatronRequest().getId(), state);
 
-			return skipTracking(rwc,"Tracking skipped : Borrowing System");
+			return skipTracking(rwc,"Tracking skipped : Borrowing System", state);
 
 		} else {
 
@@ -199,9 +197,12 @@ public class TrackingServiceV3 implements TrackingService {
 		}
 	}
 
-	private Mono<RequestWorkflowContext> skipTracking(RequestWorkflowContext rwc, String message) {
+	private Mono<RequestWorkflowContext> skipTracking(RequestWorkflowContext rwc, String message, PatronRequest.Status status) {
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("Reason", "Cannot track PatronRequest in status " + status);
+
 		return patronRequestAuditService
-			.addAuditEntry(rwc.getPatronRequest(), message)
+			.addAuditEntry(rwc.getPatronRequest(), message, auditData)
 			.thenReturn(rwc);
 	}
 

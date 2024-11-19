@@ -91,6 +91,8 @@ info:
   env:
     code: ${dcb.env.code:Unknown - set DCB_ENV_CODE}
     description: ${dcb.env.description:Unknown - set DCB_ENV_DESCRIPTION}
+  circulation:
+    tracking-profile: ${dcb.circulation.tracking-profile:}
 flyway:
   enabled: true
   datasources:

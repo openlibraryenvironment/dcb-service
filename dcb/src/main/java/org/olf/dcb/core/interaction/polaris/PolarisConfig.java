@@ -1,13 +1,15 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import java.util.List;
+import java.util.function.Function;
+
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
-
-import java.util.List;
-import java.util.function.Function;
 
 @Data
 @NoArgsConstructor
@@ -204,7 +206,6 @@ public class PolarisConfig {
 
 		return valueWithDefault(this.holdFetchingMaxRetry, Integer.class, defaultMaxRetry);
 	}
-
 
 	@Data
 	@NoArgsConstructor

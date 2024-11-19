@@ -14,16 +14,16 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
@@ -302,36 +302,41 @@ public class PAPIClient {
 			.delayElement(Duration.ofSeconds(findDelay))
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
 			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
-			.flatMap(checkForUniquePatronResult(path, ccl));
+			.map(checkForUniquePatronResult(path, ccl));
 	}
 
-	private Function<PatronSearchResult, Mono<PatronSearchRow>> checkForUniquePatronResult(String path, String ccl) {
+	private Function<PatronSearchResult, PatronSearchRow> checkForUniquePatronResult(String path, String ccl) {
+
 		return patronSearchResult -> {
 
 			final var patronSearchRows = getValueOrNull(patronSearchResult, PatronSearchResult::getPatronSearchRows);
 			final var rowSize = (patronSearchRows != null) ? patronSearchRows.size() : 0;
 
 			if (rowSize < 1) {
+				log.warn("No virtual Patron found.");
 
-				log.warn("No virtual Patron found, returning an empty mono to create a new patron.");
-
-				return Mono.empty();
+				throw VirtualPatronNotFound.builder()
+					.withDetail(rowSize + " records found")
+					.with("path", path)
+					.with("ccl", ccl)
+					.with("Response", patronSearchResult)
+					.build();
 			}
 
 			if (rowSize > 1) {
 				log.error("More than one virtual patron found: {}", patronSearchResult);
 
-				raiseError(Problem.builder()
-					.withTitle(rowSize + " records found for virtual patron.")
-					.withDetail(path)
+				throw MultipleVirtualPatronsFound.builder()
+					.withDetail(rowSize + " records found")
+					.with("path", path)
 					.with("ccl", ccl)
-					.with("Full response", patronSearchResult)
-					.build());
+					.with("Response", patronSearchResult)
+					.build();
 			}
 
 			// Return the PatronSearchRow
 			log.info("checkForUniquePatronResult passed: {}", patronSearchResult);
-			return Mono.just(patronSearchResult.getPatronSearchRows().get(0));
+			return patronSearchResult.getPatronSearchRows().get(0);
 		};
 	}
 

@@ -1,17 +1,20 @@
 package org.olf.dcb.storage;
 
+import java.util.Collection;
+import java.util.UUID;
+
+import org.olf.dcb.core.model.Library;
+import org.reactivestreams.Publisher;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import jakarta.transaction.*;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import org.olf.dcb.core.model.*;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-
-import java.util.UUID;
 
 @Transactional
 public interface LibraryRepository {
@@ -46,6 +49,9 @@ public interface LibraryRepository {
 	@NonNull
 	Publisher<Library> findOneByAgencyCode(String agencyCode);
 
+	@Query(value = "SELECT * from library where agency_code in (:agencyCodes) order by full_name", nativeQuery = true)
+	Publisher<Library> findByAgencyCodes(@NonNull Collection<String> agencyCodes);
+	
 	Publisher<Library> queryAll();
 
 	Publisher<Void> delete(UUID id);
@@ -59,5 +65,4 @@ public interface LibraryRepository {
 			.flatMap( update -> Mono.from( update ? this.update(l) : this.save(l)) )
 			;
 	}
-	
 }

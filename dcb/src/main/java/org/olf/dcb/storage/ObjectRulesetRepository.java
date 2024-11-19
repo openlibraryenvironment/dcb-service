@@ -1,5 +1,6 @@
 package org.olf.dcb.storage;
 
+import java.util.Collection;
 import java.util.UUID;
 
 import org.olf.dcb.rules.ObjectRuleset;
@@ -7,6 +8,7 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
@@ -33,6 +35,9 @@ public interface ObjectRulesetRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends ObjectRuleset> update(@Valid @NotNull @NonNull ObjectRuleset patronIdentity);
+
+	@Query(value = "SELECT * from object_ruleset where name in (:names) order by name", nativeQuery = true)
+	Publisher<ObjectRuleset> findByNames(@NonNull Collection<String> names);
 
 	@NonNull
 	@SingleResult
