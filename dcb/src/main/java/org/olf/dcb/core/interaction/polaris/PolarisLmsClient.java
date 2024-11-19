@@ -1591,11 +1591,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.sourceRecordData( rawJson )
 												.build());
 
-											var recordModificationDate = rawJson.get("ModificationDate");
+											String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
 											log.info("Record modification date : {}",recordModificationDate);
-											if ( recordModificationDate != null )
-												log.info("Record modification date is instance of {}",recordModificationDate.getClass().getName());
-
 
 											// String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
 											// ZonedDateTime zonedDateTime = ZonedDateTime.parse(recordModificationDate, lmdateparser);
