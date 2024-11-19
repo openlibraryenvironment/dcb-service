@@ -40,6 +40,11 @@ public interface ConsortiumRepository {
 	Publisher<Consortium> findOneByLibraryGroup(@NonNull LibraryGroup libraryGroup);
 
 	@NonNull
+	Publisher<Consortium> findByLibraryGroupId(UUID libraryGroupId);
+	@NonNull
+	Publisher<Boolean> existsByLibraryGroup(LibraryGroup libraryGroup);
+
+	@NonNull
 	Publisher<Consortium> findFirst();
 
 	@NonNull
