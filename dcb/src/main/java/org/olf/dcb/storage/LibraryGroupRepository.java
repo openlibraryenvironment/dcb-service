@@ -64,6 +64,8 @@ public interface LibraryGroupRepository {
 
 	Publisher<Void> deleteByCode(@NotNull String code);
 
+	Publisher<Void> deleteByName(@NotNull String code);
+
 	// may need some consortial lookup function here too but we'll come back to that
 
 	@SingleResult

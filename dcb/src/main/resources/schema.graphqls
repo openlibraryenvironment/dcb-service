@@ -42,6 +42,8 @@ type Mutation {
 		updateConsortium(input: UpdateConsortiumInput): Consortium!
 		updateFunctionalSetting(input: UpdateFunctionalSettingInput): FunctionalSetting!
 	  createContact(input: ConsortiumContactInput): ConsortiumContact!
+		deleteConsortium(input: DeleteEntityInput): DeleteEntityPayload!
+
 }
 
 input AddAgencyToGroupCommand {
