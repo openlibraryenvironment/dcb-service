@@ -55,7 +55,7 @@ public class UpdateContactDataFetcher implements DataFetcher<CompletableFuture<P
 			.map(Object::toString);
 		Optional<String> changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
 			.map(Object::toString);
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
 
@@ -69,7 +69,6 @@ public class UpdateContactDataFetcher implements DataFetcher<CompletableFuture<P
 		Mono<Person> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(personRepository.findById(id))
 				.flatMap(person -> {
-					// Surely there's a better way of doing this - possibly a check on input_map for all keys?
 					if (role != null) {
 						person.setRole(role);
 					}

@@ -39,6 +39,9 @@ type Mutation {
 		updateNumericRangeMapping(input: UpdateNumericRangeMappingInput): NumericRangeMapping!
 		deleteReferenceValueMapping(input: DeleteEntityInput): DeleteEntityPayload!
 		deleteNumericRangeMapping(input: DeleteEntityInput): DeleteEntityPayload!
+		updateConsortium(input: UpdateConsortiumInput): Consortium!
+		updateFunctionalSetting(input: UpdateFunctionalSettingInput): FunctionalSetting!
+	  createContact(input: ConsortiumContactInput): ConsortiumContact!
 }
 
 input AddAgencyToGroupCommand {
@@ -49,6 +52,12 @@ input AddAgencyToGroupCommand {
 input AddLibraryToGroupCommand {
 	library: ID!
 	libraryGroup: ID!
+}
+
+enum FunctionalSettingType {
+	PICKUP_ANYWHERE
+	RE_RESOLUTION
+	TEST_POLICY_3
 }
 
 
@@ -67,6 +76,36 @@ input ConsortiumInput {
 	name: String!
 	groupName: String!
 	dateOfLaunch: String!
+	headerImageUrl: String
+	aboutImageUrl: String
+	description: String
+	catalogueSearchUrl: String
+	websiteUrl: String
+	displayName: String!
+	reason: String!
+	changeCategory: String!
+	changeReferenceUrl: String
+	contacts: [PersonInput]
+	functionalSettings: [FunctionalSettingInput]
+}
+
+input ConsortiumContactInput {
+	firstName: String!
+	lastName: String!
+	role: String!
+	isPrimaryContact: Boolean!
+	email: String!
+	consortiumId: String!
+	reason: String!
+	changeCategory: String!
+	changeReferenceUrl: String
+}
+
+input FunctionalSettingInput {
+	id: ID
+	name: FunctionalSettingType!
+	enabled: Boolean!
+	description: String
 }
 
 input LibraryInput {
@@ -90,18 +129,6 @@ input LibraryInput {
 	changeReferenceUrl: String
 }
 
-input DeleteEntityInput {
-	id: ID!
-	reason: String
-	changeReferenceUrl: String
-	changeCategory: String
-}
-
-type DeleteEntityPayload {
-	success: Boolean!
-	message: String
-}
-
 input LibraryGroupInput {
 	id: ID
 	code: String!
@@ -118,6 +145,18 @@ input PersonInput {
 	email: String!
 }
 
+input DeleteEntityInput {
+	id: ID!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+type DeleteEntityPayload {
+	success: Boolean!
+	message: String
+}
+
 input UpdateAgencyParticipationInput {
 	code: String!
 	isSupplyingAgency: Boolean
@@ -125,6 +164,24 @@ input UpdateAgencyParticipationInput {
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
+}
+
+input UpdateConsortiumInput {
+	id: ID!
+	headerImageUrl: String
+	headerImageUploader: String
+	headerImageUploaderEmail: String
+	aboutImageUrl: String
+	aboutImageUploader: String
+	aboutImageUploaderEmail: String
+	description: String
+	catalogueSearchUrl: String
+	websiteUrl: String
+	displayName: String
+	reason: String!
+	changeCategory: String!
+	changeReferenceUrl: String
+	contacts: [UpdatePersonInput]
 }
 
 input UpdateLocationInput {
@@ -137,7 +194,6 @@ input UpdateLocationInput {
 	changeReferenceUrl: String
 	changeCategory: String
 }
-
 
 input UpdateLibraryInput {
 	id: ID!
@@ -181,6 +237,15 @@ input UpdateReferenceValueMappingInput {
 	changeCategory: String
 }
 
+input UpdateFunctionalSettingInput {
+	id: ID!
+	name: FunctionalSettingType
+	enabled: Boolean
+	description: String
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
 
 type ProcessState {
   id: ID
@@ -407,6 +472,27 @@ type Consortium {
 	name: String!
 	libraryGroup: LibraryGroup!
 	dateOfLaunch: String
+	headerImageUrl: String
+	headerImageUploader: String
+	headerImageUploaderEmail: String
+	aboutImageUrl: String
+	aboutImageUploader: String
+	aboutImageUploaderEmail: String
+	description: String
+	catalogueSearchUrl: String
+	websiteUrl: String
+	displayName: String
+	contacts: [Person]
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+	functionalSettings: [FunctionalSetting]
+}
+
+type ConsortiumContact {
+	id: ID
+	consortium: Consortium
+	person: Person
 }
 
 type DataChangeLog {
@@ -603,4 +689,11 @@ type MatchPoint {
   id: ID!
   value: ID!
   bibId: ID!
+}
+
+type FunctionalSetting {
+	id: ID!
+	name: FunctionalSettingType!
+	enabled: Boolean!
+	description: String
 }

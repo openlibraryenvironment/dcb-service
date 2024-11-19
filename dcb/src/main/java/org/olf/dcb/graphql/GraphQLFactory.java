@@ -47,7 +47,7 @@ public class GraphQLFactory {
 			UpdateReferenceValueMappingDataFetcher updateReferenceValueMappingDataFetcher,
 			UpdateNumericRangeMappingDataFetcher updateNumericRangeMappingDataFetcher,
 			DeleteReferenceValueMappingDataFetcher deleteReferenceValueMappingDataFetcher,
-			DeleteNumericRangeMappingDataFetcher deleteNumericRangeMappingDataFetcher,
+			DeleteNumericRangeMappingDataFetcher deleteNumericRangeMappingDataFetcher, UpdateConsortiumDataFetcher updateConsortiumDataFetcher,UpdateFunctionalSettingDataFetcher updateFunctionalSettingDataFetcher, CreateContactDataFetcher createContactDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -104,7 +104,10 @@ public class GraphQLFactory {
 						.dataFetcher("updateReferenceValueMapping", updateReferenceValueMappingDataFetcher)
 						.dataFetcher("updateNumericRangeMapping", updateNumericRangeMappingDataFetcher)
 						.dataFetcher("deleteReferenceValueMapping", deleteReferenceValueMappingDataFetcher)
-						.dataFetcher("deleteNumericRangeMapping", deleteNumericRangeMappingDataFetcher))
+						.dataFetcher("deleteNumericRangeMapping", deleteNumericRangeMappingDataFetcher)
+						.dataFetcher("updateConsortium", updateConsortiumDataFetcher)
+						.dataFetcher("updateFunctionalSetting", updateFunctionalSettingDataFetcher)
+						.dataFetcher("createContact", createContactDataFetcher))
 			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())
@@ -115,6 +118,10 @@ public class GraphQLFactory {
 				.type("AgencyGroupMember",
 					typeWiring -> typeWiring
 						.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
+				.type("Consortium",
+					typeWiring -> typeWiring
+						.dataFetcher("contacts", dataFetchers.getContactsForConsortiumDataFetcher())
+						.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsForConsortiumDataFetcher()))
 				.type("ClusterRecord",
 					typeWiring -> typeWiring
 						.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))

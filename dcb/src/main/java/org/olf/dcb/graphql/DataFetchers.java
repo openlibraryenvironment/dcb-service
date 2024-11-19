@@ -66,6 +66,13 @@ public class DataFetchers {
 
 	private final PostgresDataChangeLogRepository postgresDataChangeLogRepository;
 
+	private final PostgresConsortiumContactRepository postgresConsortiumContactRepository;
+
+	private final PostgresFunctionalSettingRepository postgresFunctionalSettingRepository;
+	private final PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository;
+
+
+
 
 	private final QueryService qs;
 
@@ -90,7 +97,7 @@ public class DataFetchers {
 											PostgresLibraryGroupRepository postgresLibraryGroupRepository, LibraryGroupMemberRepository libraryGroupMemberRepository,
 											PostgresLibraryGroupMemberRepository postgresLibraryGroupMemberRepository,
 											PostgresLibraryContactRepository postgresLibraryContactRepository, PostgresDataChangeLogRepository postgresDataChangeLogRepository,
-											PostgresMatchPointRepository postgresMatchPointRepository,
+											PostgresMatchPointRepository postgresMatchPointRepository, PostgresConsortiumContactRepository postgresConsortiumContactRepository, PostgresFunctionalSettingRepository postgresFunctionalSettingRepository, PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -117,6 +124,9 @@ public class DataFetchers {
 		this.postgresLibraryContactRepository = postgresLibraryContactRepository;
 		this.postgresDataChangeLogRepository = postgresDataChangeLogRepository;
 		this.postgresMatchPointRepository = postgresMatchPointRepository;
+		this.postgresConsortiumContactRepository = postgresConsortiumContactRepository;
+		this.postgresFunctionalSettingRepository = postgresFunctionalSettingRepository;
+		this.postgresConsortiumFunctionalSettingRepository = postgresConsortiumFunctionalSettingRepository;
 	}
 
 
@@ -885,6 +895,45 @@ public class DataFetchers {
 						});
 				})
 				.distinct() // Only return unique Person objects
+				.collectList()
+				.toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<List<Person>>> getContactsForConsortiumDataFetcher() {
+		return env -> {
+			log.debug("Fetching the contacts for a given consortium."+env.getSource());
+
+			return Flux.from(postgresConsortiumContactRepository.findByConsortium(env.getSource()))
+				.doOnNext(consortiumContact -> {
+					log.debug("ConsortiumContact: {}", consortiumContact);
+				})
+				.flatMap(consortiumContact -> {
+					return Mono.from(postgresPersonRepository.findById(consortiumContact.getPerson().getId()))
+						.doOnNext(person -> {
+							log.debug("Person: {}", person);
+						});
+				})
+				.distinct() // Only return unique Person objects
+				.collectList()
+				.toFuture();
+		};
+	}
+	public DataFetcher<CompletableFuture<List<FunctionalSetting>>> getFunctionalSettingsForConsortiumDataFetcher() {
+		return env -> {
+			log.debug("Fetching the contacts for a given consortium."+env.getSource());
+
+			return Flux.from(postgresConsortiumFunctionalSettingRepository.findByConsortium(env.getSource()))
+				.doOnNext(consortiumFunctionalSetting -> {
+					log.debug("FunctionalSetting: {}", consortiumFunctionalSetting);
+				})
+				.flatMap(consortiumFunctionalSetting -> {
+					return Mono.from(postgresFunctionalSettingRepository.findById(consortiumFunctionalSetting.getFunctionalSetting().getId()))
+						.doOnNext(functionalSetting -> {
+							log.debug("Functional Setting: {}", functionalSetting);
+						});
+				})
+				.distinct() // Only return unique Functional Setting objects
 				.collectList()
 				.toFuture();
 		};
