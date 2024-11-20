@@ -118,6 +118,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		this.conversionService = conversionService;
 		this.processStateService = processStateService;
 		this.objectMapper = objectMapper;
+
+		log.info("Launching OAI task : {} {}",hostLms.getCode(), hostLms.getClientConfig());
 		
 		metadataPrefix = MapUtils.getAsOptionalString(
 			lms.getClientConfig(), CONFIG_METADATA_PREFIX
@@ -128,15 +130,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			lms.getClientConfig(), CONFIG_OAI_SET
 		);
 
-		// Has the set been configured
-		if (configuredSet.isPresent()) {
-			// It has been configured, so we will use it
-			oaiSet = configuredSet.get();
-		} else {
-			// We are not using a set
-			oaiSet = null;
-		}
-			
+		oaiSet = configuredSet.orElse(null);
+
 		this.r2dbcOperations = r2dbcOperations;
 	}
 
