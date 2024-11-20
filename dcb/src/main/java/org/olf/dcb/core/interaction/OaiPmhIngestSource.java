@@ -484,8 +484,13 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 					}
 	
 					params.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
+
 					if ((oaiSet != null) && StringUtils.hasText(oaiSet)) {
+						log.debug("Setting OAI Set to {}",oaiSet);
 						params.queryParam(PARAM_SET, oaiSet);
+					}
+					else {
+						log.debug("No SET defined");
 					}
 					
 					// Add any non standard query parameters
@@ -547,8 +552,13 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			.ifPresent( until -> params.queryParam("until", until.truncatedTo(ChronoUnit.SECONDS).toString()));
 
 			params.queryParam(PARAM_METADATA_PREFIX, lrParams.getMetadataPrefix());
+
 			if ((lrParams.getSet() != null) && StringUtils.hasText(lrParams.getSet())) {
-				params.queryParam(lrParams.getSet());
+				params.queryParam("set", lrParams.getSet());
+			}
+			else {
+			  if ( oaiSet != null ) 
+					params.queryParam("set", oaiSet);
 			}
 
 			// Add any non standard query parameters
@@ -560,6 +570,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	}
 	
 	private Mono<ListRecordsResponse> listRecords ( Optional<ListRecordsParams> params ) {
+
+		log.debug("listRecords {}",params);
 		
 		final Consumer<UriBuilder> apiParams = mergeApiParameters(params);
 		return Mono.from(get(oaiPath(), Argument.of( Response.class ), apiParams))
