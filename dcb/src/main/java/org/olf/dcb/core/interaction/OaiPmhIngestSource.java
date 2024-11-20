@@ -554,11 +554,9 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			params.queryParam(PARAM_METADATA_PREFIX, lrParams.getMetadataPrefix());
 
 			if ((lrParams.getSet() != null) && StringUtils.hasText(lrParams.getSet())) {
-				params.queryParam("set", lrParams.getSet());
-			}
-			else {
-			  if ( oaiSet != null ) 
-					params.queryParam("set", oaiSet);
+				params.queryParam(PARAM_SET, lrParams.getSet());
+			} else if (oaiSet != null) { 
+				params.queryParam(PARAM_SET, oaiSet);
 			}
 
 			// Add any non standard query parameters
