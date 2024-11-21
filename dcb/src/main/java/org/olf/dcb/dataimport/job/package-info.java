@@ -3,7 +3,7 @@
  * ingest-v2 feature gate is opened. 
  */
 
-@Beta
+// @Beta
 @Configuration
 @FeatureGate( "ingest-v2" )
 @Requires( notEnv = Environment.TEST )
@@ -12,5 +12,5 @@ package org.olf.dcb.dataimport.job;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.Environment;
 import services.k_int.features.FeatureGate;
-import services.k_int.features.StabilityLevel.Beta;
+// import services.k_int.features.StabilityLevel.Beta;
 import io.micronaut.context.annotation.Configuration;

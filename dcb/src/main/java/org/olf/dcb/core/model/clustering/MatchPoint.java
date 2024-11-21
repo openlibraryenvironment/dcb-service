@@ -45,11 +45,11 @@ public class MatchPoint {
 
 	private static final String PREFIX_VALUE = "MatchPoint";
 	 
-	public static MatchPoint buildFromString ( String input ) {
-		return buildFromString(input, "UNKNOWN");
+	public static MatchPoint buildFromString ( String input, boolean is_development ) {
+		return buildFromString(input, "UNKNOWN", is_development);
 	}
 
-	public static MatchPoint buildFromString ( String input, String domain ) {
+	public static MatchPoint buildFromString ( String input, String domain, boolean is_development ) {
 		
 		final String valueStr = PREFIX_VALUE + ":" + input;
 		
@@ -78,6 +78,7 @@ public class MatchPoint {
 	// The domain tells us what kind of match point was generated - it is nullable to allow
 	// incremental improvements of matchpoints over time. As records are touched they will
 	// acquire these values.
+	@Nullable
 	private final String domain;
 
 	@Nullable

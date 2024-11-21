@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.annotation.Timed;
 import io.micronaut.context.BeanProvider;
+import io.micronaut.context.env.Environment;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
@@ -58,18 +59,25 @@ public class RecordClusteringService {
 	final BeanProvider<SharedIndexService> sharedIndexService;
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
+	final Environment environment;
+	final boolean isDevelopment;
 	private final R2dbcOperations operations;
 
 
 	public RecordClusteringService(
 			ClusterRecordRepository clusterRecordRepository,
 			BibRecordService bibRecordService,
-			MatchPointRepository matchPointRepository, R2dbcOperations operations, BeanProvider<SharedIndexService> sharedIndexService) {
+			Environment environment,
+			MatchPointRepository matchPointRepository, 
+			R2dbcOperations operations, 
+			BeanProvider<SharedIndexService> sharedIndexService) {
 		this.clusterRecords = clusterRecordRepository;
 		this.sharedIndexService = sharedIndexService;
 		this.bibRecords = bibRecordService;
+		this.environment = environment;
 		this.matchPointRepository = matchPointRepository;
 		this.operations = operations;
+		this.isDevelopment = environment.getActiveNames().contains(Environment.DEVELOPMENT);
 	}
 
 	// Get cluster record by id
@@ -296,10 +304,9 @@ public class RecordClusteringService {
 	public Flux<MatchPoint> generateIdMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
 				.filter( this::completeIdentifiersPredicate )
-				
 				.map( id -> {
 					String s = String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue());
-					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace());
+					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace(), isDevelopment);
 					return mp;
         } );
 	}
@@ -307,8 +314,11 @@ public class RecordClusteringService {
 	private Flux<MatchPoint> recordMatchPoints ( BibRecord bib ) {
 		
 		return Mono.justOrEmpty( bib.getBlockingTitle() )
-			.map( bt -> String.format("%s:%s", MATCHPOINT_TITLE, bt) )
-			.map( MatchPoint::buildFromString )
+			.map( blocking_title -> {
+				String s = String.format("%s:%s", MATCHPOINT_TITLE, blocking_title);
+				MatchPoint mp = MatchPoint.buildFromString(s, "BT", isDevelopment);
+        return mp;
+			})
 			.as(Flux::from);
 	}
 	
