@@ -129,7 +129,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final ObjectMapper objectMapper;
 	private final ObjectRulesService objectRuleService;
 
-
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
 	private static final String DCB_BORROWING_FLOW = "DCB";
@@ -205,6 +204,49 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case ILL_BORROWING_FLOW -> placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 			default -> placeHoldRequest(parameters, TRUE);
 		};
+	}
+
+	@Override
+	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+
+		log.info("updatePatronRequest({})", localRequest);
+
+		final var itemId = localRequest.getRequestedItemId();
+
+		// holds get deleted in polaris after being filled
+		// adding a note to help staff know where to send the item back
+		final var supplierAgencyCode = getValueOrNull(localRequest, LocalRequest::getSupplyingAgencyCode);
+		final var supplierHostLmsCode = getValueOrNull(localRequest, LocalRequest::getSupplyingHostLmsCode);
+		final String noteForStaff = getNoteForStaff(supplierAgencyCode, supplierHostLmsCode);
+
+		return Mono.zip(
+				ApplicationServices.itemrecords(itemId, FALSE),
+				getMappedItemType(localRequest.getCanonicalItemType())
+			)
+			.doOnSuccess(item -> log.info("Successfully received item record: {}", item))
+			.doOnError(error -> log.error("Error retrieving item record: {}", error.getMessage()))
+			.flatMap(tuple -> {
+				final var item = tuple.getT1();
+				final var itemType = Integer.valueOf(tuple.getT2());
+				final var itemStatusId = item.getItemStatusID();
+				final var newBarcode = localRequest.getRequestedItemBarcode();
+
+				return ApplicationServices.updateItemRecord(itemId, itemStatusId, newBarcode, noteForStaff, itemType);
+			})
+			.doOnSuccess(item -> log.info("Successfully updated item, returning {}.", item))
+			.doOnError(error -> log.error("Error updating item: {}", error.getMessage()))
+			.flatMap(__ -> getRequest(localRequest.getLocalId()))
+			.map(hostLmsRequest -> LocalRequest.builder()
+				.localId(hostLmsRequest.getLocalId())
+				.localStatus(hostLmsRequest.getStatus())
+				.rawLocalStatus(hostLmsRequest.getRawStatus())
+				.requestedItemId(hostLmsRequest.getRequestedItemId())
+				.build());
+	}
+
+	@Override
+	public Mono<Boolean> isReResolutionSupported() {
+		return Mono.just(true);
 	}
 
 	private String borrowerlendingFlow() {
@@ -555,6 +597,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+		log.info("getRequest({})", localRequestId);
 
 		return parseLocalRequestId(localRequestId)
 			.flatMap(ApplicationServices::getLocalHoldRequest)
@@ -789,7 +832,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<Void> updateItem(String itemId, Integer toStatus) {
 
 		return ApplicationServices.itemrecords(itemId,FALSE)
-			.flatMap(item -> ApplicationServices.updateItemRecord(itemId, item.getItemStatusID(), toStatus));
+			.flatMap(item -> ApplicationServices.updateItemRecordStatus(itemId, item.getItemStatusID(), toStatus));
 	}
 
 	@Override
@@ -1637,5 +1680,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public BibsPagedRow convertSourceToInternalType(SourceRecord source) {
 		return conversionService.convertRequired(source.getSourceRecordData(), BibsPagedRow.class);
+	}
+
+	static String getNoteForStaff(String supplierAgencyCode, String supplierHostLmsCode) {
+		return "Supplier Agency Code: " + supplierAgencyCode
+			+ ", \nSupplier Hostlms Code: " + supplierHostLmsCode;
 	}
 }

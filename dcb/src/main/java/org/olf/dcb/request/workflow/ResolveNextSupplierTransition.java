@@ -3,19 +3,28 @@ package org.olf.dcb.request.workflow;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.MapUtils.putNonNullValue;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
+import io.micronaut.context.BeanProvider;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.resolution.PatronRequestResolutionService;
+import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
@@ -38,14 +47,27 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
+	private final PatronRequestResolutionService patronRequestResolutionService;
+	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
+	private final BeanProvider<SupplierRequestService> supplierRequestServiceProvider;
+	private SupplierRequestService supplierRequestService;
+	private final ConsortiumService consortiumService;
 
 	ResolveNextSupplierTransition(HostLmsService hostLmsService,
-		PatronRequestAuditService patronRequestAuditService) {
+		PatronRequestAuditService patronRequestAuditService,
+		PatronRequestResolutionService patronRequestResolutionService,
+		BeanProvider<PatronRequestService> patronRequestServiceProvider,
+		BeanProvider<SupplierRequestService> supplierRequestServiceProvider,
+		ConsortiumService consortiumService) {
 
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
 		this.hostLmsService = hostLmsService;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.patronRequestResolutionService = patronRequestResolutionService;
+		this.patronRequestServiceProvider = patronRequestServiceProvider;
+		this.supplierRequestServiceProvider = supplierRequestServiceProvider;
+		this.consortiumService = consortiumService;
 	}
 
 	@Override
@@ -55,9 +77,169 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
-		return Mono.just(context)
-			.flatMap(this::cancelLocalBorrowingRequest)
+		return isReResolutionRequired(context)
+			.flatMap(isRequired -> {
+				log.info("Re-resolution required: {}", isRequired);
+
+				if (isRequired) {
+					return resolveNextSupplier(context);
+				}
+				else {
+					return terminateSupplierCancellation(context);
+				}
+			});
+	}
+
+	private Mono<RequestWorkflowContext> terminateSupplierCancellation(RequestWorkflowContext context) {
+		log.warn("terminateSupplierCancellation");
+
+		return cancelLocalBorrowingRequest(context)
 			.flatMap(this::markNoItemsAvailableAtAnyAgency);
+	}
+
+	// Method to check if re-resolution conditions are met
+	private Mono<Boolean> isReResolutionRequired(RequestWorkflowContext context) {
+		return Mono.zip(
+			getConsortiumReResolutionPolicy(context),
+			getSupportedLmsForReResolution(context),
+			(isConsortiumSupported, isLmsSupported) -> isConsortiumSupported && isLmsSupported
+		);
+	}
+
+	private Mono<Boolean> getSupportedLmsForReResolution(RequestWorkflowContext context) {
+
+		final var patronSystemCode = Optional.ofNullable(context)
+			.map(RequestWorkflowContext::getPatronRequest)
+			.map(PatronRequest::getPatronHostlmsCode)
+			.orElse(null);
+
+		if (patronSystemCode == null) {
+			log.warn("Patron system code is null");
+
+			return Mono.just(false)
+				.doOnSuccess(supported -> log.debug("Re-resolution LMS supported: {}", supported));
+		}
+
+		return hostLmsService.getClientFor(patronSystemCode)
+			.flatMap(HostLmsClient::isReResolutionSupported)
+			.map(isSupported -> isSupported != null && isSupported)
+			.doOnSuccess(supported -> log.debug("Re-resolution LMS supported: {}", supported));
+	}
+
+	private Mono<Boolean> getConsortiumReResolutionPolicy(RequestWorkflowContext context) {
+		return consortiumService.findFirstConsortiumFunctionalSetting(FunctionalSettingType.RE_RESOLUTION)
+			.map(setting -> setting != null && setting.getEnabled() != null ? setting.getEnabled() : false)
+			.defaultIfEmpty(false)
+			.doOnSuccess(enabled -> log.debug("Re-resolution consortium policy enabled: {}", enabled));
+	}
+
+	// Main handler for re-resolution logic
+	private Mono<RequestWorkflowContext> resolveNextSupplier(RequestWorkflowContext context) {
+		log.debug("resolveNextSupplier");
+
+		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
+		supplierRequestService = supplierRequestServiceProvider.get();
+
+		return checkAndIncludeCurrentSupplierRequestsFor(patronRequest)
+			.flatMap(patronRequestResolutionService::retryResolvePatronRequest)
+			.flatMap(resolution -> transitionSupplierRequest(resolution, context))
+			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
+			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()))
+			.flatMap(this::auditResolution)
+			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
+			.flatMap(this::saveSupplierRequest)
+			.flatMap(this::updatePatronRequest)
+			.thenReturn(context);
+	}
+
+	/**
+	 * Transitions the previous supplier request to an inactive state.
+	 *
+	 * This method takes the current resolution and the request workflow context as input,
+	 * saves the previous supplier request as an inactive supplier request, and returns the resolution.
+	 *
+	 * @param resolution the current resolution
+	 * @param context the request workflow context
+	 * @return a Mono containing the resolution
+	 */
+	private Mono<Resolution> transitionSupplierRequest(Resolution resolution, RequestWorkflowContext context) {
+
+		final var previousSupplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
+
+		return supplierRequestService.saveInactiveSupplierRequest(previousSupplierRequest)
+			.flatMap(inactiveSupplierRequest -> {
+				log.info("Supplier request {} saved as inactive supplier request", inactiveSupplierRequest.getId());
+				return Mono.just(resolution);
+			});
+	}
+
+	private Mono<PatronRequest> checkAndIncludeCurrentSupplierRequestsFor(PatronRequest patronRequest) {
+		return supplierRequestService.findAllSupplierRequestsWithDataAgencyFor(patronRequest)
+			.map(patronRequest::setSupplierRequests)
+			.doOnSuccess(pr -> log.info("Supplier request and data agency successfully included for patron request {}", pr.getId()))
+			.doOnError(error -> log.error("Error including supplier request and data agency for patron request {}", patronRequest.getId(), error));
+	}
+
+	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
+		log.debug("updatePatronRequest({})", resolution);
+
+		final var patronRequest = resolution.getPatronRequest();
+
+		if (resolution.getChosenItem() != null) {
+			patronRequest.resolve();
+		} else {
+			patronRequest.resolveToNoItemsSelectable();
+		}
+
+		final var patronRequestService = patronRequestServiceProvider.get();
+
+		return patronRequestService.updatePatronRequest(patronRequest)
+			.thenReturn(resolution);
+	}
+
+	private Mono<Resolution> auditResolution(Resolution resolution) {
+		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
+
+		// Do not audit a resolution when an item hasn't been chosen
+		if (chosenItem == null) {
+			return Mono.just(resolution);
+		}
+
+		final var auditData = new HashMap<String, Object>();
+
+		final var itemStatusCode = getValueOrNull(chosenItem, Item::getStatus, ItemStatus::getCode);
+
+		// For values that could be "unknown", "null" is used as a differentiating default
+		final var presentableItem = PatronRequestResolutionStateTransition.PresentableItem.builder()
+			.barcode(getValue(chosenItem, Item::getBarcode, "Unknown"))
+			.statusCode(getValue(itemStatusCode, Enum::name, "null"))
+			.requestable(getValue(chosenItem, Item::getIsRequestable, false))
+			.localItemType(getValue(chosenItem, Item::getLocalItemType, "null"))
+			.canonicalItemType(getValue(chosenItem, Item::getCanonicalItemType, "null"))
+			.holdCount(getValue(chosenItem, Item::getHoldCount, 0))
+			.agencyCode(getValue(chosenItem, Item::getAgencyCode, "Unknown"))
+			.build();
+
+		putNonNullValue(auditData, "selectedItem", presentableItem);
+
+		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
+				"Re-resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
+					chosenItem.getLocalId(), chosenItem.getHostLmsCode()), auditData)
+			.then(Mono.just(resolution));
+	}
+
+	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
+		log.debug("saveSupplierRequest({})", resolution);
+
+		final var chosenItem = resolution.getChosenItem();
+
+		if (chosenItem == null) {
+			return Mono.just(resolution);
+		}
+
+		return supplierRequestService.saveSupplierRequest(
+				mapToSupplierRequest(chosenItem, resolution.getPatronRequest()))
+			.thenReturn(resolution);
 	}
 
 	private Mono<RequestWorkflowContext> cancelLocalBorrowingRequest(

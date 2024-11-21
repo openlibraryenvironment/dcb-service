@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.polaris.exceptions.CreateVirtualItemException;
+import org.olf.dcb.core.interaction.polaris.exceptions.SaveVirtualItemException;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
 import org.zalando.problem.Problem;
@@ -46,6 +46,8 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Wor
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
+import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.getNoteForStaff;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
@@ -182,6 +184,8 @@ class ApplicationServicesClient {
 	}
 
 	Mono<LibraryHold> getLocalHoldRequest(Integer id) {
+		log.info("Getting hold request by id: {}", id);
+
 		final var path = createPath("holds", id);
 		return createRequest(GET, path, uri -> {})
 			.flatMap(request -> client.exchange(request, LibraryHold.class, FALSE))
@@ -438,8 +442,9 @@ class ApplicationServicesClient {
 
 				// holds get deleted in polaris after being filled
 				// adding a note to help staff know where to send the item back
-				final String noteForStaff = "Supplier Agency Code: " + createItemCommand.getLocationCode()
-					+ ", \nSupplier Hostlms Code: " + createItemCommand.getSupplierHostLmsCode();
+				final var supplierAgencyCode = getValueOrNull(createItemCommand, CreateItemCommand::getLocationCode);
+				final var supplierHostLmsCode = getValueOrNull(createItemCommand, CreateItemCommand::getSupplierHostLmsCode);
+				final String noteForStaff = getNoteForStaff(supplierAgencyCode, supplierHostLmsCode);
 
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
@@ -475,7 +480,7 @@ class ApplicationServicesClient {
 				log.info("create item workflow request: {}", body);
 				return request.body(body);
 			})
-			.flatMap(request -> createItemRequest(request, itemBarcode));
+			.flatMap(request -> saveItemRequest(request, itemBarcode));
 	}
 
 	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {
@@ -504,7 +509,7 @@ class ApplicationServicesClient {
 		return Integer.valueOf(patronHomeLocation);
 	}
 
-	public Mono<Void> updateItemRecord(String itemId, Integer fromStatus, Integer toStatus) {
+	public Mono<Void> updateItemRecordStatus(String itemId, Integer fromStatus, Integer toStatus) {
 
 		final var path = createPath("workflow");
 		final var itemRecordType = 8;
@@ -528,8 +533,39 @@ class ApplicationServicesClient {
 					.build();
 				return request.body(body);
 			})
-			.flatMap(request -> createItemRequest(request, null))
+			.flatMap(request -> saveItemRequest(request, null))
 			.then();
+	}
+
+	public Mono<WorkflowResponse> updateItemRecord(String itemId, Integer status,
+		String newBarcode, String nonPublicNote, Integer itemType) {
+
+		final var path = createPath("workflow");
+		final var itemRecordType = 8;
+		final var itemRecordData = 6;
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> {
+				final var body = WorkflowRequest.builder()
+					.workflowRequestType(itemRecordType)
+					.txnUserID(TransactingPolarisUserID)
+					.txnBranchID(TransactingBranchID)
+					.txnWorkstationID(TransactingWorkstationID)
+					.requestExtension( RequestExtension.builder()
+						.workflowRequestExtensionType(itemRecordData)
+						.data(RequestExtensionData.builder()
+							.itemRecordID( Integer.valueOf(itemId) )
+							.originalItemStatusID(status)
+							.itemStatusID(status)
+							.barcode(newBarcode)
+							.note(nonPublicNote)
+							.materialTypeID(itemType)
+							.build())
+						.build())
+					.build();
+				return request.body(body);
+			})
+			.flatMap(request -> saveItemRequest(request, null));
 	}
 
 	public Mono<WorkflowResponse> deleteItemRecord(String id) {
@@ -598,22 +634,21 @@ class ApplicationServicesClient {
 			);
 	}
 
-
-	private Mono<WorkflowResponse> createItemRequest(MutableHttpRequest<WorkflowRequest> workflowRequest,
+	private Mono<WorkflowResponse> saveItemRequest(MutableHttpRequest<WorkflowRequest> workflowRequest,
 		String itemBarcode) {
 		// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record
 
 		return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class))
-			.doOnError(e -> log.info("Error response for create item {}", workflowRequest, e))
+			.doOnError(e -> log.info("Error response for save item {}", workflowRequest, e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, NoDisplayInPAC, Continue))
-			// creating an item with a duplicate barcode causes the hold request to fail
+			// saving an item with a duplicate barcode causes the hold request to fail
 			.map(resp -> {
 				if (resp.getPrompt() != null &&
 					resp.getPrompt().getWorkflowPromptID() != null &&
 					resp.getPrompt().getWorkflowPromptID().equals(DuplicateRecords)) {
 
-					throw new CreateVirtualItemException(
+					throw new SaveVirtualItemException(
 						"Item with barcode: " + itemBarcode + " already exists in host LMS: " + client.getName());
 				}
 
@@ -1443,6 +1478,8 @@ class ApplicationServicesClient {
 
 		@JsonProperty("NonPublicNote")
 		private String nonPublicNote;
+		@JsonProperty("Note")
+		private String note;
 
 		// item delete fields
 		@JsonProperty("IsAutoDelete")

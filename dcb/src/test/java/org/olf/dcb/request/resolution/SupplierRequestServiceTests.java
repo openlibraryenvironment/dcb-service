@@ -8,7 +8,6 @@ import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.test.DcbTest;
@@ -23,7 +22,7 @@ public class SupplierRequestServiceTests {
 	@Inject
 	SupplierRequestRepository supplierRequestRepository;
 	@Inject
-	SupplierRequestService supplierRequestService = new SupplierRequestService(supplierRequestRepository);
+	SupplierRequestService supplierRequestService;
 
 	@Test
 	void shouldUpdateSupplierRequestAndFetchTheUpdatedSupplierRequest() {

@@ -6,6 +6,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import java.util.List;
 import java.util.Map;
 
+import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -16,7 +17,11 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import reactor.core.publisher.Mono;
 
 public interface HostLmsClient extends Comparable<HostLmsClient> {
-	
+
+	Mono<LocalRequest> updatePatronRequest(@NonNull LocalRequest localRequest);
+
+	Mono<Boolean> isReResolutionSupported();
+
 	// All implementations must understand these states and be able to translate
 	// them to
 	// local values when encountered via updateRequestStatus

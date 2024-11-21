@@ -1,14 +1,19 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
+import static java.util.Arrays.asList;
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.once;
 
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
+import org.mockserver.model.RequestDefinition;
+import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import io.micronaut.serde.annotation.Serdeable;
@@ -22,6 +27,7 @@ import services.k_int.interaction.sierra.items.Location;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
 
+@Slf4j
 @AllArgsConstructor
 public class SierraItemsAPIFixture {
 	private final MockServerClient mockServer;
@@ -34,6 +40,12 @@ public class SierraItemsAPIFixture {
 		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/items"),
 			new SierraMockServerResponses(
 				testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/")));
+	}
+
+	public void mockUpdateItem(String itemId) {
+		mockServer
+			.when(putItem(itemId))
+			.respond(sierraMockServerResponses.noContent());
 	}
 
 	public void mockGetItemById(String id, org.olf.dcb.core.interaction.sierra.SierraItem item) {
@@ -130,6 +142,10 @@ public class SierraItemsAPIFixture {
 		return sierraMockServerRequests.delete("/" + itemId);
 	}
 
+	private RequestDefinition putItem(String itemId) {
+		return sierraMockServerRequests.put("/" + itemId);
+	}
+
 	private HttpRequest getItemsForBib(String bibId) {
 		return sierraMockServerRequests.get()
 			.withQueryStringParameter("bibIds", bibId)
@@ -181,6 +197,19 @@ public class SierraItemsAPIFixture {
 		final int upperBound = 8000000;
 
 		return Integer.toString((int) (Math.random() * (upperBound - lowerBound)) + lowerBound);
+	}
+
+	public void verifyUpdateItemRequestMade(String expectedItemId) {
+		verifyUpdateItemRequest(expectedItemId, once());
+	}
+
+	private void verifyUpdateItemRequest(String expectedItemId, VerificationTimes times) {
+		final var updateRequest = putItem(expectedItemId);
+
+		log.info("Update item requests recorded: {}",
+			asList(mockServer.retrieveRecordedRequests(updateRequest)));
+
+		mockServer.verify(updateRequest, times);
 	}
 
 	@Serdeable

@@ -9,37 +9,33 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.test.AgencyFixture;
-import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.*;
 
 import jakarta.inject.Inject;
+import org.olf.dcb.test.ConsortiumFixture;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -48,6 +44,10 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class ResolveNextSupplierTransitionTests {
 	private static final String BORROWING_HOST_LMS_CODE = "next-supplier-borrowing-tests";
+	private static final String SUPPLYING_HOST_LMS_CODE = "next-supplier-tests";
+
+	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
 	@Inject
@@ -57,34 +57,56 @@ class ResolveNextSupplierTransitionTests {
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
+	private InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture;
+	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private ConsortiumFixture consortiumFixture;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
+	@Inject
+	private BibRecordFixture bibRecordFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private ResolveNextSupplierTransition resolveNextSupplierTransition;
 
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
 	private DataHostLms borrowingHostLms;
 	private DataAgency borrowingAgency;
+
+	private DataHostLms supplyingHostLms;
+	private DataAgency supplyingAgency;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
-		final String BASE_URL = "https://resolve-next-borrowing-tests.com";
+		final String BASE_URL = "https://supplying-host-lms.com";
 		final String KEY = "key";
 		final String SECRET = "secret";
 
 		hostLmsFixture.deleteAll();
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, "https://supplying-host-lms.com")
+			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, "https://borrowing-host-lms.com")
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+
 		borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
-			KEY, SECRET, BASE_URL);
+			KEY, SECRET, "https://borrowing-host-lms.com");
+		supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE,
+			KEY, SECRET, "https://supplying-host-lms.com");
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
@@ -92,17 +114,47 @@ class ResolveNextSupplierTransitionTests {
 	@BeforeEach
 	void beforeEach() {
 		supplierRequestsFixture.deleteAll();
+		inactiveSupplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		agencyFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
 
 		borrowingAgency = agencyFixture.defineAgency("borrowing-agency", "Borrowing Agency",
 			borrowingHostLms);
+		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
+			"Supplying Agency", supplyingHostLms);
 	}
 
 	@Test
 	void shouldProgressRequestWhenSupplierHasCancelled() {
 		// Arrange
+		final var borrowingLocalRequestId = "3635625";
+
+		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+			borrowingLocalRequestId);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+		));
+
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
+	}
+
+	@Test
+	void shouldProgressRequestToCancelledWhenLmsReResolutionIsNotSupported() {
+		// Arrange
+		consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+
 		final var borrowingLocalRequestId = "3635625";
 
 		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
@@ -256,6 +308,117 @@ class ResolveNextSupplierTransitionTests {
 		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 
+	@Test
+	void shouldReResolveSupplierForRequiredReResolutionEnabledRequests() {
+		final var savedConsortium = consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+
+		final var clusterRecordId = randomUUID();
+		final var sourceRecordId = "798472";
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
+		final var borrowingLocalRequestId = "3635625";
+		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+			borrowingLocalRequestId, clusterRecordId);
+		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode());
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("1000002")
+				.barcode("6565750674")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode("ab6")
+				.locationName("King 6th Floor")
+				.suppressed(false)
+				.deleted(false)
+				.build()));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			supplyingHostLms.code, "ab6",  supplyingAgency.getCode());
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			supplyingHostLms.code, 999, 999, "BKM");
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(RESOLVED)
+		));
+
+		final var existingSupplierRequest = supplierRequestsFixture.exists(supplierRequest.getId());
+
+		assertThat(savedConsortium, notNullValue());
+		assertThat(existingSupplierRequest, notNullValue());
+		assertThat("Previous supplier request should not exist", existingSupplierRequest, is(false));
+
+		final var listOfInactiveSupplierRequests = inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest);
+		final var oneInactiveSupplierRequest = listOfInactiveSupplierRequests.get(0);
+
+		assertThat(oneInactiveSupplierRequest, notNullValue());
+		assertThat("Inactive supplier request should exist and match previous supplier request",
+			oneInactiveSupplierRequest.getLocalId(), is(supplierRequest.getLocalId()));
+	}
+
+	@Test
+	void shouldResultInNoItemsSelectableAtAnyAgencyWhenReResolutionIsEnabled() {
+		final var savedConsortium = consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+
+		final var clusterRecordId = randomUUID();
+		final var sourceRecordId = "798475";
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
+		final var borrowingLocalRequestId = "3635625";
+		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+			borrowingLocalRequestId, clusterRecordId);
+		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode());
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("1000003")
+				.barcode("6565750674")
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.dueDate(Instant.parse("2021-02-25T12:00:00Z")) // This item is not selectable
+				.itemType("999")
+				.locationCode("ab6")
+				.locationName("King 6th Floor")
+				.suppressed(false)
+				.deleted(false)
+				.build()));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			supplyingHostLms.code, "ab6",  supplyingAgency.getCode());
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			supplyingHostLms.code, 999, 999, "BKM");
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+		));
+
+		final var existingSupplierRequest = supplierRequestsFixture.exists(supplierRequest.getId());
+
+		assertThat(savedConsortium, notNullValue());
+		assertThat(existingSupplierRequest, notNullValue());
+		assertThat("Previous supplier request should not exist", existingSupplierRequest, is(false));
+
+		final var listOfInactiveSupplierRequests = inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest);
+		final var oneInactiveSupplierRequest = listOfInactiveSupplierRequests.get(0);
+
+		assertThat(oneInactiveSupplierRequest, notNullValue());
+		assertThat("Inactive supplier request should exist and match previous supplier request",
+			oneInactiveSupplierRequest.getLocalId(), is(supplierRequest.getLocalId()));
+	}
+
 	private PatronRequest resolveNextSupplier(PatronRequest patronRequest) {
 		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(ctx -> {
@@ -293,6 +456,28 @@ class ResolveNextSupplierTransitionTests {
 		return patronRequest;
 	}
 
+	private PatronRequest defineReResolutionPatronRequest(PatronRequest.Status status,
+																						String localRequestId, UUID clusterRecordId) {
+
+		final var patron = patronFixture.definePatron("365636", "home-library",
+			borrowingHostLms, borrowingAgency);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(status)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.patronHostlmsCode(borrowingHostLms.code)
+			.localRequestId(localRequestId)
+			.bibClusterId(clusterRecordId)
+			.resolutionCount(1)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		return patronRequest;
+	}
+
 	private SupplierRequest defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
 		return supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 			.id(UUID.randomUUID())
@@ -301,5 +486,33 @@ class ResolveNextSupplierTransitionTests {
 			.localItemId("48375735")
 			.localStatus(localStatus)
 			.build());
+	}
+
+	private void defineClusterRecordWithSingleBib(UUID clusterRecordId, String sourceRecordId) {
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, clusterRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
+
+		final var sourceSystemId = hostLms.getId();
+
+		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
+			sourceRecordId, clusterRecord);
+	}
+
+	private SupplierRequest saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
+		return supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest
+				.builder()
+				.id(randomUUID())
+				.patronRequest(patronRequest)
+				.localItemId("7916922")
+				.localBibId("563653")
+				.localItemLocationCode(SUPPLYING_AGENCY_CODE)
+				.localItemBarcode("9849123490")
+				.hostLmsCode(hostLmsCode)
+				.isActive(true)
+				.localItemLocationCode("supplying-location")
+				.build());
 	}
 }

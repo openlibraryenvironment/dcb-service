@@ -66,8 +66,37 @@ public class BorrowingAgencyService {
 
 		return fetchRequiredData(patronRequest, ctx)
 			.flatMap(function(this::borrowingRequestFlow))
-			.map(patronRequest::placedAtBorrowingAgency)
-			;
+			.map(patronRequest::placedAtBorrowingAgency);
+	}
+
+	public Mono<PatronRequest> updatePatronRequestAtBorrowingAgency(RequestWorkflowContext ctx) {
+
+		PatronRequest patronRequest = ctx.getPatronRequest();
+		log.info("updatePatronRequestAtBorrowingAgency {}", patronRequest.getId());
+
+		return fetchRequiredData(patronRequest, ctx)
+			.flatMap(function(this::updateExistingRequestFlow))
+			// Note: an updated local request means DCB can confirm the patron request is placed
+			.map(patronRequest::placedAtBorrowingAgency);
+	}
+
+	private Mono<LocalRequest> updateExistingRequestFlow(
+		RequestWorkflowContext ctx,
+		PatronRequest patronRequest, PatronIdentity borrowingIdentity,
+		HostLmsClient hostLmsClient, SupplierRequest supplierRequest)
+	{
+		return getSupplyingAgencyCode(supplierRequest)
+			.map(supplyingAgencyCode -> LocalRequest.builder()
+				.localId(patronRequest.getLocalRequestId())
+				.requestedItemId(patronRequest.getLocalItemId())
+				.requestedItemBarcode(supplierRequest.getLocalItemBarcode())
+				.supplyingAgencyCode(supplyingAgencyCode)
+				.supplyingHostLmsCode(supplierRequest.getHostLmsCode())
+				.canonicalItemType(supplierRequest.getCanonicalItemType())
+				.build())
+			.doOnSuccess(localRequest -> log.info("updateExistingRequestFlow({})", localRequest))
+			.flatMap(hostLmsClient::updatePatronRequest)
+			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to update existing patron request."))) );
 	}
 
 	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext requestWorkflowContext) {
@@ -358,4 +387,6 @@ public class BorrowingAgencyService {
 
 		return raiseError(new DcbError("Can not get virtual records status with null HostLmsCode"));
 	}
+
+
 }

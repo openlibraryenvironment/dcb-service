@@ -64,6 +64,11 @@ public class SupplierRequestsFixture {
 		return singleValueFrom(supplierRequestRepository.findById(id));
 	}
 
+	public Boolean exists(UUID id) {
+		return singleValueFrom(supplierRequestRepository.existsById(id));
+	}
+
+
 	public List<SupplierRequest> findAllFor(PatronRequest patronRequest) {
 		return manyValuesFrom(supplierRequestRepository.findAllByPatronRequest(patronRequest));
 	}
