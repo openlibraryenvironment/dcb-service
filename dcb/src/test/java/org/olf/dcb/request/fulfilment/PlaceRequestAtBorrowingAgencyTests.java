@@ -21,8 +21,10 @@ import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTran
 import org.olf.dcb.test.*;
 import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 import java.util.List;
@@ -210,6 +212,87 @@ class PlaceRequestAtBorrowingAgencyTests {
 			"Consortial Hold. tno=" + pr.getId()+" \nFor UNKNOWN@null\n Pickup UNKNOWN@%s"
 				.formatted(BORROWING_AGENCY_CODE));
 	}
+
+	@Test
+	void shouldProgressConfirmedSuccessfullyForReResolution() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var sourceSystemId = hostLms.getId();
+
+		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
+
+		final var localPatronId = "562967";
+		final var patron = patronFixture.savePatron("Home");
+
+		patronFixture.saveIdentity(patron, hostLms, localPatronId, true, "-", localPatronId, null);
+
+		final var patronRequestId = randomUUID();
+		var patronRequest = PatronRequest.builder()
+			.id(patronRequestId)
+			.patron(patron)
+			.bibClusterId(clusterRecordId)
+			.status(CONFIRMED)
+			.pickupLocationCodeContext(HOST_LMS_CODE)
+			.pickupLocationCode("ABC123")
+			.resolutionCount(2)
+			.localRequestId("864902")
+			.localItemId("243252")
+			.localRequestStatus("CONFIRMED")
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.localItemId("243252")
+			.localBibId("76832")
+			.localItemLocationCode(BORROWING_AGENCY_CODE)
+			.localItemBarcode("9849123490")
+			.hostLmsCode(hostLms.code)
+			.isActive(true)
+			.localItemLocationCode(BORROWING_AGENCY_CODE)
+			.resolvedAgency(borrowingAgency)
+			.canonicalItemType("ebook")
+			.build());
+
+		sierraItemsAPIFixture.mockUpdateItem("243252");
+		sierraItemsAPIFixture.mockGetItemById("243252",
+			SierraItem.builder()
+				.id("243252")
+				.barcode("9849123490")
+				.statusCode("-")
+				.build());
+		sierraPatronsAPIFixture.mockGetHoldById("864902",
+			SierraPatronHold.builder()
+				.id("864902")
+				.recordType("i")
+				.record("http://some-record/" + "243252")
+				.status(SierraCodeTuple.builder()
+					.code("0")
+					.build())
+				.build());
+
+		referenceValueMappingFixture.defineMapping("DCB", "ItemType", "ebook", HOST_LMS_CODE, "ItemType", "007");
+
+		// Act
+		final var pr = placeRequestAtBorrowingAgency(patronRequest);
+
+		// Assert
+		assertThat("Patron request should not be null", pr, is(notNullValue()));
+		assertThat("Status code wasn't expected.", pr.getStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
+		assertThat("Local request id wasn't expected.", pr.getLocalRequestId(), is("864902"));
+		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("CONFIRMED"));
+
+		sierraItemsAPIFixture.verifyUpdateItemRequestMade("243252");
+	}
+
 
 	@Test
 	void shouldFailWhenPlacingRequestInSierraRespondsWithServerError() {

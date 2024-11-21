@@ -657,6 +657,20 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		}
 
 	@Override
+	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
+		return null;
+	}
+
+	@Override
+	public Mono<Boolean> isReResolutionSupported() {
+
+		log.warn("Re-resolution is not currently supported for {}", getHostLms().getName());
+
+		return Mono.just(false);
+	}
+
+	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
 		// DCB has no means to update users via the available edge modules
 		// and edge-dcb does not do this on DCB's behalf when creating the transaction

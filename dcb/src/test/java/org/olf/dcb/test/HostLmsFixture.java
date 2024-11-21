@@ -20,7 +20,6 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.storage.HostLmsRepository;
 
-import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Singleton;

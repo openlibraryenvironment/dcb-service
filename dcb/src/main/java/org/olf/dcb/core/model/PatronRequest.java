@@ -56,9 +56,9 @@ public class PatronRequest {
 
 	@Serdeable
 	public enum Status {
-		SUBMITTED_TO_DCB, 
-		PATRON_VERIFIED, 
-		RESOLVED, 
+		SUBMITTED_TO_DCB,
+		PATRON_VERIFIED,
+		RESOLVED,
 
 		// Added in preparation for moving to next supplier - when a supplier cancels a request we
 		// want to resubmit the request to the next possible supplier, creating a new supplier_request
@@ -276,10 +276,10 @@ public class PatronRequest {
 
 	@Nullable
 	private String errorMessage;
-	
+
 	@Nullable
 	private String protocol;
-	
+
 	@Nullable
 	private String requesterNote;
 
@@ -287,7 +287,7 @@ public class PatronRequest {
 	public Status getStatus() {
 		return this.status;
 	}
-	
+
 	@JsonIgnore
 	public PatronRequest setStatus(Status status) {
 
@@ -345,7 +345,7 @@ public class PatronRequest {
 	@OneToMany(mappedBy = "patronRequest")
 	private List<SupplierRequest> supplierRequests;
 
-	// Is tracking this item paused 
+	// Is tracking this item paused
 	@Nullable
 	private Boolean isPaused;
 
@@ -368,11 +368,11 @@ public class PatronRequest {
 	private Integer pollCountForCurrentStatus;
 
 	// When we go to ERROR this property allows us to know the previous state so that we can RETRY
-  @JsonIgnore
-  @ToString.Include
-  @Nullable
-  @Column(name = "previous_status_code") // Preserve the data mapping value from the old string type.
-  private Status previousStatus;
+	@JsonIgnore
+	@ToString.Include
+	@Nullable
+	@Column(name = "previous_status_code") // Preserve the data mapping value from the old string type.
+	private Status previousStatus;
 
 	@Nullable
 	private Instant currentStatusTimestamp;

@@ -1030,6 +1030,46 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			});
 	}
 
+	@Override
+	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+		log.info("updatePatronRequest({})", localRequest);
+
+		final var itemId = localRequest.getRequestedItemId();
+		final var barcode = localRequest.getRequestedItemBarcode();
+		final var owningLocation = localRequest.getSupplyingAgencyCode();
+
+		return getMappedItemType(lms.getCode(), localRequest.getCanonicalItemType())
+			.flatMap(itemType -> {
+					log.debug("updateItem in SierraLmsClient - itemType will be {}", itemType);
+
+					// https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
+					final var fixedFields = Map.of(
+						61, FixedField.builder().label("DCB-" + itemType).value(itemType).build(),
+						88, FixedField.builder().label("REQUEST").value("&").build());
+
+					final var itemPatch = ItemPatch.builder()
+						.barcodes(List.of(barcode))
+						.owningLocations(List.of(owningLocation))
+						.fixedFields(fixedFields)
+						.build();
+
+					return updateItem(itemId, itemPatch);
+				})
+			.flatMap(_itemID -> getRequest(localRequest.getLocalId()))
+			.map(hostLmsRequest -> LocalRequest.builder()
+				.localId(hostLmsRequest.getLocalId())
+				.localStatus(hostLmsRequest.getStatus())
+				.rawLocalStatus(hostLmsRequest.getRawStatus())
+				.requestedItemId(hostLmsRequest.getRequestedItemId())
+				.build())
+			.doOnSuccess(returnValue -> log.info("Successfully updated patron request, returning {}.", localRequest));
+	}
+
+	@Override
+	public Mono<Boolean> isReResolutionSupported() {
+		return Mono.just(true);
+	}
+
 	private Mono<LocalRequest> addBarcodeIfItemIdPresent(LocalRequest localRequest) {
 		if ( localRequest.getRequestedItemId() != null ) {
 			return getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
@@ -1555,6 +1595,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			log.warn("Update item status requested for {} and we don't have a sierra translation for that", crs);
 			return Mono.error(new NullPointerException("Could not update item "+itemId+" status for hostlms: "+getHostLms().getName()));
 		}
+	}
+
+	public Mono<String> updateItem(String itemId,ItemPatch itemPatch) {
+
+		return Mono.from(client.updateItem(itemId, itemPatch))
+			.doOnSuccess(__ -> log.info("Item successfully updated."))
+			.doOnError(error -> log.error("Error updating item: {}", error.getMessage()))
+			.thenReturn(itemId);
 	}
 
 	private HostLmsItem sierraItemToHostLmsItem(SierraItem item) {

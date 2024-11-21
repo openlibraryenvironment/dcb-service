@@ -91,6 +91,17 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
+	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
+		return null;
+	}
+
+	@Override
+	public Mono<Boolean> isReResolutionSupported() {
+		return Mono.just(false);
+	}
+
+	@Override
 	public HostLms getHostLms() {
 		return lms;
 	}

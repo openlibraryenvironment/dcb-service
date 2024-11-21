@@ -47,10 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
@@ -1064,6 +1061,52 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(string, is(notNullValue()));
 		assertThat(string, is("OK"));
+	}
+
+	@Test
+	void ShouldBeAbleToUpdatePatronRequest() {
+		// Arrange
+		final var localItemId = "3512742";
+
+		mockPolarisFixture.mockGetItem(localItemId);
+		mockPolarisFixture.mockStartWorkflow("item-workflow-response.json");
+
+		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
+			"create-item-resp.json");
+
+		mockPolarisFixture.mockGetItemStatuses();
+
+		final var localHoldId = "2977175";
+
+		mockPolarisFixture.mockGetHold(localHoldId,
+			LibraryHold.builder()
+				.sysHoldStatus("Pending")
+				.itemRecordID(3512742)
+				.itemBarcode("785574212")
+				.build());
+
+		final var localRequest = LocalRequest.builder()
+			.localId(localHoldId)
+			.requestedItemId(localItemId)
+			.requestedItemBarcode("785574212")
+			.supplyingHostLmsCode("supplyingHostLmsCode")
+			.supplyingAgencyCode("supplyingAgencyCode")
+			.canonicalItemType("canonicalItemType")
+			.requestedItemId(localItemId)
+			.build();
+
+		referenceValueMappingFixture.defineMapping("DCB", "ItemType", "canonicalItemType", CATALOGUING_HOST_LMS_CODE, "ItemType", "007");
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		final var returnValue = singleValueFrom(client.updatePatronRequest(localRequest));
+
+		// Assert
+		assertThat(returnValue, is(notNullValue()));
+		assertThat(returnValue.getLocalId(), is("2977175"));
+		assertThat(returnValue.getRequestedItemId(), is("3512742"));
+		assertThat(returnValue.getLocalStatus(), is("CONFIRMED"));
+		assertThat(returnValue.getRawLocalStatus(), is("Pending"));
 	}
 
 	private static String barcodeAsSerialisedList(String barcode) {

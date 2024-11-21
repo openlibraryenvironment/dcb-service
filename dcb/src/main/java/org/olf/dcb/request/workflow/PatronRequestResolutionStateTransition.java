@@ -13,7 +13,6 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -71,7 +70,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			// Trail switching these so we can set current supplier request on patron request
 			.flatMap(this::auditResolution)
-			.flatMap(this::checkMappedCanonicalItemType)
+			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
 			.flatMap(this::saveSupplierRequest)
 			.flatMap(this::updatePatronRequest)
 			.map(Resolution::getPatronRequest)
@@ -107,49 +106,6 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 				"Resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
 					chosenItem.getLocalId(), chosenItem.getHostLmsCode()), auditData)
 			.then(Mono.just(resolution));
-	}
-
-	private Mono<Resolution> checkMappedCanonicalItemType(Resolution resolution) {
-
-		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
-
-		// NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
-		if (chosenItem == null) return Mono.just(resolution);
-
-		final var canonicalItemType = getValue(chosenItem, Item::getCanonicalItemType, "null");
-		final var localItemType = getValue(chosenItem, Item::getLocalItemType, "null");
-		final var owningContext = getValue(chosenItem, Item::getOwningContext, "null");
-
-		return switch (canonicalItemType) {
-			case UNKNOWN_NULL_LOCAL_ITEM_TYPE -> raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("No localItemType provided")
-				.with("hostLmsCode", owningContext)
-				.build());
-			case UNKNOWN_NULL_HOSTLMSCODE -> raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("No hostLmsCode provided")
-				.build());
-			case UNKNOWN_INVALID_LOCAL_ITEM_TYPE -> raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("Problem trying to convert " + localItemType + " into long value")
-				.with("hostLmsCode", owningContext)
-				.build());
-			case UNKNOWN_NO_MAPPING_FOUND -> raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("No canonical item type found for localItemTypeCode " + localItemType)
-				.with("hostLmsCode", owningContext)
-				.build());
-			case UNKNOWN_UNEXPECTED_FAILURE, "null" -> raiseError(Problem.builder()
-				.withTitle("NumericItemTypeMapper")
-				.withDetail("Unexpected failure")
-				.with("hostLmsCode", owningContext)
-				.with("localItemTypeCode", localItemType)
-				.build());
-
-			// canonicalItemType looks ok, continue
-			default -> Mono.just(resolution);
-		};
 	}
 
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {

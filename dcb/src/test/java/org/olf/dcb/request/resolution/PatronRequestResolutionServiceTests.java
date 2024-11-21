@@ -32,10 +32,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.Patron;
-import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -481,6 +478,61 @@ class PatronRequestResolutionServiceTests {
 			notNullValue(),
 			hasNoChosenItem(),
 			hasResolutionCount(1)
+		));
+	}
+
+	@Test
+	void shouldExcludeItemFromPreviousSupplierRequestAgency() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "651463";
+		final var onlyAvailableItemBarcode = "76653672456";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.resolutionCount(1)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		var supplierRequest = SupplierRequest
+			.builder()
+			.id(randomUUID())
+			.resolvedAgency(agencyFixture.findByCode(SUPPLYING_AGENCY_CODE))
+			.build();
+
+		patronRequest.setSupplierRequests(List.of(supplierRequest));
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem(),
+			hasResolutionCount(2)
 		));
 	}
 

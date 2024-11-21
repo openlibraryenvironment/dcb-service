@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,7 +51,21 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 		log.info("makeTransition({})", ctx.getPatronRequest());
 
-		final var statusUponEntry = ctx.getPatronRequest().getStatus();
+		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
+		final var resolutionCount = getValueOrNull(patronRequest, PatronRequest::getResolutionCount);
+
+		if (resolutionCount != null && resolutionCount > 1) {
+			return borrowingAgencyService.updatePatronRequestAtBorrowingAgency(ctx)
+				.doOnSuccess(pr -> {
+					log.info("Updated patron request at borrowing agency: {}", pr);
+					ctx.getWorkflowMessages().add("Updated patron request at borrowing agency");
+				})
+				.doOnError(error -> {
+					log.error("Error occurred during updating a patron request at borrowing agency: {}", error.getMessage());
+					ctx.getWorkflowMessages().add("Error occurred during updating a patron request at borrowing agency: "+error.getMessage());
+				})
+				.thenReturn(ctx);
+		}
 
 		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(ctx)
 			.doOnSuccess(pr -> {
