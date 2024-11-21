@@ -47,7 +47,7 @@ class ClusterRecordTests {
 
 	@Inject
 	@Client("/")
-	private HttpClient client;
+	private HttpClient httpClient;
 
 	@BeforeAll
 	void addFakeSierraApis(MockServerClient mock) {
@@ -80,7 +80,7 @@ class ClusterRecordTests {
 		// Arrange
 		var list = ingestService.getBibRecordStream().collectList().block();
 
-		final var blockingClient = client.toBlocking();
+		final var blockingClient = httpClient.toBlocking();
 		final var request = HttpRequest.GET("/clusters?page=0&size=10");
 
 		// Act
