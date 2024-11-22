@@ -1,9 +1,53 @@
 # Changelog
 
+## Version 8.3.0
+
+### Additions
+* [General]
+	* Re-resolve supplier cancelled request [DCB-1411]
+	* Add support for deleting consortia [DCB-1638]
+	* Add data change log support for new entities[DCB-1638]
+	* Add support for adding consortium contacts and other consortium config [DCB-1638]
+	* Add support for consortium contacts and functional settings [DCB-1638]
+	* Extend Consortium data model to support consortium config [DCB-1638]
+	* add resolution count to patron request model [DCB-1411]
+
+### Changes
+* [Chore]
+	* Prevent consortium creation if a consortium is already present [DCB-1638]
+	* Remove Beta requirement for ingestV2, pass isDevelopment flag through to MatchPoint builder in preparation for storing match point values in dev mode to help diagnose clustering issues
+	* Set OAI set on first pass through
+	* More logging in OAI ingest source, use orElseNull to simplify Optional handling on oai-set
+	* Phase two - embedded record contains instance of io.micronaut.json.tree.JsonString. Logging the values to see whats going wrong with parsing
+	* Change logging of last modified date from polaris to investigate issues
+	* Check for login failure in libraries_setup.sh [DCB-1638]
+	* Support editing the website URLs for a consortium [DCB-1638]
+	* Commenting in polaris api client explaining the problem with ingest
+	* Support editing the description of a consortium [DCB-1638]
+	* Clarify documentation of consortium feature [DCB-1638]
+	* add dcb.circulation.tracking-profile to info endpoint [DCB-1473]
+	* update resolution count for existing requests [DCB-1411]
+	* Additional info logging for polaris record ingest
+	* More work on native image flags and parameters
+	* Comment out exact reachability param for graal build
+	* Add reflection section to dcb/src/main/resources/META-INF/native-image/resource-config.json, add buildArgs.add('--exact-reachability-metadata') to build.gradle - attempt to address native image issues
+* [Feature]
+	* Add bootstrap.yml to enable integration with distributed configuration systems like hashicorp vault and AWS Secrets Manager
+* [Refactor]
+	* find and validate existence of a single consortium during re-resolution [DCB-1411]
+
+### Fixes
+* [General]
+	* Perform each delete chunk in it's own transaction. DCB-1421
+	* Increase record-id length to 256 DCB-1437
+	* Polaris Ingest should track highest timestamp seen to enable paging.
+	* Handle the deletion of legacy consortia [DCB-1638]
+
 ## Version 8.2.3
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add 'flag key' to log warnings [DCB-1473]
 	* Updated the failed to resolve shelving location check to be more generic
 * [Refactor]
