@@ -23,6 +23,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.api.exceptions.MultipleConsortiumException;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -119,6 +120,7 @@ class ResolveNextSupplierTransitionTests {
 		patronFixture.deleteAllPatrons();
 		agencyFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
+		consortiumFixture.deleteAll();
 
 		borrowingAgency = agencyFixture.defineAgency("borrowing-agency", "Borrowing Agency",
 			borrowingHostLms);
@@ -417,6 +419,27 @@ class ResolveNextSupplierTransitionTests {
 		assertThat(oneInactiveSupplierRequest, notNullValue());
 		assertThat("Inactive supplier request should exist and match previous supplier request",
 			oneInactiveSupplierRequest.getLocalId(), is(supplierRequest.getLocalId()));
+	}
+
+	@Test
+	void shouldResultInMultipleConsortiumExistsExceptionWhenMoreThanOneConsortium() {
+		consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+		consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+
+		final var clusterRecordId = randomUUID();
+		final var borrowingLocalRequestId = "3635625";
+		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+			borrowingLocalRequestId, clusterRecordId);
+
+		// Act
+		final var error = assertThrows(MultipleConsortiumException.class,
+			() -> resolveNextSupplier(patronRequest));
+
+		// Assert
+		assertThat(error, allOf(
+			notNullValue(),
+			hasMessage("Multiple Consortium found when only one was expected. Found: 2")
+		));
 	}
 
 	private PatronRequest resolveNextSupplier(PatronRequest patronRequest) {
