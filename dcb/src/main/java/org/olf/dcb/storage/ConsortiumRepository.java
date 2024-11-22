@@ -45,6 +45,9 @@ public interface ConsortiumRepository {
 	Publisher<Boolean> existsByLibraryGroup(LibraryGroup libraryGroup);
 
 	@NonNull
+	Publisher<Boolean> exists();
+
+	@NonNull
 	Publisher<Consortium> findFirst();
 
 	@NonNull

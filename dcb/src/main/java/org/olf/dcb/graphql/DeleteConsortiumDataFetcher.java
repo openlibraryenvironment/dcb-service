@@ -116,7 +116,7 @@ public class DeleteConsortiumDataFetcher implements DataFetcher<CompletableFutur
 								input_map.containsKey("changeReferenceUrl") ? input_map.get("changeReferenceUrl").toString() : null,
 								userString))
 							.then(Mono.from(libraryGroupRepository.delete(libraryGroupId)))
-							.thenReturn(createResult(true, multipleConsortia ? "The legacy consortia and their shared library group were deleted successfully" : "The consortium and its associated library group was deleted successfully"));
+							.thenReturn(createResult(true, multipleConsortia ? "The legacy consortia and their shared library group were deleted successfully" : "The consortium, its associated data and its associated library group were deleted successfully"));
 					});
 			})
 			.onErrorResume(e -> {
