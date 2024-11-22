@@ -1634,7 +1634,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.sourceRecordData( rawJson )
 												.build());
 
-											String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
+											String recordModificationDate = rawJson.get("ModificationDate").getStringValue();
 											log.info("Record modification date : {}",recordModificationDate);
 
 											// String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
@@ -1662,6 +1662,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 								// We return the current data with the Checkpoint that will return the next chunk.
 								final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
+								log.debug("Polaris checkpoint {} {}",extParams,newCheckpoint);
 
 								builder.checkpoint( newCheckpoint );
 								
