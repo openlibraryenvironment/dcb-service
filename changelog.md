@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 8.3.1
+
+### Changes
+* [Chore]
+	* It seems that MS turns the last modified date into a strange string. Add a parser for it
+	* Use getStringValue instead of cocerceToString trying to extract record modification times from polaris bibs
+
+### Fixes
+* [General]
+	* Wrong path in build for reflection config
+
 ## Version 8.3.0
 
 ### Additions
@@ -14,6 +25,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Prevent consortium creation if a consortium is already present [DCB-1638]
 	* Remove Beta requirement for ingestV2, pass isDevelopment flag through to MatchPoint builder in preparation for storing match point values in dev mode to help diagnose clustering issues
 	* Set OAI set on first pass through
