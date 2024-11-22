@@ -1,4 +1,6 @@
 micronaut:
+  config:
+    bootstrap: true
   server:
     cors:
       enabled: true

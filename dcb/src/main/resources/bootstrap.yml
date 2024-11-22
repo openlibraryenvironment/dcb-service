@@ -1,0 +1,50 @@
+#
+# Usually you will override this file by specifying a variable called 
+# MICRONAUT_CONFIG_FILES. In a k8s env you might mount the file at /bootstrap.yml
+# and then set MICRONAUT_CONFIG_FILES=/bootstrap.yml
+#
+# In development this file will be used to bootstrap the system
+
+
+micronaut:
+  application:
+    name: dcb
+
+#
+# Hashicorp vault:
+#
+# application name is used to find distributed config
+# So if you are hosting multiple instances some choose to set micronaut.application.name on a per installation
+# basis so that clients like vault will look under different keys for configuration. Alternatively use the
+# config section below.
+#
+#  vault:
+#    client:
+#      uri: https://vault.hosting.k-int.com
+#      token: ...
+#    config:
+#      enabled: true
+#      fail-fast: true
+#      default-context: secret/wibble
+#      secrets:
+#        - ${micronaut.application.name}     # You can still use application-specific paths
+#        - commong
+#
+#
+#
+# AWS Secrets manager:
+#
+# Set environment variables 
+# export AWS_ACCESS_KEY_ID=your_access_key
+# export AWS_SECRET_ACCESS_KEY=your_secret_key
+# Or set an IAM role for the instance
+# 
+# aws:
+#   secretsmanager:
+#     prefix: /myapp     -- OPTIONAL if you want a specific prefix
+#     enabled: true
+#     region:
+#     secrets:
+#       - /myapp/secrets
+#       - /common/secrets
+#     fail-fast: true

@@ -13,6 +13,21 @@ This module is distributed in source and pre-compiled docker container form:
 
 # Deployment
 
+## Secret Manager Integration
+
+By creating a bootstrap.yml file and mounting it at /bootstrap.yml, then referencing this file in an
+environment variable: MICRONAUT_CONFIG_FILES=/bootstrap.yml devops teams can point DCB at a local secret
+manager. Info for different environments can be found here: https://guides.micronaut.io/latest/tag-distributed_configuration.html
+and the bootstrap.yml under dcb/src/main/resources contains commented out sections for AWS Secrets Manager and 
+Hashicorp Vault.
+
+
+## Environment overrides 
+
+It is important to note that Micronaut declarative configuration reads environment variables last, so if switching to secrets
+manager, you should remember to remove any environment variables as they will override distributed config.
+
+
 The module is deployed as a docker container which supports the following runtime ENV settings
 
 Note: Today flyway does not support r2dbc datasources, so we need to configure both JDBC and R2DBC datasources - same
