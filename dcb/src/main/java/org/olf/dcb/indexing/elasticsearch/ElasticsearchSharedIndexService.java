@@ -231,7 +231,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private volatile AtomicReference<Time> refreshInterval = new AtomicReference<Time>(Time.of(t->t.time("30s")));
 	
 	private Mono<IndexSettings> getIndexSettings() {
-		
+		log.debug("attempt to get index settings {}",indexName);
 		try {
 			return Mono.fromFuture(
 					client.indices()
@@ -239,8 +239,11 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 						.index( indexName )))
 				.map( GetIndicesSettingsResponse::result )
 				.map( indexMap -> indexMap.get(indexName) )
-				.map( IndexState::settings );
-			
+				.map( IndexState::settings )
+				.onErrorResume( e -> {
+					log.warn("Error in (ES) getIndexSettings {}",e.getMessage());
+					return Mono.error( new DcbError("Error in getIndexSettings {}",e));
+				});
 		} catch (Throwable e) {
 			return Mono.error( new DcbError("Error fetching index settings", e) );
 		}
@@ -253,7 +256,11 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 					client.indices()
 					.putSettings( s -> s.index(indexName)
 						.settings(settings)))
-				.map(AcknowledgedResponse::acknowledged);
+				.map(AcknowledgedResponse::acknowledged)
+				.onErrorResume( e -> {
+					log.warn("Error in (ES) changeIndexSettings {}",e.getMessage());
+					return Mono.error( new DcbError("Error in getIndexSettings {}",e));
+				});
 			
 		} catch (Throwable e) {
 			return Mono.error( new DcbError("Error fetching index settings", e) );

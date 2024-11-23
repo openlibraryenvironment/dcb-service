@@ -260,8 +260,11 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						.index( indexName )))
 				.map( GetIndicesSettingsResponse::result )
 				.map( indexMap -> indexMap.get(indexName) )
-				.map( IndexState::settings );
-			
+				.map( IndexState::settings )
+        .onErrorResume( e -> {
+          log.warn("Error in (OS) getIndexSettings {}",e.getMessage());
+          return Mono.error( new DcbError("Error in getIndexSettings {}",e));
+        });
 		} catch (Throwable e) {
 			return Mono.error( new DcbError("Error fetching index settings", e) );
 		}
@@ -274,7 +277,11 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 					client.indices()
 					.putSettings( s -> s.index(indexName)
 						.settings(settings)))
-				.map(AcknowledgedResponseBase::acknowledged);
+				.map(AcknowledgedResponseBase::acknowledged)
+        .onErrorResume( e -> {
+          log.warn("Error in (OS) changeIndexSettings {}",e.getMessage());
+          return Mono.error( new DcbError("Error in getIndexSettings {}",e));
+        });
 			
 		} catch (Throwable e) {
 			return Mono.error( new DcbError("Error fetching index settings", e) );
