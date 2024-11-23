@@ -1626,10 +1626,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									final var builder = SourceRecordImportChunk.builder()
 											.lastChunk( isLastChunk );
 
-									// polaris date format for last modified: 1970-01-01T00:00:00.001Z
-									DateTimeFormatter lmdateparser = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-										.withZone(ZoneOffset.UTC);
-									
 									jsonArr.values().forEach(rawJson -> {
 
 										try {
@@ -1640,16 +1636,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.sourceRecordData( rawJson )
 												.build());
 
-											String recordModificationDate = convertMSJsonDate(rawJson.get("ModificationDate").getStringValue());
-											log.info("Record modification date : {}",recordModificationDate);
+											Instant modification_instant = convertMSJsonDate(rawJson.get("ModificationDate").getStringValue());
+											log.info("Record modification date : {}",modification_instant);
 
-											// String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
-											// ZonedDateTime zonedDateTime = ZonedDateTime.parse(recordModificationDate, lmdateparser);
-											// Instant modification_instant = zonedDateTime.toInstant();
-											// if ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
-											//      ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) {
-											// extParams.setHighestDateUpdatedSeen(modification_instant);
-										  // }
+											if ( ( modification_instant != null ) &&
+                           ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
+											       ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) ) {
+											  extParams.setHighestDateUpdatedSeen(modification_instant);
+										  }
 
 					  			} catch (Throwable t) {  				
 					  				if (log.isDebugEnabled()) {
@@ -1684,8 +1678,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 	}
 
-	private String convertMSJsonDate(String msDate) {
-		String result = null;
+	private Instant convertMSJsonDate(String msDate) {
+		Instant result = null;
 
 		if ( msDate == null )
 			return null;
@@ -1707,7 +1701,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 				// Create an OffsetDateTime
 				OffsetDateTime dateTime = instant.atOffset(offset);
-				result = dateTime.toString();
+				result = dateTime.toInstant();
 			} else {
 				log.warn("Invalid Microsoft date format: {}", msDate);
 			}
