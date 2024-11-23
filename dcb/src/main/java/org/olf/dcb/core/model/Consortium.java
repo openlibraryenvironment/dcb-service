@@ -31,7 +31,7 @@ import lombok.ToString;
  * <p>A consortium may have a one-to-many relationship with its functional settings.
  * It must have a one-to-one relationship with a LibraryGroup of type "Consortium", which will hold the associated libraries.
  * </p><br>
- * At the time of writing, only one Consortium is intended to exist within a DCB instance.
+ * At the time of writing, only one Consortium can exist within a DCB instance: attempting to create a second will result in an error.
  * To find a consortium's functional settings, obtain the consortium through its repository methods
  * and then call the ConsortiumFunctionalRepository's 'findByConsortium' method.
  * Please see the getFunctionalSettingsForConsortiumDataFetcher for an example of how this can be done.

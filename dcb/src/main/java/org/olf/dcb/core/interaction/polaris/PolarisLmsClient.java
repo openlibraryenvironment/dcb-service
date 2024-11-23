@@ -108,6 +108,10 @@ import reactor.util.retry.Retry;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.time.OffsetDateTime;
+
 @Slf4j
 @Prototype
 public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsPagedRow>, HostLmsClient, SourceRecordDataSource {
@@ -136,6 +140,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final PolarisConfig polarisConfig;
 	
 	private final R2dbcOperations r2dbcOperations;
+	private final Pattern msDateRegex;
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
@@ -164,6 +169,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.client = client;
 		this.r2dbcOperations = r2dbcOperations;
 		this.objectRuleService = objectRuleService;
+		this.msDateRegex = Pattern.compile("/DATE\\((\\d+)([+-]\\d{4})\\)/");
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
@@ -1634,7 +1640,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.sourceRecordData( rawJson )
 												.build());
 
-											String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
+											String recordModificationDate = convertMSJsonDate(rawJson.get("ModificationDate").getStringValue());
 											log.info("Record modification date : {}",recordModificationDate);
 
 											// String recordModificationDate = rawJson.get("ModificationDate").coerceStringValue();
@@ -1662,6 +1668,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 								// We return the current data with the Checkpoint that will return the next chunk.
 								final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
+								log.debug("Polaris checkpoint {} {}",extParams,newCheckpoint);
 
 								builder.checkpoint( newCheckpoint );
 								
@@ -1675,6 +1682,36 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		} catch (Exception e) {
 			return Mono.error( e );
 		}
+	}
+
+	private String convertMSJsonDate(String msDate) {
+		String result = null;
+		try {
+			Matcher matcher = msDateRegex.matcher(msDate);
+
+			if (matcher.matches()) {
+				long timestamp = Long.parseLong(matcher.group(1)); // 1708419632890
+				String timezoneOffset = matcher.group(2);          // -0600
+
+				// Convert timestamp to Instant
+				Instant instant = Instant.ofEpochMilli(timestamp);
+
+				// Parse the timezone offset
+				int hoursOffset = Integer.parseInt(timezoneOffset.substring(0, 3));
+				int minutesOffset = Integer.parseInt(timezoneOffset.substring(0, 1) + timezoneOffset.substring(3, 5));
+				ZoneOffset offset = ZoneOffset.ofHoursMinutes(hoursOffset, minutesOffset);
+
+				// Create an OffsetDateTime
+				OffsetDateTime dateTime = instant.atOffset(offset);
+				result = dateTime.toString();
+				// System.out.println("Parsed DateTime: " + dateTime);
+			} else {
+				// System.out.println("Invalid Microsoft date format.");
+			}
+		}
+		catch ( Exception e ) {
+		}
+		return result;
 	}
 
 	@Override

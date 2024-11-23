@@ -140,7 +140,7 @@ public class HostLmsService implements IngestSourcesProvider {
 			.doOnSuccess( total -> log.info("Removed [{}] bibs in total for host lms [{}]", total, owner) );
 	}
 
-	@Transactional(propagation = Propagation.MANDATORY)
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected Mono<Long> deleteChunkOfBibs(Iterable<BibRecord> chunk) {
 		
 		return Flux.fromIterable( chunk )

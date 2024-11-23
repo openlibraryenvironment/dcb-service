@@ -97,11 +97,11 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			.flatMap(libraryGroup -> {
 				if (libraryGroup != null) {
 					// If a library group matching the conditions is found, we can attempt to create the associated consortium
-					return Mono.from(consortiumRepository.existsByLibraryGroup(libraryGroup))
+					return Mono.from(consortiumRepository.exists())
 						.flatMap(exists -> {
 								if (exists) {
-									// Do not allow a new consortium to be created for a group that already has one
-									return Mono.error(new ConsortiumCreationException("A consortium already exists for the specified library group."));
+									// Do not allow a new consortium to be created for a DCB instance that already has one.
+									return Mono.error(new ConsortiumCreationException("A consortium already exists for this DCB system."));
 								}
 							// Input date must be in format YYYY-MM-DD
 								LocalDate launchDate = LocalDate.parse(input_map.get("dateOfLaunch").toString(), DateTimeFormatter.ISO_LOCAL_DATE );
