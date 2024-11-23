@@ -169,7 +169,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.client = client;
 		this.r2dbcOperations = r2dbcOperations;
 		this.objectRuleService = objectRuleService;
-		this.msDateRegex = Pattern.compile("/DATE\\((\\d+)([+-]\\d{4})\\)/");
+		this.msDateRegex = Pattern.compile("/date\\((\\d+)([+-]\\d{4})\\)/");
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
@@ -1686,8 +1686,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private String convertMSJsonDate(String msDate) {
 		String result = null;
+
+		if ( msDate == null )
+			return null;
+
 		try {
-			Matcher matcher = msDateRegex.matcher(msDate);
+			Matcher matcher = msDateRegex.matcher(msDate.toLowerCase());
 
 			if (matcher.matches()) {
 				long timestamp = Long.parseLong(matcher.group(1)); // 1708419632890
