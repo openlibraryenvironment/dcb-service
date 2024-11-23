@@ -8,8 +8,6 @@ import java.util.UUID;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.HostLmsRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +16,6 @@ import reactor.core.publisher.Flux;
 @Slf4j
 @Singleton
 public class ExportHostLmsService {
-	private static final Logger log = LoggerFactory.getLogger(ExportHostLmsService.class);
 	
 	private final HostLmsRepository hostLmsRepository;
 	

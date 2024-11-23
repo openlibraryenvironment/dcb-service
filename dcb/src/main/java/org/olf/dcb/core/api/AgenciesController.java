@@ -15,8 +15,6 @@ import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LibraryRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -45,7 +43,6 @@ import services.k_int.utils.UUIDUtils;
 @Tag(name = "Admin API")
 @Slf4j
 public class AgenciesController {
-	private static final Logger log = LoggerFactory.getLogger(AgenciesController.class);
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
 	private final LibraryRepository libraryRepository;

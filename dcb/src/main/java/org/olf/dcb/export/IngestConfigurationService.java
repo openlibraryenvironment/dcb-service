@@ -2,8 +2,6 @@ package org.olf.dcb.export;
 
 import org.olf.dcb.export.model.IngestResult;
 import org.olf.dcb.export.model.SiteConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -11,8 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Singleton
 public class IngestConfigurationService {
-	@SuppressWarnings("unused")
-	private static final Logger log = LoggerFactory.getLogger(IngestConfigurationService.class);
 	
 	private final IngestAgencyService agencyService;
 	private final IngestHostLmsService hostLmsService;

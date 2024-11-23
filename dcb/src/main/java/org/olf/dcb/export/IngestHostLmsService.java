@@ -12,8 +12,6 @@ import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +21,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class IngestHostLmsService {
-	private static final Logger log = LoggerFactory.getLogger(IngestHostLmsService.class);
 
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;

@@ -1704,12 +1704,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				// Create an OffsetDateTime
 				OffsetDateTime dateTime = instant.atOffset(offset);
 				result = dateTime.toString();
-				// System.out.println("Parsed DateTime: " + dateTime);
 			} else {
-				// System.out.println("Invalid Microsoft date format.");
+				log.warn("Invalid Microsoft date format: {}", msDate);
 			}
 		}
 		catch ( Exception e ) {
+			log.warn("Problem parsing polaris date: {}:{}",msDate, e.getMessage());
 		}
 		return result;
 	}

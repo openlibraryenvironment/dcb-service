@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.export.model.SiteConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Singleton
 public class ExportService {
-	@SuppressWarnings("unused")
-	private static final Logger log = LoggerFactory.getLogger(ExportService.class);
 	
 	private final ExportAgencyService agencyService;
 	private final ExportHostLmsService hostLmsService;

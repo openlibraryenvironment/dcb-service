@@ -6,8 +6,6 @@ import java.util.UUID;
 import org.olf.dcb.core.model.LibraryGroup;
 import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.LibraryGroupRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +14,6 @@ import reactor.core.publisher.Flux;
 @Slf4j
 @Singleton
 public class ExportLibraryGroupService {
-	private static final Logger log = LoggerFactory.getLogger(ExportLibraryGroupService.class);
 	
 	private final LibraryGroupRepository libraryGroupRepository;
 	

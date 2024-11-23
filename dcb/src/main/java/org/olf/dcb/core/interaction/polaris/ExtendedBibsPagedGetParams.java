@@ -19,7 +19,7 @@ public class ExtendedBibsPagedGetParams {
   private Integer lastId;
   private Integer nrecs;
 	private Instant highestDateUpdatedSeen;
-  private String cpType="POLARIS";
+  private final String cpType="POLARIS";
 
 	public BibsPagedGetParams toBibsPagedGetParams() {
 		return BibsPagedGetParams

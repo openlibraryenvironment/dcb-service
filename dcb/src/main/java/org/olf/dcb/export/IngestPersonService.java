@@ -7,8 +7,6 @@ import org.olf.dcb.export.model.IngestResult;
 import org.olf.dcb.export.model.ProcessingResult;
 import org.olf.dcb.export.model.SiteConfiguration;
 import org.olf.dcb.storage.PersonRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +16,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class IngestPersonService {
-	private static final Logger log = LoggerFactory.getLogger(IngestPersonService.class);
 
 	private final PersonRepository personRepository;
 
