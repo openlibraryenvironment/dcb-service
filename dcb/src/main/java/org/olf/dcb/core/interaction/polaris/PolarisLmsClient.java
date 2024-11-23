@@ -1658,6 +1658,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									// If this is the last chunk, set the highest updated date seen, null out our transient and set recno to 0;
 									extParams.setStartdatemodified(extParams.getHighestDateUpdatedSeen());
 									extParams.setLastId(Integer.valueOf(0));
+                  extParams.setPagesInCurrentCheckpoint(Integer.valueOf(0));
+                  extParams.setCheckpointDate(Instant.now());
+								}
+								else {
+                  extParams.setPagesInCurrentCheckpoint(extParams.getPagesInCurrentCheckpoint() == null ? 1 : extParams.getPagesInCurrentCheckpoint().intValue() + 1 );
+                  extParams.setCheckpointDate(Instant.now());
 								}
 
 								// We return the current data with the Checkpoint that will return the next chunk.
