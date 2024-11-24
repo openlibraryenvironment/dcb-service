@@ -1669,6 +1669,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
                   extParams.setPagesInCurrentCheckpoint(extParams.getPagesInCurrentCheckpoint() == null ? 1 : extParams.getPagesInCurrentCheckpoint().intValue() + 1 );
                   extParams.setCheckpointDate(Instant.now());
                   extParams.setRecordsInLastPage(jsonArr.size());
+				  extParams.setLastId(Integer.valueOf(lastId));
 								}
 
 								// We return the current data with the Checkpoint that will return the next chunk.
