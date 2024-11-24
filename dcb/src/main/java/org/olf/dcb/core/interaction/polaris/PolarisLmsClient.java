@@ -1639,12 +1639,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.build());
 
 											Instant modification_instant = convertMSJsonDate(rawJson.get("ModificationDate").getStringValue());
-											log.info("Record modification date : {}",modification_instant);
+											// log.info("Record modification date : {}",modification_instant);
 
 											if ( ( modification_instant != null ) &&
                            ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
 											       ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) ) {
 											  extParams.setHighestDateUpdatedSeen(modification_instant);
+												log.info("{} extParams.setHighestDateUpdatedSeen({})",lms.getCode(), modification_instant);
 										  }
 
 					  			} catch (Throwable t) {  				
@@ -1672,7 +1673,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 								// We return the current data with the Checkpoint that will return the next chunk.
 								final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
-								log.debug("Polaris checkpoint {} {}",extParams,newCheckpoint);
+								log.info("Polaris checkpoint {} {} {}",lms.getCode(), extParams, newCheckpoint);
 
 								builder.checkpoint( newCheckpoint );
 								
