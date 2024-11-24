@@ -20,6 +20,7 @@ public class ExtendedBibsPagedGetParams {
   private Integer pagesInCurrentCheckpoint;
   private Instant checkpointDate;
   private Integer nrecs;
+  private Integer recordsInLastPage;
 	private Instant highestDateUpdatedSeen;
   private final String cpType="POLARIS";
 

@@ -1622,6 +1622,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									// the edits for 2,3,4,4.. which will cause problems. 
 
 									final boolean isLastChunk = jsonArr.size() != apiParams.getNrecs();
+
+									log.info("Got page of size {} from polaris, requested {}, therefore isLastChunk={}",jsonArr.size(), apiParams.getNrecs(), isLastChunk);
 									
 									final var builder = SourceRecordImportChunk.builder()
 											.lastChunk( isLastChunk );
@@ -1660,10 +1662,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									extParams.setLastId(Integer.valueOf(0));
                   extParams.setPagesInCurrentCheckpoint(Integer.valueOf(0));
                   extParams.setCheckpointDate(Instant.now());
+                  extParams.setRecordsInLastPage(jsonArr.size());
 								}
 								else {
                   extParams.setPagesInCurrentCheckpoint(extParams.getPagesInCurrentCheckpoint() == null ? 1 : extParams.getPagesInCurrentCheckpoint().intValue() + 1 );
                   extParams.setCheckpointDate(Instant.now());
+                  extParams.setRecordsInLastPage(jsonArr.size());
 								}
 
 								// We return the current data with the Checkpoint that will return the next chunk.
