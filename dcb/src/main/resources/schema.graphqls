@@ -44,6 +44,7 @@ type Mutation {
 	  createContact(input: ConsortiumContactInput): ConsortiumContact!
 		deleteConsortium(input: DeleteEntityInput): DeleteEntityPayload!
 		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
+		createRole(input: CreateRoleInput): Role!
 
 }
 
@@ -102,6 +103,13 @@ input ConsortiumContactInput {
 	reason: String!
 	changeCategory: String!
 	changeReferenceUrl: String
+}
+
+input CreateRoleInput {
+	name: String!
+	displayName: String!
+	description: String!
+	keycloakRole: String!
 }
 
 input FunctionalSettingInput {
@@ -469,7 +477,7 @@ type Person {
 	id: ID
 	firstName: String
 	lastName: String
-	role: String
+	role: Role!
 	isPrimaryContact: Boolean
 	email: String
 }
@@ -703,4 +711,12 @@ type FunctionalSetting {
 	name: FunctionalSettingType!
 	enabled: Boolean!
 	description: String
+}
+
+type Role {
+	id: ID!
+	displayName: String!
+	name: String!
+	description: String
+	keycloakRole: String
 }

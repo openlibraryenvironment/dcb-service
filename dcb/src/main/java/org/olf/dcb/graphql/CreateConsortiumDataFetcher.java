@@ -12,23 +12,24 @@ import java.util.concurrent.CompletableFuture;
 
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.exceptions.ConsortiumCreationException;
+
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumContact;
 import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
 import org.olf.dcb.core.model.FunctionalSetting;
 import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Person;
+import org.olf.dcb.core.model.RoleName;
 
-import org.olf.dcb.storage.FunctionalSettingRepository;
-import org.olf.dcb.storage.ConsortiumFunctionalSettingRepository;
-import org.olf.dcb.storage.ConsortiumContactRepository;
-import org.olf.dcb.storage.PersonRepository;
 import org.olf.dcb.storage.ConsortiumRepository;
+import org.olf.dcb.storage.ConsortiumContactRepository;
+import org.olf.dcb.storage.ConsortiumFunctionalSettingRepository;
+import org.olf.dcb.storage.FunctionalSettingRepository;
 import org.olf.dcb.storage.LibraryGroupRepository;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.olf.dcb.storage.PersonRepository;
+import org.olf.dcb.storage.RoleRepository;
 
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
@@ -39,29 +40,29 @@ import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
+@Slf4j
 public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFuture<Consortium>> {
 
-	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
-
 	private ConsortiumRepository consortiumRepository;
-
 	private LibraryGroupRepository libraryGroupRepository;
 	private ConsortiumContactRepository consortiumContactRepository;
 	private PersonRepository personRepository;
-
 	private FunctionalSettingRepository functionalSettingRepository;
-
-
+	private RoleRepository roleRepository;
 	private ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository;
-
 	private R2dbcOperations r2dbcOperations;
 
-	public CreateConsortiumDataFetcher(ConsortiumRepository consortiumRepostory, LibraryGroupRepository libraryGroupRepository, ConsortiumContactRepository consortiumContactRepository, PersonRepository personRepository, ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository, FunctionalSettingRepository functionalSettingRepository, R2dbcOperations r2dbcOperations) {
+	public CreateConsortiumDataFetcher(ConsortiumRepository consortiumRepostory, LibraryGroupRepository libraryGroupRepository,
+																		 ConsortiumContactRepository consortiumContactRepository, PersonRepository personRepository,
+																		 ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository,
+																		 FunctionalSettingRepository functionalSettingRepository, RoleRepository roleRepository,
+																		 R2dbcOperations r2dbcOperations) {
 		this.consortiumRepository = consortiumRepostory;
 		this.libraryGroupRepository = libraryGroupRepository;
 		this.consortiumContactRepository = consortiumContactRepository;
 		this.consortiumFunctionalSettingRepository = consortiumFunctionalSettingRepository;
 		this.personRepository = personRepository;
+		this.roleRepository = roleRepository;
 		this.functionalSettingRepository = functionalSettingRepository;
 		this.r2dbcOperations = r2dbcOperations;
 	}
@@ -147,12 +148,13 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 								changeCategory.ifPresent(consortium::setChangeCategory);
 								reason.ifPresent(consortium::setReason);
 								// Save consortium first. Then associate contacts and settings
-								return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(consortiumRepository.saveOrUpdate(consortium))))
-									.flatMap(savedConsortium -> {
-										Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
-											.map(contactInput -> createPersonFromInput(contactInput, userString))
-											.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
-											.collectList();
+									return Mono.from(r2dbcOperations.withTransaction(status ->
+											Mono.from(consortiumRepository.saveOrUpdate(consortium))))
+										.flatMap(savedConsortium -> {
+											Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
+												.flatMap(contactInput -> createPersonFromInput(contactInput, userString)
+													.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person))))
+												.collectList();
 										Mono<? extends List<? extends FunctionalSetting>> functionalSettingMono = Flux.fromIterable(functionalSettingsInput)
 											.map(this::createFunctionalSettingFromInput)
 											.flatMap(functionalSetting -> Mono.from(functionalSettingRepository.saveOrUpdate(functionalSetting)))
@@ -174,17 +176,41 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 				}
 			).toFuture();
 	}
-	private Person createPersonFromInput(Map<String, Object> contactInput, String username) {
-		return Person.builder()
-			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + contactInput.get("firstName") + contactInput.get("lastName") + contactInput.get("role") + contactInput.get("email")))
-			.firstName(contactInput.get("firstName").toString().trim())
-			.lastName(contactInput.get("lastName").toString().trim())
-			.role(contactInput.get("role").toString())
-			.isPrimaryContact(contactInput.get("isPrimaryContact") != null ? Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
-			.email(contactInput.get("email").toString().trim())
-			.lastEditedBy(username)
-			.build();
+
+	private Mono<Person> createPersonFromInput(Map<String, Object> contactInput, String username) {
+		String roleString = contactInput.get("role").toString().trim().replace("-", "_");
+		// First validate the role name. We may need to format it first.
+		String newRoleString = roleString.replace(" ", "_").toUpperCase();
+		if (!RoleName.isValid(newRoleString)) {
+			return Mono.error(new IllegalArgumentException(
+				String.format("Invalid role: '%s'. The roles currently available are: %s",
+					roleString,
+					RoleName.getValidNames())
+			));
+		}
+		// Next, look up our role entity so we can get all role info.
+		RoleName roleName = RoleName.valueOf(newRoleString);
+		String[] validRoles = new String[]{RoleName.getValidNames()};
+		return Mono.from(roleRepository.findByName(roleName))
+			.switchIfEmpty(Mono.error(new ConsortiumCreationException(
+				String.format("The consortium contact you provided had a role that was not found in the system: %s. Valid roles are : %s", roleString, validRoles))))
+			.map(role -> {
+				log.debug("createConsortiumDataFetcher: Creating person with role: {}", role.getName());
+				return Person.builder()
+					.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
+						"Person:" + contactInput.get("firstName") + contactInput.get("lastName") +
+							role.getName() + contactInput.get("email")))
+					.firstName(contactInput.get("firstName").toString().trim())
+					.lastName(contactInput.get("lastName").toString().trim())
+					.role(role)
+					.isPrimaryContact(contactInput.get("isPrimaryContact") != null ?
+						Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
+					.email(contactInput.get("email").toString().trim())
+					.lastEditedBy(username)
+					.build();
+			});
 	}
+
 
 	private Mono<Void> associateContactsWithConsortium(Consortium consortium, List<Person> contacts) {
 		return Flux.fromIterable(contacts)

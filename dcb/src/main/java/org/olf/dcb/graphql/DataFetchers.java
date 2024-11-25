@@ -70,9 +70,7 @@ public class DataFetchers {
 
 	private final PostgresFunctionalSettingRepository postgresFunctionalSettingRepository;
 	private final PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository;
-
-
-
+	private final PostgresRoleRepository postgresRoleRepository;
 
 	private final QueryService qs;
 
@@ -97,7 +95,10 @@ public class DataFetchers {
 											PostgresLibraryGroupRepository postgresLibraryGroupRepository, LibraryGroupMemberRepository libraryGroupMemberRepository,
 											PostgresLibraryGroupMemberRepository postgresLibraryGroupMemberRepository,
 											PostgresLibraryContactRepository postgresLibraryContactRepository, PostgresDataChangeLogRepository postgresDataChangeLogRepository,
-											PostgresMatchPointRepository postgresMatchPointRepository, PostgresConsortiumContactRepository postgresConsortiumContactRepository, PostgresFunctionalSettingRepository postgresFunctionalSettingRepository, PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
+											PostgresMatchPointRepository postgresMatchPointRepository, PostgresConsortiumContactRepository postgresConsortiumContactRepository,
+											PostgresFunctionalSettingRepository postgresFunctionalSettingRepository,
+											PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
+											PostgresRoleRepository postgresRoleRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -127,6 +128,7 @@ public class DataFetchers {
 		this.postgresConsortiumContactRepository = postgresConsortiumContactRepository;
 		this.postgresFunctionalSettingRepository = postgresFunctionalSettingRepository;
 		this.postgresConsortiumFunctionalSettingRepository = postgresConsortiumFunctionalSettingRepository;
+		this.postgresRoleRepository = postgresRoleRepository;
 	}
 
 
@@ -919,6 +921,27 @@ public class DataFetchers {
 				.toFuture();
 		};
 	}
+
+	public DataFetcher<CompletableFuture<Role>> getRoleForPersonDataFetcher() {
+		return env -> {
+			log.debug("Fetching the role for a given person."+env.getSource());
+			Person envPerson = (Person) env.getSource();
+			UUID personId = envPerson.getId();
+
+			return Mono.from(postgresPersonRepository.findById(personId))
+				.doOnNext(person -> {
+					log.debug("Person: {}", person);
+				})
+				.flatMap(person -> {
+					return Mono.from(postgresRoleRepository.findById(person.getRole().getId()))
+						.doOnNext(role -> {
+							log.debug("Role: {} with name {}", role, role.getName());
+						});
+				})
+				.toFuture();
+		};
+	}
+
 	public DataFetcher<CompletableFuture<List<FunctionalSetting>>> getFunctionalSettingsForConsortiumDataFetcher() {
 		return env -> {
 			log.debug("Fetching the contacts for a given consortium."+env.getSource());
