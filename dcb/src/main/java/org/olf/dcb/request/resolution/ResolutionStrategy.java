@@ -8,7 +8,6 @@ import org.olf.dcb.core.model.PatronRequest;
 import reactor.core.publisher.Mono;
 
 public interface ResolutionStrategy {
-	String MANUAL_SELECTION = "ManualSelection";
 
 	// Resolution Strategies must return a code which can be used to select
 	// an implementation based on config

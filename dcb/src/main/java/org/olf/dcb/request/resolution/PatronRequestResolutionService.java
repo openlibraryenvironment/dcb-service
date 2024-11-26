@@ -1,18 +1,17 @@
 package org.olf.dcb.request.resolution;
 
-import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.*;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
-import static org.olf.dcb.request.resolution.ResolutionStrategy.MANUAL_SELECTION;
+import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
 import static org.olf.dcb.request.resolution.SupplierRequestService.findFirstSupplierRequestOrNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.*;
@@ -34,16 +33,19 @@ public class PatronRequestResolutionService {
 	private final List<ResolutionStrategy> allResolutionStrategies;
 	private final String itemResolver;
 	private final HostLmsService hostLmsService;
+	private final ManualSelection manualSelection;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		@Value("${dcb.itemresolver.code}") String itemResolver,
 		List<ResolutionStrategy> allResolutionStrategies,
-		HostLmsService hostLmsService)
+		HostLmsService hostLmsService,
+		ManualSelection manualSelection)
 	{
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.hostLmsService = hostLmsService;
+		this.manualSelection = manualSelection;
 
 		log.debug("Available item resolver strategies (selected={})", this.itemResolver);
 
@@ -64,80 +66,76 @@ public class PatronRequestResolutionService {
 
 		patronRequest.incrementResolutionCount();
 
+		final var resolutionSteps = patronRequest.getIsManuallySelectedItem()
+			? manualResolutionSteps()
+			: specifiedResolutionSteps();
+
 		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
-			.zipWhen(this::getAvailableItems, Resolution::trackAllItems)
-			.flatMap(this::filterItems)
-			.flatMap(this::decideResolutionStrategy)
-			.flatMap(function(this::applyResolutionStrategy))
+			.flatMap(initialResolution -> executeSteps(initialResolution, resolutionSteps))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
 			.switchIfEmpty(Mono.defer(() -> Mono.just(noItemsSelectable(patronRequest))));
 	}
 
-	private Mono<Tuple2<ResolutionStrategy, Resolution>> decideResolutionStrategy(Resolution resolution) {
-		final var patronRequest = resolution.getPatronRequest();
-		final var code = decideCode(patronRequest);
-
-		return Mono.defer(() -> Mono.fromCallable(() -> getResolutionStrategyBy(code))
-			.doOnSuccess(strategy -> log.info("Selecting item by {} for Patron Request {}",
-				strategy.getCode(), patronRequest.getId()))
-			.single()
-			.zipWith(Mono.just(resolution)));
+	private List<ResolutionStep> manualResolutionSteps() {
+		return List.of(
+			new ResolutionStep("Get Available Items", this::getAvailableItems),
+			new ResolutionStep("Filter Items", this::filterItems),
+			new ResolutionStep("Manual Selection", this::handleManualSelection)
+		);
 	}
 
-	private String decideCode(PatronRequest patronRequest) {
-		log.debug("Deciding strategy code for {}", patronRequest);
-
-		final var isManualSelection = patronRequest.getIsManuallySelectedItem();
-
-		final var chosenStrategy = TRUE.equals(isManualSelection)
-			? MANUAL_SELECTION
-			: itemResolverFor(patronRequest);
-
-		log.debug("Chosen selection strategy: {}", chosenStrategy);
-
-		return chosenStrategy;
+	private List<ResolutionStep> specifiedResolutionSteps() {
+		return List.of(
+			new ResolutionStep("Get Available Items", this::getAvailableItems),
+			new ResolutionStep("Filter Items", this::filterItems),
+			new ResolutionStep("Sort Items By Availability Date", this::sortItemsByAvailabilityDate),
+			new ResolutionStep("Apply Configured Strategy", this::applyResolutionStrategy)
+		);
 	}
 
-	private String itemResolverFor(PatronRequest patronRequest) {
-		// manual selection failed at submission
-		// but the item resolver could be set to the manual selection resolver code
-		if (MANUAL_SELECTION.equals(itemResolver)) {
-			validateManualSelectionFor(patronRequest);
-			// manual selection now passed checks so set the pr to manual selection
-			patronRequest.setIsManuallySelectedItem(TRUE);
-		}
-
-		return itemResolver;
+	private Mono<Resolution> executeSteps(Resolution initialResolution, List<ResolutionStep> steps) {
+		return Flux.fromIterable(steps)
+			.reduce(Mono.just(initialResolution), this::applyStep)
+			.flatMap(Function.identity());
 	}
 
-	private void validateManualSelectionFor(PatronRequest patronRequest) {
-		if (patronRequest.getLocalItemId() == null) {
-			throw new IllegalArgumentException("localItemId is required for manual item selection");
-		}
-		if (patronRequest.getLocalItemHostlmsCode() == null) {
-			throw new IllegalArgumentException("localItemHostlmsCode is required for manual item selection");
-		}
-		if (patronRequest.getLocalItemAgencyCode() == null) {
-			throw new IllegalArgumentException("localItemAgencyCode is required for manual item selection");
-		}
+	private Mono<Resolution> applyStep(Mono<Resolution> monoResolution, ResolutionStep step) {
+		return monoResolution.flatMap(resolution -> applyOperationOnCondition(step, resolution));
 	}
 
-	private ResolutionStrategy getResolutionStrategyBy(String code) {
-		return allResolutionStrategies.stream()
-			.filter(strategy -> strategy.getCode().equals(code))
-			.findFirst()
-			.orElseThrow(() -> new RuntimeException("No resolver with code " + code));
-	}
-
-	private Mono<Resolution> applyResolutionStrategy(ResolutionStrategy strategy, Resolution resolution) {
-		return selectItem(strategy, resolution)
+	private Mono<Resolution> handleManualSelection(Resolution resolution) {
+		return Mono.justOrEmpty(manualSelection.chooseItem(resolution))
 			.map(resolution::selectItem);
 	}
 
-	private Mono<List<Item>> getAvailableItems(Resolution resolution) {
-		return getAvailableItems(resolution.getBibClusterId());
+	private Mono<Resolution> sortItemsByAvailabilityDate(Resolution resolution) {
+		return Mono.fromSupplier(() -> {
+
+			// Set the available date of each item to the current instant
+			final List<Item> sortedItems = resolution.getFilteredItems().stream()
+				.peek(item -> item.setAvailableDate(Instant.now()))
+				.sorted(Comparator.comparing(Item::getAvailableDate))
+				.collect(Collectors.toList());
+
+			return resolution.trackFilteredItems(sortedItems);
+		});
+	}
+
+	private Mono<Resolution> applyResolutionStrategy(Resolution resolution) {
+		return Mono.justOrEmpty(itemResolver)
+			.flatMap(code -> allResolutionStrategies.stream()
+				.filter(strategy -> strategy.getCode().equals(code))
+				.findFirst()
+				.map(strategy -> selectItem(strategy, resolution))
+				.orElse(Mono.empty())
+			);
+	}
+
+	private Mono<Resolution> getAvailableItems(Resolution resolution) {
+		return getAvailableItems(resolution.getBibClusterId())
+			.map(resolution::trackAllItems);
 	}
 
 	private Mono<List<Item>> getAvailableItems(UUID clusterRecordId) {
@@ -146,12 +144,13 @@ public class PatronRequestResolutionService {
 			.map(AvailabilityReport::getItems);
 	}
 
-	private Mono<Item> selectItem(ResolutionStrategy resolutionStrategy,
+	private Mono<Resolution> selectItem(ResolutionStrategy resolutionStrategy,
 		Resolution resolution) {
 
 		return resolutionStrategy.chooseItem(resolution.getFilteredItems(),
 			resolution.getBibClusterId(), resolution.getPatronRequest())
-			.doOnNext(item -> log.debug("Selected item {}", item));
+			.doOnNext(item -> log.debug("Selected item {}", item))
+			.map(resolution::selectItem);
 	}
 
 	private Mono<Resolution> filterItems(Resolution resolution) {
@@ -225,7 +224,7 @@ public class PatronRequestResolutionService {
 		return true;
 	}
 
-	private static boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
+	boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
 		final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
 
 		return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
@@ -239,16 +238,19 @@ public class PatronRequestResolutionService {
 	 * @param patronRequest the property to compare against
 	 * @return Mono<Boolean> indicating if the item should be kept
 	 */
-	private Mono<Boolean> fromSameServer(Item item, PatronRequest patronRequest) {
+
+	Mono<Boolean> fromSameServer(Item item, PatronRequest patronRequest) {
 		final var itemLmsCode = getValueOrNull(item, Item::getHostLmsCode);
 		final var borrowingLmsCode = getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode);
 
-		if (itemLmsCode == null || borrowingLmsCode == null) return raiseError(Problem.builder()
-			.withTitle("Missing required value to evaluate item fromSameServer")
-			.withDetail("Could not compare LMS codes")
-			.with("itemLmsCode", itemLmsCode)
-			.with("borrowingLmsCode", borrowingLmsCode)
-			.build());
+		if (itemLmsCode == null || borrowingLmsCode == null) {
+			return raiseError(Problem.builder()
+				.withTitle("Missing required value to evaluate item fromSameServer")
+				.withDetail("Could not compare LMS codes")
+				.with("itemLmsCode", itemLmsCode)
+				.with("borrowingLmsCode", borrowingLmsCode)
+				.build());
+		}
 
 		return Mono.zip(
 			hostLmsService.getHostLmsBaseUrl(itemLmsCode),

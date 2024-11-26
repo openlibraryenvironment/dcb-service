@@ -419,6 +419,11 @@ public class PatronRequest {
 			.setIsManuallySelectedItem(Boolean.TRUE);
 	}
 
+	public boolean getIsManuallySelectedItem() {
+		return this.isManuallySelectedItem != null && this.isManuallySelectedItem;
+	}
+
+
 	public PatronRequest placedAtBorrowingAgency(LocalRequest localRequest) {
 		return setLocalRequestId(localRequest.getLocalId())
 			.setLocalRequestStatus(localRequest.getLocalStatus() != null ? localRequest.getLocalStatus() : null)

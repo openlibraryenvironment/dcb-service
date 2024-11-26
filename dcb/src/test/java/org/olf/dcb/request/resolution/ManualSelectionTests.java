@@ -1,18 +1,18 @@
 package org.olf.dcb.request.resolution;
 
-import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 
 import java.util.List;
-import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
@@ -20,8 +20,11 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 
-class ManualSelectionResolutionStrategyTests {
-	private final ResolutionStrategy resolutionStrategy = new ManualSelectionStrategy();
+@Slf4j
+@TestInstance(PER_CLASS)
+class ManualSelectionTests {
+
+	ManualSelection manualSelection = new ManualSelection();
 
 	@Test
 	void shouldChooseManuallySelectedItemWhenOnlyItem() {
@@ -37,7 +40,7 @@ class ManualSelectionResolutionStrategyTests {
 			.build();
 
 		// Act
-		final var chosenItem = chooseItem(List.of(item), randomUUID(), patronRequest);
+		final var chosenItem = chooseItem(List.of(item), patronRequest);
 
 		// Assert
 		assertThat(chosenItem, allOf(
@@ -63,7 +66,7 @@ class ManualSelectionResolutionStrategyTests {
 		// Act
 		final var items = List.of(firstAvailableItem, secondAvailableItem);
 
-		final var chosenItem = chooseItem(items, randomUUID(), patronRequest);
+		final var chosenItem = chooseItem(items, patronRequest);
 
 		// Assert
 		assertThat(chosenItem, allOf(
@@ -81,15 +84,18 @@ class ManualSelectionResolutionStrategyTests {
 			.build();
 
 		// Act
-		final var chosenItem = chooseItem(List.of(), randomUUID(), patronRequest);
+		final var chosenItem = chooseItem(List.of(), patronRequest);
 
 		// Assert
 		assertThat("Empty publisher returned when no item can be chosen",
 			chosenItem, nullValue());
 	}
 
-	private Item chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
-		return singleValueFrom(resolutionStrategy.chooseItem(items, clusterRecordId, patronRequest));
+	private Item chooseItem(List<Item> items, PatronRequest patronRequest) {
+
+		Resolution resolution = Resolution.forPatronRequest(patronRequest).trackAllItems(items);
+
+		return manualSelection.chooseItem(resolution);
 	}
 
 	private static Item createItem(String localId) {
