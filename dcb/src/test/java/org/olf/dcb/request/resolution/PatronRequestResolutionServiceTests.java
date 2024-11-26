@@ -588,6 +588,103 @@ class PatronRequestResolutionServiceTests {
 			)));
 	}
 
+	@Test
+	void shouldKeepOrderOfAvailableItemsWhenAvailabilityDateIsApplied() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var unavailableItemId = "372656";
+		final var unavailableItemBarcode = "6256486473634";
+
+		final var firstAvailableItemId = "651463";
+		final var firstAvailableItemBarcode = "76653672456";
+
+		final var secondAvailableItemId = "123456";
+		final var secondAvailableItemBarcode = "987654321098";
+
+		final var thirdAvailableItemId = "234567";
+		final var thirdAvailableItemBarcode = "876543210987";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			CheckedOutItem(unavailableItemId, unavailableItemBarcode),
+			availableItem(firstAvailableItemId, firstAvailableItemBarcode, ITEM_LOCATION_CODE),
+			availableItem(secondAvailableItemId, secondAvailableItemBarcode, ITEM_LOCATION_CODE),
+			availableItem(thirdAvailableItemId, thirdAvailableItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasLocalId(firstAvailableItemId),
+				hasBarcode(firstAvailableItemBarcode),
+				hasLocalBibId(sourceRecordId),
+				hasLocationCode(ITEM_LOCATION_CODE),
+				hasAgencyCode(SUPPLYING_AGENCY_CODE)
+			),
+			hasAllItems(
+				allOf(
+					hasLocalId(unavailableItemId),
+					hasBarcode(unavailableItemBarcode)
+				),
+				allOf(
+					hasLocalId(firstAvailableItemId),
+					hasBarcode(firstAvailableItemBarcode)
+				),
+				allOf(
+					hasLocalId(secondAvailableItemId),
+					hasBarcode(secondAvailableItemBarcode)
+				),
+				allOf(
+					hasLocalId(thirdAvailableItemId),
+					hasBarcode(thirdAvailableItemBarcode)
+				)
+			),
+			hasFilteredItems(
+				allOf(
+					hasLocalId(firstAvailableItemId),
+					hasBarcode(firstAvailableItemBarcode)
+				),
+				allOf(
+					hasLocalId(secondAvailableItemId),
+					hasBarcode(secondAvailableItemBarcode)
+				),
+				allOf(
+					hasLocalId(thirdAvailableItemId),
+					hasBarcode(thirdAvailableItemBarcode)
+				)
+			),
+			hasResolutionCount(1)
+		));
+	}
+
 	private Resolution resolve(PatronRequest patronRequest) {
 		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
 	}

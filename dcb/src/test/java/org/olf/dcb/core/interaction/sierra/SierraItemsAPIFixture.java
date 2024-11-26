@@ -67,6 +67,8 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void itemsForBibId(String bibId, List<org.olf.dcb.core.interaction.sierra.SierraItem> items) {
+		mockServer.clear(getItemsForBib(bibId));
+
 		mockServer.when(getItemsForBib(bibId))
 			.respond(sierraMockServerResponses.jsonSuccess(json(
 				ItemResultSet.builder()
