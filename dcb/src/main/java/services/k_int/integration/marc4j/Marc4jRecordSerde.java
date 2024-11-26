@@ -299,9 +299,12 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 
 														// Create a subfield per entry
 														while ((currentKey = subfield.decodeKey()) != null) {
-															if ( REGEX_SUBFIELD.matcher(currentKey).matches() ) {
+
+                              String value = subfield.decodeString();
+
+															if ( ( REGEX_SUBFIELD.matcher(currentKey).matches() ) && ( value != null ) ) {
 																df.addSubfield(
-																	factory.newSubfield(currentKey.charAt(0), subfield.decodeString()));
+																	factory.newSubfield(currentKey.charAt(0), value));
 															} else {
 																// subfield not matched
 																subfield.skipValue();
