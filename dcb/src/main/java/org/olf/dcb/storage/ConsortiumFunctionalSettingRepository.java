@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSetting;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -33,6 +34,10 @@ public interface ConsortiumFunctionalSettingRepository {
 	@NonNull
 	@SingleResult
 	Publisher<ConsortiumFunctionalSetting> findById(@NonNull UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<ConsortiumFunctionalSetting> findByConsortiumAndFunctionalSetting(@NonNull Consortium consortium, FunctionalSetting functionalSetting);
 
 	@NonNull
 	@SingleResult

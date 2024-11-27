@@ -1,15 +1,55 @@
 #!/bin/bash
 
-# This is a script to set up Libraries on a DCB system.
+# This is a script to set up Libraries on a new DCB environment.
 # In other words, this script will:
 # import libraries from a .tsv file into DCB
-# Create a consortium group and associated library group (currently hardcoded to be MOBIUS)
-# Add all the imported libraries into the MOBIUS consortium group (if you have more than 100 libraries, you will need to change the pagesize variable)
+# Create a consortium and associated library group from input
+# Add all the imported libraries into the consortium group (if you have more than 100 libraries, you will need to change the pagesize variable)
+# Due to the one-consortium restriction, this script cannot be used to update an existing consortium.
+# If you are wanting to just import libraries, comment out the consortium creation part of this script.
 
-# TARGET="https://dcb-dev.sph.k-int.com"
-TARGET="http://localhost:8080"
-# Change as necessary - you wil need a libraries.tsv file to import.
-FILE_PATH="./scripts/libraries.tsv"
+# Function to prompt for input with a default value
+prompt_with_default() {
+    local prompt="$1"
+    local default="$2"
+    local input
+
+    read -p "$prompt [$default]: " input
+    echo "${input:-$default}"
+}
+
+# Prompt for target environment
+TARGET=$(prompt_with_default "Enter the target DCB environment URL" "http://localhost:8080")
+
+# Prompt for file path
+FILE_PATH=$(prompt_with_default "Enter the path to the TSV file containing your libraries to add" "./scripts/libraries.tsv")
+
+# Prompt for consortium details
+echo "Configuring Consortium Details:"
+CONSORTIUM_NAME=$(prompt_with_default "Enter consortium name" "MOBIUS")
+CONSORTIUM_GROUP_NAME=$(prompt_with_default "Enter consortium group name" "MOBIUS_CONSORTIUM")
+CONSORTIUM_DISPLAY_NAME=$(prompt_with_default "Enter consortium display Name" "$CONSORTIUM_NAME")
+CONSORTIUM_WEBSITE=$(prompt_with_default "Enter consortium website URL" "https://${CONSORTIUM_NAME,,}.org")
+CONSORTIUM_CATALOG_URL=$(prompt_with_default "Enter consortium search catalogue URL" "https://search${CONSORTIUM_NAME,,}.org/")
+CONSORTIUM_DESCRIPTION=$(prompt_with_default "Enter consortium description" "")
+CONSORTIUM_HEADER_IMAGE_URL=$(prompt_with_default "Enter URL for app header image (consortium icon, displayed in the top left)" "")
+CONSORTIUM_ABOUT_IMAGE_URL=$(prompt_with_default "Enter URL for 'About' section image (consortium logo, on the login/logout screen)" "")
+
+# Prompt for consortium contact details
+echo "Configuring consortium contact:"
+CONTACT_FIRST_NAME=$(prompt_with_default "Contact first name" "Jane")
+CONTACT_LAST_NAME=$(prompt_with_default "Contact last name" "Doe")
+CONTACT_ROLE=$(prompt_with_default "Contact role" "Library Services Administrator")
+CONTACT_EMAIL=$(prompt_with_default "Contact email" "jane.doe@${CONSORTIUM_NAME,,}.com")
+
+# Prompt for functional settings
+echo "Configuring Functional Settings:"
+echo "Enter functional settings (comma-separated, no spaces). Available types:"
+echo "- RE_RESOLUTION"
+echo "- PICKUP_ANYWHERE"
+echo "- SELECT_UNAVAILABLE_ITEMS"
+FUNCTIONAL_SETTINGS=$(prompt_with_default "Functional settings" "RE_RESOLUTION:false,SELECT_UNAVAILABLE_ITEMS:false")
+
 echo "Logging in"
 source ~/.dcb.sh
 TOKEN=$(curl -s \
@@ -23,11 +63,8 @@ if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
   echo "Error: Login failed. Unable to retrieve access token. Please check the supplied Keycloak config" >&2
   exit 1
 fi
-
 echo "Logged in successfully with token."
-
 export LN=0
-
 # Load data from a local TSV file. Tabs are replaced because of the issue with blank columns outlined here
 # https://stackoverflow.com/questions/46997610/read-tsv-file-line-by-line-with-blank-columns
 # As not all fields are required, blank columns are a possibility (especially with backupDowntimeSchedule and supportHours).
@@ -41,7 +78,6 @@ while IFS=$'\a' read -r AGENCYCODE FULLNAME SHORTNAME ABBREVIATEDNAME ADDRESS LO
         ISPRIMARYCONTACT2=$(echo "$ISPRIMARYCONTACT2" | awk '{print tolower($0)}')
 
         # If you have more than 2 contacts per library, just add the necessary extra variables and number them appropriately.
-
         # Constructing the JSON payload using jq
         PAYLOAD=$(jq -n \
                         --arg agencyCode "$AGENCYCODE" \
@@ -79,16 +115,132 @@ while IFS=$'\a' read -r AGENCYCODE FULLNAME SHORTNAME ABBREVIATEDNAME ADDRESS LO
     ((LN=LN+1))
 done < <(tr '\t' '\a' < "$FILE_PATH")
 
-echo
-echo Create the consortium group
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"  -X POST "$TARGET/graphql" -d '{ "query": "mutation { createLibraryGroup(input: { code:\"MOBIUS\", name:\"MOBIUS_CONSORTIUM\", type:\"CONSORTIUM\"} ) { id,name,code,type } }" }'
-echo
+
+echo "Create the consortium group" $CONSORTIUM_GROUP_NAME
+				PAYLOAD=$(jq -n \
+								--arg code "$CONSORTIUM_GROUP_NAME" \
+								--arg name "$CONSORTIUM_GROUP_NAME" \
+								--arg type "CONSORTIUM" \
+								'{
+										query: "mutation { createLibraryGroup(input: { code: \($code | @json), name: \($name | @json), type: \"\($type)\" }) { id, name, code, type } }"
+								}')
+          # Uncomment the below lines if you are debugging this script.
+					# echo "Generated payload:"
+					# echo "$PAYLOAD"
+GROUP_RESPONSE=$(curl -s -X POST "$TARGET/graphql" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$PAYLOAD")
+# Then extract the group ID
+GROUP_ID=$(echo "$GROUP_RESPONSE" | jq -r '.data.createLibraryGroup.id')
+echo "Group Response: $GROUP_RESPONSE"
+echo "Group ID: $GROUP_ID"
+
+if [[ -z "$GROUP_ID" || "$GROUP_ID" == "null" ]]; then
+  echo "Error: Failed to create consortium group" >&2
+  exit 1
+fi
+
+# Prepare functional settings JSON
+FUNCTIONAL_SETTINGS_JSON=$(echo "$FUNCTIONAL_SETTINGS" | tr ',' '\n' | while IFS=':' read -r NAME ENABLED; do
+    echo "{\"name\": \"$NAME\", \"enabled\": $ENABLED, \"description\": \"A setting for $NAME\"}"
+done | jq -s '.')
+
+## Debug print the generated JSON - commented out by default
+#echo "Generated Functional Settings JSON:"
+#echo "$FUNCTIONAL_SETTINGS_JSON"
+
+# Validate JSON
+echo "$FUNCTIONAL_SETTINGS_JSON" | jq empty && echo "JSON is valid" || echo "JSON is invalid"
 
 # Create the associated consortium, providing the name of the consortium group you just created.
-echo Create a new consortium
-echo "Create a new consortium"
-curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -X POST "$TARGET/graphql" -d '{ "query": "mutation { createConsortium(input: { name: \"MOBIUS\", groupName: \"MOBIUS_CONSORTIUM\", displayName: \"MOBIUS_CONSORTIUM\", dateOfLaunch: \"2024-05-22\", isPrimaryConsortium: true, contacts: [ { firstName: \"Jane\", lastName: \"Doe\", role: \"Consortium admin\", isPrimaryContact: true, email: \"jane.doe@mobius.com\" } ],functionalSettings: [ { name: \"Pickup anywhere\", enabled: true, description: \"Pickup anywhere policy\" } ], reason: \"Libraries setup script\", changeCategory: \"Initial setup\" }) { id, name, libraryGroup { id, name }, contacts { id, firstName, lastName }, functionalSettings { id, name } } }" }'
-# Add libraries to the consortium group.
+echo "Creating Consortium with the following details:"
+echo "Consortium Name: $CONSORTIUM_NAME"
+echo "Group Name: $CONSORTIUM_GROUP_NAME"
+echo "Display Name: $CONSORTIUM_DISPLAY_NAME"
+echo "Website: $CONSORTIUM_WEBSITE"
+echo "Catalog URL: $CONSORTIUM_CATALOG_URL"
+echo "Contact: $CONTACT_FIRST_NAME $CONTACT_LAST_NAME ($CONTACT_EMAIL)"
+echo "Functional Settings: $FUNCTIONAL_SETTINGS"
+CONSORTIUM_PAYLOAD=$(jq -n \
+    --arg name "$CONSORTIUM_NAME" \
+    --arg groupName "$CONSORTIUM_GROUP_NAME" \
+    --arg displayName "$CONSORTIUM_DISPLAY_NAME" \
+    --arg dateOfLaunch "2024-05-22" \
+    --arg websiteUrl "$CONSORTIUM_WEBSITE" \
+    --arg catalogueSearchUrl "$CONSORTIUM_CATALOG_URL" \
+    --arg description "$CONSORTIUM_DESCRIPTION" \
+    --arg firstName "$CONTACT_FIRST_NAME" \
+    --arg lastName "$CONTACT_LAST_NAME" \
+    --arg headerImageUrl "$CONSORTIUM_HEADER_IMAGE_URL" \
+    --arg aboutImageUrl "$CONSORTIUM_ABOUT_IMAGE_URL" \
+    --arg reason "Creating a consortium as part of libraries setup" \
+    --arg changeCategory "Initial setup" \
+    --arg role "$CONTACT_ROLE" \
+    --arg email "$CONTACT_EMAIL" \
+    --argjson functionalSettings "$FUNCTIONAL_SETTINGS_JSON" \
+    '{
+        query: "mutation CreateConsortium($input: ConsortiumInput!) {
+            createConsortium(input: $input) {
+                id, name, displayName
+            }
+        }",
+        variables: {
+            input: {
+                name: $name,
+                groupName: $groupName,
+                displayName: $displayName,
+                websiteUrl: $websiteUrl,
+                catalogueSearchUrl: $catalogueSearchUrl,
+                dateOfLaunch: $dateOfLaunch,
+                description: $description,
+                headerImageUrl: $headerImageUrl,
+                aboutImageUrl: $aboutImageUrl,
+                reason: $reason,
+                changeCategory: $changeCategory,
+                contacts: [{
+                    firstName: $firstName,
+                    lastName: $lastName,
+                    role: $role,
+                    isPrimaryContact: true,
+                    email: $email
+                }],
+                functionalSettings: $functionalSettings
+            }
+        }
+    }')
+
+## Print the exact payload for debugging - uncomment if debugging this script
+#echo "Consortium Payload:"
+#echo "$CONSORTIUM_PAYLOAD"
+# Validate the payload
+echo "$CONSORTIUM_PAYLOAD" | jq empty && echo "Payload JSON is valid" || echo "Payload JSON is invalid"
+
+# Send the request and capture full response
+CONSORTIUM_RESPONSE=$(curl -v -s \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -X POST "$TARGET/graphql" \
+  -d "$CONSORTIUM_PAYLOAD")
+
+## Print full response for debugging
+#echo "Full Consortium Creation Response:"
+#echo "$CONSORTIUM_RESPONSE"
+
+# Check for GraphQL errors
+GRAPHQL_ERRORS=$(echo "$CONSORTIUM_RESPONSE" | jq '.errors')
+if [[ "$GRAPHQL_ERRORS" != "null" ]]; then
+  echo "Consortium Creation GraphQL Errors:" >&2
+  echo "$GRAPHQL_ERRORS" >&2
+  exit 1
+fi
+
+# Extract consortium details
+CONSORTIUM_ID=$(echo "$CONSORTIUM_RESPONSE" | jq -r '.data.createConsortium.id')
+if [[ -z "$CONSORTIUM_ID" || "$CONSORTIUM_ID" == "null" ]]; then
+  echo "Error: Failed to create consortium" >&2
+  exit 1
+fi
+
+echo "Consortium created successfully with ID: $CONSORTIUM_ID"
+
 
 MUTATION_TEMPLATE='mutation { addLibraryToGroup(input: { library: \"%s", libraryGroup: \"%s" }) { id } }'
 
@@ -131,10 +283,6 @@ if [ $TOTAL_SIZE -gt 0 ]; then
         LIBRARY_IDS+=("$ID")
     done <<< "$CONTENT"
 fi
-
-# This group UUID is for the MOBIUS_CONSORTIUM we created earlier.
-# If you're using a different group, this will need updating to reflect that.
-GROUP_ID="5ae585b4-993b-5585-8a88-961855a0b253"
 
 # Iterate over each library ID and add it to the group
 for id in "${LIBRARY_IDS[@]}"; do

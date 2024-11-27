@@ -13,7 +13,7 @@ public enum FunctionalSettingType {
 	// This will ensure that you do not break DCB Admin functionality.
 	PICKUP_ANYWHERE,
 	RE_RESOLUTION,
-	TEST_POLICY_3;
+	SELECT_UNAVAILABLE_ITEMS;
 
 	public static boolean isValid(String name) {
 		for (FunctionalSettingType type : values()) {

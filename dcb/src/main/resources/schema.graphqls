@@ -43,6 +43,7 @@ type Mutation {
 		updateFunctionalSetting(input: UpdateFunctionalSettingInput): FunctionalSetting!
 	  createContact(input: ConsortiumContactInput): ConsortiumContact!
 		deleteConsortium(input: DeleteEntityInput): DeleteEntityPayload!
+		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
 
 }
 
@@ -59,7 +60,7 @@ input AddLibraryToGroupCommand {
 enum FunctionalSettingType {
 	PICKUP_ANYWHERE
 	RE_RESOLUTION
-	TEST_POLICY_3
+	SELECT_UNAVAILABLE_ITEMS
 }
 
 
@@ -108,6 +109,10 @@ input FunctionalSettingInput {
 	name: FunctionalSettingType!
 	enabled: Boolean!
 	description: String
+	reason: String
+	changeCategory: String
+	changeReferenceUrl: String
+	consortiumName: String
 }
 
 input LibraryInput {
