@@ -3,19 +3,15 @@ package org.olf.dcb.core.interaction.polaris;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.olf.dcb.core.interaction.polaris.PolarisItemMapper.polarisFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
-import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
@@ -30,15 +26,7 @@ class PolarisItemStatusMapperTests {
 	private static final String HOST_LMS_CODE = "polaris-host-lms";
 
 	@Inject
-	private ItemStatusMapper mapper;
-
-	@Inject
-	private ReferenceValueMappingFixture referenceValueMappingFixture;
-
-	@BeforeEach
-	public void beforeEach() {
-		referenceValueMappingFixture.deleteAll();
-	}
+	private PolarisItemMapper mapper;
 
 	@Test
 	void statusIsAvailableWhenCodeIsIn() {
@@ -97,7 +85,7 @@ class PolarisItemStatusMapperTests {
 
 	@Nullable
 	private ItemStatus mapPolarisStatus(String statusCode) {
-		return mapper.mapStatus(statusCode, HOST_LMS_CODE, polarisFallback())
+		return mapper.mapStatus(statusCode, HOST_LMS_CODE)
 			.block();
 	}
 }

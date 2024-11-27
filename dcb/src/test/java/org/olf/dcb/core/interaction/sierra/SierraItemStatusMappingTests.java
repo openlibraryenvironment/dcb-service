@@ -3,7 +3,6 @@ package org.olf.dcb.core.interaction.sierra;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.olf.dcb.core.interaction.sierra.SierraItemMapper.sierraItemStatusFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -28,7 +26,7 @@ public class SierraItemStatusMappingTests {
 	private static final String HOST_LMS_CODE = "sierra-host-lms";
 
 	@Inject
-	private ItemStatusMapper mapper;
+	private SierraItemMapper mapper;
 
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
@@ -94,7 +92,7 @@ public class SierraItemStatusMappingTests {
 
 	@Nullable
 	private ItemStatus mapStatus(String statusCode, String dueDate) {
-		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE, sierraItemStatusFallback())
+		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE)
 			.block();
 	}
 }

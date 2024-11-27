@@ -1,7 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static java.lang.Boolean.FALSE;
-import static org.olf.dcb.core.interaction.shared.ItemStatusMapper.FallbackMapper.fallbackBasedUponAvailableStatuses;
+import static org.olf.dcb.core.model.ItemStatusCode.*;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -18,10 +18,10 @@ import java.util.regex.Pattern;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.json.tree.JsonNode;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
@@ -34,21 +34,16 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class PolarisItemMapper {
-	private final ItemStatusMapper itemStatusMapper;
 	private final NumericItemTypeMapper itemTypeMapper;
 	private final ConversionService conversionService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final AgencyService agencyService;
 
-	public static ItemStatusMapper.FallbackMapper polarisFallback() {
-		return fallbackBasedUponAvailableStatuses("In");
-	}
-
-	PolarisItemMapper(ItemStatusMapper itemStatusMapper, NumericItemTypeMapper itemTypeMapper,
-		ConversionService conversionService, LocationToAgencyMappingService locationToAgencyMappingService,
+	PolarisItemMapper(NumericItemTypeMapper itemTypeMapper,
+		ConversionService conversionService,
+		LocationToAgencyMappingService locationToAgencyMappingService,
 		AgencyService agencyService) {
 
-		this.itemStatusMapper = itemStatusMapper;
 		this.itemTypeMapper = itemTypeMapper;
 		this.conversionService = conversionService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -70,8 +65,7 @@ public class PolarisItemMapper {
 
 		log.debug("map polaris item {} {} {}", itemGetRow, hostLmsCode, localBibId);
 
-		return itemStatusMapper.mapStatus(itemGetRow.getCircStatusName(),
-				hostLmsCode, polarisFallback())
+		return mapStatus(itemGetRow.getCircStatusName(), hostLmsCode)
 			.map(status -> {
 				final var localId = String.valueOf(itemGetRow.getItemRecordID());
 				final var dueDate = convertFrom(itemGetRow.getDueDate());
@@ -251,4 +245,22 @@ public class PolarisItemMapper {
     return result;
   }
 
+	public Mono<ItemStatus> mapStatus(String statusCode, String hostLmsCode) {
+		log.debug("mapStatus(statusCode: {}, hostLmsCode: {})", statusCode, hostLmsCode);
+
+		if (statusCode == null || (statusCode.isEmpty())) {
+			return Mono.just(new ItemStatus(UNKNOWN));
+		}
+
+		return Mono.just( mapStatusCode(statusCode) )
+			.map(ItemStatus::new);
+	}
+
+	/**
+	 * The code used came from the descriptions from
+	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
+	 */
+	private ItemStatusCode mapStatusCode(String statusCode) {
+		return "In".equals(statusCode) ? AVAILABLE : UNAVAILABLE;
+	}
 }

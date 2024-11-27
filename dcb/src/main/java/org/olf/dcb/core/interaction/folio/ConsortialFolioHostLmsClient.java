@@ -22,10 +22,6 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
-import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
@@ -34,7 +30,6 @@ import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -56,7 +51,6 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -64,12 +58,9 @@ import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.NoHomeBarcodeException;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import io.micronaut.context.annotation.Parameter;
@@ -130,38 +121,25 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private final HttpClient httpClient;
 
-	private final ItemStatusMapper itemStatusMapper;
-	private final LocationToAgencyMappingService locationToAgencyMappingService;
-	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
+	private final ConsortialFolioItemMapper consortialFolioItemMapper;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final ConversionService conversionService;
 
 	private final String apiKey;
 	private final URI rootUri;
 
-	public static ItemStatusMapper.FallbackMapper folioFallback() {
-		final var statusCodeMap = Map.of(
-			"Available", AVAILABLE,
-			"Checked out", CHECKED_OUT);
 
-		return statusCode -> isEmpty(statusCode)
-			? UNKNOWN
-			: statusCodeMap.getOrDefault(statusCode, UNAVAILABLE);
-	}
 
 	public ConsortialFolioHostLmsClient(@Parameter HostLms hostLms,
-		@Parameter("client") HttpClient httpClient, ItemStatusMapper itemStatusMapper,
-		LocationToAgencyMappingService locationToAgencyMappingService,
-		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
+		@Parameter("client") HttpClient httpClient,
+		ConsortialFolioItemMapper consortialFolioItemMapper,
 		ReferenceValueMappingService referenceValueMappingService,
 		ConversionService conversionService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 
-		this.itemStatusMapper = itemStatusMapper;
-		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
+		this.consortialFolioItemMapper = consortialFolioItemMapper;
 		this.referenceValueMappingService = referenceValueMappingService;
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
@@ -273,48 +251,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			//
 			// Holdings without a status should be tolerated
 			.filter(holdings -> itemStatuses.contains(getValue(holdings, Holding::getStatus, "Unknown")))
-			.flatMap(holding -> mapHoldingToItem(holding, outerHoldings.getInstanceId()));
-	}
-
-	private Mono<Item> mapHoldingToItem(Holding holding, String instanceId) {
-		return mapStatus(holding)
-			.map(status -> Item.builder()
-				.localId(getValueOrNull(holding, Holding::getId))
-				.localBibId(instanceId)
-				.barcode(getValueOrNull(holding, Holding::getBarcode))
-				.callNumber(getValueOrNull(holding, Holding::getCallNumber))
-				.status(status)
-				.dueDate(getValueOrNull(holding, Holding::getDueDate))
-				.holdCount(getValueOrNull(holding, Holding::getTotalHoldRequests))
-				.localItemType(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
-				.localItemTypeCode(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
-				.location(Location.builder()
-					.name(getValueOrNull(holding, Holding::getLocation))
-					.code(getValueOrNull(holding, Holding::getLocationCode))
-					.build())
-				.rawVolumeStatement(getValueOrNull(holding, Holding::getVolume))
-				.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
-				.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
-				.deleted(false)
-				.build())
-			.flatMap(this::mapLocationToAgency)
-			.flatMap(this::mapMaterialTypeToItemType);
-	}
-
-	private Mono<ItemStatus> mapStatus(Holding holding) {
-		final var status = getValueOrNull(holding, Holding::getStatus);
-
-		return itemStatusMapper.mapStatus(status, getHostLmsCode(), folioFallback());
-	}
-
-	private Mono<Item> mapLocationToAgency(Item item) {
-		return locationToAgencyMappingService
-			.enrichItemAgencyFromLocation(item, getHostLmsCode());
-	}
-
-	private Mono<Item> mapMaterialTypeToItemType(Item item) {
-		return materialTypeToItemTypeMappingService
-			.enrichItemWithMappedItemType(item);
+			.flatMap(holding -> consortialFolioItemMapper.mapHoldingToItem(holding,
+				outerHoldings.getInstanceId(), getHostLmsCode()));
 	}
 
 	@Override

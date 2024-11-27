@@ -3,26 +3,22 @@ package org.olf.dcb.core.interaction.folio;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.folioFallback;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.olf.dcb.core.interaction.shared.ItemStatusMapper;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.test.DcbTest;
-import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 
 @DcbTest
-class FolioItemStatusMapperTests {
+class ConsortialFolioItemMapperTests {
 	/**
 	 * The codes used here come from
 	 * <a href="https://github.com/folio-org/mod-inventory-storage/blob/294f8c42b48d9099b49f37fc7c193bb5e36bf918/ramls/item.json#L253>this documentation</a>
@@ -31,15 +27,7 @@ class FolioItemStatusMapperTests {
 	private static final String HOST_LMS_CODE = "folio-host-lms";
 
 	@Inject
-	private ItemStatusMapper mapper;
-
-	@Inject
-	private ReferenceValueMappingFixture referenceValueMappingFixture;
-
-	@BeforeEach
-	public void beforeEach() {
-		referenceValueMappingFixture.deleteAll();
-	}
+	private ConsortialFolioItemMapper mapper;
 
 	@Test
 	void statusIsAvailableWhenCodeIsAvailable() {
@@ -112,7 +100,7 @@ class FolioItemStatusMapperTests {
 
 	@Nullable
 	private ItemStatus mapFolioStatus(String statusCode) {
-		return mapper.mapStatus(statusCode, HOST_LMS_CODE, folioFallback())
+		return mapper.mapStatus(statusCode, HOST_LMS_CODE)
 			.block();
 	}
 }
