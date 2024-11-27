@@ -32,6 +32,7 @@ public class CreateRoleDataFetcher implements DataFetcher<CompletableFuture<Role
 		this.r2dbcOperations = r2dbcOperations;
 	}
 
+	// This also needs to associate a role with a person + fail if it can't.
 	@Override
 	public CompletableFuture<Role> get(DataFetchingEnvironment env) {
 

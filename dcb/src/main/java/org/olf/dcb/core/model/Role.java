@@ -15,6 +15,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.olf.dcb.core.audit.Auditable;
+
 import java.util.UUID;
 
 @Data
@@ -24,7 +26,7 @@ import java.util.UUID;
 @MappedEntity
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
-public class Role {
+public class Role implements Auditable {
 	@ToString.Include
 	@NonNull
 	@Id

@@ -20,6 +20,10 @@ type Query {
 		libraryGroupMembers: [LibraryGroupMember]!
 		consortia(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ConsortiumPage!
 		dataChangeLog(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): DataChangeLogPage!
+		roles(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): RolePage!
+		functionalSettings(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): FunctionalSettingPage!
+
+
 }
 
 type Mutation {
@@ -45,7 +49,7 @@ type Mutation {
 		deleteConsortium(input: DeleteEntityInput): DeleteEntityPayload!
 		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
 		createRole(input: CreateRoleInput): Role!
-
+		updateRole(input: UpdateRoleInput): Role!
 }
 
 input AddAgencyToGroupCommand {
@@ -110,6 +114,16 @@ input CreateRoleInput {
 	displayName: String!
 	description: String!
 	keycloakRole: String!
+}
+
+input UpdateRoleInput {
+	name: String!
+	displayName: String
+	description: String
+	keycloakRole: String
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
 }
 
 input FunctionalSettingInput {
@@ -567,6 +581,12 @@ type ConsortiumPage {
 	pageable: Pageable
 }
 
+type FunctionalSettingPage {
+	content: [FunctionalSetting]
+	totalSize: Int
+	pageable: Pageable
+}
+
 type LibraryGroupPage {
 	content: [LibraryGroup]
 	totalSize: Int
@@ -614,6 +634,12 @@ type PatronIdentityPage {
   content: [PatronIdentity]
   totalSize: Int
   pageable: Pageable
+}
+
+type RolePage {
+	content: [Role]
+	totalSize: Int
+	pageable: Pageable
 }
 
 type SupplierRequestPage {

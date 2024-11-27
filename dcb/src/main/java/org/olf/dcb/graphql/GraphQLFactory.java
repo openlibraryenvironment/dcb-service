@@ -51,7 +51,7 @@ public class GraphQLFactory {
 			UpdateConsortiumDataFetcher updateConsortiumDataFetcher,
 			UpdateFunctionalSettingDataFetcher updateFunctionalSettingDataFetcher,
 			CreateContactDataFetcher createContactDataFetcher, DeleteConsortiumDataFetcher deleteConsortiumDataFetcher,
-			CreateRoleDataFetcher createRoleDataFetcher,
+			CreateRoleDataFetcher createRoleDataFetcher, UpdateRoleDataFetcher updateRoleDataFetcher,
 			CreateFunctionalSettingDataFetcher createFunctionalSettingDataFetcher,
 			DataFetchers dataFetchers) {
 
@@ -91,6 +91,8 @@ public class GraphQLFactory {
 						.dataFetcher("libraryGroups", dataFetchers.getLibraryGroupsDataFetcher())
 						.dataFetcher("libraryGroupMembers", dataFetchers.getAllLibraryGroupMembers())
 						.dataFetcher("dataChangeLog", dataFetchers.getDataChangeLogDataFetcher())
+						.dataFetcher("roles", dataFetchers.getRolesDataFetcher())
+						.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsDataFetcher())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
@@ -115,6 +117,7 @@ public class GraphQLFactory {
 						.dataFetcher("createContact", createContactDataFetcher)
 						.dataFetcher("deleteConsortium", deleteConsortiumDataFetcher)
 						.dataFetcher("createRole", createRoleDataFetcher)
+						.dataFetcher("updateRole", updateRoleDataFetcher)
 						.dataFetcher("createFunctionalSetting", createFunctionalSettingDataFetcher))
 			.type("Agency",
 					typeWiring -> typeWiring

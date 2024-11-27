@@ -3,7 +3,11 @@ BEGIN
     RAISE NOTICE 'Starting role migration process...';
 END $$;
 
-BEGIN;
+CREATE OR REPLACE FUNCTION normalize_role_name(input_role varchar) RETURNS varchar AS $$
+BEGIN
+    RETURN UPPER(REPLACE(TRIM(input_role), ' ', '_'));
+END;
+$$ LANGUAGE plpgsql;
 
 DO $$ 
 BEGIN 
@@ -22,6 +26,16 @@ CREATE TABLE role (
     change_category varchar(200)
 );
 
+-- Insert roles before the migration process
+INSERT INTO role (id, name, display_name, description, keycloak_role, reason, change_category, last_edited_by) VALUES
+('53f1e7ed-583e-412c-95a9-758400f5cddc', 'SPONSOR', 'Sponsor', 'Sponsorship role', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('7e78a211-4b08-4638-9b8d-da90fd66b9db', 'LIBRARY_SERVICES_ADMINISTRATOR', 'Library Services Administrator', 'Manages library services', 'CONSORTIUM_ADMIN', 'Roles setup', 'Initial setup', 'system'),
+('7ce45ea4-f399-45c9-b753-f0fcdf11560e', 'SIGN_OFF_AUTHORITY', 'Sign-off Authority', 'Authorized to sign off on actions', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('ed95ebf0-aa96-4299-b173-f48ba34b3989', 'SUPPORT', 'Support', 'Provides support services', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('c407a5ca-c085-436f-a3d7-d0da91290bf5', 'OPERATIONS_CONTACT', 'Operations Contact', 'Point of contact for operations', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('31b7d683-847d-4cc0-b3a5-f0cf10f72026', 'IMPLEMENTATION_CONTACT', 'Implementation Contact', 'Manages implementation', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('59522bbc-684c-4d81-a2b8-dce3f273b873', 'TECHNICAL_CONTACT', 'Technical Contact', 'Technical support role', 'Default', 'Roles setup', 'Initial setup', 'system');
+
 DO $$ 
 BEGIN 
     RAISE NOTICE 'Creating audit triggers for role table...';
@@ -37,7 +51,6 @@ CREATE TRIGGER data_change_log_trigger_role_delete
     FOR EACH ROW
     EXECUTE FUNCTION audit_trigger();
 
-
 DO $$ 
 BEGIN 
     RAISE NOTICE 'Creating temporary mapping table...';
@@ -49,7 +62,7 @@ SELECT DISTINCT
     p.role as old_role_string,
     r.id::uuid as new_role_id  -- Explicitly cast to uuid
 FROM person p
-JOIN role r ON r.name = p.role;
+JOIN role r ON r.name = normalize_role_name(p.role);
 
 -- Verify all existing roles have mappings
 DO $$
@@ -143,10 +156,8 @@ DROP TABLE role_mapping;
 
 DO $$ 
 BEGIN 
-    RAISE NOTICE 'Migration completed successfully!';
+    RAISE LOG 'Migration completed successfully!';
 END $$;
-
-COMMIT;
 
 -- Final verification after commit
 DO $$
@@ -157,8 +168,8 @@ BEGIN
     SELECT COUNT(*) INTO person_count FROM person;
     SELECT COUNT(*) INTO role_count FROM role;
     
-    RAISE NOTICE 'Final status:';
-    RAISE NOTICE 'Total person records: %', person_count;
-    RAISE NOTICE 'Total role records: %', role_count;
-    RAISE NOTICE 'All person records should now have a valid role_id reference';
+    RAISE LOG 'Final role status:';
+    RAISE LOG 'Total person records: %', person_count;
+    RAISE LOG 'Total role records: %', role_count;
+    RAISE LOG 'All person records should now have a valid role_id reference';
 END $$;
