@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.FunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSettingType;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -31,6 +32,10 @@ public interface FunctionalSettingRepository {
 	@NonNull
 	@SingleResult
 	Publisher<? extends FunctionalSetting> findById(@NonNull UUID id);
+
+	@NonNull
+	@SingleResult
+	Publisher<FunctionalSetting> findByName(@NonNull FunctionalSettingType name);
 
 	@NonNull
 	@SingleResult
