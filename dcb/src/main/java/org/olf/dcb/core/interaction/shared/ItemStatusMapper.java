@@ -11,8 +11,6 @@ import java.util.List;
 
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -21,11 +19,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class ItemStatusMapper {
-	private final ReferenceValueMappingService referenceValueMappingService;
-
-	ItemStatusMapper(ReferenceValueMappingService referenceValueMappingService) {
-		this.referenceValueMappingService = referenceValueMappingService;
-	}
 
 	public Mono<ItemStatus> mapStatus(String statusCode, String hostLmsCode,
 		FallbackMapper fallbackMapper) {
@@ -49,19 +42,9 @@ public class ItemStatusMapper {
 		log.debug("mapStatus(statusCode: {}, dueDate: {} hostLmsCode: {}, checkForDueDate: {}, fallbackMapper: {})",
 			statusCode, dueDate, hostLmsCode, checkForDueDate, fallbackMapper);
 
-		return Mono.justOrEmpty(statusCode)
-			.flatMap(code -> fetchReferenceValueMap(code, hostLmsCode))
-			.map(ReferenceValueMapping::getToValue)
-			.map(ItemStatusCode::valueOf)
-			.defaultIfEmpty(fallbackMapper.map(statusCode))
+		return Mono.just(fallbackMapper.map(statusCode))
 			.map(itemStatusCode -> checkForDueDate(itemStatusCode, dueDate, checkForDueDate))
 			.map(ItemStatus::new);
-	}
-
-	private Mono<ReferenceValueMapping> fetchReferenceValueMap(String statusCode, String hostLmsCode) {
-		return Mono.from(referenceValueMappingService.findMapping("itemStatus",
-				hostLmsCode, statusCode, "DCB"))
-			.doOnSuccess(mapping -> log.debug("Found mapping: {} for status code: {} host LMS: {}", mapping, statusCode, hostLmsCode));
 	}
 
 	private ItemStatusCode checkForDueDate(ItemStatusCode itemStatusCode,

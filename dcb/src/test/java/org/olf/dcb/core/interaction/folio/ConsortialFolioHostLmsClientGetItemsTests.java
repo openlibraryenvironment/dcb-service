@@ -6,7 +6,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
@@ -335,47 +334,6 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				hasProperty("canonicalItemType", is(UNKNOWN_NO_MAPPING_FOUND))
 			)
 		));
-	}
-
-	@Test
-	void shouldMapItemStatusUsingReferenceValueMappings() {
-		// Arrange
-		final var instanceId = randomUUID().toString();
-
-		final var checkedOutItemId = randomUUID().toString();
-		final var availableItemId = randomUUID().toString();
-
-		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
-			exampleHolding()
-				.id(checkedOutItemId)
-				.status("Checked out")
-				.build(),
-			exampleHolding()
-				.id(availableItemId)
-				.status("Available")
-				.build()
-		);
-
-		// These mappings need to be unrealistic in order to distinguish between
-		// use of the mappings over the fallback method
-		mapStatus("Available", CHECKED_OUT);
-		mapStatus("Checked out", UNAVAILABLE);
-
-		// Act
-		final var items = getItems(instanceId);
-
-		// Assert
-		assertThat("Items should have mapped status", items,
-			contains(
-				allOf(
-					hasLocalId(checkedOutItemId),
-					hasStatus(UNAVAILABLE)
-				),
-				allOf(
-					hasLocalId(availableItemId),
-					hasStatus(CHECKED_OUT)
-				)
-			));
 	}
 
 	@Test
