@@ -182,8 +182,6 @@ dcb:
       ip-patterns:
         - "127.0.0.1" # Allow IP4 127.0.0.1
         - "0:0:0:0:0:0:0:1" # Allow localhost IP6
-  itemresolver:
-    code: FirstItem
   shutdown:
     # Wait up to 60s on shutdown for ingest processes to end
     maxwait: 0

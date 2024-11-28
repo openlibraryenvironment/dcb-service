@@ -2,17 +2,17 @@ package org.olf.dcb.request.resolution;
 
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.*;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
+import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
 import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
 import static org.olf.dcb.request.resolution.SupplierRequestService.findFirstSupplierRequestOrNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
-import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
+import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.item.availability.AvailabilityReport;
@@ -30,14 +30,14 @@ import reactor.util.function.Tuple2;
 @Singleton
 public class PatronRequestResolutionService {
 	private final LiveAvailabilityService liveAvailabilityService;
-	private final List<ResolutionStrategy> allResolutionStrategies;
+	private final List<ResolutionSortOrder> allResolutionStrategies;
 	private final String itemResolver;
 	private final HostLmsService hostLmsService;
 	private final ManualSelection manualSelection;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
-		@Value("${dcb.itemresolver.code}") String itemResolver,
-		List<ResolutionStrategy> allResolutionStrategies,
+		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
+		List<ResolutionSortOrder> allResolutionStrategies,
 		HostLmsService hostLmsService,
 		ManualSelection manualSelection)
 	{
@@ -49,7 +49,7 @@ public class PatronRequestResolutionService {
 
 		log.debug("Available item resolver strategies (selected={})", this.itemResolver);
 
-		for (ResolutionStrategy t : allResolutionStrategies) {
+		for (ResolutionSortOrder t : allResolutionStrategies) {
 			log.debug(t.getClass().getName());
 		}
 	}
@@ -91,8 +91,9 @@ public class PatronRequestResolutionService {
 			new ResolutionStep("Get Available Items", this::getAvailableItems),
 			new ResolutionStep("Filter Items", this::filterItems),
 			new ResolutionStep("Sort Items By Availability Date", this::sortItemsByAvailabilityDate),
-			new ResolutionStep("Apply Configured Strategy", this::applyResolutionStrategy)
-		);
+			new ResolutionStep("Sort Items By Configured Sorting Strategy", this::sortByConfiguredStrategy),
+			new ResolutionStep("Select First Requestable Item", this::firstRequestableItem)
+			);
 	}
 
 	private Mono<Resolution> executeSteps(Resolution initialResolution, List<ResolutionStep> steps) {
@@ -111,26 +112,39 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Resolution> sortItemsByAvailabilityDate(Resolution resolution) {
-		return Mono.fromSupplier(() -> {
-
-			// Set the available date of each item to the current instant
-			final List<Item> sortedItems = resolution.getFilteredItems().stream()
-				.peek(item -> item.setAvailableDate(Instant.now()))
-				.sorted(Comparator.comparing(Item::getAvailableDate))
-				.collect(Collectors.toList());
-
-			return resolution.trackFilteredItems(sortedItems);
-		});
+		return applySortingStrategy(CODE_AVAILABILITY_DATE, resolution);
 	}
 
-	private Mono<Resolution> applyResolutionStrategy(Resolution resolution) {
-		return Mono.justOrEmpty(itemResolver)
-			.flatMap(code -> allResolutionStrategies.stream()
-				.filter(strategy -> strategy.getCode().equals(code))
+	private Mono<Resolution> sortByConfiguredStrategy(Resolution resolution) {
+		return applySortingStrategy(itemResolver, resolution);
+	}
+
+	// Only apply the sorting strategy if it is a valid strategy code
+	private Mono<Resolution> applySortingStrategy(String code, Resolution resolution) {
+		return Mono.justOrEmpty(code)
+			.flatMap(codeParam -> allResolutionStrategies.stream()
+				.filter(strategy -> strategy.getCode().equals(codeParam))
 				.findFirst()
-				.map(strategy -> selectItem(strategy, resolution))
+				.map(strategy -> sortItems(strategy, resolution))
 				.orElse(Mono.empty())
-			);
+			)
+			.switchIfEmpty(Mono.defer(() -> Mono.just(noStrategyToApply(resolution, code))));
+	}
+
+	private static Resolution noStrategyToApply(Resolution resolution, String code) {
+		log.warn("Sorting strategy code [{}] could not be applied", code);
+		return resolution;
+	}
+
+	public Mono<Resolution> firstRequestableItem(Resolution resolution) {
+		final var itemList = getItemList(resolution);
+
+		log.debug("Selecting first requestable item from item list size {}", itemList.size());
+
+		return Mono.justOrEmpty(
+			itemList.stream()
+				.findFirst())
+			.map(resolution::selectItem);
 	}
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
@@ -144,13 +158,26 @@ public class PatronRequestResolutionService {
 			.map(AvailabilityReport::getItems);
 	}
 
-	private Mono<Resolution> selectItem(ResolutionStrategy resolutionStrategy,
+	private Mono<Resolution> sortItems(ResolutionSortOrder resolutionSortOrder,
 		Resolution resolution) {
 
-		return resolutionStrategy.chooseItem(resolution.getFilteredItems(),
+		final var listToSort = getItemList(resolution);
+
+		return resolutionSortOrder.sortItems(listToSort,
 			resolution.getBibClusterId(), resolution.getPatronRequest())
-			.doOnNext(item -> log.debug("Selected item {}", item))
-			.map(resolution::selectItem);
+			.doOnNext(items -> {
+				if (items != null && !items.isEmpty()) {
+					log.debug("First item in sorted list is: {}", items.get(0));
+				}
+			})
+			.map(resolution::trackSortedItems);
+	}
+
+	// Prioritise the sorted list over the filtered list
+	private static List<Item> getItemList(Resolution resolution) {
+		return resolution.getSortedItems() != null && !resolution.getSortedItems().isEmpty()
+			? resolution.getSortedItems()
+			: resolution.getFilteredItems();
 	}
 
 	private Mono<Resolution> filterItems(Resolution resolution) {

@@ -2,6 +2,7 @@ package org.olf.dcb.request.resolution;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,21 +19,21 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
-public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
+public class GeoDistanceResolutionSortOrder implements ResolutionSortOrder {
 	private final LocationRepository locationRepository;
 
-	public GeoDistanceResolutionStrategy(LocationRepository locationRepository) {
+	public GeoDistanceResolutionSortOrder(LocationRepository locationRepository) {
 		this.locationRepository = locationRepository;
 	}
 
 	@Override
 	public String getCode() {
-		return "Geo";
+		return CODE_GEO_DISTANCE;
 	}
 
 	@Override
-	public Mono<Item> chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
-		log.debug("chooseItem(array of size {},{},{})", items.size(), clusterRecordId, patronRequest);
+	public Mono<List<Item>> sortItems(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
+		log.debug("sortItems(array of size {},{},{})", items.size(), clusterRecordId, patronRequest);
 
 		if (patronRequest.getPickupLocationCode() == null) {
 			log.error("The patron request has no pickup location code");
@@ -53,8 +54,9 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 							.pickupLocation(pickupLocation)
 							.build())
 					.map(this::calculateDistanceFromPickupLocation))
-			.reduce(GeoDistanceResolutionStrategy::closestToPickupLocation)
-			.map(ItemWithDistance::getItem);
+			.sort(Comparator.comparingDouble(ItemWithDistance::getDistance))
+			.map(ItemWithDistance::getItem)
+			.collectList();
 	}
 
 	private ItemWithDistance calculateDistanceFromPickupLocation(ItemWithDistance iwd) {
@@ -114,11 +116,5 @@ public class GeoDistanceResolutionStrategy implements ResolutionStrategy {
 			}
 			return (dist);
 		}
-	}
-
-	private static ItemWithDistance closestToPickupLocation(
-		ItemWithDistance item1, ItemWithDistance item2) {
-
-		return item1.getDistance() < item2.getDistance() ? item1 : item2;
 	}
 }

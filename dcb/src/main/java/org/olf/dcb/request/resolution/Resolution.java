@@ -20,6 +20,7 @@ public class Resolution {
 	Item chosenItem;
 	@Builder.Default List<Item> allItems = emptyList();
 	@Builder.Default List<Item> filteredItems = emptyList();
+	@Builder.Default List<Item> sortedItems = emptyList();
 
 	public static Resolution forPatronRequest(PatronRequest patronRequest) {
 		return builder().patronRequest(patronRequest).build();
@@ -41,6 +42,15 @@ public class Resolution {
 			.patronRequest(patronRequest)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
+			.build();
+	}
+
+	public Resolution trackSortedItems(List<Item> sortedItems) {
+		return Resolution.builder()
+			.patronRequest(patronRequest)
+			.allItems(allItems)
+			.filteredItems(filteredItems)
+			.sortedItems(sortedItems)
 			.build();
 	}
 

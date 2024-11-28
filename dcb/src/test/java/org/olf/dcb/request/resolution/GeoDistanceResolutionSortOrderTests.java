@@ -2,9 +2,7 @@ package org.olf.dcb.request.resolution;
 
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
@@ -28,9 +26,9 @@ import org.olf.dcb.test.LocationFixture;
 import jakarta.inject.Inject;
 
 @DcbTest
-class GeoDistanceResolutionStrategyTests {
+class GeoDistanceResolutionSortOrderTests {
 	@Inject
-	private GeoDistanceResolutionStrategy resolutionStrategy;
+	private GeoDistanceResolutionSortOrder resolutionStrategy;
 
 	@Inject
 	private LocationFixture locationFixture;
@@ -53,10 +51,15 @@ class GeoDistanceResolutionStrategyTests {
 		// Act
 		final var items = List.of(createItem("23721346", agency));
 
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+		final var sortedItems = sortItems(items, pickupLocationId.toString());
 
 		// Assert
-		assertThat(chosenItem, allOf(
+		assertThat(sortedItems, notNullValue());
+		assertThat(sortedItems.size(), is(1));
+
+		final var firstItem = sortedItems.get(0);
+
+		assertThat(firstItem, allOf(
 			notNullValue(),
 			hasLocalId("23721346")
 		));
@@ -80,10 +83,15 @@ class GeoDistanceResolutionStrategyTests {
 		// Act
 		final var items = List.of(marbleArchItem, chatsworthItem);
 
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+		final var sortedItems = sortItems(items, pickupLocationId.toString());
 
 		// Assert
-		assertThat(chosenItem, allOf(
+		assertThat(sortedItems, notNullValue());
+		assertThat(sortedItems.size(), is(2));
+
+		final var firstItem = sortedItems.get(0);
+
+		assertThat(firstItem, allOf(
 			notNullValue(),
 			hasLocalId(chatsworthItemId)
 		));
@@ -100,10 +108,15 @@ class GeoDistanceResolutionStrategyTests {
 		// Act
 		final var items = List.of(createItem("536524", agency));
 
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+		final var sortedItems = sortItems(items, pickupLocationId.toString());
 
 		// Assert
-		assertThat(chosenItem, allOf(
+		assertThat(sortedItems, notNullValue());
+		assertThat(sortedItems.size(), is(1));
+
+		final var firstItem = sortedItems.get(0);
+
+		assertThat(firstItem, allOf(
 			notNullValue(),
 			hasLocalId("536524")
 		));
@@ -120,10 +133,15 @@ class GeoDistanceResolutionStrategyTests {
 		// Act
 		final var items = List.of(createItem("536524", agency));
 
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+		final var sortedItems = sortItems(items, pickupLocationId.toString());
 
 		// Assert
-		assertThat(chosenItem, allOf(
+		assertThat(sortedItems, notNullValue());
+		assertThat(sortedItems.size(), is(1));
+
+		final var firstItem = sortedItems.get(0);
+
+		assertThat(firstItem, allOf(
 			notNullValue(),
 			hasLocalId("536524")
 		));
@@ -135,47 +153,49 @@ class GeoDistanceResolutionStrategyTests {
 		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		// Act
-		final var chosenItem = chooseItem(emptyList(), pickupLocationId.toString());
+		final var sortedItems = sortItems(emptyList(), pickupLocationId.toString());
 
 		// Assert
-		assertThat(chosenItem, nullValue());
+		assertThat(sortedItems, notNullValue());
+		assertThat(sortedItems.size(), is(0));
 	}
 
 	@Test
 	void shouldChooseNoItemWhenNoItemHasAnAgency() {
 		// Arrange
 		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
-
-		// Act
 		final var items = List.of(createItem("6736564", null));
 
-		final var chosenItem = chooseItem(items, pickupLocationId.toString());
+		// Act
+		final var sortedItems = sortItems(items, pickupLocationId.toString());
 
 		// Assert
-		assertThat(chosenItem, nullValue());
+		assertThat(sortedItems, notNullValue());
+		assertThat(sortedItems.size(), is(0));
 	}
 
 	@Test
 	void shouldChooseNoItemWhenNoPickupLocationDoesNotExist() {
 		// Act
-		final var chosenItem = chooseItem(emptyList(), randomUUID().toString());
+		final var sortedItems = sortItems(emptyList(), randomUUID().toString());
 
 		// Assert
-		assertThat(chosenItem, nullValue());
+		assertThat(sortedItems, notNullValue());
+		assertThat(sortedItems.size(), is(0));
 	}
 
 	@Test
 	void shouldFailWhenPatronRequestHasNoPickupLocation() {
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
-			() -> chooseItem(emptyList(), null));
+			() -> sortItems(emptyList(), null));
 
 		// Assert
 		assertThat(exception, hasMessage("No pickup location code"));
 	}
 
-	private Item chooseItem(List<Item> items, String pickupLocationId) {
-		return singleValueFrom(resolutionStrategy.chooseItem(items, randomUUID(),
+	private List<Item> sortItems(List<Item> items, String pickupLocationId) {
+		return singleValueFrom(resolutionStrategy.sortItems(items, randomUUID(),
 			PatronRequest.builder()
 				.pickupLocationCode(pickupLocationId)
 				.build()));

@@ -7,11 +7,14 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import reactor.core.publisher.Mono;
 
-public interface ResolutionStrategy {
+public interface ResolutionSortOrder {
+
+	public static final String CODE_AVAILABILITY_DATE = "AvailabilityDate";
+	public static final String CODE_GEO_DISTANCE = "Geo";
 
 	// Resolution Strategies must return a code which can be used to select
 	// an implementation based on config
 	String getCode();
 
-	Mono<Item> chooseItem(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest);
+	Mono<List<Item>> sortItems(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest);
 }
