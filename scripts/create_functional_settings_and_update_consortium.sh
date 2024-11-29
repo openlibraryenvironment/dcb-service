@@ -185,7 +185,7 @@ create_functional_setting() {
     CONSORTIUM_NAME=$(prompt_with_default "Enter Consortium Name" "e.g. MOBIUS")
     SETTING_NAME=$(prompt_with_default "Enter Functional Setting Name (e.g., PICKUP_ANYWHERE, RE_RESOLUTION)" "")
     DESCRIPTION=$(prompt_with_default "Enter Setting Description" "A functional setting for $SETTING_NAME")
-    ENABLED=$(prompt_with_default "Enable this setting?" "true")
+    ENABLED=$(prompt_with_default "Enable this setting?" "false")
     REASON=$(prompt_with_default "Enter Reason for Creating Setting" "Initial setup")
     CHANGE_CATEGORY=$(prompt_with_default "Enter Change Category" "Configuration")
     PAYLOAD=$(jq -n \
