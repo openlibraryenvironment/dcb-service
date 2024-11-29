@@ -48,27 +48,35 @@ create_role() {
 
 			ROLE_NAME=$(prompt_with_default "Enter role name. This must be a valid role name as defined in RoleName.java." "e.g. LIBRARY_SERVICES_ADMINISTRATOR")
 			ROLE_DISPLAY_NAME=$(prompt_with_default "Enter role display name" "e.g. LIBRARY_SERVICES_ADMINISTRATOR")
-#			PERSON_ID=$(prompt_with_default "Enter person UUID" "The UUID of the person this role shou")
 			DESCRIPTION=$(prompt_with_default "Enter description" "")
 			KEYCLOAK_ROLE=$(prompt_with_default "What Keycloak role should this role have?" "Default")
 			REASON=$(prompt_with_default "Enter reason for creating role" "Initial setup")
 			CHANGE_CATEGORY=$(prompt_with_default "Enter category for data change log" "Configuration")
-			PAYLOAD=$(jq -n \
-					--arg name "$ROLE_NAME" \
-					--arg displayName "$ROLE_DISPLAY_NAME" \
-					--arg description "$DESCRIPTION" \
-					--arg keycloakRole "$KEYCLOAK_ROLE" \
-					--arg reason "$REASON" \
-					--arg changeCategory "$CHANGE_CATEGORY" \
-					'{
-							query: "mutation { createRole(input: {
-									name: \(name),
-									description: \"\($description)\",
-									displayName: \"\(displayName)\",
-									changeCategory: \"\($changeCategory)\",
-									reason: \"\($reason)\"
-							}) { id, name, description, displayName, description } }"
-					}')
+	PAYLOAD=$(jq -n \
+      --arg name "$ROLE_NAME" \
+      --arg displayName "$ROLE_DISPLAY_NAME" \
+      --arg description "$DESCRIPTION" \
+      --arg keycloakRole "$KEYCLOAK_ROLE" \
+      --arg reason "$REASON" \
+      --arg changeCategory "$CHANGE_CATEGORY" \
+      '{
+          query: "mutation CreateRole($input: CreateRoleInput!) {
+              createRole(input: $input) {
+                  id, name, description, displayName, keycloakRole
+              }
+          }",
+          variables: {
+              input: {
+                  name: $name,
+                  description: $description,
+                  displayName: $displayName,
+                  keycloakRole: $keycloakRole,
+                  changeCategory: $changeCategory,
+                  reason: $reason
+              }
+          }
+      }')
+
 		 RESPONSE=$(curl -s \
 					-H "Authorization: Bearer $TOKEN" \
 					-H "Content-Type: application/json" \

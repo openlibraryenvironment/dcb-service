@@ -114,6 +114,9 @@ input CreateRoleInput {
 	displayName: String!
 	description: String!
 	keycloakRole: String!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
 }
 
 input UpdateRoleInput {

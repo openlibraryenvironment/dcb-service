@@ -28,13 +28,13 @@ CREATE TABLE role (
 
 -- Insert roles before the migration process
 INSERT INTO role (id, name, display_name, description, keycloak_role, reason, change_category, last_edited_by) VALUES
-('53f1e7ed-583e-412c-95a9-758400f5cddc', 'SPONSOR', 'Sponsor', 'Sponsorship role', 'Default', 'Roles setup', 'Initial setup', 'system'),
-('7e78a211-4b08-4638-9b8d-da90fd66b9db', 'LIBRARY_SERVICES_ADMINISTRATOR', 'Library Services Administrator', 'Manages library services', 'CONSORTIUM_ADMIN', 'Roles setup', 'Initial setup', 'system'),
-('7ce45ea4-f399-45c9-b753-f0fcdf11560e', 'SIGN_OFF_AUTHORITY', 'Sign-off Authority', 'Authorized to sign off on actions', 'Default', 'Roles setup', 'Initial setup', 'system'),
-('ed95ebf0-aa96-4299-b173-f48ba34b3989', 'SUPPORT', 'Support', 'Provides support services', 'Default', 'Roles setup', 'Initial setup', 'system'),
-('c407a5ca-c085-436f-a3d7-d0da91290bf5', 'OPERATIONS_CONTACT', 'Operations Contact', 'Point of contact for operations', 'Default', 'Roles setup', 'Initial setup', 'system'),
-('31b7d683-847d-4cc0-b3a5-f0cf10f72026', 'IMPLEMENTATION_CONTACT', 'Implementation Contact', 'Manages implementation', 'Default', 'Roles setup', 'Initial setup', 'system'),
-('59522bbc-684c-4d81-a2b8-dce3f273b873', 'TECHNICAL_CONTACT', 'Technical Contact', 'Technical support role', 'Default', 'Roles setup', 'Initial setup', 'system');
+('63c89a76-f81f-51f1-937c-5b3a4130d587', 'SPONSOR', 'Sponsor', 'Sponsorship role', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('161c9356-a86f-5eab-811f-039794fa7c6e', 'LIBRARY_SERVICES_ADMINISTRATOR', 'Library Services Administrator', 'Manages library services', 'CONSORTIUM_ADMIN', 'Roles setup', 'Initial setup', 'system'),
+('f608afb9-c054-5df0-a042-94ef242e9c51', 'SIGN_OFF_AUTHORITY', 'Sign-off Authority', 'Authorized to sign off on actions', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('c04e65f0-f936-5a28-8319-3ae83b1a4630', 'SUPPORT', 'Support', 'Provides support services', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('00092fa7-fda3-53d7-ae94-2f88b077d8d5', 'OPERATIONS_CONTACT', 'Operations Contact', 'Point of contact for operations', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('d38de66a-1745-5598-a7f7-50b2c6bddd81', 'IMPLEMENTATION_CONTACT', 'Implementation Contact', 'Manages implementation', 'Default', 'Roles setup', 'Initial setup', 'system'),
+('24bddbb5-0e33-5c2f-88e3-e4c6f6f7eda2', 'TECHNICAL_CONTACT', 'Technical Contact', 'Technical support role', 'Default', 'Roles setup', 'Initial setup', 'system');
 
 DO $$ 
 BEGIN 
