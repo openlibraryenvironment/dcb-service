@@ -51,6 +51,7 @@ public class GraphQLFactory {
 			UpdateConsortiumDataFetcher updateConsortiumDataFetcher,
 			UpdateFunctionalSettingDataFetcher updateFunctionalSettingDataFetcher,
 			CreateContactDataFetcher createContactDataFetcher, DeleteConsortiumDataFetcher deleteConsortiumDataFetcher,
+			CreateRoleDataFetcher createRoleDataFetcher, UpdateRoleDataFetcher updateRoleDataFetcher,
 			CreateFunctionalSettingDataFetcher createFunctionalSettingDataFetcher,
 			DataFetchers dataFetchers) {
 
@@ -90,6 +91,8 @@ public class GraphQLFactory {
 						.dataFetcher("libraryGroups", dataFetchers.getLibraryGroupsDataFetcher())
 						.dataFetcher("libraryGroupMembers", dataFetchers.getAllLibraryGroupMembers())
 						.dataFetcher("dataChangeLog", dataFetchers.getDataChangeLogDataFetcher())
+						.dataFetcher("roles", dataFetchers.getRolesDataFetcher())
+						.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsDataFetcher())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
@@ -113,61 +116,66 @@ public class GraphQLFactory {
 						.dataFetcher("updateFunctionalSetting", updateFunctionalSettingDataFetcher)
 						.dataFetcher("createContact", createContactDataFetcher)
 						.dataFetcher("deleteConsortium", deleteConsortiumDataFetcher)
+						.dataFetcher("createRole", createRoleDataFetcher)
+						.dataFetcher("updateRole", updateRoleDataFetcher)
 						.dataFetcher("createFunctionalSetting", createFunctionalSettingDataFetcher))
 			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())
 						.dataFetcher("hostLms", dataFetchers.getHostLmsForAgencyDataFetcher()))
-				.type("AgencyGroup",
-					typeWiring -> typeWiring
-						.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
-				.type("AgencyGroupMember",
-					typeWiring -> typeWiring
-						.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
-				.type("Consortium",
-					typeWiring -> typeWiring
-						.dataFetcher("contacts", dataFetchers.getContactsForConsortiumDataFetcher())
-						.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsForConsortiumDataFetcher()))
-				.type("ClusterRecord",
-					typeWiring -> typeWiring
-						.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
-				.type("BibRecord",
-					typeWiring -> typeWiring
-						.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher())
-						.dataFetcher("matchPoints", dataFetchers.getMatchPointsForBibRecordDataFetcher()))
-				.type("SupplierRequest",
-					typeWiring -> typeWiring
-						.dataFetcher("patronRequest", dataFetchers.getPatronRequestForSupplierRequestDataFetcher())
-						.dataFetcher("virtualPatron", dataFetchers.getVPatronForSupplierRequest()))
-				.type("PatronRequest",
-					typeWiring -> typeWiring
-						.dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
-						.dataFetcher("audit", dataFetchers.getAuditMessagesForPR())
-						.dataFetcher("clusterRecord", dataFetchers.getClusterRecordForPR())
-						.dataFetcher("requestingIdentity", dataFetchers.getPatronIdentityForPatronRequestRequest()))
-				.type("Location",
-					typeWiring -> typeWiring
-						.dataFetcher("agency", dataFetchers.getAgencyForLocation())
-						.dataFetcher("hostSystem", dataFetchers.getHostSystemForLocation())
-						.dataFetcher("parentLocation", dataFetchers.getParentForLocation()))
-				.type("Library",
-					typeWiring -> typeWiring
-						.dataFetcher("agency", dataFetchers.getAgencyForLibraryDataFetcher())
-						.dataFetcher("secondHostLms", dataFetchers.getSecondHostLmsForLibraryDataFetcher())
-						.dataFetcher("contacts", dataFetchers.getContactsForLibraryDataFetcher())
-						.dataFetcher("membership", dataFetchers.getLibraryGroupMembersByLibraryDataFetcher()))
-				.type("LibraryGroup",
-					typeWiring -> typeWiring
-						.dataFetcher("members", dataFetchers.getLibraryGroupMembersDataFetcher())
-						.dataFetcher("consortium", dataFetchers.getConsortiumForLibraryGroupDataFetcher())
+			.type("AgencyGroup",
+				typeWiring -> typeWiring
+					.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))
+			.type("AgencyGroupMember",
+				typeWiring -> typeWiring
+					.dataFetcher("agency", dataFetchers.getAgencyDataFetcherForGroupMember()))
+			.type("Consortium",
+				typeWiring -> typeWiring
+					.dataFetcher("contacts", dataFetchers.getContactsForConsortiumDataFetcher())
+					.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsForConsortiumDataFetcher()))
+			.type("ClusterRecord",
+				typeWiring -> typeWiring
+					.dataFetcher("members", dataFetchers.getClusterMembersDataFetcher()))
+			.type("BibRecord",
+				typeWiring -> typeWiring
+					.dataFetcher("sourceRecord", dataFetchers.getSourceRecordForBibDataFetcher())
+					.dataFetcher("matchPoints", dataFetchers.getMatchPointsForBibRecordDataFetcher()))
+			.type("SupplierRequest",
+				typeWiring -> typeWiring
+					.dataFetcher("patronRequest", dataFetchers.getPatronRequestForSupplierRequestDataFetcher())
+					.dataFetcher("virtualPatron", dataFetchers.getVPatronForSupplierRequest()))
+			.type("PatronRequest",
+				typeWiring -> typeWiring
+					.dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
+					.dataFetcher("audit", dataFetchers.getAuditMessagesForPR())
+					.dataFetcher("clusterRecord", dataFetchers.getClusterRecordForPR())
+					.dataFetcher("requestingIdentity", dataFetchers.getPatronIdentityForPatronRequestRequest()))
+			.type("Location",
+				typeWiring -> typeWiring
+					.dataFetcher("agency", dataFetchers.getAgencyForLocation())
+					.dataFetcher("hostSystem", dataFetchers.getHostSystemForLocation())
+					.dataFetcher("parentLocation", dataFetchers.getParentForLocation()))
+			.type("Library",
+				typeWiring -> typeWiring
+					.dataFetcher("agency", dataFetchers.getAgencyForLibraryDataFetcher())
+					.dataFetcher("secondHostLms", dataFetchers.getSecondHostLmsForLibraryDataFetcher())
+					.dataFetcher("contacts", dataFetchers.getContactsForLibraryDataFetcher())
+					.dataFetcher("membership", dataFetchers.getLibraryGroupMembersByLibraryDataFetcher()))
+			.type("LibraryGroup",
+				typeWiring -> typeWiring
+					.dataFetcher("members", dataFetchers.getLibraryGroupMembersDataFetcher())
+					.dataFetcher("consortium", dataFetchers.getConsortiumForLibraryGroupDataFetcher())
 			)
 			.type("LibraryGroupMember",
 				typeWiring -> typeWiring
 					.dataFetcher("library", dataFetchers.getLibraryForGroupMemberDataFetcher())
 					.dataFetcher("libraryGroup", dataFetchers.getGroupForGroupMemberDataFetcher())
 			)
-				.scalar(ExtendedScalars.Json)
-				.build();
+			.type("Person",
+				typeWiring -> typeWiring
+					.dataFetcher("role", dataFetchers.getRoleForPersonDataFetcher()))
+			.scalar(ExtendedScalars.Json)
+			.build();
 
 		// Create the executable schema.
 		GraphQLSchema graphQLSchema = schemaGenerator.makeExecutableSchema(typeRegistry, runtimeWiring);

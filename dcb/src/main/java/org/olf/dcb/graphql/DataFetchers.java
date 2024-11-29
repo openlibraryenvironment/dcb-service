@@ -70,9 +70,7 @@ public class DataFetchers {
 
 	private final PostgresFunctionalSettingRepository postgresFunctionalSettingRepository;
 	private final PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository;
-
-
-
+	private final PostgresRoleRepository postgresRoleRepository;
 
 	private final QueryService qs;
 
@@ -97,7 +95,10 @@ public class DataFetchers {
 											PostgresLibraryGroupRepository postgresLibraryGroupRepository, LibraryGroupMemberRepository libraryGroupMemberRepository,
 											PostgresLibraryGroupMemberRepository postgresLibraryGroupMemberRepository,
 											PostgresLibraryContactRepository postgresLibraryContactRepository, PostgresDataChangeLogRepository postgresDataChangeLogRepository,
-											PostgresMatchPointRepository postgresMatchPointRepository, PostgresConsortiumContactRepository postgresConsortiumContactRepository, PostgresFunctionalSettingRepository postgresFunctionalSettingRepository, PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
+											PostgresMatchPointRepository postgresMatchPointRepository, PostgresConsortiumContactRepository postgresConsortiumContactRepository,
+											PostgresFunctionalSettingRepository postgresFunctionalSettingRepository,
+											PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
+											PostgresRoleRepository postgresRoleRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -127,6 +128,7 @@ public class DataFetchers {
 		this.postgresConsortiumContactRepository = postgresConsortiumContactRepository;
 		this.postgresFunctionalSettingRepository = postgresFunctionalSettingRepository;
 		this.postgresConsortiumFunctionalSettingRepository = postgresConsortiumFunctionalSettingRepository;
+		this.postgresRoleRepository = postgresRoleRepository;
 	}
 
 
@@ -919,6 +921,54 @@ public class DataFetchers {
 				.toFuture();
 		};
 	}
+
+	public DataFetcher<CompletableFuture<Role>> getRoleForPersonDataFetcher() {
+		return env -> {
+			log.debug("Fetching the role for a given person."+env.getSource());
+			Person envPerson = (Person) env.getSource();
+			UUID personId = envPerson.getId();
+
+			return Mono.from(postgresPersonRepository.findById(personId))
+				.doOnNext(person -> {
+					log.debug("Person: {}", person);
+				})
+				.flatMap(person -> {
+					return Mono.from(postgresRoleRepository.findById(person.getRole().getId()))
+						.doOnNext(role -> {
+							log.debug("Role: {} with name {}", role, role.getName());
+						});
+				})
+				.toFuture();
+		};
+	}
+
+	public DataFetcher<CompletableFuture<Page<Role>>> getRolesDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
+
+			if (pageno == null) pageno = Integer.valueOf(0);
+			if (pagesize == null) pagesize = Integer.valueOf(10);
+			if (order == null) order = "name";
+			if (direction == null) direction = "ASC";
+
+			Sort.Order.Direction orderBy = Sort.Order.Direction.valueOf(direction);
+
+			log.debug("RoleDataFetcher::get({},{},{})", pageno, pagesize, query);
+			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
+
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, Role.class);
+				return Mono.from(postgresRoleRepository.findAll(spec, pageable)).toFuture();
+			}
+
+			return Mono.from(postgresRoleRepository.findAll(pageable)).toFuture();
+		};
+	}
+
 	public DataFetcher<CompletableFuture<List<FunctionalSetting>>> getFunctionalSettingsForConsortiumDataFetcher() {
 		return env -> {
 			log.debug("Fetching the contacts for a given consortium."+env.getSource());
@@ -936,6 +986,32 @@ public class DataFetchers {
 				.distinct() // Only return unique Functional Setting objects
 				.collectList()
 				.toFuture();
+		};
+	}
+	public DataFetcher<CompletableFuture<Page<FunctionalSetting>>> getFunctionalSettingsDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
+
+			if (pageno == null) pageno = Integer.valueOf(0);
+			if (pagesize == null) pagesize = Integer.valueOf(10);
+			if (order == null) order = "name";
+			if (direction == null) direction = "ASC";
+
+			Sort.Order.Direction orderBy = Sort.Order.Direction.valueOf(direction);
+
+			log.debug("FunctionalSettingDataFetcher::get({},{},{})", pageno, pagesize, query);
+			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
+
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, FunctionalSetting.class);
+				return Mono.from(postgresFunctionalSettingRepository.findAll(spec, pageable)).toFuture();
+			}
+
+			return Mono.from(postgresFunctionalSettingRepository.findAll(pageable)).toFuture();
 		};
 	}
 }

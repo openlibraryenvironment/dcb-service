@@ -65,6 +65,7 @@ if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
 fi
 echo "Logged in successfully with token."
 export LN=0
+# Roles should already have been created by the migration
 # Load data from a local TSV file. Tabs are replaced because of the issue with blank columns outlined here
 # https://stackoverflow.com/questions/46997610/read-tsv-file-line-by-line-with-blank-columns
 # As not all fields are required, blank columns are a possibility (especially with backupDowntimeSchedule and supportHours).

@@ -6,19 +6,22 @@ import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Collection;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.core.model.LibraryContact;
 import org.olf.dcb.core.model.Person;
 
-
+import org.olf.dcb.core.model.RoleName;
 import org.olf.dcb.storage.LibraryContactRepository;
 import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PersonRepository;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.olf.dcb.storage.RoleRepository;
 
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
@@ -29,19 +32,21 @@ import reactor.core.publisher.Flux;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
+@Slf4j
 public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<Library>> {
 
-	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
-
 	private LibraryRepository libraryRepository;
-	private PersonRepository personRepository;
-
 	private LibraryContactRepository libraryContactRepository;
+	private PersonRepository personRepository;
+	private RoleRepository roleRepository;
 	private R2dbcOperations r2dbcOperations;
 
-	public CreateLibraryDataFetcher(LibraryRepository libraryRepository, PersonRepository personRepository, LibraryContactRepository libraryContactRepository, R2dbcOperations r2dbcOperations) {
+	public CreateLibraryDataFetcher(LibraryRepository libraryRepository, PersonRepository personRepository,
+																	LibraryContactRepository libraryContactRepository, RoleRepository roleRepository,
+																	R2dbcOperations r2dbcOperations) {
 		this.libraryRepository = libraryRepository;
 		this.personRepository = personRepository;
+		this.roleRepository = roleRepository;
 		this.r2dbcOperations = r2dbcOperations;
 		this.libraryContactRepository = libraryContactRepository;
 	}
@@ -50,12 +55,18 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 	public CompletableFuture<Library> get(DataFetchingEnvironment env) {
 
 		Map<String, Object> input_map = env.getArgument("input");
+		Collection<String> roles = env.getGraphQlContext().get("roles");
 
 		List<Map<String, Object>> contactsInput = (List<Map<String, Object>>) input_map.get("contacts");
 		log.debug("createLibraryDataFetcher {}", input_map);
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
+
+		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
+			log.warn("createConsortiumDataFetcher: Access denied for user {}: user does not have the required role to create a consortium.", userString);
+			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to create a consortium.");
+		}
 
 		Library input = Library.builder()
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)
@@ -76,8 +87,6 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.changeCategory("New member")
 			.lastEditedBy(userString)
 			.build();
-
-
 		log.debug("getCreateLibraryDataFetcher {}/{}", input_map, input);
 
 		if (input.getId() == null) {
@@ -91,12 +100,11 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		// Save the library first
 		return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(libraryRepository.saveOrUpdate(input))))
 			.flatMap(savedLibrary -> {
-				// Save the contacts and associate them with the saved Library entity
+				// Then associate contacts for the library.
 				Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
-					.map(this::createPersonFromInput)
-					.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person)))
+					.flatMap(contactInput -> createPersonFromInput(contactInput, userString)
+						.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person))))
 					.collectList();
-
 				return contactsMono.flatMap(contacts -> {
 					return associateContactsWithLibrary(savedLibrary, (List<Person>) contacts)
 						.then(Mono.just(savedLibrary));
@@ -104,16 +112,40 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			})
 			.toFuture();
 	}
-
-	private Person createPersonFromInput(Map<String, Object> contactInput) {
-		return Person.builder()
-			.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Person:" + contactInput.get("firstName") + contactInput.get("lastName") + contactInput.get("role") + contactInput.get("email")))
-			.firstName(contactInput.get("firstName").toString().trim())
-			.lastName(contactInput.get("lastName").toString().trim())
-			.role(contactInput.get("role").toString())
-			.isPrimaryContact(contactInput.get("isPrimaryContact") != null ? Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
-			.email(contactInput.get("email").toString().trim())
-			.build();
+	private Mono<Person> createPersonFromInput(Map<String, Object> contactInput, String username) {
+		String roleString = contactInput.get("role").toString().trim().replace("-", "_");
+		// First validate the role name.
+		String newRoleString = roleString.replace(" ", "_").toUpperCase();
+		log.debug("RoleName: {}", RoleName.valueOf(newRoleString));
+		if (!RoleName.isValid(newRoleString)) {
+			return Mono.error(new IllegalArgumentException(
+				String.format("Invalid role: '%s'. The roles currently available are: %s",
+					roleString,
+					RoleName.getValidNames())
+			));
+		}
+		// Next, look up our role entity so we can get all role info.
+		RoleName roleName = RoleName.valueOf(newRoleString);
+		log.debug("RoleName: {}", roleName);
+		String[] validRoles = new String[]{RoleName.getValidNames()};
+		return Mono.from(roleRepository.findByName(roleName))
+			.switchIfEmpty(Mono.error(new IllegalArgumentException(
+				String.format("The contact you provided had a role that was not found in the system: %s. Valid roles are : %s", roleName, Arrays.toString(validRoles)))))
+			.map(role -> {
+				log.debug("createLibraryDataFetcher: Creating person with role: {}", role.getName());
+				return Person.builder()
+					.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
+						"Person:" + contactInput.get("firstName") + contactInput.get("lastName") +
+							role.getName() + contactInput.get("email")))
+					.firstName(contactInput.get("firstName").toString().trim())
+					.lastName(contactInput.get("lastName").toString().trim())
+					.role(role)
+					.isPrimaryContact(contactInput.get("isPrimaryContact") != null ?
+						Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
+					.email(contactInput.get("email").toString().trim())
+					.lastEditedBy(username)
+					.build();
+			});
 	}
 
 	private Mono<Void> associateContactsWithLibrary(Library library, List<Person> contacts) {

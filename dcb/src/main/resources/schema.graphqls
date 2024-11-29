@@ -20,6 +20,10 @@ type Query {
 		libraryGroupMembers: [LibraryGroupMember]!
 		consortia(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): ConsortiumPage!
 		dataChangeLog(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): DataChangeLogPage!
+		roles(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): RolePage!
+		functionalSettings(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): FunctionalSettingPage!
+
+
 }
 
 type Mutation {
@@ -44,7 +48,8 @@ type Mutation {
 	  createContact(input: ConsortiumContactInput): ConsortiumContact!
 		deleteConsortium(input: DeleteEntityInput): DeleteEntityPayload!
 		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
-
+		createRole(input: CreateRoleInput): Role!
+		updateRole(input: UpdateRoleInput): Role!
 }
 
 input AddAgencyToGroupCommand {
@@ -102,6 +107,26 @@ input ConsortiumContactInput {
 	reason: String!
 	changeCategory: String!
 	changeReferenceUrl: String
+}
+
+input CreateRoleInput {
+	name: String!
+	displayName: String!
+	description: String!
+	keycloakRole: String!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+input UpdateRoleInput {
+	name: String!
+	displayName: String
+	description: String
+	keycloakRole: String
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
 }
 
 input FunctionalSettingInput {
@@ -469,7 +494,7 @@ type Person {
 	id: ID
 	firstName: String
 	lastName: String
-	role: String
+	role: Role!
 	isPrimaryContact: Boolean
 	email: String
 }
@@ -559,6 +584,12 @@ type ConsortiumPage {
 	pageable: Pageable
 }
 
+type FunctionalSettingPage {
+	content: [FunctionalSetting]
+	totalSize: Int
+	pageable: Pageable
+}
+
 type LibraryGroupPage {
 	content: [LibraryGroup]
 	totalSize: Int
@@ -606,6 +637,12 @@ type PatronIdentityPage {
   content: [PatronIdentity]
   totalSize: Int
   pageable: Pageable
+}
+
+type RolePage {
+	content: [Role]
+	totalSize: Int
+	pageable: Pageable
 }
 
 type SupplierRequestPage {
@@ -703,4 +740,12 @@ type FunctionalSetting {
 	name: FunctionalSettingType!
 	enabled: Boolean!
 	description: String
+}
+
+type Role {
+	id: ID!
+	displayName: String!
+	name: String!
+	description: String
+	keycloakRole: String
 }
