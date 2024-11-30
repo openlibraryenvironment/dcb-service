@@ -5,8 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.olf.dcb.core.api.serde.ClusterRecordDTO;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.storage.BibRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,24 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
+
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
+import jakarta.inject.Inject;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+
 
 @Controller("/clusters")
 @Validated
@@ -36,10 +56,16 @@ public class ClusterRecordController {
 	private static final Logger log = LoggerFactory.getLogger(ClusterRecordController.class);
 
 	private final RecordClusteringService recordClusteringService;
+	private final BibRepository bibRepository;
+	private final ObjectMapper objectMapper;
 	
 	public ClusterRecordController(
-			RecordClusteringService recordClusteringService) {
+			RecordClusteringService recordClusteringService,
+			BibRepository bibRepository,
+			ObjectMapper objectMapper) {
 		this.recordClusteringService = recordClusteringService;
+		this.bibRepository = bibRepository;
+		this.objectMapper = objectMapper;
 	}
 
 	@Operation(
@@ -63,4 +89,42 @@ public class ClusterRecordController {
 		return Mono.from(recordClusteringService.findById(id));
 	}
 
+	@Secured(ADMINISTRATOR)
+	@Get("/{id}/exportMembers")
+	public Mono<HttpResponse<byte[]>> exportMembers(UUID id) throws IOException {
+
+		return Flux.from(bibRepository.findAllByContributesToId(id))
+			.collectList()
+			.flatMap( records -> {
+				
+				if (records.isEmpty()) {
+					return Mono.just(HttpResponse.noContent());
+				}
+
+				return Mono.fromCallable(() -> {
+					try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                         ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream)) {
+	
+						// Iterate through records and add each as a JSON file to the ZIP
+						for (BibRecord record : records) {
+							String json = objectMapper.writeValueAsString(record.getCanonicalMetadata());
+							String fileName = "record-" + record.getId() + ".json"; // Assuming `getId` exists
+	
+							ZipEntry zipEntry = new ZipEntry(fileName);
+							zipOutputStream.putNextEntry(zipEntry);
+							zipOutputStream.write(json.getBytes());
+							zipOutputStream.closeEntry();
+						}
+
+						zipOutputStream.finish();
+						return HttpResponse.ok(byteArrayOutputStream.toByteArray())
+								.header("Content-Disposition", "attachment; filename=\"cluster-"+id+"records.zip\"");
+					}
+				})
+				.onErrorResume( e -> {
+					return Mono.just(HttpResponse.serverError()
+						.body(("Error: " + e.getMessage()).getBytes()));
+				});
+			});
+	}
 }
