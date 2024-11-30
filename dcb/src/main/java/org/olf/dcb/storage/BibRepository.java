@@ -114,5 +114,9 @@ public interface BibRepository {
 	};
 
 	@Query(value = "select a.id as source_system_id, a.name as source_system_name, sq.total as record_count from ( select source_system_id id, count(*) total from bib_record group by source_system_id ) sq, host_lms a where sq.id = a.id", nativeQuery = true)
-  public Publisher<RecordCountSummary> getIngestReport();
+	public Publisher<RecordCountSummary> getIngestReport();
+	
+	@SingleResult
+	@Query(value = "select count(*) count from bib_record where source_system_id = :hostLmsId", nativeQuery = true)
+	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
 }

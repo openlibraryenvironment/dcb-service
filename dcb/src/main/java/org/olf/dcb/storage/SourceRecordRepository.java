@@ -3,6 +3,7 @@ package org.olf.dcb.storage;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.RecordCount;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;
 import org.reactivestreams.Publisher;
@@ -10,6 +11,7 @@ import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
@@ -52,4 +54,11 @@ public interface SourceRecordRepository {
 	@SingleResult
 	@NonNull
 	Publisher<Integer> updateById (@NonNull UUID id, @NonNull Instant lastProcessed, @NonNull ProcessingStatus processingState, @Nullable String processingInformation);
+	
+	@Query(value = "select processing_state as value, count(*) as count from source_record where host_lms_id = :hostLmsId group by processing_state order by processing_state", nativeQuery = true)
+	public Publisher<RecordCount> getProcessStatusForHostLms(UUID hostLmsId);
+	
+	@SingleResult
+	@Query(value = "select count(*) count from source_record where host_lms_id = :hostLmsId", nativeQuery = true)
+	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
 }

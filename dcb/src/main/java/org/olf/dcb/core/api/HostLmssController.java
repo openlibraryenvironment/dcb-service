@@ -1,8 +1,11 @@
 package org.olf.dcb.core.api;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.HostLmsService2;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.security.RoleNames;
@@ -42,11 +45,17 @@ public class HostLmssController {
 	private static final Logger log = LoggerFactory.getLogger(HostLmssController.class);
 
 	private final HostLmsRepository hostLMSRepository;
-	private final HostLmsService lmsService;
+	private final HostLmsService hostLmsService;
+	private final HostLmsService2 hostLmsService2;
 
-	public HostLmssController(HostLmsRepository hostLMSRepository, HostLmsService lmsService) {
+	public HostLmssController(
+		HostLmsRepository hostLMSRepository,
+		HostLmsService hostLmsService,
+		HostLmsService2 hostLmsService2
+	) {
 		this.hostLMSRepository = hostLMSRepository;
-		this.lmsService = lmsService;
+		this.hostLmsService = hostLmsService;
+		this.hostLmsService2 = hostLmsService2;
 	}
 
 	@Operation(summary = "Browse HOST LMSs", description = "Paginate through the list of known host LMSs", parameters = {
@@ -77,7 +86,7 @@ public class HostLmssController {
 	}
 	
 	private Mono<MutableHttpResponse<Object>> startBackgroundDataRemoval( final @NonNull HostLms hostLms ) {
-		lmsService.deleteHostLmsData( hostLms )
+		hostLmsService.deleteHostLmsData( hostLms )
 			.subscribe(
 				lms -> log.info("Successfully removed data for hostLms [{}]", lms),
 				e -> {
@@ -102,5 +111,15 @@ public class HostLmssController {
 			})
 			.flatMap( this::startBackgroundDataRemoval )
 			.defaultIfEmpty(HttpResponse.notFound());
+	}
+	
+	@Get("/importIngestDetails")
+	public Mono<List<Map<String, Object>>> getAllImportIngestDetails() {
+		return(hostLmsService2.getAllImportIngestDetails());
+	}
+
+	@Get("/importIngestDetails/{id}")
+	public Mono<Map<String, Object>> getImportIngestDetails(UUID id) {
+		return(hostLmsService2.getImportIngestDetails(id));
 	}
 }

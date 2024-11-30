@@ -64,14 +64,25 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 		this.lockService = lockService;
 	}
 	
-	private Mono<SourceRecordImportJob> createJobInstanceForSource( IngestSource ingestSource ) {
+	public Mono<SourceRecordImportJob> createJobInstanceForSource( IngestSource ingestSource ) {
+		return(createJobInstanceForSource(ingestSource, false));
+	}
+
+	public boolean isIngestEnabled(SourceRecordDataSource sourceRecordDataSource) {
+		return(sourceRecordDataSource.isSourceImportEnabled());
+	}
+	
+	public Mono<SourceRecordImportJob> createJobInstanceForSource(
+		IngestSource ingestSource,
+		boolean ignoreEnabled
+	) {
 		if (!SourceRecordDataSource.class.isAssignableFrom(ingestSource.getClass())) {
 			log.error("Ingest source [{}] does not implement [{}]", SourceRecordDataSource.class);
 			return Mono.empty();
 		}
 
 		SourceRecordDataSource source = (SourceRecordDataSource) ingestSource;
-		if (!source.isSourceImportEnabled()) {
+		if (!ignoreEnabled && !isIngestEnabled(source)) {
 			log.info("Source record import is explicitly disabled for [{}]", source.getName());
 			return Mono.empty();
 		}

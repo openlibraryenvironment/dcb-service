@@ -4,7 +4,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
@@ -32,15 +31,21 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
 	public static final String BASE_URL = "base-url";
+	
+	private final BibRecordService bibRecordService;
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
-	private final BibRecordService bibRecordService;
 	private final RawSourceRepository rawSourceRepo;
 
-	HostLmsService(BeanContext context, HostLmsRepository hostLmsRepository, BibRecordService bibRecordService, RawSourceRepository rawSourceRepo) {
-		this.hostLmsRepository = hostLmsRepository;
-		this.context = context;
+	HostLmsService(
+		BibRecordService bibRecordService,
+		BeanContext context,
+		HostLmsRepository hostLmsRepository,
+		RawSourceRepository rawSourceRepo
+	) {
 		this.bibRecordService = bibRecordService;
+		this.context = context;
+		this.hostLmsRepository = hostLmsRepository;
 		this.rawSourceRepo = rawSourceRepo;
 	}
 	
@@ -116,7 +121,7 @@ public class HostLmsService implements IngestSourcesProvider {
 				(error, source) -> log.warn("{}", error.getMessage()));
 	}
 
-	private Flux<DataHostLms> getAllHostLms() {
+	protected Flux<DataHostLms> getAllHostLms() {
 		// log.debug("getAllHostLms()");
 
 		return Flux.from(hostLmsRepository.queryAll());
