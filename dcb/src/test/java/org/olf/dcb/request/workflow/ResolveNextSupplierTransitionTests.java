@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
@@ -28,10 +29,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.test.*;
 
@@ -96,6 +94,7 @@ class ResolveNextSupplierTransitionTests {
 		final String SECRET = "secret";
 
 		hostLmsFixture.deleteAll();
+		consortiumFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, "https://supplying-host-lms.com")
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
@@ -120,13 +119,14 @@ class ResolveNextSupplierTransitionTests {
 		patronFixture.deleteAllPatrons();
 		agencyFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
-		consortiumFixture.deleteAll();
 
 		borrowingAgency = agencyFixture.defineAgency("borrowing-agency", "Borrowing Agency",
 			borrowingHostLms);
 		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
 	}
+	@AfterEach
+	void afterEach() { consortiumFixture.deleteAll(); }
 
 	@Test
 	void shouldProgressRequestWhenSupplierHasCancelled() {
@@ -155,7 +155,7 @@ class ResolveNextSupplierTransitionTests {
 	@Test
 	void shouldProgressRequestToCancelledWhenLmsReResolutionIsNotSupported() {
 		// Arrange
-		consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
 		final var borrowingLocalRequestId = "3635625";
 
@@ -312,7 +312,7 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldReResolveSupplierForRequiredReResolutionEnabledRequests() {
-		final var savedConsortium = consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
 		final var clusterRecordId = randomUUID();
 		final var sourceRecordId = "798472";
@@ -367,7 +367,7 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldResultInNoItemsSelectableAtAnyAgencyWhenReResolutionIsEnabled() {
-		final var savedConsortium = consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
 		final var clusterRecordId = randomUUID();
 		final var sourceRecordId = "798475";
@@ -423,8 +423,8 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldResultInMultipleConsortiumExistsExceptionWhenMoreThanOneConsortium() {
-		consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
-		consortiumFixture.createConsortiumWithReResolutionFunctionalSetting();
+		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
+		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
 		final var clusterRecordId = randomUUID();
 		final var borrowingLocalRequestId = "3635625";

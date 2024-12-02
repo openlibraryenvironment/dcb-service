@@ -4,6 +4,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
 import java.util.function.Predicate;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
+import static org.olf.dcb.item.availability.AvailabilityReport.ofItems;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -107,7 +109,7 @@ public class LiveAvailabilityService {
 			.flatMap( start -> Mono.just( clusteredBibId )
 				.flatMapMany( this::getClusterMembers )
 				.flatMap( b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters))
-				.map( this::determineRequestability )
+				.flatMap( this::determineRequestability )
 				.doOnNext ( b -> log.debug("Requestability check result == {}",b) )
 				.reduce(emptyReport(), AvailabilityReport::combineReports)
 				.doOnNext ( b -> log.debug("Sorting..."))
@@ -246,9 +248,26 @@ public class LiveAvailabilityService {
 			.get();
 	}
 
-	private AvailabilityReport determineRequestability( AvailabilityReport report ) {
-		return report.forEachItem(
-			item -> item.setIsRequestable(requestableItemService.isRequestable(item)));
+	private Mono<AvailabilityReport> determineRequestability( AvailabilityReport report ) {
+
+		final var items = getValueOrNull(report, AvailabilityReport::getItems);
+
+		if (items == null || items.isEmpty()) {
+			log.warn("No items to determine requestable for report: {}", report);
+
+			return Mono.just(report);
+		}
+
+		return Flux.fromIterable(items)
+			.flatMap(this::isRequestable)
+			.collectList()
+			.map(listOfItems -> ofItems(listOfItems, report.getTimings(), report.getErrors()));
+	}
+
+	// sets each items requestability
+	private Mono<Item> isRequestable(Item item) {
+		return requestableItemService.isRequestable(item)
+			.map(item::setIsRequestable);
 	}
 
 	private static AvailabilityReport.Error mapToError(BibRecord bib, String hostLmsCode) {

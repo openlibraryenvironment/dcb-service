@@ -71,4 +71,7 @@ public class FunctionalSetting implements Auditable {
 	@Nullable
 	private String changeReferenceUrl;
 
+	public static boolean isEnabled(FunctionalSetting setting) {
+		return setting != null && setting.getEnabled() != null ? setting.getEnabled() : false;
+	}
 }

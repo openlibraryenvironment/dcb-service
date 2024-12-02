@@ -83,10 +83,11 @@ public class ConsortiumFixture {
 	 * Creates a complete consortium setup with all necessary related entities.
 	 * Includes a library group, consortium, functional setting, and links them together.
 	 */
-	public Consortium createConsortiumWithReResolutionFunctionalSetting() {
+	public Consortium createConsortiumWithFunctionalSetting(FunctionalSettingType functionalSettingType, boolean enabled) {
 		var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
 		var consortium = persistConsortium(createConsortiumFor(libraryGroup));
-		var functionalSetting = persistFunctionalSetting(createReResolutionSetting());
+		var setting = createFunctionalSetting(functionalSettingType, enabled);
+		var functionalSetting = persistFunctionalSetting(setting);
 		persistConsortiumFunctionalSetting(linkConsortiumToSetting(consortium, functionalSetting));
 
 		var savedConsortium = findConsortiumById(consortium.getId());
@@ -143,11 +144,11 @@ public class ConsortiumFixture {
 			.build();
 	}
 
-	private static FunctionalSetting createReResolutionSetting() {
+	private static FunctionalSetting createFunctionalSetting(FunctionalSettingType functionalSettingType, boolean enabled) {
 		return FunctionalSetting.builder()
 			.id(randomUUID())
-			.name(FunctionalSettingType.RE_RESOLUTION)
-			.enabled(true)
+			.name(functionalSettingType)
+			.enabled(enabled)
 			.description("Re-resolution")
 			.build();
 	}

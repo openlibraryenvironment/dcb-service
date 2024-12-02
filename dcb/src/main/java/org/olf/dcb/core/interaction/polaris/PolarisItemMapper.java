@@ -261,6 +261,10 @@ public class PolarisItemMapper {
 	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
 	 */
 	private ItemStatusCode mapStatusCode(String statusCode) {
-		return "In".equals(statusCode) ? AVAILABLE : UNAVAILABLE;
+		return switch (statusCode) {
+			case "In" -> AVAILABLE;
+			case "Out" -> CHECKED_OUT;
+			default -> UNAVAILABLE;
+		};
 	}
 }

@@ -16,6 +16,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
@@ -152,7 +153,7 @@ class PolarisLmsClientTests {
 
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
-		assertThat(firstItem, ItemMatchers.hasStatus(UNAVAILABLE));
+		assertThat(firstItem, ItemMatchers.hasStatus(CHECKED_OUT));
 		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
 		assertThat(firstItem, hasNoLocation());
 		assertThat(firstItem, hasBarcode("3430470102"));
@@ -207,7 +208,7 @@ class PolarisLmsClientTests {
 
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
-		assertThat(firstItem, ItemMatchers.hasStatus(UNAVAILABLE));
+		assertThat(firstItem, ItemMatchers.hasStatus(CHECKED_OUT));
 		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
 		assertThat(firstItem, hasLocation("Bestseller", "Bestseller"));
 		assertThat(firstItem, hasBarcode("3430470102"));
@@ -252,7 +253,7 @@ class PolarisLmsClientTests {
 
 		assertThat(firstItem, is(notNullValue()));
 		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
-		assertThat(firstItem, ItemMatchers.hasStatus(UNAVAILABLE));
+		assertThat(firstItem, ItemMatchers.hasStatus(CHECKED_OUT));
 		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
 		assertThat(firstItem, hasNoLocation());
 		assertThat(firstItem, hasBarcode("3430470102"));

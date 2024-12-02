@@ -3,9 +3,7 @@ package org.olf.dcb.core.interaction.polaris;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.core.model.ItemStatusCode.*;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,7 +49,6 @@ class PolarisItemStatusMapperTests {
 		"Missing",
 		"Non-circulating",
 		"On-Order",
-		"Out",
 		"Out-ILL",
 		"Returned-ILL",
 		"Routed",
@@ -81,6 +78,14 @@ class PolarisItemStatusMapperTests {
 
 		assertThat(mappedStatus, is(notNullValue()));
 		assertThat(mappedStatus.getCode(), is(UNKNOWN));
+	}
+
+	@Test
+	void statusIsCheckedOutWhenCodeIsOut() {
+		final var mappedStatus = mapPolarisStatus("Out");
+
+		assertThat(mappedStatus, is(notNullValue()));
+		assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
 	}
 
 	@Nullable

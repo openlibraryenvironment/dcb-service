@@ -128,7 +128,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	private Mono<Boolean> getConsortiumReResolutionPolicy(RequestWorkflowContext context) {
 		return consortiumService.findOneConsortiumFunctionalSetting(FunctionalSettingType.RE_RESOLUTION)
-			.map(setting -> setting != null && setting.getEnabled() != null ? setting.getEnabled() : false)
+			.map(FunctionalSetting::isEnabled)
 			.defaultIfEmpty(false)
 			.doOnSuccess(enabled -> log.debug("Re-resolution consortium policy enabled: {}", enabled));
 	}
