@@ -122,6 +122,7 @@ public class HostLmsService2 {
 							})
 							.defaultIfEmpty(EMPTY_JSON_NODE)
 							.flatMap((JsonNode jsonNode) -> {
+								result.put("checkPointId", checkPointId);
 								result.put("checkPoint", jsonNode);
 								return(NULL_MONO_DATA_HOST_LMS);
 							})
