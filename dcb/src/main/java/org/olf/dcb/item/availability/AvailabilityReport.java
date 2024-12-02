@@ -36,6 +36,10 @@ public class AvailabilityReport {
 		return of(items, Collections.emptyList(), Collections.emptyList());
 	}
 
+	public static AvailabilityReport ofItems(List<Item> items, List<Tuple2<String, Long>> timings, List<Error> errors) {
+		return of(items, timings, errors);
+	}
+
 	public static AvailabilityReport ofErrors(Error error, Tuple2<String, Long> timing) {
 		return of(Collections.emptyList(), List.of(timing), List.of(error));
 	}

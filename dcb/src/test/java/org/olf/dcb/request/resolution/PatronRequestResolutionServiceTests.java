@@ -108,7 +108,6 @@ class PatronRequestResolutionServiceTests {
 		supplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
-
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
@@ -130,6 +129,7 @@ class PatronRequestResolutionServiceTests {
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
+		bibRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 

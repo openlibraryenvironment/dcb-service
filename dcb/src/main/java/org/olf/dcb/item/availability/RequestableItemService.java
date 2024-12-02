@@ -1,47 +1,52 @@
 package org.olf.dcb.item.availability;
 
-import java.util.List;
-
+import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.ConsortiumService;
+import org.olf.dcb.core.model.FunctionalSetting;
 import org.olf.dcb.core.model.Item;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Prototype;
-import io.micronaut.context.annotation.Value;
+import reactor.core.publisher.Mono;
 
+import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+
+@Slf4j
 @Prototype
 public class RequestableItemService {
-	private static final Logger log = LoggerFactory.getLogger(RequestableItemService.class);
 
-	private final List<String> requestableLocationCodes;
-	private final Boolean locationFilteringEnabled;
 	private static final String NONCIRC = "NONCIRC";
+	private final ConsortiumService consortiumService;
 
-	public RequestableItemService(
-		@Value("${dcb.requestability.location.codes.allowed:}") List<String> requestableLocationCodes,
-		@Value("${dcb.requestability.location.filtering:false}") Boolean locationFilteringEnabled) {
-
-		log.info("Location filtering enabled: {}", locationFilteringEnabled);
-		log.info("Locations to allow: {}", requestableLocationCodes);
-
-		this.requestableLocationCodes = requestableLocationCodes;
-		this.locationFilteringEnabled = locationFilteringEnabled;
+	public RequestableItemService(ConsortiumService consortiumService) {
+		this.consortiumService = consortiumService;
 	}
 
-	public boolean isRequestable(Item item) {
-		log.debug("about to perform isRequestable check for {}", item);
+	public Mono<Boolean> isRequestable(Item item) {
+		return Mono.fromSupplier(() -> initialchecks(item))
+			.flatMap(isRequestable -> {
 
-		if ( !isInAllowedLocation(item) ) {
-			log.debug("Item is NOT in an allowed location - reject");
+				if (isRequestable) {
+					return includeCheckedOutItems(item);
+				}
+
+				return Mono.just(false);
+			});
+	}
+
+	private boolean initialchecks(Item item) {
+		log.debug("about to perform initial checks for {}", item);
+
+		if (item.isAvailable() || isCheckedOut(item)) {
+			log.debug("Item passed initial status check - Status: {}", itemStatus(item));
+
+		} else {
+			log.debug("Item rejected - Status: {}", itemStatus(item));
+
 			return false;
 		}
 
-		if ( ! item.isAvailable() ) {
-			log.debug("Item is NOT available - reject");
-			return false;
-		}
-
-		if ( item.getCanonicalItemType() == null ) {	
+		if ( item.getCanonicalItemType() == null ) {
 			log.debug("Item has no canonical type - reject");
 			return false;
 		}
@@ -51,31 +56,29 @@ public class RequestableItemService {
 			return false;
 		}
 
-		log.debug("isRequestable passed");
+		log.debug("Initial checks passed");
 
 		return true;
 	}
 
-	private Boolean isInAllowedLocation(Item item) {
+	private Mono<Boolean> includeCheckedOutItems(Item item) {
+		return consortiumService.findOneConsortiumFunctionalSetting(SELECT_UNAVAILABLE_ITEMS)
+			.filter(FunctionalSetting::isEnabled)
+			.hasElement()
+			.map(isSwitchedOn -> {
 
-		final var locationCode = item.getLocationCode();
+				boolean includeCheckedOut = isSwitchedOn || !isCheckedOut(item);
+				log.debug("Include checked out items: {}, item is checked out: {}", isSwitchedOn, isCheckedOut(item));
 
+				return includeCheckedOut;
+			});
+	}
 
-		// location filtering only evaluated if value set to true in config
-		// if not set, all locations are allowed
-		if (!locationFilteringEnabled) return true;
+	private static boolean isCheckedOut(Item item) {
+		return item.getStatus() != null && CHECKED_OUT.equals(item.getStatus().getCode());
+	}
 
-		log.debug("location filtering is enabled - isInAllowedLocation({})", locationCode);
-
-		final var allowedLocation = requestableLocationCodes.contains(locationCode);
-
-		if (allowedLocation) {
-			log.info("{} is in the allowed location list", locationCode);
-		}
-		else {
-			log.info("{} is NOT in the allowed location list", locationCode);
-		}
-
-		return allowedLocation;
+	private static Object itemStatus(Item item) {
+		return item.getStatus() != null ? item.getStatus().getCode() : "UNKNOWN";
 	}
 }
