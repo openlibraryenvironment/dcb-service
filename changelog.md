@@ -1,9 +1,55 @@
 # Changelog
 
+## Version 8.4.0
+
+### Additions
+* [General]
+	* Set availability date to due date for checked out items [DCB-1734]
+	* change selection filter to include checked out items [DCB-1733]
+	* Add contact roles to DCB [DCB-1697]
+	* Add data fetcher for creating functional settings and update scripts [DCB-1746]
+
+### Changes
+* [Chore]
+	* DCB-1664 Extended the output for the import / ingest details api to include the checkpoint id
+	* DCB-1664 Added an interface that gives us details about the state of the import / ingest for the hosts
+	* Add a secured utility endpoint at /clusters/ID/exportMembers which provides a zipfile response containing JSON format bib records for all the members of the cluster. The intent is to create an easy method to easily exrtract stand-alone test record sets to test clustering scenarios
+	* Update functional setting script [DCB-1746]
+	* Update migration and scripts for role creation [DCB-1697]
+	* Rename migration [DCB-1697]
+	* Add SELECT_UNAVAILABLE_ITEMS consortial setting [DCB-1731]
+	* Add defensive code to marcxml subfield processing to trap for FOLIO weirdness
+* [Refactor]
+	* change resolution strategies to sort only [DCB-1726]
+	* move item status mapping to each Host LMS type [DCB-1747]
+	* remove item status mappings ability by Host LMS [DCB-1747]
+	* resolution to support availability date sorting [DCB-1726]
+
+### Fixes
+* [General]
+	* Amend role migration to handle invalid roles [DCB-1697]
+
+## Version 8.3.2
+
+### Changes
+* [Chore]
+	* adjust logging polaris again
+	* More logging in polaris - ingest seems to cycle on last page
+	* Handle errors when getting and setting ES/OS settings. Fixes DCB-1722
+	* Extend information held in polaris checkpoint records to more easily tell if a run has completed or is in progress
+	* Refactor date parsing for polaris to return Instant not string
+	* Logging - improve reporting of failed date parsing for polaris, remove redundant static Logger definitions from classes also using @Slf4j annotation
+	* Add AWS dependencies to enable secrets manager integration when enabled
+
+### Fixes
+* [General]
+	* Force polaris modified dates to lower case before regex
+
 ## Version 8.3.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* It seems that MS turns the last modified date into a strange string. Add a parser for it
 	* Use getStringValue instead of cocerceToString trying to extract record modification times from polaris bibs
 
