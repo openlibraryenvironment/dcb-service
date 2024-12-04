@@ -63,6 +63,7 @@ public class SierraItemMapper {
 
 		final String rawVolumeStatement = extractRawVolumeStatement(itemResult.getVarFields());
 		final String parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
+		final Instant parsedDueDate = parsedDueDate(itemResult);
 
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
@@ -70,7 +71,7 @@ public class SierraItemMapper {
 			.map(itemStatus -> Item.builder()
 				.localId(itemResult.getId())
 				.status(itemStatus)
-				.dueDate(parsedDueDate(itemResult))
+				.dueDate(parsedDueDate)
 				.location(org.olf.dcb.core.model.Location.builder()
 					.code(itemResult.getLocation().getCode().trim())
 					.name(itemResult.getLocation().getName())
@@ -85,10 +86,23 @@ public class SierraItemMapper {
 				.suppressed(deriveItemSuppressedFlag(itemResult, itemSuppressionRules))
 				.rawVolumeStatement(rawVolumeStatement)
 				.parsedVolumeStatement(parsedVolumeStatement)
+				.availableDate( decideAvailableDate(itemStatus, parsedDueDate) )
 				.build())
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
-			.flatMap(itemTypeMapper::enrichItemWithMappedItemType);
+			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
+			.doOnSuccess(item -> log.debug("Mapped Sierra item to item: {}", item));
 
+	}
+
+	private Instant decideAvailableDate(ItemStatus itemStatus, Instant parsedDueDate) {
+		log.debug("Deciding available date for item status: {} and parsed due date: {}", itemStatus, parsedDueDate);
+		if (itemStatus.getCode() == CHECKED_OUT && parsedDueDate != null) {
+			log.debug("Item is checked out and has a due date, using due date as available date");
+			return parsedDueDate;
+		} else {
+			log.debug("Item is not checked out or does not have a due date, using current time as available date");
+			return Instant.now();
+		}
 	}
 
 	@Nullable

@@ -87,6 +87,7 @@ public class PolarisItemMapper {
 					.deleted(false)
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
+					.availableDate( decideAvailableDate(status, dueDate) )
 					.build();
 			})
 			.flatMap(item -> enrichItemWithAgency(item, hostLmsCode))
@@ -266,5 +267,16 @@ public class PolarisItemMapper {
 			case "Out" -> CHECKED_OUT;
 			default -> UNAVAILABLE;
 		};
+	}
+
+	private Instant decideAvailableDate(ItemStatus itemStatus, Instant parsedDueDate) {
+		log.debug("Deciding available date for item status: {} and parsed due date: {}", itemStatus, parsedDueDate);
+		if (itemStatus.getCode() == CHECKED_OUT && parsedDueDate != null) {
+			log.debug("Item is checked out and has a parsed due date, using due date as available date");
+			return parsedDueDate;
+		} else {
+			log.debug("Item is not checked out or does not have a parsed due date, using current time as available date");
+			return Instant.now();
+		}
 	}
 }

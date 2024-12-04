@@ -7,7 +7,6 @@ import org.olf.dcb.core.model.PatronRequest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +25,6 @@ public class AvailabilityDateResolutionSortOrder implements ResolutionSortOrder 
 		log.debug("sortItems(array of size {},{},{})", items.size(), clusterRecordId, patronRequest);
 
 		return Flux.fromIterable(items)
-			.map(item -> item.setAvailableDate(Instant.now()))
 			.sort(Comparator.comparing(Item::getAvailableDate))
 			.collectList();
 	}

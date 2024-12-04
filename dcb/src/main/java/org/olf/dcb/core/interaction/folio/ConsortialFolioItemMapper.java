@@ -9,6 +9,8 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
+
 import static org.olf.dcb.core.model.ItemStatusCode.*;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -40,13 +42,16 @@ public class ConsortialFolioItemMapper {
 	}
 
 	private Item buildItem(Holding holding, String instanceId, ItemStatus status) {
+
+		final var dueDate = getValueOrNull(holding, Holding::getDueDate);
+
 		return Item.builder()
 			.localId(getValueOrNull(holding, Holding::getId))
 			.localBibId(instanceId)
 			.barcode(getValueOrNull(holding, Holding::getBarcode))
 			.callNumber(getValueOrNull(holding, Holding::getCallNumber))
 			.status(status)
-			.dueDate(getValueOrNull(holding, Holding::getDueDate))
+			.dueDate(dueDate)
 			.holdCount(getValueOrNull(holding, Holding::getTotalHoldRequests))
 			.localItemType(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
 			.localItemTypeCode(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
@@ -55,6 +60,7 @@ public class ConsortialFolioItemMapper {
 			.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 			.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
 			.deleted(false)
+			.availableDate( decideAvailableDate(status, dueDate) )
 			.build();
 	}
 
@@ -82,5 +88,16 @@ public class ConsortialFolioItemMapper {
 			case "Checked out" -> CHECKED_OUT;
 			default -> UNAVAILABLE;
 		};
+	}
+
+	private Instant decideAvailableDate(ItemStatus itemStatus, Instant parsedDueDate) {
+		log.debug("Deciding available date for item status: {} and parsed due date: {}", itemStatus, parsedDueDate);
+		if (itemStatus.getCode() == CHECKED_OUT && parsedDueDate != null) {
+			log.debug("Item is checked out and has a parsed due date, using due date as available date");
+			return parsedDueDate;
+		} else {
+			log.debug("Item is not checked out or does not have a parsed due date, using current time as available date");
+			return Instant.now();
+		}
 	}
 }

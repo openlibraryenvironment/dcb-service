@@ -24,23 +24,13 @@ import java.util.List;
 import java.util.Map;
 
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.*;
-import org.olf.dcb.test.AgencyFixture;
-import org.olf.dcb.test.BibRecordFixture;
-import org.olf.dcb.test.ClusterRecordFixture;
-import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.*;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
@@ -67,10 +57,8 @@ class PatronRequestResolutionServiceTests {
 
 	@Inject
 	private PatronRequestResolutionService patronRequestResolutionService;
-
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
-
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
@@ -87,6 +75,8 @@ class PatronRequestResolutionServiceTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private ConsortiumFixture consortiumFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
@@ -109,6 +99,7 @@ class PatronRequestResolutionServiceTests {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
+		consortiumFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
 			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
@@ -150,6 +141,9 @@ class PatronRequestResolutionServiceTests {
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
 	}
+
+	@AfterEach
+	void afterEach() { consortiumFixture.deleteAll(); }
 
 	@Test
 	void shouldChooseFirstAvailableItem() {
@@ -589,7 +583,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldKeepOrderOfAvailableItemsWhenAvailabilityDateIsApplied() {
+	void shouldKeepOrderOfAvailableItemsWhenAvailabilityDateIsTheSameDate() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -685,6 +679,167 @@ class PatronRequestResolutionServiceTests {
 		));
 	}
 
+	@Test
+	void shouldSelectAvailableItemWhenUnavailableItemsAreSelectable() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var checkedOutItemId = "372656";
+		final var checkedOutItemBarcode = "6256486473634";
+
+		final var availableItemId = "651463";
+		final var availableItemBarcode = "76653672456";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode),
+			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS, true);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasLocalId(availableItemId),
+				hasBarcode(availableItemBarcode),
+				hasLocalBibId(sourceRecordId),
+				hasLocationCode(ITEM_LOCATION_CODE),
+				hasAgencyCode(SUPPLYING_AGENCY_CODE)
+			),
+			hasResolutionCount(1)
+		));
+	}
+
+	@Test
+	void shouldSelectEarliestDueDateItemWhenUnavailableItemsAreSelectable() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var itemAId = "651463";
+		final var itemABarcode = "76653672456";
+
+		final var itemBId = "372656";
+		final var itemBBarcode = "6256486473634";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			CheckedOutItem(itemAId, itemABarcode, Instant.parse("2024-12-18T00:00:00Z")),
+			CheckedOutItem(itemBId, itemBBarcode, Instant.parse("2024-12-01T00:00:00Z"))
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS, true);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasLocalId(itemBId),
+				hasBarcode(itemBBarcode),
+				hasLocalBibId(sourceRecordId),
+				hasLocationCode(ITEM_LOCATION_CODE),
+				hasAgencyCode(SUPPLYING_AGENCY_CODE)
+			),
+			hasResolutionCount(1)
+		));
+	}
+
+	@Test
+	void shouldFallBackToExistingResolutionWhenNoCheckedOutItemsAvailable() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of());
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS, true);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem(),
+			hasResolutionCount(1)
+		));
+	}
+
 	private Resolution resolve(PatronRequest patronRequest) {
 		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
 	}
@@ -717,6 +872,19 @@ class PatronRequestResolutionServiceTests {
 			// Sierra item with due date is considered not available
 			.dueDate(Instant.now().plus(3, HOURS))
 			// needs to align with NumericRangeMapping
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+			.build();
+	}
+
+	// Helper method to create a checked out item with a specific due date
+	private SierraItem CheckedOutItem(String id, String barcode, Instant dueDate) {
+		return SierraItem.builder()
+			.id(id)
+			.barcode(barcode)
+			.locationCode(ITEM_LOCATION_CODE)
+			.statusCode("-")
+			.dueDate(dueDate)
 			.itemType("1")
 			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 			.build();
