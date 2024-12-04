@@ -16,7 +16,6 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -40,7 +39,6 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-@Disabled
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -118,7 +116,7 @@ public class PatronRequestTrackingTests {
 				.build());
 
 		// Act
-		trackingFixture.runTracking();
+		trackingFixture.trackRequest(patronRequest);
 
 		// Assert
 		await().atMost(5, SECONDS)
@@ -158,9 +156,9 @@ public class PatronRequestTrackingTests {
 		// Not needed for the use case, only to remove errors in the logs from tracking
 		sierraItemsAPIFixture.mockGetItemById(supplyingAgencyLocalItemId,
 			exampleSierraItem(supplyingAgencyLocalItemId));
-		
-		// Because there is locking on runs of the tracking service we need to wait until we know it'll run.
-		trackingFixture.runTracking();
+
+		// Act
+		trackingFixture.trackRequest(patronRequest);
 
 		// Assert
 
