@@ -54,11 +54,10 @@ public class CreateContactDataFetcher implements DataFetcher<CompletableFuture<C
 		@Override
 		public CompletableFuture<ConsortiumContact> get(DataFetchingEnvironment env) {
 			Map<String, Object> input_map = env.getArgument("input");
-			Optional<String> reason = Optional.ofNullable(input_map.get("reason"))
-				.map(Object::toString);
+			String reason = Optional.ofNullable(input_map.get("reason"))
+				.map(Object::toString)
+				.orElse("Adding a new contact");
 			Optional<String> changeReferenceUrl = Optional.ofNullable(input_map.get("changeReferenceUrl"))
-				.map(Object::toString);
-			Optional<String> changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
 				.map(Object::toString);
 			String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 				.map(Object::toString)
@@ -103,12 +102,12 @@ public class CreateContactDataFetcher implements DataFetcher<CompletableFuture<C
 							.role(role)
 							.email(input_map.get("email").toString())
 							.isPrimaryContact(Boolean.parseBoolean(input_map.get("isPrimaryContact").toString()))
+							.changeCategory("New contact")
+							.reason(reason)
 							.lastEditedBy(userString)
 							.build();
 
 						changeReferenceUrl.ifPresent(newPerson::setChangeReferenceUrl);
-						changeCategory.ifPresent(newPerson::setChangeCategory);
-						reason.ifPresent(newPerson::setReason);
 
 						// Save person and create consortium contact
 						return Mono.from(personRepository.save(newPerson))
