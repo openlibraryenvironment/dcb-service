@@ -196,7 +196,10 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
+		final var availabilityDateCalculator = new AvailabilityDateCalculator();
+
 		return getAvailableItems(resolution.getBibClusterId())
+			.map(item -> item.setAvailableDate(availabilityDateCalculator.calculate(item)))
 			.collectList()
 			.map(resolution::trackAllItems);
 	}
