@@ -15,7 +15,7 @@ public class AvailabilityDateCalculator {
 		return calculate(item.getStatus(), item.getDueDate());
 	}
 
-	public Instant calculate(ItemStatus itemStatus, Instant dueDate) {
+	private Instant calculate(ItemStatus itemStatus, Instant dueDate) {
 		log.debug("Deciding available date for item status: {} and due date: {}", itemStatus, dueDate);
 		if (itemStatus.getCode() == CHECKED_OUT && dueDate != null) {
 			log.debug("Item is checked out and has a due date, using due date as available date");

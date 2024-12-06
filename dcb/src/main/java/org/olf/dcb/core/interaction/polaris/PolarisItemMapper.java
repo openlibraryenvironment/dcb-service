@@ -25,7 +25,6 @@ import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
 import org.olf.dcb.rules.ObjectRuleset;
 
 import io.micronaut.core.annotation.NonNull;
@@ -69,8 +68,6 @@ public class PolarisItemMapper {
 
 		log.debug("map polaris item {} {} {}", itemGetRow, hostLmsCode, localBibId);
 
-		final var availabilityDateCalculator = new AvailabilityDateCalculator();
-
 		return mapStatus(itemGetRow.getCircStatusName(), hostLmsCode)
 			.map(status -> {
 				final var localId = String.valueOf(itemGetRow.getItemRecordID());
@@ -93,14 +90,12 @@ public class PolarisItemMapper {
 					.deleted(false)
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
-					.availableDate( availabilityDateCalculator.calculate(status, dueDate
-					) )
-					// hold count is set to 0 as the api doesn't return it directly
+					// API doesn't provide hold count, it is assumed that item's have no holds
 					.holdCount(0)
 					.build();
 			})
 			.flatMap(item -> enrichItemWithAgency(item, hostLmsCode))
-			.flatMap(item -> itemTypeMapper.enrichItemWithMappedItemType(item))
+			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
 	}
 

@@ -2,8 +2,10 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static io.micrometer.common.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
-import static org.olf.dcb.core.model.ItemStatusCode.*;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -16,7 +18,6 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
 import org.olf.dcb.rules.ObjectRuleset;
 
 import io.micronaut.core.annotation.NonNull;
@@ -66,8 +67,6 @@ public class SierraItemMapper {
 		final String parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
 		final Instant parsedDueDate = parsedDueDate(itemResult);
 
-		final var availabilityDateCalculator = new AvailabilityDateCalculator();
-
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
 		return mapStatus(statusCode, dueDate, hostLmsCode)
@@ -89,8 +88,6 @@ public class SierraItemMapper {
 				.suppressed(deriveItemSuppressedFlag(itemResult, itemSuppressionRules))
 				.rawVolumeStatement(rawVolumeStatement)
 				.parsedVolumeStatement(parsedVolumeStatement)
-				.availableDate(
-					availabilityDateCalculator.calculate(itemStatus, parsedDueDate))
 				.build())
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)

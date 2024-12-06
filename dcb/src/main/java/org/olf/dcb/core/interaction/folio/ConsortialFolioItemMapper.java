@@ -12,7 +12,6 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -44,10 +43,7 @@ public class ConsortialFolioItemMapper {
 	}
 
 	private Item buildItem(Holding holding, String instanceId, ItemStatus status) {
-
 		final var dueDate = getValueOrNull(holding, Holding::getDueDate);
-
-		final var availabilityDateCalculator = new AvailabilityDateCalculator();
 
 		return Item.builder()
 			.localId(getValueOrNull(holding, Holding::getId))
@@ -64,7 +60,6 @@ public class ConsortialFolioItemMapper {
 			.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 			.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
 			.deleted(false)
-			.availableDate(availabilityDateCalculator.calculate(status, dueDate))
 			.build();
 	}
 
