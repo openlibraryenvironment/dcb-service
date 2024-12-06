@@ -1,6 +1,10 @@
 package org.olf.dcb.request.resolution;
 
-import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.*;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_INVALID_LOCAL_ITEM_TYPE;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
@@ -10,22 +14,31 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.FunctionalSetting;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
+import org.zalando.problem.Problem;
 
 import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import org.reactivestreams.Publisher;
-import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -184,13 +197,15 @@ public class PatronRequestResolutionService {
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
 		return getAvailableItems(resolution.getBibClusterId())
+			.collectList()
 			.map(resolution::trackAllItems);
 	}
 
-	private Mono<List<Item>> getAvailableItems(UUID clusterRecordId) {
+	private Flux<Item> getAvailableItems(UUID clusterRecordId) {
 		return liveAvailabilityService.checkAvailability(clusterRecordId)
 			.onErrorMap(NoBibsForClusterRecordException.class, error -> new UnableToResolvePatronRequest(error.getMessage()))
-			.map(AvailabilityReport::getItems);
+			.map(AvailabilityReport::getItems)
+			.flatMapMany(Flux::fromIterable);
 	}
 
 	private Mono<Resolution> sortItems(ResolutionSortOrder resolutionSortOrder,
