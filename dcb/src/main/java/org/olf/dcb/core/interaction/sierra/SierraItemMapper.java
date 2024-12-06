@@ -16,6 +16,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
 import org.olf.dcb.rules.ObjectRuleset;
 
 import io.micronaut.core.annotation.NonNull;
@@ -65,6 +66,8 @@ public class SierraItemMapper {
 		final String parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
 		final Instant parsedDueDate = parsedDueDate(itemResult);
 
+		final var availabilityDateCalculator = new AvailabilityDateCalculator();
+
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
 		return mapStatus(statusCode, dueDate, hostLmsCode)
@@ -86,23 +89,13 @@ public class SierraItemMapper {
 				.suppressed(deriveItemSuppressedFlag(itemResult, itemSuppressionRules))
 				.rawVolumeStatement(rawVolumeStatement)
 				.parsedVolumeStatement(parsedVolumeStatement)
-				.availableDate( decideAvailableDate(itemStatus, parsedDueDate) )
+				.availableDate(
+					availabilityDateCalculator.calculate(itemStatus, parsedDueDate))
 				.build())
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
 			.doOnSuccess(item -> log.debug("Mapped Sierra item to item: {}", item));
 
-	}
-
-	private Instant decideAvailableDate(ItemStatus itemStatus, Instant parsedDueDate) {
-		log.debug("Deciding available date for item status: {} and parsed due date: {}", itemStatus, parsedDueDate);
-		if (itemStatus.getCode() == CHECKED_OUT && parsedDueDate != null) {
-			log.debug("Item is checked out and has a due date, using due date as available date");
-			return parsedDueDate;
-		} else {
-			log.debug("Item is not checked out or does not have a due date, using current time as available date");
-			return Instant.now();
-		}
 	}
 
 	@Nullable
