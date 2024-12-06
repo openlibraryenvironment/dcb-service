@@ -201,6 +201,11 @@ public class DCBConfigurationService {
 			List<IgnoredMapping> ignoredMappings = new ArrayList<>();
 			int lineNumber = 2;
 			while ((line = csvReader.readNext()) != null) {
+				if (line[0].isBlank() || line[1].isBlank() || line[2].isBlank() || line[3].isBlank() || line[4].isBlank() || line[5].isBlank())
+				{
+					validationError = "A mandatory field on line "+lineNumber+ " has been left empty. Please check your file and try again.";
+					throw new FileUploadValidationException(validationError);
+				}
 				// Line by line validation for numeric range mappings
 				// Validate that the context and domain match what's expected, and that there isn't a clash between them and what the user has supplied.
 				if (mappingType.equalsIgnoreCase("Numeric range mappings")) {
@@ -276,6 +281,11 @@ public class DCBConfigurationService {
 			List<IgnoredMapping> ignoredMappings = new ArrayList<>();
 			int lineNumber = 2;
 			while ((line = TSVReader.readNext()) != null) {
+				if (line[0].isBlank() || line[1].isBlank() || line[2].isBlank() || line[3].isBlank() || line[4].isBlank() || line[5].isBlank())
+				{
+					validationError = "A mandatory field on line "+lineNumber+ " has been left empty. Please check your file and try again.";
+					throw new FileUploadValidationException(validationError);
+				}
 					// Line by line validation for numeric range mappings
 					// Validate that the context and domain match what's expected, and that there isn't a clash between them and what the user has supplied.
 				if (mappingType.equalsIgnoreCase("Numeric range mappings")) {
