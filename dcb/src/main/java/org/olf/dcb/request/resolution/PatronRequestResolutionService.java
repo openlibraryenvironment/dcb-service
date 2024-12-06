@@ -12,6 +12,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.ConsortiumService;
@@ -96,9 +97,28 @@ public class PatronRequestResolutionService {
 			new ResolutionStep("Get Available Items", this::getAvailableItems),
 			new ResolutionStep("Filter Items", this::filterItems),
 			new ResolutionStep("Sort Items By Availability Date", this::sortItemsByAvailabilityDate),
-			new ResolutionStep("Sort Items By Configured Sorting Strategy", this::sortByConfiguredStrategy),
+			new ResolutionStep("Sort Items By tie breaker Strategy", this::sortByTieBreakerStrategy, isTieBreaker()),
 			new ResolutionStep("Select First Requestable Item", this::firstRequestableItem)
 			);
+	}
+
+	/**
+	 * Checks if the resolution is a tie breaker.
+	 * A tie breaker is when at least the first two items in the sorted list have the same available date.
+	 *
+	 * @return true if the resolution is a tie breaker, false otherwise
+	 */
+	private static Function<Resolution, Boolean> isTieBreaker() {
+		return resolution -> {
+
+			final var sortedItems = resolution.getSortedItems();
+
+			if (sortedItems == null || sortedItems.size() < 2) {
+				return false;
+			}
+
+			return Objects.equals(sortedItems.get(0).getAvailableDate(), sortedItems.get(1).getAvailableDate());
+		};
 	}
 
 	private Mono<Resolution> executeSteps(Resolution initialResolution, List<ResolutionStep> steps) {
@@ -120,7 +140,17 @@ public class PatronRequestResolutionService {
 		return applySortingStrategy(CODE_AVAILABILITY_DATE, resolution);
 	}
 
-	private Mono<Resolution> sortByConfiguredStrategy(Resolution resolution) {
+	private Mono<Resolution> sortByTieBreakerStrategy(Resolution resolution) {
+		final var sortedItems = resolution.getSortedItems();
+		final var firstAvailableDate = sortedItems.get(0).getAvailableDate();
+		final var sameAvailabilityDateItems = sortedItems.stream()
+			.filter(item -> Objects.equals(item.getAvailableDate(), firstAvailableDate))
+			.collect(Collectors.toList());
+
+		log.debug("Items with same availability date as the first item: {}", sameAvailabilityDateItems.size());
+
+		resolution.trackSortedItems(sameAvailabilityDateItems);
+
 		return applySortingStrategy(itemResolver, resolution);
 	}
 
@@ -180,6 +210,7 @@ public class PatronRequestResolutionService {
 
 	// Prioritise the sorted list over the filtered list
 	private static List<Item> getItemList(Resolution resolution) {
+
 		return resolution.getSortedItems() != null && !resolution.getSortedItems().isEmpty()
 			? resolution.getSortedItems()
 			: resolution.getFilteredItems();

@@ -1,35 +1,55 @@
 package org.olf.dcb.request.resolution;
 
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.hamcrest.Matcher;
-import org.junit.jupiter.api.*;
-import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
-import org.olf.dcb.core.interaction.sierra.SierraItem;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.test.*;
-import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.ItemMatchers.*;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
+
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
 @MockServerMicronautTest
@@ -134,7 +154,7 @@ public class GeoDistanceTieBreakerTests {
 	}
 
 	@Test
-	void shouldSelectItemWithBestGeographicProximityWhenDueDatesAreSame() {
+	void shouldSelectClosestItemWhenDueDatesAreSame() {
 		// Arrange
 		final var bibRecordId = UUID.randomUUID();
 		final var sourceRecordId = "465675";
@@ -146,24 +166,32 @@ public class GeoDistanceTieBreakerTests {
 		// Enable consortium setting for unavailable items
 		consortiumFixture.createConsortiumWithFunctionalSetting(SELECT_UNAVAILABLE_ITEMS, true);
 
-		// Create test items with different locations
-		final var itemAId = "651463";
-		final var itemABarcode = "76653672456";
-		final var itemALocationCode = "A";
+		// Chatsworth is closer to the borrowing agency than Marble Arch
 		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch("marble-arch");
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE, itemALocationCode, marbleArchAgency.getCode());
-
-		final var itemBId = "372656";
-		final var itemBBarcode = "6256486473634";
-		final var itemBLocationCode = "B";
 		final var chatsworthAgency = defineAgencyLocatedAtChatsworth("chatsworth");
+
+		// Create test items with different locations
+		final var furthestAwayItemId = "651463";
+		final var furthestAwayItemBarcode = "76653672456";
+		final var furtherAwayItemLocationCode = "A";
+
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CATALOGUING_HOST_LMS_CODE, itemBLocationCode, chatsworthAgency.getCode());
+			CATALOGUING_HOST_LMS_CODE, furtherAwayItemLocationCode, marbleArchAgency.getCode());
+
+		final var closestItemId = "372656";
+		final var closestItemBarcode = "6256486473634";
+		final var closestItemLocationCode = "B";
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, closestItemLocationCode, chatsworthAgency.getCode());
+
+		final var sameDueDate = Instant.parse("2024-12-15T00:00:00Z");
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			createCheckedOutItem(itemAId, itemABarcode, itemALocationCode),
-			createCheckedOutItem(itemBId, itemBBarcode, itemBLocationCode)
+			createCheckedOutItem(furthestAwayItemId, furthestAwayItemBarcode,
+				furtherAwayItemLocationCode, sameDueDate),
+			createCheckedOutItem(closestItemId, closestItemBarcode,
+				closestItemLocationCode, sameDueDate)
 		));
 
 		// Act
@@ -172,15 +200,61 @@ public class GeoDistanceTieBreakerTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasChosenItem(
-				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-				hasLocalId("372656"),
-				hasBarcode("6256486473634"),
-				hasLocalBibId("465675"),
-				hasLocationCode("B"),
-				hasAgencyCode("chatsworth")
-			)
-		));;
+			hasChosenItem(hasBarcode(closestItemBarcode))
+		));
+	}
+
+	@Test
+	void shouldSelectEarliestDueDateIrrespectiveOfGeographicProximity() {
+		// Arrange
+		final var bibRecordId = UUID.randomUUID();
+		final var sourceRecordId = "465675";
+		final var clusterRecord = createClusterAndBibRecord(bibRecordId, sourceRecordId);
+		final var pickupLocation = definePickupLocationAtRoyalAlbertDock();
+		final var patron = definePatron("872321", "home-library");
+		final var patronRequest = createPatronRequest(patron, clusterRecord, pickupLocation);
+
+		// Enable consortium setting for unavailable items
+		consortiumFixture.createConsortiumWithFunctionalSetting(SELECT_UNAVAILABLE_ITEMS, true);
+
+		// Chatsworth is closer to the borrowing agency than Marble Arch
+		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch("marble-arch");
+		final var chatsworthAgency = defineAgencyLocatedAtChatsworth("chatsworth");
+
+		// Create test items with different locations
+		final var furthestAwayItemId = "651463";
+		final var furthestAwayItemBarcode = "76653672456";
+		final var furtherAwayItemLocationCode = "A";
+		final var furthestAwayItemDueDate = Instant.parse("2024-12-01T00:00:00Z");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, furtherAwayItemLocationCode, marbleArchAgency.getCode());
+
+		final var closestItemId = "372656";
+		final var closestItemBarcode = "6256486473634";
+		final var closestItemLocationCode = "B";
+
+		// Is after the due date of the furthest away item
+		final var closestItemDueDate = Instant.parse("2024-12-15T00:00:00Z");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			CATALOGUING_HOST_LMS_CODE, closestItemLocationCode, chatsworthAgency.getCode());
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			createCheckedOutItem(furthestAwayItemId, furthestAwayItemBarcode,
+				furtherAwayItemLocationCode, furthestAwayItemDueDate),
+			createCheckedOutItem(closestItemId, closestItemBarcode,
+				closestItemLocationCode, closestItemDueDate)
+		));
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(hasBarcode(furthestAwayItemBarcode))
+		));
 	}
 
 	private ClusterRecord createClusterAndBibRecord(UUID bibRecordId, String sourceRecordId) {
@@ -204,12 +278,12 @@ public class GeoDistanceTieBreakerTests {
 		return patronRequestsFixture.savePatronRequest(patronRequest);
 	}
 
-	private SierraItem createCheckedOutItem(String id, String barcode, String locationCode) {
+	private SierraItem createCheckedOutItem(String id, String barcode, String locationCode, Instant dueDate) {
 		return SierraItem.builder()
 				.id(id)
 				.barcode(barcode)
 				.statusCode("-")
-				.dueDate(Instant.parse("2024-12-15T00:00:00Z"))
+				.dueDate(dueDate)
 				.itemType("1")
 				.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 				.locationCode(locationCode)
