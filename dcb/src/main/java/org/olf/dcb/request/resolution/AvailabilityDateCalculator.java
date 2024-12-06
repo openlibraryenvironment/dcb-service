@@ -2,6 +2,7 @@ package org.olf.dcb.request.resolution;
 
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 
+import java.time.Clock;
 import java.time.Instant;
 
 import org.olf.dcb.core.model.Item;
@@ -11,6 +12,16 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AvailabilityDateCalculator {
+	private final Instant now;
+
+	public AvailabilityDateCalculator() {
+		this(Clock.systemUTC());
+	}
+
+	public AvailabilityDateCalculator(Clock clock) {
+		now = clock.instant();
+	}
+
 	public Instant calculate(Item item) {
 		return calculate(item.getStatus(), item.getDueDate());
 	}
@@ -22,7 +33,7 @@ public class AvailabilityDateCalculator {
 			return dueDate;
 		} else {
 			log.debug("Item is not checked out or does not have a due date, using current time as available date");
-			return Instant.now();
+			return now;
 		}
 	}
 }
