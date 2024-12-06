@@ -1,5 +1,23 @@
 package org.olf.dcb.request.resolution;
 
-public class AvailabilityDateCalculator {
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 
+import java.time.Instant;
+
+import org.olf.dcb.core.model.ItemStatus;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class AvailabilityDateCalculator {
+	public Instant calculate(ItemStatus itemStatus, Instant dueDate) {
+		log.debug("Deciding available date for item status: {} and due date: {}", itemStatus, dueDate);
+		if (itemStatus.getCode() == CHECKED_OUT && dueDate != null) {
+			log.debug("Item is checked out and has a due date, using due date as available date");
+			return dueDate;
+		} else {
+			log.debug("Item is not checked out or does not have a due date, using current time as available date");
+			return Instant.now();
+		}
+	}
 }

@@ -1,7 +1,10 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static java.lang.Boolean.FALSE;
-import static org.olf.dcb.core.model.ItemStatusCode.*;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -15,9 +18,6 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.json.tree.JsonNode;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
@@ -25,10 +25,14 @@ import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
+import org.olf.dcb.rules.ObjectRuleset;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.json.tree.JsonNode;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.rules.ObjectRuleset;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -65,6 +69,8 @@ public class PolarisItemMapper {
 
 		log.debug("map polaris item {} {} {}", itemGetRow, hostLmsCode, localBibId);
 
+		final var availabilityDateCalculator = new AvailabilityDateCalculator();
+
 		return mapStatus(itemGetRow.getCircStatusName(), hostLmsCode)
 			.map(status -> {
 				final var localId = String.valueOf(itemGetRow.getItemRecordID());
@@ -87,7 +93,8 @@ public class PolarisItemMapper {
 					.deleted(false)
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
-					.availableDate( decideAvailableDate(status, dueDate) )
+					.availableDate( availabilityDateCalculator.calculate(status, dueDate
+					) )
 					// hold count is set to 0 as the api doesn't return it directly
 					.holdCount(0)
 					.build();
@@ -269,16 +276,5 @@ public class PolarisItemMapper {
 			case "Out" -> CHECKED_OUT;
 			default -> UNAVAILABLE;
 		};
-	}
-
-	private Instant decideAvailableDate(ItemStatus itemStatus, Instant parsedDueDate) {
-		log.debug("Deciding available date for item status: {} and parsed due date: {}", itemStatus, parsedDueDate);
-		if (itemStatus.getCode() == CHECKED_OUT && parsedDueDate != null) {
-			log.debug("Item is checked out and has a parsed due date, using due date as available date");
-			return parsedDueDate;
-		} else {
-			log.debug("Item is not checked out or does not have a parsed due date, using current time as available date");
-			return Instant.now();
-		}
 	}
 }
