@@ -1,20 +1,22 @@
 package org.olf.dcb.core.interaction.folio;
 
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
+
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.time.Instant;
-
-import static org.olf.dcb.core.model.ItemStatusCode.*;
-import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Singleton
@@ -45,6 +47,8 @@ public class ConsortialFolioItemMapper {
 
 		final var dueDate = getValueOrNull(holding, Holding::getDueDate);
 
+		final var availabilityDateCalculator = new AvailabilityDateCalculator();
+
 		return Item.builder()
 			.localId(getValueOrNull(holding, Holding::getId))
 			.localBibId(instanceId)
@@ -60,7 +64,7 @@ public class ConsortialFolioItemMapper {
 			.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 			.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
 			.deleted(false)
-			.availableDate( decideAvailableDate(status, dueDate) )
+			.availableDate(availabilityDateCalculator.calculate(status, dueDate))
 			.build();
 	}
 
@@ -88,16 +92,5 @@ public class ConsortialFolioItemMapper {
 			case "Checked out" -> CHECKED_OUT;
 			default -> UNAVAILABLE;
 		};
-	}
-
-	private Instant decideAvailableDate(ItemStatus itemStatus, Instant parsedDueDate) {
-		log.debug("Deciding available date for item status: {} and parsed due date: {}", itemStatus, parsedDueDate);
-		if (itemStatus.getCode() == CHECKED_OUT && parsedDueDate != null) {
-			log.debug("Item is checked out and has a parsed due date, using due date as available date");
-			return parsedDueDate;
-		} else {
-			log.debug("Item is not checked out or does not have a parsed due date, using current time as available date");
-			return Instant.now();
-		}
 	}
 }
