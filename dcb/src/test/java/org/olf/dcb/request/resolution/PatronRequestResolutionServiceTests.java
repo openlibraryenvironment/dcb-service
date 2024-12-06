@@ -7,8 +7,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -155,7 +154,7 @@ class PatronRequestResolutionServiceTests {
 		final var sourceRecordId = "465675";
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
-				sourceRecordId, clusterRecord);
+			sourceRecordId, clusterRecord);
 
 		final var onlyAvailableItemId = "651463";
 		final var onlyAvailableItemBarcode = "76653672456";
@@ -840,6 +839,300 @@ class PatronRequestResolutionServiceTests {
 		));
 	}
 
+	@Test
+	void shouldIncludeItemsWithHoldsWhenSelectUnavailableItemsIsOn() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var itemWithHoldsId = "372656";
+		final var itemWithHoldsBarcode = "6256486473634";
+
+		final var availableItemId = "651463";
+		final var availableItemBarcode = "76653672456";
+
+		final var checkedOutItemId = "372656";
+		final var checkedOutItemBarcode = "6256486473634";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			itemWithHolds(itemWithHoldsId, itemWithHoldsBarcode, 1),
+			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE),
+			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
+		));
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS, true);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasLocalId(itemWithHoldsId),
+				hasBarcode(itemWithHoldsBarcode)
+			),
+			hasFilteredItemsSize(3),
+			hasFilteredItems(
+				allOf(
+					hasLocalId(itemWithHoldsId),
+					hasBarcode(itemWithHoldsBarcode)
+				),
+				allOf(
+					hasLocalId(availableItemId),
+					hasBarcode(availableItemBarcode)
+				),
+				allOf(
+					hasLocalId(checkedOutItemId),
+					hasBarcode(checkedOutItemBarcode)
+				)
+			)
+		));
+	}
+
+	@Test
+	void shouldExcludeItemsWithHoldsWhenSelectUnavailableItemsIsNotDefined() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var itemWithHoldsId = "372656";
+		final var itemWithHoldsBarcode = "6256486473634";
+
+		final var availableItemId = "651463";
+		final var availableItemBarcode = "76653672456";
+
+		final var checkedOutItemId = "372656";
+		final var checkedOutItemBarcode = "6256486473634";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			itemWithHolds(itemWithHoldsId, itemWithHoldsBarcode, 1),
+			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE),
+			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasLocalId(availableItemId),
+				hasBarcode(availableItemBarcode)
+			),
+			hasFilteredItemsSize(1),
+			hasFilteredItems(
+				allOf(
+					hasLocalId(availableItemId),
+					hasBarcode(availableItemBarcode)
+				)
+			)
+		));
+	}
+
+	@Test
+	void shouldExcludeItemsWithHoldsWhenSelectUnavailableItemsIsOff() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var itemWithHoldsId = "372656";
+		final var itemWithHoldsBarcode = "6256486473634";
+
+		final var availableItemId = "651463";
+		final var availableItemBarcode = "76653672456";
+
+		final var checkedOutItemId = "372656";
+		final var checkedOutItemBarcode = "6256486473634";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			itemWithHolds(itemWithHoldsId, itemWithHoldsBarcode, 1),
+			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE),
+			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS, false);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasLocalId(availableItemId),
+				hasBarcode(availableItemBarcode)
+			),
+			hasFilteredItemsSize(1),
+			hasFilteredItems(
+				allOf(
+					hasLocalId(availableItemId),
+					hasBarcode(availableItemBarcode)
+				)
+			)
+		));
+	}
+
+	@Test
+	void shouldNotSelectItemWithHoldsWhenStatusNotKnownAndSelectUnavailableItemsIsOn() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var sourceRecordId = "465675";
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var unavailableItemWithHoldsId = "372656";
+		final var unavailableItemWithHoldsBarcode = "6256486473634";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			unavailableItemWithHolds(unavailableItemWithHoldsId, unavailableItemWithHoldsBarcode)
+		));
+
+		final var homeLibraryCode = "home-library";
+		final var patron = definePatron("872321", homeLibraryCode);
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS, true);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem(),
+			hasFilteredItemsSize(0)
+		));
+	}
+
+	@Test
+	void shouldSelectItemsNormallyWhenSelectUnavailableItemsIsOnButNoItemsWithHolds() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var availableItemId = "651463";
+		final var availableItemBarcode = "76653672456";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("872321", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS, true);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasLocalId(availableItemId),
+				hasBarcode(availableItemBarcode)
+			)
+		));
+	}
+
 	private Resolution resolve(PatronRequest patronRequest) {
 		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
 	}
@@ -850,7 +1143,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	private SierraItem availableItem(String id, String barcode,
-		String itemLocationCode) {
+		 String itemLocationCode) {
 
 		return SierraItem.builder()
 			.id(id)
@@ -890,6 +1183,30 @@ class PatronRequestResolutionServiceTests {
 			.build();
 	}
 
+	private SierraItem itemWithHolds(String itemWithHoldsId, String itemWithHoldsBarcode, int holdCount) {
+		return SierraItem.builder()
+			.id(itemWithHoldsId)
+			.barcode(itemWithHoldsBarcode)
+			.locationCode(ITEM_LOCATION_CODE)
+			.statusCode("-")
+			.holdCount(holdCount)
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+			.build();
+	}
+
+	private SierraItem unavailableItemWithHolds(String itemWithHoldsId, String itemWithHoldsBarcode) {
+		return SierraItem.builder()
+			.id(itemWithHoldsId)
+			.barcode(itemWithHoldsBarcode)
+			.locationCode(ITEM_LOCATION_CODE)
+			.statusCode("#")
+			.holdCount(1)
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+			.build();
+	}
+
 	@SafeVarargs
 	private Matcher<Resolution> hasChosenItem(Matcher<Item>... matchers) {
 		return hasProperty("chosenItem", allOf(matchers));
@@ -907,6 +1224,10 @@ class PatronRequestResolutionServiceTests {
 	@SafeVarargs
 	private static Matcher<Resolution> hasFilteredItems(Matcher<Item>... matchers) {
 		return hasProperty("filteredItems", contains(matchers));
+	}
+
+	private static Matcher<Resolution> hasFilteredItemsSize(int size) {
+		return hasProperty("filteredItems", hasSize(size));
 	}
 
 	private static Matcher<Resolution> hasResolutionCount(Integer expectedResolutionCount) {

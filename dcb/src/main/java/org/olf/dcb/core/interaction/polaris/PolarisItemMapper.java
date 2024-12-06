@@ -88,6 +88,8 @@ public class PolarisItemMapper {
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
 					.availableDate( decideAvailableDate(status, dueDate) )
+					// hold count is set to 0 as the api doesn't return it directly
+					.holdCount(0)
 					.build();
 			})
 			.flatMap(item -> enrichItemWithAgency(item, hostLmsCode))

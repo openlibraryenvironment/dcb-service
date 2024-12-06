@@ -120,8 +120,8 @@ public class ItemMatchers {
 		return hasProperty("holdCount", is(expectedHoldCount));
 	}
 
-	public static Matcher<Item> hasNoHoldCount() {
-		return hasProperty("holdCount", is(nullValue()));
+	public static Matcher<Item> hasHoldCountOfZero() {
+		return hasProperty("holdCount", is(0));
 	}
 
 	public static Matcher<Item> isSuppressed() {

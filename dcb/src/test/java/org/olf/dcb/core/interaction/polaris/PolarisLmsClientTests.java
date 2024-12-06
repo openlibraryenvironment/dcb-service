@@ -17,7 +17,6 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
@@ -162,7 +161,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		assertThat(firstItem, hasCanonicalItemType("loanable-item"));
-		assertThat(firstItem, hasNoHoldCount());
+		assertThat(firstItem, hasHoldCountOfZero());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasAgencyCode("default-agency-code"));
@@ -217,7 +216,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		assertThat(firstItem, hasCanonicalItemType("loanable-item"));
-		assertThat(firstItem, hasNoHoldCount());
+		assertThat(firstItem, hasHoldCountOfZero());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasAgencyCode("mapped-agency-code"));
@@ -263,7 +262,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		// Note: if there is no agency we cannot use the owning context to get the canonical item type
 		assertThat(firstItem, hasCanonicalItemType("UNKNOWN - NULL hostLmsCode"));
-		assertThat(firstItem, hasNoHoldCount());
+		assertThat(firstItem, hasHoldCountOfZero());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasNoAgency());

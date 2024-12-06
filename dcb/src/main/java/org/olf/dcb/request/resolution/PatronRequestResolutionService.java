@@ -1,6 +1,7 @@
 package org.olf.dcb.request.resolution;
 
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.*;
+import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
 import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
@@ -13,6 +14,7 @@ import java.util.*;
 import java.util.function.Function;
 
 import io.micronaut.core.annotation.Nullable;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.item.availability.AvailabilityReport;
@@ -21,6 +23,7 @@ import org.olf.dcb.item.availability.LiveAvailabilityService;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,18 +37,20 @@ public class PatronRequestResolutionService {
 	private final String itemResolver;
 	private final HostLmsService hostLmsService;
 	private final ManualSelection manualSelection;
+	private final ConsortiumService consortiumService;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies,
 		HostLmsService hostLmsService,
-		ManualSelection manualSelection)
+		ManualSelection manualSelection, ConsortiumService consortiumService)
 	{
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.hostLmsService = hostLmsService;
 		this.manualSelection = manualSelection;
+		this.consortiumService = consortiumService;
 
 		log.debug("Available item resolver strategies (selected={})", this.itemResolver);
 
@@ -206,10 +211,34 @@ public class PatronRequestResolutionService {
 			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
 			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, patronRequest))
 			.filter(Item::getIsRequestable)
-			.filter(Item::hasNoHolds)
+			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, patronRequest))
 			.collectList()
 			.map(resolution::trackFilteredItems);
+	}
+
+	/**
+	 * Checks if an item with holds should be included in the resolution process.
+	 *
+	 * This method checks the consortium's functional setting for selecting unavailable items.
+	 * If the setting is enabled, items with holds are included. Otherwise, only items with no holds are included.
+	 *
+	 * @param item the item to check
+	 * @return true if the item should be included, false otherwise
+	 */
+	private Mono<Boolean> includeItemWithHolds(Item item) {
+
+		return consortiumService.findOneConsortiumFunctionalSetting(SELECT_UNAVAILABLE_ITEMS)
+			.filter(FunctionalSetting::isEnabled)
+			.hasElement()
+			.map(enabled -> {
+				final boolean includeItem = enabled || item.hasNoHolds();
+
+				log.debug("Include item with holds: enabled={}, item.hasNoHolds={}, includeItem={}",
+					enabled, item.hasNoHolds(), includeItem);
+
+				return includeItem;
+			});
 	}
 
 	/**
