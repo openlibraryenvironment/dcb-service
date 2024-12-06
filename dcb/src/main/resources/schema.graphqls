@@ -222,6 +222,7 @@ input UpdateLocationInput {
 	longitude: Float
 	isPickup: Boolean
 	name: String
+	printLabel: String
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
