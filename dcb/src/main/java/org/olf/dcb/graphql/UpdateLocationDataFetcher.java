@@ -50,6 +50,8 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 			.map(Object::toString);
 		Optional<Boolean> isPickupLocation = Optional.ofNullable(input_map.get("isPickup"))
 			.map(value -> Boolean.parseBoolean(value.toString()));
+		Optional<String> printLabel = Optional.ofNullable(input_map.get("printLabel"))
+			.map(Object::toString);
 		Optional<String> reason = Optional.ofNullable(input_map.get("reason"))
 			.map(Object::toString);
 		Optional<String> changeReferenceUrl = Optional.ofNullable(input_map.get("changeReferenceUrl"))
@@ -77,6 +79,7 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 					}
 					name.ifPresent(location::setName);
 					isPickupLocation.ifPresent(location::setIsPickup);
+					printLabel.ifPresent(location::setPrintLabel);
 					location.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(location::setChangeReferenceUrl);
 					changeCategory.ifPresent(location::setChangeCategory);
