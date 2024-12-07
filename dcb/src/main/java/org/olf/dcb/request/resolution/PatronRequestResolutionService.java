@@ -17,7 +17,6 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -196,16 +195,12 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
-		return getAvailableItems(resolution.getBibClusterId())
-			.collectList()
-			.map(resolution::trackAllItems);
-	}
-
-	private Flux<Item> getAvailableItems(UUID clusterRecordId) {
-		return liveAvailabilityService.checkAvailability(clusterRecordId)
-			.onErrorMap(NoBibsForClusterRecordException.class, error -> new UnableToResolvePatronRequest(error.getMessage()))
+		return Mono.justOrEmpty(resolution.getBibClusterId())
+			.flatMap(liveAvailabilityService::checkAvailability)
+			.onErrorMap(NoBibsForClusterRecordException.class,
+				error -> new UnableToResolvePatronRequest(error.getMessage()))
 			.map(AvailabilityReport::getItems)
-			.flatMapMany(Flux::fromIterable);
+			.map(resolution::trackAllItems);
 	}
 
 	private Mono<Resolution> sortItems(ResolutionSortOrder resolutionSortOrder,
