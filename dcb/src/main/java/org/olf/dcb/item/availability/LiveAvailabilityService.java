@@ -19,6 +19,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
 import org.olf.dcb.request.resolution.ClusteredBib;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.SharedIndexService;
@@ -128,10 +129,19 @@ public class LiveAvailabilityService {
 	}
 
 	private Mono<AvailabilityReport> calculateFields(AvailabilityReport availabilityReport) {
+		final var availabilityDateCalculator = new AvailabilityDateCalculator();
+
 		return Flux.fromIterable(availabilityReport.getItems())
 			.flatMap(this::calculateRequestability)
+			.map(item -> calculateAvailabilityDate(item, availabilityDateCalculator))
 			.collectList()
 			.map(items -> ofItems(items, availabilityReport.getTimings(), availabilityReport.getErrors()));
+	}
+
+	private Item calculateAvailabilityDate(Item item,
+		AvailabilityDateCalculator availabilityDateCalculator) {
+
+		return item.setAvailableDate(availabilityDateCalculator.calculate(item));
 	}
 
 	// set an item's requestability
