@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.dcb.item.availability.AvailabilityReport.ofItems;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -115,7 +114,7 @@ public class LiveAvailabilityService {
 			.flatMap(start -> Mono.just(clusteredBibId)
 				.flatMapMany(this::getClusterMembers)
 				.flatMap(b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters))
-				.flatMap(this::determineRequestability)
+				.flatMap(this::calculateFields)
 				.doOnNext(b -> log.debug("Requestability check result == {}",b))
 				.reduce(emptyReport(), AvailabilityReport::combineReports)
 				.doOnNext(b -> log.debug("Sorting..."))
@@ -126,6 +125,19 @@ public class LiveAvailabilityService {
 						return Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBibId));
 					})
 				));
+	}
+
+	private Mono<AvailabilityReport> calculateFields(AvailabilityReport availabilityReport) {
+		return Flux.fromIterable(availabilityReport.getItems())
+			.flatMap(this::calculateRequestability)
+			.collectList()
+			.map(items -> ofItems(items, availabilityReport.getTimings(), availabilityReport.getErrors()));
+	}
+
+	// set an item's requestability
+	private Mono<Item> calculateRequestability(Item item) {
+		return requestableItemService.isRequestable(item)
+			.map(item::setIsRequestable);
 	}
 
 	private static AvailabilityReport reportElapsedTime(AvailabilityReport report, Long start) {
@@ -248,28 +260,7 @@ public class LiveAvailabilityService {
 			.map(msg -> AvailabilityReport.ofErrors(AvailabilityReport.Error.builder().message(msg).build()))
 			.get();
 	}
-
-	private Mono<AvailabilityReport> determineRequestability(AvailabilityReport report) {
-		final var items = getValueOrNull(report, AvailabilityReport::getItems);
-
-		if (items == null || items.isEmpty()) {
-			log.warn("No items to determine requestable for report: {}", report);
-
-			return Mono.just(report);
-		}
-
-		return Flux.fromIterable(items)
-			.flatMap(this::isRequestable)
-			.collectList()
-			.map(listOfItems -> ofItems(listOfItems, report.getTimings(), report.getErrors()));
-	}
-
-	// sets each items requestability
-	private Mono<Item> isRequestable(Item item) {
-		return requestableItemService.isRequestable(item)
-			.map(item::setIsRequestable);
-	}
-
+	
 	private static AvailabilityReport.Error mapToError(BibRecord bib, String hostLmsCode) {
 		log.error("Generate error report : Failed to fetch items for bib: {} from host: {}",
 			bib.getSourceRecordId(), hostLmsCode);
