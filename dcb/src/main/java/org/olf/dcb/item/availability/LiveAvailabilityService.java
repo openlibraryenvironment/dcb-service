@@ -2,7 +2,6 @@ package org.olf.dcb.item.availability;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
-import java.util.function.Predicate;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.dcb.item.availability.AvailabilityReport.ofItems;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -13,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -54,7 +54,8 @@ public class LiveAvailabilityService {
 			.build();
 
 	public LiveAvailabilityService(HostLmsService hostLmsService,
-		RequestableItemService requestableItemService, SharedIndexService sharedIndexService, MeterRegistry meterRegistry) {
+		RequestableItemService requestableItemService,
+		SharedIndexService sharedIndexService, MeterRegistry meterRegistry) {
 
 		this.hostLmsService = hostLmsService;
 		this.requestableItemService = requestableItemService;
@@ -62,23 +63,22 @@ public class LiveAvailabilityService {
 		this.meterRegistry = meterRegistry;
 	}
 	
-	private Flux<BibRecord> getClusterMembers( @NonNull UUID clusteredBibId ) {
+	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId) {
 		return Mono.just(clusteredBibId)
-			.flatMap( sharedIndexService::findClusteredBib )
+			.flatMap(sharedIndexService::findClusteredBib)
 			.flatMapIterable(ClusteredBib::getBibs)
-			.doOnNext ( b -> log.trace( "Cluster has bib members" ))
-			.switchIfEmpty(Mono.defer(() -> Mono.error( new NoBibsForClusterRecordException(clusteredBibId)) ));
+			.doOnNext(b -> log.trace( "Cluster has bib members"))
+			.switchIfEmpty(Mono.defer(() -> Mono.error(new NoBibsForClusterRecordException(clusteredBibId))));
 	}
 	
-	private boolean shouldCache( AvailabilityReport report ) {
+	private boolean shouldCache(AvailabilityReport report) {
 		if (report == null) return false;
 		
 		// Don't cache errors from single service.
-		return report.getErrors().size() < 1; 
+		return report.getErrors().size() < 1;
 	}
 	
-	private AvailabilityReport addValueToCache ( @NonNull BibRecord bib, AvailabilityReport report) {
-		
+	private AvailabilityReport addValueToCache(@NonNull BibRecord bib, AvailabilityReport report) {
 		return Optional.ofNullable(report)
 			.filter(this::shouldCache)
 			.map( ar -> {
@@ -93,45 +93,47 @@ public class LiveAvailabilityService {
 	}
 
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
-		return checkAvailability( clusteredBibId, Optional.empty(), Optional.ofNullable("all") );
+		return checkAvailability(clusteredBibId, Optional.empty(),
+			Optional.ofNullable("all"));
 	}
 	
-	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Duration timeout, String filters) {
-		return checkAvailability(clusteredBibId, Optional.ofNullable(timeout), Optional.ofNullable(filters) );
+	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
+		Duration timeout, String filters) {
+
+		return checkAvailability(clusteredBibId, Optional.ofNullable(timeout),
+			Optional.ofNullable(filters));
 	}
 	
-	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId, Optional<Duration> timeout, Optional<String> filters) {
+	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
+		Optional<Duration> timeout, Optional<String> filters) {
+
 		log.debug("getAvailableItems({})", clusteredBibId);
 
 		final List<Tag> commonTags = List.of(Tag.of("cluster", clusteredBibId.toString()));
 		
-		return Mono.defer( () -> Mono.just(System.nanoTime()) )
-			.flatMap( start -> Mono.just( clusteredBibId )
-				.flatMapMany( this::getClusterMembers )
-				.flatMap( b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters))
-				.flatMap( this::determineRequestability )
-				.doOnNext ( b -> log.debug("Requestability check result == {}",b) )
+		return Mono.defer(() -> Mono.just(System.nanoTime()))
+			.flatMap(start -> Mono.just(clusteredBibId)
+				.flatMapMany(this::getClusterMembers)
+				.flatMap(b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters))
+				.flatMap(this::determineRequestability)
+				.doOnNext(b -> log.debug("Requestability check result == {}",b))
 				.reduce(emptyReport(), AvailabilityReport::combineReports)
-				.doOnNext ( b -> log.debug("Sorting..."))
+				.doOnNext(b -> log.debug("Sorting..."))
 				.map(AvailabilityReport::sortItems)
-				.map( report -> {
-					final long elapsed = System.nanoTime() - start;
-					
-//					var tags = new ArrayList<>(List.of( Tag.of("status", "success"), Tag.of("lms", "all") ));
-//					tags.addAll(commonTags);
-//					Timer timer = meterRegistry.timer(METRIC_NAME, tags);
-//					timer.record(elapsed, NANOSECONDS);
-					
-					return report.toBuilder()
-						.timing( Tuples.of("total", elapsed) )
-						.build();
-				})
-				.switchIfEmpty(
-					Mono.defer(() -> {
+				.map(report -> reportElapsedTime(report, start))
+				.switchIfEmpty(Mono.defer(() -> {
 						log.error("getAvailableItems resulted in an empty stream");
 						return Mono.error(new RuntimeException("Failed to resolve items for cluster record " + clusteredBibId));
 					})
 				));
+	}
+
+	private static AvailabilityReport reportElapsedTime(AvailabilityReport report, Long start) {
+		final long elapsed = System.nanoTime() - start;
+
+		return report.toBuilder()
+			.timing(Tuples.of("total", elapsed))
+			.build();
 	}
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
@@ -226,8 +228,7 @@ public class LiveAvailabilityService {
 	
 	private static final ItemStatus STATUS_UNKNOWN = new ItemStatus(ItemStatusCode.UNKNOWN);
 	
-	private AvailabilityReport modifyCachedRecord (AvailabilityReport ar) {
-		
+	private AvailabilityReport modifyCachedRecord(AvailabilityReport ar) {
 		// Build new item lists and set the status to unknown.
 		List<Item> newItems = new ArrayList<>();
 		ar.getItems().stream()
@@ -242,14 +243,13 @@ public class LiveAvailabilityService {
 			.build();
 	}
 	
-	private static final AvailabilityReport getNoCachedValueErrorReport ( String message ) {
+	private static AvailabilityReport getNoCachedValueErrorReport(String message) {
 		return Optional.of(message)
 			.map(msg -> AvailabilityReport.ofErrors(AvailabilityReport.Error.builder().message(msg).build()))
 			.get();
 	}
 
-	private Mono<AvailabilityReport> determineRequestability( AvailabilityReport report ) {
-
+	private Mono<AvailabilityReport> determineRequestability(AvailabilityReport report) {
 		final var items = getValueOrNull(report, AvailabilityReport::getItems);
 
 		if (items == null || items.isEmpty()) {
