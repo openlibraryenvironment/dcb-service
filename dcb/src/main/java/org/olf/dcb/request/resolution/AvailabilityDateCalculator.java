@@ -32,8 +32,9 @@ public class AvailabilityDateCalculator {
 		final var statusCode = getValueOrNull(itemStatus, ItemStatus::getCode);
 
 		return switch (statusCode) {
-			case AVAILABLE, UNAVAILABLE, UNKNOWN -> now;
+			case AVAILABLE -> now;
 			case CHECKED_OUT -> dueDate != null ? dueDate : now;
+			case UNKNOWN, UNAVAILABLE -> null;
 		};
 	}
 }

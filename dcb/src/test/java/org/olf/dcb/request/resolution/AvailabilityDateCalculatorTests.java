@@ -3,6 +3,7 @@ package org.olf.dcb.request.resolution;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -61,19 +62,21 @@ public class AvailabilityDateCalculatorTests {
 	}
 
 	@Test
-	void availabilityDateShouldBeNowForUnavailableItem() {
+	void availabilityDateShouldBeNullForUnavailableItems() {
 		// Arrange
-		final var item = createItem(UNAVAILABLE, null);
+		// Unavailable items likely won't have a due date, however
+		// one is provided here to demonstrate it is not used
+		final var item = createItem(UNAVAILABLE, Instant.now().plus(3, DAYS));
 
 		// Act
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(now));
+		assertThat(availabilityDate, is(nullValue()));
 	}
 
 	@Test
-	void availabilityDateShouldBeNowForItemInUnknownStatus() {
+	void availabilityDateShouldBeNullForItemInUnknownStatus() {
 		// Arrange
 		final var item = createItem(UNKNOWN, null);
 
@@ -81,7 +84,7 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(now));
+		assertThat(availabilityDate, is(nullValue()));
 	}
 
 	private static Item createItem(ItemStatusCode statusCode, Instant dueDate) {
