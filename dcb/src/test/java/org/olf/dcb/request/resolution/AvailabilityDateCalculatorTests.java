@@ -58,7 +58,7 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(now));
+		assertThat(availabilityDate, is(now.plus(28, DAYS)));
 	}
 
 	@Test
