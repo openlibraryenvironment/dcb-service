@@ -7,6 +7,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -63,6 +64,18 @@ public class AvailabilityDateCalculatorTests {
 	void availabilityDateShouldBeNowForUnavailableItem() {
 		// Arrange
 		final var item = createItem(UNAVAILABLE, null);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(now));
+	}
+
+	@Test
+	void availabilityDateShouldBeNowForItemInUnknownStatus() {
+		// Arrange
+		final var item = createItem(UNKNOWN, null);
 
 		// Act
 		final var availabilityDate = calculator.calculate(item);
