@@ -33,6 +33,21 @@ public class AvailabilityDateResolutionSortOrderTests {
 		assertThat(sortedItems, contains(availableNow, availableInOneWeek, availableInTwoWeeks));
 	}
 
+	@Test
+	void shouldSortNullAvailabilityDateItemsLast() {
+		// Arrange
+		final var availableNow = createItem(now());
+		final var nullAvailabilityDate = createItem(null);
+
+		final var items = List.of(nullAvailabilityDate, availableNow);
+
+		// Act
+		final var sortedItems = sort(items);
+
+		// Assert
+		assertThat(sortedItems, contains(availableNow, nullAvailabilityDate));
+	}
+
 	private List<Item> sort(List<Item> items) {
 		return singleValueFrom(sortOrder.sortItems(items, UUID.randomUUID(),
 				PatronRequest.builder().build()));
