@@ -1,0 +1,46 @@
+package org.olf.dcb.request.resolution;
+
+import static java.time.Instant.now;
+import static java.time.temporal.ChronoUnit.DAYS;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronRequest;
+
+public class AvailabilityDateResolutionSortOrderTests {
+	private final AvailabilityDateResolutionSortOrder sortOrder = new AvailabilityDateResolutionSortOrder();
+
+	@Test
+	void shouldSortItemsInAscendingAvailabilityDateOrder() {
+		// Arrange
+		final var availableNow = createItem(now());
+		final var availableInOneWeek = createItem(now().plus(7, DAYS));
+		final var availableInTwoWeeks = createItem(now().plus(14, DAYS));
+
+		final var items = List.of(availableInTwoWeeks, availableNow, availableInOneWeek);
+
+		// Act
+		final var sortedItems = sort(items);
+
+		// Assert
+		assertThat(sortedItems, contains(availableNow, availableInOneWeek, availableInTwoWeeks));
+	}
+
+	private List<Item> sort(List<Item> items) {
+		return singleValueFrom(sortOrder.sortItems(items, UUID.randomUUID(),
+				PatronRequest.builder().build()));
+	}
+
+	private static Item createItem(Instant availabilityDate) {
+		return Item.builder()
+			.availableDate(availabilityDate)
+			.build();
+	}
+}
