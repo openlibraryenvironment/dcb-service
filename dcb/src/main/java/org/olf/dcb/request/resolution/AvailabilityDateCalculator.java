@@ -23,10 +23,8 @@ public class AvailabilityDateCalculator {
 	}
 
 	public Instant calculate(Item item) {
-		return calculate(item.getStatus(), item.getDueDate());
-	}
-
-	private Instant calculate(ItemStatus itemStatus, Instant dueDate) {
+		ItemStatus itemStatus = item.getStatus();
+		Instant dueDate = item.getDueDate();
 		log.debug("Deciding available date for item status: {} and due date: {}", itemStatus, dueDate);
 
 		final var statusCode = getValueOrNull(itemStatus, ItemStatus::getCode);
