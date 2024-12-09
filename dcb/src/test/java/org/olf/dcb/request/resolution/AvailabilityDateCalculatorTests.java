@@ -1,9 +1,11 @@
 package org.olf.dcb.request.resolution;
 
 import static java.time.Instant.now;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -22,7 +24,7 @@ public class AvailabilityDateCalculatorTests {
 	@Test
 	void availabilityDateShouldBeNowForAvailableItems() {
 		// Arrange
-		final var item = createItem(AVAILABLE);
+		final var item = createItem(AVAILABLE, null);
 
 		// Act
 		final var availabilityDate = calculator.calculate(item);
@@ -31,7 +33,35 @@ public class AvailabilityDateCalculatorTests {
 		assertThat(availabilityDate, is(now));
 	}
 
-	private static Item createItem(ItemStatusCode statusCode) {
-		return Item.builder().status(new ItemStatus(statusCode)).build();
+	@Test
+	void availabilityDateShouldBeDueDateForCheckedOutItems() {
+		// Arrange
+		final var dueDate = now.plus(7, DAYS);
+		final var item = createItem(CHECKED_OUT, dueDate);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(dueDate));
+	}
+
+	@Test
+	void availabilityDateShouldBeNowForCheckedOutItemsWithNoDueDate() {
+		// Arrange
+		final var item = createItem(CHECKED_OUT, null);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(now));
+	}
+
+	private static Item createItem(ItemStatusCode statusCode, Instant dueDate) {
+		return Item.builder()
+			.status(new ItemStatus(statusCode))
+			.dueDate(dueDate)
+			.build();
 	}
 }
