@@ -118,6 +118,22 @@ public class AvailabilityDateCalculatorTests {
 		assertThat(availabilityDate, is(nullValue()));
 	}
 
+	@Test
+	void availabilityDateShouldBeNullForItemWithNoStatus() {
+		// Arrange
+		final var item = Item.builder()
+			.status(null)
+			.dueDate(null)
+			.holdCount(null)
+			.build();
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(nullValue()));
+	}
+
 	private static Item createItem(ItemStatusCode statusCode, Instant dueDate,
 		Integer holdCount) {
 
