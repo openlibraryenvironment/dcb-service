@@ -37,6 +37,8 @@ public class AvailabilityResponse {
 		@Nullable
 		private final Integer holdCount;
 		@Nullable
+		private final String availabilityDate;
+		@Nullable
 		private final String localItemType;
 		@Nullable
 		private final String canonicalItemType;

@@ -153,6 +153,7 @@ class LiveAvailabilityApiTests {
 					isRequestable(),
 					hasStatus("AVAILABLE"),
 					hasNoHolds(),
+					hasAvailabilityDate(),
 					hasLocalItemType("999"),
 					hasCanonicalItemType("BKM"),
 					hasLocation(locationCode, "King 6th Floor"),
@@ -168,6 +169,7 @@ class LiveAvailabilityApiTests {
 					isNotRequestable(),
 					hasStatus("CHECKED_OUT"),
 					hasNoHolds(),
+					hasAvailabilityDate(),
 					hasLocalItemType("999"),
 					hasCanonicalItemType("BKM"),
 					hasLocation(locationCode, "King 6th Floor"),
@@ -177,7 +179,7 @@ class LiveAvailabilityApiTests {
 			)
 		));
 	}
-	
+
 	@Test
 	void shouldExcludeSuppressedItems() {
 		// Arrange
@@ -422,6 +424,10 @@ class LiveAvailabilityApiTests {
 
 	private static Matcher<AvailabilityResponse.Item> hasNoHolds() {
 		return hasProperty("holdCount", is(0));
+	}
+
+	private Matcher<? super AvailabilityResponse.Item> hasAvailabilityDate() {
+		return hasProperty("availabilityDate");
 	}
 
 	private static Matcher<AvailabilityResponse.Item> isRequestable() {

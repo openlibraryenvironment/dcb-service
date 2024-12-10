@@ -58,18 +58,11 @@ public class AvailabilityResponseView {
 		return new ARVItem(item.getLocalId(),
 			new Status(item.getStatus().getCode().name()), item.getDueDate(),
 			new Location(item.getLocation().getCode(), item.getLocation().getName()),
-			item.getBarcode(), item.getCallNumber(), 
-      item.getHostLmsCode(),
-			owningContext,
-			item.getIsRequestable(), 
-			item.getSuppressed(), 
-			item.getHoldCount(), item.getLocalItemType(),
-			item.getCanonicalItemType(),
-			item.getLocalItemTypeCode(),
-			mappedAgency,
-			item.getRawVolumeStatement(),
-			item.getParsedVolumeStatement()
-		);
+			item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
+			owningContext, item.getIsRequestable(), item.getSuppressed(),
+			item.getHoldCount(), item.getAvailableDate(), item.getLocalItemType(),
+			item.getCanonicalItemType(), item.getLocalItemTypeCode(), mappedAgency,
+			item.getRawVolumeStatement(), item.getParsedVolumeStatement());
 	}
 
 	@Data
@@ -94,6 +87,7 @@ public class AvailabilityResponseView {
 		@Nullable
 		private final Boolean isSuppressed;
 		private final Integer holdCount;
+		private final Instant availabilityDate;
 		private final String localItemType;
 		private final String canonicalItemType;
 		private final String localItemTypeCode;
