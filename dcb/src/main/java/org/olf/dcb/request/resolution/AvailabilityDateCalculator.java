@@ -44,7 +44,9 @@ public class AvailabilityDateCalculator {
 		final var dueDate = getValueOrNull(item, Item::getDueDate);
 
 		if (dueDate != null) {
-			return dueDate;
+			final var holdCount = getValueOrNull(item, Item::getHoldCount);
+
+			return incrementByDefaultLoanPeriod(dueDate, holdCount);
 		}
 		else {
 			// Pessimistically assume that checked out item without a due date
