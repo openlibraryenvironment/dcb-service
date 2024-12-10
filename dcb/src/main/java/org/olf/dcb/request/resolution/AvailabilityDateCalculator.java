@@ -29,9 +29,11 @@ public class AvailabilityDateCalculator {
 
 	public Instant calculate(Item item) {
 		final var dueDate = getValueOrNull(item, Item::getDueDate);
+		final var holdCount = getValueOrNull(item, Item::getHoldCount);
 		final var statusCode = getValue(item, Item::getStatus, ItemStatus::getCode, UNKNOWN);
 
-		log.debug("Deciding available date for item status: {} and due date: {}", statusCode, dueDate);
+		log.debug("Deciding available date for item: status: \"{}\", " +
+			"due date: \"{}\", hold count: \"{}\"", statusCode, dueDate, holdCount);
 
 		return switch (statusCode) {
 			case AVAILABLE -> now;
@@ -44,7 +46,7 @@ public class AvailabilityDateCalculator {
 		final var dueDate = getValueOrNull(item, Item::getDueDate);
 
 		if (dueDate != null) {
-			final var holdCount = getValueOrNull(item, Item::getHoldCount);
+			final var holdCount = getValue(item, Item::getHoldCount, 0);
 
 			return incrementByDefaultLoanPeriod(dueDate, holdCount);
 		}

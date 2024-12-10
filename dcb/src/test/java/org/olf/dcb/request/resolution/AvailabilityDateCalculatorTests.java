@@ -68,6 +68,19 @@ public class AvailabilityDateCalculatorTests {
 	}
 
 	@Test
+	void availabilityDateShouldBeDueDateForCheckedOutItemsWithNullHoldCount() {
+		// Arrange
+		final var dueDate = now.plus(7, DAYS);
+		final var item = createItem(CHECKED_OUT, dueDate, null);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(dueDate));
+	}
+
+	@Test
 	void availabilityDateShouldBeNowForCheckedOutItemsWithNoDueDate() {
 		// Arrange
 		final var item = createItem(CHECKED_OUT, null, 0);
