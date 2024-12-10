@@ -1,6 +1,7 @@
 package org.olf.dcb.request.resolution;
 
 import static java.time.temporal.ChronoUnit.DAYS;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -27,12 +28,10 @@ public class AvailabilityDateCalculator {
 	}
 
 	public Instant calculate(Item item) {
-		final var itemStatus = item.getStatus();
-		final var dueDate = item.getDueDate();
+		final var dueDate = getValueOrNull(item, Item::getDueDate);
+		final var statusCode = getValue(item, Item::getStatus, ItemStatus::getCode, UNKNOWN);
 
-		log.debug("Deciding available date for item status: {} and due date: {}", itemStatus, dueDate);
-
-		final var statusCode = getValueOrNull(itemStatus, ItemStatus::getCode);
+		log.debug("Deciding available date for item status: {} and due date: {}", statusCode, dueDate);
 
 		return switch (statusCode) {
 			case AVAILABLE -> now;
