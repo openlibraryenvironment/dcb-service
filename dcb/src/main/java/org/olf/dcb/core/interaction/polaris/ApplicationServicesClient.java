@@ -558,7 +558,7 @@ class ApplicationServicesClient {
 							.originalItemStatusID(status)
 							.itemStatusID(status)
 							.barcode(newBarcode)
-							.note(nonPublicNote)
+							.nonPublicNote(nonPublicNote)
 							.materialTypeID(itemType)
 							.build())
 						.build())
