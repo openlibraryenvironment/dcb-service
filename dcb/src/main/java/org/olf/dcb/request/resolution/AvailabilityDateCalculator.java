@@ -35,26 +35,30 @@ public class AvailabilityDateCalculator {
 
 		return switch (statusCode) {
 			case AVAILABLE -> now;
-			case CHECKED_OUT -> {
-				if (dueDate != null) {
-					yield dueDate;
-				}
-				else {
-					// Pessimistically assume that checked out item without a due date
-					// is loaned for default loan period from today
-					final var calculatedDueDate = incrementByDefaultLoanPeriod(now, 1);
-
-					final var agencyCode = getValue(item, Item::getAgencyCode, "Unknown");
-					final var barcode = getValue(item, Item::getBarcode, "Unknown");
-
-					log.warn("Checked out item without a due date (agency code: \"{}\", barcode: \"{}\") " +
-						"has been allocated an availability date: {}", agencyCode, barcode, calculatedDueDate);
-
-					yield calculatedDueDate;
-				}
-			}
+			case CHECKED_OUT -> calculateForCheckedOutItem(item);
 			case UNKNOWN, UNAVAILABLE -> null;
 		};
+	}
+
+	private Instant calculateForCheckedOutItem(Item item) {
+		final var dueDate = getValueOrNull(item, Item::getDueDate);
+
+		if (dueDate != null) {
+			return dueDate;
+		}
+		else {
+			// Pessimistically assume that checked out item without a due date
+			// is loaned for default loan period from today
+			final var calculatedDueDate = incrementByDefaultLoanPeriod(now, 1);
+
+			final var agencyCode = getValue(item, Item::getAgencyCode, "Unknown");
+			final var barcode = getValue(item, Item::getBarcode, "Unknown");
+
+			log.warn("Checked out item without a due date (agency code: \"{}\", barcode: \"{}\") " +
+				"has been allocated an availability date: {}", agencyCode, barcode, calculatedDueDate);
+
+			return calculatedDueDate;
+		}
 	}
 
 	private Instant incrementByDefaultLoanPeriod(Instant start, Integer times) {
