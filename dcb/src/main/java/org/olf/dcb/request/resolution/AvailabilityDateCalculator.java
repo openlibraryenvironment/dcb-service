@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AvailabilityDateCalculator {
-	private static final int DEFAULT_LOAN_PERIOD_DAYS = 28;
+	private static final long DEFAULT_LOAN_PERIOD_DAYS = 28;
 
 	private final Instant now;
 
@@ -43,7 +43,7 @@ public class AvailabilityDateCalculator {
 				else {
 					// Pessimistically assume that checked out item without a due date
 					// is loaned for default loan period from today
-					final var calculatedDueDate = incrementByDefaultLoanPeriod(now);
+					final var calculatedDueDate = incrementByDefaultLoanPeriod(now, 1);
 
 					final var agencyCode = getValue(item, Item::getAgencyCode, "Unknown");
 					final var barcode = getValue(item, Item::getBarcode, "Unknown");
@@ -58,7 +58,7 @@ public class AvailabilityDateCalculator {
 		};
 	}
 
-	private Instant incrementByDefaultLoanPeriod(Instant start) {
-		return start.plus(DEFAULT_LOAN_PERIOD_DAYS, DAYS);
+	private Instant incrementByDefaultLoanPeriod(Instant start, Integer times) {
+		return start.plus(DEFAULT_LOAN_PERIOD_DAYS * times, DAYS);
 	}
 }
