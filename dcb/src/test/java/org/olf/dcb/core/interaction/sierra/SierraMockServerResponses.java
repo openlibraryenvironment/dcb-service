@@ -1,18 +1,20 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Builder;
-import lombok.Data;
-import org.mockserver.model.HttpResponse;
-import org.mockserver.model.JsonBody;
-import org.olf.dcb.test.TestResourceLoader;
-
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.HttpStatusCode.BAD_REQUEST_400;
 import static org.mockserver.model.HttpStatusCode.INTERNAL_SERVER_ERROR_500;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
+
+import org.mockserver.model.Delay;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.JsonBody;
+import org.olf.dcb.test.TestResourceLoader;
+
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 
 public class SierraMockServerResponses {
 	private final TestResourceLoader resourceLoader;
@@ -27,6 +29,13 @@ public class SierraMockServerResponses {
 
 	public HttpResponse jsonSuccess(JsonBody body) {
 		return jsonResponse(response(), body);
+	}
+
+	public HttpResponse jsonSuccess(JsonBody body, Delay delay) {
+		return response()
+			.withContentType(APPLICATION_JSON)
+			.withBody(body)
+			.withDelay(delay);
 	}
 
 	HttpResponse jsonLink(String link) {

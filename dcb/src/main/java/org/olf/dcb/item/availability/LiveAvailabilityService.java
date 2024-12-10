@@ -109,15 +109,20 @@ public class LiveAvailabilityService {
 
 		log.debug("getAvailableItems({})", clusteredBibId);
 
+		// This has to happen at the start of the process, in order for available items
+		// to get the same availability date
+		final var availabilityDateCalculator = new AvailabilityDateCalculator();
+
 		final List<Tag> commonTags = List.of(Tag.of("cluster", clusteredBibId.toString()));
-		
+
 		return Mono.defer(() -> Mono.just(System.nanoTime()))
 			.flatMap(start -> Mono.just(clusteredBibId)
 				.flatMapMany(this::getClusterMembers)
 				.flatMap(b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters))
-				.flatMap(this::calculateFields)
-				.doOnNext(b -> log.debug("Requestability check result == {}",b))
+				.doOnNext(b -> log.debug("Requestability check result == {}", b))
 				.reduce(emptyReport(), AvailabilityReport::combineReports)
+				.flatMap(availabilityReport -> calculateFields(availabilityReport,
+					availabilityDateCalculator))
 				.doOnNext(b -> log.debug("Sorting..."))
 				.map(AvailabilityReport::sortItems)
 				.map(report -> reportElapsedTime(report, start))
@@ -128,8 +133,8 @@ public class LiveAvailabilityService {
 				));
 	}
 
-	private Mono<AvailabilityReport> calculateFields(AvailabilityReport availabilityReport) {
-		final var availabilityDateCalculator = new AvailabilityDateCalculator();
+	private Mono<AvailabilityReport> calculateFields(AvailabilityReport availabilityReport,
+		AvailabilityDateCalculator availabilityDateCalculator) {
 
 		return Flux.fromIterable(availabilityReport.getItems())
 			.flatMap(this::calculateRequestability)

@@ -1,5 +1,6 @@
 package org.olf.dcb.item.availability;
 
+import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
@@ -11,9 +12,12 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
 import java.util.List;
@@ -32,6 +36,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
@@ -145,7 +150,7 @@ class LiveAvailabilityServiceTests {
 				.locationCode("ab6")
 				.locationName("King 6th Floor")
 				.build()
-		));
+		), 150);
 
 		final var secondAgency = agencyFixture.defineAgency("second-agency",
 			"Second Agency", secondHostLms);
@@ -181,7 +186,7 @@ class LiveAvailabilityServiceTests {
 				.locationCode("ab7")
 				.locationName("King 7th Floor")
 				.build()
-		));
+		), 50);
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			firstHostLms.getCode(), 999, 999, "loanable-item");
@@ -207,6 +212,18 @@ class LiveAvailabilityServiceTests {
 			),
 			hasNoErrors()
 		));
+
+		// All available items should have the same availability date
+		final List<Item> items = getValue(report, AvailabilityReport::getItems, emptyList());
+
+		final var availableItems = items.stream()
+			.filter(item -> getValue(item, Item::getStatus, ItemStatus::getCode,
+				UNKNOWN).equals(AVAILABLE))
+			.toList();
+
+		final var firstAvailabilityDate = availableItems.get(0).getAvailableDate();
+
+		availableItems.forEach(item -> assertThat(item.getAvailableDate(), is(firstAvailabilityDate)));
 	}
 
 	@Test

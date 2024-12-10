@@ -2,13 +2,14 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static java.util.Arrays.asList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.mockserver.model.Delay.delay;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.once;
 
 import java.util.List;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -21,6 +22,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.items.Location;
@@ -67,6 +69,10 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void itemsForBibId(String bibId, List<org.olf.dcb.core.interaction.sierra.SierraItem> items) {
+		itemsForBibId(bibId, items, 0);
+	}
+
+	public void itemsForBibId(String bibId, List<org.olf.dcb.core.interaction.sierra.SierraItem> items, int millisecondDelay) {
 		mockServer.clear(getItemsForBib(bibId));
 
 		mockServer.when(getItemsForBib(bibId))
@@ -77,7 +83,7 @@ public class SierraItemsAPIFixture {
 					.entries(items.stream()
 						.map(SierraItemsAPIFixture::mapItem)
 						.toList())
-					.build())));
+					.build()), delay(MILLISECONDS, millisecondDelay)));
 	}
 
 	public void zeroItemsResponseForBibId(String bibId) {
