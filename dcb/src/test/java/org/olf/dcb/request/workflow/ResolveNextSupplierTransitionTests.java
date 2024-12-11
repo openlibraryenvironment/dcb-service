@@ -16,6 +16,8 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
@@ -163,14 +165,15 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasNoResolutionCount()
 		));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 
 	@Test
-	void shouldProgressRequestToCancelledWhenLmsReResolutionIsNotSupported() {
+	void shouldCancelLocalBorrowingRequestWhenReResolutionIsNotSupported() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
@@ -189,7 +192,8 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasNoResolutionCount()
 		));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
@@ -223,7 +227,8 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasNoResolutionCount()
 		));
 
 		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
@@ -254,7 +259,8 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasNoResolutionCount()
 		));
 
 		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
@@ -365,7 +371,8 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(RESOLVED)
+			hasStatus(RESOLVED),
+			hasResolutionCount(2)
 		));
 
 		final var existingSupplierRequest = supplierRequestsFixture.exists(supplierRequest.getId());
@@ -383,7 +390,7 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void shouldResultInNoItemsSelectableAtAnyAgencyWhenReResolutionIsEnabled() {
+	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution() {
 		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
 		final var clusterRecordId = randomUUID();
@@ -421,7 +428,8 @@ class ResolveNextSupplierTransitionTests {
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasResolutionCount(2)
 		));
 
 		final var existingSupplierRequest = supplierRequestsFixture.exists(supplierRequest.getId());
@@ -439,7 +447,7 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void shouldResultInMultipleConsortiumExistsExceptionWhenMoreThanOneConsortium() {
+	void shouldFailWhenMoreThanOneConsortiumIsDefined() {
 		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
