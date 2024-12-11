@@ -1,5 +1,29 @@
 # Changelog
 
+## Version 8.5.0
+
+### Additions
+* [General]
+	* Extend availability date for checked out items based upon holds DCB-1739
+	* Add support for editing print labels [DCB-1237]
+
+### Changes
+* [Chore]
+	* Default hold count to zero when hold count is null DCB-1739
+	* Calculate availability date for checked out items without a due date differently DCB-1739
+	* Make availability date null for unavailable or unknown items DCB-1739
+	* Add default reason when creating contact [DCB-1697]
+* [Refactor]
+	* change selection filter to include items with holds [DCB-1738]
+* [Test]
+	* shouldSelectEarliestDueDateIrrespectiveOfGeographicProximity [DCB-1734]
+
+### Fixes
+* [General]
+	* Update non-public note for Polaris item during re-resolution DCB-1411
+	* Availability date for all available items should be the same
+	* Don't allow blank values in mappings import [DCB-1658]
+
 ## Version 8.4.0
 
 ### Additions
@@ -11,6 +35,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* DCB-1664 Extended the output for the import / ingest details api to include the checkpoint id
 	* DCB-1664 Added an interface that gives us details about the state of the import / ingest for the hosts
 	* Add a secured utility endpoint at /clusters/ID/exportMembers which provides a zipfile response containing JSON format bib records for all the members of the cluster. The intent is to create an easy method to easily exrtract stand-alone test record sets to test clustering scenarios
