@@ -23,7 +23,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -113,7 +112,6 @@ class ResolveNextSupplierTransitionTests {
 		final var borrowingHostLmsBaseUrl = "https://borrowing-host-lms.com";
 
 		hostLmsFixture.deleteAll();
-		consortiumFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, supplyingHostLmsBaseUrl)
 			.setValidCredentials(key, secret, token, 60);
@@ -138,6 +136,7 @@ class ResolveNextSupplierTransitionTests {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		agencyFixture.deleteAll();
+		consortiumFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 
 		borrowingAgency = agencyFixture.defineAgency("borrowing-agency",
@@ -145,9 +144,6 @@ class ResolveNextSupplierTransitionTests {
 		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
 	}
-
-	@AfterEach
-	void afterEach() { consortiumFixture.deleteAll(); }
 
 	@Test
 	void shouldProgressRequestWhenSupplierHasCancelled() {
@@ -500,8 +496,8 @@ class ResolveNextSupplierTransitionTests {
 		return patronRequest;
 	}
 
-	private PatronRequest defineReResolutionPatronRequest(PatronRequest.Status status,
-																						String localRequestId, UUID clusterRecordId) {
+	private PatronRequest defineReResolutionPatronRequest(
+		PatronRequest.Status status, String localRequestId, UUID clusterRecordId) {
 
 		final var patron = patronFixture.definePatron("365636", "home-library",
 			borrowingHostLms, borrowingAgency);
