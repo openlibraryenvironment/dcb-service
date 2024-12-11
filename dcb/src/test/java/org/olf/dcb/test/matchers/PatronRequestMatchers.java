@@ -3,8 +3,8 @@ package org.olf.dcb.test.matchers;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 
 import java.util.UUID;
 
@@ -21,8 +21,12 @@ public class PatronRequestMatchers {
 		return hasProperty("status", is(expectedStatus));
 	}
 
-	public static Matcher<PatronRequest> isFinalised() {
-		return hasStatus(FINALISED);
+	public static Matcher<PatronRequest> hasResolutionCount(Integer expectedCount) {
+		return hasProperty("resolutionCount", is(expectedCount));
+	}
+
+	public static Matcher<PatronRequest> hasNoResolutionCount() {
+		return hasProperty("resolutionCount", is(nullValue()));
 	}
 
 	public static Matcher<PatronRequest> hasErrorMessage(String expectedErrorMessage) {

@@ -12,7 +12,6 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
 
 public class SupplierRequestMatchers {
-
 	public static Matcher<SupplierRequest> hasLocalStatus(String expectedStatus) {
 		return hasProperty("localStatus", is(expectedStatus));
 	}
@@ -23,10 +22,6 @@ public class SupplierRequestMatchers {
 
 	public static Matcher<SupplierRequest> hasLocalItemBarcode(String expectedBarcode) {
 		return hasProperty("localItemBarcode", is(expectedBarcode));
-	}
-
-	public static Matcher<SupplierRequest> hasNoLocalItemBarcode() {
-		return hasProperty("localItemBarcode", is(nullValue()));
 	}
 
 	public static Matcher<SupplierRequest> hasLocalItemId(String expectedId) {
