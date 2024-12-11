@@ -10,7 +10,10 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -20,7 +23,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
@@ -29,12 +36,23 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.InactiveSupplierRequestsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
-import org.olf.dcb.test.ConsortiumFixture;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -88,26 +106,28 @@ class ResolveNextSupplierTransitionTests {
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
-		final String TOKEN = "test-token";
-		final String BASE_URL = "https://supplying-host-lms.com";
-		final String KEY = "key";
-		final String SECRET = "secret";
+		final var token = "test-token";
+		final var key = "key";
+		final var secret = "secret";
+		final var supplyingHostLmsBaseUrl = "https://supplying-host-lms.com";
+		final var borrowingHostLmsBaseUrl = "https://borrowing-host-lms.com";
 
 		hostLmsFixture.deleteAll();
 		consortiumFixture.deleteAll();
 
-		SierraTestUtils.mockFor(mockServerClient, "https://supplying-host-lms.com")
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
-		SierraTestUtils.mockFor(mockServerClient, "https://borrowing-host-lms.com")
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, supplyingHostLmsBaseUrl)
+			.setValidCredentials(key, secret, token, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		SierraTestUtils.mockFor(mockServerClient, borrowingHostLmsBaseUrl)
+			.setValidCredentials(key, secret, token, 60);
 
 		borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
-			KEY, SECRET, "https://borrowing-host-lms.com");
-		supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE,
-			KEY, SECRET, "https://supplying-host-lms.com");
+			key, secret, borrowingHostLmsBaseUrl);
 
+		supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE,
+			key, secret, supplyingHostLmsBaseUrl);
+
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
 
@@ -120,11 +140,12 @@ class ResolveNextSupplierTransitionTests {
 		agencyFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 
-		borrowingAgency = agencyFixture.defineAgency("borrowing-agency", "Borrowing Agency",
-			borrowingHostLms);
+		borrowingAgency = agencyFixture.defineAgency("borrowing-agency",
+			"Borrowing Agency", borrowingHostLms);
 		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
 	}
+
 	@AfterEach
 	void afterEach() { consortiumFixture.deleteAll(); }
 
