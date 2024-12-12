@@ -1,5 +1,6 @@
 package org.olf.dcb.request.resolution;
 
+import static java.util.Collections.emptyList;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_INVALID_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
@@ -293,20 +294,13 @@ public class PatronRequestResolutionService {
 	 * @return true if the item should be included in the resolution process, false otherwise
 	 */
 	private boolean excludeItemFromPreviouslyResolvedAgency(Item item, PatronRequest patronRequest) {
-
 		final var resolutionCount = patronRequest.getResolutionCount();
-		final var supplierRequests = getValueOrNull(patronRequest, PatronRequest::getSupplierRequests);
 
 		// If the resolution count is more than 1 the patron request is being re-resolved
-		if (resolutionCount > 1 && supplierRequests != null) {
+		if (resolutionCount > 1) {
 			log.debug("Resolution count was more than 1 for Patron Request {}", patronRequest.getId());
 
-			final var firstSupplierRequest = findFirstSupplierRequestOrNull(supplierRequests);
-
-			final var excludedAgencyCode = Optional.of(firstSupplierRequest)
-				.map(SupplierRequest::getResolvedAgency)
-				.map(DataAgency::getCode)
-				.orElse(null);
+			final var excludedAgencyCode = getSupplyingAgencyCode(patronRequest);
 
 			if (excludedAgencyCode != null) {
 				// Check if the item's agency code matches the excluded agency code
@@ -319,6 +313,18 @@ public class PatronRequestResolutionService {
 
 		// If none of the above conditions are met, include the item in the resolution process
 		return true;
+	}
+
+	private static String getSupplyingAgencyCode(PatronRequest patronRequest) {
+		final List<SupplierRequest> supplierRequests = getValue(patronRequest,
+			PatronRequest::getSupplierRequests, emptyList());
+
+		final var firstSupplierRequest = findFirstSupplierRequestOrNull(supplierRequests);
+
+		return Optional.of(firstSupplierRequest)
+			.map(SupplierRequest::getResolvedAgency)
+			.map(DataAgency::getCode)
+			.orElse(null);
 	}
 
 	boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
