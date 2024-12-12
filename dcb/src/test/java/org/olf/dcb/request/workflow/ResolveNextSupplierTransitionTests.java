@@ -63,8 +63,10 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class ResolveNextSupplierTransitionTests {
 	private static final String BORROWING_HOST_LMS_CODE = "next-supplier-borrowing-tests";
 	private static final String SUPPLYING_HOST_LMS_CODE = "next-supplier-tests";
+	private static final String PREVIOUSLY_SUPPLYING_HOST_LMS_CODE = "next-supplier-previous-tests";
 
 	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+	private static final String PREVIOUSLY_SUPPLYING_AGENCY_CODE = "previous-agency";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -105,6 +107,9 @@ class ResolveNextSupplierTransitionTests {
 	private DataHostLms supplyingHostLms;
 	private DataAgency supplyingAgency;
 
+	private DataHostLms previouslySupplyingHostLms;
+	private DataAgency previouslySupplyingAgency;
+
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final var token = "test-token";
@@ -127,6 +132,9 @@ class ResolveNextSupplierTransitionTests {
 		supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE,
 			key, secret, supplyingHostLmsBaseUrl);
 
+		previouslySupplyingHostLms = hostLmsFixture.createSierraHostLms(
+			PREVIOUSLY_SUPPLYING_HOST_LMS_CODE, "anything", "anything", "http://anywhere");
+
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
@@ -143,8 +151,12 @@ class ResolveNextSupplierTransitionTests {
 
 		borrowingAgency = agencyFixture.defineAgency("borrowing-agency",
 			"Borrowing Agency", borrowingHostLms);
+
 		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
+
+		previouslySupplyingAgency = agencyFixture.defineAgency(PREVIOUSLY_SUPPLYING_AGENCY_CODE,
+			"Previously Supplying Agency", previouslySupplyingHostLms);
 	}
 
 	@Test
@@ -334,17 +346,17 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void shouldReResolveSupplierForRequiredReResolutionEnabledRequests() {
+	void shouldSelectNewSupplierWhenAnItemFromDifferentSupplierIsSelectable() {
 		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
 		final var clusterRecordId = randomUUID();
 		final var sourceRecordId = "798472";
 		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
-		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
 		final var borrowingLocalRequestId = "3635625";
 		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
-		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode());
+		final var supplierRequest = saveSupplierRequest(patronRequest,
+			previouslySupplyingHostLms.getCode(), previouslySupplyingAgency);
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			SierraItem.builder()
@@ -360,10 +372,10 @@ class ResolveNextSupplierTransitionTests {
 				.build()));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			supplyingHostLms.code, "ab6",  supplyingAgency.getCode());
+			supplyingHostLms.getCode(), "ab6",  supplyingAgency.getCode());
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
-			supplyingHostLms.code, 999, 999, "BKM");
+			supplyingHostLms.getCode(), 999, 999, "BKM");
 
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
@@ -400,7 +412,8 @@ class ResolveNextSupplierTransitionTests {
 		final var borrowingLocalRequestId = "3635625";
 		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
-		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode());
+		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode(),
+			previouslySupplyingAgency);
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			SierraItem.builder()
@@ -548,7 +561,9 @@ class ResolveNextSupplierTransitionTests {
 			sourceRecordId, clusterRecord);
 	}
 
-	private SupplierRequest saveSupplierRequest(PatronRequest patronRequest, String hostLmsCode) {
+	private SupplierRequest saveSupplierRequest(PatronRequest patronRequest,
+		String hostLmsCode, DataAgency previousSupplyingAgency) {
+
 		return supplierRequestsFixture.saveSupplierRequest(
 			SupplierRequest
 				.builder()
@@ -561,6 +576,7 @@ class ResolveNextSupplierTransitionTests {
 				.hostLmsCode(hostLmsCode)
 				.isActive(true)
 				.localItemLocationCode("supplying-location")
+				.resolvedAgency(previousSupplyingAgency)
 				.build());
 	}
 }
