@@ -1,6 +1,5 @@
 package org.olf.dcb.request.resolution;
 
-import static java.util.Collections.emptyList;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_INVALID_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
@@ -10,7 +9,6 @@ import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_IT
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
 import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
-import static org.olf.dcb.request.resolution.SupplierRequestService.findFirstSupplierRequestOrNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
@@ -30,7 +28,6 @@ import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.zalando.problem.Problem;
@@ -251,7 +248,8 @@ public class PatronRequestResolutionService {
 
 		return Flux.fromIterable(allItems)
 			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
-			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, patronRequest))
+			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, patronRequest,
+				patronRequest.determineSupplyingAgencyCode()))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, patronRequest))
@@ -291,16 +289,17 @@ public class PatronRequestResolutionService {
 	 *
 	 * @param item the item to check
 	 * @param patronRequest the patron request including the first supplier request and supplier's resolved agency
+	 * @param excludedAgencyCode code of the agency to exclude items from
 	 * @return true if the item should be included in the resolution process, false otherwise
 	 */
-	private boolean excludeItemFromPreviouslyResolvedAgency(Item item, PatronRequest patronRequest) {
+	private boolean excludeItemFromPreviouslyResolvedAgency(Item item, PatronRequest patronRequest,
+		String excludedAgencyCode) {
+
 		final var resolutionCount = patronRequest.getResolutionCount();
 
 		// If the resolution count is more than 1 the patron request is being re-resolved
 		if (resolutionCount > 1) {
 			log.debug("Resolution count was more than 1 for Patron Request {}", patronRequest.getId());
-
-			final var excludedAgencyCode = getSupplyingAgencyCode(patronRequest);
 
 			if (excludedAgencyCode != null) {
 				// Check if the item's agency code matches the excluded agency code
@@ -313,18 +312,6 @@ public class PatronRequestResolutionService {
 
 		// If none of the above conditions are met, include the item in the resolution process
 		return true;
-	}
-
-	private static String getSupplyingAgencyCode(PatronRequest patronRequest) {
-		final List<SupplierRequest> supplierRequests = getValue(patronRequest,
-			PatronRequest::getSupplierRequests, emptyList());
-
-		final var firstSupplierRequest = findFirstSupplierRequestOrNull(supplierRequests);
-
-		return Optional.of(firstSupplierRequest)
-			.map(SupplierRequest::getResolvedAgency)
-			.map(DataAgency::getCode)
-			.orElse(null);
 	}
 
 	boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {

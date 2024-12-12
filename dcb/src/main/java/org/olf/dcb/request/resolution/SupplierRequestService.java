@@ -1,10 +1,18 @@
 package org.olf.dcb.request.resolution;
 
+import static java.util.UUID.randomUUID;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.InactiveSupplierRequest;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.storage.InactiveSupplierRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
@@ -14,10 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
-
-import static java.util.UUID.randomUUID;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 
 @Slf4j
 @Singleton
@@ -69,12 +73,6 @@ public class SupplierRequestService {
 
 			// There may be no supplier request yet for this patron request
 			// .switchIfEmpty(Mono.error(() -> new RuntimeException("No SupplierRequests found for PatronRequest")));
-	}
-
-	public static SupplierRequest findFirstSupplierRequestOrNull(List<SupplierRequest> supplierRequests) {
-		return supplierRequests.stream()
-			.findFirst()
-			.orElse(null);
 	}
 
 	public Mono<? extends SupplierRequest> saveSupplierRequest(SupplierRequest supplierRequest) {

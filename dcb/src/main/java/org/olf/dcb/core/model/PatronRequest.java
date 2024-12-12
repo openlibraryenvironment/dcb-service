@@ -1,10 +1,13 @@
 package org.olf.dcb.core.model;
 
+import static java.util.Collections.emptyList;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.EnumMap;
@@ -26,6 +29,7 @@ import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
+import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
@@ -53,7 +57,6 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Accessors(chain = true)
 @ToString(onlyExplicitlyIncluded = true)
 public class PatronRequest {
-
 	@Serdeable
 	public enum Status {
 		SUBMITTED_TO_DCB,
@@ -80,9 +83,10 @@ public class PatronRequest {
 		COMPLETED, // Everything is finished, regardless and ready to be finalised
 		FINALISED, // We've cleaned up everything and this is the end of the line
 		ERROR;
-		private static final EnumMap<Status, Status> path = new EnumMap<>(Status.class);
 
+		private static final EnumMap<Status, Status> path = new EnumMap<>(Status.class);
 		// expected path via https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2870575137/Tracking+v3+matrix
+
 		static {
 			path.put(SUBMITTED_TO_DCB, PATRON_VERIFIED);
 			path.put(PATRON_VERIFIED, RESOLVED);
@@ -396,6 +400,18 @@ public class PatronRequest {
 	@Nullable
 	private Integer resolutionCount;
 
+	@Transient
+	@Nullable
+	public String determineSupplyingAgencyCode() {
+		final List<SupplierRequest> supplierRequests = getValue(getSupplierRequests(), emptyList());
+
+		return supplierRequests.stream()
+			.findFirst()
+			.map(SupplierRequest::getResolvedAgency)
+			.map(agency -> getValueOrNull(agency, DataAgency::getCode))
+			.orElse(null);
+	}
+
 	public PatronRequest resolve() {
 		return setStatus(RESOLVED);
 	}
@@ -422,7 +438,6 @@ public class PatronRequest {
 	public boolean getIsManuallySelectedItem() {
 		return this.isManuallySelectedItem != null && this.isManuallySelectedItem;
 	}
-
 
 	public PatronRequest placedAtBorrowingAgency(LocalRequest localRequest) {
 		return setLocalRequestId(localRequest.getLocalId())
