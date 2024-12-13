@@ -414,6 +414,53 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
+	void shouldExcludeItemsFromSameAgencyAsPreviouslySupplied() {
+		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
+
+		final var clusterRecordId = randomUUID();
+		final var sourceRecordId = "236455";
+		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+		final var borrowingLocalRequestId = "9873653";
+
+		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+			borrowingLocalRequestId, clusterRecordId);
+
+		saveSupplierRequest(patronRequest, supplyingHostLms.getCode(), previouslySupplyingAgency);
+
+		final var itemLocationCode = "same-as-previous-supplier";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id("2015843")
+				.barcode("26553255")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode(itemLocationCode)
+				.locationName("Same agency as previous supplier")
+				.suppressed(false)
+				.deleted(false)
+				.build()));
+
+		// This is a little artificial as the item comes from a different Host LMS
+		// but the location refers to the previous supplying agency
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			supplyingHostLms.getCode(), itemLocationCode, previouslySupplyingAgency.getCode());
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			previouslySupplyingHostLms.getCode(), 999, 999, "BKM");
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasResolutionCount(2)
+		));
+	}
+
+	@Test
 	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution() {
 		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
