@@ -19,6 +19,8 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescr
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
+import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.time.Instant;
@@ -347,21 +349,26 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldSelectNewSupplierWhenAnItemFromDifferentSupplierIsSelectable() {
-		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
+		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
 		final var clusterRecordId = randomUUID();
 		final var sourceRecordId = "798472";
 		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+
 		final var borrowingLocalRequestId = "3635625";
 		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
+
 		final var supplierRequest = saveSupplierRequest(patronRequest,
 			previouslySupplyingHostLms.getCode(), previouslySupplyingAgency);
 
+		final var newItemId = "1000002";
+		final var newItemBarcode = "6565750674";
+
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			SierraItem.builder()
-				.id("1000002")
-				.barcode("6565750674")
+				.id(newItemId)
+				.barcode(newItemBarcode)
 				.callNumber("BL221 .C48")
 				.statusCode("-")
 				.itemType("999")
@@ -387,11 +394,16 @@ class ResolveNextSupplierTransitionTests {
 			hasResolutionCount(2)
 		));
 
-		final var existingSupplierRequest = supplierRequestsFixture.exists(supplierRequest.getId());
+		final var newSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
-		assertThat(savedConsortium, notNullValue());
-		assertThat(existingSupplierRequest, notNullValue());
-		assertThat("Previous supplier request should not exist", existingSupplierRequest, is(false));
+		assertThat("New supplier request should have been created", newSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalItemId(newItemId),
+			hasLocalItemBarcode(newItemBarcode)
+		));
+
+		assertThat("Previous supplier request should no longer exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(false));
 
 		final var listOfInactiveSupplierRequests = inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest);
 		final var oneInactiveSupplierRequest = listOfInactiveSupplierRequests.get(0);
