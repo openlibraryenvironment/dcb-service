@@ -91,7 +91,7 @@ public class PatronRequestResolutionService {
 		final var resolutionSteps = patronRequest.getIsManuallySelectedItem()
 			? manualResolutionSteps()
 			: specifiedResolutionSteps();
-		
+
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
 			.map(resolution -> resolution.excludeAgency(excludedAgencyCode))
 			.flatMap(initialResolution -> executeSteps(initialResolution, resolutionSteps))
@@ -234,7 +234,8 @@ public class PatronRequestResolutionService {
 		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
 		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
 		final var optionalHomeIdentity = getValueOrNull(patron, Patron::getHomeIdentity);
-		
+		final var excludedAgencyCode = getValueOrNull(resolution, Resolution::getExcludedAgencyCode);
+
 		if (optionalHomeIdentity.isEmpty()) {
 			throw new NoHomeIdentityException(getValueOrNull(patron, Patron::getId),
 				getValueOrNull(patron, Patron::getPatronIdentities));
@@ -254,8 +255,8 @@ public class PatronRequestResolutionService {
 
 		return Flux.fromIterable(allItems)
 			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
-			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, patronRequest,
-				patronRequest.determineSupplyingAgencyCode()))
+			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item,
+				patronRequest, excludedAgencyCode))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, patronRequest))
