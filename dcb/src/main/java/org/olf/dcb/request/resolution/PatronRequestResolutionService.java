@@ -255,8 +255,7 @@ public class PatronRequestResolutionService {
 
 		return Flux.fromIterable(allItems)
 			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
-			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item,
-				patronRequest, excludedAgencyCode))
+			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, excludedAgencyCode))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, patronRequest))
@@ -295,30 +294,19 @@ public class PatronRequestResolutionService {
 	 * If the item's agency code matches, it is excluded from the resolution process.
 	 *
 	 * @param item the item to check
-	 * @param patronRequest the patron request including the first supplier request and supplier's resolved agency
 	 * @param excludedAgencyCode code of the agency to exclude items from
 	 * @return true if the item should be included in the resolution process, false otherwise
 	 */
-	private boolean excludeItemFromPreviouslyResolvedAgency(Item item, PatronRequest patronRequest,
-		String excludedAgencyCode) {
-
-		final var resolutionCount = patronRequest.getResolutionCount();
-
-		// If the resolution count is more than 1 the patron request is being re-resolved
-		if (resolutionCount > 1) {
-			log.debug("Resolution count was more than 1 for Patron Request {}", patronRequest.getId());
-
-			if (excludedAgencyCode != null) {
-				// Check if the item's agency code matches the excluded agency code
-				return Optional.ofNullable(item) // if the item is present
-					.map(Item::getAgencyCode) // and the item has an agency code
-					.filter(itemAgencyCode -> itemAgencyCode.equals(excludedAgencyCode)) // and the agency code is the same
-					.isEmpty(); // our conditions didn't match so include the item
-			}
+	private boolean excludeItemFromPreviouslyResolvedAgency(Item item, String excludedAgencyCode) {
+		if (excludedAgencyCode == null) {
+			return true;
 		}
 
-		// If none of the above conditions are met, include the item in the resolution process
-		return true;
+		// Check if the item's agency code matches the excluded agency code
+		return Optional.ofNullable(item) // if the item is present
+			.map(Item::getAgencyCode) // and the item has an agency code
+			.filter(itemAgencyCode -> itemAgencyCode.equals(excludedAgencyCode)) // and the agency code is the same
+			.isEmpty(); // our conditions didn't match so include the item
 	}
 
 	boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
