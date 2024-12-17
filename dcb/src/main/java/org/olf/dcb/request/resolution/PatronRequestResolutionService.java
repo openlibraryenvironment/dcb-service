@@ -73,10 +73,16 @@ public class PatronRequestResolutionService {
 	public Mono<Resolution> retryResolvePatronRequest(PatronRequest patronRequest) {
 		log.info("Re-resolving Patron Request {}", patronRequest.getId());
 
-		return resolvePatronRequest(patronRequest);
+		return resolvePatronRequest(patronRequest, patronRequest.determineSupplyingAgencyCode());
 	}
 
 	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
+		return resolvePatronRequest(patronRequest, null);
+	}
+
+	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest,
+		@Nullable String excludedAgencyCode) {
+
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
 
@@ -85,10 +91,9 @@ public class PatronRequestResolutionService {
 		final var resolutionSteps = patronRequest.getIsManuallySelectedItem()
 			? manualResolutionSteps()
 			: specifiedResolutionSteps();
-
-		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
+		
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
-			.map(resolution -> resolution.excludeAgency(patronRequest.determineSupplyingAgencyCode()))
+			.map(resolution -> resolution.excludeAgency(excludedAgencyCode))
 			.flatMap(initialResolution -> executeSteps(initialResolution, resolutionSteps))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))

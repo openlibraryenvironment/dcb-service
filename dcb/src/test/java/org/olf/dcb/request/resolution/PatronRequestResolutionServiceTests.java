@@ -508,18 +508,9 @@ class PatronRequestResolutionServiceTests {
 			.resolutionCount(1)
 			.build();
 
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		var supplierRequest = SupplierRequest
-			.builder()
-			.id(randomUUID())
-			.resolvedAgency(agencyFixture.findByCode(SUPPLYING_AGENCY_CODE))
-			.build();
-
-		patronRequest.setSupplierRequests(List.of(supplierRequest));
-
 		// Act
-		final var resolution = resolve(patronRequest);
+		final var resolution = singleValueFrom(
+			patronRequestResolutionService.resolvePatronRequest(patronRequest, SUPPLYING_AGENCY_CODE));
 
 		// Assert
 		assertThat(resolution, allOf(
