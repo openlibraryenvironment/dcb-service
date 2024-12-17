@@ -3,7 +3,8 @@ package org.olf.dcb.request.workflow;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -13,12 +14,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
-import io.micronaut.context.BeanProvider;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.FunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSettingType;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -28,6 +33,7 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
+import io.micronaut.context.BeanProvider;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -141,7 +147,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		supplierRequestService = supplierRequestServiceProvider.get();
 
 		return checkAndIncludeCurrentSupplierRequestsFor(patronRequest)
-			.flatMap(patronRequestResolutionService::retryResolvePatronRequest)
+			.flatMap(this::resolve)
 			.flatMap(resolution -> transitionSupplierRequest(resolution, context))
 			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()))
@@ -150,6 +156,17 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.flatMap(this::saveSupplierRequest)
 			.flatMap(this::updatePatronRequest)
 			.thenReturn(context);
+	}
+
+	private Mono<Resolution> resolve(PatronRequest patronRequest) {
+		log.info("Re-resolving Patron Request {}", getValue(patronRequest,
+			PatronRequest::getId, "Unknown"));
+
+		final var excludedAgencyCode = getValue(patronRequest,
+			PatronRequest::determineSupplyingAgencyCode, null);
+
+		return patronRequestResolutionService.resolvePatronRequest(patronRequest,
+			excludedAgencyCode);
 	}
 
 	/**

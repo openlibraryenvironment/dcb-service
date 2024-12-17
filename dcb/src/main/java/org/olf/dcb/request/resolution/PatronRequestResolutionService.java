@@ -70,12 +70,6 @@ public class PatronRequestResolutionService {
 		}
 	}
 
-	public Mono<Resolution> retryResolvePatronRequest(PatronRequest patronRequest) {
-		log.info("Re-resolving Patron Request {}", patronRequest.getId());
-
-		return resolvePatronRequest(patronRequest, patronRequest.determineSupplyingAgencyCode());
-	}
-
 	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
 		return resolvePatronRequest(patronRequest, null);
 	}
