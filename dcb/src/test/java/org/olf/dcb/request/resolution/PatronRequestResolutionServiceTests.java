@@ -122,6 +122,7 @@ class PatronRequestResolutionServiceTests {
 		bibRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
+		consortiumFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
@@ -140,9 +141,6 @@ class PatronRequestResolutionServiceTests {
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
 	}
-
-	@AfterEach
-	void afterEach() { consortiumFixture.deleteAll(); }
 
 	@Test
 	void shouldChooseFirstAvailableItem() {
