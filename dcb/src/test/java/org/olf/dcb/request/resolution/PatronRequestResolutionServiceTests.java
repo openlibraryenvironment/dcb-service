@@ -212,8 +212,7 @@ class PatronRequestResolutionServiceTests {
 					hasLocalId(onlyAvailableItemId),
 					hasBarcode(onlyAvailableItemBarcode)
 				)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -271,8 +270,7 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -314,8 +312,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -363,8 +360,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -414,8 +410,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -469,8 +464,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -505,7 +499,6 @@ class PatronRequestResolutionServiceTests {
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
-			.resolutionCount(1)
 			.build();
 
 		// Act
@@ -515,8 +508,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(2)
+			hasNoChosenItem()
 		));
 	}
 
@@ -664,8 +656,7 @@ class PatronRequestResolutionServiceTests {
 					hasLocalId(thirdAvailableItemId),
 					hasBarcode(thirdAvailableItemBarcode)
 				)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -723,8 +714,7 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -782,8 +772,7 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -825,8 +814,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -1219,10 +1207,5 @@ class PatronRequestResolutionServiceTests {
 
 	private static Matcher<Resolution> hasFilteredItemsSize(int size) {
 		return hasProperty("filteredItems", hasSize(size));
-	}
-
-	private static Matcher<Resolution> hasResolutionCount(Integer expectedResolutionCount) {
-		return hasProperty("patronRequest",
-			hasProperty("resolutionCount", is(expectedResolutionCount)));
 	}
 }

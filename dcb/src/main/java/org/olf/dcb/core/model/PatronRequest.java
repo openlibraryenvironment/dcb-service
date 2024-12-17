@@ -413,7 +413,8 @@ public class PatronRequest {
 	}
 
 	public PatronRequest resolve() {
-		return setStatus(RESOLVED);
+		return setStatus(RESOLVED)
+			.setResolutionCount(getValue(resolutionCount, 0) + 1);
 	}
 
 	public PatronRequest resolveToNoItemsSelectable() {
@@ -473,15 +474,6 @@ public class PatronRequest {
 			pollCountForCurrentStatus = 1;
 		} else {
 			pollCountForCurrentStatus++;
-		}
-	}
-
-	public void incrementResolutionCount() {
-		if (this.resolutionCount == null) {
-			this.resolutionCount = 1;
-		}
-		else {
-			this.resolutionCount++;
 		}
 	}
 }

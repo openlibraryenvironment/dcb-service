@@ -86,8 +86,6 @@ public class PatronRequestResolutionService {
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
 
-		patronRequest.incrementResolutionCount();
-
 		final var resolutionSteps = patronRequest.getIsManuallySelectedItem()
 			? manualResolutionSteps()
 			: specifiedResolutionSteps();

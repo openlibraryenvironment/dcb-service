@@ -289,7 +289,7 @@ class PatronRequestResolutionTests {
 
 		assertThat(fetchedPatronRequest, allOf(
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
-			hasResolutionCount(1)
+			hasNoResolutionCount()
 		));
 
 		assertThat("Should not find any supplier requests",
@@ -347,7 +347,7 @@ class PatronRequestResolutionTests {
 
 		assertThat(fetchedPatronRequest, allOf(
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
-			hasResolutionCount(1)
+			hasNoResolutionCount()
 		));
 
 		assertThat("Should not find any supplier requests",
@@ -387,7 +387,7 @@ class PatronRequestResolutionTests {
 
 		assertThat(fetchedPatronRequest, allOf(
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
-			hasResolutionCount(1)
+			hasNoResolutionCount()
 		));
 
 		assertThat("Should not find any supplier requests",

@@ -162,31 +162,6 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void shouldProgressRequestWhenSupplierHasCancelled() {
-		// Arrange
-		final var borrowingLocalRequestId = "3635625";
-
-		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
-			borrowingLocalRequestId);
-
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
-
-		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
-
-		// Act
-		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
-
-		// Assert
-		assertThat(updatedPatronRequest, allOf(
-			notNullValue(),
-			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
-			hasNoResolutionCount()
-		));
-
-		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
-	}
-
-	@Test
 	void shouldCancelLocalBorrowingRequestWhenReResolutionIsNotSupported() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
@@ -456,7 +431,7 @@ class ResolveNextSupplierTransitionTests {
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
-			hasResolutionCount(2)
+			hasResolutionCount(1)
 		));
 	}
 
@@ -501,7 +476,7 @@ class ResolveNextSupplierTransitionTests {
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
-			hasResolutionCount(2)
+			hasResolutionCount(1)
 		));
 
 		final var existingSupplierRequest = supplierRequestsFixture.exists(supplierRequest.getId());
