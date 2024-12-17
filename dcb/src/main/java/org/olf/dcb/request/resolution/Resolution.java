@@ -33,6 +33,13 @@ public class Resolution {
 		return getValueOrNull(patronRequest, PatronRequest::getBibClusterId);
 	}
 
+	public Resolution excludeAgency(String agencyCode) {
+		return builder()
+			.patronRequest(patronRequest)
+			.excludedAgencyCode(agencyCode)
+			.build();
+	}
+
 	public Resolution trackAllItems(List<Item> allItems) {
 		return builder()
 			.patronRequest(patronRequest)

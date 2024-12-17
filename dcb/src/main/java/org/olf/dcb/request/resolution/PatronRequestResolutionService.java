@@ -88,6 +88,7 @@ public class PatronRequestResolutionService {
 
 		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
+			.map(resolution -> resolution.excludeAgency(patronRequest.determineSupplyingAgencyCode()))
 			.flatMap(initialResolution -> executeSteps(initialResolution, resolutionSteps))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
