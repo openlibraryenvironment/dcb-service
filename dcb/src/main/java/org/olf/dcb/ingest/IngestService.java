@@ -89,7 +89,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 		final var me = this;
 
 		return () -> {
-			log.info("Removing mutex");
+			log.info("cleanUp emoving mutex");
 			me.lastRun = i;
 			me.mutex = null;
 
@@ -97,8 +97,12 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 
 			// Terminate empty...
 			if (terminationReason != null) {
+				log.info("Issue terminationReason.success()");
 				terminationReason.success();
 				terminationReason = null;
+			}
+			else {
+				log.warn("Bypass termination reason");
 			}
 		};
 	}
