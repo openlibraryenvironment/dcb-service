@@ -1,5 +1,19 @@
 # Changelog
 
+## Version 8.6.0
+
+### Additions
+* [General]
+	* Respect consortia setting for allowing same library borrowing DCB-1560
+	* Only increment resolution count upon successful resolution DCB-1411
+
+### Changes
+* [Chore]
+	* Add functional setting type for OWN_LIBRARY_BORROWING [DCB-1560]
+	* Fixed the bug where we had a jsonb field and it errored out
+	* Additional logging in ingest service
+	* add specific INFO logging level for org.olf.dcb.ingest
+
 ## Version 8.5.0
 
 ### Additions
@@ -9,6 +23,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Default hold count to zero when hold count is null DCB-1739
 	* Calculate availability date for checked out items without a due date differently DCB-1739
 	* Make availability date null for unavailable or unknown items DCB-1739
