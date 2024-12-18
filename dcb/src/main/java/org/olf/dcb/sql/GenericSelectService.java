@@ -104,7 +104,7 @@ public class GenericSelectService {
 		                        HashMap<String, Object> record = new HashMap<String, Object>();
 		                        records.add(record);
 		                        for (String columnName : columnNames) {
-		                        	record.put(columnName, resultSet.getObject(columnName));
+		                        	record.put(columnName, resultSet.getString(columnName));
 		                        }
 		                    }
 		                    
