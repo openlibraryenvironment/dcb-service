@@ -246,7 +246,7 @@ public class PatronRequestResolutionService {
 		final var allItems = resolution.getAllItems();
 
 		return Flux.fromIterable(allItems)
-			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
+			.filterWhen(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
 			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, excludedAgencyCode))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
@@ -301,10 +301,9 @@ public class PatronRequestResolutionService {
 			.isEmpty(); // our conditions didn't match so include the item
 	}
 
-	boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
-		final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
-
-		return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+	Mono<Boolean> excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
+		return Mono.justOrEmpty(getValueOrNull(item, Item::getAgencyCode))
+			.map(itemAgencyCode -> itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode));
 	}
 
 	/**
