@@ -98,7 +98,6 @@ class PatronRequestResolutionServiceTests {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
-		consortiumFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
 			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
