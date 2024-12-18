@@ -5,6 +5,7 @@ import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
@@ -298,8 +299,16 @@ public class PatronRequestResolutionService {
 	}
 
 	Mono<Boolean> excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
-		return Mono.justOrEmpty(getValueOrNull(item, Item::getAgencyCode))
-			.map(itemAgencyCode -> itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode));
+		return consortiumService.isEnabled(OWN_LIBRARY_BORROWING)
+			.map(enabled -> {
+				if (enabled) {
+					return true;
+				}
+
+				final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
+
+				return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+			});
 	}
 
 	/**
