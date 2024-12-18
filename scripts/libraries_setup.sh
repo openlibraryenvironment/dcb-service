@@ -48,7 +48,8 @@ echo "Enter functional settings (comma-separated, no spaces). Available types:"
 echo "- RE_RESOLUTION"
 echo "- PICKUP_ANYWHERE"
 echo "- SELECT_UNAVAILABLE_ITEMS"
-FUNCTIONAL_SETTINGS=$(prompt_with_default "Functional settings" "RE_RESOLUTION:false,SELECT_UNAVAILABLE_ITEMS:false")
+echo "- OWN_LIBRARY_BORROWING"
+FUNCTIONAL_SETTINGS=$(prompt_with_default "Functional settings" "RE_RESOLUTION:false,SELECT_UNAVAILABLE_ITEMS:false,OWN_LIBRARY_BORROWING:false")
 
 echo "Logging in"
 source ~/.dcb.sh
