@@ -23,6 +23,7 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.FunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.Patron;
@@ -265,10 +266,7 @@ public class PatronRequestResolutionService {
 	 * @return true if the item should be included, false otherwise
 	 */
 	private Mono<Boolean> includeItemWithHolds(Item item) {
-
-		return consortiumService.findOneConsortiumFunctionalSetting(SELECT_UNAVAILABLE_ITEMS)
-			.filter(FunctionalSetting::isEnabled)
-			.hasElement()
+		return isEnabled(SELECT_UNAVAILABLE_ITEMS)
 			.map(enabled -> {
 				final boolean includeItem = enabled || item.hasNoHolds();
 
@@ -398,5 +396,11 @@ public class PatronRequestResolutionService {
 			// canonicalItemType looks ok, continue
 			default -> resolution;
 		};
+	}
+
+	private Mono<Boolean> isEnabled(FunctionalSettingType settingType) {
+		return consortiumService.findOneConsortiumFunctionalSetting(settingType)
+			.filter(FunctionalSetting::isEnabled)
+			.hasElement();
 	}
 }
