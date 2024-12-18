@@ -63,7 +63,8 @@ input AddLibraryToGroupCommand {
 }
 
 enum FunctionalSettingType {
-	PICKUP_ANYWHERE
+	OWN_LIBRARY_BORROWING
+  PICKUP_ANYWHERE
 	RE_RESOLUTION
 	SELECT_UNAVAILABLE_ITEMS
 }
