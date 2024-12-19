@@ -145,7 +145,7 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 			while ((currentKey = root.decodeKey()) != null) {
 				switch (currentKey) {
 					case KEY_LEADER -> {
-						Optional.ofNullable(root.decodeString())
+						Optional.ofNullable(root.decodeStringNullable())
 							.filter(StringUtils::isNotEmpty)
 							.map(factory::newLeader)
 							.ifPresent(record::setLeader);
@@ -185,10 +185,10 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 			while ((currentKey = controlField.decodeKey()) != null) {
 				switch (currentKey) {
 					case KEY_TAG -> {
-						tag = controlField.decodeString();
+						tag = controlField.decodeStringNullable();
 					}
 					case KEY_VALUE_INDICATOR -> {
-						data = controlField.decodeString();
+						data = controlField.decodeStringNullable();
 					}
 					
 					default -> {
@@ -218,12 +218,16 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 					}
 				
 					case KEY_INDICATOR_1 -> {
-						final String value = dataField.decodeString();
-						df.setIndicator1(value.length() >= 1 ? value.charAt(0) : ' ');
+						final String value = dataField.decodeStringNullable();
+						if ( value != null ) {
+							df.setIndicator1(value.length() >= 1 ? value.charAt(0) : ' ');
+						}
 					}
 					case KEY_INDICATOR_2 -> {
-						final String value = dataField.decodeString();
-						df.setIndicator2(value.length() >= 1 ? value.charAt(0) : ' ');
+						final String value = dataField.decodeStringNullable();
+						if ( value != null ) {
+							df.setIndicator2(value.length() >= 1 ? value.charAt(0) : ' ');
+						}
 					}
 					
 					case KEY_SUBFIELD -> {
@@ -233,12 +237,14 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 							while ((currentKey = subfield.decodeKey()) != null) {
 								switch (currentKey) {
 									case KEY_CODE -> {
-										final String value = subfield.decodeString();
-										sf.setCode( value.length() >= 1 ? value.charAt(0) : ' ');
+										final String value = subfield.decodeStringNullable();
+										if ( value != null ) {
+											sf.setCode( value.length() >= 1 ? value.charAt(0) : ' ');
+										}	
 									}
 								
 									case KEY_VALUE_INDICATOR -> {
-										sf.setData(subfield.decodeString());
+										sf.setData(subfield.decodeStringNullable());
 									}
 									default -> {
 										subfield.skipValue();
@@ -270,9 +276,10 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 					String currentKey;
 					while ((currentKey = field.decodeKey()) != null) {
 						if ( REGEX_CTRLFIELD.matcher(currentKey).matches() ) {
-							record.addVariableField(
-								factory.newControlField(currentKey, field.decodeString()));
-
+							String value = field.decodeStringNullable();
+							if ( value != null ) {
+								record.addVariableField( factory.newControlField(currentKey, value));
+							}
 						} else if ( REGEX_DATAFIELD.matcher(currentKey).matches() ) {
 							// Data field is object.
 							final DataField df = factory.newDataField();
@@ -282,12 +289,14 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 								while ((currentKey = fieldData.decodeKey()) != null) {
 									switch (currentKey) {
 										case KEY_INDICATOR_1 -> {
-											final String value = fieldData.decodeString();
-											df.setIndicator1(value.length() >= 1 ? value.charAt(0) : ' ');
+											final String value = fieldData.decodeStringNullable();
+											if ( value != null )
+												df.setIndicator1(value.length() >= 1 ? value.charAt(0) : ' ');
 										}
 										case KEY_INDICATOR_2 -> {
-											final String value = fieldData.decodeString();
-											df.setIndicator2(value.length() >= 1 ? value.charAt(0) : ' ');
+											final String value = fieldData.decodeStringNullable();
+											if ( value != null ) 
+												df.setIndicator2(value.length() >= 1 ? value.charAt(0) : ' ');
 										}
 										case KEY_SUBFIELDS -> {
 											// Decode the subfields.
@@ -300,7 +309,7 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 														// Create a subfield per entry
 														while ((currentKey = subfield.decodeKey()) != null) {
 
-                              String value = subfield.decodeString();
+                              String value = subfield.decodeStringNullable();
 
 															if ( ( REGEX_SUBFIELD.matcher(currentKey).matches() ) && ( value != null ) ) {
 																df.addSubfield(
