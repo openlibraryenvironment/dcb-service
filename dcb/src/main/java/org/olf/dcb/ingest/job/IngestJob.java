@@ -202,6 +202,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 				.subscribeOn( Schedulers.boundedElastic() )
 				.mapNotNull( converter -> converter.convertSourceToIngestRecord(sourceRecord));
 		} catch (Exception e) {
+			log.error("Exception converting source record with ID "+sourceRecord.getId(), e);
 			return Mono.error(e);
 		}
 	}
