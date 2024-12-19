@@ -9,6 +9,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
@@ -98,7 +99,6 @@ class PatronRequestResolutionServiceTests {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
-		consortiumFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
 			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
@@ -122,6 +122,7 @@ class PatronRequestResolutionServiceTests {
 		bibRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
+		consortiumFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
@@ -140,9 +141,6 @@ class PatronRequestResolutionServiceTests {
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
 	}
-
-	@AfterEach
-	void afterEach() { consortiumFixture.deleteAll(); }
 
 	@Test
 	void shouldChooseFirstAvailableItem() {
@@ -212,8 +210,7 @@ class PatronRequestResolutionServiceTests {
 					hasLocalId(onlyAvailableItemId),
 					hasBarcode(onlyAvailableItemBarcode)
 				)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -271,8 +268,7 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -314,8 +310,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -363,14 +358,15 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
 	@Test
-	void shouldExcludeItemFromSameAgencyAsBorrower() {
+	void shouldExcludeItemFromSameAgencyAsBorrowerWhenSettingIsDisabledForConsortia() {
 		// Arrange
+		consortiumFixture.createConsortiumWithFunctionalSetting(OWN_LIBRARY_BORROWING, false);
+
 		final var bibRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
@@ -404,6 +400,7 @@ class PatronRequestResolutionServiceTests {
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -414,8 +411,63 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
+		));
+	}
+
+	@Test
+	void shouldIncludeItemFromSameAgencyAsBorrowerWhenSettingIsEnabledForConsortia() {
+		// Arrange
+		consortiumFixture.createConsortiumWithFunctionalSetting(OWN_LIBRARY_BORROWING, true);
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "4526453";
+
+		bibRecordFixture.createBibRecord(bibRecordId,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE).getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "254635";
+		final var onlyAvailableItemBarcode = "174295773";
+		final var itemLocationCode = "borrowing-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				itemLocationCode)
+		));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
+			itemLocationCode, BORROWING_AGENCY_CODE);
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("254255", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasLocalId(onlyAvailableItemId),
+				hasBarcode(onlyAvailableItemBarcode)
+			)
 		));
 	}
 
@@ -469,8 +521,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -505,27 +556,16 @@ class PatronRequestResolutionServiceTests {
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
 			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
-			.resolutionCount(1)
 			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		var supplierRequest = SupplierRequest
-			.builder()
-			.id(randomUUID())
-			.resolvedAgency(agencyFixture.findByCode(SUPPLYING_AGENCY_CODE))
-			.build();
-
-		patronRequest.setSupplierRequests(List.of(supplierRequest));
 
 		// Act
-		final var resolution = resolve(patronRequest);
+		final var resolution = singleValueFrom(
+			patronRequestResolutionService.resolvePatronRequest(patronRequest, SUPPLYING_AGENCY_CODE));
 
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(2)
+			hasNoChosenItem()
 		));
 	}
 
@@ -673,8 +713,7 @@ class PatronRequestResolutionServiceTests {
 					hasLocalId(thirdAvailableItemId),
 					hasBarcode(thirdAvailableItemBarcode)
 				)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -732,8 +771,7 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -791,8 +829,7 @@ class PatronRequestResolutionServiceTests {
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			),
-			hasResolutionCount(1)
+			)
 		));
 	}
 
@@ -834,8 +871,7 @@ class PatronRequestResolutionServiceTests {
 		// Assert
 		assertThat(resolution, allOf(
 			notNullValue(),
-			hasNoChosenItem(),
-			hasResolutionCount(1)
+			hasNoChosenItem()
 		));
 	}
 
@@ -1228,10 +1264,5 @@ class PatronRequestResolutionServiceTests {
 
 	private static Matcher<Resolution> hasFilteredItemsSize(int size) {
 		return hasProperty("filteredItems", hasSize(size));
-	}
-
-	private static Matcher<Resolution> hasResolutionCount(Integer expectedResolutionCount) {
-		return hasProperty("patronRequest",
-			hasProperty("resolutionCount", is(expectedResolutionCount)));
 	}
 }

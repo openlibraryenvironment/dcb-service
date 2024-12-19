@@ -5,11 +5,11 @@ import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
 import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
-import static org.olf.dcb.request.resolution.SupplierRequestService.findFirstSupplierRequestOrNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
@@ -23,13 +23,11 @@ import java.util.stream.Collectors;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.FunctionalSetting;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.zalando.problem.Problem;
@@ -72,24 +70,22 @@ public class PatronRequestResolutionService {
 		}
 	}
 
-	public Mono<Resolution> retryResolvePatronRequest(PatronRequest patronRequest) {
-		log.info("Re-resolving Patron Request {}", patronRequest.getId());
-
-		return resolvePatronRequest(patronRequest);
+	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
+		return resolvePatronRequest(patronRequest, null);
 	}
 
-	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
+	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest,
+		@Nullable String excludedAgencyCode) {
+
 		log.debug("resolvePatronRequest(id={}) current status ={} resolver={}",
 			patronRequest.getId(), patronRequest.getStatus(), itemResolver);
-
-		patronRequest.incrementResolutionCount();
 
 		final var resolutionSteps = patronRequest.getIsManuallySelectedItem()
 			? manualResolutionSteps()
 			: specifiedResolutionSteps();
 
-		// ToDo ROTA : Filter the list by any suppliers we have already tried for this request
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
+			.map(resolution -> resolution.excludeAgency(excludedAgencyCode))
 			.flatMap(initialResolution -> executeSteps(initialResolution, resolutionSteps))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
@@ -230,7 +226,8 @@ public class PatronRequestResolutionService {
 		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
 		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
 		final var optionalHomeIdentity = getValueOrNull(patron, Patron::getHomeIdentity);
-		
+		final var excludedAgencyCode = getValueOrNull(resolution, Resolution::getExcludedAgencyCode);
+
 		if (optionalHomeIdentity.isEmpty()) {
 			throw new NoHomeIdentityException(getValueOrNull(patron, Patron::getId),
 				getValueOrNull(patron, Patron::getPatronIdentities));
@@ -249,8 +246,8 @@ public class PatronRequestResolutionService {
 		final var allItems = resolution.getAllItems();
 
 		return Flux.fromIterable(allItems)
-			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
-			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, patronRequest))
+			.filterWhen(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
+			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, excludedAgencyCode))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, patronRequest))
@@ -268,10 +265,7 @@ public class PatronRequestResolutionService {
 	 * @return true if the item should be included, false otherwise
 	 */
 	private Mono<Boolean> includeItemWithHolds(Item item) {
-
-		return consortiumService.findOneConsortiumFunctionalSetting(SELECT_UNAVAILABLE_ITEMS)
-			.filter(FunctionalSetting::isEnabled)
-			.hasElement()
+		return consortiumService.isEnabled(SELECT_UNAVAILABLE_ITEMS)
 			.map(enabled -> {
 				final boolean includeItem = enabled || item.hasNoHolds();
 
@@ -289,42 +283,32 @@ public class PatronRequestResolutionService {
 	 * If the item's agency code matches, it is excluded from the resolution process.
 	 *
 	 * @param item the item to check
-	 * @param patronRequest the patron request including the first supplier request and supplier's resolved agency
+	 * @param excludedAgencyCode code of the agency to exclude items from
 	 * @return true if the item should be included in the resolution process, false otherwise
 	 */
-	private boolean excludeItemFromPreviouslyResolvedAgency(Item item, PatronRequest patronRequest) {
-
-		final var resolutionCount = patronRequest.getResolutionCount();
-		final var supplierRequests = getValueOrNull(patronRequest, PatronRequest::getSupplierRequests);
-
-		// If the resolution count is more than 1 the patron request is being re-resolved
-		if (resolutionCount > 1 && supplierRequests != null) {
-			log.debug("Resolution count was more than 1 for Patron Request {}", patronRequest.getId());
-
-			final var firstSupplierRequest = findFirstSupplierRequestOrNull(supplierRequests);
-
-			final var excludedAgencyCode = Optional.of(firstSupplierRequest)
-				.map(SupplierRequest::getResolvedAgency)
-				.map(DataAgency::getCode)
-				.orElse(null);
-
-			if (excludedAgencyCode != null) {
-				// Check if the item's agency code matches the excluded agency code
-				return Optional.ofNullable(item) // if the item is present
-					.map(Item::getAgencyCode) // and the item has an agency code
-					.filter(itemAgencyCode -> itemAgencyCode.equals(excludedAgencyCode)) // and the agency code is the same
-					.isEmpty(); // our conditions didn't match so include the item
-			}
+	private boolean excludeItemFromPreviouslyResolvedAgency(Item item, String excludedAgencyCode) {
+		if (excludedAgencyCode == null) {
+			return true;
 		}
 
-		// If none of the above conditions are met, include the item in the resolution process
-		return true;
+		// Check if the item's agency code matches the excluded agency code
+		return Optional.ofNullable(item) // if the item is present
+			.map(Item::getAgencyCode) // and the item has an agency code
+			.filter(itemAgencyCode -> itemAgencyCode.equals(excludedAgencyCode)) // and the agency code is the same
+			.isEmpty(); // our conditions didn't match so include the item
 	}
 
-	boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
-		final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
+	Mono<Boolean> excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
+		return consortiumService.isEnabled(OWN_LIBRARY_BORROWING)
+			.map(enabled -> {
+				if (enabled) {
+					return true;
+				}
 
-		return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+				final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
+
+				return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+			});
 	}
 
 	/**

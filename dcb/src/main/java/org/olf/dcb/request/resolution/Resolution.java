@@ -17,7 +17,10 @@ import lombok.Value;
 @Value
 public class Resolution {
 	PatronRequest patronRequest;
+	String excludedAgencyCode;
+
 	Item chosenItem;
+
 	@Builder.Default List<Item> allItems = emptyList();
 	@Builder.Default List<Item> filteredItems = emptyList();
 	@Builder.Default List<Item> sortedItems = emptyList();
@@ -30,9 +33,17 @@ public class Resolution {
 		return getValueOrNull(patronRequest, PatronRequest::getBibClusterId);
 	}
 
+	public Resolution excludeAgency(String agencyCode) {
+		return builder()
+			.patronRequest(patronRequest)
+			.excludedAgencyCode(agencyCode)
+			.build();
+	}
+
 	public Resolution trackAllItems(List<Item> allItems) {
 		return builder()
 			.patronRequest(patronRequest)
+			.excludedAgencyCode(excludedAgencyCode)
 			.allItems(allItems)
 			.build();
 	}
@@ -40,6 +51,7 @@ public class Resolution {
 	public Resolution trackFilteredItems(List<Item> filteredItems) {
 		return Resolution.builder()
 			.patronRequest(patronRequest)
+			.excludedAgencyCode(excludedAgencyCode)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
 			.build();
@@ -48,6 +60,7 @@ public class Resolution {
 	public Resolution trackSortedItems(List<Item> sortedItems) {
 		return Resolution.builder()
 			.patronRequest(patronRequest)
+			.excludedAgencyCode(excludedAgencyCode)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
 			.sortedItems(sortedItems)
@@ -57,6 +70,7 @@ public class Resolution {
 	public Resolution selectItem(Item item) {
 		return Resolution.builder()
 			.patronRequest(patronRequest)
+			.excludedAgencyCode(excludedAgencyCode)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
 			.chosenItem(item)
