@@ -50,6 +50,7 @@ type Mutation {
 		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
 		createRole(input: CreateRoleInput): Role!
 		updateRole(input: UpdateRoleInput): Role!
+		createReferenceValueMapping(input: CreateReferenceValueMappingInput): ReferenceValueMapping!
 }
 
 input AddAgencyToGroupCommand {
@@ -115,6 +116,18 @@ input CreateRoleInput {
 	displayName: String!
 	description: String!
 	keycloakRole: String!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+input CreateReferenceValueMappingInput {
+	toContext: String!
+	toCategory: String!
+	toValue: String!
+	fromContext: String!
+	fromCategory: String!
+	fromValue: String!
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
