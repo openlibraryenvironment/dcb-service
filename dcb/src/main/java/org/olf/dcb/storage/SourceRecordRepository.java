@@ -49,7 +49,7 @@ public interface SourceRecordRepository {
 	
 	@SingleResult
 	@NonNull
-	Publisher<Page<SourceRecord>> findAllByLastProcessedIsNullOrProcessingState (@NonNull SourceRecord.ProcessingStatus processingState, @NonNull Pageable pageable);
+	Publisher<Page<SourceRecord>> findAllByProcessingState (@NonNull SourceRecord.ProcessingStatus processingState, @NonNull Pageable pageable);
 	
 	@SingleResult
 	@NonNull
