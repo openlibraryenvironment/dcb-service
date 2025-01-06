@@ -1,5 +1,24 @@
 # Changelog
 
+## Version 8.7.0
+
+### Additions
+* [General]
+	* Support creation of individual reference value mappings [DCB-1619]
+
+### Changes
+* [CHORE]
+	* Added an uptime to the health message
+* [Chore]
+	* log record conversion errors
+	* Defensive null code around marc serde fields
+
+### Fixes
+* [General]
+	* Have added the annotation to CqlQuery to stop the exception occurring
+	* DCB-1211 Reduced the number of bibs deleted at a time from 10000 to 1000
+	* DCB-1770 Tried to ensure the processing state is always populated for source record so we can just lookup the index instead of performing a full table scan
+
 ## Version 8.6.0
 
 ### Additions
@@ -9,6 +28,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add functional setting type for OWN_LIBRARY_BORROWING [DCB-1560]
 	* Fixed the bug where we had a jsonb field and it errored out
 	* Additional logging in ingest service
