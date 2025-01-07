@@ -51,6 +51,7 @@ type Mutation {
 		createRole(input: CreateRoleInput): Role!
 		updateRole(input: UpdateRoleInput): Role!
 		createReferenceValueMapping(input: CreateReferenceValueMappingInput): ReferenceValueMapping!
+	  createLocation(input: CreateLocationInput): Location!
 }
 
 input AddAgencyToGroupCommand {
@@ -109,6 +110,26 @@ input ConsortiumContactInput {
 	reason: String!
 	changeCategory: String!
 	changeReferenceUrl: String
+}
+
+input CreateLocationInput {
+	code: String!
+	name: String!
+	isPickup: Boolean!
+	latitude: Float!
+	longitude: Float!
+	printLabel: String!
+	localId: String!
+	type: String!
+	agencyCode: String!
+	hostLmsCode: String!
+	deliveryStops: String!
+
+
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+
 }
 
 input CreateRoleInput {
