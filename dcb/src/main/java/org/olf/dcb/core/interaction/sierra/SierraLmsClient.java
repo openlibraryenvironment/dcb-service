@@ -1036,7 +1036,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		final var itemId = localRequest.getRequestedItemId();
 		final var barcode = localRequest.getRequestedItemBarcode();
-		final var owningLocation = localRequest.getSupplyingAgencyCode();
+		final var supplyingAgencyCode = localRequest.getSupplyingAgencyCode();
 
 		return getMappedItemType(lms.getCode(), localRequest.getCanonicalItemType())
 			.flatMap(itemType -> {
@@ -1049,7 +1049,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 					final var itemPatch = ItemPatch.builder()
 						.barcodes(List.of(barcode))
-						.owningLocations(List.of(owningLocation))
+						.location(supplyingAgencyCode)
+						.owningLocations(List.of(supplyingAgencyCode))
 						.fixedFields(fixedFields)
 						.build();
 
