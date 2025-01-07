@@ -82,9 +82,9 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 			}
 		}
 
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
-		.map(Object::toString)
-		.orElse("User not detected");
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
+			.map(Object::toString)
+			.orElse("User not detected");
 		Collection<String> roles = env.getGraphQlContext().get("roles");
 
 

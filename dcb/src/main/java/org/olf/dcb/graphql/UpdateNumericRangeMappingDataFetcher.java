@@ -49,7 +49,7 @@ public class UpdateNumericRangeMappingDataFetcher implements DataFetcher<Complet
 			.map(Object::toString);
 		Optional<String> changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
 			.map(Object::toString);
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
 		Collection<String> roles = env.getGraphQlContext().get("roles");

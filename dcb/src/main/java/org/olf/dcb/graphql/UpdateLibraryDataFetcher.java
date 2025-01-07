@@ -42,7 +42,7 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 		UUID id = input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null;
 
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
 		Optional<String> reason = Optional.ofNullable(input_map.get("reason"))

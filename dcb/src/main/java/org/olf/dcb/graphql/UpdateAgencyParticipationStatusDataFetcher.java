@@ -52,7 +52,7 @@ public class UpdateAgencyParticipationStatusDataFetcher implements DataFetcher<C
 		Optional<String> changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
 			.map(Object::toString);
 
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
 
