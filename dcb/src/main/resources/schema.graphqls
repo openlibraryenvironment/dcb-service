@@ -70,6 +70,11 @@ enum FunctionalSettingType {
 	SELECT_UNAVAILABLE_ITEMS
 }
 
+enum ProcessingStatus {
+	PROCESSING_REQUIRED,
+	SUCCESS,
+	FAILURE
+}
 
 """
 Graphql does not allow types to be reused as input types as the semantics are different. We create the input types here.
@@ -733,15 +738,33 @@ type BibRecord {
   contributesTo: ClusterRecord
   sourceSystemId: ID
   sourceRecordId: String
-  sourceRecord: RawSource
+  sourceRecord: SourceRecord
   matchPoints: [MatchPoint]
 }
+
+"""
+Used in ingest v1
+"""
 
 type RawSource {
   id: ID!
   hostLmsId: ID!
   remoteId: String
   json: JSON
+}
+
+"""
+Used in ingest v2
+"""
+type SourceRecord {
+	id: ID!
+	hostLmsId: ID!
+	remoteId: String!
+	lastFetched: String!
+	lastProcessed: String
+	processingState: ProcessingStatus
+	processingInformation: String
+	sourceRecordData: JSON
 }
 
 type MatchPoint {
