@@ -8,7 +8,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.model.clustering.*;
-import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.LibraryGroupMemberRepository;
 import org.olf.dcb.storage.postgres.*;
@@ -39,7 +39,6 @@ public class DataFetchers {
 	private final PostgresSupplierRequestRepository postgresSupplierRequestRepository;
 	private final AgencyGroupMemberRepository agencyGroupMemberRepository;
 	private final PostgresBibRepository postgresBibRepository;
-	private final PostgresRawSourceRepository postgresRawSourceRepository;
 	private final PostgresHostLmsRepository postgresHostLmsRepository;
 	private final PostgresLocationRepository postgresLocationRepository;
 	private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
@@ -72,6 +71,8 @@ public class DataFetchers {
 	private final PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository;
 	private final PostgresRoleRepository postgresRoleRepository;
 
+	private final PostgresSourceRecordRepository postgresSourceRecordRepository;
+
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -79,7 +80,6 @@ public class DataFetchers {
 											PostgresPatronRequestRepository postgresPatronRequestRepository,
 											PostgresSupplierRequestRepository postgresSupplierRequestRepository,
 											PostgresBibRepository postgresBibRepository,
-											PostgresRawSourceRepository postgresRawSourceRepository,
 											PostgresHostLmsRepository postgresHostLmsRepository,
 											PostgresLocationRepository postgresLocationRepository,
 											PostgresAgencyGroupRepository postgresAgencyGroupRepository,
@@ -99,6 +99,7 @@ public class DataFetchers {
 											PostgresFunctionalSettingRepository postgresFunctionalSettingRepository,
 											PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
 											PostgresRoleRepository postgresRoleRepository,
+											PostgresSourceRecordRepository postgresSourceRecordRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -106,7 +107,6 @@ public class DataFetchers {
 		this.postgresPatronRequestRepository = postgresPatronRequestRepository;
 		this.postgresSupplierRequestRepository = postgresSupplierRequestRepository;
 		this.postgresBibRepository = postgresBibRepository;
-		this.postgresRawSourceRepository = postgresRawSourceRepository;
 		this.postgresHostLmsRepository = postgresHostLmsRepository;
 		this.postgresLocationRepository = postgresLocationRepository;
 		this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
@@ -129,6 +129,7 @@ public class DataFetchers {
 		this.postgresFunctionalSettingRepository = postgresFunctionalSettingRepository;
 		this.postgresConsortiumFunctionalSettingRepository = postgresConsortiumFunctionalSettingRepository;
 		this.postgresRoleRepository = postgresRoleRepository;
+		this.postgresSourceRecordRepository = postgresSourceRecordRepository;
 	}
 
 
@@ -368,15 +369,16 @@ public class DataFetchers {
                 };
         }
 
-        public DataFetcher<CompletableFuture<RawSource>> getSourceRecordForBibDataFetcher() {
-                return env -> {
-                        BibRecord br = (BibRecord) env.getSource();
-                        String sourceRecordId=br.getSourceRecordId();
-                        UUID sourceSystemUUID=br.getSourceSystemId();
-                        log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
-                        return Mono.from(postgresRawSourceRepository.findOneByHostLmsIdAndRemoteId(sourceSystemUUID,sourceRecordId)).toFuture();
-                };
-        }
+				public DataFetcher<CompletableFuture<SourceRecord>> getSourceRecordForBibDataFetcher() {
+					return env -> {
+						BibRecord br = (BibRecord) env.getSource();
+						String sourceRecordId=br.getSourceRecordId();
+						UUID sourceSystemUUID=br.getSourceSystemId();
+						log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
+						return Mono.from(postgresSourceRecordRepository.findOneByHostLmsIdAndRemoteId(sourceSystemUUID,sourceRecordId)).toFuture();
+					};
+				}
+
 
         public DataFetcher<CompletableFuture<Page<Location>>> getLocationsDataFetcher() {
                 return env -> {
