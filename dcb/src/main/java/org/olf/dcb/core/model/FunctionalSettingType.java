@@ -14,7 +14,8 @@ public enum FunctionalSettingType {
 	OWN_LIBRARY_BORROWING,
   PICKUP_ANYWHERE,
 	RE_RESOLUTION,
-	SELECT_UNAVAILABLE_ITEMS;
+	SELECT_UNAVAILABLE_ITEMS,
+  TRIGGER_SUPPLIER_RENEWAL;
 
 	public static boolean isValid(String name) {
 		for (FunctionalSettingType type : values()) {
