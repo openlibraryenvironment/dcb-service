@@ -308,7 +308,7 @@ public class TrackingServiceV3 implements TrackingService {
 				      .thenReturn(pr);
 					}
 					else {
-						// virtual item status has not changed - just update trackig stats
+						// virtual item status has not changed - just update tracking stats
 	          log.debug("TRACKING - update virtual item repeat counter {} {} {}",pr.getId(), pr.getLocalItemStatus(), pr.getLocalItemStatusRepeat());
 		        return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
 			          incrementRepeatCounter(pr.getLocalItemStatusRepeat())))
