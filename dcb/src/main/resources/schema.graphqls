@@ -397,6 +397,8 @@ type PatronRequest {
   localItemAgencyCode: String
   isManuallySelectedItem: Boolean
   resolutionCount: Int
+  renewalCount: Int
+  localRenewalCount: Int
 }
 
 type PatronRequestAudit {
@@ -429,6 +431,7 @@ type SupplierRequest {
   virtualPatron: PatronIdentity
   rawLocalItemStatus: String
   rawLocalStatus: String
+  localRenewalCount: Int
 }
 
 type Patron {
