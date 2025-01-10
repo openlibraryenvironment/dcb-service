@@ -9,7 +9,9 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
+import lombok.Data;
 
+@Data
 @Builder
 @Serdeable
 public class DateTimeRange {
