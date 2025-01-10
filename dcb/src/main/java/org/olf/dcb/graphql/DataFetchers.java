@@ -258,7 +258,7 @@ public class DataFetchers {
 				.from(pageno.intValue(), pagesize.intValue())
 				.order(order, orderBy);
 
-			String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+			String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 				.map(Object::toString)
 				.orElse("User not detected");
 

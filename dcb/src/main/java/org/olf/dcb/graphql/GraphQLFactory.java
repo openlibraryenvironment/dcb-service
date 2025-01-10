@@ -40,8 +40,10 @@ public class GraphQLFactory {
 			ResourceResolver resourceResolver,
 			InstanceClusterDataFetcher instanceClusterDataFetcher,
 			SourceBibDataFetcher sourceBibDataFetcher, AddLibraryToGroupDataFetcher addLibraryToGroupDataFetcher,
-			CreateLibraryGroupDataFetcher createLibraryGroupDataFetcher, CreateConsortiumDataFetcher createConsortiumDataFetcher,
-			UpdateAgencyParticipationStatusDataFetcher updateAgencyParticipationStatusDataFetcher, DeleteLibraryDataFetcher deleteLibraryDataFetcher,
+			CreateLibraryGroupDataFetcher createLibraryGroupDataFetcher,
+			CreateConsortiumDataFetcher createConsortiumDataFetcher,
+			UpdateAgencyParticipationStatusDataFetcher updateAgencyParticipationStatusDataFetcher,
+			DeleteLibraryDataFetcher deleteLibraryDataFetcher,
 			DeleteLocationDataFetcher deleteLocationDataFetcher, UpdateLocationDataFetcher updateLocationDataFetcher,
 			UpdateLibraryDataFetcher updateLibraryDataFetcher, UpdateContactDataFetcher updateContactDataFetcher,
 			UpdateReferenceValueMappingDataFetcher updateReferenceValueMappingDataFetcher,
@@ -52,8 +54,9 @@ public class GraphQLFactory {
 			UpdateFunctionalSettingDataFetcher updateFunctionalSettingDataFetcher,
 			CreateContactDataFetcher createContactDataFetcher, DeleteConsortiumDataFetcher deleteConsortiumDataFetcher,
 			CreateRoleDataFetcher createRoleDataFetcher, UpdateRoleDataFetcher updateRoleDataFetcher,
-			CreateFunctionalSettingDataFetcher createFunctionalSettingDataFetcher, CreateReferenceValueMappingDataFetcher createReferenceValueMappingDataFetcher,
-			DataFetchers dataFetchers) {
+			CreateFunctionalSettingDataFetcher createFunctionalSettingDataFetcher,
+			CreateReferenceValueMappingDataFetcher createReferenceValueMappingDataFetcher,
+			CreateLocationDataFetcher createLocationDataFetcher, DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
 
@@ -119,7 +122,8 @@ public class GraphQLFactory {
 						.dataFetcher("createRole", createRoleDataFetcher)
 						.dataFetcher("updateRole", updateRoleDataFetcher)
 						.dataFetcher("createFunctionalSetting", createFunctionalSettingDataFetcher)
-						.dataFetcher("createReferenceValueMapping", createReferenceValueMappingDataFetcher))
+						.dataFetcher("createReferenceValueMapping", createReferenceValueMappingDataFetcher)
+						.dataFetcher("createLocation", createLocationDataFetcher))
 			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())

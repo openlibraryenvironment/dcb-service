@@ -54,7 +54,7 @@ public class DeleteLibraryDataFetcher implements DataFetcher<CompletableFuture<M
 		String reason = input_map.containsKey("reason") ? input_map.get("reason").toString() : null;
 		String changeCategory = input_map.containsKey("changeCategory") ? input_map.get("changeCategory").toString() : null;
 		String changeReferenceUrl = input_map.containsKey("changeReferenceUrl") ? input_map.get("changeReferenceUrl").toString() : null;
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
 

@@ -3,6 +3,7 @@ package org.olf.dcb.storage;
 import java.util.Collection;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.DataAgency;
 import org.reactivestreams.Publisher;
@@ -14,6 +15,7 @@ import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import io.micronaut.data.annotation.Query;
+import reactor.core.publisher.Mono;
 
 public interface LocationRepository {
 
@@ -62,4 +64,15 @@ public interface LocationRepository {
 	
 	@Query(value = "delete from location where host_system_id = :hostLmsId", nativeQuery = true)
 	Publisher<Void> deleteByHostLmsId(@NonNull UUID hostLmsId);
+
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsByLocalIdAndHostSystem(@NotNull String localId, @NotNull DataHostLms hostSystem);
+
+	@SingleResult
+	@NonNull
+	default Publisher<Location> saveOrUpdate(@Valid @NotNull @NonNull Location location) {
+		return Mono.from(this.existsById(location.getId()))
+			.flux().concatMap(update -> Mono.from(update ? this.update(location) : this.save(location)));
+	}
 }
