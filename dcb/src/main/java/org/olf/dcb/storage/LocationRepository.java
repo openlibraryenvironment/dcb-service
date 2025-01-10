@@ -3,9 +3,9 @@ package org.olf.dcb.storage;
 import java.util.Collection;
 import java.util.UUID;
 
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -64,6 +64,10 @@ public interface LocationRepository {
 	
 	@Query(value = "delete from location where host_system_id = :hostLmsId", nativeQuery = true)
 	Publisher<Void> deleteByHostLmsId(@NonNull UUID hostLmsId);
+
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsByLocalIdAndHostSystem(@NotNull String localId, @NotNull DataHostLms hostSystem);
 
 	@SingleResult
 	@NonNull

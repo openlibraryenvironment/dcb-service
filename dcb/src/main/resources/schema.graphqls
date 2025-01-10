@@ -119,17 +119,14 @@ input CreateLocationInput {
 	latitude: Float!
 	longitude: Float!
 	printLabel: String!
-	localId: String!
+	localId: String
 	type: String!
 	agencyCode: String!
 	hostLmsCode: String!
 	deliveryStops: String!
-
-
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
-
 }
 
 input CreateRoleInput {
