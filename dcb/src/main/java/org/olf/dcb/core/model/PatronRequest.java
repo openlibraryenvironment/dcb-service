@@ -400,6 +400,10 @@ public class PatronRequest {
 	@Nullable
 	private Integer resolutionCount;
 
+	private Integer renewalCount = 0;
+
+	private Integer localRenewalCount = 0;
+
 	@Transient
 	@Nullable
 	public String determineSupplyingAgencyCode() {
