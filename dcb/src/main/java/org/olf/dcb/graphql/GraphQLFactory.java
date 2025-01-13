@@ -81,6 +81,7 @@ public class GraphQLFactory {
 						.dataFetcher("agencyGroups", dataFetchers.getPaginatedAgencyGroupsDataFetcher())
 						.dataFetcher("patronRequests", dataFetchers.getPatronRequestsDataFetcher())
 						.dataFetcher("supplierRequests", dataFetchers.getSupplierRequestsDataFetcher())
+						.dataFetcher("inactiveSupplierRequests", dataFetchers.getInactiveSupplierRequestsDataFetcher())
 						.dataFetcher("instanceClusters", instanceClusterDataFetcher)
 						.dataFetcher("sourceBibs", sourceBibDataFetcher)
 						.dataFetcher("processStates", dataFetchers.getProcessStateDataFetcher())
@@ -149,6 +150,9 @@ public class GraphQLFactory {
 				typeWiring -> typeWiring
 					.dataFetcher("patronRequest", dataFetchers.getPatronRequestForSupplierRequestDataFetcher())
 					.dataFetcher("virtualPatron", dataFetchers.getVPatronForSupplierRequest()))
+			.type("InactiveSupplierRequest",
+				typeWiring -> typeWiring
+					.dataFetcher("patronRequest", dataFetchers.getPatronRequestForInactiveSupplierRequestDataFetcher()))
 			.type("PatronRequest",
 				typeWiring -> typeWiring
 					.dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
