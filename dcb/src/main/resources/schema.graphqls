@@ -452,6 +452,28 @@ type SupplierRequest {
   localRenewalCount: Int
 }
 
+type InactiveSupplierRequest {
+  id: ID!
+  canonicalItemType: String
+  dateCreated: String
+  dateUpdated: String
+  hostLmsCode: String
+  localItemId: String
+  localBibId: String
+  localItemBarcode: String
+  localItemLocationCode: String
+  localItemStatus: String
+  localItemType: String
+  localId: String
+  localStatus: String
+  localAgency: String
+  patronRequest: PatronRequest
+  virtualPatron: PatronIdentity
+  rawLocalItemStatus: String
+  rawLocalStatus: String
+  localRenewalCount: Int
+}
+
 type Patron {
   id: ID!
 }
