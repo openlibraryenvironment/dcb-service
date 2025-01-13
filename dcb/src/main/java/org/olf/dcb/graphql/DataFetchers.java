@@ -37,6 +37,7 @@ public class DataFetchers {
 	private final PostgresAgencyRepository postgresAgencyRepository;
 	private final PostgresPatronRequestRepository postgresPatronRequestRepository;
 	private final PostgresSupplierRequestRepository postgresSupplierRequestRepository;
+	private final PostgresInactiveSupplierRequestRepository postgresInactiveSupplierRequestRepository;
 	private final AgencyGroupMemberRepository agencyGroupMemberRepository;
 	private final PostgresBibRepository postgresBibRepository;
 	private final PostgresHostLmsRepository postgresHostLmsRepository;
@@ -79,6 +80,7 @@ public class DataFetchers {
 											AgencyGroupMemberRepository agencyGroupMemberRepository,
 											PostgresPatronRequestRepository postgresPatronRequestRepository,
 											PostgresSupplierRequestRepository postgresSupplierRequestRepository,
+											PostgresInactiveSupplierRequestRepository postgresInactiveSupplierRequestRepository,
 											PostgresBibRepository postgresBibRepository,
 											PostgresHostLmsRepository postgresHostLmsRepository,
 											PostgresLocationRepository postgresLocationRepository,
@@ -106,6 +108,7 @@ public class DataFetchers {
 		this.agencyGroupMemberRepository = agencyGroupMemberRepository;
 		this.postgresPatronRequestRepository = postgresPatronRequestRepository;
 		this.postgresSupplierRequestRepository = postgresSupplierRequestRepository;
+		this.postgresInactiveSupplierRequestRepository = postgresInactiveSupplierRequestRepository;
 		this.postgresBibRepository = postgresBibRepository;
 		this.postgresHostLmsRepository = postgresHostLmsRepository;
 		this.postgresLocationRepository = postgresLocationRepository;
@@ -335,6 +338,34 @@ public class DataFetchers {
                 };
         }
 
+				public DataFetcher<CompletableFuture<Page<InactiveSupplierRequest>>> getInactiveSupplierRequestsDataFetcher() {
+					return env -> {
+						Integer pageno = env.getArgument("pageno");
+						Integer pagesize = env.getArgument("pagesize");
+						String query = env.getArgument("query");
+						String order = env.getArgument("order");
+						String direction = env.getArgument("orderBy");
+
+						if ( pageno == null ) pageno = Integer.valueOf(0);
+						if ( pagesize == null ) pagesize = Integer.valueOf(10);
+						if ( order == null ) order = "dateCreated";
+						if ( direction == null ) direction = "ASC";
+
+						Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
+
+						Pageable pageable = Pageable
+							.from(pageno.intValue(), pagesize.intValue())
+							.order(order, orderBy);
+
+						if ((query != null) && (query.length() > 0)) {
+							var spec = qs.evaluate(query, InactiveSupplierRequest.class);
+							return Mono.from(postgresInactiveSupplierRequestRepository.findAll(spec, pageable)).toFuture();
+						}
+
+						return Mono.from(postgresInactiveSupplierRequestRepository.findAll(pageable)).toFuture();
+					};
+				}
+
         public DataFetcher<CompletableFuture<Page<AgencyGroup>>> getPaginatedAgencyGroupsDataFetcher() {
                 return env -> {
                         Integer pageno = env.getArgument("pageno");
@@ -498,6 +529,13 @@ public class DataFetchers {
                         SupplierRequest sr = (SupplierRequest) env.getSource();
                         return Mono.from(postgresPatronRequestRepository.getPRForSRID(sr.getId())).toFuture();
                 };
+	}
+
+	public DataFetcher<CompletableFuture<PatronRequest>> getPatronRequestForInactiveSupplierRequestDataFetcher() {
+		return env -> {
+			InactiveSupplierRequest sr = (InactiveSupplierRequest) env.getSource();
+			return Mono.from(postgresPatronRequestRepository.getPatronRequestByInactiveSupplierRequestId(sr.getId())).toFuture();
+		};
 	}
 
   public DataFetcher<CompletableFuture<PatronIdentity>> getPatronIdentityForPatronRequestRequest() {

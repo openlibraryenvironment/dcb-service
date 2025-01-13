@@ -6,6 +6,7 @@ type Query {
     locations(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): LocationPage!
     patronRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronRequestPage
     supplierRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): SupplierRequestPage!
+    inactiveSupplierRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): InactiveSupplierRequestPage!
     agencyGroups(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): AgencyGroupPage!
     instanceClusters(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): ClusterRecordPage!
     sourceBibs(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): BibRecordPage!
@@ -711,6 +712,12 @@ type RolePage {
 
 type SupplierRequestPage {
   content: [SupplierRequest]
+  totalSize: Int
+  pageable: Pageable
+}
+
+type InactiveSupplierRequestPage {
+  content: [InactiveSupplierRequest]
   totalSize: Int
   pageable: Pageable
 }
