@@ -104,6 +104,12 @@ public interface ReferenceValueMappingRepository {
 	// Actually delete all the records for the specified context and not just mark them as deleted
 	@Query(value = "delete from reference_value_mapping where from_context in (:context) or to_context in (:context)", nativeQuery = true)
 	Publisher<Void> deleteByContext(@NonNull String context);
+
+	Publisher<ReferenceValueMapping> findByFromValueAndDeletedFalseAndFromContextAndFromCategory(
+		String fromValue, String fromContext, String fromCategory);
+
+	Publisher<ReferenceValueMapping> findByFromValueAndDeletedFalseAndToContextAndToCategory(
+		String fromValue, String toContext, String toCategory);
 	
 	@SingleResult
 	@NonNull
