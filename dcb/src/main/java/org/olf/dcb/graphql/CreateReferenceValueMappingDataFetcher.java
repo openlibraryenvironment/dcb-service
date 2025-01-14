@@ -27,6 +27,21 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 		this.r2dbcOperations = r2dbcOperations;
 	}
 
+	private Mono<Void> checkForDuplicateMapping(String fromValue, String fromContext, String toContext,
+																							String fromCategory, String toCategory) {
+
+		return Mono.from(referenceValueMappingRepository.findByFromValueAndDeletedFalseAndFromContextAndFromCategory(
+				fromValue, fromContext, fromCategory))
+			.flatMap(existingMapping -> Mono.<Void>error(new MappingCreationException(
+				"A mapping with fromValue '" + fromValue + "' already exists for the given from context and category")))
+			.switchIfEmpty(Mono.from(referenceValueMappingRepository.findByFromValueAndDeletedFalseAndToContextAndToCategory(
+					fromValue, toContext, toCategory))
+				.flatMap(existingMapping -> Mono.<Void>error(new MappingCreationException(
+					"A mapping with fromValue '" + fromValue + "' already exists for the given to context and category")))
+				.switchIfEmpty(Mono.empty().then()));
+	}
+
+
 	@Override
 	public CompletableFuture<ReferenceValueMapping> get(DataFetchingEnvironment env) {
 		Map<String, Object> input_map = env.getArgument("input");
@@ -115,6 +130,10 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 		changeReferenceUrl.ifPresent(rvm::setChangeReferenceUrl);
 		changeCategory.ifPresent(rvm::setChangeCategory);
 		reason.ifPresent(rvm::setReason);
-		return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(referenceValueMappingRepository.saveOrUpdate(rvm)))).toFuture();
+
+		return Mono.from(r2dbcOperations.withTransaction(status ->
+			checkForDuplicateMapping(fromValue, fromContext, toContext, fromCategory, toCategory)
+				.then(Mono.from(referenceValueMappingRepository.saveOrUpdate(rvm))))
+		).toFuture();
 	}
 }
