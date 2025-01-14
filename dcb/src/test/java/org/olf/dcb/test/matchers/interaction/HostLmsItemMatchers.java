@@ -22,4 +22,8 @@ public class HostLmsItemMatchers {
 	public static Matcher<HostLmsItem> hasRawStatus(String expectedStatus) {
 		return hasProperty("rawStatus", is(expectedStatus));
 	}
+
+	public static Matcher<HostLmsItem> hasRenewalCount(Integer count) {
+		return hasProperty("renewalCount", is(count));
+	}
 }

@@ -45,4 +45,5 @@ public class HostLmsItem {
 	@Nullable
 	String rawStatus;
 	String barcode;
+	Integer renewalCount;
 }
