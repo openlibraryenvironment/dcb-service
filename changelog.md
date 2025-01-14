@@ -1,5 +1,30 @@
 # Changelog
 
+## Version 8.8.0
+
+### Additions
+* [General]
+	* adding data fetcher for InactiveSupplierRequest 's [DCB-1782]
+	* add InactiveSupplierRequest type to graphql schema [DCB-1782]
+	* Add getters/setters for bibParams
+	* add renewal counts to request data models [DCB-1782]
+	* Support creation of individual pickup locations [DCB-1778]
+
+### Changes
+* [Chore]
+	* Add pickup location creation validation [DCB-1778]
+	* Add TRIGGER_SUPPLIER_RENEWAL functional setting [DCB-1783]
+	* Update GraphQL schema with SourceRecord [DCB-1788]
+	* Record proper usernames in the data change log [DCB-1717]
+
+### Fixes
+* [General]
+	* DCB-1745 Added a migration for the fix Steve made for the sierra null pointer during harvesting
+	* #1745
+	* Fix source records not displaying in DCB Admin
+	* typo in TrackingServiceV3
+	* update sierra virtual item on re-resolution [DCB-1780]
+
 ## Version 8.7.0
 
 ### Additions
@@ -10,6 +35,7 @@
 * [CHORE]
 	* Added an uptime to the health message
 * [Chore]
+	* Changelog - Generate the changelog
 	* log record conversion errors
 	* Defensive null code around marc serde fields
 
