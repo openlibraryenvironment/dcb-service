@@ -996,7 +996,31 @@ class PolarisLmsClientTests {
 			notNullValue(),
 			HostLmsItemMatchers.hasLocalId(localItemId),
 			HostLmsItemMatchers.hasStatus("LOANED"),
-			HostLmsItemMatchers.hasBarcode("3430470102")
+			HostLmsItemMatchers.hasBarcode("3430470102"),
+			HostLmsItemMatchers.hasRenewalCount(1)
+		));
+	}
+
+	@Test
+	void shouldBeAbleToDefaultRenewalCount() {
+		// Arrange
+		final var localItemId = "3512742";
+
+		mockPolarisFixture.mockGetItemWithNullRenewalCount(localItemId);
+		mockPolarisFixture.mockGetItemStatuses();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var localItem = singleValueFrom(client.getItem(localItemId, null));
+
+		// Assert
+		assertThat(localItem, allOf(
+			notNullValue(),
+			HostLmsItemMatchers.hasLocalId(localItemId),
+			HostLmsItemMatchers.hasStatus("LOANED"),
+			HostLmsItemMatchers.hasBarcode("3430470102"),
+			HostLmsItemMatchers.hasRenewalCount(0)
 		));
 	}
 

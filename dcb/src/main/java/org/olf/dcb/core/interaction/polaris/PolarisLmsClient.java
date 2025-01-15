@@ -761,11 +761,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(itemRecord -> {
 				final var hostLmsStatus = mapItemStatus(POLARIS_TO_HOST_LMS, itemRecord.getItemStatusName());
 
+				final var renewalCount = Optional.of(itemRecord)
+					.map(ApplicationServicesClient.ItemRecordFull::getCirculationData)
+					.map(ApplicationServicesClient.CirculationData::getRenewalCount)
+					.orElse(0);
+
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
 					.status(hostLmsStatus)
 					.rawStatus(itemRecord.getItemStatusName())
 					.barcode(itemRecord.getBarcode())
+					.renewalCount(renewalCount)
 					.build();
 			})
 			.defaultIfEmpty(HostLmsItem.builder()

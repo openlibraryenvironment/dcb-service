@@ -999,6 +999,8 @@ class ApplicationServicesClient {
 	static class CirculationData {
 		@JsonProperty("DueDate")
 		private String dueDate;
+		@JsonProperty("RenewalCount")
+		private Integer renewalCount;
 	}
 
 

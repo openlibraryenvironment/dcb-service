@@ -160,6 +160,10 @@ public class MockPolarisFixture {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId, "item-by-id.json");
 	}
 
+	public void mockGetItemWithNullRenewalCount(String itemId) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId, "item-by-id-without-renewal-count.json");
+	}
+
 	public void mockGetItemServerErrorResponse(String itemId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId,
 			response()
