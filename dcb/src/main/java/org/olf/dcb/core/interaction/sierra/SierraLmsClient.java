@@ -5,6 +5,7 @@ import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
+import static java.lang.Integer.valueOf;
 import static java.util.Calendar.YEAR;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
@@ -1621,12 +1622,33 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			? mapSierraItemStatusToDCBItemStatus(status)
 			: (deleted ? "MISSING" : "UNKNOWN");
 
+		final var renewalCount = determineLocalRenewalCount(item.getFixedFields());
+
 		return HostLmsItem.builder()
 			.localId(item.getId())
 			.barcode(item.getBarcode())
 			.status(resolvedStatus)
 			.rawStatus(getValue(status, Status::getCode, null))
+			.renewalCount(renewalCount)
 			.build();
+	}
+
+	private int determineLocalRenewalCount(Map<Integer, FixedField> fixedFields) {
+		// The number of times the item has been renewed by the patron who currently has the item checked out.
+		// https://documentation.iii.com/sierrahelp/Default.htm#sril/sril_records_fixed_field_types_item.html
+		final var FIXED_FIELD_71 = 71;
+
+		int localRenewalCount = 0;
+
+		if (fixedFields != null) {
+			final var fixedField71 = fixedFields.get(FIXED_FIELD_71);
+
+			if (fixedField71 != null && fixedField71.getValue() instanceof Integer value) {
+				localRenewalCount = value;
+			}
+		}
+
+		return localRenewalCount;
 	}
 
 	@Override

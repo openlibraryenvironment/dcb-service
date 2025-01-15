@@ -7,6 +7,7 @@ import static org.mockserver.model.Delay.delay;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.once;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -167,13 +168,10 @@ public class SierraItemsAPIFixture {
 
 		final var itemType = item.getItemType();
 
-		final Map<Integer, FixedField> fixedFields;
+		final Map<Integer, FixedField> fixedFields = new HashMap<>(item.getFixedFields() != null ? item.getFixedFields() : Map.of());
 
 		if (itemType != null) {
-			fixedFields = Map.of(61, FixedField.builder().value(itemType).build());
-		}
-		else {
-			fixedFields = Map.of();
+			fixedFields.put(61, FixedField.builder().value(itemType).build());
 		}
 
 		final var status = isEmpty(item.getStatusCode())
