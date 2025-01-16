@@ -370,8 +370,8 @@ public class TrackingServiceV3 implements TrackingService {
               .patronRequestId(sr.getPatronRequest().getId())
               .resourceType("SupplierItem")
               .resourceId(sr.getId().toString())
-							.fromRenewalCount(sr.getLocalRenewalCount())
-							.toRenewalCount(item.getRenewalCount())
+							.fromState(sr.getLocalItemStatus())
+							.toState(item.getStatus())
               .resource(sr)
               .build();
 
@@ -388,8 +388,8 @@ public class TrackingServiceV3 implements TrackingService {
 							.patronRequestId(sr.getPatronRequest().getId())
 							.resourceType("SupplierItem")
 							.resourceId(sr.getId().toString())
-							.fromState(sr.getLocalItemStatus())
-							.toState(item.getStatus())
+							.fromRenewalCount(sr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
 							.resource(sr)
 							.build();
 
