@@ -6,6 +6,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.api.exceptions.EntityCreationException;
 import org.olf.dcb.core.api.exceptions.MappingCreationException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
@@ -46,14 +47,52 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 	public CompletableFuture<ReferenceValueMapping> get(DataFetchingEnvironment env) {
 		Map<String, Object> input_map = env.getArgument("input");
 		log.debug("createReferenceValueMappingDataFetcher {}", input_map);
+		if (input_map == null) {
+			throw new EntityCreationException("Mapping creation failed: no input was provided.");
+		}
 
-		String fromContext = input_map.get("fromContext") != null ? input_map.get("fromContext").toString() : "";
-		String fromCategory = input_map.get("fromCategory") != null ? input_map.get("fromCategory").toString() : "";
-		String fromValue = input_map.get("fromValue") != null ? input_map.get("fromValue").toString() : "";
+		String[] requiredFields = {
+			"fromContext", "fromCategory", "fromValue", "toContext",
+			"toCategory", "toValue",
+		};
 
-		String toContext = input_map.get("toContext") != null ? input_map.get("toContext").toString() : "";
-		String toCategory = input_map.get("toCategory") != null ? input_map.get("toCategory").toString() : "";
-		String toValue = input_map.get("toValue") != null ? input_map.get("toValue").toString() : "";
+		for (String field : requiredFields) {
+			String value = Optional.ofNullable(input_map.get(field))
+				.map(Object::toString)
+				.map(String::trim)
+				.orElse("");
+
+			if (value.isEmpty()) {
+				throw new EntityCreationException(
+					String.format("Mapping creation failed: %s is required and cannot be empty", field));
+			}
+		}
+
+		// After validation, safely get and trim all values
+		String fromContext = Optional.ofNullable(input_map.get("fromContext"))
+			.map(Object::toString)
+			.map(String::trim)
+			.orElse("");
+		String fromCategory = Optional.ofNullable(input_map.get("fromCategory"))
+			.map(Object::toString)
+			.map(String::trim)
+			.orElse("");
+		String fromValue = Optional.ofNullable(input_map.get("fromValue"))
+			.map(Object::toString)
+			.map(String::trim)
+			.orElse("");
+		String toContext = Optional.ofNullable(input_map.get("toContext"))
+			.map(Object::toString)
+			.map(String::trim)
+			.orElse("");
+		String toCategory = Optional.ofNullable(input_map.get("toCategory"))
+			.map(Object::toString)
+			.map(String::trim)
+			.orElse("");
+		String toValue = Optional.ofNullable(input_map.get("toValue"))
+			.map(Object::toString)
+			.map(String::trim)
+			.orElse("");
 
 		List<String> validPatronTypes = Arrays.asList("ADULT", "CHILD", "FACULTY", "GRADUATE", "NOT_ELIGIBLE", "PATRON", "POSTDOC", "SENIOR", "STAFF", "UNDERGRADUATE", "YOUNG_ADULT");
 		List<String> validItemTypes = Arrays.asList("CIRC", "NONCIRC", "CIRCAV");
@@ -61,16 +100,15 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 		// General validation
 		if (fromValue.isBlank() || fromContext.isBlank() || fromCategory.isBlank() || toValue.isBlank() || toContext.isBlank() || toCategory.isBlank())
 		{
-			throw new MappingCreationException("You cannot create a mapping with blank values.");
+			throw new MappingCreationException("Mapping creation failed: mapping values cannot be blank.");
 		}
-		if (fromValue.equals(fromCategory) || fromValue.equals(fromContext) || fromCategory.equals(fromContext))
-		{
-			throw new MappingCreationException("You cannot create a mapping with duplicate 'from' values");
+		if (fromContext.equals(toContext)) {
+			throw new MappingCreationException("Mapping creation failed: 'fromContext' and 'toContext' cannot be the same.");
 		}
 		// Location validation
 		if ((fromCategory.equals("Location") || toCategory.equals("Location")) && !toContext.equals("DCB"))
 		{
-			throw new MappingCreationException("A Location mapping must have a toContext value of 'DCB'.");
+			throw new MappingCreationException("Mapping creation failed: Location mapping must have a toContext value of 'DCB'.");
 		}
 		// Item type validation
 		if ((fromCategory.equals("ItemType") || toCategory.equals("ItemType")) && (fromContext.equals("DCB") || toContext.equals("DCB")))
@@ -78,22 +116,22 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 			if (fromContext.equals("DCB") && !validItemTypes.contains(fromValue))
 			{
 				log.debug("fromContext: {}, fromValue: {}", fromContext, fromValue);
-				throw new MappingCreationException("The from value for this ItemType mapping is not valid. Valid from values for this mapping are"+validItemTypes);
+				throw new MappingCreationException("Mapping creation failed: the from value for this ItemType mapping is not valid. Valid from values for this mapping are"+validItemTypes);
 			}
 			else if (toContext.equals("DCB") && !validItemTypes.contains(toValue))
 			{
 				log.debug("ToContext: {}, toValue: {}", toContext, toValue);
-				throw new MappingCreationException("The to value for this ItemType mapping is not valid. Valid to values for this mapping are"+validItemTypes);
+				throw new MappingCreationException("Mapping creation failed: the to value for this ItemType mapping is not valid. Valid to values for this mapping are"+validItemTypes);
 			}
 		}
 		// Patron type validation
 		if ((fromCategory.equals("patronType") || toCategory.equals("patronType")) && (fromContext.equals("DCB") || toContext.equals("DCB")))
 		{
 			if (fromContext.equals("DCB") && !validPatronTypes.contains(fromValue))
-				throw new MappingCreationException("The from value for this patronType mapping is not valid. Valid from values for this mapping are"+validPatronTypes);
+				throw new MappingCreationException("Mapping creation failed: the from value for this patronType mapping is not valid. Valid from values for this mapping are"+validPatronTypes);
 			else if (toContext.equals("DCB") && !validPatronTypes.contains(toValue))
 			{
-				throw new MappingCreationException("The to value for this patronType mapping is not valid. Valid to values for this mapping are"+validPatronTypes);
+				throw new MappingCreationException("Mapping creation failed: to value for this patronType mapping is not valid. Valid to values for this mapping are"+validPatronTypes);
 			}
 		}
 
