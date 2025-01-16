@@ -61,4 +61,8 @@ public interface SourceRecordRepository {
 	@SingleResult
 	@Query(value = "select count(*) count from source_record where host_lms_id = :hostLmsId", nativeQuery = true)
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
+
+	@NonNull
+	@Query("SELECT * FROM source_record WHERE host_lms_id = :hostLmsId AND remote_id LIKE :remoteId")
+	Publisher<SourceRecord> findByHostLmsIdAndRemoteId(@NonNull UUID hostLmsId, @NonNull String remoteId);
 }
