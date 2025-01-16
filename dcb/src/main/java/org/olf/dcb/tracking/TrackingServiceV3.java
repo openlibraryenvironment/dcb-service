@@ -25,6 +25,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -307,8 +308,25 @@ public class TrackingServiceV3 implements TrackingService {
 			      return hostLmsReactions.onTrackingEvent(sc)
 				      .thenReturn(pr);
 					}
+					else if (item.getRenewalCount() != null && 														// tracked item has a non-null renewal count
+						!Objects.equals(item.getRenewalCount(), pr.getLocalRenewalCount())) // and the renewal count has changed
+					{
+						// Item renewal count has changed - so issue an update
+						log.debug("TRACKING Detected borrowing system - virtual item renewal count change {} to {}", pr.getLocalRenewalCount(), item.getRenewalCount());
+						StateChange sc = StateChange.builder()
+							.patronRequestId(pr.getId())
+							.resourceType("BorrowerVirtualItem")
+							.resourceId(pr.getId().toString())
+							.fromRenewalCount(pr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
+							.resource(pr)
+							.build();
+						log.info("TRACKING-EVENT vitem change event {}", sc);
+						return hostLmsReactions.onTrackingEvent(sc)
+							.thenReturn(pr);
+					}
 					else {
-						// virtual item status has not changed - just update tracking stats
+						// virtual item status or renewal count has not changed - just update tracking stats
 	          log.debug("TRACKING - update virtual item repeat counter {} {} {}",pr.getId(), pr.getLocalItemStatus(), pr.getLocalItemStatusRepeat());
 		        return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
 			          incrementRepeatCounter(pr.getLocalItemStatusRepeat())))
@@ -347,13 +365,13 @@ public class TrackingServiceV3 implements TrackingService {
             ((item.getStatus() != null) && (sr.getLocalItemStatus() == null)) ||			  // remote status is null local is null
             (!item.getStatus().equals(sr.getLocalItemStatus()))) {	                    // remote != local
 
-						log.debug("Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
+						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
             StateChange sc = StateChange.builder()
               .patronRequestId(sr.getPatronRequest().getId())
               .resourceType("SupplierItem")
               .resourceId(sr.getId().toString())
-              .fromState(sr.getLocalItemStatus())
-              .toState(item.getStatus())
+							.fromRenewalCount(sr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
               .resource(sr)
               .build();
 
@@ -361,6 +379,24 @@ public class TrackingServiceV3 implements TrackingService {
 						return hostLmsReactions.onTrackingEvent(sc)
 							.thenReturn(sr);
           }
+					else if (item.getRenewalCount() != null && 														// tracked item has a non-null renewal count
+						!Objects.equals(item.getRenewalCount(), sr.getLocalRenewalCount())) // and the renewal count has changed
+					{
+						// Item renewal count has changed - so issue an update
+						log.debug("TRACKING Detected supplying system - supplier item renewal count change {} to {}", sr.getLocalRenewalCount(), item.getRenewalCount());
+						StateChange sc = StateChange.builder()
+							.patronRequestId(sr.getPatronRequest().getId())
+							.resourceType("SupplierItem")
+							.resourceId(sr.getId().toString())
+							.fromState(sr.getLocalItemStatus())
+							.toState(item.getStatus())
+							.resource(sr)
+							.build();
+
+						log.info("TRACKING-EVENT supplier-item state change {}", sc);
+						return hostLmsReactions.onTrackingEvent(sc)
+							.thenReturn(sr);
+					}
           else {
             log.debug("TRACKING - update supplier item counter {} {} {}",sr.getId(), sr.getLocalItemStatus(), sr.getLocalItemStatusRepeat());
 						// ToDo - add required methods to supplier repo
