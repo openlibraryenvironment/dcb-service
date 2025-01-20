@@ -302,6 +302,8 @@ public class TrackingServiceV3 implements TrackingService {
 				      .resourceId(pr.getId().toString())
 					    .fromState(pr.getLocalItemStatus())
 						  .toState(item.getStatus())
+							.fromRenewalCount(pr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
 							.resource(pr)
 	            .build();
 		        log.info("TRACKING-EVENT vitem change event {}", sc);
@@ -317,6 +319,8 @@ public class TrackingServiceV3 implements TrackingService {
 							.patronRequestId(pr.getId())
 							.resourceType("BorrowerVirtualItem")
 							.resourceId(pr.getId().toString())
+							.fromState(pr.getLocalItemStatus())
+							.toState(item.getStatus())
 							.fromRenewalCount(pr.getLocalRenewalCount())
 							.toRenewalCount(item.getRenewalCount())
 							.resource(pr)
@@ -372,6 +376,8 @@ public class TrackingServiceV3 implements TrackingService {
               .resourceId(sr.getId().toString())
 							.fromState(sr.getLocalItemStatus())
 							.toState(item.getStatus())
+							.fromRenewalCount(sr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
               .resource(sr)
               .build();
 
@@ -388,6 +394,8 @@ public class TrackingServiceV3 implements TrackingService {
 							.patronRequestId(sr.getPatronRequest().getId())
 							.resourceType("SupplierItem")
 							.resourceId(sr.getId().toString())
+							.fromState(sr.getLocalItemStatus())
+							.toState(item.getStatus())
 							.fromRenewalCount(sr.getLocalRenewalCount())
 							.toRenewalCount(item.getRenewalCount())
 							.resource(sr)
