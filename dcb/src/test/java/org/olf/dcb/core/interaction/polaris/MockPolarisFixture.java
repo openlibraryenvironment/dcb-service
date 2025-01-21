@@ -148,6 +148,18 @@ public class MockPolarisFixture {
 			"itemcheckoutsuccess.json");
 	}
 
+	public void mockRenewalSuccess(String localPatronBarcode) {
+		mock("POST",
+			"/PAPIService/REST/public/v1/1033/100/1/patron/%s/itemsout".formatted(localPatronBarcode),
+			"renewal-success.json");
+	}
+
+	public void mockRenewalItemBlockedError(String localPatronBarcode) {
+		mock("POST",
+			"/PAPIService/REST/public/v1/1033/100/1/patron/%s/itemsout".formatted(localPatronBarcode),
+			"renewal-item-blocked.json");
+	}
+
 	public void mockGetItemsForBib(String bibId) {
 		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
 	}

@@ -45,6 +45,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
@@ -189,19 +190,23 @@ public class PAPIClient {
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class)))
 			.doOnSuccess( r -> log.debug("Result of client.retrieve itemCheckoutPost {}",r) )
-			.flatMap(this::checkForItemCheckOutError);
+			.map(this::checkForItemCheckOutError);
 	}
 
-	private Mono<ItemCheckoutResult> checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
+	private ItemCheckoutResult checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
 
 		log.debug("checkForItemCheckOutError {}",itemCheckoutResult);
 
-		return Mono.just(itemCheckoutResult)
-			// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
-			.filter(result -> result.getPapiErrorCode() == 0)
-			.switchIfEmpty(Mono.error(() -> new ItemCheckoutException(
-				"Checkout of local item id: " + itemCheckoutResult.getItemRecordID()
-				+ ", failed with error message: '" + itemCheckoutResult.getErrorMessage() + "'")));
+		// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
+		if (itemCheckoutResult.getPapiErrorCode() == 0) {
+			return itemCheckoutResult;
+		}
+
+		throw Problem.builder()
+			.withTitle("Polaris ItemCheckoutPost failed")
+			.withDetail(itemCheckoutResult.getErrorMessage() != null ? itemCheckoutResult.getErrorMessage() : "Error message was null")
+			.with("itemCheckoutResult", itemCheckoutResult)
+			.build();
 	}
 
 	// https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceHoldRequestCancel.htm#papiserviceholdrequestcancel_3571891891_1215927
@@ -433,6 +438,16 @@ public class PAPIClient {
 		private String errorMessage;
 		@JsonProperty("ItemRecordID")
 		private String itemRecordID;
+		@JsonProperty("IsRenewal")
+		private Boolean isRenewal;
+		@JsonProperty("DueDate")
+		private String dueDate;
+		@JsonProperty("PatronBlockFlags")
+		private Integer patronBlockFlags;
+		@JsonProperty("ItemBlockFlags")
+		private Integer itemBlockFlags;
+		@JsonProperty("RenewalBlockFlags")
+		private Integer renewalBlockFlags;
 	}
 
 	@Builder

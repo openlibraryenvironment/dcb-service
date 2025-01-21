@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -17,6 +18,8 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import reactor.core.publisher.Mono;
 
 public interface HostLmsClient extends Comparable<HostLmsClient> {
+
+	Mono<HostLmsRenewal> renew(@NonNull HostLmsRenewal hostLmsRenewal);
 
 	Mono<LocalRequest> updatePatronRequest(@NonNull LocalRequest localRequest);
 

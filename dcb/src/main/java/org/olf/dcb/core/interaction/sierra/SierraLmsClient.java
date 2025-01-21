@@ -54,20 +54,8 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -1029,6 +1017,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				log.debug("NullPointerException occurred when creating Hold: {}", error.getMessage());
 				return Mono.error(new RuntimeException("Error occurred when creating Hold"));
 			});
+	}
+
+	@Override
+	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
+		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
+		return null;
 	}
 
 	@Override

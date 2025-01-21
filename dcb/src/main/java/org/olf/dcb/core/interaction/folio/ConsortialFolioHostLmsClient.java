@@ -29,28 +29,13 @@ import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.FailedToGetItemsException;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -593,6 +578,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			return updateTransactionStatus(parameters.getLocalRequestId(), TransactionStatus.CANCELLED)
 				.thenReturn(parameters.getLocalRequestId());
 		}
+
+	@Override
+	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
+		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
+		return null;
+	}
 
 	@Override
 	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
