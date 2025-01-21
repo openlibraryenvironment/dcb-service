@@ -77,12 +77,21 @@ public class CreateLocationDataFetcher implements DataFetcher<CompletableFuture<
 				.switchIfEmpty(Mono.error(new EntityCreationException(
 					"Location creation failed: associated Host LMS not found. You must supply a valid Host LMS code.")))
 				.flatMap(hostLms -> LocationInputValidator.validateInput(input_map, hostLms)
-					.then(localId != null ?
-						Mono.from(locationRepository.existsByLocalIdAndHostSystem(localId, hostLms))
-							.flatMap(exists -> exists ?
-								Mono.error(new IllegalArgumentException("Location with this localId already exists")) :
-								Mono.just(hostLms))
-						: Mono.just(hostLms)))
+					.then(Mono.from(locationRepository.existsByCode(code)))
+					.flatMap(codeExists -> {
+						if (codeExists) {
+							return Mono.error(new IllegalArgumentException("Location with this code already exists"));
+						}
+						return localId != null ?
+							Mono.from(locationRepository.existsByLocalIdAndHostSystem(localId, hostLms))
+								.flatMap(localIdExists -> {
+									if (localIdExists) {
+										return Mono.error(new IllegalArgumentException("Location with this localId already exists"));
+									}
+									return Mono.just(hostLms);
+								})
+							: Mono.just(hostLms);
+					}))
 				.flatMap(hostLms -> {
 					// Now we know agency and host LMS both exist, we can create the location
 					Location location = Location.builder()
