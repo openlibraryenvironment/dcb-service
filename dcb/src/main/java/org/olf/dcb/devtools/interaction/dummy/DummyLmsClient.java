@@ -84,7 +84,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
 		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
-		return null;
+
+		return Mono.just(hostLmsRenewal);
 	}
 
 	@Override
