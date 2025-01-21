@@ -1,5 +1,32 @@
 # Changelog
 
+## Version 8.9.0
+
+### Additions
+* [General]
+	* allow the folio lms client to always succeed when performing renewals [DCB-1793]
+	* support performing a renewal in polaris lms [DCB-1793]
+	* Synchronise renewal counts when DCB tracks a renewal via hostlms [DCB-1785]
+	* return local renewal count for item from Polaris client [DCB-1784]
+	* renewal count for item from sierra client [DCB-1784]
+	* return local renewal count for item from folio [DCB-1784]
+
+### Changes
+* [Chore]
+	* Throw error if existing location code provided [DCB-1778]
+	* Upgrade actions/upload-artifact to v4 in formal-release.yml
+	* Upgrade actions/upload-artifact to v4 in release.yml
+	* Upgrade actions/upload-artifact to v4
+	* Remove trailing and leading spaces for created mappings [DCB-1619]
+	* Disallow duplicate fromValues when creating a mapping [DCB-1619]
+
+### Fixes
+* [General]
+	* indentation in TrackingServiceV3
+	* keep renewal fields and state fields aligned on state a change [DCB-1785]
+	* Display source records for FOLIO and ALMA systems [DCB-1789]
+	* state change on checkSupplierItem [DCB-1785]
+
 ## Version 8.8.0
 
 ### Additions
@@ -12,6 +39,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add pickup location creation validation [DCB-1778]
 	* Add TRIGGER_SUPPLIER_RENEWAL functional setting [DCB-1783]
 	* Update GraphQL schema with SourceRecord [DCB-1788]
