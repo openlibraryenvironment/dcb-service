@@ -69,6 +69,10 @@ public interface LocationRepository {
 	@SingleResult
 	Publisher<Boolean> existsByLocalIdAndHostSystem(@NotNull String localId, @NotNull DataHostLms hostSystem);
 
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsByCode(@NotNull String code);
+
 	@SingleResult
 	@NonNull
 	default Publisher<Location> saveOrUpdate(@Valid @NotNull @NonNull Location location) {
