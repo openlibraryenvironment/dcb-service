@@ -1,61 +1,20 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static java.lang.Integer.parseInt;
-import static java.lang.Integer.valueOf;
-import static java.util.Calendar.YEAR;
-import static java.util.Objects.nonNull;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_OFFSITE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RECEIVED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_REQUESTED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_RETURNED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
-import static org.olf.dcb.core.interaction.HostLmsItem.LIBRARY_USE_ONLY;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
-import static services.k_int.utils.MapUtils.getAsOptionalString;
-
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.json.tree.JsonArray;
+import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.ObjectMapper;
+import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.BranchRecord;
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.configuration.LocationRecord;
-import org.olf.dcb.configuration.PickupLocationRecord;
-import org.olf.dcb.configuration.RefdataRecord;
+import org.olf.dcb.configuration.*;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition.IntegerHostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -79,27 +38,12 @@ import org.olf.dcb.tracking.model.PickupTrackingEvent;
 import org.olf.dcb.tracking.model.TrackingRecord;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-import io.micronaut.json.tree.JsonArray;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.serde.ObjectMapper;
-import jakarta.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
-import services.k_int.interaction.sierra.DateTimeRange;
-import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.QueryResultSet;
-import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.VarField;
+import services.k_int.interaction.sierra.*;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -112,13 +56,30 @@ import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
-import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.PatronHoldPost;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronValidation;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.patrons.*;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.utils.UUIDUtils;
+
+import java.text.SimpleDateFormat;
+import java.time.*;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static java.lang.Integer.parseInt;
+import static java.util.Calendar.YEAR;
+import static java.util.Objects.nonNull;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsItem.*;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.*;
+import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
+import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 
 
@@ -1021,8 +982,72 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
-		return null;
+
+		log.debug("renew({})", hostLmsRenewal);
+
+		final var patronId = hostLmsRenewal.getLocalPatronId();
+		final var itemId = hostLmsRenewal.getLocalItemId();
+
+		return Mono.from(client.getItemCheckouts(itemId))
+			.map(checkoutResultSet -> chooseCheckout(checkoutResultSet, patronId))
+			.flatMap(checkoutID -> Mono.from(client.renewal(checkoutID)))
+			.doOnSuccess(resp -> log.info("Renewal successful in {}", getHostLmsCode()))
+			.map(resp -> {
+				final var respItemId = deRestify(resp.getItem());
+				final var respPatronId = deRestify(resp.getPatron());
+				final var itemBarcode = deRestify(resp.getBarcode());
+
+				return HostLmsRenewal.builder()
+					.localPatronId(respPatronId)
+					.localItemId(respItemId)
+					.localItemBarcode(itemBarcode)
+					.localPatronBarcode(hostLmsRenewal.getLocalPatronBarcode())
+					.build();
+			})
+			.doOnError(e -> log.error("Renewal failed in {}", getHostLmsCode(), e));
+	}
+
+	private String chooseCheckout(CheckoutResultSet checkoutResultSet, String patronId) {
+
+		if (checkoutResultSet == null || checkoutResultSet.getEntries() == null) {
+			throw Problem.builder()
+				.withTitle("Checkout ID not found for renewal")
+				.withDetail("No checkout records returned")
+				.with("checkoutResultSet", checkoutResultSet)
+				.build();
+		}
+
+		final var entries =  checkoutResultSet.getEntries();
+
+		log.debug("chooseCheckout( entries:{})", entries);
+
+		final var matchingEntries = entries.stream()
+			.filter(entry -> entry.getPatron() != null)
+			.filter(entry -> Objects.equals(patronId, deRestify(entry.getPatron())))
+			.toList();
+
+		// Check if a single match is found
+		if (matchingEntries.size() == 1) {
+			// Return the checkout ID of the single match
+			final var matchingEntry = matchingEntries.get(0);
+			return deRestify(matchingEntry.getId());
+		} else {
+			throw Problem.builder()
+				.withTitle("Checkout ID not found for renewal")
+				.withDetail(getDetail(entries, matchingEntries))
+				.with("entries", entries)
+				.build();
+		}
+	}
+
+	private String getDetail(List<CheckoutEntry> entries, List<CheckoutEntry> matchingEntries) {
+		if (entries.isEmpty()) {
+			return "No checkout records returned";
+		} else if (matchingEntries.isEmpty()) {
+			return "No checkouts matching local patron id found";
+		} else {
+			return "Multiple checkouts matching local patron id found";
+		}
 	}
 
 	@Override

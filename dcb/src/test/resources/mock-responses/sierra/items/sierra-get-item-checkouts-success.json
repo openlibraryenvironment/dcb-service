@@ -1,0 +1,13 @@
+{
+	"entries": [
+		{
+			"id": "https://catalog-test.wustl.edu/iii/sierra-api/v6/patrons/checkouts/1811242",
+			"patron": "https://catalog-test.wustl.edu/iii/sierra-api/v6/patrons/1182843",
+			"item": "https://catalog-test.wustl.edu/iii/sierra-api/v6/items/10942942",
+			"barcode": "98030205213515",
+			"dueDate": "2025-02-06T10:00:00Z",
+			"numberOfRenewals": 1,
+			"outDate": "2023-11-17T19:25:45Z"
+		}
+	]
+}

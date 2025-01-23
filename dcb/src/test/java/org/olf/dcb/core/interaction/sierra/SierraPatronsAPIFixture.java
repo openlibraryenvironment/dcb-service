@@ -1,14 +1,10 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static java.util.Arrays.asList;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.verify.VerificationTimes.never;
-import static org.mockserver.verify.VerificationTimes.once;
-import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
-
-import java.util.Collections;
-import java.util.List;
-
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
@@ -16,16 +12,19 @@ import org.mockserver.model.HttpResponse;
 import org.mockserver.model.RequestDefinition;
 import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.test.TestResourceLoaderProvider;
-
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.QueryEntry;
 import services.k_int.interaction.sierra.QueryResultSet;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.patrons.CheckoutPatch;
+
+import java.util.Collections;
+import java.util.List;
+
+import static java.util.Arrays.asList;
+import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.never;
+import static org.mockserver.verify.VerificationTimes.once;
+import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
 
 @Slf4j
 @AllArgsConstructor
@@ -109,6 +108,27 @@ public class SierraPatronsAPIFixture {
 			.respond(sierraMockServerResponses.badRequestError());
 	}
 
+	public void mockRenewalSuccess(String checkoutID) {
+		final var request = postRenewal(checkoutID);
+
+		mockServer.clear(request);
+
+		mockServer
+			.when(request)
+			.respond(sierraMockServerResponses
+				.jsonSuccess("items/sierra-api-renewal-success.json"));
+	}
+
+	public void mockRenewalNoRecordsFound(String checkoutID) {
+		final var request = postRenewal(checkoutID);
+
+		mockServer.clear(request);
+
+		mockServer
+			.when(request)
+			.respond(sierraMockServerResponses.noRecordsFound());
+	}
+
 	public void thisRecordIsNotAvailableResponse(String patronId, String expectedRecordType) {
 		mockServer
 			.when(postPatronHoldRequest(patronId, PatronHoldPost.builder()
@@ -134,6 +154,10 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.post(patronPatch);
 	}
 
+	private HttpRequest postRenewal(String checkoutID) {
+
+		return sierraMockServerRequests.post("/checkouts/" + checkoutID + "/renewal");
+	}
 
 	public void verifyCheckoutMade(String itemBarcode, String patronBarcode, String pin) {
 		mockServer.verify(checkOutItemToPatron(itemBarcode, patronBarcode, pin), once());
