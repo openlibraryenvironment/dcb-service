@@ -39,18 +39,7 @@ import java.util.regex.Pattern;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
@@ -210,6 +199,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case ILL_BORROWING_FLOW -> placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 			default -> placeHoldRequest(parameters, TRUE);
 		};
+	}
+
+	@Override
+	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
+		log.info("renew({})", hostLmsRenewal);
+
+		return PAPIService.itemCheckoutPost(hostLmsRenewal.getLocalItemBarcode(), hostLmsRenewal.getLocalPatronBarcode())
+			.map(itemCheckoutResult -> hostLmsRenewal)
+			.doOnError(e -> log.error("Error renewing item", e));
 	}
 
 	@Override
@@ -761,11 +759,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(itemRecord -> {
 				final var hostLmsStatus = mapItemStatus(POLARIS_TO_HOST_LMS, itemRecord.getItemStatusName());
 
+				final var renewalCount = Optional.of(itemRecord)
+					.map(ApplicationServicesClient.ItemRecordFull::getCirculationData)
+					.map(ApplicationServicesClient.CirculationData::getRenewalCount)
+					.orElse(0);
+
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
 					.status(hostLmsStatus)
 					.rawStatus(itemRecord.getItemStatusName())
 					.barcode(itemRecord.getBarcode())
+					.renewalCount(renewalCount)
 					.build();
 			})
 			.defaultIfEmpty(HostLmsItem.builder()

@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.model.DataAgency;
@@ -263,6 +264,33 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			hasMessageForHostLms(SUPPLYING_HOST_LMS_CODE),
 			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("message", "something went wrong")
+		));
+	}
+
+	@Test
+	void shouldRenewItemSuccessfully() {
+		// Arrange
+		final var localItemId = "9521387";
+		final var localPatronId = "8174632";
+		final var localItemBarcode = "1357921";
+		final var localPatronBarcode = "6543219";
+
+		final var hostLmsRenewal = HostLmsRenewal.builder()
+			.localItemId(localItemId).localPatronId(localPatronId)
+			.localItemBarcode(localItemBarcode).localPatronBarcode(localPatronBarcode).build();
+
+		// Act
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.renew(hostLmsRenewal));
+
+		// Assert
+		assertThat(response, is(notNullValue()));
+		assertThat(response, allOf(
+			hasProperty("localItemId", is("9521387")),
+			hasProperty("localPatronId", is("8174632")),
+			hasProperty("localItemBarcode", is("1357921")),
+			hasProperty("localPatronBarcode", is("6543219"))
 		));
 	}
 

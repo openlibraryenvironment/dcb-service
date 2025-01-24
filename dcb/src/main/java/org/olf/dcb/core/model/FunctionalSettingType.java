@@ -11,9 +11,11 @@ public enum FunctionalSettingType {
 	// These are the valid functional setting names.
 	// If you are adding a new valid functional setting, please also add it to the enum in schema.graphqls.
 	// This will ensure that you do not break DCB Admin functionality.
-	PICKUP_ANYWHERE,
+	OWN_LIBRARY_BORROWING,
+  PICKUP_ANYWHERE,
 	RE_RESOLUTION,
-	SELECT_UNAVAILABLE_ITEMS;
+	SELECT_UNAVAILABLE_ITEMS,
+  TRIGGER_SUPPLIER_RENEWAL;
 
 	public static boolean isValid(String name) {
 		for (FunctionalSettingType type : values()) {

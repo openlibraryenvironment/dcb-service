@@ -45,10 +45,12 @@ CONTACT_EMAIL=$(prompt_with_default "Contact email" "jane.doe@${CONSORTIUM_NAME,
 # Prompt for functional settings
 echo "Configuring Functional Settings:"
 echo "Enter functional settings (comma-separated, no spaces). Available types:"
-echo "- RE_RESOLUTION"
+echo "- OWN_LIBRARY_BORROWING"
 echo "- PICKUP_ANYWHERE"
+echo "- RE_RESOLUTION"
 echo "- SELECT_UNAVAILABLE_ITEMS"
-FUNCTIONAL_SETTINGS=$(prompt_with_default "Functional settings" "RE_RESOLUTION:false,SELECT_UNAVAILABLE_ITEMS:false")
+echo "- TRIGGER_SUPPLIER_RENEWAL"
+FUNCTIONAL_SETTINGS=$(prompt_with_default "Functional settings" "OWN_LIBRARY_BORROWING:false,RE_RESOLUTION:false,SELECT_UNAVAILABLE_ITEMS:false,TRIGGER_SUPPLIER_RENEWAL:false")
 
 echo "Logging in"
 source ~/.dcb.sh

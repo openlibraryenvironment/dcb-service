@@ -10,8 +10,7 @@ import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -88,7 +87,8 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		assertThat(localItem, allOf(
 			notNullValue(),
 			hasLocalId(localItemId),
-			hasStatus("LOANED")
+			hasStatus("LOANED"),
+			hasRenewalCount(0)
 		));
 	}
 

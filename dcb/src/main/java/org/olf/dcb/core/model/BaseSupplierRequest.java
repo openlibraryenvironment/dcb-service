@@ -127,6 +127,8 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 	@Nullable
 	private String protocol;
 
+	private Integer localRenewalCount = 0;
+
 	public T setDateCreated(@Nullable Instant dateCreated) {
 		this.dateCreated = dateCreated;
 		return (T) this;
@@ -244,6 +246,11 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 
 	public T setProtocol(@Nullable String protocol) {
 		this.protocol = protocol;
+		return (T) this;
+	}
+
+	public T setLocalRenewalCount(Integer localRenewalCount) {
+		this.localRenewalCount = localRenewalCount;
 		return (T) this;
 	}
 }

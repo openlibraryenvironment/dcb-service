@@ -232,12 +232,12 @@ class FinaliseRequestTransitionTests {
 			"status=MISSING, " +
 			"rawStatus=null, " +
 			"requestedItemId=null, " +
-			"requestedItemBarcode=null)"));
+			"requestedItemBarcode=null"));
 		assertThat(audits, containsString("VirtualItem=HostLmsItem(" +
 			"localId=75432, " +
 			"status=MISSING, " +
 			"rawStatus=null, " +
-			"barcode=null)"));
+			"barcode=null"));
 		assertThat(audits, containsString("VirtualPatron"));
 	}
 

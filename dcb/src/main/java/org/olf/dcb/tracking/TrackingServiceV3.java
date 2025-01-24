@@ -25,6 +25,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -51,13 +52,13 @@ public class TrackingServiceV3 implements TrackingService {
 	private final int MAX_TRACKING_CONCURRENCY = 10;
 
 	TrackingServiceV3(PatronRequestRepository patronRequestRepository,
-                      SupplierRequestRepository supplierRequestRepository,
-                      SupplyingAgencyService supplyingAgencyService,
-                      HostLmsService hostLmsService,
-                      HostLmsReactions hostLmsReactions,
-                      PatronRequestWorkflowService patronRequestWorkflowService,
-                      ReactorFederatedLockService reactorFederatedLockService,
-											RequestWorkflowContextHelper requestWorkflowContextHelper,
+		SupplierRequestRepository supplierRequestRepository,
+		SupplyingAgencyService supplyingAgencyService,
+		HostLmsService hostLmsService,
+		HostLmsReactions hostLmsReactions,
+		PatronRequestWorkflowService patronRequestWorkflowService,
+		ReactorFederatedLockService reactorFederatedLockService,
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		PatronRequestAuditService patronRequestAuditService) {
 
 		this.patronRequestRepository = patronRequestRepository;
@@ -71,12 +72,12 @@ public class TrackingServiceV3 implements TrackingService {
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
-  @Timed("tracking.run")
-  @AppTask
-  @Override
-  @Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
-  public void run() {
-    log.debug("DCB Tracking Service run");
+	@Timed("tracking.run")
+	@AppTask
+	@Override
+	@Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
+	public void run() {
+		log.debug("DCB Tracking Service run");
 
 		Flux.from(patronRequestRepository.findScheduledChecks())
 			.doOnNext( tracking_record -> log.debug("Scheduled check for {}",tracking_record))
@@ -291,29 +292,53 @@ public class TrackingServiceV3 implements TrackingService {
 				.flatMap(client -> Mono.from(client.getItem(pr.getLocalItemId(), pr.getLocalRequestId())))
 				.flatMap( item -> {
 					if ( ((item.getStatus() == null) && (pr.getLocalItemStatus() != null)) ||
-            ((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
-            (!item.getStatus().equals(pr.getLocalItemStatus()))) {
+						((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
+						(!item.getStatus().equals(pr.getLocalItemStatus()))) {
 						// Item status has changed - so issue an update
-	          log.debug("TRACKING Detected borrowing system - virtual item status change {} to {}", pr.getLocalItemStatus(), item.getStatus());
-	          StateChange sc = StateChange.builder()
-		          .patronRequestId(pr.getId())
-			        .resourceType("BorrowerVirtualItem")
-				      .resourceId(pr.getId().toString())
-					    .fromState(pr.getLocalItemStatus())
-						  .toState(item.getStatus())
+
+						log.debug("TRACKING Detected borrowing system - virtual item status change {} to {}", pr.getLocalItemStatus(), item.getStatus());
+						StateChange sc = StateChange.builder()
+							.patronRequestId(pr.getId())
+							.resourceType("BorrowerVirtualItem")
+							.resourceId(pr.getId().toString())
+							.fromState(pr.getLocalItemStatus())
+							.toState(item.getStatus())
+							.fromRenewalCount(pr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
 							.resource(pr)
-	            .build();
-		        log.info("TRACKING-EVENT vitem change event {}", sc);
-			      return hostLmsReactions.onTrackingEvent(sc)
-				      .thenReturn(pr);
+							.build();
+
+						log.info("TRACKING-EVENT vitem change event {}", sc);
+
+						return hostLmsReactions.onTrackingEvent(sc)
+							.thenReturn(pr);
+					}
+					else if (item.getRenewalCount() != null && 														// tracked item has a non-null renewal count
+						!Objects.equals(item.getRenewalCount(), pr.getLocalRenewalCount())) // and the renewal count has changed
+					{
+						// Item renewal count has changed - so issue an update
+						log.debug("TRACKING Detected borrowing system - virtual item renewal count change {} to {}", pr.getLocalRenewalCount(), item.getRenewalCount());
+						StateChange sc = StateChange.builder()
+							.patronRequestId(pr.getId())
+							.resourceType("BorrowerVirtualItem")
+							.resourceId(pr.getId().toString())
+							.fromState(pr.getLocalItemStatus())
+							.toState(item.getStatus())
+							.fromRenewalCount(pr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
+							.resource(pr)
+							.build();
+						log.info("TRACKING-EVENT vitem change event {}", sc);
+						return hostLmsReactions.onTrackingEvent(sc)
+							.thenReturn(pr);
 					}
 					else {
-						// virtual item status has not changed - just update trackig stats
-	          log.debug("TRACKING - update virtual item repeat counter {} {} {}",pr.getId(), pr.getLocalItemStatus(), pr.getLocalItemStatusRepeat());
-		        return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
-			          incrementRepeatCounter(pr.getLocalItemStatusRepeat())))
-				      .doOnNext(count -> log.debug("update count {}",count))
-					    .thenReturn(pr);
+						// virtual item status or renewal count has not changed - just update tracking stats
+						log.debug("TRACKING - update virtual item repeat counter {} {} {}",pr.getId(), pr.getLocalItemStatus(), pr.getLocalItemStatusRepeat());
+						return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
+							incrementRepeatCounter(pr.getLocalItemStatusRepeat())))
+							.doOnNext(count -> log.debug("update count {}",count))
+							.thenReturn(pr);
 					}
 			
 				});
@@ -342,34 +367,56 @@ public class TrackingServiceV3 implements TrackingService {
 			return hostLmsService.getClientFor(sr.getHostLmsCode())
 				.flatMap(client -> Mono.from(client.getItem(sr.getLocalItemId(), sr.getLocalId())))
 				.doOnNext(item -> log.debug("Process tracking supplier request item {}", item))
-        .flatMap( item -> {
+				.flatMap( item -> {
 					if ( ((item.getStatus() == null) && (sr.getLocalItemStatus() != null)) ||     // remote item status is null, local is not
-            ((item.getStatus() != null) && (sr.getLocalItemStatus() == null)) ||			  // remote status is null local is null
-            (!item.getStatus().equals(sr.getLocalItemStatus()))) {	                    // remote != local
+						((item.getStatus() != null) && (sr.getLocalItemStatus() == null)) ||			  // remote status is null local is null
+						(!item.getStatus().equals(sr.getLocalItemStatus()))) {	                    // remote != local
 
-						log.debug("Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
-            StateChange sc = StateChange.builder()
-              .patronRequestId(sr.getPatronRequest().getId())
-              .resourceType("SupplierItem")
-              .resourceId(sr.getId().toString())
-              .fromState(sr.getLocalItemStatus())
-              .toState(item.getStatus())
-              .resource(sr)
-              .build();
+						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
+						StateChange sc = StateChange.builder()
+							.patronRequestId(sr.getPatronRequest().getId())
+							.resourceType("SupplierItem")
+							.resourceId(sr.getId().toString())
+							.fromState(sr.getLocalItemStatus())
+							.toState(item.getStatus())
+							.fromRenewalCount(sr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
+							.resource(sr)
+							.build();
 
 						log.info("TRACKING-EVENT supplier-item state change {}", sc);
 						return hostLmsReactions.onTrackingEvent(sc)
 							.thenReturn(sr);
-          }
-          else {
-            log.debug("TRACKING - update supplier item counter {} {} {}",sr.getId(), sr.getLocalItemStatus(), sr.getLocalItemStatusRepeat());
+					}
+					else if (item.getRenewalCount() != null && 														// tracked item has a non-null renewal count
+						!Objects.equals(item.getRenewalCount(), sr.getLocalRenewalCount())) // and the renewal count has changed
+					{
+						// Item renewal count has changed - so issue an update
+						log.debug("TRACKING Detected supplying system - supplier item renewal count change {} to {}", sr.getLocalRenewalCount(), item.getRenewalCount());
+						StateChange sc = StateChange.builder()
+							.patronRequestId(sr.getPatronRequest().getId())
+							.resourceType("SupplierItem")
+							.resourceId(sr.getId().toString())
+							.fromState(sr.getLocalItemStatus())
+							.toState(item.getStatus())
+							.fromRenewalCount(sr.getLocalRenewalCount())
+							.toRenewalCount(item.getRenewalCount())
+							.resource(sr)
+							.build();
+
+						log.info("TRACKING-EVENT supplier-item state change {}", sc);
+						return hostLmsReactions.onTrackingEvent(sc)
+							.thenReturn(sr);
+					}
+					else {
+						log.debug("TRACKING - update supplier item counter {} {} {}",sr.getId(), sr.getLocalItemStatus(), sr.getLocalItemStatusRepeat());
 						// ToDo - add required methods to supplier repo
-            return Mono.from(supplierRequestRepository.updateLocalItemTracking(sr.getId(), sr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
-                incrementRepeatCounter(sr.getLocalItemStatusRepeat())))
-              .doOnNext(count -> log.debug("update count {}",count))
-              .thenReturn(sr);
-          }
-        });
+						return Mono.from(supplierRequestRepository.updateLocalItemTracking(sr.getId(), sr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
+								incrementRepeatCounter(sr.getLocalItemStatusRepeat())))
+							.doOnNext(count -> log.debug("update count {}",count))
+							.thenReturn(sr);
+					}
+				});
 		}
 		else {
 			log.warn("TRACKING Trackable local item - NULL");
@@ -377,7 +424,7 @@ public class TrackingServiceV3 implements TrackingService {
 		}
 	}
 
-  // Look up the patron request and add it to the supplier request as a full object instead of a stub
+	// Look up the patron request and add it to the supplier request as a full object instead of a stub
 	private Mono<SupplierRequest> enrichWithPatronRequest(SupplierRequest sr) {
 		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
 			.flatMap(pr -> {
@@ -409,34 +456,34 @@ public class TrackingServiceV3 implements TrackingService {
 		return supplyingAgencyService.getRequest(sr.getHostLmsCode(), sr.getLocalId())
 			.flatMap( hold -> {
 				if ( !hold.getStatus().equals(sr.getLocalStatus()) ) {
-	        log.debug("TRACKING current request status: {}", hold);
+					log.debug("TRACKING current request status: {}", hold);
 
-		      // If the hold has an item and/or a barcode attached, pass it along
-			    Map<String,Object> additionalProperties = new HashMap<String,Object>();
+					// If the hold has an item and/or a barcode attached, pass it along
+					Map<String,Object> additionalProperties = new HashMap<String,Object>();
 				  if ( hold.getRequestedItemId() != null )
-					  additionalProperties.put("RequestedItemId", hold.getRequestedItemId());
+						additionalProperties.put("RequestedItemId", hold.getRequestedItemId());
 
-	        StateChange sc = StateChange.builder()
-		        .patronRequestId(sr.getPatronRequest().getId())
-			      .resourceType("SupplierRequest")
-				    .resourceId(sr.getId().toString())
-					  .fromState(sr.getLocalStatus())
+					StateChange sc = StateChange.builder()
+						.patronRequestId(sr.getPatronRequest().getId())
+						.resourceType("SupplierRequest")
+						.resourceId(sr.getId().toString())
+						.fromState(sr.getLocalStatus())
 						.toState(hold.getStatus())
-	          .resource(sr)
-		        .additionalProperties(additionalProperties)
-			      .build();
+						.resource(sr)
+						.additionalProperties(additionalProperties)
+						.build();
 
-				  log.info("TRACKING Publishing state change event for supplier request {}", sc);
+					log.info("TRACKING Publishing state change event for supplier request {}", sc);
 
-	        return hostLmsReactions.onTrackingEvent(sc)
-		        .thenReturn(sr);
+					return hostLmsReactions.onTrackingEvent(sc)
+						.thenReturn(sr);
 				}
 				else {
 					log.debug("TRACKING - update supplier request counter {} {} {}",sr.getId(), sr.getLocalStatus(), sr.getLocalRequestStatusRepeat());
-          return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), hold.getRawStatus(), Instant.now(),
-                incrementRepeatCounter(sr.getLocalRequestStatusRepeat())))
-            .doOnNext(count -> log.debug("update count {}",count))
-            .thenReturn(sr);
+					return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), hold.getRawStatus(), Instant.now(),
+								incrementRepeatCounter(sr.getLocalRequestStatusRepeat())))
+						.doOnNext(count -> log.debug("update count {}",count))
+						.thenReturn(sr);
 
 				}
 			})
@@ -444,14 +491,14 @@ public class TrackingServiceV3 implements TrackingService {
 				log.error("TRACKING Error occurred: " + error.getMessage(), error);
 
 				if ( ! "ERROR".equals(sr.getLocalStatus()) ) {
-	        StateChange sc = StateChange.builder()
-  	        .patronRequestId(sr.getPatronRequest().getId())
-    	      .resourceType("SupplierRequest")
-      	    .resourceId(sr.getId().toString())
-        	  .fromState(sr.getLocalStatus())
-          	.toState("ERROR")
-	          .resource(sr)
-  	        .build();
+					StateChange sc = StateChange.builder()
+						.patronRequestId(sr.getPatronRequest().getId())
+						.resourceType("SupplierRequest")
+						.resourceId(sr.getId().toString())
+						.fromState(sr.getLocalStatus())
+						.toState("ERROR")
+						.resource(sr)
+						.build();
 
 					return hostLmsReactions.onTrackingEvent(sc)
 						.thenReturn(sr);
@@ -465,7 +512,7 @@ public class TrackingServiceV3 implements TrackingService {
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
 		log.debug("TRACKING Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
-        return patronRequestWorkflowService.progressAll(patronRequest);
-    }
+				return patronRequestWorkflowService.progressAll(patronRequest);
+		}
 
 }

@@ -130,7 +130,7 @@ public class HostLmsService implements IngestSourcesProvider {
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<Long> deleteAllHostLmsBibs ( UUID owner ) {
 		
-		final int reportChunkSize = 10_000;
+		final int reportChunkSize = 1_000;
 		final Pageable page = Pageable.from(0, reportChunkSize);
 		
 		return Flux.just( page )

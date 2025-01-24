@@ -1,5 +1,93 @@
 # Changelog
 
+## Version 8.9.0
+
+### Additions
+* [General]
+	* allow the folio lms client to always succeed when performing renewals [DCB-1793]
+	* support performing a renewal in polaris lms [DCB-1793]
+	* Synchronise renewal counts when DCB tracks a renewal via hostlms [DCB-1785]
+	* return local renewal count for item from Polaris client [DCB-1784]
+	* renewal count for item from sierra client [DCB-1784]
+	* return local renewal count for item from folio [DCB-1784]
+
+### Changes
+* [Chore]
+	* Throw error if existing location code provided [DCB-1778]
+	* Upgrade actions/upload-artifact to v4 in formal-release.yml
+	* Upgrade actions/upload-artifact to v4 in release.yml
+	* Upgrade actions/upload-artifact to v4
+	* Remove trailing and leading spaces for created mappings [DCB-1619]
+	* Disallow duplicate fromValues when creating a mapping [DCB-1619]
+
+### Fixes
+* [General]
+	* indentation in TrackingServiceV3
+	* keep renewal fields and state fields aligned on state a change [DCB-1785]
+	* Display source records for FOLIO and ALMA systems [DCB-1789]
+	* state change on checkSupplierItem [DCB-1785]
+
+## Version 8.8.0
+
+### Additions
+* [General]
+	* adding data fetcher for InactiveSupplierRequest 's [DCB-1782]
+	* add InactiveSupplierRequest type to graphql schema [DCB-1782]
+	* Add getters/setters for bibParams
+	* add renewal counts to request data models [DCB-1782]
+	* Support creation of individual pickup locations [DCB-1778]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Add pickup location creation validation [DCB-1778]
+	* Add TRIGGER_SUPPLIER_RENEWAL functional setting [DCB-1783]
+	* Update GraphQL schema with SourceRecord [DCB-1788]
+	* Record proper usernames in the data change log [DCB-1717]
+
+### Fixes
+* [General]
+	* DCB-1745 Added a migration for the fix Steve made for the sierra null pointer during harvesting
+	* #1745
+	* Fix source records not displaying in DCB Admin
+	* typo in TrackingServiceV3
+	* update sierra virtual item on re-resolution [DCB-1780]
+
+## Version 8.7.0
+
+### Additions
+* [General]
+	* Support creation of individual reference value mappings [DCB-1619]
+
+### Changes
+* [CHORE]
+	* Added an uptime to the health message
+* [Chore]
+	* Changelog - Generate the changelog
+	* log record conversion errors
+	* Defensive null code around marc serde fields
+
+### Fixes
+* [General]
+	* Have added the annotation to CqlQuery to stop the exception occurring
+	* DCB-1211 Reduced the number of bibs deleted at a time from 10000 to 1000
+	* DCB-1770 Tried to ensure the processing state is always populated for source record so we can just lookup the index instead of performing a full table scan
+
+## Version 8.6.0
+
+### Additions
+* [General]
+	* Respect consortia setting for allowing same library borrowing DCB-1560
+	* Only increment resolution count upon successful resolution DCB-1411
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Add functional setting type for OWN_LIBRARY_BORROWING [DCB-1560]
+	* Fixed the bug where we had a jsonb field and it errored out
+	* Additional logging in ingest service
+	* add specific INFO logging level for org.olf.dcb.ingest
+
 ## Version 8.5.0
 
 ### Additions
@@ -9,6 +97,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Default hold count to zero when hold count is null DCB-1739
 	* Calculate availability date for checked out items without a due date differently DCB-1739
 	* Make availability date null for unavailable or unknown items DCB-1739

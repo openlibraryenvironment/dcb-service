@@ -81,12 +81,14 @@ public class HostLmsReactions {
 					pr2.setLocalItemStatus(sc.getToState());
 					pr2.setLocalItemLastCheckTimestamp(Instant.now());
 					pr2.setLocalItemStatusRepeat(Long.valueOf(0));
+					pr2.setLocalRenewalCount(sc.getToRenewalCount());
 					return Mono.from(patronRequestRepository.update(pr2)).flatMap( spr -> auditEventIndication( context, trackingRecord));
 				case "SupplierItem":
 					SupplierRequest sr2 = (SupplierRequest) sc.getResource();
 					sr2.setLocalItemStatus(sc.getToState());
 					sr2.setLocalItemLastCheckTimestamp(Instant.now());
 					sr2.setLocalItemStatusRepeat(Long.valueOf(0));
+					sr2.setLocalRenewalCount(sc.getToRenewalCount());
 
 					return Mono.from(supplierRequestRepository.update(sr2))
 						.flatMap(ssr -> auditEventIndication( context, trackingRecord));
@@ -124,6 +126,12 @@ public class HostLmsReactions {
 			auditData.put("resourceId", sc.getResourceId());
 			auditData.put("fromState", sc.getFromState());
 			auditData.put("toState", sc.getToState());
+			if (sc.getFromRenewalCount() != null) {
+				auditData.put("fromRenewalCount", sc.getFromRenewalCount());
+			}
+			if (sc.getToRenewalCount() != null) {
+				auditData.put("toRenewalCount", sc.getToRenewalCount());
+			}
 
 			return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)
 				.thenReturn(context);

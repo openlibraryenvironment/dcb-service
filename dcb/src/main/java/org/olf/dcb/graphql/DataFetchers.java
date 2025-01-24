@@ -8,7 +8,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.model.clustering.*;
-import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.LibraryGroupMemberRepository;
 import org.olf.dcb.storage.postgres.*;
@@ -37,9 +37,9 @@ public class DataFetchers {
 	private final PostgresAgencyRepository postgresAgencyRepository;
 	private final PostgresPatronRequestRepository postgresPatronRequestRepository;
 	private final PostgresSupplierRequestRepository postgresSupplierRequestRepository;
+	private final PostgresInactiveSupplierRequestRepository postgresInactiveSupplierRequestRepository;
 	private final AgencyGroupMemberRepository agencyGroupMemberRepository;
 	private final PostgresBibRepository postgresBibRepository;
-	private final PostgresRawSourceRepository postgresRawSourceRepository;
 	private final PostgresHostLmsRepository postgresHostLmsRepository;
 	private final PostgresLocationRepository postgresLocationRepository;
 	private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
@@ -72,14 +72,16 @@ public class DataFetchers {
 	private final PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository;
 	private final PostgresRoleRepository postgresRoleRepository;
 
+	private final PostgresSourceRecordRepository postgresSourceRecordRepository;
+
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
 											AgencyGroupMemberRepository agencyGroupMemberRepository,
 											PostgresPatronRequestRepository postgresPatronRequestRepository,
 											PostgresSupplierRequestRepository postgresSupplierRequestRepository,
+											PostgresInactiveSupplierRequestRepository postgresInactiveSupplierRequestRepository,
 											PostgresBibRepository postgresBibRepository,
-											PostgresRawSourceRepository postgresRawSourceRepository,
 											PostgresHostLmsRepository postgresHostLmsRepository,
 											PostgresLocationRepository postgresLocationRepository,
 											PostgresAgencyGroupRepository postgresAgencyGroupRepository,
@@ -99,14 +101,15 @@ public class DataFetchers {
 											PostgresFunctionalSettingRepository postgresFunctionalSettingRepository,
 											PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
 											PostgresRoleRepository postgresRoleRepository,
+											PostgresSourceRecordRepository postgresSourceRecordRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
 		this.agencyGroupMemberRepository = agencyGroupMemberRepository;
 		this.postgresPatronRequestRepository = postgresPatronRequestRepository;
 		this.postgresSupplierRequestRepository = postgresSupplierRequestRepository;
+		this.postgresInactiveSupplierRequestRepository = postgresInactiveSupplierRequestRepository;
 		this.postgresBibRepository = postgresBibRepository;
-		this.postgresRawSourceRepository = postgresRawSourceRepository;
 		this.postgresHostLmsRepository = postgresHostLmsRepository;
 		this.postgresLocationRepository = postgresLocationRepository;
 		this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
@@ -129,6 +132,7 @@ public class DataFetchers {
 		this.postgresFunctionalSettingRepository = postgresFunctionalSettingRepository;
 		this.postgresConsortiumFunctionalSettingRepository = postgresConsortiumFunctionalSettingRepository;
 		this.postgresRoleRepository = postgresRoleRepository;
+		this.postgresSourceRecordRepository = postgresSourceRecordRepository;
 	}
 
 
@@ -257,7 +261,7 @@ public class DataFetchers {
 				.from(pageno.intValue(), pagesize.intValue())
 				.order(order, orderBy);
 
-			String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+			String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 				.map(Object::toString)
 				.orElse("User not detected");
 
@@ -334,6 +338,34 @@ public class DataFetchers {
                 };
         }
 
+				public DataFetcher<CompletableFuture<Page<InactiveSupplierRequest>>> getInactiveSupplierRequestsDataFetcher() {
+					return env -> {
+						Integer pageno = env.getArgument("pageno");
+						Integer pagesize = env.getArgument("pagesize");
+						String query = env.getArgument("query");
+						String order = env.getArgument("order");
+						String direction = env.getArgument("orderBy");
+
+						if ( pageno == null ) pageno = Integer.valueOf(0);
+						if ( pagesize == null ) pagesize = Integer.valueOf(10);
+						if ( order == null ) order = "dateCreated";
+						if ( direction == null ) direction = "ASC";
+
+						Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
+
+						Pageable pageable = Pageable
+							.from(pageno.intValue(), pagesize.intValue())
+							.order(order, orderBy);
+
+						if ((query != null) && (query.length() > 0)) {
+							var spec = qs.evaluate(query, InactiveSupplierRequest.class);
+							return Mono.from(postgresInactiveSupplierRequestRepository.findAll(spec, pageable)).toFuture();
+						}
+
+						return Mono.from(postgresInactiveSupplierRequestRepository.findAll(pageable)).toFuture();
+					};
+				}
+
         public DataFetcher<CompletableFuture<Page<AgencyGroup>>> getPaginatedAgencyGroupsDataFetcher() {
                 return env -> {
                         Integer pageno = env.getArgument("pageno");
@@ -368,15 +400,16 @@ public class DataFetchers {
                 };
         }
 
-        public DataFetcher<CompletableFuture<RawSource>> getSourceRecordForBibDataFetcher() {
-                return env -> {
-                        BibRecord br = (BibRecord) env.getSource();
-                        String sourceRecordId=br.getSourceRecordId();
-                        UUID sourceSystemUUID=br.getSourceSystemId();
-                        log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
-                        return Mono.from(postgresRawSourceRepository.findOneByHostLmsIdAndRemoteId(sourceSystemUUID,sourceRecordId)).toFuture();
-                };
-        }
+				public DataFetcher<CompletableFuture<SourceRecord>> getSourceRecordForBibDataFetcher() {
+					return env -> {
+						BibRecord br = (BibRecord) env.getSource();
+						String sourceRecordId="%"+br.getSourceRecordId();
+						UUID sourceSystemUUID=br.getSourceSystemId();
+						log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
+						return Mono.from(postgresSourceRecordRepository.findByHostLmsIdAndRemoteId(sourceSystemUUID,sourceRecordId)).toFuture();
+					};
+				}
+
 
         public DataFetcher<CompletableFuture<Page<Location>>> getLocationsDataFetcher() {
                 return env -> {
@@ -496,6 +529,13 @@ public class DataFetchers {
                         SupplierRequest sr = (SupplierRequest) env.getSource();
                         return Mono.from(postgresPatronRequestRepository.getPRForSRID(sr.getId())).toFuture();
                 };
+	}
+
+	public DataFetcher<CompletableFuture<PatronRequest>> getPatronRequestForInactiveSupplierRequestDataFetcher() {
+		return env -> {
+			InactiveSupplierRequest sr = (InactiveSupplierRequest) env.getSource();
+			return Mono.from(postgresPatronRequestRepository.getPatronRequestByInactiveSupplierRequestId(sr.getId())).toFuture();
+		};
 	}
 
   public DataFetcher<CompletableFuture<PatronIdentity>> getPatronIdentityForPatronRequestRequest() {

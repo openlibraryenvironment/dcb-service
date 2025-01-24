@@ -140,7 +140,7 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<Page<SourceRecord>> getUnprocessedRecords (@NonNull Pageable page) {
-		return Mono.from(sourceRecords.findAllByLastProcessedIsNullOrProcessingState(ProcessingStatus.PROCESSING_REQUIRED, page))
+		return Mono.from(sourceRecords.findAllByProcessingState(ProcessingStatus.PROCESSING_REQUIRED, page))
 				.transform(	withMonoLogging(log, l -> 
 					l.doOnSubscribe(Level.DEBUG, _s -> log.debug("Fetching page of SourceRecord data [{}]", page))));
 	}

@@ -6,6 +6,7 @@ type Query {
     locations(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): LocationPage!
     patronRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): PatronRequestPage
     supplierRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): SupplierRequestPage!
+    inactiveSupplierRequests(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): InactiveSupplierRequestPage!
     agencyGroups(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): AgencyGroupPage!
     instanceClusters(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): ClusterRecordPage!
     sourceBibs(query: String, pageno:Int, pagesize: Int, order: String, orderBy: String): BibRecordPage!
@@ -50,6 +51,8 @@ type Mutation {
 		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
 		createRole(input: CreateRoleInput): Role!
 		updateRole(input: UpdateRoleInput): Role!
+		createReferenceValueMapping(input: CreateReferenceValueMappingInput): ReferenceValueMapping!
+	  createLocation(input: CreateLocationInput): Location!
 }
 
 input AddAgencyToGroupCommand {
@@ -63,11 +66,18 @@ input AddLibraryToGroupCommand {
 }
 
 enum FunctionalSettingType {
-	PICKUP_ANYWHERE
+	OWN_LIBRARY_BORROWING
+  PICKUP_ANYWHERE
 	RE_RESOLUTION
 	SELECT_UNAVAILABLE_ITEMS
+  TRIGGER_SUPPLIER_RENEWAL
 }
 
+enum ProcessingStatus {
+	PROCESSING_REQUIRED,
+	SUCCESS,
+	FAILURE
+}
 
 """
 Graphql does not allow types to be reused as input types as the semantics are different. We create the input types here.
@@ -109,11 +119,40 @@ input ConsortiumContactInput {
 	changeReferenceUrl: String
 }
 
+input CreateLocationInput {
+	code: String!
+	name: String!
+	isPickup: Boolean!
+	latitude: Float!
+	longitude: Float!
+	printLabel: String!
+	localId: String
+	type: String!
+	agencyCode: String!
+	hostLmsCode: String!
+	deliveryStops: String!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
 input CreateRoleInput {
 	name: String!
 	displayName: String!
 	description: String!
 	keycloakRole: String!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+input CreateReferenceValueMappingInput {
+	toContext: String!
+	toCategory: String!
+	toValue: String!
+	fromContext: String!
+	fromCategory: String!
+	fromValue: String!
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
@@ -377,6 +416,8 @@ type PatronRequest {
   localItemAgencyCode: String
   isManuallySelectedItem: Boolean
   resolutionCount: Int
+  renewalCount: Int
+  localRenewalCount: Int
 }
 
 type PatronRequestAudit {
@@ -409,6 +450,29 @@ type SupplierRequest {
   virtualPatron: PatronIdentity
   rawLocalItemStatus: String
   rawLocalStatus: String
+  localRenewalCount: Int
+}
+
+type InactiveSupplierRequest {
+  id: ID!
+  canonicalItemType: String
+  dateCreated: String
+  dateUpdated: String
+  hostLmsCode: String
+  localItemId: String
+  localBibId: String
+  localItemBarcode: String
+  localItemLocationCode: String
+  localItemStatus: String
+  localItemType: String
+  localId: String
+  localStatus: String
+  localAgency: String
+  patronRequest: PatronRequest
+  virtualPatron: PatronIdentity
+  rawLocalItemStatus: String
+  rawLocalStatus: String
+  localRenewalCount: Int
 }
 
 type Patron {
@@ -652,6 +716,12 @@ type SupplierRequestPage {
   pageable: Pageable
 }
 
+type InactiveSupplierRequestPage {
+  content: [InactiveSupplierRequest]
+  totalSize: Int
+  pageable: Pageable
+}
+
 type NumericRangeMappingPage {
   content: [NumericRangeMapping]
   totalSize: Int
@@ -719,15 +789,33 @@ type BibRecord {
   contributesTo: ClusterRecord
   sourceSystemId: ID
   sourceRecordId: String
-  sourceRecord: RawSource
+  sourceRecord: SourceRecord
   matchPoints: [MatchPoint]
 }
+
+"""
+Used in ingest v1
+"""
 
 type RawSource {
   id: ID!
   hostLmsId: ID!
   remoteId: String
   json: JSON
+}
+
+"""
+Used in ingest v2
+"""
+type SourceRecord {
+	id: ID!
+	hostLmsId: ID!
+	remoteId: String!
+	lastFetched: String!
+	lastProcessed: String
+	processingState: ProcessingStatus
+	processingInformation: String
+	sourceRecordData: JSON
 }
 
 type MatchPoint {

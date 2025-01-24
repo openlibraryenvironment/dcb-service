@@ -28,6 +28,8 @@ public class StateChange implements TrackingRecord {
 	private String resourceId;
 	private String fromState;
 	private String toState;
+	private Integer fromRenewalCount;
+	private Integer toRenewalCount;
 
 	@ToString.Exclude
 	private Object resource;

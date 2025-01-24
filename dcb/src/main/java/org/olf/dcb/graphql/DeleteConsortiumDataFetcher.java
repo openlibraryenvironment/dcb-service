@@ -55,7 +55,7 @@ public class DeleteConsortiumDataFetcher implements DataFetcher<CompletableFutur
 		String reason = input_map.containsKey("reason") ? input_map.get("reason").toString() : null;
 		String changeCategory = input_map.containsKey("changeCategory") ? input_map.get("changeCategory").toString() : null;
 		String changeReferenceUrl = input_map.containsKey("changeReferenceUrl") ? input_map.get("changeReferenceUrl").toString() : null;
-		String userString = Optional.ofNullable(env.getGraphQlContext().get("currentUser"))
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
 
@@ -90,9 +90,9 @@ public class DeleteConsortiumDataFetcher implements DataFetcher<CompletableFutur
 				if (libraryGroupId == null) {
 					// If no library group, just delete the single consortium + associated info
 					return Mono.from(deleteConsortium(entityId,
-							input_map.containsKey("reason") ? input_map.get("reason").toString() : null,
-							input_map.containsKey("changeCategory") ? input_map.get("changeCategory").toString() : null,
-							input_map.containsKey("changeReferenceUrl") ? input_map.get("changeReferenceUrl").toString() : null,
+							reason,
+							changeCategory,
+							changeReferenceUrl,
 							userString))
 						.thenReturn(createResult(true, "The consortium and its associated data were deleted successfully"));
 				}

@@ -1,33 +1,34 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static java.util.Arrays.asList;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.mockserver.model.Delay.delay;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.verify.VerificationTimes.once;
-
-import java.util.List;
-import java.util.Map;
-
-import org.mockserver.client.MockServerClient;
-import org.mockserver.model.HttpRequest;
-import org.mockserver.model.HttpResponse;
-import org.mockserver.model.RequestDefinition;
-import org.mockserver.verify.VerificationTimes;
-import org.olf.dcb.test.TestResourceLoaderProvider;
-
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.RequestDefinition;
+import org.mockserver.verify.VerificationTimes;
+import org.olf.dcb.test.TestResourceLoaderProvider;
+import services.k_int.interaction.sierra.CheckoutResultSet;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.items.Location;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static java.util.Arrays.asList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.mockserver.model.Delay.delay;
+import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.once;
 
 @Slf4j
 @AllArgsConstructor
@@ -84,6 +85,52 @@ public class SierraItemsAPIFixture {
 						.map(SierraItemsAPIFixture::mapItem)
 						.toList())
 					.build()), delay(MILLISECONDS, millisecondDelay)));
+	}
+
+	public String checkoutsForItem(String itemId) {
+		final var request = getItemCheckouts(itemId);
+
+		mockServer.clear(request);
+
+		mockServer.when(request)
+			.respond(sierraMockServerResponses
+				.jsonSuccess("items/sierra-get-item-checkouts-success.json"));
+
+		// return needs to align with id of the json response
+		// E.g.,		"id": "https://catalog-test.wustl.edu/iii/sierra-api/v6/patrons/checkouts/1811242",
+		return "1811242";
+	}
+
+	public void checkoutsForItemWithMultiplePatronEntries(String itemId) {
+		final var request = getItemCheckouts(itemId);
+
+		mockServer.clear(request);
+
+		mockServer.when(request)
+			.respond(sierraMockServerResponses
+				.jsonSuccess("items/sierra-get-item-checkouts-multiple-patron-match.json"));
+	}
+
+	public void checkoutsForItemWithNoPatronEntries(String itemId) {
+		final var request = getItemCheckouts(itemId);
+
+		mockServer.clear(request);
+
+		mockServer.when(request)
+			.respond(sierraMockServerResponses.jsonSuccess(json(
+				CheckoutResultSet.builder()
+					.entries(List.of())
+					.build()
+			)));
+	}
+
+	public void checkoutsForItemWithNoRecordsFound(String itemId) {
+		final var request = getItemCheckouts(itemId);
+
+		mockServer.clear(request);
+
+		mockServer.when(request)
+			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
 	public void zeroItemsResponseForBibId(String bibId) {
@@ -160,6 +207,10 @@ public class SierraItemsAPIFixture {
 			.withQueryStringParameter("deleted", "false");
 	}
 
+	private HttpRequest getItemCheckouts(String itemId) {
+		return sierraMockServerRequests.get("/" + itemId + "/checkouts");
+	}
+
 	private static SierraItem mapItem(org.olf.dcb.core.interaction.sierra.SierraItem item) {
 		final var formattedDueDate = item.getDueDate() != null
 			? item.getDueDate().toString()
@@ -167,13 +218,10 @@ public class SierraItemsAPIFixture {
 
 		final var itemType = item.getItemType();
 
-		final Map<Integer, FixedField> fixedFields;
+		final Map<Integer, FixedField> fixedFields = new HashMap<>(item.getFixedFields() != null ? item.getFixedFields() : Map.of());
 
 		if (itemType != null) {
-			fixedFields = Map.of(61, FixedField.builder().value(itemType).build());
-		}
-		else {
-			fixedFields = Map.of();
+			fixedFields.put(61, FixedField.builder().value(itemType).build());
 		}
 
 		final var status = isEmpty(item.getStatusCode())

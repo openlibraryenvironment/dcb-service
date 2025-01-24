@@ -9,6 +9,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
@@ -98,7 +99,6 @@ class PatronRequestResolutionServiceTests {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
-		consortiumFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
 			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
@@ -363,8 +363,10 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldExcludeItemFromSameAgencyAsBorrower() {
+	void shouldExcludeItemFromSameAgencyAsBorrowerWhenSettingIsDisabledForConsortia() {
 		// Arrange
+		consortiumFixture.createConsortiumWithFunctionalSetting(OWN_LIBRARY_BORROWING, false);
+
 		final var bibRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
@@ -398,6 +400,7 @@ class PatronRequestResolutionServiceTests {
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -409,6 +412,62 @@ class PatronRequestResolutionServiceTests {
 		assertThat(resolution, allOf(
 			notNullValue(),
 			hasNoChosenItem()
+		));
+	}
+
+	@Test
+	void shouldIncludeItemFromSameAgencyAsBorrowerWhenSettingIsEnabledForConsortia() {
+		// Arrange
+		consortiumFixture.createConsortiumWithFunctionalSetting(OWN_LIBRARY_BORROWING, true);
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "4526453";
+
+		bibRecordFixture.createBibRecord(bibRecordId,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE).getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "254635";
+		final var onlyAvailableItemBarcode = "174295773";
+		final var itemLocationCode = "borrowing-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				itemLocationCode)
+		));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
+			itemLocationCode, BORROWING_AGENCY_CODE);
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("254255", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasLocalId(onlyAvailableItemId),
+				hasBarcode(onlyAvailableItemBarcode)
+			)
 		));
 	}
 

@@ -5,6 +5,7 @@ import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
@@ -22,7 +23,6 @@ import java.util.stream.Collectors;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.FunctionalSetting;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.Patron;
@@ -246,7 +246,7 @@ public class PatronRequestResolutionService {
 		final var allItems = resolution.getAllItems();
 
 		return Flux.fromIterable(allItems)
-			.filter(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
+			.filterWhen(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
 			.filter(item -> excludeItemFromPreviouslyResolvedAgency(item, excludedAgencyCode))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
@@ -265,10 +265,7 @@ public class PatronRequestResolutionService {
 	 * @return true if the item should be included, false otherwise
 	 */
 	private Mono<Boolean> includeItemWithHolds(Item item) {
-
-		return consortiumService.findOneConsortiumFunctionalSetting(SELECT_UNAVAILABLE_ITEMS)
-			.filter(FunctionalSetting::isEnabled)
-			.hasElement()
+		return consortiumService.isEnabled(SELECT_UNAVAILABLE_ITEMS)
 			.map(enabled -> {
 				final boolean includeItem = enabled || item.hasNoHolds();
 
@@ -301,10 +298,17 @@ public class PatronRequestResolutionService {
 			.isEmpty(); // our conditions didn't match so include the item
 	}
 
-	boolean excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
-		final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
+	Mono<Boolean> excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
+		return consortiumService.isEnabled(OWN_LIBRARY_BORROWING)
+			.map(enabled -> {
+				if (enabled) {
+					return true;
+				}
 
-		return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+				final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
+
+				return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+			});
 	}
 
 	/**

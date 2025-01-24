@@ -41,6 +41,7 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +63,8 @@ import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
+import org.zalando.problem.DefaultProblem;
+import org.zalando.problem.Problem;
 import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
@@ -860,6 +863,61 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldBeAbleToRenewItem() {
+		// Arrange
+		final var localItemId = "8142391";
+		final var localPatronId = "2198742";
+		final var localItemBarcode = "4678231";
+		final var localPatronBarcode = "9821734";
+
+		final var hostLmsRenewal = HostLmsRenewal.builder()
+			.localItemId(localItemId).localPatronId(localPatronId)
+			.localItemBarcode(localItemBarcode).localPatronBarcode(localPatronBarcode).build();
+
+		mockPolarisFixture.mockRenewalSuccess(localPatronBarcode);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.renew(hostLmsRenewal));
+
+		// Assert
+		assertThat(response, is(notNullValue()));
+		assertThat(response, allOf(
+			hasProperty("localItemId", is("8142391")),
+			hasProperty("localPatronId", is("2198742")),
+			hasProperty("localItemBarcode", is("4678231")),
+			hasProperty("localPatronBarcode", is("9821734"))
+		));
+	}
+
+	@Test
+	void shouldTranslateRenewalErrorResponses() {
+		// Arrange
+		final var localItemId = "3519827";
+		final var localPatronId = "6584219";
+		final var localItemBarcode = "2756348";
+		final var localPatronBarcode = "9432198";
+
+		final var hostLmsRenewal = HostLmsRenewal.builder()
+			.localItemId(localItemId).localPatronId(localPatronId)
+			.localItemBarcode(localItemBarcode).localPatronBarcode(localPatronBarcode).build();
+
+		mockPolarisFixture.mockRenewalItemBlockedError(localPatronBarcode);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class, () -> singleValueFrom(client.renew(hostLmsRenewal)));
+
+		// Assert
+		assertThat(problem, allOf(
+			hasProperty("title", is("Polaris ItemCheckoutPost failed")),
+			hasProperty("detail", is("The item cannot be checked out because the item is blocked."))
+		));
+	}
+
+	@Test
 	void shouldBeAbleToCreateBib() {
 		// Arrange
 		mockPolarisFixture.mockCreateBib();
@@ -996,7 +1054,31 @@ class PolarisLmsClientTests {
 			notNullValue(),
 			HostLmsItemMatchers.hasLocalId(localItemId),
 			HostLmsItemMatchers.hasStatus("LOANED"),
-			HostLmsItemMatchers.hasBarcode("3430470102")
+			HostLmsItemMatchers.hasBarcode("3430470102"),
+			HostLmsItemMatchers.hasRenewalCount(1)
+		));
+	}
+
+	@Test
+	void shouldBeAbleToDefaultRenewalCount() {
+		// Arrange
+		final var localItemId = "3512742";
+
+		mockPolarisFixture.mockGetItemWithNullRenewalCount(localItemId);
+		mockPolarisFixture.mockGetItemStatuses();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var localItem = singleValueFrom(client.getItem(localItemId, null));
+
+		// Assert
+		assertThat(localItem, allOf(
+			notNullValue(),
+			HostLmsItemMatchers.hasLocalId(localItemId),
+			HostLmsItemMatchers.hasStatus("LOANED"),
+			HostLmsItemMatchers.hasBarcode("3430470102"),
+			HostLmsItemMatchers.hasRenewalCount(0)
 		));
 	}
 

@@ -1,19 +1,21 @@
 package org.olf.dcb.core;
 
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.exceptions.MultipleConsortiumException;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.Consortium;
+import org.olf.dcb.core.model.FunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.storage.ConsortiumRepository;
 import org.olf.dcb.storage.postgres.PostgresConsortiumFunctionalSettingRepository;
 import org.olf.dcb.storage.postgres.PostgresFunctionalSettingRepository;
+
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
 public class ConsortiumService {
-
 	private final ConsortiumRepository consortiumRepository;
 	private final PostgresConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository;
 	private final PostgresFunctionalSettingRepository functionalSettingRepository;
@@ -67,5 +69,18 @@ public class ConsortiumService {
 			.distinct()
 			.filter(setting -> functionalSettingType.equals(setting.getName()))
 			.next();
+	}
+
+	/**
+	 * Determine whether a setting is enabled for the sole consortia
+	 *
+	 * @param settingType setting to check
+	 *
+	 * @return true when the setting is enabled, false otherwise
+	 */
+	public Mono<Boolean> isEnabled(FunctionalSettingType settingType) {
+		return findOneConsortiumFunctionalSetting(settingType)
+			.filter(FunctionalSetting::isEnabled)
+			.hasElement();
 	}
 }

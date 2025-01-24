@@ -2,19 +2,16 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasBarcode;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasRawStatus;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.*;
 
 import java.time.Instant;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,6 +24,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -77,6 +75,7 @@ class SierraHostLmsClientGetItemTests {
 				.id(localItemId)
 				.barcode(barcode)
 				.statusCode("-")
+				.fixedFields(Map.of(71, FixedField.builder().value(1).build()))
 				.build());
 
 		// Act
@@ -90,7 +89,27 @@ class SierraHostLmsClientGetItemTests {
 			hasLocalId(localItemId),
 			hasBarcode(barcode),
 			hasStatus(ITEM_AVAILABLE),
-			hasRawStatus("-")
+			hasRawStatus("-"),
+			hasRenewalCount(1)
+		));
+	}
+
+	@Test
+	@SneakyThrows
+	void shouldDefaultRenewalCount() {
+		// Arrange
+		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId, SierraItem.builder().build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var item = singleValueFrom(client.getItem(localItemId, null));
+
+		// Assert
+		assertThat(item, allOf(
+			hasRenewalCount(0)
 		));
 	}
 
