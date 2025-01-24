@@ -17,6 +17,7 @@ plugins {
 	id 'service.k_int.micronaut-multi'
   // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
   id "com.gorylenko.gradle-git-properties" version "2.4.1"
+  id('com.jaredsburrows.license') version '0.9.8'
 }
 
 //version = "0.1"
@@ -405,3 +406,23 @@ eclipse {
   }
 }
 
+
+licenseReport {
+  // Generate reports
+  generateCsvReport = false
+  generateHtmlReport = true
+  generateJsonReport = false
+  generateTextReport = false
+
+  // Copy reports - These options are ignored for Java projects
+  copyCsvReportToAssets = false
+  copyHtmlReportToAssets = true
+  copyJsonReportToAssets = false
+  copyTextReportToAssets = false
+  
+  // Ignore licenses for certain artifact patterns
+  ignoredPatterns = []
+  
+  // Show versions in the report - default is false
+  showVersions = true
+}
