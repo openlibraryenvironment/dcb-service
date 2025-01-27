@@ -30,6 +30,8 @@ public class LocationInputValidator {
 				"agencyCode", "hostLmsCode", "printLabel", "deliveryStops",
 				"latitude", "longitude"
 			};
+			log.debug("Input is {}", input);
+
 
 			for (String field : requiredFields) {
 				if (input.get(field) == null) {
@@ -38,7 +40,7 @@ public class LocationInputValidator {
 				}
 			}
 
-			if (!input.get("type").equals("Pickup"))
+			if (!input.get("type").toString().equalsIgnoreCase("Pickup"))
 			{
 				return Mono.error(new EntityCreationException("Location creation failed: the creation of non-pickup locations is not supported."));
 			}
