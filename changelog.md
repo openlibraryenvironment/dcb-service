@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 8.10.0
+
+### Additions
+* [General]
+	* trigger supplier renewal transition [DCB-1786]
+	* support performing a renewal in the sierra lms client [DCB-1793]
+
+### Changes
+* [Chore]
+	* PD form
+	* Add com.jaredsburrows.license plugin
+	* NFR Arm support - Add an optional build parameter that allows builders to override the base image
+
 ## Version 8.9.0
 
 ### Additions
@@ -13,6 +26,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Throw error if existing location code provided [DCB-1778]
 	* Upgrade actions/upload-artifact to v4 in formal-release.yml
 	* Upgrade actions/upload-artifact to v4 in release.yml
