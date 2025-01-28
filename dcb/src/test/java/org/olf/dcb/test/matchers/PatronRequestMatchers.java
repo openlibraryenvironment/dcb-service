@@ -1,16 +1,13 @@
 package org.olf.dcb.test.matchers;
 
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.Matchers.hasProperty;
-
-import java.util.UUID;
-
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.PatronRequest;
+
+import java.util.UUID;
+
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.hasProperty;
 
 public class PatronRequestMatchers {
 	public static Matcher<PatronRequest> hasId(UUID expectedId) {
@@ -23,6 +20,14 @@ public class PatronRequestMatchers {
 
 	public static Matcher<PatronRequest> hasResolutionCount(Integer expectedCount) {
 		return hasProperty("resolutionCount", is(expectedCount));
+	}
+
+	public static Matcher<PatronRequest> hasRenewalCount(Integer expectedCount) {
+		return hasProperty("renewalCount", is(expectedCount));
+	}
+
+	public static Matcher<PatronRequest> hasLocalRenewalCount(Integer expectedCount) {
+		return hasProperty("localRenewalCount", is(expectedCount));
 	}
 
 	public static Matcher<PatronRequest> hasNoResolutionCount() {
