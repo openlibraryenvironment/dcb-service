@@ -244,7 +244,10 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 									}
 								
 									case KEY_VALUE_INDICATOR -> {
-										sf.setData(subfield.decodeStringNullable());
+                    final String value = subfield.decodeStringNullable();
+										if ( value != null ) {
+										  sf.setData(value);
+                    }
 									}
 									default -> {
 										subfield.skipValue();

@@ -57,7 +57,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	final static Pattern REGEX_REMOVE_PUNCTUATION = Pattern.compile("\\p{Punct}");
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
-	
+
 //	protected ConversionService getConversionService();
 
 	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
@@ -206,7 +206,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 //								qualifiers.add(edition_field.getSubfieldsAsString("a"));
 //							}
 							
-							List<String> qualifiers = Marc4jRecordUtils.concatSubfieldData(marcRecord, "250", "a").toList();
+							List<String> qualifiers = Marc4jRecordUtils
+                                           .concatSubfieldData(marcRecord, "250", "a")
+                                           .map(this::normaliseEdition)
+			                                     .map( StringUtils::trimToNull )
+                                           .toList();
 							
 							// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
 							// suffer with double spacing, so using that here as it provides cleaner matching.
@@ -638,4 +642,30 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			canonical_metadata.put(property, the_values);
 		}
 	}
+
+  // This is taken to be faster and more flexible than trying to match regexs on component parts (for now)
+  // Add cases as we find them
+  static final Map<String, String> EDITION_MAPPINGS = Map.ofEntries(
+  	Map.entry("first edition", "1e"),
+  	Map.entry("second edition", "2e"),
+  	Map.entry("third edition", "3e"),
+  	Map.entry("fourth edition", "4e"),
+  	Map.entry("fifth edition", "5e"),
+  	Map.entry("1st", "1e"),
+  	Map.entry("2nd", "2e"),
+  	Map.entry("3rd", "3e"),
+  	Map.entry("4th", "4e"),
+  	Map.entry("5th", "5e")
+  );
+
+  private String normaliseEdition(String input) {
+    String result = input;
+    if ( input != null ) {
+      String m = EDITION_MAPPINGS.get(input.toLowerCase().trim());
+      if ( m != null ) {
+        result = m;
+      }
+    }
+    return result;
+  }
 }

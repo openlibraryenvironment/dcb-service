@@ -400,8 +400,10 @@ public class PatronRequest {
 	@Nullable
 	private Integer resolutionCount;
 
+  @Builder.Default
 	private Integer renewalCount = 0;
 
+  @Builder.Default
 	private Integer localRenewalCount = 0;
 
 	@Transient

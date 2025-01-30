@@ -127,6 +127,7 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 	@Nullable
 	private String protocol;
 
+  @Builder.Default
 	private Integer localRenewalCount = 0;
 
 	public T setDateCreated(@Nullable Instant dateCreated) {
