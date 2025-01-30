@@ -2,6 +2,12 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.annotation.Error;
+import io.micronaut.http.multipart.CompletedFileUpload;
+import io.micronaut.security.utils.SecurityService;
+import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.api.serde.LocationDTO;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -10,6 +16,7 @@ import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LocationRepository;
+import org.olf.dcb.utils.DCBConfigurationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +39,9 @@ import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
 
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
+
 @Controller("/locations")
 @Validated
 @Secured(RoleNames.ADMINISTRATOR)
@@ -44,11 +54,17 @@ public class LocationController {
 	private LocationRepository locationRepository;
 	private AgencyRepository agencyRepository;
 
+	private DCBConfigurationService configurationService;
+
+	private final SecurityService securityService;
 	public LocationController(LocationRepository locationRepository, AgencyRepository agencyRepository,
-			HostLmsRepository hostLmsRepository) {
+			HostLmsRepository hostLmsRepository, DCBConfigurationService configurationService, SecurityService securityService) {
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
 		this.hostLmsRepository = hostLmsRepository;
+		this.configurationService = configurationService;
+		this.securityService = securityService;
+
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -74,6 +90,20 @@ public class LocationController {
 	public Mono<Location> show(UUID id) {
 		return Mono.from(locationRepository.findById(id));
 	}
+
+	@Error(FileUploadValidationException.class)
+	public HttpResponse<String> handleValidationException(FileUploadValidationException ex) {
+		// Return a 400 Bad Request response with the validation error message
+		return HttpResponse.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+	}
+
+	@Secured({RoleNames.CONSORTIUM_ADMIN, RoleNames.ADMINISTRATOR, RoleNames.LIBRARY_ADMIN})
+	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
+	public Mono<DCBConfigurationService.UploadedConfigImport> importLocations(CompletedFileUpload file, String code, String type, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
+		String username = (String) securityService.getAuthentication().get().getAttributes().get("preferred_username");
+		return configurationService.importConfiguration(type, "Location import", code, file, reason, changeCategory, changeReferenceUrl, username);
+	}
+
 
 	// TODO: Convert return Location to LocationDTO
 	@Post("/")
