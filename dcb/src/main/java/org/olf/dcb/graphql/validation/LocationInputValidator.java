@@ -30,7 +30,7 @@ public class LocationInputValidator {
 				"agencyCode", "hostLmsCode", "printLabel", "deliveryStops",
 				"latitude", "longitude"
 			};
-			log.debug("Input is {}", input);
+			log.debug("Location for validation {}", input);
 
 
 			for (String field : requiredFields) {
@@ -61,6 +61,7 @@ public class LocationInputValidator {
 			// Validate localId based on lmsClientClass
 			String localId = input.get("localId") != null ? input.get("localId").toString() : "";
 			String lmsClientClass = hostLms.getLmsClientClass().toLowerCase();
+			log.debug(lmsClientClass, localId);
 
 			if (lmsClientClass.contains("folio")) {
 				if (localId == null || localId.isBlank()) {

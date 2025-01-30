@@ -1,7 +1,6 @@
 package org.olf.dcb.utils;
 
 import java.io.InputStreamReader;
-import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.time.Instant;
@@ -14,6 +13,7 @@ import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.exceptions.EntityCreationException;
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.model.DataHostLms;
@@ -21,8 +21,6 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.graphql.validation.LocationInputValidator;
 import org.olf.dcb.storage.*;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import jakarta.inject.Singleton;
 
 
@@ -33,6 +31,7 @@ import com.opencsv.CSVParserBuilder;
 
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -44,20 +43,19 @@ import reactor.core.publisher.Flux;
 
 import org.olf.dcb.core.model.NumericRangeMapping;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import reactor.util.function.Tuple2;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
+@Slf4j
 public class DCBConfigurationService {
 
 	private HttpClient httpClient;
-        private final NumericRangeMappingRepository numericRangeMappingRepository;
-        private final ReferenceValueMappingRepository referenceValueMappingRepository;
-
-				private final LocationRepository locationRepository;
-				// This will be for save/lookup
-				private final HostLmsRepository hostLmsRepository;
-
-				private final AgencyRepository agencyRepository;
+	private final NumericRangeMappingRepository numericRangeMappingRepository;
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final LocationRepository locationRepository;
+	private final HostLmsRepository hostLmsRepository;
+	private final AgencyRepository agencyRepository;
 
 	public DCBConfigurationService(
 		HttpClient httpClient,
@@ -73,7 +71,8 @@ public class DCBConfigurationService {
 		this.agencyRepository = agencyRepository;
 	}
 
-	private static final Logger log = LoggerFactory.getLogger(DCBConfigurationService.class);
+	List<String> validPatronTypes = Arrays.asList("ADULT", "CHILD", "FACULTY", "GRADUATE", "NOT_ELIGIBLE", "PATRON", "POSTDOC", "SENIOR", "STAFF", "UNDERGRADUATE", "YOUNG_ADULT");
+	List<String> validItemTypes = Arrays.asList("CIRC", "NONCIRC", "CIRCAV");
 
 	public Mono<ConfigImportResult> importConfiguration(String profile, String url) {
 
@@ -111,33 +110,13 @@ public class DCBConfigurationService {
 	 * The parameters reason, changeCategory, and changeReferenceUrl are supplied by the user for the purposes of the data change log.
 	 *
 	 * @param type The type of configuration - reference value or numeric range mappings, or a Location.
-	 * @param mappingCategory The category of mapping - ItemType, patronType or Location.
+	 * @param category The category of mapping - ItemType, patronType or Location.
 	 * @param code The Host LMS code - corresponds to context or domain.
 	 * @param file The mappings file (.tsv or .csv format).
 	 */
 
-	// This can become just type instead.
-//	public Mono<UploadedConfigImport> importConfiguration(String type, String mappingCategory, String code, CompletedFileUpload file, String reason, String changeCategory, String changeReferenceUrl) {
-//		log.debug("importConfiguration({}, {}, {})", type, mappingCategory, file.getFilename());
-//		if (code == null || code.isEmpty() || code.equals("undefined")) {
-//			return Mono.error(new FileUploadValidationException("You must provide a Host LMS code to import mappings or locations. Please select a Host LMS in DCB Admin and retry."));
-//		}
-//		return Mono.defer(() -> {
-//			try {
-//				ParseResult parseResult = parseFile(file, type, mappingCategory, code);
-//				List <String[]> data = parseResult.getParsedData();
-//				List <IgnoredMapping> ignoredMappings = parseResult.getIgnoredMappings();
-//				return processImport(type, mappingCategory, code, data, ignoredMappings, reason, changeCategory, changeReferenceUrl).doOnNext( uci -> log.info("The import of uploaded mappings has completed. Message: {}, records imported: {}, records marked as deleted: {}, records ignored: {}", uci.getMessage(), uci.getRecordsImported(), uci.getRecordsDeleted(), uci.ignoredMappings.size()) );
-//			} catch (FileUploadValidationException e) {
-//				return Mono.error(e);
-//			} catch (IOException e) {
-//				return Mono.error(new FileUploadValidationException("Error reading file: " + e.getMessage()));
-//			}
-//		});
-//	}
-
-	public Mono<UploadedConfigImport> importConfiguration(String type, String mappingCategory, String code, CompletedFileUpload file, String reason, String changeCategory, String changeReferenceUrl) {
-		log.debug("importConfiguration({}, {}, {})", type, mappingCategory, file.getFilename());
+	public Mono<UploadedConfigImport> importConfiguration(String type, String category, String code, CompletedFileUpload file, String reason, String changeCategory, String changeReferenceUrl, String username) {
+		log.debug("importConfiguration({}, {}, {}, for user {})", type, category, file.getFilename(), username);
 
 		if (code == null || code.isEmpty() || code.equals("undefined")) {
 			return Mono.error(new FileUploadValidationException(
@@ -149,49 +128,49 @@ public class DCBConfigurationService {
 				String[] expectedHeaders = getExpectedHeaders(type);
 				if (file.getFilename().endsWith(".tsv"))
 					{
-						return parseFile(reader, expectedHeaders, code, mappingCategory, type, "tsv");
-
+						return parseFile(reader, expectedHeaders, code, category, type, "tsv");
 					}
 				else
 				{
-					return parseFile(reader, expectedHeaders, code, mappingCategory, type, "csv");
-
+					return parseFile(reader, expectedHeaders, code, category, type, "csv");
 				}
 			})
 			.flatMap(parseResult -> processImport(
 				type,
-				mappingCategory,
+				category,
 				code,
 				parseResult.getParsedData(),
-				parseResult.getIgnoredMappings(),
+				parseResult.getIgnoredConfigItems(),
 				reason,
 				changeCategory,
-				changeReferenceUrl
+				changeReferenceUrl,
+				username
 			))
-			.doOnNext(uci -> log.info(
-				"The import of uploaded mappings has completed. Message: {}, records imported: {}, records marked as deleted: {}, records ignored: {}",
-				uci.getMessage(),
-				uci.getRecordsImported(),
-				uci.getRecordsDeleted(),
-				uci.getIgnoredMappings().size()
-			));
+			.doOnNext(uci -> {
+				if (type.equals("Locations")) {
+						log.info(
+							"The import of pickup locations has completed. Message: {}, records imported: {}, records marked as deleted: {}, records ignored: {}",
+							uci.getMessage(),
+							uci.getRecordsImported(),
+							uci.getRecordsDeleted(),
+							uci.getIgnoredConfigItems().size()
+						);
+				}
+				else
+				{
+					log.info(
+						"The import of uploaded mappings has completed. Message: {}, records imported: {}, records marked as deleted: {}, records ignored: {}",
+						uci.getMessage(),
+						uci.getRecordsImported(),
+						uci.getRecordsDeleted(),
+						uci.getIgnoredConfigItems().size()
+					);
+				}
+			});
 	}
 
 
-
-
-		// Methods for determining which file parsing method is required, and getting the correct expected headers for validation.
-	private ParseResult parseFile(CompletedFileUpload file, String type, String mappingCategory, String code) throws IOException, FileUploadValidationException {
-		InputStreamReader reader = new InputStreamReader(file.getInputStream());
-		String[] expectedHeaders = getExpectedHeaders(type);
-
-		if (file.getFilename().endsWith(".tsv")) {
-			return parseTsv(reader, expectedHeaders, mappingCategory, type, code);
-		} else {
-			return parseCsv(reader, expectedHeaders, code, mappingCategory, type);
-		}
-	}
-
+	// Methods for determining which file parsing method is required, and getting the correct expected headers for validation.
 	private String[] getExpectedHeaders(String type) {
 		return switch (type) {
 			case "Reference value mappings" -> new String[]{"fromContext", "fromCategory", "fromValue", "toContext", "toCategory", "toValue"};
@@ -202,37 +181,54 @@ public class DCBConfigurationService {
 	}
 
 // Methods for processing the import of reference value mappings OR numeric range mappings.
-	private Mono<UploadedConfigImport> processImport(String type, String mappingCategory, String code, List<String[]> data, List <IgnoredMapping> ignoredMappings, String reason, String changeCategory, String changeReferenceUrl) {
+	private Mono<UploadedConfigImport> processImport(String type, String category, String code, List<String[]> data, List <IgnoredConfigItem> ignoredConfigItems, String reason, String changeCategory, String changeReferenceUrl, String username) {
 		if (type.equals("Locations")) {
 			return Mono.from(hostLmsRepository.findByCode(code))
 				.switchIfEmpty(Mono.error(new FileUploadValidationException("Invalid Host LMS code provided")))
-				.flatMap(hostLms ->
-					Flux.fromIterable(data)
-						.concatMap(line -> processLocationImport(line, hostLms, reason, changeCategory, changeReferenceUrl))
-						.flatMap(location -> Mono.from(locationRepository.saveOrUpdate(location)))
+				.flatMap(hostLms -> {
+					// First validate all locations
+					return Flux.fromIterable(data)
+						.concatMap(line -> processLocationImport(line, hostLms, reason,
+							changeCategory, changeReferenceUrl, username))
 						.collectList()
-						.map(locations -> UploadedConfigImport.builder()
-							.message(locations.size() + " locations have been imported successfully.")
-							.lastImported(Instant.now())
-							.recordsImported((long) locations.size())
-							.recordsIgnored(ignoredMappings.size())
-							.ignoredMappings(ignoredMappings)
-							.build())
-				);
-		}
-		else
-		{
-			return cleanupMappings(type, mappingCategory, code)
+						// After validation passes, delete existing locations and capture the count
+						.flatMap(validatedLocations ->
+							cleanupLocations(hostLms)
+								.map(deletedCount -> new ValidationDeleteResult(validatedLocations, deletedCount))
+						)
+						// Then save all new locations
+						.flatMap(result -> {
+							List<Location> validatedLocations = result.validatedLocations();
+							Long deletedCount = result.deletedCount();
+
+							return Flux.fromIterable(validatedLocations)
+								.concatMap(location ->
+									Mono.from(locationRepository.saveOrUpdate(location))
+								)
+								.collectList()
+								.map(locations -> UploadedConfigImport.builder()
+									.message(locations.size() + " locations have been imported successfully.")
+									.lastImported(Instant.now())
+									.recordsImported((long) locations.size())
+									.recordsDeleted(deletedCount)
+									.recordsIgnored(ignoredConfigItems.size())
+									.ignoredConfigItems(ignoredConfigItems)
+									.build());
+						});
+				});
+		} else {
+			return cleanupMappings(type, category, code)
 				.flatMap(cleanupResult -> {
 					if ("Reference value mappings".equals(type)) {
-						return processReferenceValueMappings(data, cleanupResult, ignoredMappings, reason, changeCategory, changeReferenceUrl);
+						return processReferenceValueMappings(data, cleanupResult, ignoredConfigItems, reason, changeCategory, changeReferenceUrl, username);
 					} else {
-						return processNumericRangeMappings(data, cleanupResult, ignoredMappings, reason, changeCategory, changeReferenceUrl);
+						return processNumericRangeMappings(data, cleanupResult, ignoredConfigItems, reason, changeCategory, changeReferenceUrl);
 					}
 				});
 		}
 	}
-	private Mono<Location> processLocationImport(String[] line, DataHostLms hostLms, String reason, String changeCategory, String changeReferenceUrl) {
+
+	private Mono<Location> processLocationImport(String[] line, DataHostLms hostLms, String reason, String changeCategory, String changeReferenceUrl, String username) {
 		return Mono.from(agencyRepository.findOneByCode(line[0])).switchIfEmpty(Mono.error(new FileUploadValidationException("Agency not found for code: " + line[0])))
 			.map(agency -> Location.builder()
 				.id(UUIDUtils.generateLocationId(line[0], line[1]))
@@ -240,33 +236,35 @@ public class DCBConfigurationService {
 				.name(line[2])
 				.printLabel(line[3])
 				.deliveryStops(line[4])
-				.latitude(Double.valueOf(line[5]))
+				.latitude(Double.valueOf(line[5])) // this is slightly changing lat/long
 				.longitude(Double.valueOf(line[6]))
 				.isPickup(Boolean.valueOf(line[7]))
 				.type(line[8])
 				.localId(line[11])
+				.lastImported(Instant.now())
 				.hostSystem(hostLms)
 				.agency(agency)
 				.reason(reason)
 				.changeCategory(changeCategory)
 				.changeReferenceUrl(changeReferenceUrl)
+				.lastEditedBy(username)
 				.build());
 	}
-	private Mono<UploadedConfigImport> processReferenceValueMappings(List<String[]> data, Long cleanupResult, List <IgnoredMapping> ignoredMappings, String reason, String changeCategory, String changeReferenceUrl) {
+	private Mono<UploadedConfigImport> processReferenceValueMappings(List<String[]> data, Long cleanupResult, List <IgnoredConfigItem> ignoredConfigItems, String reason, String changeCategory, String changeReferenceUrl, String username) {
 		return Flux.fromIterable(data)
-			.concatMap(rvm -> processReferenceValueMapping(rvm, reason, changeCategory, changeReferenceUrl))
+			.concatMap(rvm -> processReferenceValueMapping(rvm, reason, changeCategory, changeReferenceUrl, username))
 			.collectList()
 			.map(mappings -> UploadedConfigImport.builder()
 				.message(mappings.size() + " mappings have been imported successfully.")
 				.lastImported(Instant.now())
 				.recordsImported((long) mappings.size())
 				.recordsDeleted(cleanupResult)
-				.recordsIgnored(ignoredMappings.size())
-				.ignoredMappings(ignoredMappings)
+				.recordsIgnored(ignoredConfigItems.size())
+				.ignoredConfigItems(ignoredConfigItems)
 				.build());
 	}
 
-	private Mono<UploadedConfigImport> processNumericRangeMappings(List<String[]> data, Long cleanupResult,List <IgnoredMapping> ignoredMappings, String reason, String changeCategory, String changeReferenceUrl) {
+	private Mono<UploadedConfigImport> processNumericRangeMappings(List<String[]> data, Long cleanupResult, List <IgnoredConfigItem> ignoredConfigItems, String reason, String changeCategory, String changeReferenceUrl) {
 		return Flux.fromIterable(data)
 			.concatMap(nrm -> processNumericRangeMapping(nrm, reason, changeCategory, changeReferenceUrl))
 			.collectList()
@@ -275,55 +273,9 @@ public class DCBConfigurationService {
 				.lastImported(Instant.now())
 				.recordsImported((long) mappings.size())
 				.recordsDeleted(cleanupResult)
-				.recordsIgnored(ignoredMappings.size())
-				.ignoredMappings(ignoredMappings)
+				.recordsIgnored(ignoredConfigItems.size())
+				.ignoredConfigItems(ignoredConfigItems)
 				.build());
-	}
-
-//	private static boolean validateLocationLine(String[] line, String hostLmsCode) {
-//		// Aside from main validations, this also needs to affirm that the host lms and agency codes are actually valid.
-//		// This is easy enough for the host lms code as we just need to check the supplied code for validity, and then check all others against it
-//		// as they should all be the same
-//		// Ditto for agency code -
-//		// So this might have to pass in a Host LMS and an Agency
-//		Map<String, Object> input = Map.of(
-//			"agencyCode", line[0], // Also used for lookup
-//			"code", line[1],
-//			"name", line[2],
-//			"printLabel", line[3],
-//			"latitude", line[4],
-//			"longitude", line[5],
-//			"isPickup", Boolean.valueOf(line[6]),
-//			"type", line[7],
-//			"localId", line[8],
-//			"hostLmsCode", line[9] // To be used for lookup
-//		);
-//
-//	}
-
-	private Mono<Boolean> validateLocationLine(String[] line, DataHostLms hostLms) {
-		// Convert the line array to the input map format expected by LocationInputValidator
-		Map<String, Object> input = Map.of(
-			"agencyCode", line[0], // Also used for lookup
-			"code", line[1],
-			"name", line[2],
-			"printLabel", line[3],
-			"latitude", line[4],
-			"longitude", line[5],
-			"isPickup", Boolean.valueOf(line[6]),
-			"type", line[7],
-			"localId", line[8],
-			"hostLmsCode", line[9] // To be used for lookup
-		);
-
-		return LocationInputValidator.validateInput(input, hostLms)
-			.thenReturn(true)
-			.onErrorResume(e -> {
-				if (e instanceof EntityCreationException) {
-					return Mono.just(false);
-				}
-				return Mono.error(e);
-			});
 	}
 
 	private Mono<ParseResult> processLocationFileImport(List<String[]> data, String hostLmsCode) {
@@ -335,7 +287,6 @@ public class DCBConfigurationService {
 					.concatMap(tuple -> {
 						String[] line = tuple.getT2();
 						long lineNumber = tuple.getT1() + 2; // Add 2 to account for header and 0-based index
-						log.debug(Arrays.toString(line));
 
 						Map<String, Object> input = Map.ofEntries(
 							Map.entry("agencyCode", line[0]), // Also used for lookup
@@ -354,129 +305,315 @@ public class DCBConfigurationService {
 						return LocationInputValidator.validateInput(input, hostLms)
 							.thenReturn(new ValidationResult(line, null))
 							.onErrorResume(e -> {
-								String errorMsg = e instanceof EntityCreationException ?
+								log.debug("Error {}", e.getMessage());
+								String errorMessage = e instanceof EntityCreationException ?
 									e.getMessage() :
 									"Invalid location data on line " + lineNumber;
 								return Mono.just(new ValidationResult(
 									null,
-									new IgnoredMapping(errorMsg, (int) lineNumber)
+									new IgnoredConfigItem(errorMessage, (int) lineNumber)
 								));
 							});
 					})
 					.collectList()
 					.map(results -> {
 						List<String[]> validData = new ArrayList<>();
-						List<IgnoredMapping> ignoredMappings = new ArrayList<>();
-
+						List<IgnoredConfigItem> ignoredConfigItems = new ArrayList<>();
 						for (ValidationResult result : results) {
 							if (result.validLine != null) {
 								validData.add(result.validLine);
 							}
-							if (result.ignoredMapping != null) {
-								ignoredMappings.add(result.ignoredMapping);
+							if (result.ignoredConfigItem != null) {
+								ignoredConfigItems.add(result.ignoredConfigItem);
 							}
 						}
-
 						return ParseResult.builder()
 							.parsedData(validData)
-							.ignoredMappings(ignoredMappings)
+							.ignoredConfigItems(ignoredConfigItems)
 							.build();
 					})
 			);
 	}
 
-	// Helper class for validation results
-	private static class ValidationResult {
-		final String[] validLine;
-		final IgnoredMapping ignoredMapping;
 
-		ValidationResult(String[] validLine, IgnoredMapping ignoredMapping) {
-			this.validLine = validLine;
-			this.ignoredMapping = ignoredMapping;
+	private Mono<ValidationResult> validateMappingLine(String[] line, String code, String category, String type, int lineNumber) {
+		if (type.equalsIgnoreCase("Numeric range mappings")) {
+			return validateNumericRangeMapping(line, code, category, lineNumber);
+		} else {
+			return validateReferenceValueMapping(line, code, category, lineNumber);
 		}
 	}
 
-	public Mono<ParseResult> parseFile(Reader reader, String[] expectedHeaders, String code, String mappingCategory, String type, String fileType) {
+	protected Mono<Long> cleanupLocations(DataHostLms hostLms) {
+		log.debug("Cleaning up existing locations for host system {}", hostLms.getCode());
+		return Mono.from(locationRepository.deleteByHostSystem(hostLms))
+			.doOnNext(affectedRows -> log.info("Deleted {} existing locations for host system {}",
+				affectedRows, hostLms.getCode()));
+	}
+
+	private Mono<ValidationResult> validateNumericRangeMapping(String[] line, String code, String category, int lineNumber) {
+		// NRM line by line validation
+		// Context must match code
+		if (!line[0].equals(code)) {
+			return Mono.just(new ValidationResult(
+				null,
+				new IgnoredConfigItem(
+					"The context does not match the Host LMS code you supplied. Please check your file and try again.",
+					lineNumber
+				)
+			));
+		}
+		// If category is specified, domain must match
+		if (!Objects.equals(category, "all") && !line[1].equals(category)) {
+			return Mono.just(new ValidationResult(
+				null,
+				new IgnoredConfigItem(
+					"The category of this mapping does not match the domain in the file you have supplied and it will not be imported.",
+					lineNumber
+				)
+			));
+		}
+		return Mono.just(new ValidationResult(line, null));
+	}
+
+	private Mono<ValidationResult> validateReferenceValueMapping(String[] line, String code, String category, int lineNumber) {
+		String fromContext = line[0];
+		String fromCategory = line[1];
+		String fromValue = line[2];
+		String toContext = line[3];
+		String toCategory = line[4];
+		String toValue = line[5];
+
+		// Validate fromContext and toContext first, as these are category agnostic and one must match Host LMS code.
+		boolean validContext = (fromContext.equalsIgnoreCase("DCB") && toContext.equalsIgnoreCase(code)) ||
+			(fromContext.equalsIgnoreCase(code) && toContext.equalsIgnoreCase("DCB"));
+		if (!validContext) {
+			return Mono.just(new ValidationResult(
+				null,
+				new IgnoredConfigItem(
+					"Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.",
+					lineNumber
+				)
+			));
+		}
+		// Validate category if specified
+		if (!Objects.equals(category, "all") && !(fromCategory.equals(category) || toCategory.equals(category))) {
+			return Mono.just(new ValidationResult(
+				null,
+				new IgnoredConfigItem(
+					"The fromCategory or toCategory of this mapping does not match the category you have specified. It will not be imported.",
+					lineNumber
+				)
+			));
+		}
+		if (fromContext.equals(toContext)) {
+			return Mono.just(new ValidationResult(
+				null,
+				new IgnoredConfigItem(
+					"Mapping could not be imported: 'fromContext' and 'toContext' cannot be the same.",
+				  lineNumber
+				)
+			));
+		}
+		if ((category.equals("Location")) && !toContext.equals("DCB"))
+		{
+			return Mono.just(new ValidationResult(
+				null,
+				new IgnoredConfigItem(
+					"Mapping could not be imported: Location mapping must have a toContext value of 'DCB'.",
+					lineNumber
+				)
+			));
+		}
+		if ((category.equals("ItemType")  && (fromContext.equals("DCB") || toContext.equals("DCB"))))
+		{
+			if (fromContext.equals("DCB") && !validItemTypes.contains(fromValue))
+			{
+				log.debug("fromContext: {}, fromValue: {}", line[0], line[2]);
+				return Mono.just(new ValidationResult(
+					null,
+					new IgnoredConfigItem(
+						"This ItemType mapping will not be imported because its fromValue is invalid. Valid from values for this mapping are"+validItemTypes,
+						lineNumber
+					)
+				));
+			}
+			else if (toContext.equals("DCB") && !validItemTypes.contains(toValue))
+			{
+				log.debug("toContext: {}, toValue: {}", line[3], line[5]);
+				return Mono.just(new ValidationResult(
+					null, new IgnoredConfigItem("This ItemType mapping will not be imported because its toValue is not valid. Valid to values for this mapping are"+validItemTypes, lineNumber)));
+			}
+		}
+		if ((fromCategory.equals("patronType") || toCategory.equals("patronType")) && (fromContext.equals("DCB") || toContext.equals("DCB")))
+		{
+			if (fromContext.equals("DCB") && !validPatronTypes.contains(fromValue))
+				return Mono.just(new ValidationResult(
+			null, new IgnoredConfigItem("This patronType mapping will not be imported because its fromValue is not valid. Valid from values for this mapping are"+validPatronTypes, lineNumber)));
+			else if (toContext.equals("DCB") && !validPatronTypes.contains(toValue))
+			{
+				return Mono.just(new ValidationResult(
+					null, new IgnoredConfigItem("The toValue for this patronType mapping is not valid. Valid to values for this mapping are"+validPatronTypes, lineNumber)));
+			}
+		}
+		return Mono.just(new ValidationResult(line, null));
+	}
+	private Mono<ParseResult> processMappingFileImport(List<String[]> fileData, String code, String category, String type) {
+		return Flux.fromIterable(fileData)
+			.index()
+			.concatMap(tuple -> {
+				String[] line = tuple.getT2();
+				int lineNumber = (int) (tuple.getT1() + 2); // Add 2 to account for header and 0-based index
+				return validateMappingLine(line, code, category, type, lineNumber);
+			})
+			.collectList()
+			.map(results -> {
+				List<String[]> validData = new ArrayList<>();
+				List<IgnoredConfigItem> ignoredConfigItems = new ArrayList<>();
+				for (ValidationResult result : results) {
+					if (result.validLine() != null) {
+						validData.add(result.validLine());
+					}
+					if (result.ignoredConfigItem() != null) {
+						ignoredConfigItems.add(result.ignoredConfigItem());
+					}
+				}
+				return ParseResult.builder()
+					.parsedData(validData)
+					.ignoredConfigItems(ignoredConfigItems)
+					.build();
+			});
+	}
+
+	// Method for parsing config from TSV or CSV files.
+	public Mono<ParseResult> parseFile(Reader reader, String[] expectedHeaders, String code, String category, String type, String fileType) {
 		return Mono.fromCallable(() -> {
 			if (fileType.equals("csv"))
 			{
-				String validationError = "";
+				String validationError;
 				try (CSVReader csvReader = new CSVReader(reader)) {
 					// Get the header line
 					String[] headers = csvReader.readNext();
-
 					// Validate headers
-					if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) ||
-						(!headers[1].equalsIgnoreCase(expectedHeaders[1])) ||
-						(!headers[2].equalsIgnoreCase(expectedHeaders[2])) ||
-						(!headers[3].equalsIgnoreCase(expectedHeaders[3])) ||
-						(!headers[4].equalsIgnoreCase(expectedHeaders[4])) ||
-						(!headers[5].equalsIgnoreCase(expectedHeaders[5])))) {
-						throw new FileUploadValidationException("CSV headers do not match the expected headers: " +
-							Arrays.toString(expectedHeaders) + ". Please check your CSV file and retry.");
+					if (headers.length < expectedHeaders.length) {
+						validationError = "File has fewer columns than expected. Expected " + expectedHeaders.length +
+							" columns but found " + headers.length + ". Please check your CSV file and retry.";
+						throw new FileUploadValidationException(validationError);
 					}
-
+					// Then validate each header matches
+					for (int i = 0; i < expectedHeaders.length; i++) {
+						if (!headers[i].equalsIgnoreCase(expectedHeaders[i])) {
+							validationError = String.format("Header mismatch at column %d. Expected '%s' but found '%s'. " +
+									"CSV headers do not match the expected headers: %s. Please check your CSV file and retry.",
+								i + 1,
+								expectedHeaders[i],
+								headers[i],
+								Arrays.toString(expectedHeaders));
+							throw new FileUploadValidationException(validationError);
+						}
+					}
 					// Read all data
-					List<String[]> csvData = new ArrayList<>();
+					List<String[]> fileData = new ArrayList<>();
 					String[] line;
 					int lineNumber = 2;
+					// Must be type specific
+					// For NRMs and RVMs we're not bothered about anything after [5]
+					// For locations it's a bit different and more header-based.
+
 					while ((line = csvReader.readNext()) != null) {
-						if (Arrays.stream(line).anyMatch(String::isBlank)) {
-							throw new FileUploadValidationException("A mandatory field on line " +
-								lineNumber + " has been left empty. Please check your file and try again.");
+						for (int i = 0; i < 6; i++) {
+							if (i >= line.length || line[i] == null || line[i].trim().isEmpty()) {
+								throw new FileUploadValidationException("A mandatory field (column " + (i + 1) +
+									") on line " + lineNumber + " has been left empty. Please check your file and try again.");
+							}
 						}
-						csvData.add(line);
+						fileData.add(line);
 						lineNumber++;
 					}
-					return csvData;
+					return fileData;
 				}
-
 			}
 			else
 			{
-				String validationError = "";
+				String validationError;
 				try (CSVReader TSVReader = new CSVReaderBuilder(reader)
 					.withCSVParser(new CSVParserBuilder().withSeparator('\t').build())
-					.build();) {
+					.build()) {
 					// Get the header line so we can compare
 					String[] headers = TSVReader.readNext();
-					// Check if the headers match the expectedHeaders
-					if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) || (!headers[1].equalsIgnoreCase(expectedHeaders[1])) || (!headers[2].equalsIgnoreCase(expectedHeaders[2])) || (!headers[3].equalsIgnoreCase(expectedHeaders[3])) || (!headers[4].equalsIgnoreCase(expectedHeaders[4])) || (!headers[5].equalsIgnoreCase(expectedHeaders[5])))) {
-						validationError = "TSV headers do not match the expected headers: " + Arrays.toString(expectedHeaders) +
-							". Please check your TSV file and retry.";
+					// Validate headers
+					if (headers.length < expectedHeaders.length) {
+						validationError = "File has fewer columns than expected. Expected " + expectedHeaders.length +
+							" columns but found " + headers.length + ". Please check your TSV file and retry.";
 						throw new FileUploadValidationException(validationError);
 					}
-					List<String[]> csvData = new ArrayList<>();
+					// Then validate each header matches
+					for (int i = 0; i < expectedHeaders.length; i++) {
+						if (!headers[i].equalsIgnoreCase(expectedHeaders[i])) {
+							validationError = String.format("Header mismatch at column %d. Expected '%s' but found '%s'. " +
+									"TSV headers do not match the expected headers: %s. Please check your TSV file and retry.",
+								i + 1,
+								expectedHeaders[i],
+								headers[i],
+								Arrays.toString(expectedHeaders));
+							throw new FileUploadValidationException(validationError);
+						}
+					}
+					List<String[]> fileData = new ArrayList<>();
 					String[] line;
 					int lineNumber = 2;
 					while ((line = TSVReader.readNext()) != null) {
 						// Make this more specific
-						if (Arrays.stream(line).anyMatch(String::isBlank)) {
-							throw new FileUploadValidationException("A mandatory field on line " +
-								lineNumber + " has been left empty. Please check your file and try again.");
+						for (int i = 0; i < 6; i++) {
+							if (i >= line.length || line[i] == null || line[i].trim().isEmpty()) {
+								throw new FileUploadValidationException("A mandatory field (column " + (i + 1) +
+									") on line " + lineNumber + " has been left empty. Please check your file and try again.");
+							}
 						}
-						csvData.add(line);
+						fileData.add(line);
 						lineNumber++;
 					}
-					return csvData;
+					return fileData;
 				}
 			}
-
-
 			})
-			.flatMap(csvData -> {
+			.flatMap(fileData -> {
 				if (type.equals("Locations")) {
-					return processLocationFileImport(csvData, code);
+					return processLocationFileImport(fileData, code);
 				} else {
-					// Handle existing mapping types with their current validation logic
-					List<String[]> validData = new ArrayList<>();
-					List<IgnoredMapping> ignoredMappings = new ArrayList<>();
-					// ... existing validation logic for other types ...
-					return Mono.just(ParseResult.builder()
-						.parsedData(validData)
-						.ignoredMappings(ignoredMappings)
-						.build());
+					return processMappingFileImport(fileData, code, category, type);
 				}
+			})
+			.flatMap(parseResult -> {
+				if (parseResult.getParsedData().isEmpty()) {
+					// Create a comprehensive error message combining validation failures
+					StringBuilder errorMessage = new StringBuilder("Import failed: No valid records were found in the file.");
+
+					List<IgnoredConfigItem> ignoredMappings = parseResult.getIgnoredConfigItems();
+					if (ignoredMappings != null && !ignoredMappings.isEmpty()) {
+						errorMessage.append("\n\nValidation errors encountered:");
+						// Group errors by reason to avoid repetition
+						Map<String, List<Integer>> errorsByReason = ignoredMappings.stream()
+							.collect(Collectors.groupingBy(
+								IgnoredConfigItem::getReason,
+								Collectors.mapping(IgnoredConfigItem::getLineNumber, Collectors.toList())
+							));
+
+						errorsByReason.forEach((reason, lines) -> {
+							errorMessage.append("\n- ").append(reason);
+							errorMessage.append(" (Lines: ").append(
+								lines.stream()
+									.map(String::valueOf)
+									.collect(Collectors.joining(", "))
+							).append(")");
+						});
+					}
+
+					errorMessage.append("\n\nPlease correct these issues and try again.");
+
+					return Mono.error(new FileUploadValidationException(errorMessage.toString()));
+				}
+				return Mono.just(parseResult);
 			})
 			.onErrorMap(e -> {
 				if (e instanceof FileUploadValidationException) {
@@ -485,171 +622,6 @@ public class DCBConfigurationService {
 				log.debug("A FileValidationException has occurred.", e);
 				return new FileUploadValidationException("Error reading file: " + e.getMessage());
 			});
-	}
-
-
-	// Methods for parsing the uploaded CSV/TSV file and running header and line-by-line validation.
-	public static ParseResult parseCsv(Reader reader, String[] expectedHeaders, String code, String mappingCategory, String type) {
-		String validationError = "";
-		try (CSVReader csvReader = new CSVReader(reader)) {
-			// Get the header line so we can compare
-			String[] headers = csvReader.readNext();
-			// Check if the headers match the expectedHeaders
-			if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) || (!headers[1].equalsIgnoreCase(expectedHeaders[1])) || (!headers[2].equalsIgnoreCase(expectedHeaders[2])) || (!headers[3].equalsIgnoreCase(expectedHeaders[3])) || (!headers[4].equalsIgnoreCase(expectedHeaders[4])) || (!headers[5].equalsIgnoreCase(expectedHeaders[5]))))
-			{
-				validationError = "CSV headers do not match the expected headers: "+ Arrays.toString(expectedHeaders)+
-					". Please check your CSV file and retry.";
-				throw new FileUploadValidationException(validationError);
-			}
-			String[] line;
-			List<String[]> csvData = new ArrayList<>();
-			List<IgnoredMapping> ignoredMappings = new ArrayList<>();
-			int lineNumber = 2;
-			while ((line = csvReader.readNext()) != null) {
-				// Switch on validation here. If we can refactor this out into methods that would be great
-				// i.e. validateRVM, validateNRM, validateLoc
-
-				if (type.equals("Locations")){
-					// Validate accordingly
-
-					// if validation passes, add line
-
-				}
-
-
-				if (line[0].isBlank() || line[1].isBlank() || line[2].isBlank() || line[3].isBlank() || line[4].isBlank() || line[5].isBlank())
-				{
-					validationError = "A mandatory field on line "+lineNumber+ " has been left empty. Please check your file and try again.";
-					throw new FileUploadValidationException(validationError);
-				}
-				// Line by line validation for numeric range mappings
-				// Validate that the context and domain match what's expected, and that there isn't a clash between them and what the user has supplied.
-				if (type.equalsIgnoreCase("Numeric range mappings")) {
-					if (!line[0].equals(code))
-					{
-						validationError="The context does not match the Host LMS code you supplied. Please check your file and try again.";
-						throw new FileUploadValidationException(validationError);
-					}
-					else if (!Objects.equals(mappingCategory, "all") && !line[1].equals(mappingCategory))
-					{
-						// If there is a mis-match between category and domain, treat this mapping as invalid, add it to the ignored list, and proceed to the next one.
-						// If category is "all", we don't need to run this validation.
-						validationError="The category of this mapping does not match the domain in the file you have supplied and it will not be imported.";
-						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
-						ignoredMappings.add(ignoredMapping);
-					}
-					else {
-						csvData.add(line);
-					}
-					lineNumber++;
-				}
-				else
-				// Line by line validation for reference value mappings
-				// Validate that the contexts and categories match what's expected, and that there isn't a clash between them and what the user has supplied.
-				{
-					// If the fromContext or toContext are invalid (not matching either DCB or the supplied Host LMS code), we will throw an error
-					if(!((line[0].equalsIgnoreCase("DCB") && line[3].equalsIgnoreCase(code)) || (line[0].equalsIgnoreCase(code) && line[3].equalsIgnoreCase("DCB"))))
-					{
-						validationError="Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.";
-						// We do throw an exception here, because if the context doesn't match the code something has gone badly wrong.
-						throw new FileUploadValidationException(validationError);
-					}
-					// If category is specified as all, we do not need to run this validation
-					else if (!Objects.equals(mappingCategory, "all") && !(line[1].equals(mappingCategory )|| line[4].equals(mappingCategory)))
-					{
-						// If there is a mis-match between the supplied category and the one in the file, treat this mapping as invalid, add it to the ignored list, and proceed to the next one.
-						// This means that if a user selects "ItemType" and supplies all their mappings, DCB adds only the ItemType mappings
-						// Which saves them the job of having to pick them out themselves.
-						validationError="The fromCategory or toCategory of the mapping on line "+lineNumber+" of your file does not match the category "+mappingCategory+" you have specified. it will not be imported.";
-						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
-						ignoredMappings.add(ignoredMapping);
-					}
-					else {
-						csvData.add(line);
-					}
-					lineNumber++;
-				}
-			}
-			return ParseResult.builder().ignoredMappings(ignoredMappings).parsedData(csvData).build();
-		} catch (Exception e) {
-			log.debug("A FileValidationException has occurred. Details:"+validationError);
-			throw new FileUploadValidationException(validationError);
-		}
-	}
-
-	public static ParseResult parseTsv(Reader reader, String[] expectedHeaders, String mappingCategory, String mappingType, String code) {
-		String validationError = "";
-		try {
-			CSVReader TSVReader = new CSVReaderBuilder(reader)
-				.withCSVParser(new CSVParserBuilder().withSeparator('\t').build())
-				.build();
-			// Get the header line so we can compare
-			String[] headers = TSVReader.readNext();
-			// Check if the headers match the expectedHeaders
-			if (((!headers[0].equalsIgnoreCase(expectedHeaders[0])) || (!headers[1].equalsIgnoreCase(expectedHeaders[1])) || (!headers[2].equalsIgnoreCase(expectedHeaders[2])) || (!headers[3].equalsIgnoreCase(expectedHeaders[3])) || (!headers[4].equalsIgnoreCase(expectedHeaders[4])) || (!headers[5].equalsIgnoreCase(expectedHeaders[5]))))
-			{
-				validationError = "TSV headers do not match the expected headers: "+ Arrays.toString(expectedHeaders)+
-					". Please check your TSV file and retry.";
-				throw new FileUploadValidationException(validationError);
-			}
-			String[] line;
-			List<String[]> tsvData = new ArrayList<>();
-			List<IgnoredMapping> ignoredMappings = new ArrayList<>();
-			int lineNumber = 2;
-			while ((line = TSVReader.readNext()) != null) {
-				if (line[0].isBlank() || line[1].isBlank() || line[2].isBlank() || line[3].isBlank() || line[4].isBlank() || line[5].isBlank())
-				{
-					validationError = "A mandatory field on line "+lineNumber+ " has been left empty. Please check your file and try again.";
-					throw new FileUploadValidationException(validationError);
-				}
-					// Line by line validation for numeric range mappings
-					// Validate that the context and domain match what's expected, and that there isn't a clash between them and what the user has supplied.
-				if (mappingType.equalsIgnoreCase("Numeric range mappings")) {
-					if (!line[0].equals(code))
-					{
-						validationError="The context does not match the Host LMS code you supplied. Please check your file and try again.";
-						throw new FileUploadValidationException(validationError);
-					}
-					else if (!Objects.equals(mappingCategory, "all") && !line[1].equals(mappingCategory))
-					{
-						validationError="The category of this mapping does not match the domain in the file you have supplied and it will not be imported.";
-						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
-						ignoredMappings.add(ignoredMapping);
-					}
-					else {
-						tsvData.add(line);
-					}
-					lineNumber++;
-				}
-				else
-				// Line by line validation for reference value mappings
-				// Validate that the contexts and categories match what's expected, and that there isn't a clash between them and what the user has supplied.
-				{
-					// If the fromContext or toContext are invalid (not matching either DCB or the supplied Host LMS code), we will throw an error
-					if(!((line[0].equalsIgnoreCase("DCB") && line[3].equalsIgnoreCase(code)) || (line[0].equalsIgnoreCase(code) && line[3].equalsIgnoreCase("DCB"))))
-					{
-						validationError="Either the fromContext or toContext values in your file do not match the Host LMS code you supplied. Please check your file and try again.";
-						throw new FileUploadValidationException(validationError);
-					}
-					// If the category supplied does not match the fromCategory or toCategory, throw a validation error.
-					// If category is specified as all, we do not need to run this validation
-					else if (!Objects.equals(mappingCategory, "all") && !(line[1].equals(mappingCategory )|| line[4].equals(mappingCategory)))
-					{
-						validationError="The fromCategory or toCategory of the mapping on line "+lineNumber+" of your file does not match the category "+mappingCategory+" you have specified. it will not be imported.";
-						IgnoredMapping ignoredMapping = new IgnoredMapping(validationError, lineNumber);
-						ignoredMappings.add(ignoredMapping);
-					}
-					else {
-						tsvData.add(line);
-					}
-					lineNumber++;
-				}
-			}
-			return ParseResult.builder().ignoredMappings(ignoredMappings).parsedData(tsvData).build();
-		} catch (Exception e) {
-			log.debug("A FileValidationException has occurred. Details:"+validationError);
-			throw new FileUploadValidationException(validationError);
-		}
 	}
 
 	@Transactional
@@ -729,29 +701,27 @@ public class DCBConfigurationService {
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
 
-	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm, String reason, String changeCategory, String changeReferenceUrl) {
+	private Mono<ReferenceValueMapping> processReferenceValueMapping(String[] rvm, String reason, String changeCategory, String changeReferenceUrl, String username) {
 		ReferenceValueMapping rvmd= ReferenceValueMapping.builder()
 			.id(UUIDUtils.dnsUUID(rvm[0]+":"+rvm[1]+":"+rvm[2]+":"+rvm[3]+":"+rvm[4]))
-			.fromContext(rvm[0])
-			.fromCategory(rvm[1])
-			.fromValue(rvm[2])
-			.toContext(rvm[3])
-			.toCategory(rvm[4])
-			.toValue(rvm[5])
+			.fromContext(rvm[0].trim())
+			.fromCategory(rvm[1].trim())
+			.fromValue(rvm[2].trim())
+			.toContext(rvm[3].trim())
+			.toCategory(rvm[4].trim())
+			.toValue(rvm[5].trim())
 			.lastImported(Instant.now())
 			.deleted(false)
 			.reason(reason)
 			.changeCategory(changeCategory)
 			.changeReferenceUrl(changeReferenceUrl)
+			.lastEditedBy(username)
 			.build();
-
 		// If there was an optional label, set it
 		if ( rvm.length > 6 )
 			rvmd.setLabel(rvm[6]);
-
 		return Mono.from(referenceValueMappingRepository.saveOrUpdate(rvmd));
 	}
-
 
 	private Mono<NumericRangeMapping> processNumericRangeMapping(String[] nrmr) {
 
@@ -814,7 +784,7 @@ public class DCBConfigurationService {
 			Long recordsDeleted;
 			Integer recordsIgnored;
 			@Serdeable.Serializable
-			List<IgnoredMapping> ignoredMappings;
+			List<IgnoredConfigItem> ignoredConfigItems;
 	}
 
 	@Data
@@ -825,7 +795,7 @@ public class DCBConfigurationService {
 	@Introspected
 	public static class ParseResult {
 		List<String[]> parsedData;
-		List<IgnoredMapping> ignoredMappings;
+		List<IgnoredConfigItem> ignoredConfigItems;
 	}
 	@Data
 	@Builder
@@ -833,8 +803,14 @@ public class DCBConfigurationService {
 	@AllArgsConstructor
 	@NoArgsConstructor
 	@Introspected
-	public static class IgnoredMapping {
+	public static class IgnoredConfigItem {
 		String reason;
 		Integer lineNumber;
 	}
+	// Helper class for validation results
+	private record ValidationResult(String[] validLine, IgnoredConfigItem ignoredConfigItem) {
+	}
+	private record ValidationDeleteResult(List<Location> validatedLocations, Long deletedCount) {}
+
 }
+
