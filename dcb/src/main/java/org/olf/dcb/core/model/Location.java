@@ -117,6 +117,10 @@ public class Location implements Auditable {
 	// will need to do some conversion to coerce the value here into what it needs.
 	private String localId;
 
+	// Locations can now be imported like mappings, so we need to keep track of the import timestamps
+	@Nullable
+	private Instant lastImported;
+
 	@Nullable
 	@UpdatedBy
 	private String lastEditedBy;

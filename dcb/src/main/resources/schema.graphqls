@@ -508,6 +508,7 @@ type Location {
   deliveryStops: String
   printLabel: String
   localId: String
+	lastImported: String
 }
 
 type Library {

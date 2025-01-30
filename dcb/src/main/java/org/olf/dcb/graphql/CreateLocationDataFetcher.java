@@ -15,6 +15,7 @@ import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -107,6 +108,7 @@ public class CreateLocationDataFetcher implements DataFetcher<CompletableFuture<
 						.longitude(longitude)
 						.lastEditedBy(userString)
 						.agency(agency)
+						.lastImported(Instant.now())
 						.hostSystem(hostLms).build();
 					changeReferenceUrl.ifPresent(location::setChangeReferenceUrl);
 					changeCategory.ifPresent(location::setChangeCategory);
