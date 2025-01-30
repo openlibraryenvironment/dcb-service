@@ -275,13 +275,24 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
 					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
 						ingestRecord.addIdentifier(id -> {
-							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag())).value(sfs);
+              String idns = IDENTIFIER_FIELD_NAMESPACE.get(df.getTag());
+              String idvalue = switch(idns) {
+                case "ISBN", "ISSN" -> cleanIsxn(sfs);
+                default -> sfs;
+              };
+							id.namespace(idns).value(idvalue);
 						});
 					});
 				});
 
 		return ingestRecord;
 	}
+
+  default String cleanIsxn(String v) {
+    if ( v != null )
+      return v.replaceAll("[^0-9Xx]", "").toUpperCase();
+    return null;
+  }
 
 	default IngestRecordBuilder enrichWithGoldrush(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 		final GoldrushKey grk = getGoldrushKey(marcRecord);

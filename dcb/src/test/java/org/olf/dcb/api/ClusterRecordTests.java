@@ -108,7 +108,7 @@ class ClusterRecordTests {
 
 		assertThat(metadata.identifiers(), containsInAnyOrder(
 			hasIdentifier("ISBN", "9781234567890"),
-			hasIdentifier("ISSN", "1234-5678"),
+			hasIdentifier("ISSN", "12345678"),
 			hasIdentifier("LCCN", "68009551"),
 			hasIdentifier("GOLDRUSH", "basiccircuittheorybycharlesadesoerandernestskuh                  1969876    mca                              "),
 			hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh")));
