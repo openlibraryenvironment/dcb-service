@@ -234,9 +234,9 @@ public class DCBConfigurationService {
 				.id(UUIDUtils.generateLocationId(line[0], line[1]))
 				.code(line[1])
 				.name(line[2])
-				.printLabel(line[3])
-				.deliveryStops(line[4])
-				.latitude(Double.valueOf(line[5])) // this is slightly changing lat/long
+				.printLabel(line[3].isBlank() ? line[2] : line[3]) // If printLabel is blank, default to display name
+				.deliveryStops(line[4].isBlank() ? line[0] : line[3]) // If delivery stops is blank, default to agency code
+				.latitude(Double.valueOf(line[5]))
 				.longitude(Double.valueOf(line[6]))
 				.isPickup(Boolean.valueOf(line[7]))
 				.type(line[8])
@@ -292,8 +292,8 @@ public class DCBConfigurationService {
 							Map.entry("agencyCode", line[0]), // Also used for lookup
 							Map.entry("code", line[1]),
 							Map.entry("name", line[2]),
-							Map.entry("printLabel", line[3]),
-							Map.entry("deliveryStops", line[4]),
+							Map.entry("printLabel", line[3].isBlank() ? line[2] : line[3]),
+							Map.entry("deliveryStops", line[4].isBlank() ? line[0] : line[3]),
 							Map.entry("latitude", line[5]),
 							Map.entry("longitude", line[6]),
 							Map.entry("isPickup", Boolean.valueOf(line[7])),
@@ -522,7 +522,8 @@ public class DCBConfigurationService {
 
 					while ((line = csvReader.readNext()) != null) {
 						for (int i = 0; i < 6; i++) {
-							if (i >= line.length || line[i] == null || line[i].trim().isEmpty()) {
+							if (i >= line.length || line[i] == null || line[i].trim().isEmpty() &&
+								!(headers[i].equalsIgnoreCase("Print Name") || headers[i].equalsIgnoreCase("DeliveryStop_Ignore"))) {
 								throw new FileUploadValidationException("A mandatory field (column " + (i + 1) +
 									") on line " + lineNumber + " has been left empty. Please check your file and try again.");
 							}
@@ -565,7 +566,8 @@ public class DCBConfigurationService {
 					while ((line = TSVReader.readNext()) != null) {
 						// Make this more specific
 						for (int i = 0; i < 6; i++) {
-							if (i >= line.length || line[i] == null || line[i].trim().isEmpty()) {
+							if (i >= line.length || line[i] == null || line[i].trim().isEmpty() &&
+								!(headers[i].equalsIgnoreCase("Print Name") || headers[i].equalsIgnoreCase("DeliveryStop_Ignore"))) {
 								throw new FileUploadValidationException("A mandatory field (column " + (i + 1) +
 									") on line " + lineNumber + " has been left empty. Please check your file and try again.");
 							}
