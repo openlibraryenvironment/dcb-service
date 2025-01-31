@@ -4,6 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.MULTIPART_FORM_DATA;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.security.utils.SecurityService;
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.security.RoleNames;
@@ -36,9 +37,12 @@ public class UploadedMappingsController {
 	private final DCBConfigurationService configurationService;
 	private ReferenceValueMappingRepository referenceValueMappingRepository;
 
-	public UploadedMappingsController(DCBConfigurationService configurationService, ReferenceValueMappingRepository referenceValueMappingRepository) {
+	private SecurityService securityService;
+
+	public UploadedMappingsController(DCBConfigurationService configurationService, ReferenceValueMappingRepository referenceValueMappingRepository, SecurityService securityService) {
 		this.configurationService = configurationService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.securityService = securityService;
 	}
 
 	// This handles the return of an appropriate error + message when a file fails validation.
@@ -71,7 +75,8 @@ public class UploadedMappingsController {
 	// This method posts a file of uploaded mappings of a given mapping type and category.
 	// i.e. Reference value mappings of category ItemType
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
-	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String mappingType, String mappingCategory, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
-		return configurationService.importConfiguration(mappingType, mappingCategory, code, file, reason, changeCategory, changeReferenceUrl);
+	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String type, String category, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
+			String username = (String) securityService.getAuthentication().get().getAttributes().get("preferred_username");
+			return configurationService.importConfiguration(type, category, code, file, reason, changeCategory, changeReferenceUrl, username);
 	}
 }

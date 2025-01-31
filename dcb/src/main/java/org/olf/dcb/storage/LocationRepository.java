@@ -65,6 +65,9 @@ public interface LocationRepository {
 	@Query(value = "delete from location where host_system_id = :hostLmsId", nativeQuery = true)
 	Publisher<Void> deleteByHostLmsId(@NonNull UUID hostLmsId);
 
+	Publisher<Long> deleteByHostSystem(DataHostLms hostSystem);
+
+
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsByLocalIdAndHostSystem(@NotNull String localId, @NotNull DataHostLms hostSystem);

@@ -30,6 +30,8 @@ public class LocationInputValidator {
 				"agencyCode", "hostLmsCode", "printLabel", "deliveryStops",
 				"latitude", "longitude"
 			};
+			log.debug("Location for validation {}", input);
+
 
 			for (String field : requiredFields) {
 				if (input.get(field) == null) {
@@ -38,7 +40,7 @@ public class LocationInputValidator {
 				}
 			}
 
-			if (!input.get("type").equals("Pickup"))
+			if (!input.get("type").toString().equalsIgnoreCase("Pickup"))
 			{
 				return Mono.error(new EntityCreationException("Location creation failed: the creation of non-pickup locations is not supported."));
 			}
@@ -59,6 +61,7 @@ public class LocationInputValidator {
 			// Validate localId based on lmsClientClass
 			String localId = input.get("localId") != null ? input.get("localId").toString() : "";
 			String lmsClientClass = hostLms.getLmsClientClass().toLowerCase();
+			log.debug(lmsClientClass, localId);
 
 			if (lmsClientClass.contains("folio")) {
 				if (localId == null || localId.isBlank()) {
