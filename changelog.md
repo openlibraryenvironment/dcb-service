@@ -1,5 +1,26 @@
 # Changelog
 
+## Version 8.11.0
+
+### Additions
+* [General]
+	* Import pickup locations through DCB Admin [DCB-1777]
+
+### Changes
+* [Chore]
+	* single library workflow API test [DCB-1806]
+	* Standardise location and mapping validation process [DCB-1777]
+	* Add specific location upload URL [DCB-1777]
+	* Add lastImported to Location [DCB-1777]
+* [Refactor]
+	* active workflow determination [DCB-1802]
+
+### Fixes
+* [General]
+	* allow functional setting to be checked before attempting transition [DCB-1786]
+	* Provide a default for blank print labels / delivery stops [DCB-1777]
+	* Extra nullsafe checks on json marc serde, first pass at normalising edition statements in blocking title, tidy up some warnings
+
 ## Version 8.10.0
 
 ### Additions
@@ -9,6 +30,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* PD form
 	* Add com.jaredsburrows.license plugin
 	* NFR Arm support - Add an optional build parameter that allows builders to override the base image
