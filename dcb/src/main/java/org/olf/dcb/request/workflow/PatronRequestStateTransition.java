@@ -16,7 +16,7 @@ public interface PatronRequestStateTransition {
 
 	@NonNull
 	Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx);
-	
+
 	@NonNull
 	Optional<Status> getTargetStatus();
 
@@ -38,5 +38,13 @@ public interface PatronRequestStateTransition {
 	@NonNull
 	default List<DCBTransitionResult> getOutcomes() {
 		return List.of();
+	}
+
+	// a way to avoid repeatedly attempting transitions
+	// if the transition is applicable but the setting is disabled
+	@NonNull
+	default Mono<Boolean> isFunctionalSettingEnabled(RequestWorkflowContext ctx) {
+		// Not all transitions have a setting
+		return Mono.just(true);
 	}
 }

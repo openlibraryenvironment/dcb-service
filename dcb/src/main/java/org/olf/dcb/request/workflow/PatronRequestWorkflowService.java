@@ -177,7 +177,14 @@ public class PatronRequestWorkflowService {
 	public Function<PatronRequest, Mono<RequestWorkflowContext>> attemptTransitionWithErrorTransformer(
 		PatronRequestStateTransition action, RequestWorkflowContext ctx) {
 
-		return pr -> action.attempt(ctx).transform(getErrorTransformerFor(ctx));
+		return pr -> action.isFunctionalSettingEnabled(ctx)
+			.flatMap(enabled -> {
+				if (enabled) {
+					return action.attempt(ctx);
+				}
+				return Mono.just(ctx);
+			})
+			.transform(getErrorTransformerFor(ctx));
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> incrementStateTransitionMetrics(

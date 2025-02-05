@@ -171,4 +171,9 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	public boolean attemptAutomatically() {
 		return true;
 	}
+
+	@Override
+	public Mono<Boolean> isFunctionalSettingEnabled(RequestWorkflowContext ctx) {
+		return consortiumService.isEnabled(TRIGGER_SUPPLIER_RENEWAL);
+	}
 }
