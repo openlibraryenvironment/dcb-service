@@ -1,36 +1,33 @@
 package org.olf.dcb.request.workflow;
 
-import static java.util.UUID.randomUUID;
-import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.*;
-import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.MapUtils.putNonNullValue;
-import static services.k_int.utils.ReactorUtils.raiseError;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.request.fulfilment.PatronRequestService;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.resolution.PatronRequestResolutionService;
-import org.olf.dcb.request.resolution.Resolution;
-import org.olf.dcb.request.resolution.SupplierRequestService;
-
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
-import org.zalando.problem.Problem;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.PatronRequestService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.request.resolution.PatronRequestResolutionService;
+import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 import reactor.core.publisher.Mono;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+
+import static java.util.UUID.randomUUID;
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.MapUtils.putNonNullValue;
 
 @Slf4j
 @Prototype
@@ -41,6 +38,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 	private final SupplierRequestService supplierRequestService;
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 
 	private static final List<Status> possibleSourceStatus = List.of(PATRON_VERIFIED);
 
@@ -48,12 +46,14 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		PatronRequestResolutionService patronRequestResolutionService,
 		PatronRequestAuditService patronRequestAuditService,
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
-		SupplierRequestService supplierRequestService) {
+		SupplierRequestService supplierRequestService,
+		RequestWorkflowContextHelper requestWorkflowContextHelper) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.supplierRequestService = supplierRequestService;
+		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 	}
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
@@ -72,9 +72,34 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.flatMap(this::auditResolution)
 			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
 			.flatMap(this::saveSupplierRequest)
+			.flatMap(this::setPatronRequestWorkflow)
 			.flatMap(this::updatePatronRequest)
 			.map(Resolution::getPatronRequest)
 			.thenReturn(ctx);
+	}
+
+	private Mono<Resolution> setPatronRequestWorkflow(Resolution resolution) {
+		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
+		final var borrowingAgencyCode = getValueOrNull(resolution, Resolution::getBorrowingAgencyCode);
+		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
+		final var itemAgencyCode = getValueOrNull(chosenItem, Item::getAgencyCode);
+
+		// NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
+		if (chosenItem == null) return Mono.just(resolution);
+
+		log.debug("Setting PatronRequestWorkflow BorrowingAgencyCode: {}, ItemAgencyCode: {}",
+			borrowingAgencyCode, itemAgencyCode);
+
+		// build a temporary context to allow the active workflow to be set
+		final var rwc = new RequestWorkflowContext()
+			.setPatronRequest(patronRequest)
+			.setPatronAgencyCode(borrowingAgencyCode)
+			.setLenderAgencyCode(itemAgencyCode);
+
+		return requestWorkflowContextHelper.resolvePickupLocationAgency(rwc)
+			.flatMap(requestWorkflowContextHelper::setPatronRequestWorkflow)
+			.map(RequestWorkflowContext::getPatronRequest)
+			.map(resolution::withPatronRequest);
 	}
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {

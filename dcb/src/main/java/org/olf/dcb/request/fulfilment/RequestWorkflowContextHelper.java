@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
@@ -12,6 +13,7 @@ import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
@@ -137,7 +139,7 @@ public class RequestWorkflowContextHelper {
 			.defaultIfEmpty(ctx);
 	}
 
-	private Mono<RequestWorkflowContext> decorateContextWithPatronAgency(RequestWorkflowContext ctx) {
+	public Mono<RequestWorkflowContext> decorateContextWithPatronAgency(RequestWorkflowContext ctx) {
 		log.info("decorateContextWithPatronAgency");
 
 		if (ctx.getPatronHomeIdentity() != null) {
@@ -228,7 +230,7 @@ public class RequestWorkflowContextHelper {
 	// The procedure for turning a pickup location code into an agency code is different to the other kinds of identifiers
 	// it is tempting to think that resolving patron and lending systems could be coalesced into a single function, but
 	// this is problematic due to the semantic difference. Please think carefully before attempting this (Desireable) consolidation
-	private Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
+	public Mono<RequestWorkflowContext> resolvePickupLocationAgency(RequestWorkflowContext ctx) {
 		log.info("resolvePickupLocationAgency ctx={} code={} hostLms={}",
 			ctx.getPatronRequest().getPickupLocationCodeContext(),
 			ctx.getPatronRequest().getPickupLocationCode(),
@@ -355,6 +357,90 @@ public class RequestWorkflowContextHelper {
 			ctx.getSupplierHoldStatus());
 
 		return Mono.just(ctx);
+	}
+
+	// Depending upon the particular setup (1, 2 or three parties) we need to take different actions in different scenarios.
+	// Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
+	// This can change as we select different suppliers, so we recalculate for each new supplier.
+	public Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext rwc) {
+
+		var patronAc = rwc.getPatronAgencyCode();
+		log.debug("patronAc: [{}]", patronAc);
+		var lenderAc = rwc.getLenderAgencyCode();
+		if ( lenderAc == null ) {
+			// BAD TM. Tests make really naive assumptions and this is considered OK.
+			lenderAc = patronAc;
+		}
+		log.debug("lenderAc: [{}]", lenderAc);
+		var pickupAc = rwc.getPickupAgencyCode();
+		log.debug("pickupAc: [{}]", pickupAc);
+
+		// Grab a reference to the patron request.
+		final PatronRequest pr = rwc.getPatronRequest();
+
+		if ( lenderAc.equals(pickupAc) ) {
+			// We now do not consider the Patron agency when determining "LOCAL". If they are the same we should return early.
+			return Mono.just("RET-LOCAL")
+				.map(pr::setActiveWorkflow)
+				.map(rwc::setPatronRequest);
+		}
+
+		// Different lender and Pickup agencies...
+
+		// Default workflow is standard if the patron and pickup agencies are equal.
+		final String defaultWorkflow = patronAc.equals(pickupAc) ? "RET-STD" : "RET-PUA";
+
+		// Default mono based on the values of just the agency codes. We also need to consider
+		// the scenario when agencies are not the same, but they live on the same system
+		final Mono<RequestWorkflowContext> defaultResolution = Mono.just(defaultWorkflow)
+			.map(pr::setActiveWorkflow)
+			.map(rwc::setPatronRequest);
+
+		// Resolvers for the clients. We need this because sometimes we have nulls (Our tests need changing!)
+		final Mono<HostLmsClient> resolveLenderLms = Mono.justOrEmpty(rwc.getLenderAgency())
+			.switchIfEmpty( Mono.just(lenderAc)
+				.map( agencyRepository::findOneByCode )
+				.flatMap( Mono::from ))
+			.map(Agency::getHostLms)
+			.cast(HostLms.class)
+			.flatMap( hostLmsService::getClientFor );
+
+		final Mono<HostLmsClient> resolvePickupLms = Mono.justOrEmpty(rwc.getPickupAgency())
+			.switchIfEmpty( Mono.just(pickupAc)
+				.map( agencyRepository::findOneByCode )
+				.flatMap( Mono::from ))
+			.map(Agency::getHostLms)
+			.cast(HostLms.class)
+			.flatMap( hostLmsService::getClientFor );
+
+		return Mono.zip(resolveLenderLms, resolvePickupLms) // Empty sources will complete to error...
+
+			.filter(TupleUtils.predicate((ls, ps ) -> ls.compareTo( ps ) == 0)) // We resolved LMS clients and can compare them.
+			.map( _systems -> rwc.setPatronRequest( pr.setActiveWorkflow("RET-LOCAL") ))
+
+			.onErrorResume( e -> {
+				log.warn("Error when attempting to compare the lender and pickup systems...", e);
+				return defaultResolution;
+			})
+
+			// Empty means the systems did not match, just default.
+			.switchIfEmpty(defaultResolution);
+
+
+		// SO: Preserving legacy logic for a short while.
+//		if ((rwc.getPatronAgencyCode().equals(rwc.getLenderAgencyCode())) &&
+//			(rwc.getPatronAgencyCode().equals(rwc.getPickupAgencyCode()))) {
+//			// Case 1 : Purely local request
+//			rwc.getPatronRequest().setActiveWorkflow("RET-LOCAL");
+//		} else if (rwc.getPatronAgencyCode().equals(rwc.getPickupAgencyCode())) {
+//			// Case 2 : Remote lender, patron picking up from a a library in their home system
+//			rwc.getPatronRequest().setActiveWorkflow("RET-STD");
+//		} else {
+//			// Case 3 : Three legged transaction - Lender, Pickup, Borrower
+//			rwc.getPatronRequest().setActiveWorkflow("RET-PUA");
+//		}
+
+//		return Mono.just(rwc);
 	}
 }
 

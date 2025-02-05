@@ -22,6 +22,10 @@ public class PatronRequestMatchers {
 		return hasProperty("resolutionCount", is(expectedCount));
 	}
 
+	public static Matcher<PatronRequest> hasActiveWorkflow(String workflow) {
+		return hasProperty("activeWorkflow", is(workflow));
+	}
+
 	public static Matcher<PatronRequest> hasRenewalCount(Integer expectedCount) {
 		return hasProperty("renewalCount", is(expectedCount));
 	}

@@ -1,10 +1,26 @@
 package org.olf.dcb.request.resolution;
 
-import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_INVALID_LOCAL_ITEM_TYPE;
-import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
-import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
-import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
-import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.Nullable;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.ConsortiumService;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.item.availability.AvailabilityReport;
+import org.olf.dcb.item.availability.LiveAvailabilityService;
+import org.zalando.problem.Problem;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.*;
 import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
@@ -13,32 +29,6 @@ import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCond
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
-
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.NoHomeIdentityException;
-import org.olf.dcb.core.model.Patron;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.item.availability.AvailabilityReport;
-import org.olf.dcb.item.availability.LiveAvailabilityService;
-import org.zalando.problem.Problem;
-
-import io.micronaut.context.annotation.Value;
-import io.micronaut.core.annotation.Nullable;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 
 @Slf4j
 @Singleton
@@ -85,11 +75,35 @@ public class PatronRequestResolutionService {
 			: specifiedResolutionSteps();
 
 		return Mono.just(Resolution.forPatronRequest(patronRequest))
+			.map(this::borrowingAgency)
 			.map(resolution -> resolution.excludeAgency(excludedAgencyCode))
 			.flatMap(initialResolution -> executeSteps(initialResolution, resolutionSteps))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
 			.switchIfEmpty(Mono.defer(() -> Mono.just(noItemsSelectable(patronRequest))));
+	}
+
+	private Resolution borrowingAgency(Resolution resolution) {
+		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
+		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
+		final var optionalHomeIdentity = getValueOrNull(patron, Patron::getHomeIdentity);
+
+		if (optionalHomeIdentity.isEmpty()) {
+			throw new NoHomeIdentityException(getValueOrNull(patron, Patron::getId),
+				getValueOrNull(patron, Patron::getPatronIdentities));
+		}
+
+		final var homeIdentity = optionalHomeIdentity.get();
+
+		final var borrowingAgency = getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);
+
+		final var borrowingAgencyCode = getValueOrNull(borrowingAgency, DataAgency::getCode);
+
+		if (borrowingAgencyCode == null) {
+			log.warn("Borrowing agency code during resolution is null");
+		}
+
+		return resolution.borrowingAgency(borrowingAgencyCode);
 	}
 
 	private List<ResolutionStep> manualResolutionSteps() {
@@ -224,24 +238,8 @@ public class PatronRequestResolutionService {
 
 	private Mono<Resolution> filterItems(Resolution resolution) {
 		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
-		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
-		final var optionalHomeIdentity = getValueOrNull(patron, Patron::getHomeIdentity);
 		final var excludedAgencyCode = getValueOrNull(resolution, Resolution::getExcludedAgencyCode);
-
-		if (optionalHomeIdentity.isEmpty()) {
-			throw new NoHomeIdentityException(getValueOrNull(patron, Patron::getId),
-				getValueOrNull(patron, Patron::getPatronIdentities));
-		}
-
-		final var homeIdentity = optionalHomeIdentity.get();
-
-		final var borrowingAgency = getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);
-
-		final var borrowingAgencyCode = getValueOrNull(borrowingAgency, DataAgency::getCode);
-
-		if (borrowingAgencyCode == null) {
-			log.warn("Borrowing agency code during resolution is null");
-		}
+		final var borrowingAgencyCode = getValueOrNull(resolution, Resolution::getBorrowingAgencyCode);
 
 		final var allItems = resolution.getAllItems();
 
