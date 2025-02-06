@@ -154,7 +154,7 @@ public class PatronRequestWorkflowService {
 	}
 
 	private Mono<PatronRequest> applyTransition(PatronRequestStateTransition action,
-		RequestWorkflowContext ctx) {
+																							RequestWorkflowContext ctx) {
 
 		log.debug("WORKFLOW applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
 
@@ -162,29 +162,34 @@ public class PatronRequestWorkflowService {
 
 		auditData.put("workflowMessages", ctx.getWorkflowMessages());
 
-		return patronRequestAuditService.auditActionAttempted(action, ctx, auditData)
-			.flatMap(attemptTransitionWithErrorTransformer(action, ctx))
-			.flatMap(incrementStateTransitionMetrics(ctx))
-			.flatMap(patronRequestAuditService.auditActionCompleted(action, auditData))
-			.onErrorResume(error -> patronRequestAuditService.auditActionError(action, ctx, auditData, error))
-			.switchIfEmpty(Mono.defer(() -> patronRequestAuditService.auditActionEmpty(action, ctx, auditData)))
+		return executeStateTransitionWithAuditing(action, ctx, auditData)
 			.flatMap(request -> {
 				// Recursively call progress all in case there are subsequent steps we can apply
 				return this.progressAll(ctx.getPatronRequest());
 			});
 	}
 
+	private Mono<PatronRequest> executeStateTransitionWithAuditing(PatronRequestStateTransition action,
+		RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
+
+		return action.isFunctionalSettingEnabled(ctx)
+			.flatMap(enabled -> {
+				if (enabled) {
+					return patronRequestAuditService.auditActionAttempted(action, ctx, auditData)
+						.flatMap(attemptTransitionWithErrorTransformer(action, ctx))
+						.flatMap(incrementStateTransitionMetrics(ctx))
+						.flatMap(patronRequestAuditService.auditActionCompleted(action, auditData))
+						.onErrorResume(error -> patronRequestAuditService.auditActionError(action, ctx, auditData, error))
+						.switchIfEmpty(Mono.defer(() -> patronRequestAuditService.auditActionEmpty(action, ctx, auditData)));
+				}
+				return Mono.just(ctx.getPatronRequest());
+			});
+	}
+
 	public Function<PatronRequest, Mono<RequestWorkflowContext>> attemptTransitionWithErrorTransformer(
 		PatronRequestStateTransition action, RequestWorkflowContext ctx) {
 
-		return pr -> action.isFunctionalSettingEnabled(ctx)
-			.flatMap(enabled -> {
-				if (enabled) {
-					return action.attempt(ctx);
-				}
-				return Mono.just(ctx);
-			})
-			.transform(getErrorTransformerFor(ctx));
+		return pr -> action.attempt(ctx).transform(getErrorTransformerFor(ctx));
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> incrementStateTransitionMetrics(
