@@ -200,16 +200,16 @@ public class DCBConfigurationService {
 						.flatMap(result -> {
 							List<Location> validatedLocations = result.validatedLocations();
 							Long deletedCount = result.deletedCount();
-
+							Integer successCount = validatedLocations.size() - ignoredConfigItems.size();
 							return Flux.fromIterable(validatedLocations)
 								.concatMap(location ->
 									Mono.from(locationRepository.saveOrUpdate(location))
 								)
 								.collectList()
 								.map(locations -> UploadedConfigImport.builder()
-									.message(locations.size() + " locations have been imported successfully.")
+									.message(successCount+" locations have been imported successfully.")
 									.lastImported(Instant.now())
-									.recordsImported((long) locations.size())
+									.recordsImported((long) successCount)
 									.recordsDeleted(deletedCount)
 									.recordsIgnored(ignoredConfigItems.size())
 									.ignoredConfigItems(ignoredConfigItems)
@@ -281,8 +281,33 @@ public class DCBConfigurationService {
 	private Mono<ParseResult> processLocationFileImport(List<String[]> data, String hostLmsCode) {
 		return Mono.from(hostLmsRepository.findByCode(hostLmsCode))
 			.switchIfEmpty(Mono.error(new FileUploadValidationException("Invalid Host LMS code provided")))
-			.flatMap(hostLms ->
-				Flux.fromIterable(data)
+			.flatMap(hostLms -> {
+
+				Set<String> localIds = new HashSet<>();
+				Set<String> locationCodes = new HashSet<>();
+				List<IgnoredConfigItem> duplicateItems = new ArrayList<>();
+
+				for (int i = 0; i < data.size(); i++) {
+					String[] line = data.get(i);
+					String localId = line[11]; // localId
+					String locationCode = line[1]; // location code
+					int lineNumber = i + 2; // Accounting for header
+
+					if (!localIds.add(localId)) {
+						duplicateItems.add(new IgnoredConfigItem(
+							"Duplicate localId " + localId + " found in the import file",
+							lineNumber
+						));
+					}
+
+					if (!locationCodes.add(locationCode)) {
+						duplicateItems.add(new IgnoredConfigItem(
+							"Duplicate location code " + locationCode + " found in the import file",
+							lineNumber
+						));
+					}
+				}
+				return Flux.fromIterable(data)
 					.index() // Keep track of line number
 					.concatMap(tuple -> {
 						String[] line = tuple.getT2();
@@ -318,7 +343,8 @@ public class DCBConfigurationService {
 					.collectList()
 					.map(results -> {
 						List<String[]> validData = new ArrayList<>();
-						List<IgnoredConfigItem> ignoredConfigItems = new ArrayList<>();
+						List<IgnoredConfigItem> ignoredConfigItems = new ArrayList<>(duplicateItems);
+
 						for (ValidationResult result : results) {
 							if (result.validLine != null) {
 								validData.add(result.validLine);
@@ -331,8 +357,8 @@ public class DCBConfigurationService {
 							.parsedData(validData)
 							.ignoredConfigItems(ignoredConfigItems)
 							.build();
-					})
-			);
+					});
+			});
 	}
 
 
