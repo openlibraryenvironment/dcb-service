@@ -186,8 +186,20 @@ public class DCBConfigurationService {
 			return Mono.from(hostLmsRepository.findByCode(code))
 				.switchIfEmpty(Mono.error(new FileUploadValidationException("Invalid Host LMS code provided")))
 				.flatMap(hostLms -> {
+					Set<Integer> ignoredLines = ignoredConfigItems.stream()
+						.map(IgnoredConfigItem::getLineNumber)
+						.collect(Collectors.toSet());
+
+					// Filter out any row that corresponds to an ignored line
+					List<String[]> validData = new ArrayList<>();
+					for (int i = 0; i < data.size(); i++) {
+						// Add 2 to i to match the line numbers in ignoredConfigItems (which account for header)
+						if (!ignoredLines.contains(i + 2)) {
+							validData.add(data.get(i));
+						}
+					}
 					// First validate all locations
-					return Flux.fromIterable(data)
+					return Flux.fromIterable(validData)
 						.concatMap(line -> processLocationImport(line, hostLms, reason,
 							changeCategory, changeReferenceUrl, username))
 						.collectList()
@@ -200,16 +212,15 @@ public class DCBConfigurationService {
 						.flatMap(result -> {
 							List<Location> validatedLocations = result.validatedLocations();
 							Long deletedCount = result.deletedCount();
-							Integer successCount = validatedLocations.size() - ignoredConfigItems.size();
 							return Flux.fromIterable(validatedLocations)
 								.concatMap(location ->
 									Mono.from(locationRepository.saveOrUpdate(location))
 								)
 								.collectList()
 								.map(locations -> UploadedConfigImport.builder()
-									.message(successCount+" locations have been imported successfully.")
+									.message(locations.size()+" locations have been imported successfully.")
 									.lastImported(Instant.now())
-									.recordsImported((long) successCount)
+									.recordsImported((long) locations.size())
 									.recordsDeleted(deletedCount)
 									.recordsIgnored(ignoredConfigItems.size())
 									.ignoredConfigItems(ignoredConfigItems)
