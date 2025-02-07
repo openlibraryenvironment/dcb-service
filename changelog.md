@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 8.11.1
+
+### Fixes
+* [General]
+	* Show correct success count when locations are ignored [DCB-1777]
+	* add action audits to scope of functional setting check [DCB-1786]
+
 ## Version 8.11.0
 
 ### Additions
@@ -8,6 +15,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* single library workflow API test [DCB-1806]
 	* Standardise location and mapping validation process [DCB-1777]
 	* Add specific location upload URL [DCB-1777]
