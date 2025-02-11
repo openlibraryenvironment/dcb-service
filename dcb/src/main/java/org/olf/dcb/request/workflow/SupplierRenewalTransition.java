@@ -48,21 +48,25 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	}
 
 	@Override
-	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
 		return consortiumService.isEnabled(TRIGGER_SUPPLIER_RENEWAL)
 			.flatMap(enabled -> {
 				if (enabled) {
-					if (isApplicableFor(ctx)) {
-						return triggerSupplierRenewal(ctx);
+					if (isApplicableFor(context)) {
+						return triggerSupplierRenewal(context);
 					}
 					else {
 						log.warn("Supplier renewal was attempted but wasn't triggered");
-						return Mono.just(ctx);
+						return Mono.just(context);
 					}
 				}
 				else {
-					log.warn("Supplier renewal was attempted but wasn't triggered");
-					return Mono.just(ctx);
+					// Update the renewal count so that the transition is not repeatedly triggered
+					// when the setting is disabled
+					return Mono.just(context)
+						.map(RequestWorkflowContext::getPatronRequest)
+						.map(request -> request.setRenewalCount(request.getLocalRenewalCount()))
+						.map(context::setPatronRequest);
 				}
 			});
 	}

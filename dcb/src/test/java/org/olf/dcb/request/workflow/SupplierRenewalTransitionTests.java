@@ -171,7 +171,7 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(0)
+			hasRenewalCount(1)
 		));
 
 		assertNoAuditRecords(updatedPatronRequest);
