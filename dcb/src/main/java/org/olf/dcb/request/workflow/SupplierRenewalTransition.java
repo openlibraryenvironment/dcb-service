@@ -1,7 +1,16 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
+import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
@@ -11,14 +20,10 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.*;
-
-import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
-import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Prototype
@@ -44,16 +49,21 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-
 		return consortiumService.isEnabled(TRIGGER_SUPPLIER_RENEWAL)
 			.flatMap(enabled -> {
-				if (enabled && isApplicableFor(ctx)) {
-
-					return triggerSupplierRenewal(ctx);
+				if (enabled) {
+					if (isApplicableFor(ctx)) {
+						return triggerSupplierRenewal(ctx);
+					}
+					else {
+						log.warn("Supplier renewal was attempted but wasn't triggered");
+						return Mono.just(ctx);
+					}
 				}
-
-				log.warn("Supplier renewal was attempted but wasn't triggered");
-				return Mono.just(ctx);
+				else {
+					log.warn("Supplier renewal was attempted but wasn't triggered");
+					return Mono.just(ctx);
+				}
 			});
 	}
 
