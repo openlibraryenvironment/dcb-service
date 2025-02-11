@@ -20,6 +20,8 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalRenewalCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasRenewalCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.isNotOutOfSequence;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.isOutOfSequence;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -112,7 +114,8 @@ class SupplierRenewalTransitionTests {
 
 		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
 		final var existingPatron = patronRequest.getPatron();
-		final var supplierRequest = defineSupplierRequest(patronRequest, "4324324", existingPatron);
+
+		defineSupplierRequest(patronRequest, "4324324", existingPatron);
 
 		sierraItemsAPIFixture.checkoutsForItem("4324324");
 		sierraPatronsAPIFixture.mockRenewalSuccess("1811242");
@@ -125,7 +128,8 @@ class SupplierRenewalTransitionTests {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(1)
+			hasRenewalCount(1),
+			isNotOutOfSequence()
 		));
 
 		assertRenewalSuccessAudit(updatedPatronRequest);
@@ -138,7 +142,8 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 
 		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
 		final var existingPatron = patronRequest.getPatron();
-		final var supplierRequest = defineSupplierRequest(patronRequest, "4324324", existingPatron);
+
+		defineSupplierRequest(patronRequest, "4324324", existingPatron);
 
 		sierraItemsAPIFixture.checkoutsForItemWithNoRecordsFound("4324324");
 
@@ -150,7 +155,8 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(0)
+			hasRenewalCount(0),
+			isNotOutOfSequence()
 		));
 
 		assertRenewalFailureAudit(updatedPatronRequest);
@@ -171,7 +177,8 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(1)
+			hasRenewalCount(1),
+			isOutOfSequence()
 		));
 
 		assertNoAuditRecords(updatedPatronRequest);

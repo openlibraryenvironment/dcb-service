@@ -65,7 +65,9 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 					// when the setting is disabled
 					return Mono.just(context)
 						.map(RequestWorkflowContext::getPatronRequest)
-						.map(request -> request.setRenewalCount(request.getLocalRenewalCount()))
+						.map(request -> request
+							.setRenewalCount(request.getLocalRenewalCount())
+							.setOutOfSequenceFlag(true))
 						.map(context::setPatronRequest);
 				}
 			});

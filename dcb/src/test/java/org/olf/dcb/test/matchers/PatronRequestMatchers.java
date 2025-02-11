@@ -1,13 +1,17 @@
 package org.olf.dcb.test.matchers;
 
-import org.hamcrest.Matcher;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.PatronRequest;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.oneOf;
 
 import java.util.UUID;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.Matchers.hasProperty;
+import org.hamcrest.Matcher;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.PatronRequest;
 
 public class PatronRequestMatchers {
 	public static Matcher<PatronRequest> hasId(UUID expectedId) {
@@ -44,6 +48,14 @@ public class PatronRequestMatchers {
 
 	public static Matcher<PatronRequest> hasErrorMessage(Matcher<String> valueMatcher) {
 		return hasProperty("errorMessage", valueMatcher);
+	}
+
+	public static Matcher<PatronRequest> isOutOfSequence() {
+		return hasProperty("outOfSequenceFlag", is(true));
+	}
+
+	public static Matcher<PatronRequest> isNotOutOfSequence() {
+		return hasProperty("outOfSequenceFlag", oneOf(false, null));
 	}
 
 	public static Matcher<PatronRequest> hasLocalPatronType(String expectedLocalPatronType) {
