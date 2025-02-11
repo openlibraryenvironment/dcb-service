@@ -157,7 +157,7 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 	}
 
 	@Test
-	void shouldNotTriggerSupplierRenewalWhenConsortialSettingIsDisabled() {
+	void shouldOnlyUpdateRenewalCountWhenConsortialSettingIsDisabled() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, false);
 
