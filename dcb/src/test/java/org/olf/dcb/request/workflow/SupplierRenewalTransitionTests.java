@@ -24,6 +24,7 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.isNotOutOfSequence
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isOutOfSequence;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -136,7 +137,7 @@ class SupplierRenewalTransitionTests {
 	}
 
 	@Test
-void shouldFailSupplierRenewalWhenRequestFails() {
+	void shouldFailSupplierRenewalWhenRequestFails() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
@@ -332,6 +333,8 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			.status(status)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId("3219073408")
+			// This is necessary for the test that uses the request workflow service
+			.currentStatusTimestamp(Instant.now())
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
