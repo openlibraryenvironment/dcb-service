@@ -1,22 +1,8 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Value;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.annotation.ExecuteOn;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.tracking.TrackingHelpers;
-import org.reactivestreams.Publisher;
-import org.slf4j.MDC;
-import org.zalando.problem.Problem;
-import org.zalando.problem.ThrowableProblem;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static org.olf.dcb.core.AppConfig.CIRCULATION_TRACKING_PROFILE_KEY;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -27,9 +13,24 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.core.AppConfig.CIRCULATION_TRACKING_PROFILE_KEY;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.tracking.TrackingHelpers;
+import org.reactivestreams.Publisher;
+import org.slf4j.MDC;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
+
+import io.micronaut.context.annotation.Value;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -154,7 +155,7 @@ public class PatronRequestWorkflowService {
 	}
 
 	private Mono<PatronRequest> applyTransition(PatronRequestStateTransition action,
-																							RequestWorkflowContext ctx) {
+		RequestWorkflowContext ctx) {
 
 		log.debug("WORKFLOW applyTransition({}, {})", action.getName(), ctx.getPatronRequest().getId());
 
@@ -172,18 +173,12 @@ public class PatronRequestWorkflowService {
 	private Mono<PatronRequest> executeStateTransitionWithAuditing(PatronRequestStateTransition action,
 		RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
 
-		return action.isFunctionalSettingEnabled(ctx)
-			.flatMap(enabled -> {
-				if (enabled) {
-					return patronRequestAuditService.auditActionAttempted(action, ctx, auditData)
-						.flatMap(attemptTransitionWithErrorTransformer(action, ctx))
-						.flatMap(incrementStateTransitionMetrics(ctx))
-						.flatMap(patronRequestAuditService.auditActionCompleted(action, auditData))
-						.onErrorResume(error -> patronRequestAuditService.auditActionError(action, ctx, auditData, error))
-						.switchIfEmpty(Mono.defer(() -> patronRequestAuditService.auditActionEmpty(action, ctx, auditData)));
-				}
-				return Mono.just(ctx.getPatronRequest());
-			});
+		return patronRequestAuditService.auditActionAttempted(action, ctx, auditData)
+			.flatMap(attemptTransitionWithErrorTransformer(action, ctx))
+			.flatMap(incrementStateTransitionMetrics(ctx))
+			.flatMap(patronRequestAuditService.auditActionCompleted(action, auditData))
+			.onErrorResume(error -> patronRequestAuditService.auditActionError(action, ctx, auditData, error))
+			.switchIfEmpty(Mono.defer(() -> patronRequestAuditService.auditActionEmpty(action, ctx, auditData)));
 	}
 
 	public Function<PatronRequest, Mono<RequestWorkflowContext>> attemptTransitionWithErrorTransformer(

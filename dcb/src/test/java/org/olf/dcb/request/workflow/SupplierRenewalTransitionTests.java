@@ -29,7 +29,6 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
@@ -193,9 +192,7 @@ class SupplierRenewalTransitionTests {
 		);
 	}
 
-	// Disabled to stop the build failing. Remove annotation to demonstrate
 	@Test
-	@Disabled
 	void shouldNotContinuouslyTriggerSupplierRenewalWhenConsortialSettingIsDisabled() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, false);
