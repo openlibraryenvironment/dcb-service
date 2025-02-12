@@ -65,12 +65,25 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 					// when the setting is disabled
 					return Mono.just(context)
 						.map(RequestWorkflowContext::getPatronRequest)
+						.flatMap(this::auditDisabled)
 						.map(request -> request
 							.setRenewalCount(request.getLocalRenewalCount())
 							.setOutOfSequenceFlag(true))
 						.map(context::setPatronRequest);
 				}
 			});
+	}
+
+	private Mono<PatronRequest> auditDisabled(PatronRequest patronRequest) {
+		final var message = "Supplier renewal : Skipping supplier renewal as setting disabled";
+
+		final var auditData = new HashMap<String, Object>();
+
+		auditData.put("renewalCount", getValueOrNull(patronRequest, PatronRequest::getRenewalCount));
+		auditData.put("localRenewalCount", getValueOrNull(patronRequest, PatronRequest::getLocalRenewalCount));
+
+		return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+			.map(audit -> patronRequest);
 	}
 
 	private Mono<RequestWorkflowContext> triggerSupplierRenewal(RequestWorkflowContext ctx) {

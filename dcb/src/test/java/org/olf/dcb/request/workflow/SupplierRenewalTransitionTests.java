@@ -181,7 +181,15 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			isOutOfSequence()
 		));
 
-		assertNoAuditRecords(updatedPatronRequest);
+		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest);
+
+		assertThat("There should be one matching audit entry",
+			audits, hasItem(allOf(
+				briefDescriptionContains("Supplier renewal : Skipping supplier renewal as setting disabled"),
+				hasFromStatus(LOANED),
+				hasToStatus(LOANED)
+			))
+		);
 	}
 
 	// Disabled to stop the build failing. Remove annotation to demonstrate
