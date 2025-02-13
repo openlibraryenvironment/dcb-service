@@ -136,7 +136,7 @@ class SupplierRenewalTransitionTests {
 	}
 
 	@Test
-	void shouldFailSupplierRenewalWhenRequestFails() {
+	void shouldUpdateRenewalCountWhenSupplierRenewalRequestFails() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
@@ -155,7 +155,7 @@ class SupplierRenewalTransitionTests {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(0),
+			hasRenewalCount(1),
 			isNotOutOfSequence()
 		));
 
