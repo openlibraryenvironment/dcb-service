@@ -6,6 +6,10 @@
 * [General]
 	* Update renewal count when supplier renewal setting is disabled DCB-1786
 
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ### Fixes
 * [General]
 	* Fix issue where ignored items were included in count [DCB-1777]
