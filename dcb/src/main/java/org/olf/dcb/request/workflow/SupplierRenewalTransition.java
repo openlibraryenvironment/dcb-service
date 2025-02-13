@@ -35,7 +35,6 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	private static final List<Status> possibleSourceStatus = List.of(LOANED);
 	private static final String RENEWAL_TRIGGERED = "Supplier renewal : Triggered";
 	private static final String RENEWAL_PLACED = "Supplier renewal : Placed";
-	private static final String RENEWAL_FAILED = "Supplier renewal : Failed";
 
 	public SupplierRenewalTransition(
 		PatronRequestAuditService patronRequestAuditService,
@@ -131,13 +130,21 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	private Mono<RequestWorkflowContext> renewalFailure(
 		PatronRequest patronRequest, Throwable error, RequestWorkflowContext ctx) {
 
+		return Mono.just(patronRequest)
+			.flatMap(request -> auditRenewalFailure(request, error))
+			.flatMap(audit -> Mono.just(ctx));
+	}
+
+	private Mono<PatronRequest> auditRenewalFailure(PatronRequest patronRequest, Throwable error) {
+		final var renewalFailedMessage = "Supplier renewal : Failed";
+
+		log.info(renewalFailedMessage);
+
 		final var auditData = new HashMap<String, Object>();
 		auditThrowable(auditData, "Throwable", error);
 
-		log.info(RENEWAL_FAILED);
-
-		return patronRequestAuditService.addAuditEntry(patronRequest, RENEWAL_FAILED, auditData)
-			.flatMap(audit -> Mono.just(ctx));
+		return patronRequestAuditService.addAuditEntry(patronRequest, renewalFailedMessage, auditData)
+			.map(audit -> patronRequest);
 	}
 
 	private Map<String, Object> createAuditData(PatronRequest patronRequest, SupplierRequest supplierRequest) {
