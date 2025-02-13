@@ -156,7 +156,7 @@ class SupplierRenewalTransitionTests {
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
 			hasRenewalCount(1),
-			isNotOutOfSequence()
+			isOutOfSequence()
 		));
 
 		assertRenewalFailureAudit(updatedPatronRequest);

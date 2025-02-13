@@ -133,7 +133,8 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 		return Mono.just(patronRequest)
 			.flatMap(request -> auditRenewalFailure(request, error))
 			.map(request -> request
-				.setRenewalCount(request.getLocalRenewalCount()))
+				.setRenewalCount(request.getLocalRenewalCount())
+				.setOutOfSequenceFlag(true))
 			.flatMap(audit -> Mono.just(ctx));
 	}
 
