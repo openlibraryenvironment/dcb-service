@@ -259,6 +259,13 @@ public class PolarisConfig {
 		private Object barcodePrefix;
 		@JsonProperty("ill-location-id")
 		private Object illLocationId;
+
+		/** Should enrichItemWithAgency in PolarisItemMapper use the strategy set out in DCB-1675 or the legacy 
+		 * locationCode method. Default to the DCB-1675 method. N.B. This method relies upon the catalog instance (Which
+     * may be different to the Circ Instance for shared systems, or the same for singletons) to have the required
+     * Location to Agency mapping values installed. N.B. setting this to null in config will override the default */
+		@JsonProperty("item-agency-resolution-method")
+		private String itemAgencyResolutionMethod="Legacy";
 	}
 
 	public String applicationServicesUriParameters() {
