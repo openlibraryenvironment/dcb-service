@@ -1,4 +1,8 @@
 micronaut:
+  executors:
+    health-check:
+      type: fixed
+      n-threads: 1
   config:
     bootstrap: true
   server:
@@ -76,6 +80,7 @@ endpoints:
   prometheus:
     sensitive: true
   health:
+    executor: health-check
     enabled: true
     sensitive: false # non-secured endpoint
     details-visible: ANONYMOUS # show details for everyone

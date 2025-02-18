@@ -19,10 +19,12 @@ import jakarta.inject.Singleton;
 
 import java.time.Duration;
 import reactor.core.publisher.Mono;
+import lombok.extern.slf4j.Slf4j;
 
 @Requires(beans = HealthEndpoint.class)
 @Requires(property = HealthEndpoint.PREFIX + ".opensearch.enabled", notEquals = "false")
 @Singleton
+@Slf4j
 public class OpenSearchClientHealthIndicator implements HealthIndicator {
 
 	private static final String NAME = "opensearchclient";
@@ -55,6 +57,8 @@ public class OpenSearchClientHealthIndicator implements HealthIndicator {
 
 	public Publisher<HealthResult> internalGetResult() {
 
+    log.info("Get opensearch health...");
+
 		return (subscriber -> {
 			final HealthResult.Builder resultBuilder = HealthResult.builder(NAME);
 			try {
@@ -71,9 +75,12 @@ public class OpenSearchClientHealthIndicator implements HealthIndicator {
 					return health;
 				});
 			} catch (IOException ex) {
+        log.error("Problem getting open search status",ex);
 				subscriber.onNext(resultBuilder.status(DOWN).exception(ex).build());
 				subscriber.onComplete();
 			}
+      finally {
+      }
 		});
 	}
 

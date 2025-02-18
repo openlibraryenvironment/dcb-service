@@ -275,8 +275,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 										.fromDate(fromLdt)
 										.build());
 						} else {
-							paramsBuilder = apiParams.toBuilder()
-								.offset( apiParams.getOffset() + jsonArr.size());
+							int previous_offset = apiParams.getOffset() != null ? apiParams.getOffset().intValue() : 0;
+							paramsBuilder = apiParams.toBuilder().offset( previous_offset + jsonArr.size());
 						}
 
 						
