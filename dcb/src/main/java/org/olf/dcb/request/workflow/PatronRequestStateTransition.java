@@ -1,14 +1,15 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.core.annotation.NonNull;
+import java.util.List;
+import java.util.Optional;
+
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
-import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Optional;
+import io.micronaut.core.annotation.NonNull;
+import reactor.core.publisher.Mono;
 
 public interface PatronRequestStateTransition {
 	
@@ -38,13 +39,5 @@ public interface PatronRequestStateTransition {
 	@NonNull
 	default List<DCBTransitionResult> getOutcomes() {
 		return List.of();
-	}
-
-	// a way to avoid repeatedly attempting transitions
-	// if the transition is applicable but the setting is disabled
-	@NonNull
-	default Mono<Boolean> isFunctionalSettingEnabled(RequestWorkflowContext ctx) {
-		// Not all transitions have a setting
-		return Mono.just(true);
 	}
 }

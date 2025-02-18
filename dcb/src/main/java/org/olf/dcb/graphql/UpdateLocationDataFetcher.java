@@ -38,7 +38,7 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 	@Override
 	public CompletableFuture<Location> get(DataFetchingEnvironment env) {
 		Map<String, Object> input_map = env.getArgument("input");
-		log.debug("editLocationDataFetcher {}", input_map);
+		log.debug("updateLocationDataFetcher {}", input_map);
 
 		UUID id = input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null;
 
@@ -51,6 +51,8 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 		Optional<Boolean> isPickupLocation = Optional.ofNullable(input_map.get("isPickup"))
 			.map(value -> Boolean.parseBoolean(value.toString()));
 		Optional<String> printLabel = Optional.ofNullable(input_map.get("printLabel"))
+			.map(Object::toString);
+		Optional<String> localId = Optional.ofNullable(input_map.get("localId"))
 			.map(Object::toString);
 		Optional<String> reason = Optional.ofNullable(input_map.get("reason"))
 			.map(Object::toString);
@@ -80,6 +82,7 @@ public class UpdateLocationDataFetcher implements DataFetcher<CompletableFuture<
 					name.ifPresent(location::setName);
 					isPickupLocation.ifPresent(location::setIsPickup);
 					printLabel.ifPresent(location::setPrintLabel);
+					localId.ifPresent(location::setLocalId);
 					location.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(location::setChangeReferenceUrl);
 					changeCategory.ifPresent(location::setChangeCategory);

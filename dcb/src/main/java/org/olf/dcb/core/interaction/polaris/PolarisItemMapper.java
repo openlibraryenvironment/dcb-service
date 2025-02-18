@@ -64,9 +64,9 @@ public class PolarisItemMapper {
 	 */
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
 		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId,
-		@NonNull Optional<ObjectRuleset> itemSuppressionRules) {
+		@NonNull Optional<ObjectRuleset> itemSuppressionRules, @NonNull String itemAgencyResolutionMethod) {
 
-		log.debug("map polaris item {} {} {}", itemGetRow, hostLmsCode, localBibId);
+		log.debug("map polaris item {} {} {} {}", itemGetRow, hostLmsCode, localBibId, itemAgencyResolutionMethod);
 
 		return mapStatus(itemGetRow.getCircStatusName(), hostLmsCode)
 			.map(status -> {
@@ -94,7 +94,7 @@ public class PolarisItemMapper {
 					.holdCount(0)
 					.build();
 			})
-			.flatMap(item -> enrichItemWithAgency(item, hostLmsCode))
+			.flatMap(item -> enrichItemWithAgency(itemGetRow, item, hostLmsCode, itemAgencyResolutionMethod))
 			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
 	}
@@ -108,7 +108,23 @@ public class PolarisItemMapper {
 	 * @param hostLmsCode the host LMS code
 	 * @return a Mono containing the enriched item
 	 */
-	private Mono<Item> enrichItemWithAgency(Item item, String hostLmsCode) {
+	private Mono<Item> enrichItemWithAgency(PAPIClient.ItemGetRow itemGetRow, Item item, String hostLmsCode, String itemAgencyResolutionMethod) {
+		return switch(itemAgencyResolutionMethod) {
+			case "LocationId" -> enrichItemWithAgencyUsingLocationId(itemGetRow, item, hostLmsCode);
+			case "Legacy" -> legacyEnrichItemWithAgency(item, hostLmsCode);
+			default -> Mono.just(item);
+    };
+  }
+
+	private Mono<Item> enrichItemWithAgencyUsingLocationId(@NonNull PAPIClient.ItemGetRow itemGetRow, @NonNull Item item, @NonNull String hostLmsCode) {
+		return locationToAgencyMappingService.dataAgencyFromMappedExernal(hostLmsCode, "Location", itemGetRow.getLocationID().toString())
+			.map(item::setAgency)
+			.switchIfEmpty(Mono.defer(() -> {
+				return Mono.just(item);
+			}));
+	}
+ 
+	private Mono<Item> legacyEnrichItemWithAgency(Item item, String hostLmsCode) {
 		return Optional.ofNullable(getValueOrNull(item, Item::getLocationCode))
 			.map(locationCode -> useLocationMappingToFindAgency(item, hostLmsCode))
 			.orElseGet(() -> useDefaultAgency(item, hostLmsCode));

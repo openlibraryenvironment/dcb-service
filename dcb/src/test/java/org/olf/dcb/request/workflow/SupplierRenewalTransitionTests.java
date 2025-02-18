@@ -1,25 +1,11 @@
 package org.olf.dcb.request.workflow;
 
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.test.*;
-import reactor.core.publisher.Mono;
-import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,8 +14,42 @@ import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENE
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.*;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.*;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescriptionContains;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalRenewalCount;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasRenewalCount;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.isNotOutOfSequence;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.isOutOfSequence;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.test.ConsortiumFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
+
+import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -43,6 +63,7 @@ class SupplierRenewalTransitionTests {
 	@Inject private ConsortiumFixture consortiumFixture;
 	@Inject private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject private SupplierRenewalTransition supplierRenewalTransition;
+	@Inject private PatronRequestWorkflowService patronRequestWorkflowService;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
@@ -93,7 +114,8 @@ class SupplierRenewalTransitionTests {
 
 		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
 		final var existingPatron = patronRequest.getPatron();
-		final var supplierRequest = defineSupplierRequest(patronRequest, "4324324", existingPatron);
+
+		defineSupplierRequest(patronRequest, "4324324", existingPatron);
 
 		sierraItemsAPIFixture.checkoutsForItem("4324324");
 		sierraPatronsAPIFixture.mockRenewalSuccess("1811242");
@@ -106,20 +128,22 @@ class SupplierRenewalTransitionTests {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(1)
+			hasRenewalCount(1),
+			isNotOutOfSequence()
 		));
 
 		assertRenewalSuccessAudit(updatedPatronRequest);
 	}
 
 	@Test
-void shouldFailSupplierRenewalWhenRequestFails() {
+	void shouldUpdateRenewalCountWhenSupplierRenewalRequestFails() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
 		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
 		final var existingPatron = patronRequest.getPatron();
-		final var supplierRequest = defineSupplierRequest(patronRequest, "4324324", existingPatron);
+
+		defineSupplierRequest(patronRequest, "4324324", existingPatron);
 
 		sierraItemsAPIFixture.checkoutsForItemWithNoRecordsFound("4324324");
 
@@ -131,14 +155,15 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(0)
+			hasRenewalCount(1),
+			isOutOfSequence()
 		));
 
 		assertRenewalFailureAudit(updatedPatronRequest);
 	}
 
 	@Test
-	void shouldNotTriggerSupplierRenewalWhenConsortialSettingIsDisabled() {
+	void shouldOnlyUpdateRenewalCountWhenConsortialSettingIsDisabled() {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, false);
 
@@ -152,10 +177,36 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			notNullValue(),
 			hasStatus(LOANED),
 			hasLocalRenewalCount(1),
-			hasRenewalCount(0)
+			hasRenewalCount(1),
+			isOutOfSequence()
 		));
 
-		assertNoAuditRecords(updatedPatronRequest);
+		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest);
+
+		assertThat("There should be one matching audit entry",
+			audits, hasItem(allOf(
+				briefDescriptionContains("Supplier renewal : Skipping supplier renewal as setting disabled"),
+				hasFromStatus(LOANED),
+				hasToStatus(LOANED)
+			))
+		);
+	}
+
+	@Test
+	void shouldNotContinuouslyTriggerSupplierRenewalWhenConsortialSettingIsDisabled() {
+		// Arrange
+		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, false);
+
+		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
+
+		// Act
+
+		// Will fail with a timeout exception if the transition is repeatedly progressed
+		// No assertions after this due to potential solution will change checks
+		singleValueFrom(
+			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(patronRequestWorkflowService::progressUsing)
+				.timeout(Duration.ofSeconds(30)));
 	}
 
 	@Test
@@ -279,6 +330,8 @@ void shouldFailSupplierRenewalWhenRequestFails() {
 			.status(status)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId("3219073408")
+			// This is necessary for the test that uses the request workflow service
+			.currentStatusTimestamp(Instant.now())
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

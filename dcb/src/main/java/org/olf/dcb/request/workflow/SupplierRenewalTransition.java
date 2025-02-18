@@ -1,7 +1,16 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
+import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
@@ -11,14 +20,10 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.*;
-
-import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
-import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Prototype
@@ -30,7 +35,6 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	private static final List<Status> possibleSourceStatus = List.of(LOANED);
 	private static final String RENEWAL_TRIGGERED = "Supplier renewal : Triggered";
 	private static final String RENEWAL_PLACED = "Supplier renewal : Placed";
-	private static final String RENEWAL_FAILED = "Supplier renewal : Failed";
 
 	public SupplierRenewalTransition(
 		PatronRequestAuditService patronRequestAuditService,
@@ -43,18 +47,42 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	}
 
 	@Override
-	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
 		return consortiumService.isEnabled(TRIGGER_SUPPLIER_RENEWAL)
 			.flatMap(enabled -> {
-				if (enabled && isApplicableFor(ctx)) {
-
-					return triggerSupplierRenewal(ctx);
+				if (enabled) {
+					if (isApplicableFor(context)) {
+						return triggerSupplierRenewal(context);
+					}
+					else {
+						log.warn("Supplier renewal was attempted but wasn't triggered");
+						return Mono.just(context);
+					}
 				}
-
-				log.warn("Supplier renewal was attempted but wasn't triggered");
-				return Mono.just(ctx);
+				else {
+					// Update the renewal count so that the transition is not repeatedly triggered
+					// when the setting is disabled
+					return Mono.just(context)
+						.map(RequestWorkflowContext::getPatronRequest)
+						.flatMap(this::auditDisabled)
+						.map(request -> request
+							.setRenewalCount(request.getLocalRenewalCount())
+							.setOutOfSequenceFlag(true))
+						.map(context::setPatronRequest);
+				}
 			});
+	}
+
+	private Mono<PatronRequest> auditDisabled(PatronRequest patronRequest) {
+		final var message = "Supplier renewal : Skipping supplier renewal as setting disabled";
+
+		final var auditData = new HashMap<String, Object>();
+
+		auditData.put("renewalCount", getValueOrNull(patronRequest, PatronRequest::getRenewalCount));
+		auditData.put("localRenewalCount", getValueOrNull(patronRequest, PatronRequest::getLocalRenewalCount));
+
+		return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+			.map(audit -> patronRequest);
 	}
 
 	private Mono<RequestWorkflowContext> triggerSupplierRenewal(RequestWorkflowContext ctx) {
@@ -102,13 +130,24 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	private Mono<RequestWorkflowContext> renewalFailure(
 		PatronRequest patronRequest, Throwable error, RequestWorkflowContext ctx) {
 
+		return Mono.just(patronRequest)
+			.flatMap(request -> auditRenewalFailure(request, error))
+			.map(request -> request
+				.setRenewalCount(request.getLocalRenewalCount())
+				.setOutOfSequenceFlag(true))
+			.flatMap(audit -> Mono.just(ctx));
+	}
+
+	private Mono<PatronRequest> auditRenewalFailure(PatronRequest patronRequest, Throwable error) {
+		final var renewalFailedMessage = "Supplier renewal : Failed";
+
+		log.info(renewalFailedMessage);
+
 		final var auditData = new HashMap<String, Object>();
 		auditThrowable(auditData, "Throwable", error);
 
-		log.info(RENEWAL_FAILED);
-
-		return patronRequestAuditService.addAuditEntry(patronRequest, RENEWAL_FAILED, auditData)
-			.flatMap(audit -> Mono.just(ctx));
+		return patronRequestAuditService.addAuditEntry(patronRequest, renewalFailedMessage, auditData)
+			.map(audit -> patronRequest);
 	}
 
 	private Map<String, Object> createAuditData(PatronRequest patronRequest, SupplierRequest supplierRequest) {
@@ -172,8 +211,4 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 		return true;
 	}
 
-	@Override
-	public Mono<Boolean> isFunctionalSettingEnabled(RequestWorkflowContext ctx) {
-		return consortiumService.isEnabled(TRIGGER_SUPPLIER_RENEWAL);
-	}
 }

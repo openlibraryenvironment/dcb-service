@@ -34,6 +34,12 @@ public class LocationToAgencyMappingService {
 		this.hostLmsService = hostLmsService;
 	}
 
+	/**
+	 * Return an agency based on some external reference
+	 */
+	public Mono<DataAgency> dataAgencyFromMappedExernal(String fromContext, String fromCategory, String fromValue) {
+		return mapExternalIdentifierToAgency(fromContext,fromCategory,fromValue);
+	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
 		final var locationCode = trimToNull(getValueOrNull(item, Item::getLocationCode));
@@ -42,11 +48,15 @@ public class LocationToAgencyMappingService {
 			return empty();
 		}
 
-		return mapLocationToAgency(hostLmsCode, locationCode);
+		return mapExternalIdentifierToAgency(hostLmsCode, locationCode);
 	}
 
-	private Mono<DataAgency> mapLocationToAgency(String hostLmsCode, String locationCode) {
-		return findLocationToAgencyMapping(hostLmsCode, locationCode)
+	private Mono<DataAgency> mapExternalIdentifierToAgency(String hostLmsCode, String locationCode) {
+		return mapExternalIdentifierToAgency(hostLmsCode, "Location", locationCode);
+	}
+
+	private Mono<DataAgency> mapExternalIdentifierToAgency(String hostLmsCode, String fromCategory, String locationCode) {
+		return findLocationToAgencyMapping(hostLmsCode, fromCategory, locationCode)
 			.map(ReferenceValueMapping::getToValue)
 			.flatMap(agencyService::findByCode)
 			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
@@ -57,6 +67,10 @@ public class LocationToAgencyMappingService {
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
+		return findLocationToAgencyMapping(fromContext, "Location", locationCode);
+	}
+
+	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String fromCategory, String locationCode) {
 		if (isEmpty(fromContext)) {
 			log.warn("Attempting to find mapping from location (code: \"{}\") to agency with empty from context", locationCode);
 
@@ -72,7 +86,7 @@ public class LocationToAgencyMappingService {
 
 		return getContextHierarchyFor(fromContext)
 			.flatMap(sourceContexts -> referenceValueMappingService.findMappingUsingHierarchy(
-				"Location", sourceContexts, locationCode, "AGENCY", "DCB"));
+				fromCategory, sourceContexts, locationCode, "AGENCY", "DCB"));
 	}
 
 	/**

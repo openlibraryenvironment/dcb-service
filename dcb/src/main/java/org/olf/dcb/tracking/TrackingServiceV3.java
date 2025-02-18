@@ -1,11 +1,17 @@
 package org.olf.dcb.tracking;
 
-import io.micrometer.core.annotation.Timed;
-import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.scheduling.annotation.Scheduled;
-import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.function.Function;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -17,22 +23,17 @@ import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
+
+import io.micrometer.core.annotation.Timed;
+import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.scheduling.annotation.Scheduled;
+import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.function.Function;
-
-import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Slf4j
 @Refreshable
@@ -424,15 +425,6 @@ public class TrackingServiceV3 implements TrackingService {
 		}
 	}
 
-	// Look up the patron request and add it to the supplier request as a full object instead of a stub
-	private Mono<SupplierRequest> enrichWithPatronRequest(SupplierRequest sr) {
-		return Mono.from(patronRequestRepository.findById(sr.getPatronRequest().getId()))
-			.flatMap(pr -> {
-				sr.setPatronRequest(pr);
-				return Mono.just(sr);
-			});
-	}
-
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<SupplierRequest> checkSupplierRequest(SupplierRequest sr) {
 
@@ -508,11 +500,4 @@ public class TrackingServiceV3 implements TrackingService {
 				}
 			}));
 	}
-
-	@Transactional(Transactional.TxType.REQUIRES_NEW)
-	protected Mono<PatronRequest> tryToProgressDCBRequest(PatronRequest patronRequest) {
-		log.debug("TRACKING Attempt to progress {}:{}",patronRequest.getId(),patronRequest.getStatus());
-				return patronRequestWorkflowService.progressAll(patronRequest);
-		}
-
 }

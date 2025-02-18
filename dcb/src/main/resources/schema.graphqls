@@ -262,6 +262,7 @@ input UpdateLocationInput {
 	isPickup: Boolean
 	name: String
 	printLabel: String
+	localId: String
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
