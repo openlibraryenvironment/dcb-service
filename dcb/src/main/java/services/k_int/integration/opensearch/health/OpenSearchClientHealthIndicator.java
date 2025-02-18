@@ -17,6 +17,9 @@ import io.micronaut.management.health.indicator.HealthIndicator;
 import io.micronaut.management.health.indicator.HealthResult;
 import jakarta.inject.Singleton;
 
+import java.time.Duration;
+import reactor.core.publisher.Mono;
+
 @Requires(beans = HealthEndpoint.class)
 @Requires(property = HealthEndpoint.PREFIX + ".opensearch.enabled", notEquals = "false")
 @Singleton
@@ -46,6 +49,11 @@ public class OpenSearchClientHealthIndicator implements HealthIndicator {
 	 */
 	@Override
 	public Publisher<HealthResult> getResult() {
+    return Mono.from(internalGetResult())
+			.timeout(Duration.ofSeconds(5));
+  }
+
+	public Publisher<HealthResult> internalGetResult() {
 
 		return (subscriber -> {
 			final HealthResult.Builder resultBuilder = HealthResult.builder(NAME);
