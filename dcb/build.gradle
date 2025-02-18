@@ -143,7 +143,7 @@ dependencies {
 	implementation("jakarta.persistence:jakarta.persistence-api")
 	implementation("org.apache.lucene:lucene-queryparser")
 
-	implementation 'com.hazelcast:hazelcast:5.5.0'
+	implementation 'com.hazelcast:hazelcast:5.3.8'
 
 	// Tests
 	testAnnotationProcessor 'org.projectlombok:lombok'

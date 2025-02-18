@@ -75,6 +75,8 @@ micronaut:
         # MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED=true
         enabled: false
         namespace: dcb
+    binders:
+      reactor: true
 
 endpoints:
   prometheus:
