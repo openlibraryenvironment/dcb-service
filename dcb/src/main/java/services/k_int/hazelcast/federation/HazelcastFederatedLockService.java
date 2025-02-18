@@ -54,7 +54,7 @@ public class HazelcastFederatedLockService implements FederatedLockService {
 					Thread.currentThread().getName(), lock.getName() );
 			return;
 		}
-		log.debug( "Thread[{}] relinquishing lock[{}]",	Thread.currentThread().getName(), lock.getName() );
+		log.info( "Thread[{}] relinquishing lock[{}]",	Thread.currentThread().getName(), lock.getName() );
 		lock.unlock();
 	}
 
@@ -64,7 +64,7 @@ public class HazelcastFederatedLockService implements FederatedLockService {
     
     try {
     	lock.lock();
-  		log.debug( "Thread[{}] acquired lock[{}]",	Thread.currentThread().getName(), lock.getName() );
+  		log.info( "Thread[{}] acquired lock[{}] #1",	Thread.currentThread().getName(), lock.getName() );
       work.run();
     } finally {
     	releaseLockIfOwned(lock);
@@ -79,7 +79,7 @@ public class HazelcastFederatedLockService implements FederatedLockService {
     	boolean acquiredLock = lock.tryLock(timeoutMillis, TimeUnit.MILLISECONDS);
   		if (acquiredLock == false) return false;
 
-  		log.debug( "Thread[{}] acquired lock[{}]",	Thread.currentThread().getName(), lock.getName() );
+  		log.info( "Thread[{}] acquired lock[{}] #2",	Thread.currentThread().getName(), lock.getName() );
       work.run();
     } finally {
     	releaseLockIfOwned(lock);
@@ -98,7 +98,7 @@ public class HazelcastFederatedLockService implements FederatedLockService {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) { /* NOOP */ }
     }
-		log.debug( "lock[{}] relinquished",	lock.getName() );
+		log.info( "lock[{}] relinquished",	lock.getName() );
 	}
 
 	@Override
@@ -107,7 +107,7 @@ public class HazelcastFederatedLockService implements FederatedLockService {
     
 		final long start = System.currentTimeMillis();
 		long now = start;
-		log.debug( "Thread[{}] waiting for lock[{}] to be relinquished",	Thread.currentThread().getName(), lock.getName() );
+		log.info( "Thread[{}] waiting for lock[{}] to be relinquished",	Thread.currentThread().getName(), lock.getName() );
     while (lock.isLocked() && (now - start) <= timeoutMillis) {
       log.debug ("Waiting for 1 second before retry...");
       try {
@@ -117,11 +117,11 @@ public class HazelcastFederatedLockService implements FederatedLockService {
     }
     
     if (lock.isLocked()) {
-    	log.debug( "lock[{}] was not relinquished within the timeout", lock.getName());
+    	log.info( "lock[{}] was not relinquished within the timeout", lock.getName());
     	return false;
     }
 
-		log.debug( "lock[{}] relinquished",	lock.getName() );
+		log.info( "lock[{}] relinquished",	lock.getName() );
     
     return true;
 	}

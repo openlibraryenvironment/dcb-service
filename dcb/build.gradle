@@ -143,7 +143,7 @@ dependencies {
 	implementation("jakarta.persistence:jakarta.persistence-api")
 	implementation("org.apache.lucene:lucene-queryparser")
 
-	implementation 'com.hazelcast:hazelcast:5.3.6'
+	implementation 'com.hazelcast:hazelcast:5.5.0'
 
 	// Tests
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -259,7 +259,13 @@ tasks {
 		baseImage project.property('BASE_IMAGE')
 		label(labels)
 		environmentVariable 'JAVA_OPTIONS',
-			'-XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false'
+			'-XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false' +
+      ' --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED' +
+      ' --add-opens=java.base/java.lang=ALL-UNNAMED' +
+      ' --add-opens=java.base/sun.nio.ch=ALL-UNNAMED' +
+      ' --add-opens=java.management/sun.management=ALL-UNNAMED' +
+      ' --add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED'
+
 		environmentVariable 'JAVA_TOOL_OPTIONS', '$JAVA_OPTIONS $JAVA_TOOL_OPTIONS $ADDITIONAL_JAVA_OPTIONS'
 		entryPoint('java', '-server', '-jar', '/home/app/application.jar')
 	}
@@ -355,6 +361,15 @@ graalvmNative {
 
 tasks.withType(ShadowJar) {
     setZip64(true)
+}
+
+tasks.withType(Test).configureEach {
+    jvmArgs '--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED',
+            '--add-opens=java.base/java.lang=ALL-UNNAMED',
+            '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+            '--add-opens=java.management/sun.management=ALL-UNNAMED',
+            '--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED',
+            '-Dio.netty.leakDetectionLevel=paranoid'
 }
 
 def oderedAnnotationDeps = new HashMap<String, Integer>()
