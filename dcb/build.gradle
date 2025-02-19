@@ -83,8 +83,10 @@ dependencies {
 	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
 	
-	implementation 'org.opensearch.client:opensearch-java'
-	implementation 'org.opensearch.client:opensearch-rest-client'
+  implementation 'org.opensearch.client:opensearch-java:2.21.0'
+  implementation 'org.opensearch.client:opensearch-rest-client:2.19.0'
+	// implementation 'org.opensearch.client:opensearch-java'
+	// implementation 'org.opensearch.client:opensearch-rest-client'
 
 	implementation("ch.qos.logback:logback-core")
 	implementation("ch.qos.logback:logback-classic")

@@ -1,5 +1,38 @@
 # Changelog
 
+## Version 8.15.0
+
+### Additions
+* [General]
+	* route to and apply own library request workflow [DCB-1803]
+
+### Changes
+* [Chore]
+	* the CP subsystem was removed from hazelcast in 5.5. Stepping down version. We need to do something about this mid-term as it's essential for cluster running. jgroups-raft seems to be a good alternative
+	* Wrap opensearch health function in max duration call
+
+### Fixes
+* [General]
+	* Null offset in sierra lms client, chore: additional logging in health endpoint, use a dedicated executor for health endpoint
+	* Removed "br_.derived_type IS NULL" from the query, since derived type should always be populated
+
+## Version 8.14.0
+
+### Additions
+* [General]
+	* Set out of sequence flag when supplier renewal request fails DCB-1786
+	* Update renewal count when supplier renewal request fails DCB-1786
+
+### Changes
+* [Chore]
+	* Add support for editing localId [DCB-1824]
+
+## Version 8.13.0
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ## Version 8.12.0
 
 ### Additions
