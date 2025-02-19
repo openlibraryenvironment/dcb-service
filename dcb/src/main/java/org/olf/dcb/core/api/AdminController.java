@@ -2,6 +2,9 @@ package org.olf.dcb.core.api;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -169,5 +172,19 @@ public class AdminController {
 			.dedupeMatchPoints()
 			.map(HttpResponse.accepted()::<String>body);
 	}
+	
+	@Get(uri = "/threads", produces = MediaType.TEXT_PLAIN)
+	public String threads() {
+	    StringBuffer threadDump = new StringBuffer(System.lineSeparator());
+	    ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
 
+	    // Loop through all the threads
+	    for(ThreadInfo threadInfo : threadMXBean.dumpAllThreads(true, true)) {
+	    	// Dump all the info from the thread
+	        threadDump.append(threadInfo.toString());
+	    }
+
+	    // Return the info about the threads
+	    return(threadDump.toString());
+	}
 }
