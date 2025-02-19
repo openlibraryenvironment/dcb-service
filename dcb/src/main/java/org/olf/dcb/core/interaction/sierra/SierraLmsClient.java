@@ -897,6 +897,13 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
+
+		return placeHoldRequestAtBorrowingAgency(parameters);
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 
 		// When placing the hold at a pickup system we want to use the pickup location code as selected by

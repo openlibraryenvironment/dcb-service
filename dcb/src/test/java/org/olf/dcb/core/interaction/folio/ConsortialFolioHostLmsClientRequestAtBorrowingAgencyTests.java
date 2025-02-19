@@ -136,4 +136,33 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 		// Assert
 		assertThat(exception, hasMessage("Supplying local item barcode is missing."));
 	}
+
+	@Test
+	void shouldFailToPlaceOwnLibraryRequest() {
+		// Arrange
+		final var patronId = UUID.randomUUID().toString();
+		final var patronBarcode = "67129553";
+		final var pickupLocationCode = UUID.randomUUID().toString();
+		final var supplyingAgencyCode = "supplying-agency";
+		final var supplyingLocalItemId = "supplying-item-id";
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var exception = assertThrows(UnsupportedOperationException.class,
+			() -> singleValueFrom(client.placeHoldRequestAtLocalAgency(
+				PlaceHoldRequestParameters.builder()
+					.title("title")
+					.canonicalItemType("canonical")
+					.supplyingLocalItemId(supplyingLocalItemId)
+					.supplyingLocalItemBarcode(null)
+					.supplyingAgencyCode(supplyingAgencyCode)
+					.localPatronId(patronId)
+					.localPatronBarcode(patronBarcode)
+					.pickupLocationCode(pickupLocationCode)
+					.build())));
+
+		// Assert
+		assertThat(exception, hasMessage("placeHoldRequestAtLocalAgency not supported by hostlms: " + HOST_LMS_CODE));
+	}
 }

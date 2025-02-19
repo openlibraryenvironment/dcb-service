@@ -1,8 +1,6 @@
 package org.olf.dcb.request.workflow;
 
-import java.util.List;
-import java.util.Optional;
-
+import io.micronaut.context.annotation.Prototype;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
@@ -12,9 +10,10 @@ import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Optional;
 
 @Prototype
 public class PlacePatronRequestAtSupplyingAgencyStateTransition implements PatronRequestStateTransition {
@@ -69,7 +68,11 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
+		final PatronRequest patronRequest = ctx.getPatronRequest();
+		final boolean isStatusApplicable = getPossibleSourceStatus().contains(patronRequest.getStatus());
+		final boolean isNotLocalWorkflow = !"RET-LOCAL".equals(patronRequest.getActiveWorkflow());
+
+		return isStatusApplicable && isNotLocalWorkflow;
 	}
 
 	@Override

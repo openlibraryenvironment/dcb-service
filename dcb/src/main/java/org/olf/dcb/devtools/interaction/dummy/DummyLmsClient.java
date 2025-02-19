@@ -1,38 +1,5 @@
 package org.olf.dcb.devtools.interaction.dummy;
 
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-
-import java.io.StringWriter;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.PublisherState;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.ItemStatusCode;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.ingest.IngestSource;
-import org.olf.dcb.ingest.model.Identifier;
-import org.olf.dcb.ingest.model.IngestRecord;
-import org.reactivestreams.Publisher;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -47,11 +14,33 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.ingest.IngestSource;
+import org.olf.dcb.ingest.model.Identifier;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
+
+import java.io.StringWriter;
+import java.time.Instant;
+import java.util.*;
+
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 
 /**
@@ -441,6 +430,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		PlaceHoldRequestParameters parameters) {
 
 		return placeHoldRequest(parameters);
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
+		return placeHoldRequestAtBorrowingAgency(parameters);
 	}
 
 	@Override

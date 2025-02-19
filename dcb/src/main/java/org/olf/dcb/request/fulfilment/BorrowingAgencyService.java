@@ -389,4 +389,42 @@ public class BorrowingAgencyService {
 	}
 
 
+	public Mono<LocalRequest> placeSingularRequest(RequestWorkflowContext ctx) {
+
+		final var patronRequest = ctx.getPatronRequest();
+
+		return fetchRequiredData(patronRequest, ctx)
+			.flatMap(tuple -> {
+				final var borrowingIdentity = tuple.getT3();
+				final var hostLmsClient = tuple.getT4();
+				final var supplierRequest = tuple.getT5();
+				final String note = ctx.generateTransactionNote();
+				final UUID bibClusterId = patronRequest.getBibClusterId();
+
+				log.info("placeSingularRequest for bibClusterId {}", bibClusterId);
+
+				return sharedIndexService.findSelectedBib(bibClusterId)
+					.map(this::extractBibData)
+					.flatMap(bib -> hostLmsClient.placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters.builder()
+						.localPatronId(borrowingIdentity.getLocalId())
+						.localPatronBarcode(borrowingIdentity.getLocalBarcode())
+						// instead of using virtual records we use
+						// the real local bib id and the real item id to place the hold
+						.localBibId(supplierRequest.getLocalBibId())
+						.localItemId(supplierRequest.getLocalItemId())
+						.pickupLocationCode(patronRequest.getPickupLocationCode())
+						.pickupLocation(ctx.getPickupLocation())
+						.note(note)
+						.patronRequestId(patronRequest.getId().toString())
+						.title(bib.getTitle())
+						.supplyingAgencyCode(supplierRequest.getResolvedAgency().getCode())
+						.supplyingLocalItemId(supplierRequest.getLocalItemId())
+						.supplyingLocalItemBarcode(supplierRequest.getLocalItemBarcode())
+						.canonicalItemType(supplierRequest.getCanonicalItemType())
+						.build()))
+					.delaySubscription(Duration.ofSeconds(5))
+					.doOnSuccess(localRequest -> log.debug("placeSingularRequest returned: {}", localRequest))
+					.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to placeSingularRequest."))));
+			});
+	}
 }

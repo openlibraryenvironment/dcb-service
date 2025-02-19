@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.*;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.test.*;
@@ -52,12 +55,10 @@ class SameLibraryWorkflowApiTests {
 	private static final String BORROWING_HOST_LMS_CODE = "pr-api-tests-borrowing-agency";
 	private static final String BORROWING_BASE_URL = "https://borrower-patron-request-api-tests.com";
 	private static final String BORROWING_PATRON_LOCAL_ID = "872321";
-	private static final String VIRTUAL_PATRON_LOCAL_ID = "2745326";
 	private static final String BORROWING_LOCATION_CODE = "ABC123";
 	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
 	private static final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
 	private static final String HOME_LIBRARY_CODE = "home-library";
-	private static final String EXPECTED_UNIQUE_ID = "%s@%s".formatted(BORROWING_PATRON_LOCAL_ID, BORROWING_AGENCY_CODE);
 	private static final String TEST_KEY = "key";
 	private static final String TEST_SECRET = "secret";
 	private static final String COMMON_AVAILABLE_ITEM_LOCAL_ID = "798472";
@@ -91,13 +92,6 @@ class SameLibraryWorkflowApiTests {
 		consortiumFixture.deleteAll();
 	}
 
-	/**
-	 * Given a patron places a request (via the API)
-	 * and the borrowing agency is the same as the supplying agency
-	 *
-	 * The request should be handed off as local.
-	 * The active workflow should be set to RET-LOCAL.
-	 */
 	@Test
 	void shouldPlaceASameLibraryPatronRequestSuccessfully() {
 		log.info("Starting test: shouldPlaceASameLibraryPatronRequestSuccessfully");
@@ -107,7 +101,7 @@ class SameLibraryWorkflowApiTests {
 
 		final var localSupplyingHoldId = "407557";
 		final var localSupplyingItemId = "2745326";
-		final var localSupplyingHoldUrl = "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + localSupplyingHoldId;
+		final var localSupplyingHoldUrl = "https://borrower-patron-request-api-tests.com/iii/sierra-api/v6/patrons/holds/" + localSupplyingHoldId;
 
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
@@ -125,7 +119,8 @@ class SameLibraryWorkflowApiTests {
 		assertThat(placedRequestResponseUUID, is(Matchers.instanceOf(UUID.class)));
 
 		// Mocks that rely upon the patron request id
-		mockSupplyingSide(localSupplyingItemId, localSupplyingHoldId, placedRequestResponseUUID, localSupplyingHoldUrl);
+		// The borrowing and supplying side are the same here
+		mockBorrowingSide(localSupplyingItemId, localSupplyingHoldId, placedRequestResponseUUID, localSupplyingHoldUrl);
 
 		assertRequestWasHandedOffAsLocal(placedRequestResponseUUID);
 		assertPatronRequestWorkflow(placedRequestResponseUUID);
@@ -155,24 +150,22 @@ class SameLibraryWorkflowApiTests {
 		// Mocks for live availability
 		sierraItemsAPIFixture.itemsForBibId(COMMON_AVAILABLE_ITEM_LOCAL_ID, List.of(createSierraItem("1000002")));
 
-		// Mocks for virtual patron
+		// Mocks for patron
 		sierraPatronsAPIFixture.addPatronGetExpectation(BORROWING_PATRON_LOCAL_ID);
-		sierraPatronsAPIFixture.patronsQueryNotFoundResponse(EXPECTED_UNIQUE_ID);
-		sierraPatronsAPIFixture.postPatronResponse(EXPECTED_UNIQUE_ID, Integer.parseInt(VIRTUAL_PATRON_LOCAL_ID));
 
 		// Mocks for local requests
-		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(VIRTUAL_PATRON_LOCAL_ID, "i", null);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(BORROWING_PATRON_LOCAL_ID, "i", null);
 	}
 
-	private void mockSupplyingSide(String supplyingItemId, String supplyingHoldId, UUID placedPatronRequestId, String holdUrl) {
+	private void mockBorrowingSide(String supplyingItemId, String borrowingHoldId, UUID placedPatronRequestId, String holdUrl) {
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(
-			VIRTUAL_PATRON_LOCAL_ID, holdUrl, "Consortial Hold. tno=" + placedPatronRequestId, supplyingItemId
+			BORROWING_PATRON_LOCAL_ID, holdUrl, "Consortial Hold. tno=" + placedPatronRequestId, supplyingItemId
 		);
 		sierraItemsAPIFixture.mockGetItemById(supplyingItemId,
 			createSierraItem(supplyingItemId)
 		);
-		sierraPatronsAPIFixture.mockGetHoldById(supplyingHoldId,
-			createSierraPatronHold(supplyingHoldId, supplyingItemId)
+		sierraPatronsAPIFixture.mockGetHoldById(borrowingHoldId,
+			createSierraPatronHold(borrowingHoldId, supplyingItemId)
 		);
 	}
 
@@ -267,4 +260,5 @@ class SameLibraryWorkflowApiTests {
 		assertThat("patron request should use the RET-LOCAL workflow",
 			patronRequest.getActiveWorkflow(), is("RET-LOCAL"));
 	}
+
 }

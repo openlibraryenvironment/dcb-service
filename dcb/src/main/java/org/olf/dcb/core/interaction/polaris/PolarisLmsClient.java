@@ -1,41 +1,31 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
-import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
-import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.ReactorUtils.raiseError;
-import static services.k_int.utils.StringUtils.parseList;
-
-import java.io.IOException;
-import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonArray;
+import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.ObjectMapper;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
@@ -62,34 +52,6 @@ import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonArray;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.serde.ObjectMapper;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -97,9 +59,32 @@ import reactor.util.retry.Retry;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import java.io.IOException;
+import java.net.URI;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.time.OffsetDateTime;
+
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
+import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
+import static services.k_int.utils.StringUtils.parseList;
 
 @Slf4j
 @Prototype
@@ -199,6 +184,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case ILL_BORROWING_FLOW -> placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 			default -> placeHoldRequest(parameters, TRUE);
 		};
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
+		return placeHoldRequestAtBorrowingAgency(parameters);
 	}
 
 	@Override
