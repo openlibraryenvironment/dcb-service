@@ -734,6 +734,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// Renewal count is not currently supported by edge-dcb, so we default to 0
 			// This is because edge-dcb does not provide this information in its item API responses
 			.renewalCount(0)
+			// Guessing that hold count is also not currenly supported by edge-dcb
+      .holdCount(null)
 			.build();
 	}
 

@@ -762,6 +762,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.rawStatus(itemRecord.getItemStatusName())
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
+					// We need to implement a call to GET /api/.../itemrecords/{id}/holds
+					// https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/itemrecords/get_item_holds
+					.holdCount(null)
 					.build();
 			})
 			.defaultIfEmpty(HostLmsItem.builder()

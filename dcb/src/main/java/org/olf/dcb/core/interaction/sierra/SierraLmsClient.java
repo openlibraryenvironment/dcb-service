@@ -1656,6 +1656,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.status(resolvedStatus)
 			.rawStatus(getValue(status, Status::getCode, null))
 			.renewalCount(renewalCount)
+			.holdCount(item.getHoldCount())
 			.build();
 	}
 
