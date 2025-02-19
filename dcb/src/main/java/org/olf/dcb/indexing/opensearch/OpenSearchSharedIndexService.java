@@ -235,7 +235,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			)
 			.doOnNext( resp -> {
 				if (log.isDebugEnabled()) {
-					log.debug("Sent {} documents to be indexed in {} seconds", resp.items().size(),  (resp.took() / 1000.00D));
+					log.info("Sent {} documents to be indexed in {} seconds", resp.items().size(),  (resp.took() / 1000.00D));
 					if (resp.errors()) {
 						long errCount = resp.items().stream()
 							.map(BulkResponseItem::error)
@@ -262,8 +262,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 				.map( indexMap -> indexMap.get(indexName) )
 				.map( IndexState::settings )
         .onErrorResume( e -> {
-          log.warn("Error in (OS) getIndexSettings {}",e.getMessage());
-          return Mono.error( new DcbError("Error in getIndexSettings {}",e));
+          log.error("Error in (OS) getIndexSettings {}",e.getMessage());
+          return Mono.error( new DcbError("Error (OS) in getIndexSettings "+e.getMessage(),e));
         });
 		} catch (Throwable e) {
 			return Mono.error( new DcbError("Error fetching index settings", e) );
@@ -279,8 +279,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						.settings(settings)))
 				.map(AcknowledgedResponseBase::acknowledged)
         .onErrorResume( e -> {
-          log.warn("Error in (OS) changeIndexSettings {}",e.getMessage());
-          return Mono.error( new DcbError("Error in getIndexSettings {}",e));
+          log.error("Error in (OS) changeIndexSettings {}",e.getMessage());
+          return Mono.error( new DcbError("Error in (OS) changeIndexSettings "+e.getMessage(),e));
         });
 			
 		} catch (Throwable e) {
@@ -292,6 +292,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	
 	private Mono<Boolean> restoreRefresh() {
 		
+		log.info("Attempting to update OpenSearch refresh interval to {}",refreshInterval.get());
 		return Mono.just(refreshInterval.get())
 			.flatMap( val -> changeIndexSettings( s -> s
 			  .index(i -> i.refreshInterval(val))));
@@ -305,6 +306,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	
 	private Mono<Boolean> disableRefresh() {
 		
+		log.info("Attempting to disable OpenSearch refresh interval");
 		return getIndexSettings()
 			.map( state -> {
 				var existingInterval = state.index().refreshInterval();
