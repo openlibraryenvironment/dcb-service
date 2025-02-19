@@ -170,7 +170,8 @@ r2dbc:
 netty:
   default:
     allocator:
-      max-order: 3
+      # The default for max-order is 11 - we have been runnig at 3 (Which docs say is very low) Trying with 11
+      max-order: 11
   # https://github.com/micronaut-projects/micronaut-core/discussions/5318
   max-initial-line-length: 4096
 
