@@ -1,5 +1,19 @@
 # Changelog
 
+## Version 8.15.1
+
+### Changes
+* [CHORE]
+	* Added an endpoint /admin/threads to dump out all the
+* [Chore]
+	* Add holdCount to HostLMSItem. Bind sierra hold count to that, placeholder in polaris ready for get hold info by item, placeholder in FOLIO adapter for same.
+	* Adjust netty max depth and bulk ES/OS defaults
+	* Bump external opensearch deps to try and resolve connection issues on AWS
+
+### Fixes
+* [General]
+	* Polaris LMS client was not setting owning context when mapping item records for responding to getItems for a bib
+
 ## Version 8.15.0
 
 ### Additions
@@ -8,6 +22,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* the CP subsystem was removed from hazelcast in 5.5. Stepping down version. We need to do something about this mid-term as it's essential for cluster running. jgroups-raft seems to be a good alternative
 	* Wrap opensearch health function in max duration call
 
