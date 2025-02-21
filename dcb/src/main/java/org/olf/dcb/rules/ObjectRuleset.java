@@ -130,6 +130,7 @@ public class ObjectRuleset implements Predicate<Object> {
 		private Operation operation; // Operation Type.
 		private String property; // Must resolve otherwise filter fails.
 		private boolean negated = false;
+		private String documentation; // Allow an explanation in the json
 		private List<String> values;
 
 		@Override
