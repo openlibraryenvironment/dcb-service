@@ -264,13 +264,12 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		// Note: if there is no agency we cannot use the owning context to get the canonical item type
-		assertThat(firstItem, hasCanonicalItemType("UNKNOWN - NULL hostLmsCode"));
+		assertThat(firstItem, hasCanonicalItemType("UNKNOWN - No mapping found"));
 		assertThat(firstItem, hasHoldCountOfZero());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasNoAgency());
 		assertThat(firstItem, hasNoHostLmsCode());
-		assertThat(firstItem, hasNoOwningContext());
 	}
 
 	@Test

@@ -90,6 +90,7 @@ public class PolarisItemMapper {
 					.deleted(false)
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
+					.owningContext(hostLmsCode)
 					// API doesn't provide hold count, it is assumed that item's have no holds
 					.holdCount(0)
 					.build();
