@@ -43,7 +43,8 @@ public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcess
 		}
 
 		if ( config.getScheduledTasks().getSkipped().contains(method.getDeclaringType().getSimpleName()) ) {
-			log.info("Skipping task processing as {}.{} annotated as {} as it explicitly skipped");
+			log.info("Skipping task processing as {}.{} annotated as {} as it explicitly skipped",
+				method.getDeclaringType().getSimpleName(), method.getName(), AppTask.class.getSimpleName());
 			return;
 		}
 
