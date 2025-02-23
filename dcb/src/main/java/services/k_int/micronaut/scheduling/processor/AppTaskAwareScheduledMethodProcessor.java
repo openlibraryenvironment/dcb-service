@@ -35,9 +35,15 @@ public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcess
 	@Override
 	public void process(BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
 
-		if (!config.getScheduledTasks().isEnabled() && method.hasAnnotation(AppTask.class)) {
+		// If the task is an AppTask AND Enabled is set to false AND either the skipped list is NULL OR the skipped list contains this class
+		if ( method.hasAnnotation(AppTask.class) && !config.getScheduledTasks().isEnabled() ) {
 			log.info("Skipping task processing as {}.{} annotated as {} and scheduling is disabled in application config",
 				method.getDeclaringType().getSimpleName(), method.getName(), AppTask.class.getSimpleName());
+			return;
+		}
+
+		if ( config.getScheduledTasks().getSkipped().contains(method.getDeclaringType().getSimpleName()) ) {
+			log.info("Skipping task processing as {}.{} annotated as {} as it explicitly skipped");
 			return;
 		}
 
