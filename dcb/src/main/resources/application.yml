@@ -193,3 +193,5 @@ dcb:
   shutdown:
     # Wait up to 60s on shutdown for ingest processes to end
     maxwait: 0
+  tracking:
+    dryRun: false

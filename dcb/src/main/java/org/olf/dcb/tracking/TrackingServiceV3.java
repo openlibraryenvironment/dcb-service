@@ -12,6 +12,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
+import io.micronaut.context.annotation.Value;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -49,6 +51,8 @@ public class TrackingServiceV3 implements TrackingService {
 	private final ReactorFederatedLockService reactorFederatedLockService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestAuditService patronRequestAuditService;
+	@Value("${dcb.tracking.dryRun:false}")
+	private Boolean dryRun;
 
 	private final int MAX_TRACKING_CONCURRENCY = 10;
 
@@ -153,7 +157,13 @@ public class TrackingServiceV3 implements TrackingService {
 		return Mono.just(isAutoTracking ? incrementAutoPollCounter(ctx) : incrementManualPollCounter(ctx))
 			.flatMap(context -> isAutoTracking ? trackSystems(context) : manuallyTrack(context))
 			.doOnError(error -> log.error("TRACKING Error occurred tracking patron request in local systems {}", pr_id, error))
-			.flatMap(patronRequestWorkflowService::progressUsing)
+			.flatMap(context -> {
+				if (Boolean.TRUE.equals(dryRun)) {
+					log.info("DRY RUN: Skipping progressUsing {}", context);
+						return Mono.just(context);
+	        }
+		      return patronRequestWorkflowService.progressUsing(context);
+			  })
 			.doOnError(error -> log.error("TRACKING Error occurred progressing patron request {}", pr_id, error))
 			.onErrorResume(error -> Mono.just(ctx));
 	}
