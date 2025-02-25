@@ -72,7 +72,7 @@ public class PolarisItemMapper {
 			.map(status -> {
 				final var localId = String.valueOf(itemGetRow.getItemRecordID());
 				final var dueDate = convertFrom(itemGetRow.getDueDate());
-				final var location = getLocation(itemGetRow);
+				final var location = getLocation(itemGetRow, itemAgencyResolutionMethod);
 				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules);
 				final var parsedVolumeStatement = parseVolumeStatement(itemGetRow.getVolumeNumber());
 
@@ -154,16 +154,20 @@ public class PolarisItemMapper {
 			}));
 	}
 
-	private org.olf.dcb.core.model.Location getLocation(PAPIClient.ItemGetRow itemGetRow) {
+	private org.olf.dcb.core.model.Location getLocation(PAPIClient.ItemGetRow itemGetRow, String itemAgencyResolutionMethod) {
 
-		final var shelfLocation = getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+		final var locationName = switch(itemAgencyResolutionMethod) {
+      case "LocationId" -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getLocationName);
+      case "Legacy" -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+      default -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+    };
 
-		if (shelfLocation == null) Location.builder().build();
+		if (locationName == null) return Location.builder().build();
 
 		// Note: We get back the shelf location description from the API
 		return org.olf.dcb.core.model.Location.builder()
-			.code(shelfLocation)
-			.name(shelfLocation)
+			.code(itemGetRow.getLocationID() != null ? itemGetRow.getLocationID().toString() : locationName)
+			.name(locationName)
 			.build();
 	}
 

@@ -183,8 +183,12 @@ class PolarisLmsClientTests {
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		// Note: 'Bestseller' is the returned shelf location from mock mockGetItemsForBibWithShelfLocations
+		// referenceValueMappingFixture.defineLocationToAgencyMapping(
+		// 	CIRCULATING_HOST_LMS_CODE, "Bestseller", "mapped-agency-code");
+
+		// Note - (II 25th Feb 2025) We should be mapping locationID to agency code and NOT shelving location.
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CIRCULATING_HOST_LMS_CODE, "Bestseller", "mapped-agency-code");
+			CIRCULATING_HOST_LMS_CODE, "15", "mapped-agency-code");
 
 		final var bibId = "643425";
 
@@ -212,7 +216,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
 		assertThat(firstItem, ItemMatchers.hasStatus(CHECKED_OUT));
 		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
-		assertThat(firstItem, hasLocation("Bestseller", "Bestseller"));
+		assertThat(firstItem, hasLocation("Bestseller", "15"));
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
 		assertThat(firstItem, hasLocalBibId(bibId));
