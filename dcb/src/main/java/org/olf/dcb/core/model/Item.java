@@ -48,6 +48,24 @@ public class Item implements Comparable<Item> {
 	private String rawVolumeStatement;
 	private String parsedVolumeStatement;
 
+	/** A shelving location. A classifier that is shared throughout all branches in a library and
+	 * infers a particular meaning on the item (But not a physical location) - for example all branch libraries
+	 * can have "Reference" shelving location. Shelving location is not a synonm for or alternative to "Location"
+	 * An item will always have a "Location" (E.g. central library, some-street-branch) and can optionally
+	 * have a "shelving location" (Reference, Best Sellers, Childrens). Knowing an item is shelved in "Reference"
+	 * Will allow us to infer some additional rules about loan policies, but it is absolutely not 
+	 * the same concept as "Location" which indicates to us which branch an item is housed at.
+	 */
+	@Nullable
+	private String shelvingLocation;
+
+	/* Loan policy carries an infered loan polict whereby the host ILS client will calculate, based on
+	 * system specific fields and host specific configuration, what the canonical consortial lending loan
+	 * policy is for this item. Items can be "Available" but not lendable to patrons
+	 */
+	@Builder.Default
+	private DerivedLoanPolicy derivedLoanPolicy = DerivedLoanPolicy.UNKNOWN;
+
 	public boolean notSuppressed() {
 		return suppressed == null || !suppressed;
 	}

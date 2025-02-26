@@ -19,6 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -91,6 +92,7 @@ public class PolarisItemMapper {
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
 					.owningContext(hostLmsCode)
+					.derivedLoanPolicy(DerivedLoanPolicy.GENERAL)
 					// API doesn't provide hold count, it is assumed that item's have no holds
 					.holdCount(0)
 					.build();
