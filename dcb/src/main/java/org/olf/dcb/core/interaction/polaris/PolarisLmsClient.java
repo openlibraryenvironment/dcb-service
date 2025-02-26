@@ -710,8 +710,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Function<PAPIClient.ItemGetRow, Publisher<Item>> mapItemWithRuleset(String localBibId) {
 		return result -> getLmsItemSuppressionRuleset()
-			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(
-				result, lms.getCode(), localBibId, objectRuleset, polarisConfig.getItem().getItemAgencyResolutionMethod()));
+			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId, objectRuleset, polarisConfig));
 	}
 
 	// bib suppression not supported in Polaris

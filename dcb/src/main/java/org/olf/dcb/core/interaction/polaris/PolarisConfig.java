@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
@@ -55,6 +56,13 @@ public class PolarisConfig {
 	private ServicesConfig services;
 	@JsonProperty("item")
 	private ItemConfig item;
+	
+	/**
+	 * if present, this list is used to provide inferences from shelving location to requestability.
+	 * Some shelves are "Reference only" some can be "Local Patron Only" etc.
+	 */
+	@JsonProperty("shelfLocationPolicyMap")
+	private Map<String,String> shelfLocationPolicyMap;
 
 	public String getBaseUrl() {
 
