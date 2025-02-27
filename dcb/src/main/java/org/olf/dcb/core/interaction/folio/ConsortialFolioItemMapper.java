@@ -85,8 +85,25 @@ public class ConsortialFolioItemMapper {
 
 	private ItemStatusCode mapStatusCode(String statusCode) {
 		return switch (statusCode) {
-			case "Available" -> AVAILABLE;
+			case "Available",
+           "Paged",
+           "In transit",
+           "Awaiting pickup",
+           "Awaiting delivery" -> AVAILABLE;
 			case "Checked out" -> CHECKED_OUT;
+      case "Aged to lost",
+           "Claimed returned",
+           "Declared lost",
+           "In process",
+           "In process (non-requestable)",
+           "Intellectual item",
+           "Long missing",
+           "Lost and paid",
+           "Missing",
+           "On order",
+           "Restricted",
+           "Unknown",
+           "Withdrawn" -> UNAVAILABLE;
 			default -> UNAVAILABLE;
 		};
 	}
