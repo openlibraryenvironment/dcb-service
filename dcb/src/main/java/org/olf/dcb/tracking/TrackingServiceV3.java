@@ -1,19 +1,12 @@
 package org.olf.dcb.tracking;
 
-import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.function.Function;
-
+import io.micrometer.core.annotation.Timed;
 import io.micronaut.context.annotation.Value;
-
+import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.scheduling.annotation.Scheduled;
+import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -25,17 +18,18 @@ import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
-
-import io.micrometer.core.annotation.Timed;
-import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.scheduling.annotation.Scheduled;
-import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Function;
+
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Slf4j
 @Refreshable
@@ -196,7 +190,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 			log.warn("PR {} in state {} skipped tracking of borrowing system", rwc.getPatronRequest().getId(), state);
 
-			return skipTracking(rwc,"Tracking skipped : Borrowing System", state);
+			return skipTracking(rwc,"Tracking skipped : Borrowing System", "Cannot track PatronRequest in status " + state);
 
 		} else {
 
@@ -209,9 +203,9 @@ public class TrackingServiceV3 implements TrackingService {
 		}
 	}
 
-	private Mono<RequestWorkflowContext> skipTracking(RequestWorkflowContext rwc, String message, PatronRequest.Status status) {
+	private Mono<RequestWorkflowContext> skipTracking(RequestWorkflowContext rwc, String message, String reason) {
 		final var auditData = new HashMap<String, Object>();
-		auditData.put("Reason", "Cannot track PatronRequest in status " + status);
+		auditData.put("Reason", reason);
 
 		return patronRequestAuditService
 			.addAuditEntry(rwc.getPatronRequest(), message, auditData)
@@ -224,8 +218,24 @@ public class TrackingServiceV3 implements TrackingService {
 
 	private Mono<RequestWorkflowContext> trackPickupSystem(RequestWorkflowContext rwc) {
 		log.debug("trackPickupSystem");
-		return Mono.just(rwc);
+
+		if ( !"RET-PUA".equals(rwc.getPatronRequest().getActiveWorkflow() )) {
+			log.warn("PR {} not RET-PUA skipped tracking of pickup system", rwc.getPatronRequest().getId());
+			return Mono.just(rwc);
+		}
+
+		final var state = rwc.getPatronRequest().getStatus();
+		final var SKIPPED_STATUSES = List.of(CONFIRMED, REQUEST_PLACED_AT_SUPPLYING_AGENCY, REQUEST_PLACED_AT_BORROWING_AGENCY);
+
+		if ( SKIPPED_STATUSES.contains(state)) {
+			log.warn("PR {} in state {} skipped tracking of pickup system", rwc.getPatronRequest().getId(), state);
+			return skipTracking(rwc, "Tracking skipped : Pickup System", "Cannot track PickupRequest in status " + state);
+		}
+
+		return checkPickupRequest(rwc)
+			.flatMap(this::checkPickupItem);
 	}
+
 	private Mono<RequestWorkflowContext> trackSupplyingSystem(RequestWorkflowContext rwc) {
 		log.debug("trackSupplyingSystem prId={}",rwc.getPatronRequest().getId());
 		return Mono.just(rwc.getSupplierRequest())
@@ -279,7 +289,7 @@ public class TrackingServiceV3 implements TrackingService {
 	private Long incrementRepeatCounter(Long current) {
 		Long repeat_count = current;
 
-		if ( repeat_count == null ) 
+		if ( repeat_count == null )
 			repeat_count = Long.valueOf(1);
 		else
 			repeat_count = Long.valueOf(repeat_count.longValue() + 1);
@@ -290,7 +300,7 @@ public class TrackingServiceV3 implements TrackingService {
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<PatronRequest> checkVirtualItem(PatronRequest pr) {
 
-		// Please note: some HostLms don't track item statuses by item id so it item id can be null
+		// Please note: some HostLms don't track item statuses by item id so the item id can be null
 		if (( (pr.getLocalItemStatus() != null ) && (pr.getLocalItemStatus().equals("MISSING")) )) {
 			log.warn("TRACKING Unable to track virtual item for pr {} - no ID {} {}",pr.getId(),pr.getLocalItemId(),pr.getLocalItemStatus());
 			return Mono.just(pr);
@@ -351,7 +361,7 @@ public class TrackingServiceV3 implements TrackingService {
 							.doOnNext(count -> log.debug("update count {}",count))
 							.thenReturn(pr);
 					}
-			
+
 				});
 		}
 		else {
@@ -509,5 +519,102 @@ public class TrackingServiceV3 implements TrackingService {
 					return Mono.just(sr);
 				}
 			}));
+	}
+
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+	protected Mono<RequestWorkflowContext> checkPickupRequest(RequestWorkflowContext rwc) {
+		final var pr = rwc.getPatronRequest();
+		log.info("TRACKING Check pickup request {}", pr);
+
+		// If we dont have an ID, or we previously did have an ID but have detected the downstream is MISSING, bail
+		if ( ( pr.getPickupRequestId() == null ) ||
+			( ( pr.getPickupRequestStatus() != null ) && ( pr.getPickupRequestStatus().equals("MISSING")))) {
+			log.warn("No pickup request ID or status is missing - cannot track");
+			return Mono.just(rwc);
+		}
+
+		return hostLmsService.getClientFor(rwc.getPickupSystemCode())
+			.flatMap(client -> client.getRequest(pr.getPickupRequestId()))
+			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(), e))
+			.doOnNext(hold -> log.info("TRACKING Compare pickup request {} states: {} and {}", pr.getPickupRequestId(), hold.getStatus(), pr.getPickupRequestStatus()))
+			.flatMap( hold -> {
+				if ( hold.getStatus().equals(pr.getPickupRequestStatus()) ) {
+					// The hold status is the same as the last time we checked - update the tracking info and return
+					log.debug("TRACKING - update PR repeat counter {} {} {}",pr.getId(), pr.getLocalRequestStatus(), pr.getLocalRequestStatusRepeat());
+					return Mono.from(patronRequestRepository.updatePickupRequestTracking(pr.getId(), pr.getPickupRequestStatus(), hold.getRawStatus(), Instant.now(),
+							incrementRepeatCounter(pr.getPickupRequestStatusRepeat())))
+						.doOnNext(count -> log.debug("update count {}",count))
+						.thenReturn(rwc);
+				}
+				else {
+					// The hold status has changed - do something different
+					StateChange sc = StateChange.builder()
+						.patronRequestId(pr.getId())
+						.resourceType("PickupRequest")
+						// because the pickup request is on the patron request we use the patron request id here
+						.resourceId(pr.getId().toString())
+						.fromState(pr.getPickupRequestStatus())
+						.toState(hold.getStatus())
+						.resource(pr)
+						.build();
+
+					log.info("TRACKING-EVENT PickupReq state change event {}",sc);
+					return hostLmsReactions.onTrackingEvent(sc)
+						.thenReturn(rwc);
+				}
+			});
+	}
+
+	@Transactional(Transactional.TxType.REQUIRES_NEW)
+	protected Mono<RequestWorkflowContext> checkPickupItem(RequestWorkflowContext rwc) {
+		final var pr = rwc.getPatronRequest();
+
+		// Please note: some HostLms don't track item statuses by item id so the item id can be null
+		if (( (pr.getPickupItemStatus() != null ) && (pr.getPickupItemStatus().equals("MISSING")) )) {
+			log.warn("TRACKING Unable to track pickup item for pr {} - no ID {} {}",pr.getId(),pr.getPickupItemId(),pr.getPickupItemStatus());
+			return Mono.just(rwc);
+		}
+
+		log.info("TRACKING Check (local) pickupItem from patron request {} {} {}", pr.getPickupItemId(), pr.getPickupItemStatus(), rwc.getPickupSystemCode());
+
+		if (rwc.getPickupSystemCode() != null) {
+			return hostLmsService.getClientFor(rwc.getPickupSystemCode())
+				.flatMap(client -> Mono.from(client.getItem(pr.getPickupItemId(), pr.getPickupRequestId())))
+				.flatMap( item -> {
+					if ( ((item.getStatus() == null) && (pr.getPickupItemStatus() != null)) ||
+						((item.getStatus() != null) && (pr.getPickupItemStatus() == null)) ||
+						(!item.getStatus().equals(pr.getPickupItemStatus()))) {
+						// Item status has changed - so issue an update
+
+						log.debug("TRACKING Detected pickup system - pickup item status change {} to {}", pr.getPickupItemStatus(), item.getStatus());
+						StateChange sc = StateChange.builder()
+							.patronRequestId(pr.getId())
+							.resourceType("PickupItem")
+							.resourceId(pr.getId().toString())
+							.fromState(pr.getPickupItemStatus())
+							.toState(item.getStatus())
+							.resource(pr)
+							.build();
+
+						log.info("TRACKING-EVENT pickup item change event {}", sc);
+
+						return hostLmsReactions.onTrackingEvent(sc)
+							.thenReturn(rwc);
+					}
+					else {
+						// pickup item status has not changed - just update tracking stats
+						log.debug("TRACKING - update pickup item repeat counter {} {} {}",pr.getId(), pr.getPickupItemStatus(), pr.getPickupItemStatusRepeat());
+						return Mono.from(patronRequestRepository.updatePickupItemTracking(pr.getId(), pr.getPickupItemStatus(), item.getRawStatus(), Instant.now(),
+								incrementRepeatCounter(pr.getPickupItemStatusRepeat())))
+							.doOnNext(count -> log.debug("update count {}",count))
+							.thenReturn(rwc);
+					}
+
+				});
+		}
+		else {
+			log.warn("Trackable pickup item - NULL");
+			return Mono.just(rwc);
+		}
 	}
 }

@@ -1,29 +1,28 @@
 package org.olf.dcb.storage;
 
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static services.k_int.utils.StringUtils.truncate;
-
-import java.time.Instant;
-import java.util.UUID;
-
 import io.micronaut.core.annotation.Introspected;
-import io.micronaut.data.annotation.Join;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.reactivestreams.Publisher;
-
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Id;
+import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.annotation.Vetoed;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.UUID;
+
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static services.k_int.utils.StringUtils.truncate;
 
 
 public interface PatronRequestRepository {
@@ -116,12 +115,13 @@ public interface PatronRequestRepository {
 	@Query(value = "SELECT pr.* from patron_request pr, inactive_supplier_request sr where sr.patron_request_id = pr.id and sr.id = :inactiveSupplierRequestId", nativeQuery = true)
 	Publisher<PatronRequest> getPatronRequestByInactiveSupplierRequestId(UUID inactiveSupplierRequestId);
 
-	Publisher<Void> updatePickupItemTracking(@NotNull UUID id, String pickupItemStatus, Instant pickupItemLastCheckTimestamp, Long pickupItemStatusRepeat);
-  Publisher<Void> updatePickupRequestTracking(@NotNull UUID id, String pickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
-  Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
-  Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
+	// Borrowing system tracking updates
 	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, String rawLocalRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
 	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
+
+	// Pickup system tracking updates
+	Publisher<Long> updatePickupRequestTracking(@Id @NotNull UUID id, String pickupRequestStatus, String rawPickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
+	Publisher<Long> updatePickupItemTracking(@Id @NotNull UUID id, String pickupItemStatus, String rawPickupItemStatus, Instant pickupItemLastCheckTimestamp, Long pickupItemStatusRepeat);
 
 	@Join("requestingIdentity")
 	Publisher<PatronRequest> findAllByPatronHostlmsCodeAndBibClusterIdOrderByDateCreatedDesc(
