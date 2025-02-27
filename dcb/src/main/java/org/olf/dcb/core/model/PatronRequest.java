@@ -205,6 +205,10 @@ public class PatronRequest {
 	@Nullable
 	private Long pickupRequestStatusRepeat;
 
+	@Nullable
+	@Size(max = 200)
+	private String pickupBibId;
+
 	// Ignore at this property level. We provide explicit ignore/serializing
 	// instructions at a getter and setter level to prevent any JSON binding to this
 	// field but allow deserialization for output.
@@ -399,7 +403,7 @@ public class PatronRequest {
 	private Integer renewalCount = 0;
 
   @Builder.Default
-	private Integer localRenewalCount = 0;
+	private Integer localRenewalCount = 0;;
 
 	@Transient
 	@Nullable

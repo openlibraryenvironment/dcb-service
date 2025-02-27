@@ -47,6 +47,8 @@ public class RequestWorkflowContext {
 
 	PatronIdentity patronHomeIdentity;
 	PatronIdentity patronVirtualIdentity;
+	// Patron identity on the pickup system
+	PatronIdentity pickupPatronIdentity;
 
 	PatronRequest patronRequest;
 	SupplierRequest supplierRequest;

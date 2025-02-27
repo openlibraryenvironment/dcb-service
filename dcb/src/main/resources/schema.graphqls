@@ -419,6 +419,9 @@ type PatronRequest {
   resolutionCount: Int
   renewalCount: Int
   localRenewalCount: Int
+  rawPickupItemStatus: String
+  rawPickupRequestStatus: String
+  pickupBibId: String
 }
 
 type PatronRequestAudit {
