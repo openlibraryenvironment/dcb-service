@@ -236,13 +236,11 @@ public class RequestWorkflowContextHelper {
 			ctx.getPatronRequest().getPickupLocationCode(),
 			ctx.getPatronRequest().getPatronHostlmsCode());
 
-		// ToDo: WARNING - this is a short term bridge - for the "2-legged" scenario - we default the context of the pickup location code to the
-		// System of the patron - assuming the patron will pick up from one of their "Local" libraries. This will NOT work for PUA requests
-		// We set pickupSymbolContext to the explicit code in the patron request - if it's not there we fall back to the patrons home system code
 		String pickupSymbolContext = ctx.getPatronRequest().getPickupLocationCodeContext();
 
-		if ( pickupSymbolContext == null )
-			pickupSymbolContext = ctx.getPatronRequest().getPatronHostlmsCode();
+		if ( pickupSymbolContext == null ) {
+			log.warn("pickupSymbolContext is null");
+		}
 
 		String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
 
