@@ -34,6 +34,7 @@ public class RequestWorkflowContext {
 	String pickupAgencyCode;
 	String pickupSystemCode;
 	Agency pickupAgency;
+	Library pickupLibrary;
 
 	// the ID of the pickup location as it is known to the pickup agency
 	// For example in polaris this is the internal integer primary key of the pickup location.
