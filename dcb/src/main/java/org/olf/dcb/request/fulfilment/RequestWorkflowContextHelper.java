@@ -10,6 +10,7 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import reactor.core.publisher.Mono;
@@ -26,6 +27,7 @@ public class RequestWorkflowContextHelper {
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestRepository patronRequestRepository;
 	private final AgencyRepository agencyRepository;
+	private final LibraryRepository libraryRepository;
 
 	private final LocationService locationService;
 	private final HostLmsService hostLmsService;
@@ -37,7 +39,7 @@ public class RequestWorkflowContextHelper {
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
-		AgencyRepository agencyRepository, LocationService locationService,
+		AgencyRepository agencyRepository, LibraryRepository libraryRepository, LocationService locationService,
 		HostLmsService hostLmsService, PatronService patronService,
 		PatronRequestAuditService patronRequestAuditService) {
 
@@ -46,6 +48,7 @@ public class RequestWorkflowContextHelper {
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
 		this.agencyRepository = agencyRepository;
+		this.libraryRepository = libraryRepository;
 		this.locationService = locationService;
 		this.hostLmsService = hostLmsService;
 		this.patronService = patronService;
@@ -94,7 +97,17 @@ public class RequestWorkflowContextHelper {
 			.flatMap(this::decorateContextWithPatronDetails)
 			.flatMap(this::decorateContextWithLenderDetails)
 			.flatMap(this::resolvePickupLocationAgency)
+			.flatMap(this::decorateWithPickupLibrary)
 			.flatMap(this::report);
+	}
+
+	private Mono<RequestWorkflowContext> decorateWithPickupLibrary(RequestWorkflowContext ctx) {
+		if ( ctx.getPickupAgencyCode() == null )
+			return Mono.just(ctx);
+
+		return Mono.from(libraryRepository.findOneByAgencyCode(ctx.getPickupAgencyCode()))
+			.map(ctx::setPickupLibrary)
+			.defaultIfEmpty(ctx);
 	}
 
 	private Mono<RequestWorkflowContext> decorateWithPatron(
