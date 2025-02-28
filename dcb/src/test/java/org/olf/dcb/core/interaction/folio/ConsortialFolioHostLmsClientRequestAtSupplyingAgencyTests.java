@@ -32,6 +32,8 @@ import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Library;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -84,6 +86,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.build());
 
 		final var pickupAgency = definePickupAgency();
+		final var pickupLibrary = definePickupLibrary();
+		final var pickupLocation = definePickupLocation();
 
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
@@ -96,6 +100,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.localPatronBarcode(patronBarcode)
 					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
+					.pickupLocation(pickupLocation)
+					.pickupLibrary(pickupLibrary)
 					.build()));
 
 		// Assert
@@ -118,8 +124,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
 				.servicePointId(dnsUUID("FolioServicePoint:" + pickupAgency.getCode()).toString())
-				.servicePointName("Pickup Agency")
-				.libraryCode("pickup-agency")
+				.servicePointName("PrintLabel")
+				.libraryCode("LibAbbrName")
 				.build())
 			.build());
 	}
@@ -298,4 +304,19 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		return agencyFixture.defineAgency("pickup-agency",
 			"Pickup Agency", hostLmsFixture.findByCode(PICKUP_HOST_LMS_CODE));
 	}
+
+	private Library definePickupLibrary() {
+		return Library.builder()
+			.abbreviatedName("LibAbbrName")
+			.build();
+	}
+
+	private Location definePickupLocation() {
+		return Location.builder()
+			.printLabel("PrintLabel")
+			.build();
+
+	}
+
 }
+

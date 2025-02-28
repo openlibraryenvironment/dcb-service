@@ -181,8 +181,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, BORROWING_AGENCY_CODE,
-			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup UNKNOWN@%s"
-				.formatted(SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
+			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION"
+				.formatted(SUPPLYING_AGENCY_CODE));
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -244,8 +244,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, BORROWING_AGENCY_CODE,
-			"Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup UNKNOWN@%s".formatted(
-				patronRequest.getId(), SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
+			"Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION".formatted(
+				patronRequest.getId(), SUPPLYING_AGENCY_CODE));
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -297,8 +297,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"546730@%s".formatted(SUPPLYING_AGENCY_CODE));
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
-			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup UNKNOWN@%s"
-				.formatted(patronRequest.getId(), SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
+			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION"
+				.formatted(patronRequest.getId(), SUPPLYING_AGENCY_CODE));
 	}
 
 	@DisplayName("Do not attempt to place at supplying library when workflow is local")

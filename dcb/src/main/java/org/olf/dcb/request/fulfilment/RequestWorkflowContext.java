@@ -72,8 +72,11 @@ public class RequestWorkflowContext {
 
 	private String generatePickupNote() {
 		String note = "\n Pickup "+
-			( pickupLocation != null ? pickupLocation.getName() : "UNKNOWN" ) +
-			"@"+pickupAgencyCode;
+			( pickupLibrary != null ? pickupLibrary.getAbbreviatedName() : "MISSING-PICKUP-LIB") +
+			"@" +
+			( pickupLocation != null ? pickupLocation.getPrintLabel() : "MISSING-PICKUP-LOCATION");
+			// ( pickupLocation != null ? pickupLocation.getName() : "UNKNOWN" ) +
+			// "@"+pickupAgencyCode;
 		return note;
 	}
 
