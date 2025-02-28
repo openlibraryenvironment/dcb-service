@@ -116,6 +116,7 @@ public class PatronRequestService {
 			.status(SUBMITTED_TO_DCB)
 			.description(trimmedDescription)
 			.patronHostlmsCode(command.getRequestorLocalSystemCode())
+			.requesterNote(command.getRequesterNote())
 			.build();
 	}
 

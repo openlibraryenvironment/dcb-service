@@ -16,6 +16,7 @@ public class PatronRequestView {
 	Citation citation;
 	PickupLocation pickupLocation;
 	Requestor requestor;
+	String requesterNote;
 
 	static PatronRequestView from(PatronRequest patronRequest) {
 		final var identity = Identity.fromList(patronRequest.getPatron().getPatronIdentities());
@@ -24,7 +25,8 @@ public class PatronRequestView {
 				new Citation(patronRequest.getBibClusterId()),
 				new PickupLocation(patronRequest.getPickupLocationCode()),
 				new Requestor(identity.getLocalId(), identity.getLocalSystemCode(),
-					patronRequest.getPatron().getHomeLibraryCode()));
+					patronRequest.getPatron().getHomeLibraryCode()),
+				patronRequest.getRequesterNote());
 	}
 
 	@Serdeable
