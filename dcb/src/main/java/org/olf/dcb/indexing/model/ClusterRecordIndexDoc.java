@@ -18,6 +18,7 @@ import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.ingest.model.Author;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.serde.annotation.Serdeable;
@@ -148,8 +149,8 @@ public class ClusterRecordIndexDoc {
   
   private Optional<BibRecord> _selectedBib = null;
   
-  @JsonIgnoreProperties({"contributesTo"})
-  public Optional<BibRecord> getSelectedBib() {
+  // @JsonIgnoreProperties({"contributesTo"})
+  private Optional<BibRecord> getSelectedBib() {
   	
   	if (this._selectedBib == null) {
   		_selectedBib = Stream.ofNullable(cluster.getBibs())
@@ -161,7 +162,7 @@ public class ClusterRecordIndexDoc {
 						.orElse(true))
 	  		.findFirst();
   	}
-  	
+
   	return this._selectedBib;
   }
 }
