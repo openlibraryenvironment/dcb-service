@@ -1684,7 +1684,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		localItemId = parseLocalItemId(localItemId);
 
-		return Mono.from(client.getItem(localItemId))
+		return Mono.from(client.getItem(localItemId, List.of("id", "fixedFields", "varFields" )))
 			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
 			.defaultIfEmpty(HostLmsItem.builder()
 				.localId(localItemId)

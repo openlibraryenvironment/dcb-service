@@ -189,7 +189,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	@SingleResult
 	@Retryable
 	public Publisher<SierraItem> getItem(final String itemId, Iterable<String> fields) {
-    return get("items"+itemId, Argument.of(SierraItem.class),
+    return get("items/"+itemId, Argument.of(SierraItem.class),
         uri -> uri.queryParam("fields", fields));
 	}
 
