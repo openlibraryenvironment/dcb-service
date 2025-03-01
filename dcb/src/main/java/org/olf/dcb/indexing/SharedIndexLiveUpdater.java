@@ -60,6 +60,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	private Disposable reindexTask = null;
 
 	@ExecuteOn(TaskExecutors.BLOCKING)
+	@Transactional
 	protected void doAndReportReindex( @NonNull MonoSink<Void> startedSignal ) {
 		// Grab the current timestamp to filter out resources that have been updated since we started.
 		
