@@ -60,7 +60,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	private Disposable reindexTask = null;
 
 	@ExecuteOn(TaskExecutors.BLOCKING)
-	@Transactional(propagation = Propagation.MANDATORY)
+	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
 	protected void doAndReportReindex( @NonNull MonoSink<Void> startedSignal ) {
 		// Grab the current timestamp to filter out resources that have been updated since we started.
 		
@@ -138,7 +138,6 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 		}
 	}
 	
-	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
 	public Mono<Void> reindexAllClusters( @NonNull ReindexOp op ) {
 		
 		if (op == ReindexOp.STOP) {
