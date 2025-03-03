@@ -1,13 +1,14 @@
 package org.olf.dcb.request.fulfilment;
 
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Data;
+import lombok.experimental.Accessors;
 import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.*;
 
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.experimental.Accessors;
-import lombok.Data;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -35,6 +36,10 @@ public class RequestWorkflowContext {
 	String pickupSystemCode;
 	Agency pickupAgency;
 	Library pickupLibrary;
+
+	HostLmsClient pickupSystem;
+	String pickupBibTitle;
+	String pickupItemBarcode;
 
 	// the ID of the pickup location as it is known to the pickup agency
 	// For example in polaris this is the internal integer primary key of the pickup location.

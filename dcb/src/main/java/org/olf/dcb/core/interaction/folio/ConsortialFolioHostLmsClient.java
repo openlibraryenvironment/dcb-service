@@ -316,6 +316,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
+		return raiseError(new UnsupportedOperationException("placeHoldRequestAtPickupAgency not supported by hostlms: " + getHostLmsCode()));
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
 		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by hostlms: " + getHostLmsCode()));
 	}

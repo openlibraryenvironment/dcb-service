@@ -168,6 +168,10 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String pickupItemStatus;
 
+	@Nullable
+	@Size(max = 200)
+	private String pickupItemBarcode;
+
 	// The unchanged item status within the pickup system
 	@Nullable
 	@Size(max = 200)
@@ -434,6 +438,13 @@ public class PatronRequest {
 			.setRawLocalItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
 	}
 
+	public PatronRequest addPickupItemDetails(HostLmsItem hostLmsItem) {
+		return setPickupItemId(hostLmsItem.getLocalId() != null ? hostLmsItem.getLocalId() : null)
+			.setPickupItemStatus(hostLmsItem.getStatus() != null ? hostLmsItem.getStatus() : null)
+			.setRawPickupItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
+	}
+
+
 	public PatronRequest addManuallySelectedItemDetails(PlacePatronRequestCommand.Item item) {
 		return setLocalItemId(item.getLocalId())
 			.setLocalItemHostlmsCode(item.getLocalSystemCode())
@@ -480,5 +491,20 @@ public class PatronRequest {
 		} else {
 			pollCountForCurrentStatus++;
 		}
+	}
+
+	public PatronRequest placedAtPickupAgency(
+		String localId, String localStatus,
+		String rawLocalStatus, String requestedItemId,
+		String requestedItemBarcode) {
+		setPickupRequestId(localId);
+		setPickupRequestStatus(localStatus);
+		setRawPickupRequestStatus(rawLocalStatus);
+		if (requestedItemId != null)
+			setPickupItemId(requestedItemId);
+		if (requestedItemBarcode != null)
+			setPickupItemBarcode(requestedItemBarcode);
+		setStatus(REQUEST_PLACED_AT_PICKUP_AGENCY);
+		return this;
 	}
 }

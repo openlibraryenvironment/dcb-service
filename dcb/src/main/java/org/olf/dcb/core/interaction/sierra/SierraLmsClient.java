@@ -42,8 +42,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
-import services.k_int.interaction.sierra.QueryResultSet;
 import services.k_int.interaction.sierra.*;
+import services.k_int.interaction.sierra.QueryResultSet;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -80,7 +80,6 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
-
 
 
 /**
@@ -895,6 +894,31 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		return placeHoldRequest(parameters, parameters.getPickupLocationCode(), "supplier");
 	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
+
+		// When placing the hold at a pickup system we want to use the pickup location code as selected by
+		// the patron
+
+		// Start with the default - a fallback - but unlikely to be correct
+		String pickup_location_code = parameters.getPickupLocationCode();
+
+		// Now, look to see if we have attached the location record corresponding to a user selection. If so,
+		// Sierra expects us to use the right code for the local pickup location - extract that from the code field
+		// of the location record. N.B. This is different to polaris and FOLIO which use local-id because in those
+		// systems, a location can have BOTH a code(e.g. "DB") and an ID(e.g. 24).
+		if ( parameters.getPickupLocation() != null ) {
+			if ( parameters.getPickupLocation().getCode() != null ) {
+				log.debug("Overriding pickup location code with code from location record");
+				pickup_location_code = parameters.getPickupLocation().getCode();
+			}
+		}
+
+		return placeHoldRequest(parameters, pickup_location_code, "pickup");
+	}
+
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {

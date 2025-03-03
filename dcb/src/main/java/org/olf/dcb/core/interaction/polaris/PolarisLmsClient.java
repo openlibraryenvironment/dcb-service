@@ -187,6 +187,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
+	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
+		return raiseError(new UnsupportedOperationException("placeHoldRequestAtPickupAgency not supported by hostlms: " + getHostLmsCode()));
+	}
+
+	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
 		return placeHoldRequestAtBorrowingAgency(parameters);

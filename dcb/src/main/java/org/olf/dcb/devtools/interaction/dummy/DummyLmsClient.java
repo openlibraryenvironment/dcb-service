@@ -41,6 +41,7 @@ import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 
 /**
@@ -430,6 +431,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		PlaceHoldRequestParameters parameters) {
 
 		return placeHoldRequest(parameters);
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
+		return raiseError(new UnsupportedOperationException("placeHoldRequestAtPickupAgency not supported by hostlms: " + getHostLmsCode()));
 	}
 
 	@Override

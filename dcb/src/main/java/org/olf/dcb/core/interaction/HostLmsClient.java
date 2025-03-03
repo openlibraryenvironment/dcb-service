@@ -70,6 +70,8 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters);
 
+	Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters);
+
 	Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters);
 
 	Mono<String> findLocalPatronType(String canonicalPatronType);
