@@ -20,6 +20,7 @@ public class NumericItemTypeMapper {
 	public static final String UNKNOWN_INVALID_LOCAL_ITEM_TYPE = "UNKNOWN - Invalid localItemTypeCode";
 	public static final String UNKNOWN_NO_MAPPING_FOUND = "UNKNOWN - No mapping found";
 	public static final String UNKNOWN_UNEXPECTED_FAILURE = "UNKNOWN - Unexpected failure";
+	public static final String MISSING_OWNING_CONTEXT = "UNKNOWN - Item has no owning context";
 
 	public NumericItemTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository) {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
@@ -28,6 +29,9 @@ public class NumericItemTypeMapper {
 	public Mono<org.olf.dcb.core.model.Item> enrichItemWithMappedItemType(org.olf.dcb.core.model.Item item) {
 
 		final var hostLmsCode = getValueOrNull(item, Item::getOwningContext);
+
+		if ( hostLmsCode == null )
+			return Mono.just(item.setCanonicalItemType(MISSING_OWNING_CONTEXT));
 
 		return getCanonicalItemType(hostLmsCode, item.getLocalItemTypeCode())
 			.defaultIfEmpty(UNKNOWN_UNEXPECTED_FAILURE)

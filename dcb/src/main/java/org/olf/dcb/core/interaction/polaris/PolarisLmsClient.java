@@ -1,41 +1,31 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
-import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
-import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.ReactorUtils.raiseError;
-import static services.k_int.utils.StringUtils.parseList;
-
-import java.io.IOException;
-import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.StringUtils;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonArray;
+import io.micronaut.json.tree.JsonNode;
+import io.micronaut.serde.ObjectMapper;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
@@ -62,34 +52,6 @@ import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.StringUtils;
-import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonArray;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.serde.ObjectMapper;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
@@ -97,9 +59,32 @@ import reactor.util.retry.Retry;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
+import java.io.IOException;
+import java.net.URI;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.time.OffsetDateTime;
+
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
+import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
+import static services.k_int.utils.StringUtils.parseList;
 
 @Slf4j
 @Prototype
@@ -199,6 +184,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case ILL_BORROWING_FLOW -> placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 			default -> placeHoldRequest(parameters, TRUE);
 		};
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
+
+		return placeHoldRequest(parameters, true);
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
+		return placeHoldRequestAtBorrowingAgency(parameters);
 	}
 
 	@Override
@@ -371,9 +369,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 * the agency code so we have a rough idea where the item is going
 	 */
 	private Mono<LocalRequest> placeHoldRequest(
-		PlaceHoldRequestParameters parameters, boolean isBorrower) {
+		PlaceHoldRequestParameters parameters, boolean isVirtualItem) {
 
-		log.info("placeHoldRequest {} {}", parameters, isBorrower);
+		log.info("placeHoldRequest {} {}", parameters, isVirtualItem);
 
 		// If this is a borrowing agency then we are placing a hold on a virtual item. The item should have been created
 		// with a home location of the declared ILL location. The pickup location should be the pickup location specified
@@ -387,9 +385,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				final var bib = tuple.getT1();
 				final var item = tuple.getT2();
 
-				String pickupLocation = getPickupLocation(parameters, isBorrower);
+				String pickupLocation = getPickupLocation(parameters, isVirtualItem);
 
-				log.info("Derived pickup location for hold isBorrower={} : {}", isBorrower, pickupLocation);
+				log.info("Derived pickup location for hold isVirtualItem={} : {}", isVirtualItem, pickupLocation);
 
 				return HoldRequestParameters.builder()
 					.localPatronId(parameters.getLocalPatronId())
@@ -565,7 +563,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 	}
 
-	private String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isBorrower) {
+	private String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isVirtualItem) {
 		// Different systems will use different pickup locations - we default to passing through
 		// parameters.getPickupLocationCode
 
@@ -574,14 +572,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// However - polaris as a pickup location actually needs to use the local ID of the pickup location
 		// So if we have a specific local ID, pass that down the chain instead.
-		if ( isBorrower && ( parameters.getPickupLocation() != null ) ) {
+		if ( isVirtualItem && ( parameters.getPickupLocation() != null ) ) {
 			if ( parameters.getPickupLocation().getLocalId() != null )
 				log.debug("Overriding pickup location code with ID from selected record");
 				pickup_location = parameters.getPickupLocation().getLocalId();
 		}
 
 		// supplier requests need the pickup location to be set as ILL
-		if (isBorrower == FALSE) {
+		if (isVirtualItem == FALSE) {
 			pickup_location = String.valueOf(polarisConfig.getIllLocationId());
 			if (pickup_location == null) {
 				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
@@ -719,8 +717,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Function<PAPIClient.ItemGetRow, Publisher<Item>> mapItemWithRuleset(String localBibId) {
 		return result -> getLmsItemSuppressionRuleset()
-			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(
-				result, lms.getCode(), localBibId, objectRuleset, polarisConfig.getItem().getItemAgencyResolutionMethod()));
+			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId, objectRuleset, polarisConfig));
 	}
 
 	// bib suppression not supported in Polaris
@@ -771,6 +768,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.rawStatus(itemRecord.getItemStatusName())
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
+					// We need to implement a call to GET /api/.../itemrecords/{id}/holds
+					// https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/itemrecords/get_item_holds
+					.holdCount(null)
 					.build();
 			})
 			.defaultIfEmpty(HostLmsItem.builder()

@@ -56,7 +56,6 @@ public class HazelcastProvidersFactory {
 	@Named("hazelcastInstance")
 	@Bean(preDestroy = "shutdown")
 	public HazelcastInstance hazelcastInstance() {
-		log.info("creating hazelcast instance {}",applicableHazelcastConfig());
 		return applicableHazelcastConfig().map(Hazelcast::newHazelcastInstance).orElseGet(Hazelcast::newHazelcastInstance);
 	}
 }

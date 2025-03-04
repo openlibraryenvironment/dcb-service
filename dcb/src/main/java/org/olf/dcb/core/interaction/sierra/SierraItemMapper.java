@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -88,6 +89,7 @@ public class SierraItemMapper {
 				.suppressed(deriveItemSuppressedFlag(itemResult, itemSuppressionRules))
 				.rawVolumeStatement(rawVolumeStatement)
 				.parsedVolumeStatement(parsedVolumeStatement)
+				.derivedLoanPolicy(DerivedLoanPolicy.GENERAL)
 				.build())
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)

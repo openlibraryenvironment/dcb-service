@@ -1,9 +1,8 @@
 package org.olf.dcb.tracking;
 
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-
+import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -12,11 +11,11 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.tracking.model.TrackingRecord;
 import org.zalando.problem.Problem;
-
-import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class gathers together the code which detects that an object in a remote system has
@@ -89,9 +88,19 @@ public class HostLmsReactions {
 					sr2.setLocalItemLastCheckTimestamp(Instant.now());
 					sr2.setLocalItemStatusRepeat(Long.valueOf(0));
 					sr2.setLocalRenewalCount(sc.getToRenewalCount());
-
-					return Mono.from(supplierRequestRepository.update(sr2))
-						.flatMap(ssr -> auditEventIndication( context, trackingRecord));
+					return Mono.from(supplierRequestRepository.update(sr2)).flatMap(ssr -> auditEventIndication( context, trackingRecord));
+				case "PickupRequest":
+					PatronRequest pickupRequest = (PatronRequest) sc.getResource();
+					pickupRequest.setPickupRequestStatus(sc.getToState());
+					pickupRequest.setPickupRequestLastCheckTimestamp(Instant.now());
+					pickupRequest.setPickupRequestStatusRepeat(Long.valueOf(0));
+					return Mono.from(patronRequestRepository.update(pickupRequest)).flatMap( __ -> auditEventIndication( context, trackingRecord));
+				case "PickupItem":
+					PatronRequest pickupItem = (PatronRequest) sc.getResource();
+					pickupItem.setPickupItemStatus(sc.getToState());
+					pickupItem.setPickupItemLastCheckTimestamp(Instant.now());
+					pickupItem.setPickupItemStatusRepeat(Long.valueOf(0));
+					return Mono.from(patronRequestRepository.update(pickupItem)).flatMap( __ -> auditEventIndication( context, trackingRecord));
 			}
 
 			throw Problem.builder()

@@ -1,21 +1,18 @@
 package org.olf.dcb.core.interaction;
 
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-
-import io.micronaut.core.annotation.Nullable;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 public interface HostLmsClient extends Comparable<HostLmsClient> {
 
@@ -72,6 +69,10 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters);
 
 	Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters);
+
+	Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters);
+
+	Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters);
 
 	Mono<String> findLocalPatronType(String canonicalPatronType);
 

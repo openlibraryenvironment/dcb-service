@@ -1,50 +1,34 @@
 package org.olf.dcb.core.model;
 
-import static java.util.Collections.emptyList;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-
-import java.time.Instant;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.UUID;
-
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.data.annotation.DateCreated;
-import io.micronaut.data.annotation.DateUpdated;
-import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.Relation;
-import io.micronaut.data.annotation.Transient;
-import io.micronaut.data.annotation.TypeDef;
+import io.micronaut.data.annotation.*;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import jakarta.persistence.OneToMany;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+
+import java.time.Instant;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.UUID;
+
+import static java.util.Collections.emptyList;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 
 @Slf4j
@@ -74,6 +58,7 @@ public class PatronRequest {
 		// No further processing by DCB as this request should be handled by existing local (Same host/agency request) workflow.
 		HANDED_OFF_AS_LOCAL,
 		REQUEST_PLACED_AT_BORROWING_AGENCY,
+		REQUEST_PLACED_AT_PICKUP_AGENCY,
 		RECEIVED_AT_PICKUP,
 		READY_FOR_PICKUP,
 		LOANED, // Currently on loan
@@ -184,6 +169,15 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String pickupItemStatus;
 
+	@Nullable
+	@Size(max = 200)
+	private String pickupItemBarcode;
+
+	// The unchanged item status within the pickup system
+	@Nullable
+	@Size(max = 200)
+	private String rawPickupItemStatus;
+
 	// When did we last poll for pickup item status (May only be used in 3-legged)
 	@Nullable
 	private Instant pickupItemLastCheckTimestamp;
@@ -203,6 +197,11 @@ public class PatronRequest {
 	@Size(max = 200)
 	private String pickupRequestStatus;
 
+	// The unchanged request status within the pickup system
+	@Nullable
+	@Size(max = 200)
+	private String rawPickupRequestStatus;
+
 	// When did we last poll for pickup request status (May only be used in 3-legged)
 	@Nullable
 	private Instant pickupRequestLastCheckTimestamp;
@@ -210,6 +209,10 @@ public class PatronRequest {
 	// How many times have we seen this pickupRequestStatus when tracking? Used for backoff polling
 	@Nullable
 	private Long pickupRequestStatusRepeat;
+
+	@Nullable
+	@Size(max = 200)
+	private String pickupBibId;
 
 	// Ignore at this property level. We provide explicit ignore/serializing
 	// instructions at a getter and setter level to prevent any JSON binding to this
@@ -405,7 +408,7 @@ public class PatronRequest {
 	private Integer renewalCount = 0;
 
   @Builder.Default
-	private Integer localRenewalCount = 0;
+	private Integer localRenewalCount = 0;;
 
 	@Transient
 	@Nullable
@@ -435,6 +438,13 @@ public class PatronRequest {
 			.setLocalItemStatus(hostLmsItem.getStatus() != null ? hostLmsItem.getStatus() : null)
 			.setRawLocalItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
 	}
+
+	public PatronRequest addPickupItemDetails(HostLmsItem hostLmsItem) {
+		return setPickupItemId(hostLmsItem.getLocalId() != null ? hostLmsItem.getLocalId() : null)
+			.setPickupItemStatus(hostLmsItem.getStatus() != null ? hostLmsItem.getStatus() : null)
+			.setRawPickupItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
+	}
+
 
 	public PatronRequest addManuallySelectedItemDetails(PlacePatronRequestCommand.Item item) {
 		return setLocalItemId(item.getLocalId())
@@ -482,5 +492,20 @@ public class PatronRequest {
 		} else {
 			pollCountForCurrentStatus++;
 		}
+	}
+
+	public PatronRequest placedAtPickupAgency(
+		String localId, String localStatus,
+		String rawLocalStatus, String requestedItemId,
+		String requestedItemBarcode) {
+		setPickupRequestId(localId);
+		setPickupRequestStatus(localStatus);
+		setRawPickupRequestStatus(rawLocalStatus);
+		if (requestedItemId != null)
+			setPickupItemId(requestedItemId);
+		if (requestedItemBarcode != null)
+			setPickupItemBarcode(requestedItemBarcode);
+		setStatus(REQUEST_PLACED_AT_PICKUP_AGENCY);
+		return this;
 	}
 }

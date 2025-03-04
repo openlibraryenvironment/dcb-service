@@ -7,6 +7,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -59,6 +60,7 @@ public class ConsortialFolioItemMapper {
 			.rawVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 			.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 			.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
+			.derivedLoanPolicy(DerivedLoanPolicy.GENERAL)
 			.deleted(false)
 			.build();
 	}
@@ -83,8 +85,25 @@ public class ConsortialFolioItemMapper {
 
 	private ItemStatusCode mapStatusCode(String statusCode) {
 		return switch (statusCode) {
-			case "Available" -> AVAILABLE;
+			case "Available",
+           "Paged",
+           "In transit",
+           "Awaiting pickup",
+           "Awaiting delivery" -> AVAILABLE;
 			case "Checked out" -> CHECKED_OUT;
+      case "Aged to lost",
+           "Claimed returned",
+           "Declared lost",
+           "In process",
+           "In process (non-requestable)",
+           "Intellectual item",
+           "Long missing",
+           "Lost and paid",
+           "Missing",
+           "On order",
+           "Restricted",
+           "Unknown",
+           "Withdrawn" -> UNAVAILABLE;
 			default -> UNAVAILABLE;
 		};
 	}

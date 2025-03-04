@@ -19,6 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
@@ -64,17 +65,25 @@ public class PolarisItemMapper {
 	 */
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
 		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId,
-		@NonNull Optional<ObjectRuleset> itemSuppressionRules, @NonNull String itemAgencyResolutionMethod) {
+		@NonNull Optional<ObjectRuleset> itemSuppressionRules, @NonNull PolarisConfig polarisConfig) {
+
+		final String itemAgencyResolutionMethod = polarisConfig.getItem().getItemAgencyResolutionMethod();
 
 		log.debug("map polaris item {} {} {} {}", itemGetRow, hostLmsCode, localBibId, itemAgencyResolutionMethod);
+
 
 		return mapStatus(itemGetRow.getCircStatusName(), hostLmsCode)
 			.map(status -> {
 				final var localId = String.valueOf(itemGetRow.getItemRecordID());
 				final var dueDate = convertFrom(itemGetRow.getDueDate());
-				final var location = getLocation(itemGetRow);
+				final var location = getLocation(itemGetRow, itemAgencyResolutionMethod);
+				final var shelvingLocation = itemGetRow.getShelfLocation();
 				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules);
 				final var parsedVolumeStatement = parseVolumeStatement(itemGetRow.getVolumeNumber());
+
+				// Check the shelving location if present. If the value is in the list of local only shelving locations
+				// then set to LOCAL_ONLY
+				DerivedLoanPolicy derivedLoanPolicy = deriveLoanPolicy(shelvingLocation, polarisConfig.getShelfLocationPolicyMap());
 
 				return org.olf.dcb.core.model.Item.builder()
 					.localId(localId)
@@ -90,6 +99,9 @@ public class PolarisItemMapper {
 					.deleted(false)
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
+					.owningContext(hostLmsCode)
+					.derivedLoanPolicy(derivedLoanPolicy)
+					.shelvingLocation(shelvingLocation)
 					// API doesn't provide hold count, it is assumed that item's have no holds
 					.holdCount(0)
 					.build();
@@ -97,6 +109,20 @@ public class PolarisItemMapper {
 			.flatMap(item -> enrichItemWithAgency(itemGetRow, item, hostLmsCode, itemAgencyResolutionMethod))
 			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
+	}
+
+	private DerivedLoanPolicy deriveLoanPolicy(String shelvingLocation, Map<String,String> shelfLocationPolicyMap) {
+
+		// If anything is missing, default to GENERAL
+		if ( ( shelvingLocation == null ) || 
+		     ( shelfLocationPolicyMap == null ) ||
+         ( ! shelfLocationPolicyMap.containsKey(shelvingLocation) ) )
+			return DerivedLoanPolicy.GENERAL;
+
+		// Interrogate list of shelving location policies to see if this is a LocalOnly or Reference. Possible 
+		// this choice belongs in the core.... 
+
+		return DerivedLoanPolicy.valueOf(shelvingLocation);
 	}
 
 	/**
@@ -153,16 +179,20 @@ public class PolarisItemMapper {
 			}));
 	}
 
-	private org.olf.dcb.core.model.Location getLocation(PAPIClient.ItemGetRow itemGetRow) {
+	private org.olf.dcb.core.model.Location getLocation(PAPIClient.ItemGetRow itemGetRow, String itemAgencyResolutionMethod) {
 
-		final var shelfLocation = getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+		final var locationName = switch(itemAgencyResolutionMethod) {
+      case "LocationId" -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getLocationName);
+      case "Legacy" -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+      default -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+    };
 
-		if (shelfLocation == null) Location.builder().build();
+		if (locationName == null) return Location.builder().build();
 
 		// Note: We get back the shelf location description from the API
 		return org.olf.dcb.core.model.Location.builder()
-			.code(shelfLocation)
-			.name(shelfLocation)
+			.code(itemGetRow.getLocationID() != null ? itemGetRow.getLocationID().toString() : locationName)
+			.name(locationName)
 			.build();
 	}
 

@@ -75,6 +75,8 @@ micronaut:
         # MICRONAUT_METRICS_EXPORT_CLOUDWATCH_ENABLED=true
         enabled: false
         namespace: dcb
+    binders:
+      reactor: true
 
 endpoints:
   prometheus:
@@ -100,6 +102,7 @@ info:
     description: ${dcb.env.description:Unknown - set DCB_ENV_DESCRIPTION}
   circulation:
     tracking-profile: ${dcb.circulation.tracking-profile:}
+
 flyway:
   enabled: true
   datasources:
@@ -168,7 +171,8 @@ r2dbc:
 netty:
   default:
     allocator:
-      max-order: 3
+      # The default for max-order is 11 - we have been runnig at 3 (Which docs say is very low) Trying with 11
+      max-order: 11
   # https://github.com/micronaut-projects/micronaut-core/discussions/5318
   max-initial-line-length: 4096
 
@@ -190,3 +194,5 @@ dcb:
   shutdown:
     # Wait up to 60s on shutdown for ingest processes to end
     maxwait: 0
+  tracking:
+    dryRun: false

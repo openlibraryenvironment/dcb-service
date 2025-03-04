@@ -18,6 +18,7 @@ import io.micronaut.context.event.StartupEvent;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
@@ -40,12 +41,14 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	
 	private final SharedIndexService sharedIndexService;
 	private final RecordClusteringService clusters;
+	private final R2dbcOperations r2dbcOperations;
 	
 	private static final Logger log = LoggerFactory.getLogger(SharedIndexLiveUpdater.class);
 	
-	public SharedIndexLiveUpdater(SharedIndexService sharedIndexService, RecordClusteringService recordClusteringService) {
+	public SharedIndexLiveUpdater(SharedIndexService sharedIndexService, RecordClusteringService recordClusteringService, R2dbcOperations r2dbcOperations) {
 		this.sharedIndexService = sharedIndexService;
 		this.clusters = recordClusteringService;
+		this.r2dbcOperations = r2dbcOperations;
 	}
 
 	@Override
@@ -139,7 +142,6 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	
 	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
 	public Mono<Void> reindexAllClusters( @NonNull ReindexOp op ) {
-		
 		if (op == ReindexOp.STOP) {
 			return this.cancelReindexJob();
 		}
@@ -148,8 +150,11 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 			synchronized (this) {
 				if (jobMono == null) {
 					log.debug("Begin re-index");
-					jobMono = Mono.create(this::doAndReportReindex)
-						.cache();
+					jobMono = Mono.fromDirect(r2dbcOperations.withTransaction(c -> {
+						
+						return Mono.create(this::doAndReportReindex);
+						
+					})).cache();
 				}
 			}
 		} else {

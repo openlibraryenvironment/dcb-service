@@ -10,6 +10,7 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import reactor.core.publisher.Mono;
@@ -26,6 +27,7 @@ public class RequestWorkflowContextHelper {
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestRepository patronRequestRepository;
 	private final AgencyRepository agencyRepository;
+	private final LibraryRepository libraryRepository;
 
 	private final LocationService locationService;
 	private final HostLmsService hostLmsService;
@@ -37,7 +39,7 @@ public class RequestWorkflowContextHelper {
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		SupplierRequestRepository supplierRequestRepository,
 		PatronRequestRepository patronRequestRepository,
-		AgencyRepository agencyRepository, LocationService locationService,
+		AgencyRepository agencyRepository, LibraryRepository libraryRepository, LocationService locationService,
 		HostLmsService hostLmsService, PatronService patronService,
 		PatronRequestAuditService patronRequestAuditService) {
 
@@ -46,6 +48,7 @@ public class RequestWorkflowContextHelper {
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.patronRequestRepository = patronRequestRepository;
 		this.agencyRepository = agencyRepository;
+		this.libraryRepository = libraryRepository;
 		this.locationService = locationService;
 		this.hostLmsService = hostLmsService;
 		this.patronService = patronService;
@@ -94,7 +97,17 @@ public class RequestWorkflowContextHelper {
 			.flatMap(this::decorateContextWithPatronDetails)
 			.flatMap(this::decorateContextWithLenderDetails)
 			.flatMap(this::resolvePickupLocationAgency)
+			.flatMap(this::decorateWithPickupLibrary)
 			.flatMap(this::report);
+	}
+
+	private Mono<RequestWorkflowContext> decorateWithPickupLibrary(RequestWorkflowContext ctx) {
+		if ( ctx.getPickupAgencyCode() == null )
+			return Mono.just(ctx);
+
+		return Mono.from(libraryRepository.findOneByAgencyCode(ctx.getPickupAgencyCode()))
+			.map(ctx::setPickupLibrary)
+			.defaultIfEmpty(ctx);
 	}
 
 	private Mono<RequestWorkflowContext> decorateWithPatron(
@@ -236,13 +249,11 @@ public class RequestWorkflowContextHelper {
 			ctx.getPatronRequest().getPickupLocationCode(),
 			ctx.getPatronRequest().getPatronHostlmsCode());
 
-		// ToDo: WARNING - this is a short term bridge - for the "2-legged" scenario - we default the context of the pickup location code to the
-		// System of the patron - assuming the patron will pick up from one of their "Local" libraries. This will NOT work for PUA requests
-		// We set pickupSymbolContext to the explicit code in the patron request - if it's not there we fall back to the patrons home system code
 		String pickupSymbolContext = ctx.getPatronRequest().getPickupLocationCodeContext();
 
-		if ( pickupSymbolContext == null )
-			pickupSymbolContext = ctx.getPatronRequest().getPatronHostlmsCode();
+		if ( pickupSymbolContext == null ) {
+			log.warn("pickupSymbolContext is null");
+		}
 
 		String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
 
@@ -268,7 +279,7 @@ public class RequestWorkflowContextHelper {
 					ctx.setPickupAgency(pickupAgency);
 					ctx.setPickupAgencyCode(pickupAgency.getCode());
 					ctx.setPickupSystemCode(pickupAgency.getHostLms().getCode());
-					return Mono.just(ctx);
+					return this.setPickupSystemFrom(ctx);
 				})
 				.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
 		}
@@ -279,7 +290,17 @@ public class RequestWorkflowContextHelper {
 			.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())))
+			.flatMap(this::setPickupSystemFrom)
 			.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s:%s".formatted(pickupSymbolContext,pickupSymbol))));
+	}
+
+	private Mono<RequestWorkflowContext> setPickupSystemFrom(RequestWorkflowContext ctx) {
+		return hostLmsService.getClientFor(ctx.getPickupAgency().getHostLms().getId())
+			.flatMap(client -> {
+				ctx.setPickupSystem(client);
+				ctx.setPickupSystemCode(client.getHostLmsCode());
+				return Mono.just(ctx);
+			});
 	}
 
 	// If an agency has been directly attached to the location then return it by just walking the model

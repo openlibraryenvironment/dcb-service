@@ -46,4 +46,8 @@ public class HostLmsItem {
 	String rawStatus;
 	String barcode;
 	Integer renewalCount;
+
+	// Aggregated hold count - for DCB purposes we want to convey itemHolds+titleHolds into this number
+	// We don't care for our purposes what the hold has been placed on, only that someone has dibs on this item.
+	Integer holdCount;
 }

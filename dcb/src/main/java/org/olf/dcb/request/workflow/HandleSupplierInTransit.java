@@ -1,13 +1,8 @@
 package org.olf.dcb.request.workflow;
 
-import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
-import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-
-import java.util.List;
-import java.util.Optional;
-
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -17,11 +12,15 @@ import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
-
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 
 
 /** TODO: Convert this into a PatronRequestStateTransition */
@@ -95,9 +94,18 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	}
 
 	public Mono<RequestWorkflowContext> updatePickupItem(RequestWorkflowContext rwc) {
-		if (rwc.getPatronRequest().getPickupItemId() != null) {
-			log.warn("Pickup item ID is SET but pickup anywhere is not yet implemented. No action");
-			return Mono.just(rwc);
+
+		final var patronRequest = rwc.getPatronRequest();
+		final var pickupItemId = Optional.ofNullable(patronRequest).map(PatronRequest::getPickupItemId).orElse(null);
+
+		if (pickupItemId != null && "RET-PUA".equals(patronRequest.getActiveWorkflow())) {
+			log.debug("Update PUA item: {}", pickupItemId);
+
+			final var pickupSystem = rwc.getPickupSystem();
+
+			return pickupSystem.updateItemStatus(pickupItemId, TRANSIT, patronRequest.getPickupRequestId())
+				.doOnSuccess(item -> log.debug("Updated PUA item: {}", item))
+				.thenReturn(rwc);
 		}
 		else {
 			log.debug("No PUA item to update");

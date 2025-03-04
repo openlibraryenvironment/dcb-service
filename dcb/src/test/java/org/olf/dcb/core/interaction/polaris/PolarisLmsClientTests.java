@@ -1,48 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static java.lang.Long.parseLong;
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
-import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
-import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
-import static org.olf.dcb.test.matchers.ItemMatchers.*;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemBarcode;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRequestedItemId;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
-import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasTextResponseBody;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasCanonicalPatronType;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibraryCode;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,6 +13,7 @@ import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateR
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -63,12 +22,41 @@ import org.olf.dcb.test.TestResourceLoaderProvider;
 import org.olf.dcb.test.matchers.HostLmsRequestMatchers;
 import org.olf.dcb.test.matchers.ItemMatchers;
 import org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers;
-import org.zalando.problem.DefaultProblem;
-import org.zalando.problem.Problem;
 import org.zalando.problem.ThrowableProblem;
-
-import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.List;
+import java.util.UUID;
+
+import static java.lang.Long.parseLong;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsRequest.*;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ItemMatchers.*;
+import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.*;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.messageContains;
+import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.*;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.*;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -183,8 +171,12 @@ class PolarisLmsClientTests {
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		// Note: 'Bestseller' is the returned shelf location from mock mockGetItemsForBibWithShelfLocations
+		// referenceValueMappingFixture.defineLocationToAgencyMapping(
+		// 	CIRCULATING_HOST_LMS_CODE, "Bestseller", "mapped-agency-code");
+
+		// Note - (II 25th Feb 2025) We should be mapping locationID to agency code and NOT shelving location.
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CIRCULATING_HOST_LMS_CODE, "Bestseller", "mapped-agency-code");
+			CIRCULATING_HOST_LMS_CODE, "15", "mapped-agency-code");
 
 		final var bibId = "643425";
 
@@ -212,7 +204,7 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, ItemMatchers.hasLocalId("3512742"));
 		assertThat(firstItem, ItemMatchers.hasStatus(CHECKED_OUT));
 		assertThat(firstItem, hasDueDate("2023-10-14T23:59:00Z"));
-		assertThat(firstItem, hasLocation("Bestseller", "Bestseller"));
+		assertThat(firstItem, hasLocation("Bestseller", "15"));
 		assertThat(firstItem, hasBarcode("3430470102"));
 		assertThat(firstItem, hasCallNumber("E Bellini Mario"));
 		assertThat(firstItem, hasLocalBibId(bibId));
@@ -264,13 +256,12 @@ class PolarisLmsClientTests {
 		assertThat(firstItem, hasLocalItemType("Book"));
 		assertThat(firstItem, hasLocalItemTypeCode("3"));
 		// Note: if there is no agency we cannot use the owning context to get the canonical item type
-		assertThat(firstItem, hasCanonicalItemType("UNKNOWN - NULL hostLmsCode"));
+		assertThat(firstItem, hasCanonicalItemType("UNKNOWN - No mapping found"));
 		assertThat(firstItem, hasHoldCountOfZero());
 		assertThat(firstItem, isNotSuppressed());
 		assertThat(firstItem, isNotDeleted());
 		assertThat(firstItem, hasNoAgency());
 		assertThat(firstItem, hasNoHostLmsCode());
-		assertThat(firstItem, hasNoOwningContext());
 	}
 
 	@Test
@@ -541,6 +532,47 @@ class PolarisLmsClientTests {
 			hasLocalStatus("In Processing"),
 			hasRequestedItemId("6737455"),
 			hasRequestedItemBarcode("785574212")
+		));
+	}
+
+	@Test
+	void shouldBeAbleToPlaceRequestAtPickupAgency() {
+		// Arrange
+		final var itemId = "3453465";
+		final var pickupLocationLocalId = "5324532";
+		final var pickupLocation = Location.builder().id(randomUUID()).localId(pickupLocationLocalId).build();
+
+		mockPolarisFixture.mockGetItem(itemId);
+		mockPolarisFixture.mockGetBib("1106339");
+		mockPolarisFixture.mockPlaceHold();
+		mockPolarisFixture.mockListPatronLocalHolds();
+		mockPolarisFixture.mockGetHold("3773060",
+			LibraryHold.builder()
+				.sysHoldStatus("In Processing")
+				.itemRecordID(3453465)
+				.itemBarcode("45673567")
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtPickupAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId("1")
+				.localItemId(itemId)
+				.pickupLocation(pickupLocation)
+				.note("DCB Testing PACDisplayNotes")
+				.patronRequestId(randomUUID().toString())
+				.build()
+		));
+
+		// Assert
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId("3773060"),
+			hasLocalStatus("In Processing"),
+			hasRequestedItemId("3453465"),
+			hasRequestedItemBarcode("45673567")
 		));
 	}
 

@@ -209,8 +209,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade(localPatronId, "b",
 			7916921, "ABC123",
-			"Consortial Hold. tno=" + pr.getId()+" \nFor UNKNOWN@null\n Pickup UNKNOWN@%s"
-				.formatted(BORROWING_AGENCY_CODE));
+			"Consortial Hold. tno=" + pr.getId()+" \nFor UNKNOWN@null\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION");
 	}
 
 	@Test

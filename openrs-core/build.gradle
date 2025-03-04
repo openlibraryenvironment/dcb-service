@@ -1,5 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 buildscript {
 	repositories {
 		mavenCentral()
@@ -7,17 +5,12 @@ buildscript {
 }
 
 plugins {
-	id("com.github.johnrengelman.shadow") version "8.1.1"
-	// See https://plugins.gradle.org/plugin/io.micronaut.application
-	id("io.micronaut.application") version "$micronautGradleVersion"
+  id("java-library")
+	id("io.micronaut.library") version "$micronautGradleVersion"
 	id("io.micronaut.test-resources") version "$micronautGradleVersion"
-	// id("io.micronaut.aot") version "$micronautGradleVersion"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
-  // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
-  id "com.gorylenko.gradle-git-properties" version "2.4.1"
-  id('com.jaredsburrows.license') version '0.9.8'
 }
 
 //version = "0.1"
@@ -26,11 +19,6 @@ group = "org.olf.dcb"
 repositories {
 	mavenCentral()
 }
-
-ext {
-  BASE_IMAGE = project.findProperty('BASE_IMAGE') ?: 'eclipse-temurin:17-alpine'
-}
-
 
 dependencies {
 	// This should likely always be first in the annotations list
@@ -51,8 +39,6 @@ dependencies {
 
 	compileOnly("org.graalvm.nativeimage:svm")
 	compileOnly("io.micronaut:micronaut-inject-java")
-
-
 
 	// Implementation
 	implementation("io.micronaut.xml:micronaut-jackson-xml")
@@ -143,9 +129,6 @@ dependencies {
   implementation 'com.opencsv:opencsv:5.8'
 	
 	implementation("jakarta.persistence:jakarta.persistence-api")
-	implementation("org.apache.lucene:lucene-queryparser")
-
-	implementation 'com.hazelcast:hazelcast:5.3.8'
 
 	// Tests
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -184,64 +167,14 @@ dependencies {
 	
 	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
 	
-	testRuntimeOnly("org.testcontainers:postgresql")
-
-	implementation("io.micronaut.graphql:micronaut-graphql")
-	implementation("com.graphql-java:graphql-java-extended-scalars:22.0");
-	
 	implementation("jakarta.persistence:jakarta.persistence-api")
-	implementation("org.apache.lucene:lucene-queryparser")
 
 	runtimeOnly("org.yaml:snakeyaml")
-
-	//aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
-	//aotPlugins ("io.micronaut.security:micronaut-security-aot")
-	
-	// For graphviz
-	implementation 'guru.nidi:graphviz-java-all-j2v8:0.18.1'
-	// implementation 'org.graalvm.js:js:23.0.3'
-
-	// Different distributed configuration engines
-  implementation("io.micronaut.aws:micronaut-aws-secretsmanager")
-  implementation("io.micronaut.aws:micronaut-aws-sdk-v2")  // Required for AWS SDK v2
-
-	implementation project(':openrs-core')
-}
-
-application {
-	mainClass.set("org.olf.dcb.Application")
-}
-
-run {
-	systemProperties([
-		'micronaut.environments': 'development'
-	])
 }
 
 java {
 	sourceCompatibility = JavaVersion.toVersion("17")
 	targetCompatibility = JavaVersion.toVersion("17")
-}
-
-graalvmNative.toolchainDetection = false
-micronaut {
-	runtime("netty")
-	testRuntime("junit5")
-	processing {
-		incremental(true)
-		annotations("org.olf.dcb.*", "services.k_int.*")
-	}
-//	aot {
-//    // Please review carefully the optimizations enabled below
-//    // Check https://micronaut-projects.github.io/micronaut-aot/latest/guide/ for more details
-//      optimizeServiceLoading = true
-//      convertYamlToJava = true
-//      precomputeOperations = true
-//      cacheEnvironment = false
-//      optimizeClassLoading = true
-//      deduceEnvironment = false
-//      optimizeNetty = true
-//  }
 }
 
 final Set<String> jacocoExcludes = [
@@ -250,154 +183,6 @@ final Set<String> jacocoExcludes = [
 	'**/model/**/*',	
 	// Ingest happens at a different client level, so safely exclude from report.
 	'org/olf/dcb/ingest/sierra/**/*',	'org/olf/dcb/ingest/gokb/**/*']
-
-tasks {
-	final Map<String, String> labels = [
-		'maintainer': 'Steve Osguthorpe <steve.osguthorpe@k-int.com>',
-		'version'   : project.hasProperty('versionWithMeta') ? project.getProperty('versionWithMeta') : project.getProperty('version')
-	]
-
-	// N.B. short term fix - don't check for cert revocation
-	dockerfile {
-		baseImage project.property('BASE_IMAGE')
-		label(labels)
-		environmentVariable 'JAVA_OPTIONS',
-			'-XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false' +
-      ' --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED' +
-      ' --add-opens=java.base/java.lang=ALL-UNNAMED' +
-      ' --add-opens=java.base/sun.nio.ch=ALL-UNNAMED' +
-      ' --add-opens=java.management/sun.management=ALL-UNNAMED' +
-      ' --add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED'
-
-		environmentVariable 'JAVA_TOOL_OPTIONS', '$JAVA_OPTIONS $JAVA_TOOL_OPTIONS $ADDITIONAL_JAVA_OPTIONS'
-		entryPoint('java', '-server', '-jar', '/home/app/application.jar')
-	}
-
-	dockerfileNative {
-		label(labels)
-                // graalArch.set(org.apache.tools.ant.taskdefs.condition.Os.isArch("aarch64") ? "aarch64" : "amd64")
-                // graalArch.set("x64")
-                // graalArch.set("compatibility")
-                // Apparently graal defaults to x86-64-v3 - dev server is v2 so targetting v2
-                // graalArch.set("x86-64-v2")
-	}
-
-	boolean isPre = project.hasProperty('versionPreRelease') &&
-		("${project.getProperty('versionPreRelease')}".trim() != "")
-
-	// Build up a list of tags we should apply
-	final Set<String> tags = [
-		'versionMajor',
-		'versionMajorMinor',
-		'version'
-	].findResults {
-		(project.hasProperty(it) && !project.property(it).equals('unspecified')) ? project.property(it).toString().trim() : null
-	}
-
-	// If this is a pre-release (including Snapshots) then add "next" tag. Otherwise, use latest
-	tags << (isPre ? 'next' : 'latest')
-
-	final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
-
-	Set<String> imageNames = tags.collect { "${imageAndRepo}:${it}" }
-	Set<String> nativImageNames = tags.collect { "${imageAndRepo}:native-${it}" }
-
-	dockerBuild {
-		images = imageNames
-	}
-
-	dockerBuildNative {
-		images = nativImageNames
-	}
-
-	jacocoTestReport {
-		dependsOn test
-
-		reports {
-			xml.required = false
-			csv.required = true
-		}
-
-		afterEvaluate {
-			classDirectories.setFrom(files(classDirectories.files.collect {
-	      fileTree(dir: it, exclude: jacocoExcludes)
-			}))
-		}
-	}
-	jacocoTestCoverageVerification {
-
-		afterEvaluate {
-			classDirectories.setFrom(files(classDirectories.files.collect {
-				fileTree(dir: it, exclude: jacocoExcludes)
-			}))
-		}
-
-		violationRules {
-			rule {
-				limit {
-					minimum = 0.7 // 70% coverage
-				}
-			}
-		}
-	}
-}
-
-graalvmNative {
-    binaries {
-        main {
-            buildArgs.add('--verbose')
-            buildArgs.add('-march=x86-64-v2')
-            buildArgs.add('-H:+AddAllCharsets')
-            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j.LoggerFactory,ch.qos.logback,kotlin.coroutines.intrinsics.CoroutineSingletons')
-            buildArgs.add('--add-opens=java.base/java.nio=ALL-UNNAMED')
-            buildArgs.add('--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED')
-            buildArgs.add('--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED')
-            buildArgs.add('--trace-class-initialization=ch.qos.logback.classic.Logger')
-            buildArgs.add('--trace-object-instantiation=ch.qos.logback.core.AsyncAppenderBase$Worker')
-            buildArgs.add('--initialize-at-run-time=io.netty')
-            buildArgs.add('-H:ReflectionConfigurationFiles=/home/app/resources/META-INF/native-image/reflection-config.json')
-            // buildArgs.add('--exact-reachability-metadata')
-        }
-		}
-}
-
-
-tasks.withType(ShadowJar) {
-    setZip64(true)
-}
-
-tasks.withType(Test).configureEach {
-    jvmArgs '--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED',
-            '--add-opens=java.base/java.lang=ALL-UNNAMED',
-            '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
-            '--add-opens=java.management/sun.management=ALL-UNNAMED',
-            '--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED',
-            '-Dio.netty.leakDetectionLevel=paranoid'
-}
-
-def oderedAnnotationDeps = new HashMap<String, Integer>()
-
-configurations.annotationProcessor { ap ->
-	ap.incoming.afterResolve { resolution ->
-
-		println ap.name
-		int count = 0
-    resolution.resolutionResult.allComponents.each	{ comp ->
-    	comp.dependencies.each { dependency ->
-    	
-    		if (ResolvedDependencyResult.class.isAssignableFrom( dependency.getClass() )) { 
-    			ResolvedDependencyResult resDep = dependency as ResolvedDependencyResult
-    			final String key = "${resDep.selected}";
-    			if (oderedAnnotationDeps.containsKey( key )) return;
-    			
-	    	  //println dependency
-	      	oderedAnnotationDeps[key] = count++
-      	}
-      }
-    }
-    // println oderedAnnotationDeps
-  }
-}
 
 eclipse {
   factorypath {
@@ -424,25 +209,4 @@ eclipse {
 			}
 		}
   }
-}
-
-
-licenseReport {
-  // Generate reports
-  generateCsvReport = false
-  generateHtmlReport = true
-  generateJsonReport = false
-  generateTextReport = false
-
-  // Copy reports - These options are ignored for Java projects
-  copyCsvReportToAssets = false
-  copyHtmlReportToAssets = true
-  copyJsonReportToAssets = false
-  copyTextReportToAssets = false
-  
-  // Ignore licenses for certain artifact patterns
-  ignoredPatterns = []
-  
-  // Show versions in the report - default is false
-  showVersions = true
 }

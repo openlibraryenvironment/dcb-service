@@ -1,13 +1,14 @@
 package org.olf.dcb.request.fulfilment;
 
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Data;
+import lombok.experimental.Accessors;
 import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.*;
 
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.experimental.Accessors;
-import lombok.Data;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -34,6 +35,11 @@ public class RequestWorkflowContext {
 	String pickupAgencyCode;
 	String pickupSystemCode;
 	Agency pickupAgency;
+	Library pickupLibrary;
+
+	HostLmsClient pickupSystem;
+	String pickupBibTitle;
+	String pickupItemBarcode;
 
 	// the ID of the pickup location as it is known to the pickup agency
 	// For example in polaris this is the internal integer primary key of the pickup location.
@@ -47,6 +53,8 @@ public class RequestWorkflowContext {
 
 	PatronIdentity patronHomeIdentity;
 	PatronIdentity patronVirtualIdentity;
+	// Patron identity on the pickup system
+	PatronIdentity pickupPatronIdentity;
 
 	PatronRequest patronRequest;
 	SupplierRequest supplierRequest;
@@ -69,8 +77,11 @@ public class RequestWorkflowContext {
 
 	private String generatePickupNote() {
 		String note = "\n Pickup "+
-			( pickupLocation != null ? pickupLocation.getName() : "UNKNOWN" ) +
-			"@"+pickupAgencyCode;
+			( pickupLibrary != null ? pickupLibrary.getAbbreviatedName() : "MISSING-PICKUP-LIB") +
+			"@" +
+			( pickupLocation != null ? pickupLocation.getPrintLabel() : "MISSING-PICKUP-LOCATION");
+			// ( pickupLocation != null ? pickupLocation.getName() : "UNKNOWN" ) +
+			// "@"+pickupAgencyCode;
 		return note;
 	}
 

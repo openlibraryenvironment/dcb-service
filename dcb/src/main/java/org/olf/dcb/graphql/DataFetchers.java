@@ -426,7 +426,7 @@ public class DataFetchers {
 
 												Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
-                        log.debug("InstanceClusterDataFetcher::get({},{},{})", pageno,pagesize,query);
+                        log.debug("getLocationsDataFetcher({},{},{})", pageno,pagesize,query);
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
 
                         if ((query != null) && (query.length() > 0)) {

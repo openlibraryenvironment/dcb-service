@@ -279,6 +279,7 @@ public class SupplyingAgencyService {
 					// Have to pass both because Sierra and Polaris still use code only
 					.pickupLocationCode(context.getPickupAgencyCode())
 					.pickupAgency(context.getPickupAgency())
+					.pickupLibrary(context.getPickupLibrary())
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())
 					// It is common in III systems to want the pickup location at the supplying library
@@ -602,7 +603,6 @@ public class SupplyingAgencyService {
 		};
 	}
 
-	// TODO
 	@Builder
 	@Data
 	@AllArgsConstructor

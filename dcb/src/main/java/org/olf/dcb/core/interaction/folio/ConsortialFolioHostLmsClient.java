@@ -1,53 +1,5 @@
 package org.olf.dcb.core.interaction.folio;
 
-import static io.micronaut.core.type.Argument.VOID;
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpMethod.PUT;
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
-import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.ReactorUtils.raiseError;
-import static services.k_int.utils.StringUtils.parseList;
-import static services.k_int.utils.UUIDUtils.dnsUUID;
-
-import java.net.URI;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.Function;
-
-import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
-import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.model.Agency;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.NoHomeBarcodeException;
-import org.olf.dcb.core.model.NoHomeIdentityException;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
-
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
@@ -66,8 +18,43 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+
+import static io.micronaut.core.type.Argument.VOID;
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static io.micronaut.http.HttpMethod.*;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsItem.*;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.*;
+import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.ReactorUtils.raiseError;
+import static services.k_int.utils.StringUtils.parseList;
+import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 @Slf4j
 @Prototype
@@ -250,6 +237,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var agencyCode = getValueOrNull(parameters.getPickupAgency(), Agency::getCode);
 		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
+		final var libraryCode = getValueOrNull(parameters.getPickupLibrary(), Library::getAbbreviatedName);
+		final var servicePointName = getValueOrNull(parameters.getPickupLocation(), Location::getPrintLabel);
 
 		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 			.body(CreateTransactionRequest.builder()
@@ -265,8 +254,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
 					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
-					.servicePointName(getValueOrNull(parameters.getPickupAgency(), Agency::getName))
-					.libraryCode(agencyCode)
+					.servicePointName(servicePointName)
+					.libraryCode(libraryCode)
 					.build())
 				.build());
 
@@ -312,12 +301,25 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
-		PlaceHoldRequestParameters parameters) {
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 
 		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
 
 		final var transactionId = UUID.randomUUID().toString();
+		final var isPickupAnywhereRequest = Optional.ofNullable(parameters.getActiveWorkflow())
+			.map("RET-PUA"::equals)
+			.orElse(false);
+
+		if (isPickupAnywhereRequest) {
+			log.debug("RET-PUA detected, constructing borrowing transaction request for pickup anywhere workflow");
+
+			return constructBorrowingTransactionRequest(parameters, transactionId)
+				.flatMap(this::createTransaction)
+				.map(response -> LocalRequest.builder()
+					.localId(transactionId)
+					.localStatus(HOLD_PLACED)
+					.build());
+		}
 
 		return constructBorrowing_PickupTransactionRequest(parameters, transactionId)
 			.flatMap(this::createTransaction)
@@ -327,8 +329,30 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.build());
 	}
 
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
+
+		final var transactionId = UUID.randomUUID().toString();
+
+		return constructPickupTransactionRequest(parameters, transactionId)
+			.flatMap(this::createTransaction)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.build());
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
+		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by hostlms: " + getHostLmsCode()));
+	}
+
+	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406021/DCB+Borrowing_PickUp+Flow+Details
 	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructBorrowing_PickupTransactionRequest(
 		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		log.debug("constructBorrowing_PickupTransactionRequest({})", parameters);
 
 		assertExtendedBorrowingRequestParameters(parameters);
 
@@ -354,6 +378,75 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.patron(CreateTransactionRequest.Patron.builder()
 						.id(parameters.getLocalPatronId())
 						.barcode(firstPatronBarcodeInList)
+						.build())
+					.pickup(CreateTransactionRequest.Pickup.builder()
+						.servicePointId(pickupLocation)
+						.build())
+					.build()));
+	}
+
+	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406564/DCB+Borrowing+Flow+Details
+	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructBorrowingTransactionRequest(
+		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		final var itemId = dnsUUID(
+			parameters.getSupplyingAgencyCode() + ":" + parameters.getSupplyingLocalItemId())
+			.toString();
+
+		final var agencyCode = getValueOrNull(parameters.getPickupAgency(), Agency::getCode);
+		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
+		final var libraryCode = getValueOrNull(parameters.getPickupLibrary(), Library::getAbbreviatedName);
+		final var servicePointName = getValueOrNull(parameters.getPickupLocation(), Location::getPrintLabel);
+
+		return findLocalItemType(parameters.getCanonicalItemType())
+			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+				.body(CreateTransactionRequest.builder()
+					.role("BORROWER")
+					.item(CreateTransactionRequest.Item.builder()
+						.id(itemId)
+						.title(parameters.getTitle())
+						.barcode(parameters.getSupplyingLocalItemBarcode())
+						.materialType(localItemType)
+						.build())
+					.patron(CreateTransactionRequest.Patron.builder()
+						.id(parameters.getLocalPatronId())
+						.barcode(firstBarcodeInList)
+						.build())
+					.pickup(CreateTransactionRequest.Pickup.builder()
+						.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
+						.servicePointName(servicePointName)
+						.libraryCode(libraryCode)
+						.build())
+					.build()));
+	}
+
+	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406357/DCB+Pickup+Flow+details
+	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructPickupTransactionRequest(
+		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		final var itemId = dnsUUID(
+			parameters.getSupplyingAgencyCode() + ":" + parameters.getSupplyingLocalItemId())
+			.toString();
+
+		final var firstPatronBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
+
+		final var pickupLocation = resolvePickupLocation(parameters);
+
+		return findLocalItemType(parameters.getCanonicalItemType())
+			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+				.body(CreateTransactionRequest.builder()
+					.role("PICKUP")
+					.item(CreateTransactionRequest.Item.builder()
+						.id(itemId)
+						.title(parameters.getTitle())
+						.barcode(parameters.getSupplyingLocalItemBarcode())
+						.materialType(localItemType)
+						.lendingLibraryCode(parameters.getSupplyingAgencyCode())
+						.build())
+					.patron(CreateTransactionRequest.Patron.builder()
+						.id(parameters.getLocalPatronId())
+						.barcode(firstPatronBarcodeInList)
+						.group(parameters.getLocalPatronType())
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(pickupLocation)
@@ -743,6 +836,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// Renewal count is not currently supported by edge-dcb, so we default to 0
 			// This is because edge-dcb does not provide this information in its item API responses
 			.renewalCount(0)
+			// Guessing that hold count is also not currenly supported by edge-dcb
+      .holdCount(null)
 			.build();
 	}
 

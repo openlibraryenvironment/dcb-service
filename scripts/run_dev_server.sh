@@ -20,6 +20,9 @@ export R2DBC_DATASOURCES_DEFAULT_OPTIONS_MAX_SIZE=27
 export R2DBC_DATASOURCES_DEFAULT_OPTIONS_MAX_SIZE=28
 export FEATURES_INGEST_V2_ENABLED="true"
 
+# export DCB_SCHEDULED_TASKS_SKIPPED=IngestService,IngestJob,SourceRecordService,TrackingServiceV3
+# export DCB_TRACKING_DRYRUN=true
+
 
 echo Access postgres with "psql -h localhost -p 49168 -U test" and the password test
 

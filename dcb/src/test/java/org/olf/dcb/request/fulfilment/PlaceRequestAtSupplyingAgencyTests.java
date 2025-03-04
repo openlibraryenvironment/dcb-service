@@ -30,13 +30,13 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.*;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.*;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
@@ -181,8 +181,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, BORROWING_AGENCY_CODE,
-			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup UNKNOWN@%s"
-				.formatted(SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
+			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION"
+				.formatted(SUPPLYING_AGENCY_CODE));
 	}
 
 	@DisplayName("patron is known to supplier and places patron request with the expected patron type")
@@ -233,10 +233,10 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
-		 assertThat(updatedSupplierRequest, allOf(
-		 	notNullValue(),
-		 	hasLocalItemBarcode("67324231")
-		 ));
+		assertThat(updatedSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalItemBarcode("67324231")
+		));
 
 		sierraPatronsAPIFixture.verifyPatronQueryRequestMade("32453@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.verifyCreatePatronRequestNotMade("32453@%s".formatted(SUPPLYING_AGENCY_CODE));
@@ -244,8 +244,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, BORROWING_AGENCY_CODE,
-			"Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup UNKNOWN@%s".formatted(
-				patronRequest.getId(), SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
+			"Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION".formatted(
+				patronRequest.getId(), SUPPLYING_AGENCY_CODE));
 	}
 
 	@DisplayName("patron is not known to supplier and places patron request")
@@ -297,8 +297,28 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"546730@%s".formatted(SUPPLYING_AGENCY_CODE));
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
-			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup UNKNOWN@%s"
-				.formatted(patronRequest.getId(), SUPPLYING_AGENCY_CODE, BORROWING_AGENCY_CODE));
+			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION"
+				.formatted(patronRequest.getId(), SUPPLYING_AGENCY_CODE));
+	}
+
+	@DisplayName("Do not attempt to place at supplying library when workflow is local")
+	@Test
+	void shouldNotAttemptToPlaceRequestAtSupplyingAgencyWhenWorkflowIsLocal() {
+		// Arrange
+		final var localId = "546730";
+		final var patronRequestId = randomUUID();
+		final var clusterRecordId = createClusterRecord();
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, hostLms);
+		final var patronRequest = savePatronRequest(patronRequestId, patron, clusterRecordId);
+		patronRequest.setActiveWorkflow("RET-LOCAL");
+		saveSupplierRequest(patronRequest, hostLms.getCode());
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class, () -> isApplicableFor(patronRequest));
+
+		// Assert
+		assertThat(exception.getMessage(), containsString("Place request at supplying agency is not applicable for request"));
 	}
 
 	@DisplayName("Should fail when supplying agency's Host LMS sends unexpected response whilst placing request")
@@ -415,6 +435,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			.bibClusterId(clusterRecordId)
 			.pickupLocationCode("ABC123")
 			.status(RESOLVED)
+			.activeWorkflow("RET-STD")
 			.build();
 
 		return patronRequestsFixture.savePatronRequest(patronRequest);
@@ -431,6 +452,20 @@ class PlaceRequestAtSupplyingAgencyTests {
 			.flatMap(attemptTransition())
 			.thenReturn(patronRequest)
 			.block();
+	}
+
+	private PatronRequest isApplicableFor(PatronRequest patronRequest) {
+		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(ctx -> {
+				if (!placePatronRequestAtSupplyingAgencyStateTransition.isApplicableFor(ctx)) {
+					return Mono.error(new RuntimeException("Place request at supplying agency is not applicable for request"));
+				}
+
+				return Mono.just(ctx.getPatronRequest())
+					.flatMap(patronRequestWorkflowService.attemptTransitionWithErrorTransformer(
+						placePatronRequestAtSupplyingAgencyStateTransition, ctx));
+			})
+			.thenReturn(patronRequest));
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> attemptTransition() {

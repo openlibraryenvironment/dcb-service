@@ -105,7 +105,7 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	 * Given a patron places a request (via the API)
 	 * and the borrowing agency is different to the pickup agency
 	 *
-	 * The request should be placed at the borrowing agency
+	 * The request should be placed at the pickup agency
 	 * The active workflow should be set to RET-PUA
 	 */
 	@Test
@@ -141,8 +141,9 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		// Mocks that rely upon the patron request id
 		mockSupplyingSide(localSupplyingItemId, localSupplyingHoldId, placedRequestResponseUUID, localSupplyingHoldUrl);
 		mockBorrowingSide(localBorrowingItemId, localBorrowingHoldId, placedRequestResponseUUID, localBorrowingHoldUrl);
+		mockPickupSide(localSupplyingItemId, localSupplyingHoldId, placedRequestResponseUUID, localSupplyingHoldUrl);
 
-		assertRequestPlacedAtBorrowingAgency(placedRequestResponseUUID);
+		assertRequestPlacedAtPickupAgency(placedRequestResponseUUID);
 		assertPatronRequestUsesPickupAnywhereWorkflow(placedRequestResponseUUID);
 	}
 
@@ -202,6 +203,12 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		);
 	}
 
+	private void mockPickupSide(String supplyingItemId, String supplyingHoldId, UUID placedPatronRequestId, String holdUrl) {
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(
+			VIRTUAL_PATRON_LOCAL_ID, holdUrl, "Consortial Hold. tno=" + placedPatronRequestId, supplyingItemId
+		);
+	}
+
 	private void mockBorrowingSide(String borrowingItemId, String borrowingHoldId, UUID placedPatronRequestId, String holdUrl) {
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(
 			BORROWING_PATRON_LOCAL_ID, holdUrl, "Consortial Hold. tno=" + placedPatronRequestId, borrowingItemId
@@ -258,6 +265,8 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		// Patron type mappings
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", COMMON_PATRON_TYPE,
 			SUPPLYING_HOST_LMS_CODE, COMMON_PATRON_TYPE);
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", COMMON_PATRON_TYPE,
+			PICKUP_HOST_LMS_CODE, COMMON_PATRON_TYPE);
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, COMMON_PATRON_TYPE_INT, COMMON_PATRON_TYPE_INT, "DCB", COMMON_PATRON_TYPE);
 	}
@@ -270,25 +279,25 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		return clusterRecordId;
 	}
 
-	private void assertRequestPlacedAtBorrowingAgency(UUID requestUUID) {
-		final String expectedStatus = "REQUEST_PLACED_AT_BORROWING_AGENCY";
-		final int timeoutInSeconds = 10;
+	private void assertRequestPlacedAtPickupAgency(UUID requestUUID) {
+		final String expectedStatus = "REQUEST_PLACED_AT_PICKUP_AGENCY";
+		final int timeoutInSeconds = 15;
 
-		log.info("Verifying that request ID {} is placed at the borrowing agency...", requestUUID);
+		log.info("Verifying that request ID {} is placed at the pickup agency...", requestUUID);
 
 		try {
 			await()
 				.atMost(timeoutInSeconds, SECONDS)
-				.until(() -> isRequestPlacedAtBorrowingAgency(requestUUID, expectedStatus));
+				.until(() -> isRequestPlacedAtPickupAgency(requestUUID, expectedStatus));
 
-			log.info("Request ID {} successfully placed at the borrowing agency.", requestUUID);
+			log.info("Request ID {} successfully placed at the pickup agency.", requestUUID);
 		} catch (Exception e) {
 			log.error("Verification failed for request ID {} within {} seconds.", requestUUID, timeoutInSeconds, e);
-			throw new AssertionError("Request was not placed at the borrowing agency as expected", e);
+			throw new AssertionError("Request was not placed at the pickup agency as expected", e);
 		}
 	}
 
-	private boolean isRequestPlacedAtBorrowingAgency(UUID requestUUID, String expectedStatus) {
+	private boolean isRequestPlacedAtPickupAgency(UUID requestUUID, String expectedStatus) {
 		var response = adminApiClient.getPatronRequestViaAdminApi(requestUUID);
 		String currentStatus = response.getStatus().getCode();
 		log.debug("Current status for request ID {}: {}", requestUUID, currentStatus);
