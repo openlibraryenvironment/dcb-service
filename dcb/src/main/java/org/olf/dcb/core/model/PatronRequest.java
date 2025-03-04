@@ -82,7 +82,8 @@ public class PatronRequest {
 		CANCELLED,
 		COMPLETED, // Everything is finished, regardless and ready to be finalised
 		FINALISED, // We've cleaned up everything and this is the end of the line
-		ERROR;
+		ERROR,
+    ARCHIVED;
 
 		private static final EnumMap<Status, Status> path = new EnumMap<>(Status.class);
 		// expected path via https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2870575137/Tracking+v3+matrix
