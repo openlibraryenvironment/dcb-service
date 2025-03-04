@@ -275,7 +275,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
 					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
 						ingestRecord.addIdentifier(id -> {
-							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag())).value(sfs);
+							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag())).value(sfs.trim());
 						});
 					});
 				});
