@@ -19,8 +19,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -31,6 +31,7 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -300,12 +301,25 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
-		PlaceHoldRequestParameters parameters) {
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 
 		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
 
 		final var transactionId = UUID.randomUUID().toString();
+		final var isPickupAnywhereRequest = Optional.ofNullable(parameters.getActiveWorkflow())
+			.map("RET-PUA"::equals)
+			.orElse(false);
+
+		if (isPickupAnywhereRequest) {
+			log.debug("RET-PUA detected, constructing borrowing transaction request for pickup anywhere workflow");
+
+			return constructBorrowingTransactionRequest(parameters, transactionId)
+				.flatMap(this::createTransaction)
+				.map(response -> LocalRequest.builder()
+					.localId(transactionId)
+					.localStatus(HOLD_PLACED)
+					.build());
+		}
 
 		return constructBorrowing_PickupTransactionRequest(parameters, transactionId)
 			.flatMap(this::createTransaction)
@@ -317,7 +331,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
-		return raiseError(new UnsupportedOperationException("placeHoldRequestAtPickupAgency not supported by hostlms: " + getHostLmsCode()));
+		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
+
+		final var transactionId = UUID.randomUUID().toString();
+
+		return constructPickupTransactionRequest(parameters, transactionId)
+			.flatMap(this::createTransaction)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.build());
 	}
 
 	@Override
@@ -325,8 +348,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by hostlms: " + getHostLmsCode()));
 	}
 
+	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406021/DCB+Borrowing_PickUp+Flow+Details
 	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructBorrowing_PickupTransactionRequest(
 		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		log.debug("constructBorrowing_PickupTransactionRequest({})", parameters);
 
 		assertExtendedBorrowingRequestParameters(parameters);
 
@@ -352,6 +378,75 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.patron(CreateTransactionRequest.Patron.builder()
 						.id(parameters.getLocalPatronId())
 						.barcode(firstPatronBarcodeInList)
+						.build())
+					.pickup(CreateTransactionRequest.Pickup.builder()
+						.servicePointId(pickupLocation)
+						.build())
+					.build()));
+	}
+
+	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406564/DCB+Borrowing+Flow+Details
+	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructBorrowingTransactionRequest(
+		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		final var itemId = dnsUUID(
+			parameters.getSupplyingAgencyCode() + ":" + parameters.getSupplyingLocalItemId())
+			.toString();
+
+		final var agencyCode = getValueOrNull(parameters.getPickupAgency(), Agency::getCode);
+		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
+		final var libraryCode = getValueOrNull(parameters.getPickupLibrary(), Library::getAbbreviatedName);
+		final var servicePointName = getValueOrNull(parameters.getPickupLocation(), Location::getPrintLabel);
+
+		return findLocalItemType(parameters.getCanonicalItemType())
+			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+				.body(CreateTransactionRequest.builder()
+					.role("BORROWER")
+					.item(CreateTransactionRequest.Item.builder()
+						.id(itemId)
+						.title(parameters.getTitle())
+						.barcode(parameters.getSupplyingLocalItemBarcode())
+						.materialType(localItemType)
+						.build())
+					.patron(CreateTransactionRequest.Patron.builder()
+						.id(parameters.getLocalPatronId())
+						.barcode(firstBarcodeInList)
+						.build())
+					.pickup(CreateTransactionRequest.Pickup.builder()
+						.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
+						.servicePointName(servicePointName)
+						.libraryCode(libraryCode)
+						.build())
+					.build()));
+	}
+
+	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406357/DCB+Pickup+Flow+details
+	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructPickupTransactionRequest(
+		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		final var itemId = dnsUUID(
+			parameters.getSupplyingAgencyCode() + ":" + parameters.getSupplyingLocalItemId())
+			.toString();
+
+		final var firstPatronBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
+
+		final var pickupLocation = resolvePickupLocation(parameters);
+
+		return findLocalItemType(parameters.getCanonicalItemType())
+			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+				.body(CreateTransactionRequest.builder()
+					.role("PICKUP")
+					.item(CreateTransactionRequest.Item.builder()
+						.id(itemId)
+						.title(parameters.getTitle())
+						.barcode(parameters.getSupplyingLocalItemBarcode())
+						.materialType(localItemType)
+						.lendingLibraryCode(parameters.getSupplyingAgencyCode())
+						.build())
+					.patron(CreateTransactionRequest.Patron.builder()
+						.id(parameters.getLocalPatronId())
+						.barcode(firstPatronBarcodeInList)
+						.group(parameters.getLocalPatronType())
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(pickupLocation)

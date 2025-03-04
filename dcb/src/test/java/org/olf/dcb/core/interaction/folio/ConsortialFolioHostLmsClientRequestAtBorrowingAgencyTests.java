@@ -6,7 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Library;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -27,11 +30,14 @@ import static services.k_int.utils.UUIDUtils.dnsUUID;
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 	private static final String HOST_LMS_CODE = "folio-borrowing-request-tests";
+	private static final String PICKUP_HOST_LMS_CODE = "pickup-host-lms";
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
 
 	private MockFolioFixture mockFolioFixture;
 
@@ -44,12 +50,15 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 		hostLmsFixture.createFolioHostLms(HOST_LMS_CODE, "https://fake-folio",
 			API_KEY, "", "");
 
+		hostLmsFixture.createFolioHostLms(PICKUP_HOST_LMS_CODE,
+			"https://fake-pickup-folio", "", "", "");
+
 		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
 	}
 
 	
 	@Test
-	void shouldPlaceRequestSuccessfully() {
+	void shouldPlaceBorrowingPickupRequestSuccessfully() {
 		// Arrange
 		final var patronId = UUID.randomUUID().toString();
 		// we expect the barcode to be a toString list
@@ -104,6 +113,73 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
 				.servicePointId(pickupLocation.getLocalId())
+				.build())
+			.build());
+	}
+
+	@Test
+	void shouldPlaceBorrowingRequestSuccessfully() {
+		// Arrange
+		final var patronId = UUID.randomUUID().toString();
+		// we expect the barcode to be a toString list
+		final var patronBarcode =  "[67129553]";
+		final var supplyingAgencyCode = "supplying-agency";
+		final var supplyingLocalItemId = "supplying-item-id";
+		final var itemId = dnsUUID(supplyingAgencyCode + ":" + supplyingLocalItemId).toString();
+
+		mockFolioFixture.mockCreateTransaction(CreateTransactionResponse.builder()
+			.status("CREATED")
+			.build());
+
+		referenceValueMappingFixture.defineMapping("DCB", "ItemType", "canonical", HOST_LMS_CODE, "ItemType", "book");
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(HOST_LMS_CODE, "book", "canonical");
+
+		final var pickupAgency = definePickupAgency();
+		final var pickupLibrary = definePickupLibrary();
+		final var pickupLocation = definePickupLocation();
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var placedRequest = singleValueFrom(client.placeHoldRequestAtBorrowingAgency(
+			PlaceHoldRequestParameters.builder()
+				.title("title")
+				.supplyingLocalItemBarcode("supplying-item-barcode")
+				.canonicalItemType("canonical")
+				.supplyingLocalItemId(supplyingLocalItemId)
+				.supplyingAgencyCode(supplyingAgencyCode)
+				.localPatronId(patronId)
+				.localPatronBarcode(patronBarcode)
+				.pickupAgency(pickupAgency)
+				.pickupLocation(pickupLocation)
+				.pickupLibrary(pickupLibrary)
+				.activeWorkflow("RET-PUA")
+				.build()));
+
+		// Assert
+		assertThat("Placed request is not null", placedRequest, is(notNullValue()));
+		assertThat("Should be transaction ID but cannot be explicit",
+			placedRequest, hasLocalId());
+
+		assertThat(placedRequest, hasLocalStatus(HOLD_PLACED));
+
+		mockFolioFixture.verifyCreateTransaction(CreateTransactionRequest.builder()
+			.role("BORROWER")
+			.item(CreateTransactionRequest.Item.builder()
+				.id(itemId)
+				.title("title")
+				.barcode("supplying-item-barcode")
+				.materialType("book")
+				.build())
+			.patron(CreateTransactionRequest.Patron.builder()
+				.id(patronId)
+				.barcode("67129553")
+				.build())
+			.pickup(CreateTransactionRequest.Pickup.builder()
+				.servicePointId(dnsUUID("FolioServicePoint:" + pickupAgency.getCode()).toString())
+				.servicePointName("PrintLabel")
+				.libraryCode("LibAbbrName")
 				.build())
 			.build());
 	}
@@ -164,5 +240,23 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 
 		// Assert
 		assertThat(exception, hasMessage("placeHoldRequestAtLocalAgency not supported by hostlms: " + HOST_LMS_CODE));
+	}
+
+	private DataAgency definePickupAgency() {
+		return agencyFixture.defineAgency("pickup-agency",
+			"Pickup Agency", hostLmsFixture.findByCode(PICKUP_HOST_LMS_CODE));
+	}
+
+	private Library definePickupLibrary() {
+		return Library.builder()
+			.abbreviatedName("LibAbbrName")
+			.build();
+	}
+
+	private Location definePickupLocation() {
+		return Location.builder()
+			.printLabel("PrintLabel")
+			.build();
+
 	}
 }

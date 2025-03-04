@@ -251,18 +251,25 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					.localPatronType(patronTypeAtPickupAgency)
 					.localPatronBarcode(homeIdentity.getLocalBarcode())
 					.localBibId(patronRequest.getPickupBibId())
+					.title(context.getPickupBibTitle())
 					// FOLIO needs both the ID and barcode to cross-check the item identity
 					// SIERRA when placing a BIB hold - the ITEM that gets held may not be the one we selected
 					.localItemId(patronRequest.getPickupItemId())
+
 					// TODO: we should pass the pickup item barcode here
 					// Have to pass both because Sierra and Polaris still use code only
 					.pickupLocationCode(context.getPickupAgencyCode())
+					.pickupLocation(context.getPickupLocation())
 					.pickupAgency(context.getPickupAgency())
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())
 					// It is common in III systems to want the pickup location at the supplying library
 					// to be set to the location where the item currently resides.
+					.supplyingLocalItemId(supplierRequest.getLocalItemId())
 					.supplyingLocalItemLocation(supplierRequest.getLocalItemLocationCode())
+					.supplyingLocalItemBarcode(supplierRequest.getLocalItemBarcode())
+					.supplyingAgencyCode(context.getLenderAgencyCode())
+					.canonicalItemType(supplierRequest.getCanonicalItemType())
 					.build()));
 	}
 

@@ -344,6 +344,7 @@ public class BorrowingAgencyService {
 			.localItemId(patronRequest.getLocalItemId())
 			.pickupLocationCode(patronRequest.getPickupLocationCode())
 			.pickupLocation(ctx.getPickupLocation())
+			.pickupAgency(ctx.getPickupAgency())
 			.note(note)
 			.patronRequestId(patronRequest.getId().toString())
 			.title(bibRecordTitle)
@@ -351,6 +352,7 @@ public class BorrowingAgencyService {
 			.supplyingLocalItemId(supplierRequest.getLocalItemId())
 			.supplyingLocalItemBarcode(supplierRequest.getLocalItemBarcode())
 			.canonicalItemType(supplierRequest.getCanonicalItemType())
+			.activeWorkflow(patronRequest.getActiveWorkflow())
 			.build());
 	}
 
