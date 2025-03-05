@@ -28,4 +28,5 @@ public class PlaceHoldRequestParameters {
 	String supplyingLocalItemId;
 	String supplyingLocalItemBarcode;
 	String supplyingLocalItemLocation;
+	String activeWorkflow;
 }

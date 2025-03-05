@@ -1,6 +1,5 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -8,25 +7,20 @@ import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.fulfilment.*;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
-import org.zalando.problem.Problem;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowableMonoWrap;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.putAuditData;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.ReactorUtils.raiseError;
 
 @Slf4j
 @Prototype
@@ -34,21 +28,18 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final BorrowingAgencyService borrowingAgencyService;
-
-	// Provider to prevent circular reference exception by allowing lazy access to
-	// this singleton.
-	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
+	private final PickupAgencyService pickupAgencyService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.COMPLETED, Status. CANCELLED);
 
 	public FinaliseRequestTransition(PatronRequestAuditService patronRequestAuditService,
 		SupplyingAgencyService supplyingAgencyService, BorrowingAgencyService borrowingAgencyService,
-		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider) {
+		PickupAgencyService pickupAgencyService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.borrowingAgencyService = borrowingAgencyService;
-		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
+		this.pickupAgencyService = pickupAgencyService;
 	}
 
 	/**
@@ -67,11 +58,25 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 		return Mono.just(ctx)
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
+			.flatMap(this::cleanUpPickupSystemBasedOnWorkflow)
 			.then(Mono.just(patronRequest.setStatus(Status.FINALISED)))
-			.flatMap(auditStateOfVirtualRecordsAfterCleanUp(ctx));
+			.flatMap(auditStateOfRecordsAfterCleanUp(ctx));
 	}
 
-	private Function<PatronRequest, Mono<RequestWorkflowContext>> auditStateOfVirtualRecordsAfterCleanUp(
+	private Mono<RequestWorkflowContext> cleanUpPickupSystemBasedOnWorkflow(RequestWorkflowContext requestWorkflowContext) {
+		final var activeWorkflow = requestWorkflowContext.getPatronRequest().getActiveWorkflow();
+
+		if ("RET-PUA".equals(activeWorkflow)) {
+			log.debug("PUA workflow, cleaning up pickup system");
+
+			return pickupAgencyService.cleanUp(requestWorkflowContext);
+		}
+
+		log.debug("Not a PUA workflow, skipping cleanup of pickup system");
+		return Mono.just(requestWorkflowContext);
+	}
+
+	private Function<PatronRequest, Mono<RequestWorkflowContext>> auditStateOfRecordsAfterCleanUp(
 		RequestWorkflowContext ctx) {
 
 		return patronRequest -> {
@@ -81,9 +86,36 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 			return fetchVirtualItem(ctx, auditData)
 				.flatMap(data -> fetchVirtualPatron(ctx, data))
 				.flatMap(data -> fetchVirtualRequest(ctx, data))
+				.flatMap(data -> fetchPickupData(ctx, data))
 				.flatMap(data -> patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), "Clean up result", data))
 				.thenReturn(ctx);
 		};
+	}
+
+	private Mono<HashMap<String, Object>> fetchPickupData(RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
+
+		final var activeWorkflow = ctx.getPatronRequest().getActiveWorkflow();
+		
+		if (!"RET-PUA".equals(activeWorkflow)) {
+			log.debug("Not a PUA workflow, skipping audit of pickup records");
+			
+			return Mono.just(auditData);
+		}
+		
+		final var pickupSystem = getValueOrNull(ctx, RequestWorkflowContext::getPickupSystem);
+
+		if (pickupSystem == null) {
+			log.debug("Unable to audit state of pickup records as there is no pickup system");
+
+			return Mono.just(auditData);
+		}
+
+		return pickupAgencyService.getItem(ctx)
+			.map(item -> putAuditData(auditData, "PickupItem", getValueOrNull(item, HostLmsItem::toString)))
+			.onErrorResume(error -> auditThrowableMonoWrap(auditData, "PickupItem", error))
+			.flatMap(data -> pickupAgencyService.getPatron(ctx))
+			.map(patron -> putAuditData(auditData, "PickupPatron", getValueOrNull(patron, Patron::toString)))
+			.onErrorResume(error -> auditThrowableMonoWrap(auditData, "PickupPatron", error));
 	}
 
 	private Mono<HashMap<String, Object>> fetchVirtualRequest(RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
@@ -105,19 +137,6 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 			.map(item -> putAuditData(auditData, "VirtualItem", getValueOrNull(item, HostLmsItem::toString)))
 			.onErrorResume(error -> auditThrowableMonoWrap(auditData, "VirtualItem", error))
 			.thenReturn(auditData);
-	}
-
-	private Function<String, Mono<String>> checkForErrorString(RequestWorkflowContext ctx) {
-		return string -> {
-
-			if (Objects.equals(string, "ERROR")) {
-				return raiseError(Problem.builder()
-					.withTitle("Mono with 'ERROR' String returned from cleanup")
-					.build());
-			}
-
-			return Mono.just(string);
-		};
 	}
 
 	@Override

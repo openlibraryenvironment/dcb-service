@@ -188,7 +188,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
-		return raiseError(new UnsupportedOperationException("placeHoldRequestAtPickupAgency not supported by hostlms: " + getHostLmsCode()));
+		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
+
+		return placeHoldRequest(parameters, true);
 	}
 
 	@Override
@@ -367,9 +369,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 * the agency code so we have a rough idea where the item is going
 	 */
 	private Mono<LocalRequest> placeHoldRequest(
-		PlaceHoldRequestParameters parameters, boolean isBorrower) {
+		PlaceHoldRequestParameters parameters, boolean isVirtualItem) {
 
-		log.info("placeHoldRequest {} {}", parameters, isBorrower);
+		log.info("placeHoldRequest {} {}", parameters, isVirtualItem);
 
 		// If this is a borrowing agency then we are placing a hold on a virtual item. The item should have been created
 		// with a home location of the declared ILL location. The pickup location should be the pickup location specified
@@ -383,9 +385,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				final var bib = tuple.getT1();
 				final var item = tuple.getT2();
 
-				String pickupLocation = getPickupLocation(parameters, isBorrower);
+				String pickupLocation = getPickupLocation(parameters, isVirtualItem);
 
-				log.info("Derived pickup location for hold isBorrower={} : {}", isBorrower, pickupLocation);
+				log.info("Derived pickup location for hold isVirtualItem={} : {}", isVirtualItem, pickupLocation);
 
 				return HoldRequestParameters.builder()
 					.localPatronId(parameters.getLocalPatronId())
@@ -561,7 +563,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 	}
 
-	private String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isBorrower) {
+	private String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isVirtualItem) {
 		// Different systems will use different pickup locations - we default to passing through
 		// parameters.getPickupLocationCode
 
@@ -570,14 +572,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// However - polaris as a pickup location actually needs to use the local ID of the pickup location
 		// So if we have a specific local ID, pass that down the chain instead.
-		if ( isBorrower && ( parameters.getPickupLocation() != null ) ) {
+		if ( isVirtualItem && ( parameters.getPickupLocation() != null ) ) {
 			if ( parameters.getPickupLocation().getLocalId() != null )
 				log.debug("Overriding pickup location code with ID from selected record");
 				pickup_location = parameters.getPickupLocation().getLocalId();
 		}
 
 		// supplier requests need the pickup location to be set as ILL
-		if (isBorrower == FALSE) {
+		if (isVirtualItem == FALSE) {
 			pickup_location = String.valueOf(polarisConfig.getIllLocationId());
 			if (pickup_location == null) {
 				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
