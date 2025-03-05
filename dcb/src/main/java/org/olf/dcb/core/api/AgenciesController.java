@@ -4,6 +4,9 @@ import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -11,10 +14,16 @@ import java.util.function.Function;
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Library;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.FunctionalSettingRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LibraryRepository;
+import org.olf.dcb.storage.LocationRepository;
+
+import com.github.javaparser.utils.Log;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -44,16 +53,24 @@ import services.k_int.utils.UUIDUtils;
 @Slf4j
 public class AgenciesController {
 	private final AgencyRepository agencyRepository;
+	private final FunctionalSettingRepository functionalSettingRepository;
 	private final HostLmsRepository hostLmsRepository;
 	private final LibraryRepository libraryRepository;
+	private final LocationRepository locationRepository;
 
-	public AgenciesController(AgencyRepository agencyRepository,
+	public AgenciesController(
+		AgencyRepository agencyRepository,
+		FunctionalSettingRepository functionalSettingRepository,
 		HostLmsRepository hostLmsRepository,
-		LibraryRepository libraryRepository) {
+		LibraryRepository libraryRepository,
+		LocationRepository locationRepository
+	) {
 
 		this.agencyRepository = agencyRepository;
+		this.functionalSettingRepository = functionalSettingRepository;
 		this.hostLmsRepository = hostLmsRepository;
 		this.libraryRepository = libraryRepository;
+		this.locationRepository = locationRepository;
 	}
 
 	@Operation(
@@ -110,6 +127,73 @@ public class AgenciesController {
 			.map(mapToAgencyDTO());
 	}
 
+	@Get("/{id}/pickupLocations")
+	public Mono<List<HashMap<String, Object>>> pickupLocations(UUID id) {
+		List<HashMap<String, Object>> pickupLocations = new ArrayList<HashMap<String, Object>>();
+		return(Mono.from(functionalSettingRepository.isSettingEnabledForAgency(id, FunctionalSettingType.PICKUP_ANYWHERE.toString()))
+			.defaultIfEmpty(false)
+			.flatMap((Boolean isEnabled) -> {
+				return(isEnabled ? allPickupLocations(pickupLocations)
+								  : pickupLocationsForAgency(id, pickupLocations)
+				);
+			})
+		);
+	}
+
+	private Mono<List<HashMap<String, Object>>> allPickupLocations(
+		List<HashMap<String, Object>> pickupLocations	
+	) {
+		return(Flux.from(agencyRepository.queryAll())
+			.collectList()
+			.flatMap((List<DataAgency> agencies) -> {
+				for (DataAgency agency : agencies) {
+			    	addAgencyPickupLocations(agency, pickupLocations).subscribe();
+				}
+		    	return(Mono.just(pickupLocations));
+			})
+		);
+		
+	}
+	
+	private Mono<List<HashMap<String, Object>>> pickupLocationsForAgency(
+		UUID agencyId,
+		List<HashMap<String, Object>> pickupLocations	
+	) {
+		return(Mono.from(agencyRepository.findById(agencyId))
+			.flatMap((DataAgency agency) -> {
+		    	return(addAgencyPickupLocations(agency, pickupLocations));
+		    })
+		);
+	}
+	
+	private Mono<List<HashMap<String, Object>>> addAgencyPickupLocations(
+		DataAgency agency,
+		List<HashMap<String, Object>> pickupLocations
+	) {
+		return(Flux.from(locationRepository.getPickupLocations(agency.getId()))
+	   		.collectList()
+	   		.flatMap((List<Location> locs) -> {
+	   			List<HashMap<String, Object>> locations = new ArrayList<HashMap<String, Object>>();
+	   			for (Location loc : locs) {
+	   				HashMap<String, Object> pickupLocation = new HashMap<String, Object>();
+	   				locations.add(pickupLocation);
+	   				pickupLocation.put("id", loc.getId());
+	   				pickupLocation.put("name", loc.getName());
+	   			}
+	   			
+	   			// Now if we found some pickup locations add this agency to pickup locations
+	   			if (!locations.isEmpty()) {
+	   				HashMap<String, Object> agencyPickupLocations = new HashMap<String, Object>();
+	   				pickupLocations.add(agencyPickupLocations);
+	   				agencyPickupLocations.put("id", agency.getId());
+	   				agencyPickupLocations.put("name", agency.getName());
+	   				agencyPickupLocations.put("locations", locations);
+	   			}
+	   			return(Mono.just(pickupLocations));
+	   		})
+	   	);
+	}
+	
 	private static DataAgency mapToAgency(AgencyDTO agency, DataHostLms lms) {
 		return DataAgency.builder()
 			.id(agency.getId())

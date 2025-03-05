@@ -61,4 +61,20 @@ public interface FunctionalSettingRepository {
 			;
 	}
 
+	// Note: This returns true when the functional setting is available and no records when it is not available
+	@SingleResult
+	@Query(value = """
+select true
+from functional_setting fs, agency a
+where fs.name = :functionalSetting and
+	  a.id = :agencyId and
+	  fs.enabled = true and
+	  exists (select 1 
+		 	  from consortium c, consortium_functional_setting cfs
+			  where cfs.consortium_id = c.id and
+			  		cfs.functional_setting_id = fs.id and
+			        c.library_group_id in (select library_group_id
+										   from library_group_member
+										   where library_id = (select id from library where agency_code = a.code)))""", nativeQuery = true)
+	public Publisher<Boolean> isSettingEnabledForAgency(UUID agencyId, String functionalSetting);
 }

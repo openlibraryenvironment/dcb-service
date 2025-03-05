@@ -59,6 +59,9 @@ public interface LocationRepository {
 	@Query(value = "SELECT l.*, CASE WHEN a.code=:agency THEN 1 ELSE 0 END AS is_local from location l, agency a where l.agency_fk = a.id and is_pickup = true order by is_local desc, l.name", nativeQuery = true)
 	Publisher<Location> getSortedPickupLocations(String agency);
 	
+	@Query(value = "SELECT * from location where agency_fk = :agencyId and is_pickup = true order by name", nativeQuery = true)
+	Publisher<Location> getPickupLocations(UUID agencyId);
+	
 	@Query(value = "SELECT * from location where host_system_id in (:hostLmsIds) order by name", nativeQuery = true)
 	Publisher<Location> findByHostLmsIds(@NonNull Collection<UUID> hostLmsIds);
 	
