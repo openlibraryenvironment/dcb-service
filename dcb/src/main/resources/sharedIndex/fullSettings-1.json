@@ -341,11 +341,6 @@
             "pattern": "[^\\w|\\s|\\-]",
             "type": "pattern_replace",
             "replacement": " "
-          },
-          "no_punctuation": {
-            "type": "pattern_replace",
-            "pattern": "[\\p{P}\\p{S}]", 
-            "replacement": ""
           }
         },
         "normalizer": {
@@ -402,12 +397,6 @@
             ],
             "tokenizer": "standard",
             "type": "custom"
-          },
-          "icu_folding_nopunc": {
-            "type": "custom",
-            "char_filter": ["no_punctuation"],
-            "tokenizer": "standard",
-            "filter": ["icu_folding_filter", "lowercase"]
           }
         }
       },
