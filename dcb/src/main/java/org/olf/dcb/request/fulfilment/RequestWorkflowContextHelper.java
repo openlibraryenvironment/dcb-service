@@ -68,6 +68,7 @@ public class RequestWorkflowContextHelper {
 		.flatMap(this::decorateContextWithPatronDetails)
 		.flatMap(this::decorateContextWithLenderDetails)
 		.flatMap(this::resolvePickupLocationAgency)
+		.flatMap(this::decorateWithPickupPatronIdentity)
 		.onErrorResume(error -> {
 			log.error("Error in RequestWorkflowContextHelper fromPatronRequest: {}",
 				getValue(error, Throwable::getMessage, "No error message available"), error);
@@ -78,6 +79,34 @@ public class RequestWorkflowContextHelper {
 		})
 		.flatMap(this::report);
 	}
+
+	private Mono<RequestWorkflowContext> decorateWithPickupPatronIdentity(RequestWorkflowContext requestWorkflowContext) {
+		log.debug("decorateWithPickupPatronIdentity");
+
+		final var patronRequest = requestWorkflowContext.getPatronRequest();
+		final var patron = patronRequest.getPatron();
+		final var pickupPatronId = patronRequest.getPickupPatronId();
+
+		if (pickupPatronId != null) {
+			// Look up the pickup patron identity and attach to the context
+			log.debug("Do we know about a pickup patron identity for the patron at the pickup system");
+			return Mono.just(patronService.findIdentityByLocalId(patron, pickupPatronId))
+				.flatMap(vi -> {
+					log.debug("found pickup identity {}",vi);
+					return Mono.just(requestWorkflowContext.setPickupPatronIdentity(vi));
+				})
+				.switchIfEmpty(Mono.defer(() -> {
+					log.warn("Unable lookup patron pick identity for patron request {}",patronRequest.getId());
+					return Mono.just(requestWorkflowContext);
+				}));
+		}
+		else {
+			log.error("No pickupPatronId to augment");
+		}
+
+		return Mono.just(requestWorkflowContext);
+	}
+
 	private Mono<RequestWorkflowContext> decorateWithPatronRequestStateOnEntry(RequestWorkflowContext requestWorkflowContext) {
 		requestWorkflowContext.patronRequestStateOnEntry = requestWorkflowContext.getPatronRequest().getStatus();
 		return Mono.just(requestWorkflowContext);
@@ -98,6 +127,7 @@ public class RequestWorkflowContextHelper {
 			.flatMap(this::decorateContextWithLenderDetails)
 			.flatMap(this::resolvePickupLocationAgency)
 			.flatMap(this::decorateWithPickupLibrary)
+			.flatMap(this::decorateWithPickupPatronIdentity)
 			.flatMap(this::report);
 	}
 

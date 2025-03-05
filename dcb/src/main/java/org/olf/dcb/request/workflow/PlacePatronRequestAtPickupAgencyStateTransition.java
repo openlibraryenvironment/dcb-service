@@ -73,7 +73,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 			.flatMap(this::checkAndCreatePatronAtPickupAgency)
 			.flatMap(this::placeRequestAtPickupAgency)
 			.doOnSuccess(pr -> {
-				log.debug("Placed patron request at pikcup agency: pr={}", pr);
+				log.debug("Placed patron request at pickup agency: pr={}", pr);
 				ctx.getWorkflowMessages().add("Placed patron request at pickup agency");
 			})
 			.doOnError(error -> {
@@ -307,7 +307,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 		return upsertPatronIdentityAtPickupAgency(psrc)
 			.map(patronIdentity -> {
 				psrc.setPickupPatronIdentity(patronIdentity);
-				patronRequest.setPickupPatronId(patronIdentity.getId().toString());
+				patronRequest.setPickupPatronId(patronIdentity.getLocalId());
 				return psrc.setPatronRequest(patronRequest);
 			});
 	}
