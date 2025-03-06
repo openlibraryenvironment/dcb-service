@@ -25,7 +25,7 @@ export R2DBC_DATASOURCES_DEFAULT_HOST="localhost"
 export R2DBC_DATASOURCES_DEFAULT_PORT="5432"
 export R2DBC_DATASOURCES_DEFAULT_DATABASE="mobius"
 export R2DBC_DATASOURCES_DEFAULT_URL="r2dbc:postgresql://localhost:5432/mobius"
-export R2DBC_DATASOURCES_DEFAULT_OPTIONS_MAXSIZE="30"
+export R2DBC_DATASOURCES_DEFAULT_OPTIONS_MAXSIZE="20"
 export DATASOURCES_DEFAULT_URL="jdbc:postgresql://localhost:5432/mobius"
 export DATASOURCES_DEFAULT_USERNAME="mobius"
 export DATASOURCES_DEFAULT_PASSWORD="mobius"
@@ -51,6 +51,6 @@ export ELASTICSEARCH_INDEXES_INSTANCES="mobius"
 # export CONCURRENCY_GROUPS_DEFAULT_LIMIT=3
 # export CONCURRENCY_GROUPS_FOLIO_OAI_LIMIT=3
 
-export JAVA_OPTIONS="-server -Xmx8G -XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.management/sun.management=ALL-UNNAMED --add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED -XX:+CrashOnOutOfMemoryError"
+export JAVA_OPTIONS="-server -Xmx12G -XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.management/sun.management=ALL-UNNAMED --add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED -XX:+CrashOnOutOfMemoryError"
 
 java $JAVA_OPTIONS -jar ./dcb/build/libs/dcb-all.jar
