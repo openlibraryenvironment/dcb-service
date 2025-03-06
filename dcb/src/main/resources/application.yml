@@ -150,7 +150,7 @@ r2dbc:
         driver: pool
         protocol: postgres
         poolName: r2dbc
-        maxSize: 20
+        maxSize: 40
         initialSize: 5
         # maxLifeTime: PT120M
         # maxLifeTime: PT20M
@@ -196,3 +196,10 @@ dcb:
     maxwait: 0
   tracking:
     dryRun: false
+
+concurrency:
+  groups:
+    default: 
+      limit: 2
+    folio-oai:
+      limit: 2

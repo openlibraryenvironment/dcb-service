@@ -1,0 +1,33 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0  # Use latest version available
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_USERNAME=elastic
+      - ELASTIC_PASSWORD=elastic
+      - ELASTICSEARCH_PLUGINS=analysis-icu
+      - xpack.security.enabled=true
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s -u elastic:elastic http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 10s
+      retries: 5
+      start_period: 20s
+      timeout: 5s
+    # entrypoint: [ "sh", "-c", "bin/elasticsearch-plugin install --batch analysis-icu && exec bin/elasticsearch" ]
+
+  # setup:
+  #   image: curlimages/curl:latest
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
+  #   entrypoint: ["sh", "-c", "curl -X PUT -u elastic:elastic http://elasticsearch:9200/mobius"]
+
+volumes:
+  elastic_data:
+

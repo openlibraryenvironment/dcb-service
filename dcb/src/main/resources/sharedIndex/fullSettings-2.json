@@ -88,7 +88,7 @@
             }
           },
           "sourceSystemCode": {
-            "type": "text",
+            "type": "keyword",
             "fields": {
               "keyword": {
                 "type": "keyword",
@@ -411,7 +411,6 @@
             "type": "custom"
           },
           "icu_folding_nopunc": {
-            "type": "custom",
             "char_filter": ["no_punctuation"],
             "tokenizer": "icu_tokenizer",
             "filter": ["icu_folding", "lowercase"]

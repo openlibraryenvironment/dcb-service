@@ -171,6 +171,7 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 			}
 		} catch (Exception e) {
 			log.error("Error decoding MARC JSON", e);
+      throw(e);
 		}
 
 		return record;
@@ -289,49 +290,58 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 							df.setTag(currentKey);
 
 							try (Decoder fieldData = field.decodeObject()) {
-								while ((currentKey = fieldData.decodeKey()) != null) {
-									switch (currentKey) {
-										case KEY_INDICATOR_1 -> {
-											final String value = fieldData.decodeStringNullable();
-											if ( value != null )
-												df.setIndicator1(value.length() >= 1 ? value.charAt(0) : ' ');
-										}
-										case KEY_INDICATOR_2 -> {
-											final String value = fieldData.decodeStringNullable();
-											if ( value != null ) 
-												df.setIndicator2(value.length() >= 1 ? value.charAt(0) : ' ');
-										}
-										case KEY_SUBFIELDS -> {
-											// Decode the subfields.
-											try (Decoder subfields = fieldData.decodeArray()) {
-												while (subfields.hasNextArrayValue()) {
 
-													// Each entry is an object
-													try (Decoder subfield = subfields.decodeObject()) {
-
-														// Create a subfield per entry
-														while ((currentKey = subfield.decodeKey()) != null) {
-
-                              String value = subfield.decodeStringNullable();
-
-															if ( ( REGEX_SUBFIELD.matcher(currentKey).matches() ) && ( value != null ) ) {
-																df.addSubfield(
-																	factory.newSubfield(currentKey.charAt(0), value));
-															} else {
-																// subfield not matched
-																subfield.skipValue();
-															}
-														}
-													}
-												}
-											}
-										}
-										default -> {
-											// Unknown field data property
-											fieldData.skipValue();
-										}
-									}
-								}
+                if ( fieldData == null ) {
+                  log.warn("Null field data");
+                  fieldData.skipValue();
+                }
+                else {
+  								while ((currentKey = fieldData.decodeKey()) != null) {
+  									switch (currentKey) {
+  										case KEY_INDICATOR_1 -> {
+  											final String value = fieldData.decodeStringNullable();
+  											if ( value != null )
+  												df.setIndicator1(value.length() >= 1 ? value.charAt(0) : ' ');
+  										}
+  										case KEY_INDICATOR_2 -> {
+  											final String value = fieldData.decodeStringNullable();
+  											if ( value != null ) 
+  												df.setIndicator2(value.length() >= 1 ? value.charAt(0) : ' ');
+  										}
+  										case KEY_SUBFIELDS -> {
+  											// Decode the subfields.
+  											try (Decoder subfields = fieldData.decodeArray()) {
+  												while (subfields.hasNextArrayValue()) {
+  
+  													// Each entry is an object
+  													try (Decoder subfield = subfields.decodeObject()) {
+  
+                              if ( subfield == null )
+                                log.error("NULL SUBFIELD...");
+  
+  		  											// Create a subfield per entry
+  	  												while ((currentKey = subfield.decodeKey()) != null) {
+  
+    														String value = subfield.decodeStringNullable();
+    
+  						  								if ( REGEX_SUBFIELD.matcher(currentKey).matches() ) {
+  				  											df.addSubfield(factory.newSubfield(currentKey.charAt(0), value));
+  			  											} else {
+  		  													// subfield not matched
+  	  														subfield.skipValue();
+    														}
+   														}
+  													}
+  												}
+  											}
+  										}
+  										default -> {
+  											// Unknown field data property
+  											fieldData.skipValue();
+  										}
+  									}
+  								}
+                }
 								record.addVariableField(df);
 							}
 

@@ -233,7 +233,8 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		IngestRecord ir = op.getIngest();
 		if (ir == null) {
 			// Couldn't create an ingest record.
-			return opFail(op, processedTime, "Failed to create IngestRecord from source");
+      log.error("Failed to create Ingest Record from source record "+op.getSourceId());
+			return opFail(op, processedTime, "Failed to create IngestRecord from source ");
 		}
 		
 		return bibRecordService.process( ir )
@@ -272,9 +273,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected <T> Mono<T> opFail (IngestOperation op, Instant time, String info) {
 		// Update the details of the SourceRecord
-		if (log.isDebugEnabled()) {
-			log.debug("Failure: {}", info);
-		}
+		log.warn("opFail: {}", info);
 		return sourceRecordService.updateProcessingInformation(op.getSourceId(), time, ProcessingStatus.FAILURE, info).then(Mono.empty());
 	}
 	
