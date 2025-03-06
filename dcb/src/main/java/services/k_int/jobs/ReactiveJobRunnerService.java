@@ -105,7 +105,7 @@ public class ReactiveJobRunnerService {
 				
 				final var checkpoint = chunk.getCheckpoint();
 				return Mono.from( jobInstance.resume( checkpoint ) )
-						.doOnNext( cp -> log.info("Get next chunk using checkpoint [{}]", cp));
+						.doOnNext( cp -> log.trace("Get next chunk using checkpoint [{}]", cp));
 			})
 			.concatMap( this::processChunkAndSaveCheckpoint );
 	}
