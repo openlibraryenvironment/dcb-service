@@ -60,7 +60,8 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 
 	private static final Pattern REGEX_CTRLFIELD = Pattern.compile( "00[0-9]" );
 	private static final Pattern REGEX_DATAFIELD = Pattern.compile( "((0[1-9])|[1-9][0-9])[0-9]" );
-	private static final Pattern REGEX_SUBFIELD = Pattern.compile( "[a-z0-9]" );
+  // The space is important - some sunfields use " ".
+	private static final Pattern REGEX_SUBFIELD = Pattern.compile( "[a-z0-9 ]" );
 
 	public Marc4jRecordSerde(@NonNull SerdeConfiguration serdeConfiguration, @NonNull SerdeRegistry registry) {
 		this.serdeConfiguration = serdeConfiguration;
@@ -287,6 +288,7 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 						} else if ( REGEX_DATAFIELD.matcher(currentKey).matches() ) {
 							// Data field is object.
 							final DataField df = factory.newDataField();
+              String currentTag = currentKey;
 							df.setTag(currentKey);
 
 							try (Decoder fieldData = field.decodeObject()) {
@@ -313,6 +315,7 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
   											try (Decoder subfields = fieldData.decodeArray()) {
   												while (subfields.hasNextArrayValue()) {
   
+                            String last_subfield_info=null;
   													// Each entry is an object
   													try (Decoder subfield = subfields.decodeObject()) {
   
@@ -323,15 +326,20 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
   	  												while ((currentKey = subfield.decodeKey()) != null) {
   
     														String value = subfield.decodeStringNullable();
+                                last_subfield_info = value;
     
-  						  								if ( REGEX_SUBFIELD.matcher(currentKey).matches() ) {
+  						  								// if ( REGEX_SUBFIELD.matcher(currentKey).matches() ) {
   				  											df.addSubfield(factory.newSubfield(currentKey.charAt(0), value));
-  			  											} else {
+  			  											// } else {
   		  													// subfield not matched
-  	  														subfield.skipValue();
-    														}
+  	  													// 	subfield.skipValue();
+    														// }
    														}
   													}
+                            catch ( Exception e ) {
+                              log.error("Problem processing subfield ct="+currentTag+" ls="+last_subfield_info+" ck="+currentKey,e);
+                              throw e;
+                            }
   												}
   											}
   										}

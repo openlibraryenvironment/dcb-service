@@ -1,6 +1,9 @@
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0  # Use latest version available
+    # THIS IMAGE IS BUILD AND PUBLISHED FROM THE KI-OKAPI-GITOPS REPO - docker-buildfiles subdir
+    #  
+    # image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0  # Use latest version available
+    image: docker.libsdev.k-int.com/knowledgeintegration/folio-es:8.7.0  # Use latest version available
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
@@ -19,14 +22,6 @@ services:
       retries: 5
       start_period: 20s
       timeout: 5s
-    # entrypoint: [ "sh", "-c", "bin/elasticsearch-plugin install --batch analysis-icu && exec bin/elasticsearch" ]
-
-  # setup:
-  #   image: curlimages/curl:latest
-  #   depends_on:
-  #     elasticsearch:
-  #       condition: service_healthy
-  #   entrypoint: ["sh", "-c", "curl -X PUT -u elastic:elastic http://elasticsearch:9200/mobius"]
 
 volumes:
   elastic_data:

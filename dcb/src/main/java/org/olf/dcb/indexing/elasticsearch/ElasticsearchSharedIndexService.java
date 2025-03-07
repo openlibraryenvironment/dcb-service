@@ -241,11 +241,11 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 				.map( indexMap -> indexMap.get(indexName) )
 				.map( IndexState::settings )
 				.onErrorResume( e -> {
-					log.warn("Error in (ES) getIndexSettings {}",e.getMessage());
-					return Mono.error( new DcbError("Error (ES) in getIndexSettings "+e.getMessage(),e));
+					log.warn("Error in (ES) getIndexSettings for {} - {}", indexName, e.getMessage());
+					return Mono.error( new DcbError("Error (ES) in getIndexSettings for "+indexName+":"+e.getMessage(),e));
 				});
 		} catch (Throwable e) {
-			return Mono.error( new DcbError("Error fetching index settings", e) );
+			return Mono.error( new DcbError("Error fetching index settings for "+indexName, e) );
 		}
 	}
 	
