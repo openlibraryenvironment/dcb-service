@@ -11,11 +11,9 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.tracking.model.StateChange;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -39,17 +37,36 @@ public class HandleBorrowerItemReceived implements PatronRequestStateTransition 
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return ( ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			( ctx.getPatronRequest().getLocalItemStatus() != null ) &&
-			( triggeringItemStates.contains(ctx.getPatronRequest().getLocalItemStatus() ) ) );
+		final PatronRequest patronRequest = ctx.getPatronRequest();
+
+		final boolean isPatronRequestStatusApplicable = isStatusApplicable(patronRequest);
+		final boolean isLocalItemStatusApplicable = isPatronRequestStatusApplicable && isLocalItemStatusApplicable(patronRequest);
+		final boolean isPickupItemStatusApplicable = isPatronRequestStatusApplicable && isPickupItemStatusApplicable(patronRequest);
+
+		return isLocalItemStatusApplicable || isPickupItemStatusApplicable;
+	}
+
+	private boolean isStatusApplicable(PatronRequest patronRequest) {
+		final var status = Optional.ofNullable(patronRequest).map(PatronRequest::getStatus).orElse(null);
+		return getPossibleSourceStatus().contains(status);
+	}
+
+	private boolean isLocalItemStatusApplicable(PatronRequest patronRequest) {
+		final var localItemStatus = Optional.ofNullable(patronRequest).map(PatronRequest::getLocalItemStatus).orElse(null);
+		return localItemStatus != null && triggeringItemStates.contains(localItemStatus);
+	}
+
+	private boolean isPickupItemStatusApplicable(PatronRequest patronRequest) {
+		final var pickupItemStatus = Optional.ofNullable(patronRequest).map(PatronRequest::getPickupItemStatus).orElse(null);
+		return pickupItemStatus != null && triggeringItemStates.contains(pickupItemStatus);
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 		ctx.getPatronRequest().setStatus(PatronRequest.Status.RECEIVED_AT_PICKUP);
-		// For now, PatronRequestWorkflowService will save te patron request, but we should do that here
-		// and not there - flagging this as a change needed when we refactor.
-		return Mono.just(ctx);
+
+		return Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest()))
+			.thenReturn(ctx);
 	}
 
 	@Override
