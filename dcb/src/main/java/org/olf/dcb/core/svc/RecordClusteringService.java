@@ -398,8 +398,9 @@ public class RecordClusteringService {
 		return Flux.from( matchPointRepository.findAllByBibId( bibId ) )
 			.map( MatchPoint::getValue )
 			.collectList()
-			.map( exclude -> currentMatchPoints.stream()
-					.filter( mp -> !exclude.contains( mp.getValue() ))
+			.map( current_bib_match_points -> currentMatchPoints.stream()
+          // Include and value not already present
+					.filter( mp -> !current_bib_match_points.contains( mp.getValue() ) )
 					.toList());
 	}
 	

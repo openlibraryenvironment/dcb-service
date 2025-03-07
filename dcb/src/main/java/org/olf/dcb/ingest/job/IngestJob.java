@@ -236,6 +236,8 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
       log.error("Failed to create Ingest Record from source record "+op.getSourceId());
 			return opFail(op, processedTime, "Failed to create IngestRecord from source ");
 		}
+
+    // log.info("title {} - {}",ir.getTitle(),ir.getIdentifiers());
 		
 		return bibRecordService.process( ir )
 

@@ -259,7 +259,10 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 					.getSettings( ind -> ind
 						.index( indexName )))
 				.map( GetIndicesSettingsResponse::result )
-				.map( indexMap -> indexMap.get(indexName) )
+        // Direct get of indexName will break when using an alias because although we can get indexname/_settings, the actual key
+        // returned will be the name of the real index so with -1 -2 -3 appended. Because of this we get the first value - due to the
+        // parameter above we should only get back the single actual index representing the alias.
+        .map( indexMap -> indexMap.entrySet().iterator().next().getValue() )
 				.map( IndexState::settings )
         .onErrorResume( e -> {
           log.error("Error in (OS) getIndexSettings {}",e.getMessage());

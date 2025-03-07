@@ -37,6 +37,8 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.olf.dcb.core.model.clustering.CoreBibliographicMetadata;
+
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.util.StringUtils;

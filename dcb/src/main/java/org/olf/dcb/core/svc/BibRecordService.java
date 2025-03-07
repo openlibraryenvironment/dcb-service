@@ -162,11 +162,14 @@ public class BibRecordService {
 	}
 
 	private BibIdentifier ingestRecordIdentifierToModel(Identifier id, BibRecord owner) {
-		return BibIdentifier.builder().id(uuid5ForIdentifier(id.getNamespace(), id.getValue(), owner.getId())).owner(owner)
-				.value(id.getValue() != null ? id.getValue().substring(0, Math.min(id.getValue().length(), 254)) : null)
-				.namespace(
-						id.getNamespace() != null ? id.getNamespace().substring(0, Math.min(id.getNamespace().length(), 254))	: null)
-				.build();
+
+		return BibIdentifier
+      .builder()
+      .id(uuid5ForIdentifier(id.getNamespace(), id.getValue(), owner.getId()))
+      .owner(owner)
+			.value(id.getValue() != null ? id.getValue().substring(0, Math.min(id.getValue().length(), 254)) : null)
+			.namespace(id.getNamespace() != null ? id.getNamespace().substring(0, Math.min(id.getNamespace().length(), 254))	: null)
+			.build();
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)

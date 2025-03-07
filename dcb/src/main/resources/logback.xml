@@ -63,7 +63,7 @@
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
 	<logger name="org.olf.dcb.core.svc.BibRecordService" level="DEBUG" />
 	<logger name="services.k_int" level="INFO"/>
-	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="WARN"/>
+	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="INFO"/>
 	<logger name="io.micronaut.security.authentication" level="WARN" />
 	<logger name="io.r2dbc" level="WARN" />
 	<logger name="io.r2dbc.postgresql.PARAM" level="WARN" />
