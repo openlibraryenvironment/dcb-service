@@ -1,11 +1,65 @@
 # Changelog
 
+## Version 8.16.1
+
+### Fixes
+* [General]
+	* upgrade formal-release.yml actions/cache@v2 to v3
+
+## Version 8.16.0
+
+### Additions
+* [General]
+	* Extend RECEIVED_AT_PICKUP monitoring for 3-legged transactions [DCB-1683]
+	* pickup system cleanup [DCB-1688]
+	* Extend PICKUP_TRANSIT monitoring for 3-legged transactions [DCB-1682]
+	* enable pickup request interaction for polaris host lms [DCB-1534]
+	* pickup workflow for folio interaction [DCB-1830]
+	* PlacePatronRequestAtPickupAgencyStateTransition [DCB-1534]
+	* Suppress selectedBib in ES/OS records
+	* Add decorateWithPickupLibrary to RequestWorkflowContextHelper. This arranges for the Library of the pickup location to be added to the context IF pickup agency is set, and by extension makes PickupLibrary available as a property to any workflow steps.
+	* track status changes in pickup library's Host LMS [DCB-1801]
+	* create request records for 3-legged transactions [DCB-1680]
+	* Add the NO_LEND derived loan policy
+	* Add a configuration setting - dcb.tracking.dryRun which defauls to false. Can be set as an env var DCB_TRACKING_DRYRUN. This allows the tracking loop to select requests that need to be tracked, updates the tracking info, but the DOES NOT process the tracking data. This is useful for testing the performance of the tracking loop on live data without the side effect of updating live requests
+	* Add dcb.scheduled.tasks.skipped (env var DCB_SCHEDULED_TASKS_SKIPPED) which is a list of strings allowing more fine grained control of which scheduled tasks run when scheduled tasks are enabled. In yml this is a list of simple class names, in an env var the strings are encoded as comma separated values, for example DCB_SCHEDULED_TASKS_SKIPPED=IngestService,IngestJob,SourceRecordService,TrackingServiceV3
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Tone down chunk logging
+	* Add preparatory config for DCB-1835
+	* Add ARCHIVED state to PatronRequest.Status enum
+	* Examples of flags for dry run and disabling tracking in run_dev_server.sh
+	* Extra info when reindex call errors out
+	* Add getItem variant that accepts a list of fields to return
+	* Add Location to  PlaceHoldRequestCommand and WorkflowContext in preparation for DCB-1237
+	* Properly model shelving location and inferredLoanPolicy in DCB core so that decisions about requestability can be taken at the core level, rather than overloading the semantics of item location. LMS Clients should be providing data to core where decisions are made, not overloading the semantics of Location in order to coerce a behaviour upstream
+	* Create an openrs-core library ready to start extracting dependencies of...
+	* add migration for additional pickup anywhere fields [DCB-1534]
+	* Extra logging on skipping of services
+	* Add a documentation field to the condition clause of rulesets, enabling us to add documentation to the various inclusion and suppression rulesets to make them easier to understand for the poor souls who come later
+* [Config]
+	* Include  "Awaiting pickup", "Awaiting delivery",  "In transit" and "Paged" in the list of FOLIO item states that are considered AVAILABLE - DCB-1831
+
+### Fixes
+* [General]
+	* Last json deserialisation error
+	* Handle null subfield values in records from FOLIO
+	* Ensure transaction exists around mono sink
+	* Added intermediate @Transactional to avoid error in reindexing call
+	* Sierra getItem now includes fixedFields in the list of requested fields, making FixedField 71, as well as all other fixed fields, availabe for renewal tracking etc
+	* DCB-1237 - Adjust notes field in RequestWorkflowContext to generate format needed for Sierra and Polaris. Set new fields as specified for FOLIO based on new pickupLibrary property in RequestContext
+	* Fix requester note not being set [DCB-1535]
+	* Use LocationID in location code for Polaris libraries. Extract location name from the Location Name field rather than shelving location. It is important that Location to Agency mappings are based on LocationID and not Shelving location code
+
 ## Version 8.15.1
 
 ### Changes
 * [CHORE]
 	* Added an endpoint /admin/threads to dump out all the
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add holdCount to HostLMSItem. Bind sierra hold count to that, placeholder in polaris ready for get hold info by item, placeholder in FOLIO adapter for same.
 	* Adjust netty max depth and bulk ES/OS defaults
 	* Bump external opensearch deps to try and resolve connection issues on AWS
