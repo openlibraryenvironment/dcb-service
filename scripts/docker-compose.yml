@@ -11,6 +11,7 @@ services:
       - ELASTIC_PASSWORD=elastic
       - ELASTICSEARCH_PLUGINS=analysis-icu
       - xpack.security.enabled=true
+      - ES_JAVA_OPTS=-Xms1024m -Xmx1024m
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -22,6 +23,10 @@ services:
       retries: 5
       start_period: 20s
       timeout: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 4096m
 
 volumes:
   elastic_data:

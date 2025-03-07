@@ -57,7 +57,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	private static final String JOB_NAME = "Data ingest job";
 	
-	private final int PAGE_SIZE = 20;
+	private final int PAGE_SIZE = 100;
 	private final Map<String, Mono<SourceToIngestRecordConverter>> sourceRecConverterCache = new ConcurrentHashMap<>();
 	
 	
