@@ -1,7 +1,6 @@
 package org.olf.dcb.request.workflow;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
@@ -14,11 +13,9 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.tracking.model.StateChange;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -42,6 +39,80 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 		this.hostLmsService = hostLmsService;
 	}
 
+	// If the patron request status is applicable
+	// and either the local or pickup item status is applicable, the method returns true.
+	// Otherwise, it returns false.
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		final PatronRequest patronRequest = ctx.getPatronRequest();
+		final boolean isStatusApplicable = isStatusApplicable(patronRequest);
+		if (isStatusApplicable) {
+
+			final boolean isLocalItemStatusApplicable = isLocalItemStatusApplicable(patronRequest);
+			final boolean isPickupItemStatusApplicable = isPickupItemStatusApplicable(patronRequest);
+
+			if (isLocalItemStatusApplicable) {
+				log.debug("Applicable for status: {}, local item status: {}",
+					patronRequest.getStatus(), patronRequest.getLocalItemStatus());
+
+				return true;
+			} else if (isPickupItemStatusApplicable) {
+				log.debug("Applicable for status: {}, pickup item status: {}",
+					patronRequest.getStatus(), patronRequest.getPickupItemStatus());
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private boolean isStatusApplicable(PatronRequest patronRequest) {
+		return getPossibleSourceStatus().contains(patronRequest.getStatus());
+	}
+
+	private boolean isLocalItemStatusApplicable(PatronRequest patronRequest) {
+		return patronRequest.getLocalItemStatus() != null
+			&& triggeringItemStates.contains(patronRequest.getLocalItemStatus());
+	}
+
+	private boolean isPickupItemStatusApplicable(PatronRequest patronRequest) {
+		return patronRequest.getPickupItemStatus() != null
+			&& triggeringItemStates.contains(patronRequest.getPickupItemStatus());
+	}
+
+	@Override
+	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().setStatus(PatronRequest.Status.READY_FOR_PICKUP);
+
+		final var patronRequest = ctx.getPatronRequest();
+		final var activeWorkflow = patronRequest.getActiveWorkflow();
+
+		if ("RET-PUA".equals(activeWorkflow)) {
+
+			// check we need to update the borrower item
+			final var isPickupItemStatusApplicable = isPickupItemStatusApplicable(patronRequest);
+
+			if (isPickupItemStatusApplicable) {
+				return updateSupplierItemToReceived(ctx)
+					.flatMap(this::updateBorrowerItemToReceived)
+					.flatMap(this::updatePatronRequest);
+			}
+			else {
+				// this should not happen in normal operation
+				log.warn("Borrower item was not updated");
+			}
+		}
+
+		return updateSupplierItemToReceived(ctx)
+			.flatMap(this::updatePatronRequest);
+	}
+
+	private Mono<RequestWorkflowContext> updatePatronRequest(RequestWorkflowContext requestWorkflowContext) {
+		return Mono.from(patronRequestRepository.saveOrUpdate(requestWorkflowContext.getPatronRequest()))
+			.thenReturn(requestWorkflowContext);
+	}
+
 	public Mono<RequestWorkflowContext> updateSupplierItemToReceived(
 		RequestWorkflowContext rwc) {
 		if ((rwc.getSupplierRequest() != null) && (rwc.getLenderSystemCode() != null)) {
@@ -59,20 +130,29 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 		return Mono.just(rwc);
 	}
 
-	@Override
-	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		return (
-			( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-			( triggeringItemStates.contains(ctx.getPatronRequest().getLocalItemStatus()) ) );
-	}
 
-	@Override
-	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-			ctx.getPatronRequest().setStatus(PatronRequest.Status.READY_FOR_PICKUP);
-			return updateSupplierItemToReceived(ctx)
-				// For now, PatronRequestWorkflowService will save the patron request, but we should do that here
-				// and not there - flagging this as a change needed when we refactor.
-				.thenReturn(ctx);
+	private Mono<RequestWorkflowContext> updateBorrowerItemToReceived(
+		RequestWorkflowContext requestWorkflowContext) {
+		log.debug("updateBorrowerItemToReceived");
+
+		if (requestWorkflowContext.getPatronSystemCode() == null ||
+			requestWorkflowContext.getPatronRequest() == null ||
+			requestWorkflowContext.getPatronRequest().getLocalItemId() == null ||
+			requestWorkflowContext.getPatronRequest().getLocalRequestId() == null) {
+
+			return Mono.error(new IllegalStateException("updateBorrowerItemToReceived called with missing data"));
+		}
+
+		final var patronSystemCode = requestWorkflowContext.getPatronSystemCode();
+		final var patronRequest = requestWorkflowContext.getPatronRequest();
+		final var localItemId = patronRequest.getLocalItemId();
+		final var localRequestId = patronRequest.getLocalRequestId();
+
+		return hostLmsService.getClientFor(patronSystemCode)
+			// updateItemStatus here should be clearing the m-flag (Message)
+			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(localItemId,
+				CanonicalItemState.RECEIVED, localRequestId))
+			.thenReturn(requestWorkflowContext);
 	}
 
 	@Override
