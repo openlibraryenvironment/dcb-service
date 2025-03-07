@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 8.16.1
+
+### Fixes
+* [General]
+	* upgrade formal-release.yml actions/cache@v2 to v3
+
 ## Version 8.16.0
 
 ### Additions
@@ -20,6 +26,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Tone down chunk logging
 	* Add preparatory config for DCB-1835
 	* Add ARCHIVED state to PatronRequest.Status enum
