@@ -307,7 +307,6 @@ public class RecordClusteringService {
 				.map( id -> {
 					String s = String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue());
 					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace(), isDevelopment);
-          log.info("generateIdMatchPoints {}",mp);
 					return mp;
         } );
 	}
@@ -331,13 +330,10 @@ public class RecordClusteringService {
 	}
 	
 	public Flux<MatchPoint> generateMatchPoints ( final BibRecord bib ) {
-		log.trace("collectMatchPoints for bib");
 		return Flux.concat(
 				generateIdMatchPoints(bib),
 				recordMatchPoints(bib))
-					// .map( mp -> mp.toBuilder().bibId( bib.getId() ).build())
-					.map( mp -> mp.setBibId(bib.getId()))
-          .doOnNext( mp -> log.info("final match point {}",mp));
+					.map( mp -> mp.setBibId(bib.getId()));
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)

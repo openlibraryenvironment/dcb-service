@@ -107,11 +107,14 @@ class ClusterRecordTests {
 		));
 
 		assertThat(metadata.identifiers(), containsInAnyOrder(
-			hasIdentifier("ISBN", "9781234567890"),
-			hasIdentifier("ISSN", "1234-5678"),
+			hasIdentifier("ISBN", "978-1-23-456789-0 (pbk)"),
+			hasIdentifier("ISSN", "1234-5678 online"),
 			hasIdentifier("LCCN", "68009551"),
 			hasIdentifier("GOLDRUSH", "basiccircuittheorybycharlesadesoerandernestskuh                  1969876    mca                              "),
-			hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh")));
+			hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh"),
+			hasIdentifier("ISBN-n", "9781234567890"),
+			hasIdentifier("ISSN-n", "12345678")
+    ));
 	}
 
 	private static Matcher<ClusterRecord.Identifier> hasIdentifier(String namespace,

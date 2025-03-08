@@ -145,8 +145,8 @@ public class BibRecordService {
       .doOnNext( del -> {
         if (del > 0) 
           log.info("Purged {} existing identifiers that are no longer valid from {}", del, savedBib.getId());
-        else
-          log.info("No removals for {}", savedBib.getId());
+        // else
+        //   log.info("No removals for {}", savedBib.getId());
       })
 			.then(Mono.just(savedBib));
   }

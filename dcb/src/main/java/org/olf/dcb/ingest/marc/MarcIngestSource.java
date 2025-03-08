@@ -57,6 +57,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
 	final static Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
 	final static Pattern REGEX_REMOVE_PUNCTUATION = Pattern.compile("\\p{Punct}");
+  final static Pattern REGEX_ISXN_VALUE=Pattern.compile(
+      "\\b\\d{9,12}[\\dXx]\\b|\\b\\d{1,5}[- ]?\\d{1,7}[- ]?\\d{1,7}[- ]?\\d{1,7}[- ][\\dXx]\\b" +  // ISBN-10 or ISBN-13
+      "|\\b(\\d{4}[- ]?\\d{3}[\\dxX])\\b"); // ISSN
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
@@ -231,8 +234,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 					return current;
 				});
 
-		log.info("Title used: {}", title);
-    log.info("identifiers {}",ingestRecord.build().getIdentifiers());
+		// log.trace("Title used: {}", title);
 
 		return ingestRecord;
 	}
@@ -279,14 +281,32 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		IDENTIFIER_FIELD_NAMESPACE.keySet().stream().flatMap(tag -> marcRecord.getVariableFields(tag).stream())
 				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
 					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
+            String idns = IDENTIFIER_FIELD_NAMESPACE.get(df.getTag());
+
 						ingestRecord.addIdentifier(id -> {
-							id.namespace(IDENTIFIER_FIELD_NAMESPACE.get(df.getTag())).value(sfs.trim());
+							id.namespace(idns).value(sfs);
 						});
+
+            // Add normalised versions of ISSN and ISBN
+            if ( "ISBN".equals(idns) || "ISSN".equals(idns) ) {
+  						ingestRecord.addIdentifier(id -> {
+							  id.namespace(idns+"-n").value(cleanIsxn(sfs));
+              });
+            }
+
 					});
 				});
 
 		return ingestRecord;
 	}
+
+  default String cleanIsxn(String v) {
+    Matcher m = REGEX_ISXN_VALUE.matcher(v);
+    if ( m.find() ) {
+      return m.group().replaceAll("[^\\dXx]","");
+    }
+    return v;
+  }
 
 	default IngestRecordBuilder enrichWithGoldrush(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 		final GoldrushKey grk = getGoldrushKey(marcRecord);
