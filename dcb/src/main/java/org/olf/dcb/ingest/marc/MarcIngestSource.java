@@ -208,6 +208,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 //								qualifiers.add(edition_field.getSubfieldsAsString("a"));
 //							}
 							
+              // 250 Is edition statement
 							List<String> qualifiers = Marc4jRecordUtils
                                            .concatSubfieldData(marcRecord, "250", "a")
                                            .map(this::normaliseEdition)
@@ -230,7 +231,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 					return current;
 				});
 
-		log.debug("Title used: {}", title);
+		log.info("Title used: {}", title);
+    log.info("identifiers {}",ingestRecord.build().getIdentifiers());
+
 		return ingestRecord;
 	}
 
@@ -648,6 +651,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
   // This is taken to be faster and more flexible than trying to match regexs on component parts (for now)
   // Add cases as we find them
   static final Map<String, String> EDITION_MAPPINGS = Map.ofEntries(
+  	Map.entry("first", "1e"),
+  	Map.entry("second", "2e"),
+  	Map.entry("third", "3e"),
+  	Map.entry("fourth", "4e"),
+  	Map.entry("fifth", "5e"),
   	Map.entry("first edition", "1e"),
   	Map.entry("second edition", "2e"),
   	Map.entry("third edition", "3e"),

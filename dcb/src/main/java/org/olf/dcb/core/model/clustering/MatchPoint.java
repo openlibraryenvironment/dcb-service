@@ -20,6 +20,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
@@ -31,14 +32,15 @@ import services.k_int.utils.UUIDUtils;
 @Builder(toBuilder = true)
 @ExcludeFromGeneratedCoverageReport
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 @Accessors(chain = true)
 public class MatchPoint {
 	
-	public MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId, String domain) {
+	@Creator
+	public MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId, @Nullable String domain) {
 		this(id, value, bibId, domain, null);
 	}
 
-	@Creator
 	public MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId) {
 		this(id, value, bibId, null, null);
 	}
@@ -73,7 +75,7 @@ public class MatchPoint {
 	
 	@NonNull
 	@TypeDef(type = DataType.UUID)
-	private final UUID bibId;
+	private UUID bibId;
 	
 	// The domain tells us what kind of match point was generated - it is nullable to allow
 	// incremental improvements of matchpoints over time. As records are touched they will

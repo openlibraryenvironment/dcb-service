@@ -1,6 +1,7 @@
 package org.olf.dcb.storage;
 
 import java.util.UUID;
+import java.util.Collection;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -54,5 +55,7 @@ public interface BibIdentifierRepository {
     @SingleResult
     @Vetoed
     Publisher<Void> commit();
+
+    Publisher<Long> deleteAllByOwnerIdAndIdNotIn(@NotNull UUID bibId, @NotNull Collection<UUID> values);
 }
 

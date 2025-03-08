@@ -134,8 +134,22 @@ public class BibRecordService {
 		return Flux.fromIterable(source.getIdentifiers())
 				.map(id -> ingestRecordIdentifierToModel(id, savedBib))
 				.flatMap(this::saveOrUpdateIdentifier)
-				.then(Mono.just(savedBib));
+        .map(BibIdentifier::getId)
+        .collectList()
+        .flatMap( savedIdList -> purgeDeletedIdentifiers(savedBib,savedIdList));
 	}
+
+	@Transactional
+	protected Mono<BibRecord> purgeDeletedIdentifiers(BibRecord savedBib, List<UUID> validIdentifierIdList) {
+    return Mono.from(bibIdentifierRepo.deleteAllByOwnerIdAndIdNotIn(savedBib.getId(), validIdentifierIdList))
+      .doOnNext( del -> {
+        if (del > 0) 
+          log.info("Purged {} existing identifiers that are no longer valid from {}", del, savedBib.getId());
+        else
+          log.info("No removals for {}", savedBib.getId());
+      })
+			.then(Mono.just(savedBib));
+  }
 
 	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source) {
 

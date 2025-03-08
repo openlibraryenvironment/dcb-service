@@ -307,12 +307,18 @@ public class RecordClusteringService {
 				.map( id -> {
 					String s = String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue());
 					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace(), isDevelopment);
+          log.info("generateIdMatchPoints {}",mp);
 					return mp;
         } );
 	}
 
+  /*
+   * Add any non identifier fingerprints we wish to use here
+   */
 	private Flux<MatchPoint> recordMatchPoints ( BibRecord bib ) {
 		
+    /*
+     * Blocking title is already added by the Marc record handling as an identifier - don't add it again
 		return Mono.justOrEmpty( bib.getBlockingTitle() )
 			.map( blocking_title -> {
 				String s = String.format("%s:%s", MATCHPOINT_TITLE, blocking_title);
@@ -320,6 +326,8 @@ public class RecordClusteringService {
         return mp;
 			})
 			.as(Flux::from);
+      */
+    return Flux.empty();
 	}
 	
 	public Flux<MatchPoint> generateMatchPoints ( final BibRecord bib ) {
@@ -327,9 +335,9 @@ public class RecordClusteringService {
 		return Flux.concat(
 				generateIdMatchPoints(bib),
 				recordMatchPoints(bib))
-					.map( mp -> mp.toBuilder()
-						.bibId( bib.getId() )
-						.build());
+					// .map( mp -> mp.toBuilder().bibId( bib.getId() ).build())
+					.map( mp -> mp.setBibId(bib.getId()))
+          .doOnNext( mp -> log.info("final match point {}",mp));
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -375,6 +383,8 @@ public class RecordClusteringService {
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<Collection<MatchPoint>> reconcileMatchPoints( Collection<MatchPoint> currentMatchPoints, BibRecord bib ) {
+
+    // log.info("reconcileMatchPoints {}",currentMatchPoints);
 		
 		return Flux.fromIterable( currentMatchPoints )
 			.map( MatchPoint::getValue )
@@ -382,13 +392,13 @@ public class RecordClusteringService {
 			.map( curry(bib.getId(), matchPointRepository::deleteAllByBibIdAndValueNotIn) )
 			.flatMap(Mono::from)
 			.doOnNext( del -> {
-				if (del > 0) log.info("Deleted {} existing matchpoints that are no longer valid", del);
+				if (del > 0) log.info("Deleted {} existing matchpoints that are no longer valid from {}", del, bib.getId());
 			})
 			.then( differentMatchPoints(bib.getId(), currentMatchPoints) )
 			.flatMapMany( matchPointRepository::saveAll )
 			.count()
 			.map( added -> {
-				if (added > 0) log.info("Added {} new matchpoints", added);
+				if (added > 0) log.info("Added {} new matchpoints for {}", added, bib.getId());
 				return currentMatchPoints;
 			});
 	}
