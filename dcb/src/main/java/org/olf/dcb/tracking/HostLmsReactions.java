@@ -21,6 +21,9 @@ import java.util.Map;
  * This class gathers together the code which detects that an object in a remote system has
  * changed state, and attempts to trigger the appropriate local workflow for dealing with that
  * scenario.
+ * The majority of the heavy lifting is now done in TrackingServiceV3 - the call 
+ *   return patronRequestWorkflowService.progressUsing(context);
+ * Will use the objects set up in the context to try and apply workflow steps until no more automated steps can be taken.
  */
 @Slf4j
 @Singleton
@@ -88,6 +91,7 @@ public class HostLmsReactions {
 					sr2.setLocalItemLastCheckTimestamp(Instant.now());
 					sr2.setLocalItemStatusRepeat(Long.valueOf(0));
 					sr2.setLocalRenewalCount(sc.getToRenewalCount());
+					sr2.setLocalHoldCount(sc.getToHoldCount());
 					return Mono.from(supplierRequestRepository.update(sr2)).flatMap(ssr -> auditEventIndication( context, trackingRecord));
 				case "PickupRequest":
 					PatronRequest pickupRequest = (PatronRequest) sc.getResource();
@@ -140,6 +144,11 @@ public class HostLmsReactions {
 			}
 			if (sc.getToRenewalCount() != null) {
 				auditData.put("toRenewalCount", sc.getToRenewalCount());
+			}
+
+			if ( "SupplierItem".equals(sc.getResourceType()) ) {
+				auditData.put("fromLocalHoldCount", sc.getFromHoldCount());
+				auditData.put("toLocalHoldCount", sc.getToHoldCount());
 			}
 
 			return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)

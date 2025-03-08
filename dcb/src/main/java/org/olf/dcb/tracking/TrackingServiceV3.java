@@ -389,6 +389,8 @@ public class TrackingServiceV3 implements TrackingService {
 				.flatMap(client -> Mono.from(client.getItem(sr.getLocalItemId(), sr.getLocalId())))
 				.doOnNext(item -> log.debug("Process tracking supplier request item {}", item))
 				.flatMap( item -> {
+					// *Ian: Surely the next else block here is better dealt with by a new || condition here?
+					// I can't see any behaviour different if the condition matches?*
 					if ( ((item.getStatus() == null) && (sr.getLocalItemStatus() != null)) ||     // remote item status is null, local is not
 						((item.getStatus() != null) && (sr.getLocalItemStatus() == null)) ||			  // remote status is null local is null
 						(!item.getStatus().equals(sr.getLocalItemStatus()))) {	                    // remote != local
@@ -402,6 +404,8 @@ public class TrackingServiceV3 implements TrackingService {
 							.toState(item.getStatus())
 							.fromRenewalCount(sr.getLocalRenewalCount())
 							.toRenewalCount(item.getRenewalCount())
+							.fromHoldCount(sr.getLocalHoldCount())
+							.toHoldCount(item.getHoldCount())
 							.resource(sr)
 							.build();
 
@@ -422,6 +426,8 @@ public class TrackingServiceV3 implements TrackingService {
 							.toState(item.getStatus())
 							.fromRenewalCount(sr.getLocalRenewalCount())
 							.toRenewalCount(item.getRenewalCount())
+							.fromHoldCount(sr.getLocalHoldCount())
+							.toHoldCount(item.getHoldCount())
 							.resource(sr)
 							.build();
 

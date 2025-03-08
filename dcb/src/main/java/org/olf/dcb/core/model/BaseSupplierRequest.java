@@ -130,6 +130,9 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
   @Builder.Default
 	private Integer localRenewalCount = 0;
 
+  @Builder.Default
+	private Integer localHoldCount = 0;
+
 	public T setDateCreated(@Nullable Instant dateCreated) {
 		this.dateCreated = dateCreated;
 		return (T) this;
@@ -254,4 +257,10 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 		this.localRenewalCount = localRenewalCount;
 		return (T) this;
 	}
+
+  public T setLocalHoldCount(Integer localHoldCount) { 
+    this.localHoldCount = localHoldCount;
+    return (T) this;
+	}
+
 }
