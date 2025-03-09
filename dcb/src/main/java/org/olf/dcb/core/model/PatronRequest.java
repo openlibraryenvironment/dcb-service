@@ -98,6 +98,14 @@ public class PatronRequest {
 		}
 	}
 
+	@Serdeable
+	public enum RenewalStatus {
+		ALLOWED,
+		DISALLOWED,
+		UNKNOWN,
+		UNSUPPORTED
+	}
+
 	@ToString.Include
 	@NotNull
 	@NonNull
@@ -291,6 +299,17 @@ public class PatronRequest {
 	@Nullable
 	private String requesterNote;
 
+	/**
+	 * Set to true when a HostLMS Client has executed a local action that will prevent the patron from 
+	 * renewing an item. A signal back to the owning institution that once the current loan has been completed the
+	 * item should be returned.
+	 */
+	@Builder.Default
+	@ToString.Include
+	@Nullable
+	private RenewalStatus renewalStatus = RenewalStatus.ALLOWED;
+
+
 	@JsonProperty("status")
 	public Status getStatus() {
 		return this.status;
@@ -408,7 +427,7 @@ public class PatronRequest {
 	private Integer renewalCount = 0;
 
   @Builder.Default
-	private Integer localRenewalCount = 0;;
+	private Integer localRenewalCount = 0;
 
 	@Transient
 	@Nullable

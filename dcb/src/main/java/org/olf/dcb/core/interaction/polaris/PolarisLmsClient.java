@@ -1738,4 +1738,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return "Supplier Agency Code: " + supplierAgencyCode
 			+ ", \nSupplier Hostlms Code: " + supplierHostLmsCode;
 	}
+
+  @Override
+  public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+    return Mono.empty();
+  }
+
 }

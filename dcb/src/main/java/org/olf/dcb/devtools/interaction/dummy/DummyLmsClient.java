@@ -607,4 +607,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return "DUMMY_DEV_CLIENT";
 	} 
 
+	@Override
+	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+		return Mono.empty();
+	}
+
 }

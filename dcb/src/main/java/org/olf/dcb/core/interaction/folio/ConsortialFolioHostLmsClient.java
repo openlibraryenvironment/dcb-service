@@ -1073,4 +1073,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
 		return rootUri.resolve("/").toString();
 	}
+
+  @Override
+  public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+    return Mono.empty();
+  }
+
 }

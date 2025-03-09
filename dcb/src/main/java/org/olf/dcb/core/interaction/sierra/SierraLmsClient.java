@@ -1837,4 +1837,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public BibResult convertSourceToInternalType(@NonNull SourceRecord source) {
 		return conversionService.convertRequired(source.getSourceRecordData(), BibResult.class);
 	}
+
+  @Override
+  public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+    return Mono.empty();
+  }
+
 }

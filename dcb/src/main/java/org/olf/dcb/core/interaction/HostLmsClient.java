@@ -109,6 +109,16 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	Mono<String> deleteHold(String id);
 
 	/**
+	 * Use whatever system specific method is appropriate to prevent a patron from renewing a loaned item. This could be
+	 * setting the renewal count artificially high, issuing a recall, setting other flags on the item. The method used WILL be
+   * system specific, the intent is to prevent renewal using whatever method we can coopt. Used primarily when a hold has
+	 * been placed on an item at the holding library and that library wishes the item returned. Once a HostClient impl is sure that
+	 * renewals have been prevented, they should set renewalStatus to DISALLOWED on PatronRequest so the system knows the call to
+	 * prevent renewal has had the desired effect.
+	 */
+	Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc);
+
+	/**
 	 * Return a boolean value which tests if an agency is able to act as a supplier for an item identified
 	 * via RTAC. Should test if the canonical item and patron types needed to fulfil the role can be mapped.
 	 * Note that a primary concern is also if the item and patron types can be mapped back to the borrowing
@@ -129,5 +139,6 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	default int compareTo(HostLmsClient o) {
 		return getClientId().compareTo(o.getClientId());
 	}
+	
 	
 }
