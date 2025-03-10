@@ -1,6 +1,28 @@
 # Changelog
 
+## Version 8.17.0
+
+### Additions
+* [General]
+	* Prune removed bib_identifiers, add normalised versions of ISBN and ISSN to identifiers
+
+### Changes
+* [Chore]
+	* Add methods for modelling tracking and implementation of renewal prevention
+	* WIP towards supplier side holds
+	* PageSize to 100
+* [Wip]
+	* bib identifier purge
+
+### Fixes
+* [General]
+	* Make getSettings in ES and OS implementations compatible with alias indexes
+
 ## Version 8.16.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
