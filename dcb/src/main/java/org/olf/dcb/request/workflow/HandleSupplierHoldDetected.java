@@ -1,12 +1,14 @@
 package org.olf.dcb.request.workflow;
 
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -62,17 +64,28 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
     return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
       ( ctx.getSupplierRequest() != null ) &&
       ( 
-				( ctx.getSupplierRequest().getLocalHoldCount() > 0 )
-			) &&
-			false;  // FOR NOW THIS ACTION IS DISABLED
+				( ctx.getSupplierRequest().getLocalHoldCount() > 0 ) &&
+				( Set.of(null, PatronRequest.RenewalStatus.ALLOWED).contains(ctx.getPatronRequest().getRenewalStatus() ) )
+			);
   }
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 
-		return Mono.just(ctx);
-			// .flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers item back on the shelf after loan. Completing request") )
-			// .thenReturn(ctx);
+		log.info("PR {} detected that a hold has been placed at the owning library",ctx.getPatronRequest().getId());
+
+    return hostLmsService.getClientFor(ctx.getPatronSystemCode())
+			.flatMap(hostLmsClient -> hostLmsClient.preventRenewalOnLoan(PreventRenewalCommand.builder().itemId(ctx.getPatronRequest().getLocalItemId()).build()))
+			.then( markPatronRequestNotRenewable(ctx) )
+			.then( auditService.addAuditEntry(ctx.getPatronRequest(), "Hold detected at owning Library. Borrowing Library told to prevent renewals") )
+      .thenReturn(ctx);
+	}
+
+	private Mono<RequestWorkflowContext> markPatronRequestNotRenewable(RequestWorkflowContext ctx) {
+		// Rely upon outer framework to same 
+		ctx.getPatronRequest().setRenewalStatus(PatronRequest.RenewalStatus.DISALLOWED);
+		return Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest()))
+			.thenReturn(ctx);
 	}
 
 	@Override
