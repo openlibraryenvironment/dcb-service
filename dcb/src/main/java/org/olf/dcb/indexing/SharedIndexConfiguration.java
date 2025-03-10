@@ -21,6 +21,6 @@ public record SharedIndexConfiguration (
 	public static final String PREFIX = "dcb.index";
 	
 	// This is the default version of the index we are using
-	public static final int LATEST_INDEX_VERSION = 2;
+	public static final int LATEST_INDEX_VERSION = 1;
 	
 }
