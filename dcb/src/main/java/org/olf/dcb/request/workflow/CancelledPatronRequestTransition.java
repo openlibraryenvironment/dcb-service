@@ -23,6 +23,8 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.SupplierRequestRepository;
 
 import io.micronaut.context.BeanProvider;
@@ -48,16 +50,19 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final HostLmsService hostLmsService;
 	private final SupplierRequestRepository supplierRequestRepository;
+	private final SupplyingAgencyService supplyingAgencyService;
 
 	public CancelledPatronRequestTransition(
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		PatronRequestAuditService patronRequestAuditService,
 		HostLmsService hostLmsService,
-		SupplierRequestRepository supplierRequestRepository) {
+		SupplierRequestRepository supplierRequestRepository,
+		SupplyingAgencyService supplyingAgencyService) {
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestRepository = supplierRequestRepository;
+		this.supplyingAgencyService = supplyingAgencyService;
 	}
 
 	@Override
@@ -98,22 +103,11 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> cancelSupplierRequest() {
 		return ctx -> {
 
-			final var hostLmsCode = extractFromSupplierReq(ctx, SupplierRequest::getHostLmsCode, "HostLmsCode");
-			final var localRequestId = extractFromSupplierReq(ctx, SupplierRequest::getLocalId, "LocalRequestId");
-			final var localItemId = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemId, "LocalItemId");
-			final var localItemBarcode = extractFromSupplierReq(ctx, SupplierRequest::getLocalItemBarcode, "LocalItemBarcode");
 			final var localRequestStatus = extractFromSupplierReq(ctx, SupplierRequest::getLocalStatus, "LocalStatus");
-			final var virtualPatronLocalID = extractFromVirtualIdentity(ctx, PatronIdentity::getLocalId, "VirtualPatronLocalID");
 
 			if (isLocalSupplierRequestCancelled(localRequestStatus)) return Mono.just(ctx);
 
-			return hostLmsService.getClientFor(hostLmsCode)
-				.flatMap(hostLmsClient -> hostLmsClient.cancelHoldRequest(CancelHoldRequestParameters.builder()
-					.localRequestId(localRequestId)
-					.localItemId(localItemId)
-					.patronId(virtualPatronLocalID)
-					.build()))
-				.thenReturn(ctx);
+			return supplyingAgencyService.cleanUp(ctx);
 		};
 	}
 
