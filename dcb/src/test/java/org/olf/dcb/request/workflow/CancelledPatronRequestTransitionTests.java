@@ -9,9 +9,12 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.*;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
+import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.test.*;
+import org.olf.dcb.test.matchers.PatronRequestAuditMatchers;
 import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraCodeTuple;
@@ -19,11 +22,14 @@ import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+import java.util.Comparator;
 import java.util.List;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
@@ -59,6 +65,9 @@ class CancelledPatronRequestTransitionTests {
 	private PatronRequestWorkflowService patronRequestWorkflowService;
 	@Inject
 	private CancelledPatronRequestTransition cancelledPatronRequestTransition;
+	@Inject
+	private PatronRequestAuditRepository patronRequestAuditRepository;
+
 	private DataHostLms supplierHostLMS;
 
 	@BeforeAll
@@ -131,7 +140,7 @@ class CancelledPatronRequestTransitionTests {
 	}
 
 	@Test
-	void shouldProgressPatronRequestToCancelledWhenNotYetLoanedAndMissingLocalHoldWithFalseVerification() {
+	void shouldProgressPatronRequestToCancelledWhenSupplierHoldNotFound() {
 		// Arrange
 		final var patron = Patron.builder()
 			.id(randomUUID())
@@ -150,7 +159,7 @@ class CancelledPatronRequestTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		final var localSupplyingHoldId = "7357356";
+		final var localSupplyingHoldId = "7357357";
 
 		supplierRequestsFixture.saveSupplierRequest(
 			SupplierRequest.builder()
@@ -165,8 +174,6 @@ class CancelledPatronRequestTransitionTests {
 				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
-		sierraPatronsAPIFixture.mockDeleteHold(localSupplyingHoldId);
-
 		// Act
 		final var updatedPatronRequest = cancelPatronRequestAtSupplyingAgency(patronRequest);
 
@@ -176,13 +183,7 @@ class CancelledPatronRequestTransitionTests {
 			hasStatus(CANCELLED)
 		));
 
-		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
-
-		assertThat(updatedSupplierRequest, allOf(
-			hasStatusCode(SupplierRequestStatusCode.PLACED)
-		));
-
-		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
+		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(localSupplyingHoldId);
 	}
 
 	@Test
@@ -206,7 +207,7 @@ class CancelledPatronRequestTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		final var localSupplyingHoldId = "7357356";
+		final var localSupplyingHoldId = "7357358";
 		final var originalLocalItemId = "647375678";
 
 		supplierRequestsFixture.saveSupplierRequest(
@@ -246,7 +247,7 @@ class CancelledPatronRequestTransitionTests {
 	}
 
 	@Test
-	void shouldTriggerAnErrorResponseWhenCancellingALocalHoldProducedAnError() {
+	void shouldAuditAnErrorResponseWhenCancellingALocalHoldProducedAnError() {
 		// Arrange
 		final var patron = Patron.builder()
 			.id(randomUUID())
@@ -265,7 +266,7 @@ class CancelledPatronRequestTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		final var localSupplyingHoldId = "7357356";
+		final var localSupplyingHoldId = "7357355";
 
 		supplierRequestsFixture.saveSupplierRequest(
 			SupplierRequest.builder()
@@ -279,20 +280,28 @@ class CancelledPatronRequestTransitionTests {
 				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId,
+			SierraPatronHold.builder().id(localSupplyingHoldId).build());
 		sierraPatronsAPIFixture.mockDeleteHoldError(localSupplyingHoldId);
 
 		// Act
-		assertThrows(ThrowableProblem.class,
-			() -> cancelPatronRequestAtSupplyingAgency(patronRequest));
+		final var updatedPatronRequest = cancelPatronRequestAtSupplyingAgency(patronRequest);
 
 		// Assert
-		assertThat(patronRequest, allOf(
+		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
-			hasStatus(ERROR),
-			hasErrorMessage("Unexpected response from: DELETE /iii/sierra-api/v6/patrons/holds/7357356")
+			hasStatus(CANCELLED)
 		));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
+
+		final var auditList = patronRequestsFixture.findAuditEntries(updatedPatronRequest)
+			.stream()
+			.map(PatronRequestAudit::getBriefDescription)
+			.filter("Delete supplier hold : Failed"::equals)
+			.toList();
+
+		assertThat(auditList, hasSize(1));
 	}
 
 	private PatronRequest cancelPatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
@@ -302,8 +311,7 @@ class CancelledPatronRequestTransitionTests {
 					return Mono.error(new RuntimeException("cancelledPatronRequestTransition is not applicable for request"));
 				}
 
-				return Mono.just(ctx.getPatronRequest())
-					.flatMap(patronRequestWorkflowService.attemptTransitionWithErrorTransformer(cancelledPatronRequestTransition, ctx));
+				return cancelledPatronRequestTransition.attempt(ctx);
 			})
 			.thenReturn(patronRequest));
 	}
