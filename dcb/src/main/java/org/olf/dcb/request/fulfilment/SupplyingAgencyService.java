@@ -31,6 +31,8 @@ import java.util.function.Function;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
+import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
@@ -117,39 +119,82 @@ public class SupplyingAgencyService {
       .map(PatronRequest::placedAtSupplyingAgency);
 	}
 
-	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext context) {
+	private enum HoldOperation {
+		DELETE("CLEAN UP"),
+		CANCEL("CANCEL");
+
+		private final String description;
+
+		HoldOperation(String description) {
+			this.description = description;
+		}
+
+		public String getDescription() {
+			return description;
+		}
+	}
+
+	private Mono<RequestWorkflowContext> handleSupplierHoldOperation(
+		RequestWorkflowContext context,
+		HoldOperation operation) {
 
 		final var supplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
 		final var hostLmsCode = getValueOrNull(supplierRequest, SupplierRequest::getHostLmsCode);
-		final var localRequestId =  getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
+		final var localRequestId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
 
-		log.info("WORKFLOW attempting to cleanup local supplier hold :: {}", supplierRequest);
+		String operationDescription = operation.getDescription();
+		log.info("WORKFLOW attempting to {} local supplier hold :: {}", operationDescription, supplierRequest);
 
 		if (hostLmsCode == null || localRequestId == null) {
-
 			final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
 
-			log.error("WORKFLOW could not cleanup supplier hold :: hostLmsCode={} localRequestId={}", hostLmsCode, localRequestId);
-			final var message = "Delete supplier hold : Skipped";
+			log.error("WORKFLOW could not {} supplier hold :: hostLmsCode={} localRequestId={}",
+				operationDescription, hostLmsCode, localRequestId);
+
+			final var message = operationDescription + " supplier hold : Skipped";
 			final var auditData = new HashMap<String, Object>();
-			auditData.put("WORKFLOW could not cleanup supplier hold because a required value was null", Map.of(
+			auditData.put("WORKFLOW could not " + operationDescription + " supplier hold because a required value was null", Map.of(
 				"hostLmsCode", getValue(hostLmsCode, "No value present"),
 				"localRequestId", getValue(localRequestId, "No value present")
 			));
+
 			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
 				.flatMap(audit -> Mono.just(context));
 		}
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.flatMap(client -> checkHoldExists(client, localRequestId, context))
-			.flatMap(client -> client.deleteHold(localRequestId))
+			.flatMap(client -> {
+				switch (operation) {
+					case DELETE:
+						return client.deleteHold(localRequestId);
+					case CANCEL:
+						// For cancel operation, we need additional parameters
+						final var localItemId = extractFromSupplierReq(context, SupplierRequest::getLocalItemId, "LocalItemId");
+						final var virtualPatronLocalID = extractFromVirtualIdentity(context, PatronIdentity::getLocalId, "VirtualPatronLocalID");
 
-			// Catch any skipped deletions
+						return client.cancelHoldRequest(CancelHoldRequestParameters.builder()
+							.localRequestId(localRequestId)
+							.localItemId(localItemId)
+							.patronId(virtualPatronLocalID)
+							.build());
+					default:
+						return Mono.error(new IllegalArgumentException("Unsupported operation: " + operation));
+				}
+			})
+			// Catch any skipped operations
 			.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
-
 			// Genuine error we didn't account for
 			.onErrorResume(logAndReturnErrorString(context))
 			.thenReturn(context);
+	}
+
+	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext context) {
+		return handleSupplierHoldOperation(context, HoldOperation.DELETE);
+	}
+
+	public Mono<RequestWorkflowContext> cancelHold(RequestWorkflowContext context) {
+		return handleSupplierHoldOperation(context, HoldOperation.CANCEL);
 	}
 
 	private Mono<HostLmsClient> checkHoldExists(

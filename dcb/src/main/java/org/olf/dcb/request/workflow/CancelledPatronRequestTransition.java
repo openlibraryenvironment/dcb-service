@@ -107,7 +107,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 			if (isLocalSupplierRequestCancelled(localRequestStatus)) return Mono.just(ctx);
 
-			return supplyingAgencyService.cleanUp(ctx);
+			return supplyingAgencyService.cancelHold(ctx);
 		};
 	}
 
