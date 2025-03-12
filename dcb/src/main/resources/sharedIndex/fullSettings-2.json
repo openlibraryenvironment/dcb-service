@@ -4,7 +4,7 @@
     "dynamic_templates": [
       {
         "Nothing in selectedBib needs to be indexed": {
-          "path_match": "selectedBib.*",
+          "path_match": "selectedBib",
           "mapping": {
             "enabled": false
           }
