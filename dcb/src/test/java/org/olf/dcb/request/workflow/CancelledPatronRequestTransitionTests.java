@@ -9,21 +9,18 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.*;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.test.*;
-import org.olf.dcb.test.matchers.PatronRequestAuditMatchers;
-import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.*;
@@ -44,7 +41,12 @@ import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasStatusCode;
 @TestInstance(PER_CLASS)
 class CancelledPatronRequestTransitionTests {
 
-	private static final String SUPPLYING_HOST_LMS_CODE = "cancelled-patron-request-tests";
+	private static final String SUPPLYING_HOST_LMS_CODE = "supplier-host-lms";
+	private static final String PICKUP_HOST_LMS_CODE = "pickup-host-lms";
+
+	private static final String PICKUP_AGENCY_CODE = "pickup-agency";
+	private static final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
+	private static final String PICKUP_LOCATION_CODE = "ABC123";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -67,13 +69,20 @@ class CancelledPatronRequestTransitionTests {
 	private CancelledPatronRequestTransition cancelledPatronRequestTransition;
 	@Inject
 	private PatronRequestAuditRepository patronRequestAuditRepository;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private LocationFixture locationFixture;
 
+	private DataAgency pickupAgency;
 	private DataHostLms supplierHostLMS;
+	private DataHostLms pickupHostLMS;
+	private String BASE_URL;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
-		final String BASE_URL = "https://borrowing-agency-service-tests.com";
+		BASE_URL = "https://borrowing-agency-service-tests.com";
 		final String KEY = "borrowing-agency-service-key";
 		final String SECRET = "borrowing-agency-service-secret";
 
@@ -85,6 +94,11 @@ class CancelledPatronRequestTransitionTests {
 
 		supplierHostLMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "title");
+
+		pickupHostLMS = hostLmsFixture.createSierraHostLms(PICKUP_HOST_LMS_CODE, KEY,
+			SECRET, BASE_URL, "title");
+
+		pickupAgency = agencyFixture.defineAgency(PICKUP_AGENCY_CODE, "Pickup Agency", pickupHostLMS);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
@@ -140,7 +154,7 @@ class CancelledPatronRequestTransitionTests {
 	}
 
 	@Test
-	void shouldProgressPatronRequestToCancelledWhenSupplierHoldNotFound() {
+	void shouldProgressPatronRequestToCancelled() {
 		// Arrange
 		final var patron = Patron.builder()
 			.id(randomUUID())
@@ -155,6 +169,7 @@ class CancelledPatronRequestTransitionTests {
 			.patron(patron)
 			.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.localRequestStatus(HOLD_MISSING)
+			.activeWorkflow("RET-STD")
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -174,8 +189,14 @@ class CancelledPatronRequestTransitionTests {
 				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localSupplyingHoldId))
+			.build());
+
+		sierraPatronsAPIFixture.mockDeleteHold(localSupplyingHoldId);
+
 		// Act
-		final var updatedPatronRequest = cancelPatronRequestAtSupplyingAgency(patronRequest);
+		final var updatedPatronRequest = attemptCancelledPatronRequestTransition(patronRequest);
 
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
@@ -183,7 +204,83 @@ class CancelledPatronRequestTransitionTests {
 			hasStatus(CANCELLED)
 		));
 
-		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(localSupplyingHoldId);
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
+	}
+
+	@Test
+	void shouldProgressPatronRequestToCancelledForPickupAnywhereRequests() {
+		// Arrange
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, supplierHostLMS, "007",
+			false, "-", "LOCAL_SYSTEM_CODE", null);
+
+		final var pickupPatronIdentity = patronFixture.saveIdentityAndReturn(patron, pickupHostLMS, "008",
+			false, "-", "LOCAL_SYSTEM_CODE", null);
+
+		final var localPickupHoldId = "87598";
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.localRequestStatus(HOLD_MISSING)
+			.activeWorkflow("RET-PUA")
+			// pickup request info
+			.pickupItemId("4857934")
+			.pickupRequestId(localPickupHoldId)
+			.pickupPatronId(pickupPatronIdentity.getLocalId())
+			.pickupLocationCode(VALID_PICKUP_LOCATION_ID)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		final var localSupplyingHoldId = "5436344";
+
+		supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localStatus(HOLD_CONFIRMED)
+				.localId(localSupplyingHoldId)
+				.localItemId("647375678")
+				.localItemBarcode("26123553")
+				.patronRequest(patronRequest)
+				.statusCode(SupplierRequestStatusCode.PLACED)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualPatronIdentity)
+				.build());
+
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localSupplyingHoldId))
+			.build());
+
+		sierraPatronsAPIFixture.mockGetHoldById(localPickupHoldId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localPickupHoldId))
+			.build());
+
+		sierraPatronsAPIFixture.mockDeleteHold(localSupplyingHoldId);
+		sierraPatronsAPIFixture.mockDeleteHold(localPickupHoldId);
+
+		locationFixture.createPickupLocation(UUID.fromString(VALID_PICKUP_LOCATION_ID),
+			PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, pickupAgency);
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_HOST_LMS_CODE, PICKUP_LOCATION_CODE,
+			PICKUP_AGENCY_CODE);
+
+		// Act
+		final var updatedPatronRequest = attemptCancelledPatronRequestTransition(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(CANCELLED)
+		));
+
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localPickupHoldId);
 	}
 
 	@Test
@@ -229,7 +326,7 @@ class CancelledPatronRequestTransitionTests {
 			.build());
 
 		// Act
-		final var updatedPatronRequest = cancelPatronRequestAtSupplyingAgency(patronRequest);
+		final var updatedPatronRequest = attemptCancelledPatronRequestTransition(patronRequest);
 
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
@@ -285,7 +382,7 @@ class CancelledPatronRequestTransitionTests {
 		sierraPatronsAPIFixture.mockDeleteHoldError(localSupplyingHoldId);
 
 		// Act
-		final var updatedPatronRequest = cancelPatronRequestAtSupplyingAgency(patronRequest);
+		final var updatedPatronRequest = attemptCancelledPatronRequestTransition(patronRequest);
 
 		// Assert
 		assertThat(updatedPatronRequest, allOf(
@@ -304,7 +401,7 @@ class CancelledPatronRequestTransitionTests {
 		assertThat(auditList, hasSize(1));
 	}
 
-	private PatronRequest cancelPatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
+	private PatronRequest attemptCancelledPatronRequestTransition(PatronRequest patronRequest) {
 		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(ctx -> {
 				if (!cancelledPatronRequestTransition.isApplicableFor(ctx)) {

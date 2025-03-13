@@ -4,7 +4,6 @@ import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -15,16 +14,14 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.PickupAgencyService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
-import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.SupplierRequestRepository;
 
 import io.micronaut.context.BeanProvider;
@@ -51,18 +48,21 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	private final HostLmsService hostLmsService;
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplyingAgencyService supplyingAgencyService;
+	private final PickupAgencyService pickupAgencyService;
 
 	public CancelledPatronRequestTransition(
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		PatronRequestAuditService patronRequestAuditService,
 		HostLmsService hostLmsService,
 		SupplierRequestRepository supplierRequestRepository,
-		SupplyingAgencyService supplyingAgencyService) {
+		SupplyingAgencyService supplyingAgencyService,
+		PickupAgencyService pickupAgencyService) {
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
+		this.pickupAgencyService = pickupAgencyService;
 	}
 
 	@Override
@@ -85,6 +85,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 		return auditConditionMet(ctx)
 			.flatMap( cancelSupplierRequest() )
+			.flatMap( cancelPickupRequest() )
 			.flatMap( updatePatronRequestStatus() )
 			.flatMap( verifySupplierCancellation() );
 	}
@@ -105,9 +106,39 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 			final var localRequestStatus = extractFromSupplierReq(ctx, SupplierRequest::getLocalStatus, "LocalStatus");
 
-			if (isLocalSupplierRequestCancelled(localRequestStatus)) return Mono.just(ctx);
+			if (isRequestCancelled(localRequestStatus)) return Mono.just(ctx);
 
 			return supplyingAgencyService.cancelHold(ctx);
+		};
+	}
+
+	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> cancelPickupRequest() {
+		return ctx -> {
+			log.debug("cancelPickupRequest");
+
+			final var patronRequest = ctx.getPatronRequest();
+			final var activeWorkflow = patronRequest.getActiveWorkflow();
+
+			// we may not need to cancel the pickup system request
+			// we assume there is a pickup request if the active workflow is pickup anywhere
+			if (!"RET-PUA".equals(activeWorkflow)) {
+
+				log.debug("cancelPickupRequest not needed for active workflow");
+
+				return Mono.just(ctx);
+			}
+
+			final var pickupRequestStatus = patronRequest.getPickupRequestStatus();
+
+			// tracking may have already picked up the request was cancelled at the pickup system
+			if (isRequestCancelled(pickupRequestStatus)) {
+				log.warn("cancelPickupRequest pickup request already cancelled");
+
+				return Mono.just(ctx);
+			}
+
+			return pickupAgencyService.cancelHoldIfPresent(ctx)
+				.thenReturn(ctx);
 		};
 	}
 
@@ -151,7 +182,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 		return request -> {
 
-			final var isCancelled = isLocalSupplierRequestCancelled(request.getStatus());
+			final var isCancelled = isRequestCancelled(request.getStatus());
 			var auditData = new HashMap<String, Object>();
 
 			auditData.put("is-local-supplier-request-cancelled", isCancelled);
@@ -188,7 +219,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		};
 	}
 
-	private static Boolean isLocalSupplierRequestCancelled(String status) {
+	private static Boolean isRequestCancelled(String status) {
 		return HOLD_CANCELLED.equals(status) || HOLD_MISSING.equals(status);
 	}
 

@@ -49,7 +49,7 @@ public class PickupAgencyService {
 
 	private Mono<String> deleteHoldIfPresent(HostLmsClient client, PatronRequest patronRequest) {
 
-		return checkHoldExists(client, patronRequest)
+		return checkHoldExists(client, patronRequest, "Delete")
 			.flatMap(client::deleteHold)
 			// Catch any skipped deletions
 			.switchIfEmpty(Mono.defer(() -> Mono.just("OK")));
@@ -141,7 +141,7 @@ public class PickupAgencyService {
     }
   }
 
-	private Mono<String> checkHoldExists(HostLmsClient client, PatronRequest patronRequest) {
+	private Mono<String> checkHoldExists(HostLmsClient client, PatronRequest patronRequest, String operation) {
 
 		final var pickupRequestId = patronRequest.getPickupRequestId();
 
@@ -151,12 +151,12 @@ public class PickupAgencyService {
 				// if the hold exists a local id will be present
 				if (hostLmsRequest != null && hostLmsRequest.getLocalId() != null) {
 
-					// return the pickupRequestId to proceed with deletion
+					// return the pickupRequestId to proceed with operation
 					return Mono.just(pickupRequestId);
 				}
 
-				// no local id to delete, skip delete by passing back an empty
-				final var message = "Delete pickup hold : Skipped";
+				// no local id, skip operation by passing back an empty
+				final var message = operation + " pickup hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditData.put("hold", hostLmsRequest);
 				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
@@ -164,7 +164,7 @@ public class PickupAgencyService {
 			.onErrorResume(error -> {
 
 				// we encountered an error when confirming the hold exists
-				final var message = "Delete pickup hold : Skipped";
+				final var message = operation + " pickup hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditThrowable(auditData, "Throwable", error);
 				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
@@ -185,8 +185,25 @@ public class PickupAgencyService {
 
 		final var pickupSystem = requestWorkflowContext.getPickupSystem();
 		final var patronRequest = requestWorkflowContext.getPatronRequest();
-		final var pickupIdentityId = patronRequest.getPickupPatronId();
+		final var pickupPatronId = patronRequest.getPickupPatronId();
 
-		return pickupSystem.getPatronByLocalId(pickupIdentityId);
+		return pickupSystem.getPatronByLocalId(pickupPatronId);
+	}
+
+	public Mono<String> cancelHoldIfPresent(RequestWorkflowContext requestWorkflowContext) {
+
+		final var pickupSystem = requestWorkflowContext.getPickupSystem();
+		final var patronRequest = requestWorkflowContext.getPatronRequest();
+		final var pickupItemId = patronRequest.getPickupItemId();
+		final var pickupPatronId = patronRequest.getPickupPatronId();
+
+		return checkHoldExists(pickupSystem, patronRequest, "CANCEL")
+			.flatMap(pickupRequestId -> pickupSystem.cancelHoldRequest(CancelHoldRequestParameters.builder()
+				.localRequestId(pickupRequestId)
+				.localItemId(pickupItemId)
+				.patronId(pickupPatronId)
+				.build()))
+			// Catch any skipped cancellations
+			.switchIfEmpty(Mono.defer(() -> Mono.just("Ok")));
 	}
 }
