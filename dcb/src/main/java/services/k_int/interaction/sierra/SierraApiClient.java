@@ -97,7 +97,7 @@ public interface SierraApiClient extends BasicAuthClient {
 	Publisher<SierraItem> getItem(final String itemId);
 
 	@SingleResult
-	Publisher<SierraItem> getItem(final String itemId, @Nullable final Iterable<String> fields);
+	Publisher<SierraItem> getItem(final String itemId, @Nullable final String fields);
 
 	@SingleResult
 	Publisher<LinkResult> patrons(final PatronPatch patronPatch);
