@@ -1,5 +1,25 @@
 # Changelog
 
+## Version 8.18.0
+
+### Additions
+* [General]
+	* extend patron cancellation for 3-legged transactions [DCB-1689]
+	* Detect holds at owning libraries and ask borrowing system to prevent renewals. DCB-1533 DCB-1846
+
+### Changes
+* [Chore]
+	* set the latest index version back to 2
+	* Updated the mappings, so "selectedBib.*" became "selectedBib" as enabled can only be at the object and it causes a problem for the ICU analyzer
+* [Refactor]
+	* combine similar supplying agency operations for deleting and cancelling hold [DCB-1689]
+
+### Fixes
+* [General]
+	* dcb-1852 - the mn client converts List<String> parameters to a string with spaces after the comma. This confuses sierra
+	* Ensure that pickupLibrary is populated when called from SupplyingAgencyService
+	* CancelledPatronRequestTransition error when no supplier hold exists to cancel
+
 ## Version 8.17.0
 
 ### Additions
@@ -8,6 +28,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add methods for modelling tracking and implementation of renewal prevention
 	* WIP towards supplier side holds
 	* PageSize to 100
