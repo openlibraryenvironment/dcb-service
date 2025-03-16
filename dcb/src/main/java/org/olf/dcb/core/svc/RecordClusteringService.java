@@ -113,6 +113,21 @@ public class RecordClusteringService {
 
 		return value;
 	}
+
+	private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ISBN-N", "ISSN-N", "ISBN", "ISSN", "LCCN", "OCOLC", "STRN" );
+
+	// Whilst a bib can have many identifiers, some are "Local" and not useful to the clustering process here
+	// we restrict the identifiers used for clustering to keep the match set as small as possible.
+	private boolean usableForClusteringIdentifiersPredicate ( BibIdentifier bibId ) {
+
+		boolean include = usefulClusteringIdentifiers.contains( bibId.getNamespace().toUpperCase() );
+
+		if ( !include )
+			log.atInfo().log("Local identifier discarded for clustering: {}:{}",bibId.getNamespace(),bibId.getValue());
+
+		return include;
+	}
+
 	
 
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -304,6 +319,7 @@ public class RecordClusteringService {
 	public Flux<MatchPoint> generateIdMatchPoints( BibRecord bib ) {
 		return bibRecords.findAllIdentifiersForBib( bib )
 				.filter( this::completeIdentifiersPredicate )
+				.filter( this::usableForClusteringIdentifiersPredicate )
 				.map( id -> {
 					String s = String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue());
 					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace(), isDevelopment);
