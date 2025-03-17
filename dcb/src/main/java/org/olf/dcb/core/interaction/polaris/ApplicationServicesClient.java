@@ -959,6 +959,28 @@ class ApplicationServicesClient {
 			: "No information messages available.");
 	}
 
+
+  public Mono<GetItemHoldsResponse> getReservationsForItem(Integer id) {
+    log.info("Getting reservations for item: {}", id);
+
+    final var path = createPath("itemrecords", id, "holds");
+
+    return createRequest(GET, path, uri -> {})
+      .flatMap(request -> client.exchange(request, GetItemHoldsResponse.class, FALSE))
+      .map(HttpResponse::body)
+      .onErrorResume(error -> {
+        log.error(client.getHostLmsCode() + " " + path, error);
+
+        if ((error instanceof HttpClientResponseException) &&
+          (((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+          return Mono.empty();
+        } else {
+          return raiseError(error);
+        }
+      });
+	}
+
+
 	@Builder
 	@Data
 	@AllArgsConstructor
@@ -2035,5 +2057,75 @@ class ApplicationServicesClient {
 		private Integer innReachType;
 		@JsonProperty("MARCTOMIDDescription")
 		private String marcTomIdDescription;
+	}
+
+  @Builder
+  @Data
+  @AllArgsConstructor
+  @Serdeable
+  static class GetItemHoldsResponse {
+    @JsonProperty("PitID")
+		private String pitID;
+    @JsonProperty("TotalCount")
+		private Integer totalCount;
+    @JsonProperty("Offset")
+		private Integer offset;
+    @JsonProperty("Reservations")
+		private List<ItemReservationRecord> reservations;
+	}
+
+  @Builder
+  @Data
+  @AllArgsConstructor
+  @Serdeable
+  static class ItemReservationRecord {
+    @JsonProperty("PatronID")
+		private Integer patronId;
+    @JsonProperty("BibliographicRecordID")
+		private Integer bibliographicRecordID;
+    @JsonProperty("SysHoldRequestID")
+		private Integer sysHoldRequestID;
+    @JsonProperty("IssueID")
+		private Integer issueId;
+    @JsonProperty("ItemBarcode")
+		private String itemBarcode;
+    @JsonProperty("CreationDate")
+		private String creationDate;
+    @JsonProperty("ExpirationDate")
+		private String expirationDate;
+    @JsonProperty("LastStatusTransitionDate")
+		private String lastStatusTransitionDate;
+    @JsonProperty("HoldTilDate")
+		private String holdTilDate;
+    @JsonProperty("PickupLocationCode")
+		private String pickupLocationCode;
+    @JsonProperty("PickupLocationName")
+		private String pickupLocationName;
+    @JsonProperty("StaffDisplayNotes")
+		private String staffDisplayNotes;
+    @JsonProperty("ItemStatusID")
+		private String itemStatusID;
+    @JsonProperty("ShelvingBit")
+		private Boolean shelvingBit;
+    @JsonProperty("NonCirculating")
+		private Boolean nonCirculating;
+    @JsonProperty("CheckInDate")
+		private String checkInDate;
+    @JsonProperty("LastCheckOutRenewDate")
+		private String lastCheckOutRenewDate;
+    @JsonProperty("InTransitSentDate")
+		private String inTransitSentDate;
+    @JsonProperty("InTransitRecvdDate")
+		private String inTransitRecvdDate;
+    @JsonProperty("LastCircTransactionDate")
+		private String lastCircTransactionDate;
+    @JsonProperty("ItemStatusDate")
+		private String itemStatusDate;
+    @JsonProperty("AssignedCollectionID")
+		private Integer assignedCollectionID;
+    @JsonProperty("DueDate")
+		private String dueDate;
+    @JsonProperty("VolumeName")
+		private String volumeName;
 	}
 }

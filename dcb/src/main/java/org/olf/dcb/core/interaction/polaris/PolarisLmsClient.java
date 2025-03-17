@@ -768,17 +768,28 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.rawStatus(itemRecord.getItemStatusName())
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
-					// We need to implement a call to GET /api/.../itemrecords/{id}/holds
-					// https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/itemrecords/get_item_holds
-					.holdCount(null)
 					.build();
 			})
+			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem )
 			.defaultIfEmpty(HostLmsItem.builder()
 				.localId(localItemId)
 				.status("MISSING")
 				.build());
 	}
 
+	// Make calls to get any holds on the item, or on the title, and set holdCount
+	private Mono<HostLmsItem> enrichWithCombinedNumberOfHoldsOnItem(HostLmsItem item) {
+		// We need to implement a call to GET /api/.../itemrecords/{id}/holds
+		// https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/itemrecords/get_item_holds
+		return ApplicationServices.getReservationsForItem(Integer.valueOf(item.getLocalId()))
+			.map(getItemHoldsResponse -> {
+				if ( ( getItemHoldsResponse != null ) && ( getItemHoldsResponse.getReservations() != null ) ) {
+					item.setHoldCount(Integer.valueOf(getItemHoldsResponse.getReservations().size()));
+				}
+				return item;
+			})
+			.defaultIfEmpty(item);
+	}
 
 	private Mono<String> parseLocalItemId(String localItemId) {
 		if (localItemId == null) {
