@@ -475,7 +475,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 
 		return createPatronAtPickupAgency(patronRequest, client, requestingIdentity, hostLmsCode)
 			.flatMap(function((localId, patronType) -> checkForPatronIdentity(patronRequest, hostLmsCode, localId, patronType, requestingIdentity.getLocalBarcode())))
-			.flatMap( auditPickupPatron(patronRequest, "Virtual patron : created") );
+			.flatMap( auditPickupPatron(patronRequest, "Pickup patron : created") );
 	}
 
 	private Mono<Tuple2<String, String>> createPatronAtPickupAgency(
