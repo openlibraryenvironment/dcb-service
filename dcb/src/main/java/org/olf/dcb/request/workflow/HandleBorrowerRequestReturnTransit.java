@@ -48,15 +48,20 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 		//final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
 
 		return isPatronRequestStatusApplicable(patronRequest) &&
-			( isPatronRequestLocalItemStatusApplicable(patronRequest) );
+			( isLocalItemStatusApplicable(patronRequest) || isPickupItemStatusApplicable(patronRequest) );
 	}
 
 	private boolean isPatronRequestStatusApplicable(PatronRequest patronRequest) {
 		return getPossibleSourceStatus().contains(patronRequest.getStatus());
 	}
 
-	private boolean isPatronRequestLocalItemStatusApplicable(PatronRequest patronRequest) {
+	private boolean isLocalItemStatusApplicable(PatronRequest patronRequest) {
 		return getPossibleLocalItemStatus().contains(patronRequest.getLocalItemStatus());
+	}
+
+	private boolean isPickupItemStatusApplicable(PatronRequest patronRequest) {
+		return patronRequest.getPickupItemStatus() != null
+			&& getPossibleLocalItemStatus().contains(patronRequest.getPickupItemStatus());
 	}
 
 	private boolean isSupplierLocalItemStatusApplicable(SupplierRequest supplierRequest) {
