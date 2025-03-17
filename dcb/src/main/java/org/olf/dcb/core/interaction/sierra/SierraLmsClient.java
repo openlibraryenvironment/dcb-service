@@ -73,6 +73,7 @@ import static java.lang.Integer.parseInt;
 import static java.util.Calendar.YEAR;
 import static java.util.Objects.nonNull;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.*;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.*;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
@@ -1726,11 +1727,30 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
+	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkout) {
+
+		final var itemId = checkout.getItemId();
+		final var localRequestId = checkout.getLocalRequestId();
+		final var patronBarcode = checkout.getPatronBarcode();
+
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 
-		// Sierra checkout operation uses patron barcode and item barcode
-		return Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode, getVirtualPatronPin(getConfig())))
+		return updateItemStatus(itemId, AVAILABLE, localRequestId)
+			.flatMap(ok -> {
+
+				final var itemBarcode = getValueOrNull(checkout, CheckoutItemCommand::getItemBarcode);
+
+				if (itemBarcode != null) {
+					log.info("checkOutItemToPatron: Item barcode already known '{}'", itemBarcode);
+
+					return Mono.just(itemBarcode);
+				}
+
+				log.debug("checkOutItemToPatron: Item barcode not known");
+				return getItem(itemId, localRequestId).map(HostLmsItem::getBarcode);
+			})
+			// Sierra checkout operation uses patron barcode and item barcode
+			.flatMap(itemBarcode -> Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode, getVirtualPatronPin(getConfig()))))
 			.thenReturn("OK")
 			.switchIfEmpty(Mono.error(() ->
 				new RuntimeException("Check out of " + itemId + " to " + patronBarcode + " at " + lms.getCode() + " failed")));

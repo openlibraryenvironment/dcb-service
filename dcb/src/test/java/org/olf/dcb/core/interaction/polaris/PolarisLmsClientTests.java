@@ -879,6 +879,14 @@ class PolarisLmsClientTests {
 		final var localPatronId = "3424738";
 		final var localPatronBarcode = "0077777777";
 
+		// update item status to available
+		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetItem(localItemId);
+		mockPolarisFixture.mockStartWorkflow("item-workflow-response.json");
+		mockPolarisFixture.mockContinueWorkflow("0e4c9e68-785e-4a1e-9417-f9bd245cc147",
+			"create-item-resp.json");
+
+		// checkout
 		mockPolarisFixture.mockGetPatronBarcode(localPatronId, localPatronBarcode);
 		mockPolarisFixture.mockGetItemBarcode(localItemId, "126448190");
 		mockPolarisFixture.mockCheckoutItemToPatron(localPatronBarcode);
@@ -886,8 +894,13 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var response = singleValueFrom(client
-			.checkOutItemToPatron(localItemId, null, localPatronId, localPatronBarcode, null));
+		final var command = CheckoutItemCommand.builder()
+			.itemId(localItemId)
+			.patronId(localPatronId)
+			.patronBarcode(localPatronBarcode)
+			.build();
+
+		final var response = singleValueFrom(client.checkOutItemToPatron(command));
 
 		// Assert
 		assertThat(response, is(notNullValue()));

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -43,6 +44,7 @@ class SierraHostLmsClientPatronTests {
 	private AgencyFixture agencyFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
+	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mockServerClient) {
@@ -55,6 +57,7 @@ class SierraHostLmsClientPatronTests {
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
 		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
 
@@ -116,14 +119,23 @@ class SierraHostLmsClientPatronTests {
 	@SneakyThrows
 	void shouldNotPassPinWhenThereIsNoConfigValueSetUponCheckout() {
 		// Arrange
+		final var itemId = "46345345";
 		final var patronBarcode = "5472792742";
 		final var itemBarcode = "247389084";
 
+		sierraItemsAPIFixture.mockUpdateItem(itemId);
 		sierraPatronsAPIFixture.checkOutItemToPatron(itemBarcode, patronBarcode);
 
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-		final var checkout = singleValueFrom(client.checkOutItemToPatron(null, itemBarcode, null, patronBarcode, null));
+
+		final var command = CheckoutItemCommand.builder()
+			.itemId(itemId)
+			.itemBarcode(itemBarcode)
+			.patronBarcode(patronBarcode)
+			.build();
+
+		final var checkout = singleValueFrom(client.checkOutItemToPatron(command));
 
 		// Assert
 		assertThat(checkout, allOf(
