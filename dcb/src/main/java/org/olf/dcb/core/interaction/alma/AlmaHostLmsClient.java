@@ -1,59 +1,41 @@
 package org.olf.dcb.core.interaction.alma;
 
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static services.k_int.utils.ReactorUtils.raiseError;
+
+import java.net.URI;
+import java.util.List;
+
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
+
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.client.exceptions.ResponseClosedException;
-import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.retry.annotation.Retryable;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Builder;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
-import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.net.URI;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.function.Function;
-
-import static io.micronaut.core.type.Argument.VOID;
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static io.micronaut.http.HttpMethod.*;
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsItem.*;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsRequest.*;
-import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.ReactorUtils.raiseError;
-import static services.k_int.utils.StringUtils.parseList;
-import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 @Slf4j
 @Prototype
@@ -287,7 +269,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
+	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
 		return Mono.empty();
 	}
 
