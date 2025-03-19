@@ -1,5 +1,27 @@
 # Changelog
 
+## Version 8.19.0
+
+### Additions
+* [General]
+	* Update FOLIO transaction during re-resolution DCB-1832
+	* extend HandleBorrowerSkippedLoanTransit for 3-legged transactions [DCB-1853]
+	* extend RETURN_TRANSIT for 3-legged transactions [DCB-1687]
+	* extend BorrowerRequestLoaned for 3 legged transactions [DCB-1685]
+	* Populate holdCount for getItem in polaris
+
+### Changes
+* [Chore]
+	* merge
+	* Groundwork for alma adapter
+	* correct audit message [DCB-1534]
+	* Additional filtering of match points
+
+### Fixes
+* [General]
+	* add REQUEST_PLACED_AT_PICKUP_AGENCY to possible source statuses [DCB-1683]
+	* add REQUEST_PLACED_AT_PICKUP_AGENCY to possible source statuses [DCB-1682]
+
 ## Version 8.18.0
 
 ### Additions
@@ -9,6 +31,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* set the latest index version back to 2
 	* Updated the mappings, so "selectedBib.*" became "selectedBib" as enabled can only be at the object and it causes a problem for the ICU analyzer
 * [Refactor]
