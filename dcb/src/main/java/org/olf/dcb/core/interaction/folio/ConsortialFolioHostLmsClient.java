@@ -1,5 +1,75 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static io.micronaut.core.type.Argument.VOID;
+import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isEmpty;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
+import static services.k_int.utils.ReactorUtils.raiseError;
+import static services.k_int.utils.StringUtils.parseList;
+import static services.k_int.utils.UUIDUtils.dnsUUID;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+
+import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.FailedToGetItemsException;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.model.Agency;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Library;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.NoHomeBarcodeException;
+import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
+
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
@@ -17,44 +87,10 @@ import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Data;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
-import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.net.URI;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.function.Function;
-
-import static io.micronaut.core.type.Argument.VOID;
-import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isEmpty;
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static io.micronaut.http.HttpMethod.*;
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsItem.*;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsRequest.*;
-import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.ReactorUtils.raiseError;
-import static services.k_int.utils.StringUtils.parseList;
-import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 @Slf4j
 @Prototype
@@ -680,17 +716,33 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	@SneakyThrows
 	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
-		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
-		return null;
-	}
+		final var localRequestId = getValueOrThrow(localRequest, LocalRequest::getLocalId,
+			() -> new MissingParameterException("local ID"));
 
-	@Override
-	public Mono<Boolean> isReResolutionSupported() {
+		final var requestedItemBarcode = getValueOrThrow(localRequest,
+			LocalRequest::getRequestedItemBarcode, () -> new MissingParameterException("requested item barcode"));
 
-		log.warn("Re-resolution is not currently supported for {}", getHostLms().getName());
+		final var canonicalItemType = getValueOrThrow(localRequest, LocalRequest::getCanonicalItemType,
+			() -> new MissingParameterException("canonical item type"));
 
-		return Mono.just(false);
+		final var supplyingAgencyCode = getValueOrThrow(localRequest, LocalRequest::getSupplyingAgencyCode,
+			() -> new MissingParameterException("supplying agency code"));
+
+		final var path = "/dcbService/transactions/%s".formatted(localRequestId);
+
+		return findLocalItemType(canonicalItemType)
+			.map(localItemType -> authorisedRequest(PUT, path)
+			.body(UpdateTransactionRequest.builder()
+				.item(UpdateTransactionRequest.Item.builder()
+					.barcode(requestedItemBarcode)
+					.materialType(localItemType)
+					.lendingLibraryCode(supplyingAgencyCode)
+					.build())
+				.build()))
+			.flatMap(this::makeRequest)
+			.thenReturn(localRequest);
 	}
 
 	@Override
@@ -982,11 +1034,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		log.trace("Making request: {} to Host LMS: {}", toLogOutput(request), getHostLmsCode());
 
 		return Mono.from(httpClient.retrieve(request, responseBodyType))
-			.doOnSuccess(response -> log.trace(
-				"Received response: {} from Host LMS: {}", response, getHostLmsCode()))
-			.doOnError(HttpClientResponseException.class,
-				error -> log.trace("Received error response: {} from Host LMS: {}",
-					toLogOutput(error.getResponse()), getHostLmsCode()))
+			.doOnSuccess(this::logResponse)
+			.doOnError(HttpClientResponseException.class, this::logErrorResponse)
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
 			// Additional request specific error handling
 			.transform(errorHandlingTransformer)
@@ -994,6 +1043,25 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// as will convert any client response exception to a problem
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+	}
+
+	/**
+	 * Make HTTP request to a FOLIO system, without expecting a response body
+	 *
+	 * @param request Request to send
+	 * @return Mono with no value (as no response body was present) or error
+	 * @param <TRequest> Type of the request body
+	 */
+	@Retryable(attempts="1", includes = ResponseClosedException.class)
+	public <TRequest> Mono<Void> makeRequest(
+		@NonNull MutableHttpRequest<TRequest> request) {
+		return Mono.from(httpClient.exchange(request))
+			.doOnSuccess(this::logResponse)
+			.doOnError(HttpClientResponseException.class, this::logErrorResponse)
+			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
+			.onErrorMap(HttpClientResponseException.class, responseException ->
+				unexpectedResponseProblem(responseException, request, getHostLmsCode()))
+			.then();
 	}
 
 	/**
@@ -1019,6 +1087,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private URI resolve(URI relativeURI) {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
+	}
+
+	private void logErrorResponse(HttpClientResponseException error) {
+		log.trace("Received error response: {} from Host LMS: {}",
+			toLogOutput(error.getResponse()), getHostLmsCode());
+	}
+
+	private <T> void logResponse(T response) {
+		log.trace("Received response: {} from Host LMS: {}", response, getHostLmsCode());
 	}
 
 	public Mono<Boolean> supplierPreflight(String borrowingAgencyCode,
@@ -1067,6 +1144,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		String error;
 		String path;
 		String timestamp;
+	}
+
+	@Serdeable
+	static class NoResponseBody {
+
 	}
 
 	@Override

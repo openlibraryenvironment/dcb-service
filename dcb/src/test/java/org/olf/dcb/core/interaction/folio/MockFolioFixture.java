@@ -4,6 +4,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.never;
 import static org.mockserver.verify.VerificationTimes.once;
 
 import java.util.List;
@@ -136,6 +137,31 @@ public class MockFolioFixture {
 			.when(authorizedRequest("GET")
 				.withPath("/dcbService/transactions/%s/status".formatted(transactionId)))
 			.respond(response);
+	}
+
+	public void mockUpdateTransaction(String transactionId) {
+		mockUpdateTransaction(transactionId, response().withStatusCode(204));
+	}
+
+	public void mockUpdateTransaction(String transactionId, HttpResponse response) {
+		mockServerClient.when(updateTransactionRequest(transactionId))
+			.respond(response);
+	}
+
+	public void verifyUpdateTransaction(String transactionId,
+		UpdateTransactionRequest expectedRequest) {
+
+		mockServerClient.verify(updateTransactionRequest(transactionId)
+			.withBody(json(expectedRequest)), once());
+	}
+
+	public void verifyNoUpdateTransaction(String transactionId) {
+		mockServerClient.verify(updateTransactionRequest(transactionId), never());
+	}
+
+	private HttpRequest updateTransactionRequest(String transactionId) {
+		return authorizedRequest("PUT")
+			.withPath("/dcbService/transactions/%s".formatted(transactionId));
 	}
 
 	private HttpRequest authorizedRequest(String method) {

@@ -8,7 +8,6 @@ import java.util.UUID;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
-import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
@@ -130,6 +129,13 @@ public class ReferenceValueMappingFixture {
 				.toValue(canonicalItemType)
 				.reciprocal(true)
 				.build()));
+	}
+
+	public void defineCanonicalToLocalItemTypeMapping(String toContext,
+		String canonicalItemType, String localItemType) {
+
+		defineMapping("DCB", "ItemType", canonicalItemType,
+			toContext, "ItemType", localItemType);
 	}
 
 	private void saveReferenceValueMapping(ReferenceValueMapping mapping) {
