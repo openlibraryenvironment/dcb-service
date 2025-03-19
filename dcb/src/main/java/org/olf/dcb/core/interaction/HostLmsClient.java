@@ -33,6 +33,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 		AVAILABLE, TRANSIT, OFFSITE, RECEIVED, MISSING, ONHOLDSHELF, COMPLETED;
 
 	}
+
 	HostLms getHostLms();
 
 	default String getHostLmsCode() {
@@ -74,6 +75,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters);
 
+	/** ToDo: II: The next 2 methods don't feel like they belong here */
 	Mono<String> findLocalPatronType(String canonicalPatronType);
 
 	Mono<String> findCanonicalPatronType(String localPatronType, String localId);
