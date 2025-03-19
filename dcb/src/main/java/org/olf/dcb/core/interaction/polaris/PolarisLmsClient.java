@@ -246,11 +246,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.build());
 	}
 
-	@Override
-	public Mono<Boolean> isReResolutionSupported() {
-		return Mono.just(true);
-	}
-
 	private String borrowerlendingFlow() {
 		return polarisConfig.getBorrowerLendingFlow();
 	}

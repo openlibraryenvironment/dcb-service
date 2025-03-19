@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
@@ -17,9 +18,7 @@ import java.util.Optional;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.FunctionalSetting;
-import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -83,7 +82,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
-		return isReResolutionRequired(context)
+		return isReResolutionRequired()
 			.flatMap(isRequired -> {
 				log.info("Re-resolution required: {}", isRequired);
 
@@ -104,36 +103,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	// Method to check if re-resolution conditions are met
-	private Mono<Boolean> isReResolutionRequired(RequestWorkflowContext context) {
-		return Mono.zip(
-			getConsortiumReResolutionPolicy(context),
-			getSupportedLmsForReResolution(context),
-			(isConsortiumSupported, isLmsSupported) -> isConsortiumSupported && isLmsSupported
-		);
-	}
-
-	private Mono<Boolean> getSupportedLmsForReResolution(RequestWorkflowContext context) {
-
-		final var patronSystemCode = Optional.ofNullable(context)
-			.map(RequestWorkflowContext::getPatronRequest)
-			.map(PatronRequest::getPatronHostlmsCode)
-			.orElse(null);
-
-		if (patronSystemCode == null) {
-			log.warn("Patron system code is null");
-
-			return Mono.just(false)
-				.doOnSuccess(supported -> log.debug("Re-resolution LMS supported: {}", supported));
-		}
-
-		return hostLmsService.getClientFor(patronSystemCode)
-			.flatMap(HostLmsClient::isReResolutionSupported)
-			.map(isSupported -> isSupported != null && isSupported)
-			.doOnSuccess(supported -> log.debug("Re-resolution LMS supported: {}", supported));
-	}
-
-	private Mono<Boolean> getConsortiumReResolutionPolicy(RequestWorkflowContext context) {
-		return consortiumService.findOneConsortiumFunctionalSetting(FunctionalSettingType.RE_RESOLUTION)
+	private Mono<Boolean> isReResolutionRequired() {
+		return consortiumService.findOneConsortiumFunctionalSetting(RE_RESOLUTION)
 			.map(FunctionalSetting::isEnabled)
 			.defaultIfEmpty(false)
 			.doOnSuccess(enabled -> log.debug("Re-resolution consortium policy enabled: {}", enabled));

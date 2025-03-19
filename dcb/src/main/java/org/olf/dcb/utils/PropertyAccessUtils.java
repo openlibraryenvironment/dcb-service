@@ -4,6 +4,7 @@ import static java.util.function.Function.identity;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class PropertyAccessUtils {
 	public static <T, R> R getValue(T nullableObject, Function<T, R> accessor, R defaultValue) {
@@ -31,5 +32,17 @@ public class PropertyAccessUtils {
 		Function<R, S> mapper) {
 
 		return getValue(nullableObject, accessor, mapper, (S)null);
+	}
+
+	public static <T, R> R getValueOrThrow(T nullableObject, Function<T, R> accessor,
+		Supplier<RuntimeException> errorToThrow) {
+
+		final var valueOrNull = getValueOrNull(nullableObject, accessor);
+
+		if (valueOrNull == null) {
+			throw errorToThrow.get();
+		}
+
+		return valueOrNull;
 	}
 }

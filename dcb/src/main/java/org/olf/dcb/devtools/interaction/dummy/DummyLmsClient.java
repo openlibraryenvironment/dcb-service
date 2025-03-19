@@ -84,12 +84,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return null;
 	}
 
-	@Override
-	public Mono<Boolean> isReResolutionSupported() {
-		return Mono.just(false);
-	}
-
-	@Override
+    @Override
 	public HostLms getHostLms() {
 		return lms;
 	}

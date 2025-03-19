@@ -161,33 +161,6 @@ class ResolveNextSupplierTransitionTests {
 			"Previously Supplying Agency", previouslySupplyingHostLms);
 	}
 
-	@Test
-	void shouldCancelLocalBorrowingRequestWhenReResolutionIsNotSupported() {
-		// Arrange
-		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
-
-		final var borrowingLocalRequestId = "3635625";
-
-		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
-			borrowingLocalRequestId);
-
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
-
-		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
-
-		// Act
-		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
-
-		// Assert
-		assertThat(updatedPatronRequest, allOf(
-			notNullValue(),
-			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
-			hasNoResolutionCount()
-		));
-
-		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
-	}
-
 	@ParameterizedTest
 	@ValueSource(strings = {HOLD_MISSING, HOLD_CANCELLED})
 	void shouldNotCancelBorrowingRequestWhenMissingOrCancelled(String localRequestStatus) {
@@ -264,7 +237,11 @@ class ResolveNextSupplierTransitionTests {
 	@Test
 	void shouldNotApplyWhenItemHasBeenDispatchedForPickup() {
 		// Arrange
-		final var patronRequest = definePatronRequest(PICKUP_TRANSIT, "3635625");
+		final var sourceRecordId = "165452";
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
+
+		final var patronRequest = definePatronRequest(PICKUP_TRANSIT, "3635625",
+			clusterRecordId);
 
 		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
 
@@ -279,7 +256,11 @@ class ResolveNextSupplierTransitionTests {
 	@Test
 	void shouldTolerateNullPatronRequestStatus() {
 		// Arrange
-		final var patronRequest = definePatronRequest(null, "3635625");
+		final var sourceRecordId = "6775354";
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
+
+		final var patronRequest = definePatronRequest(null, "3635625",
+			clusterRecordId);
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
@@ -326,12 +307,11 @@ class ResolveNextSupplierTransitionTests {
 	void shouldSelectNewSupplierWhenAnItemFromDifferentSupplierIsSelectable() {
 		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
-		final var clusterRecordId = randomUUID();
 		final var sourceRecordId = "798472";
-		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
 
 		final var borrowingLocalRequestId = "3635625";
-		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
 
 		final var supplierRequest = saveSupplierRequest(patronRequest,
@@ -392,12 +372,12 @@ class ResolveNextSupplierTransitionTests {
 	void shouldExcludeItemsFromSameAgencyAsPreviouslySupplied() {
 		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
-		final var clusterRecordId = randomUUID();
 		final var sourceRecordId = "236455";
-		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
+
 		final var borrowingLocalRequestId = "9873653";
 
-		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
 
 		saveSupplierRequest(patronRequest, supplyingHostLms.getCode(), previouslySupplyingAgency);
@@ -439,13 +419,14 @@ class ResolveNextSupplierTransitionTests {
 	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution() {
 		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
 
-		final var clusterRecordId = randomUUID();
 		final var sourceRecordId = "798475";
-		defineClusterRecordWithSingleBib(clusterRecordId, sourceRecordId);
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
+
 		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
 		final var borrowingLocalRequestId = "3635625";
-		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
+
 		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode(),
 			previouslySupplyingAgency);
 
@@ -500,7 +481,7 @@ class ResolveNextSupplierTransitionTests {
 
 		final var clusterRecordId = randomUUID();
 		final var borrowingLocalRequestId = "3635625";
-		final var patronRequest = defineReResolutionPatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
 
 		// Act
@@ -532,26 +513,7 @@ class ResolveNextSupplierTransitionTests {
 				.map(ctx -> resolveNextSupplierTransition.isApplicableFor(ctx)));
 	}
 
-	private PatronRequest definePatronRequest(PatronRequest.Status status,
-		String localRequestId) {
-
-		final var patron = patronFixture.definePatron("365636", "home-library",
-			borrowingHostLms, borrowingAgency);
-
-		final var patronRequest = PatronRequest.builder()
-			.id(randomUUID())
-			.patron(patron)
-			.status(status)
-			.requestingIdentity(patron.getPatronIdentities().get(0))
-			.localRequestId(localRequestId)
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		return patronRequest;
-	}
-
-	private PatronRequest defineReResolutionPatronRequest(
+	private PatronRequest definePatronRequest(
 		PatronRequest.Status status, String localRequestId, UUID clusterRecordId) {
 
 		final var patron = patronFixture.definePatron("365636", "home-library",
@@ -562,7 +524,7 @@ class ResolveNextSupplierTransitionTests {
 			.patron(patron)
 			.status(status)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
-			.patronHostlmsCode(borrowingHostLms.code)
+			.patronHostlmsCode(borrowingHostLms.getCode())
 			.localRequestId(localRequestId)
 			.bibClusterId(clusterRecordId)
 			.resolutionCount(1)
@@ -573,8 +535,8 @@ class ResolveNextSupplierTransitionTests {
 		return patronRequest;
 	}
 
-	private SupplierRequest defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
-		return supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
+	private void defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 			.id(UUID.randomUUID())
 			.patronRequest(patronRequest)
 			.hostLmsCode("next-supplier-supplying-host-lms")
@@ -583,16 +545,20 @@ class ResolveNextSupplierTransitionTests {
 			.build());
 	}
 
-	private void defineClusterRecordWithSingleBib(UUID clusterRecordId, String sourceRecordId) {
+	private UUID defineClusterRecordWithSingleBib(String sourceRecordId) {
+		final var clusterRecordId = randomUUID();
+
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(
 			clusterRecordId, clusterRecordId);
 
-		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
+		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.getCode());
 
 		final var sourceSystemId = hostLms.getId();
 
 		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			sourceRecordId, clusterRecord);
+
+		return clusterRecordId;
 	}
 
 	private SupplierRequest saveSupplierRequest(PatronRequest patronRequest,

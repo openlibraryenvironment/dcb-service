@@ -1118,11 +1118,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.doOnSuccess(returnValue -> log.info("Successfully updated patron request, returning {}.", localRequest));
 	}
 
-	@Override
-	public Mono<Boolean> isReResolutionSupported() {
-		return Mono.just(true);
-	}
-
 	private Mono<LocalRequest> addBarcodeIfItemIdPresent(LocalRequest localRequest) {
 		if ( localRequest.getRequestedItemId() != null ) {
 			return getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
