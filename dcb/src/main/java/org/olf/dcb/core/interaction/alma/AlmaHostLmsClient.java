@@ -287,11 +287,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 
 	@Override
-	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
-		return Mono.empty();
-	}
-
-	@Override
 	public Mono<String> deleteItem(String id) {
 		log.info("Delete virtual item is not currently implemented");
 		return Mono.just("OK");
@@ -319,9 +314,17 @@ public class AlmaHostLmsClient implements HostLmsClient {
     return Mono.empty();
   }
 
+  @Override
   public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
     log.debug("ALMA Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
     return Mono.just(Boolean.TRUE);
   }
+
+  // WARNING We might need to make this accept a patronIdentity - as different
+  // systems might take different ways to identify the patron
+  @Override
+  public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
+		return Mono.empty();
+	}
 
 }
