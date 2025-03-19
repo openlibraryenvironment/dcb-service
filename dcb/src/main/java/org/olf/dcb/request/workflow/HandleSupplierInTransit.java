@@ -19,8 +19,7 @@ import java.util.Optional;
 
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
-import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
 
 
 /** TODO: Convert this into a PatronRequestStateTransition */
@@ -34,7 +33,9 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	private static final List<Status> possibleSourceStatus = List.of(REQUEST_PLACED_AT_BORROWING_AGENCY);
+	private static final List<Status> possibleSourceStatus = List.of(
+		REQUEST_PLACED_AT_BORROWING_AGENCY,
+		REQUEST_PLACED_AT_PICKUP_AGENCY);
 	
 	public HandleSupplierInTransit(
 		SupplierRequestRepository supplierRequestRepository,

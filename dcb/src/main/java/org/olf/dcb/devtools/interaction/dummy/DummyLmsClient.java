@@ -304,10 +304,13 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		log.info("updateItemStatus({},{})", itemId, crs);
 		return Mono.just("Dummy");
 	}
+
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
+	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkout) {
+		final var itemId = checkout.getItemId();
+		final var patronBarcode = checkout.getPatronBarcode();
 
-	public Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId) {
 		log.info("checkOutItemToPatron({},{})", itemId, patronBarcode);
 		return Mono.just("DUMMY");
 	}

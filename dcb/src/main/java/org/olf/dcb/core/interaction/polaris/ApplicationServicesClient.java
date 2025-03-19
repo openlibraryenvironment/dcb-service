@@ -1388,6 +1388,8 @@ class ApplicationServicesClient {
 		private Integer itemStatusID;
 		@JsonProperty("ItemStatusDescription")
 		private String itemStatusDescription;
+		@JsonProperty("Barcode")
+		private String barcode;
 	}
 
 	@Builder

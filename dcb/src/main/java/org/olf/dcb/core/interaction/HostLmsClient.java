@@ -102,7 +102,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron
-	Mono<String> checkOutItemToPatron(String itemId, String itemBarcode, String patronId, String patronBarcode, String localRequestId);
+	Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand);
 
 	Mono<String> deleteItem(String id);
 

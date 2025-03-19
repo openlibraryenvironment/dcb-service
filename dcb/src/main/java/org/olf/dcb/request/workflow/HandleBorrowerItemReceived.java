@@ -25,7 +25,8 @@ public class HandleBorrowerItemReceived implements PatronRequestStateTransition 
 
 	// If the item is received at the patron library, then maybe we just skipped the whole transit dance because
 	// it wasn't checked out before it was put on the van
-	private static final List<Status> possibleSourceStatus = List.of(Status.PICKUP_TRANSIT, Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
+	private static final List<Status> possibleSourceStatus = List.of(
+		Status.PICKUP_TRANSIT, Status.REQUEST_PLACED_AT_BORROWING_AGENCY, Status.REQUEST_PLACED_AT_PICKUP_AGENCY);
 
 	// If we're in one of posisbleSourceStates, but  the actual item state is one of these - then we have been received - do that first
 	// This will allow us to wind forwards through the model in the event that we missed a state change

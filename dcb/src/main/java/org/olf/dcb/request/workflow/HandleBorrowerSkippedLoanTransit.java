@@ -57,6 +57,17 @@ public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTrans
 					getPossibleLocalItemStatus().contains(localItemStatus) &&
 					possibleLocalRequestStatus.contains(localRequestStatus) ) ;
 			}
+			else if ( patronRequest.getActiveWorkflow().equals("RET-PUA") ) {
+
+				final var localPickupItemStatus = getValue(patronRequest, PatronRequest::getLocalItemStatus,
+					"Unknown");
+				final var localPickupRequestStatus = getValue(patronRequest, PatronRequest::getLocalRequestStatus,
+					"Unknown");
+
+				return ( ( getPossibleSourceStatus().contains(status) ) &&
+					getPossibleLocalItemStatus().contains(localPickupItemStatus) &&
+					possibleLocalRequestStatus.contains(localPickupRequestStatus) ) ;
+			}
 		}
 		return false;
 	}
