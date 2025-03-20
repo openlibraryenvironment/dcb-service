@@ -96,6 +96,17 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			uri -> uri.queryParam("apikey",apikey));
 	}
 
+	// /almaws/v1/bibs/{mms_id}
+	// /almaws/v1/items?item_barcode={barcode}
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd/?tags=GET#item
+	// https://swagger.io/blog/api-strategy/difference-between-swagger-and-openapi/
+	// 
+
+	// https://developers.exlibrisgroup.com/forums/topic/retrieve-item-via-almaws-v1-itemsbarcode/
+	private Mono<AlmaItem> getItem(String item_barcode) {
+		return Mono.just(AlmaItem.builder().build());
+	}
+
 	private <T> Mono<T> get(String path, Argument<T> argumentType, Consumer<UriBuilder> uriBuilderConsumer) {
 		return createRequest(GET, path)
 			.map(req -> req.uri(uriBuilderConsumer))

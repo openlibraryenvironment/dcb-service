@@ -160,7 +160,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		}
 
 		return referenceValueMappingService.findMapping("patronType",
-				hostLmsCode, localPatronType, "patronType", "DCB")
+			hostLmsCode, localPatronType, "patronType", "DCB")
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
 				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
@@ -251,6 +251,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 		log.debug("getItem({}, {})", localItemId, localRequestId);
+
+		
 
 		return Mono.empty();
 	}
