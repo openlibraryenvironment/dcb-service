@@ -84,9 +84,13 @@ public class LocationToAgencyMappingService {
 			return empty();
 		}
 
+		// Allow implementers to specify wildcards that will match all locations. Look for specific locations
+		// before falling back to looking for any wildcards.
+		List<String> lookupCodeList = List.of(locationCode, "*");
+
 		return getContextHierarchyFor(fromContext)
-			.flatMap(sourceContexts -> referenceValueMappingService.findMappingUsingHierarchy(
-				fromCategory, sourceContexts, locationCode, "AGENCY", "DCB"));
+			.flatMap(sourceContexts -> referenceValueMappingService.findMappingUsingHierarchyWithFallback(
+				fromCategory, sourceContexts, lookupCodeList, "AGENCY", "DCB"));
 	}
 
 	/**

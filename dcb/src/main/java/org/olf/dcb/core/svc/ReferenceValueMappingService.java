@@ -23,7 +23,7 @@ public class ReferenceValueMappingService {
 	public Mono<ReferenceValueMapping> findMapping(String sourceCategory,
 		String sourceContext, String sourceValue, String targetCategory, String targetContext) {
 
-		log.debug("Attempting to find mapping from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+		log.debug("Attempting to find mapping(1) from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
 			sourceCategory, sourceContext, sourceValue, targetCategory, targetContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
@@ -37,7 +37,7 @@ public class ReferenceValueMappingService {
 	public Mono<ReferenceValueMapping> findMapping(String sourceCategory,
 		String sourceContext, String sourceValue, String targetContext) {
 
-		log.debug("Attempting to find mapping from category: {}, from context: {}, source value: {}, to context: {}",
+		log.debug("Attempting to find mapping(2) from category: {}, from context: {}, source value: {}, to context: {}",
 			sourceCategory, sourceContext, sourceValue, targetContext);
 
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToContext(
@@ -48,6 +48,31 @@ public class ReferenceValueMappingService {
 				mapping -> log.debug("Found mapping from category: {} context: {} to context {}: {}", sourceContext,
 					sourceContext, targetContext, mapping)));
 	}
+
+
+	/**
+	 * This variant introduces the idea of fallback value. The aim is to allow callers to specify a wildcard default so that
+	 * direct mapping files could have (For example) From: HostSystem:Location:* TO: DCB:AGENCY:agency0 to mapp all locations at HostSystem0 to agency0
+	 * this will not be appropriate in all scenarios (Shared servers) but should simplify config for the most common case substantially.
+	 * Thus we don't need to provide a specific mapping for location0 because we always try Location:* second
+	 */
+  public Mono<ReferenceValueMapping> findMappingUsingHierarchyWithFallback(
+    String sourceCategory,
+    String sourceContext,
+    List<String> sourceValues,
+    String targetCategory,
+    List<String> targetContexts) {
+
+    Flux<String> contexts = Flux.fromIterable(targetContexts);
+
+    return contexts
+      .concatMap( ctx ->
+				Flux.fromIterable(sourceValues)
+					.concatMap( sourceValue -> findMapping(sourceCategory,sourceContext,sourceValue,targetCategory,ctx))
+				)
+      .next();
+  }
+
 
 	/**
 	 * This method exists to make configuring DCB easier by allowing an implementer to configure a set of "Default" mappings.
@@ -72,6 +97,24 @@ public class ReferenceValueMappingService {
 			.next();
 
 	}
+
+  public Mono<ReferenceValueMapping> findMappingUsingHierarchyWithFallback(
+    String sourceCategory,
+    List<String> sourceContexts,
+    List<String> sourceValues,
+    String targetCategory,
+    String targetContext) {
+
+    Flux<String> contexts = Flux.fromIterable(sourceContexts);
+
+    return contexts
+			.concatMap( ctx ->
+				Flux.fromIterable(sourceValues)
+		      .concatMap( sourceValue -> findMapping(sourceCategory,ctx,sourceValue,targetCategory,targetContext))
+				)
+      .next();
+	}
+
 
 	public Mono<ReferenceValueMapping> findMappingUsingHierarchy(
 		String sourceCategory,
