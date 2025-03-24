@@ -423,6 +423,7 @@ class ApplicationServicesClient {
 
 		final var barcodePrefix = polarisConfig.getItemBarcodePrefix();
 		final var itemBarcode = useBarcodeWithPrefix(createItemCommand, barcodePrefix);
+		final var canonicalItemType = createItemCommand.getCanonicalItemType();
 
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
@@ -431,7 +432,7 @@ class ApplicationServicesClient {
 		// The createItemCommand for polaris should use the home location of the patron placing the request
 		// So that the request can be routed appropriately in house
 		return Mono.zip(createRequest(POST, path, uri -> {}),
-				client.getMappedItemType(createItemCommand.getCanonicalItemType()))
+				client.getMappedItemType(canonicalItemType))
 			.map(tuple -> {
 				final var request = tuple.getT1();
 				final var itemtype = Integer.parseInt(tuple.getT2());
@@ -464,7 +465,7 @@ class ApplicationServicesClient {
 							.renewalLimit(polarisConfig.getItemRenewalLimit())
 							.fineCodeID(polarisConfig.getItemFindCodeId())
 							.itemRecordHistoryActionID(polarisConfig.getItemHistoryActionId())
-							.loanPeriodCodeID(polarisConfig.getItemLoanPeriodCodeId())
+							.loanPeriodCodeID(getItemLoanPeriodCodeId(canonicalItemType))
 							.shelvingSchemeID(polarisConfig.getItemShelvingSchemeId())
 							.isProvisionalSave(FALSE)
 							.nonCircluating(FALSE)
@@ -481,6 +482,19 @@ class ApplicationServicesClient {
 				return request.body(body);
 			})
 			.flatMap(request -> saveItemRequest(request, itemBarcode));
+	}
+
+	private Integer getItemLoanPeriodCodeId(String canonicalItemType) {
+		log.debug("Determining loan period code ID for canonical item type: {}", canonicalItemType);
+
+		// short term fix for DCB-1860
+		// TODO: long term fix - RVM canonical item type -> loan period code id
+		final Integer loanPeriodCodeId = "CIRCAV".equals(canonicalItemType)
+			? polarisConfig.getItemAvLoanPeriodCodeId()
+			: polarisConfig.getItemLoanPeriodCodeId();
+
+		log.debug("Resolved loan period code ID: {}", loanPeriodCodeId);
+		return loanPeriodCodeId;
 	}
 
 	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {

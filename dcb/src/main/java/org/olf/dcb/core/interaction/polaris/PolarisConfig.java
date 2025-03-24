@@ -184,6 +184,13 @@ public class PolarisConfig {
 		return requiredValue("Item Loan Period Code ID", value, Integer.class);
 	}
 
+	public Integer getItemAvLoanPeriodCodeId() {
+
+		final var value = getNestedProperty(getItem(), ItemConfig::getAvLoanPeriodCodeId);
+
+		return requiredValue("Item AV Loan Period Code ID", value, Integer.class);
+	}
+
 	public Integer getItemShelvingSchemeId() {
 
 		final var value = getNestedProperty(getItem(), ItemConfig::getShelvingSchemeId);
@@ -261,6 +268,8 @@ public class PolarisConfig {
 		private Object historyActionId;
 		@JsonProperty("loan-period-code-id")
 		private Object loanPeriodCodeId;
+		@JsonProperty("av-loan-period-code-id")
+		private Object avLoanPeriodCodeId;
 		@JsonProperty("shelving-scheme-id")
 		private Object shelvingSchemeId;
 		@JsonProperty("barcode-prefix")
