@@ -8,6 +8,7 @@ import org.apache.lucene.queryparser.flexible.core.nodes.FieldQueryNode;
 import org.apache.lucene.queryparser.flexible.core.nodes.GroupQueryNode;
 import org.apache.lucene.queryparser.flexible.core.nodes.ModifierQueryNode;
 import org.apache.lucene.queryparser.flexible.core.nodes.QueryNode;
+import org.apache.lucene.queryparser.flexible.core.nodes.RangeQueryNode;
 import org.apache.lucene.queryparser.flexible.standard.nodes.WildcardQueryNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import services.k_int.data.querying.lucene.LuceneWildcardQueryNodeBuilder;
 import services.k_int.data.querying.lucene.LuceneBooleanQueryNodeBuilder;
 import services.k_int.data.querying.lucene.LuceneFieldQueryNodeBuilder;
 import services.k_int.data.querying.lucene.LuceneGroupQueryNodeBuilder;
+import services.k_int.data.querying.lucene.LuceneRangeQueryNodeBuilder;
 
 public interface JpaQuerySpecificationBuilder<T,S> {
 	
@@ -53,6 +55,9 @@ public interface JpaQuerySpecificationBuilder<T,S> {
 			
 		} else if ( GroupQueryNode.class.isAssignableFrom( queryNode.getClass())) {
 			builder = new LuceneGroupQueryNodeBuilder<R>();
+		}
+		else if ( RangeQueryNode.class.isAssignableFrom( queryNode.getClass())) {
+			builder = new LuceneRangeQueryNodeBuilder<R>();
 		}
 		
 		// Default implementation.
