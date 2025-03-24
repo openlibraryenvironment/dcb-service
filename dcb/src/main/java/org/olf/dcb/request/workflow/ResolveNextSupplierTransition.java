@@ -99,6 +99,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		log.warn("terminateSupplierCancellation");
 
 		return cancelLocalBorrowingRequest(context)
+			.flatMap(this::cancelLocalPickupRequest)
 			.flatMap(this::markNoItemsAvailableAtAnyAgency);
 	}
 
@@ -274,6 +275,57 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 				.localRequestId(localRequestId)
 				.localItemId(localItemId)
 				.patronId(localPatronId)
+				.build()))
+			.thenReturn(context);
+	}
+
+	private Mono<RequestWorkflowContext> cancelLocalPickupRequest(
+		RequestWorkflowContext context) {
+
+		final var pickupHostLmsCode = getValue(context,
+			RequestWorkflowContext::getPickupSystemCode, null);
+
+		final var patronRequest = getValue(context,
+			RequestWorkflowContext::getPatronRequest, null);
+
+		// No need to cancel a pickup request if the active workflow is not RET-PUA
+		if (!"RET-PUA".equals(patronRequest.getActiveWorkflow())) {
+			return Mono.just(context);
+		}
+
+		final var pickupRequestStatus = getValue(patronRequest,
+			PatronRequest::getPickupRequestStatus, "");
+
+		if (pickupRequestStatus.equals(HOLD_MISSING) || pickupRequestStatus.equals(HOLD_CANCELLED)) {
+			log.info("Pickup request doesn't require cancellation");
+
+			return Mono.just(context);
+		}
+
+		final var pickupPatronIdentity = getValue(context, RequestWorkflowContext::getPickupPatronIdentity, null);
+
+		final var pickupRequestId = getValue(patronRequest, PatronRequest::getPickupRequestId, null);
+		final var pickupItemId = getValue(patronRequest, PatronRequest::getPickupItemId, null);
+		final var pickupPatronId = getValue(pickupPatronIdentity, PatronIdentity::getLocalId, null);
+
+		if (isEmpty(pickupRequestId)) {
+			final var patronRequestId = getValue(patronRequest,
+				PatronRequest::getId, null);
+
+			final var message = "Could not cancel pickup request because no local ID is known (PR ID: \"%s\")"
+				.formatted(patronRequestId);
+
+			log.warn(message);
+
+			return patronRequestAuditService.addAuditEntry(patronRequest, message)
+				.thenReturn(context);
+		}
+
+		return hostLmsService.getClientFor(pickupHostLmsCode)
+			.flatMap(hostLmsClient -> hostLmsClient.cancelHoldRequest(CancelHoldRequestParameters.builder()
+				.localRequestId(pickupRequestId)
+				.localItemId(pickupItemId)
+				.patronId(pickupPatronId)
 				.build()))
 			.thenReturn(context);
 	}
