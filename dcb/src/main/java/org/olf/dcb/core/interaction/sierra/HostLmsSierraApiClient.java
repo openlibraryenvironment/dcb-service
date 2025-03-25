@@ -1,22 +1,21 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.context.annotation.Secondary;
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.*;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.client.multipart.MultipartBody;
-import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.retry.annotation.Retryable;
-import jakarta.validation.constraints.NotNull;
+import static io.micronaut.http.HttpMethod.DELETE;
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
+import static reactor.core.publisher.Mono.empty;
+import static services.k_int.utils.ReactorUtils.raiseError;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 import org.olf.dcb.core.interaction.AbstractHttpResponseProblem;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.RecordIsNotAvailableProblem;
@@ -27,10 +26,40 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zalando.problem.Problem;
+
+import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.context.annotation.Secondary;
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.BasicAuth;
+import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.MediaType;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.client.multipart.MultipartBody;
+import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonNode;
+import io.micronaut.retry.annotation.Retryable;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
+import services.k_int.interaction.sierra.CheckoutEntry;
+import services.k_int.interaction.sierra.CheckoutResultSet;
+import services.k_int.interaction.sierra.LinkResult;
+import services.k_int.interaction.sierra.QueryEntry;
 import services.k_int.interaction.sierra.QueryResultSet;
-import services.k_int.interaction.sierra.*;
+import services.k_int.interaction.sierra.SierraApiClient;
+import services.k_int.interaction.sierra.SierraError;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchResultSet;
@@ -40,20 +69,13 @@ import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.items.ResultSet;
 import services.k_int.interaction.sierra.items.SierraItem;
-import services.k_int.interaction.sierra.patrons.*;
-
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-import static io.micronaut.http.HttpMethod.*;
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
-import static reactor.core.publisher.Mono.empty;
-import static services.k_int.utils.ReactorUtils.raiseError;
+import services.k_int.interaction.sierra.patrons.CheckoutPatch;
+import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
+import services.k_int.interaction.sierra.patrons.ItemPatch;
+import services.k_int.interaction.sierra.patrons.PatronHoldPost;
+import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.PatronValidation;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
 @Secondary
 @Prototype
@@ -334,7 +356,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	public Publisher<SierraPatronRecord> getPatron(@Nullable final Long patronId) {
 		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/patrons/Get_the_holds_data_for_a_single_patron_record_get_30
 		return get("patrons/" + patronId, Argument.of(SierraPatronRecord.class), uri -> uri.queryParam("fields",
-				"id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields"));
+				"id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields,blockInfo,autoBlockInfo"));
 	}
 
 	@SingleResult
