@@ -1,10 +1,14 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import static java.util.Arrays.asList;
+import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.verify.VerificationTimes.never;
+import static org.mockserver.verify.VerificationTimes.once;
+import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
+
+import java.util.Collections;
+import java.util.List;
+
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
@@ -12,19 +16,16 @@ import org.mockserver.model.HttpResponse;
 import org.mockserver.model.RequestDefinition;
 import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.test.TestResourceLoaderProvider;
+
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.QueryEntry;
 import services.k_int.interaction.sierra.QueryResultSet;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.patrons.CheckoutPatch;
-
-import java.util.Collections;
-import java.util.List;
-
-import static java.util.Arrays.asList;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.verify.VerificationTimes.never;
-import static org.mockserver.verify.VerificationTimes.once;
-import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
 
 @Slf4j
 @AllArgsConstructor
@@ -183,6 +184,17 @@ public class SierraPatronsAPIFixture {
 		mockServer
 			.when(getPatron(id))
 			.respond(successfulPatron(patron));
+	}
+
+	public void verifyGetPatronByLocalIdRequestMade(String id) {
+		mockServer
+			.verify(sierraMockServerRequests.get("/" + id)
+				// Strictly expect the fields parameter because
+				// a field not being listed can quietly lead to unintended
+				// behaviour when later code tries to use a field that will never be provided
+				.withQueryStringParameter("fields",
+					"id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields"),
+				once());
 	}
 
 	public void noRecordsFoundWhenGettingPatronByLocalId(String patronId) {

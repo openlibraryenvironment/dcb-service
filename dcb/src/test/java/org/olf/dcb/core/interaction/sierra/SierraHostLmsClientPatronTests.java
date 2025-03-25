@@ -1,9 +1,23 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import jakarta.inject.Inject;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.hamcrest.Matchers;
+import static java.lang.Integer.parseInt;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.equalToIgnoringCase;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasCanonicalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibraryCode;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalIds;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isBlocked;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
+
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,21 +25,16 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.PatronBlock;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+
+import jakarta.inject.Inject;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.List;
-
-import static java.lang.Integer.parseInt;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.interaction.PatronMatchers.*;
 
 @Slf4j
 @MockServerMicronautTest
@@ -89,6 +98,9 @@ class SierraHostLmsClientPatronTests {
 				.names(List.of("first name", "middle name", "last name"))
 				.patronType(localPatronType)
 				.homeLibraryCode("home-library")
+				.blockInfo(PatronBlock.builder()
+					.code("a")
+					.build())
 				.build());
 
 		final var canonicalPatronType = "UNDERGRAD";
@@ -110,9 +122,12 @@ class SierraHostLmsClientPatronTests {
 			hasLocalPatronType(localPatronType),
 			hasCanonicalPatronType(canonicalPatronType),
 			hasHomeLibraryCode("home-library"),
-			isNotBlocked(),
+			isBlocked(),
 			isNotDeleted()
 		));
+
+		// This is important to check that the fields parameter includes the expected fields
+		sierraPatronsAPIFixture.verifyGetPatronByLocalIdRequestMade(localPatronId);
 	}
 
 	@Test
@@ -140,10 +155,9 @@ class SierraHostLmsClientPatronTests {
 		// Assert
 		assertThat(checkout, allOf(
 			notNullValue(),
-			Matchers.equalToIgnoringCase("ok")
+			equalToIgnoringCase("ok")
 		));
 
 		sierraPatronsAPIFixture.verifyCheckoutMade(itemBarcode, patronBarcode, null);
 	}
-
 }
