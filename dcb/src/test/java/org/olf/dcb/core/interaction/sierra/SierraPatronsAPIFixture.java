@@ -193,7 +193,7 @@ public class SierraPatronsAPIFixture {
 				// a field not being listed can quietly lead to unintended
 				// behaviour when later code tries to use a field that will never be provided
 				.withQueryStringParameter("fields",
-					"id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields,blockInfo,autoBlockInfo"),
+					"id,updatedDate,createdDate,expirationDate,names,barcodes,patronType,homeLibraryCode,emails,message,uniqueIds,emails,fixedFields,blockInfo,autoBlockInfo,deleted"),
 				once());
 	}
 
