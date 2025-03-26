@@ -209,7 +209,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 
 		log.info("updatePatronRequest({})", localRequest);
 

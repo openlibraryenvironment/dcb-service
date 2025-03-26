@@ -194,6 +194,6 @@ class ConsortialFolioHostLmsClientUpdateRequestTests {
 	private LocalRequest updatePatronRequest(LocalRequest localRequest) {
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		return singleValueFrom(client.updatePatronRequest(localRequest));
+		return singleValueFrom(client.updateHoldRequest(localRequest));
 	}
 }

@@ -79,7 +79,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
 		return null;
 	}

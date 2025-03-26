@@ -717,7 +717,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	@SneakyThrows
-	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 		final var localRequestId = getValueOrThrow(localRequest, LocalRequest::getLocalId,
 			() -> new MissingParameterException("local ID"));
 

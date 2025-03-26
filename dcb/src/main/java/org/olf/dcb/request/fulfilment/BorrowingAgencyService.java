@@ -95,7 +95,7 @@ public class BorrowingAgencyService {
 				.canonicalItemType(supplierRequest.getCanonicalItemType())
 				.build())
 			.doOnSuccess(localRequest -> log.info("updateExistingRequestFlow({})", localRequest))
-			.flatMap(hostLmsClient::updatePatronRequest)
+			.flatMap(hostLmsClient::updateHoldRequest)
 			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to update existing patron request."))) );
 	}
 

@@ -6,6 +6,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.*;
@@ -15,8 +16,6 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.request.fulfilment.*;
 import org.olf.dcb.request.resolution.SharedIndexService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.zalando.problem.Problem;
 import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
@@ -31,10 +30,9 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.StringUtils.parseList;
 
+@Slf4j
 @Prototype
 public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRequestStateTransition {
-
-	private static final Logger log = LoggerFactory.getLogger(PlacePatronRequestAtPickupAgencyStateTransition.class);
 
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final SharedIndexService sharedIndexService;
@@ -66,8 +64,19 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 
 		log.debug("PlacePatronRequestAtPickupAgencyStateTransition firing for {}", ctx.getPatronRequest());
 
-		log.debug("Pickup system is {}", ctx.getPickupSystem());
+		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
+		final var resolutionCount = getValueOrNull(patronRequest, PatronRequest::getResolutionCount);
 
+		if (resolutionCount != null && resolutionCount > 1) {
+			log.debug("re-resolution: update existing pickup request");
+			
+			return updateExistingPickupRequest(ctx);
+		}
+
+		return placeRequestAtPickupAgencyWorkflow(ctx);
+	}
+
+	private Mono<RequestWorkflowContext> placeRequestAtPickupAgencyWorkflow(RequestWorkflowContext ctx) {
 		return createPickupBib(ctx)
 			.flatMap(this::createPickupItem)
 			.flatMap(this::checkAndCreatePatronAtPickupAgency)
@@ -81,6 +90,41 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 				ctx.getWorkflowMessages().add("Error occurred during placing a patron request at pickup agency: "+error.getMessage());
 			})
 			.thenReturn(ctx);
+	}
+
+	private Mono<RequestWorkflowContext> updateExistingPickupRequest(RequestWorkflowContext ctx) {
+
+		final var patronRequest = ctx.getPatronRequest();
+		final var supplierRequest = ctx.getSupplierRequest();
+		final var hostLmsClient = ctx.getPickupSystem();
+
+		return getSupplyingAgencyCode(supplierRequest)
+			.map(supplyingAgencyCode -> LocalRequest.builder()
+				// existing request info
+				.localId(patronRequest.getPickupRequestId())
+				.requestedItemId(patronRequest.getPickupItemId())
+				// new supplier info
+				.requestedItemBarcode(supplierRequest.getLocalItemBarcode())
+				.supplyingAgencyCode(supplyingAgencyCode)
+				.supplyingHostLmsCode(supplierRequest.getHostLmsCode())
+				.canonicalItemType(supplierRequest.getCanonicalItemType())
+				.build())
+			.doOnSuccess(localRequest -> log.info("updateExistingPickupRequest({})", localRequest))
+			.flatMap(hostLmsClient::updateHoldRequest)
+			.map(lr -> patronRequest.placedAtPickupAgency(
+				lr.getLocalId(), lr.getLocalStatus(),
+				lr.getRawLocalStatus(), lr.getRequestedItemId(),
+				lr.getRequestedItemBarcode()))
+			.doOnSuccess(pr -> {
+				log.info("Updated patron request at pickup agency: {}", pr);
+				ctx.getWorkflowMessages().add("Updated patron request at pickup agency");
+			})
+			.doOnError(error -> {
+				log.error("Error occurred during updating a patron request at pickup agency: {}", error.getMessage());
+				ctx.getWorkflowMessages().add("Error occurred during updating a patron request at pickup agency: "+error.getMessage());
+			})
+			.thenReturn(ctx)
+			.switchIfEmpty( Mono.defer(() -> Mono.error(new DcbError("Failed to update existing pickup request."))) );
 	}
 
 	private Mono<RequestWorkflowContext> createPickupBib(RequestWorkflowContext ctx) {
