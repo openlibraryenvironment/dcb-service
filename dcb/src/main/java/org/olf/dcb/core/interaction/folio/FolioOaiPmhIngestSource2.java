@@ -16,6 +16,12 @@ import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.ObjectMapper;
 import services.k_int.utils.MapUtils;
 
+import services.k_int.interaction.oaipmh.OaiRecord;
+import services.k_int.interaction.oaipmh.OaiRecord.Metadata;
+
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Prototype
 public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 	
@@ -74,4 +80,12 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 	protected String getAuthorizationContent() {
 		return(apiKey);
 	}
+
+  @Override 
+	public Boolean inferSuppression(OaiRecord resource) {
+		// FOLIO uses 999$t to infer suppression, evaluate it here and set accordingly
+		log.info("FOLIO inferSuppression...");
+    return Boolean.FALSE;
+  }
+
 }

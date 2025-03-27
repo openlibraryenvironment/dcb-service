@@ -165,6 +165,23 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 
 	@Override
 	public IngestRecordBuilder initIngestRecordBuilder(OaiRecord resource) {
+
+		return IngestRecord.builder()
+			.uuid(uuid5ForOAIResult(resource))
+			.sourceSystem(lms)
+			.suppressFromDiscovery(inferSuppression(resource))
+			.sourceRecordId(extractRecordId(resource));
+	}
+
+	/**
+	 * Override with source specific rules if the source system uses implicit values (eg FOLIO 999$t=1) to imply suppression
+	 */
+	public Boolean inferSuppression(OaiRecord resource) {
+		return Boolean.FALSE;
+	}
+
+	// The intent is to let implementation specific behaviour control how we extract record ID from an OAI response
+	public String extractRecordId(OaiRecord resource) {
 		final var oaiIdentifier = resource.header().identifier();
 
 		if (!oaiIdentifier.contains(identifierSeparator)) {
@@ -174,14 +191,10 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			return null;
 		}
 
+		// TODO: This seems VERY FOLIO specific
 		final var splitByForwardSlash = oaiIdentifier.split(identifierSeparator);
 
-		final var instanceId = splitByForwardSlash[splitByForwardSlash.length - 1];
-
-		return IngestRecord.builder()
-			.uuid(uuid5ForOAIResult(resource))
-			.sourceSystem(lms)
-			.sourceRecordId(instanceId);
+		return splitByForwardSlash[splitByForwardSlash.length - 1];
 	}
 
 	@Override
