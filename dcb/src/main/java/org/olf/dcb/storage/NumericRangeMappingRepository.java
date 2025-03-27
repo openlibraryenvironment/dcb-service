@@ -29,7 +29,13 @@ public interface NumericRangeMappingRepository {
 	Publisher<NumericRangeMapping> findById(@NotNull UUID id);
 
 	@SingleResult
-	@Query(value = "SELECT nrm.mapped_value from numeric_range_mapping nrm where nrm.context=:context and nrm.domain=:domain and nrm.lower_bound <= :value and nrm.upper_bound >= :value and nrm.target_context=:target", nativeQuery = true)
+	@Query(value = "SELECT nrm.mapped_value from numeric_range_mapping nrm " +
+		"where nrm.context=:context " +
+		"and nrm.domain=:domain " +
+		"and nrm.lower_bound <= :value " +
+		"and nrm.upper_bound >= :value " +
+		"and nrm.target_context=:target " +
+		"and (nrm.deleted = false OR nrm.deleted IS NULL)", nativeQuery = true)
 	Publisher<String> findMappedValueFor(String context, String domain, String target, Long value);
 
 	@NonNull

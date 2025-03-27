@@ -30,7 +30,6 @@ import java.util.UUID;
 
 import static java.lang.Long.parseLong;
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -1226,7 +1225,7 @@ class PolarisLmsClientTests {
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
-		final var returnValue = singleValueFrom(client.updatePatronRequest(localRequest));
+		final var returnValue = singleValueFrom(client.updateHoldRequest(localRequest));
 
 		// Assert
 		assertThat(returnValue, is(notNullValue()));

@@ -214,7 +214,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
 		return Mono.empty();
 	}

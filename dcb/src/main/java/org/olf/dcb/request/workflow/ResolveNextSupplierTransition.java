@@ -282,15 +282,19 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<RequestWorkflowContext> cancelLocalPickupRequest(
 		RequestWorkflowContext context) {
 
-		final var pickupHostLmsCode = getValue(context,
-			RequestWorkflowContext::getPickupSystemCode, null);
-
 		final var patronRequest = getValue(context,
 			RequestWorkflowContext::getPatronRequest, null);
 
 		// No need to cancel a pickup request if the active workflow is not RET-PUA
 		if (!"RET-PUA".equals(patronRequest.getActiveWorkflow())) {
 			return Mono.just(context);
+		}
+
+		final var pickupHostLmsCode = getValue(context,
+			RequestWorkflowContext::getPickupSystemCode, null);
+
+		if (isEmpty(pickupHostLmsCode)) {
+			return Mono.error(new RuntimeException("Pickup hostlms code not found"));
 		}
 
 		final var pickupRequestStatus = getValue(patronRequest,

@@ -1083,7 +1083,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<LocalRequest> updatePatronRequest(LocalRequest localRequest) {
+	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 		log.info("updatePatronRequest({})", localRequest);
 
 		final var itemId = localRequest.getRequestedItemId();

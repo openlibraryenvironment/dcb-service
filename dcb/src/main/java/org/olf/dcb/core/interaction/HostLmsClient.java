@@ -19,7 +19,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<HostLmsRenewal> renew(@NonNull HostLmsRenewal hostLmsRenewal);
 
-	Mono<LocalRequest> updatePatronRequest(@NonNull LocalRequest localRequest);
+	Mono<LocalRequest> updateHoldRequest(@NonNull LocalRequest localRequest);
 
 	// All implementations must understand these states and be able to translate
 	// them to
