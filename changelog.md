@@ -1,5 +1,26 @@
 # Changelog
 
+## Version 8.20.0
+
+### Additions
+* [General]
+	* extend re-resolution for 3 legged transactions [DCB-1690]
+	* Implement range searches via GraphQL [DCB-1536]
+	* extend supplier cancellation for terminated requests [DCB-1690]
+	* Add with fallback option to ref value mapping service to support wildcards in location to agency lookups
+	* Alma client can now request user lists
+
+### Changes
+* [Chore]
+	* AlmaItem progress
+	* Add Alma Client and associated resources
+
+### Fixes
+* [General]
+	* Include deleted field when fetching Sierra patron by ID DCB-1862
+	* Include block fields when fetching Sierra patron by ID DCB-1862
+	* use av loan period code id for polaris lms [DCB-1860]
+
 ## Version 8.19.0
 
 ### Additions
@@ -12,6 +33,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* merge
 	* Groundwork for alma adapter
 	* correct audit message [DCB-1534]
