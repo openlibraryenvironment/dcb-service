@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.folio;
 
+import java.util.List;
+
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.OaiPmhIngestSource;
 import org.olf.dcb.core.model.HostLms;
@@ -85,7 +87,26 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 	public Boolean inferSuppression(OaiRecord resource) {
 		// FOLIO uses 999$t to infer suppression, evaluate it here and set accordingly
 		log.info("FOLIO inferSuppression...");
-    return Boolean.FALSE;
+
+		if ( ( resource == null ) ||
+				 ( resource.metadata() == null ) ||
+				 ( resource.metadata().record() == null ) )
+			return Boolean.FALSE;
+
+			org.marc4j.marc.Record r = resource.metadata().record();
+      List<org.marc4j.marc.VariableField> vf = r.getVariableFields("999");
+			if ( ( vf.size() == 1 ) && ( vf instanceof org.marc4j.marc.DataField) ) {
+				org.marc4j.marc.DataField df = (org.marc4j.marc.DataField) vf.get(0);
+				org.marc4j.marc.Subfield sft = df.getSubfield('t');
+				if ( sft != null ) {
+					if ( sft.getData().equalsIgnoreCase("1") ) {
+						log.warn("FOLIO 999$t suppression detected");
+						return Boolean.TRUE;
+					}
+				}
+			}
+			
+			return Boolean.FALSE;
   }
 
 }
