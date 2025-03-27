@@ -425,26 +425,26 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(
-		PlaceHoldRequestParameters parameters) {
-
+	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
 		return placeHoldRequest(parameters);
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
-		return raiseError(new UnsupportedOperationException("placeHoldRequestAtPickupAgency not supported by hostlms: " + getHostLmsCode()));
+		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
+		return placeHoldRequest(parameters);
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		return placeHoldRequestAtBorrowingAgency(parameters);
+		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
+		return placeHoldRequest(parameters);
 	}
 
 	@Override
-	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(
-		PlaceHoldRequestParameters parameters) {
-
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
+		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
 		return placeHoldRequest(parameters);
 	}
 

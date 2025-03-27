@@ -17,6 +17,7 @@ import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.devtools.interaction.dummy.DummyLmsClient;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.storage.HostLmsRepository;
 
@@ -148,6 +149,12 @@ public class HostLmsFixture {
 
 		createHostLms(randomUUID(), code, PolarisLmsClient.class,
 			Optional.of(PolarisLmsClient.class), clientConfig);
+	}
+
+	public DataHostLms createDummyHostLms(String code) {
+
+		return createHostLms(randomUUID(), code, DummyLmsClient.class,
+			Optional.of(DummyLmsClient.class), new HashMap<>());
 	}
 
 	public <T extends HostLmsClient, R extends IngestSource> DataHostLms createHostLms(
