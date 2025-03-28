@@ -16,4 +16,8 @@ public class UnableToConvertLocalPatronTypeException extends RuntimeException {
 		this.localSystemCode = localSystemCode;
 		this.localPatronTypeCode = localPatronTypeCode;
 	}
+
+	public UnableToConvertLocalPatronTypeException(String message) {
+		this(message, null, null, null);
+	}
 }

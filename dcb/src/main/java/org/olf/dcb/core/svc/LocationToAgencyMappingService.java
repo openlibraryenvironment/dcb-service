@@ -107,13 +107,13 @@ public class LocationToAgencyMappingService {
 			.filter(list -> list != null && !list.isEmpty())
 			// Fallback for non-null & non-empty lists
 			.switchIfEmpty(Mono.defer(() -> {
-				log.error("[CONTEXT-HIERARCHY-EMPTY] " +
+				log.debug("[CONTEXT-HIERARCHY-EMPTY] " +
 					"- Fetching 'contextHierarchy' returned an EMPTY list for context: '{}'", context);
 				return Mono.just(List.of(context));
 			}))
 			// Fallback for error
 			.onErrorResume(error -> {
-				log.error("[CONTEXT-HIERARCHY-ERROR] " +
+				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
 					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
 				return Mono.just(List.of(context));
 			});
