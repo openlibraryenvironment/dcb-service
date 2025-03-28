@@ -86,8 +86,6 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
   @Override 
 	public Boolean inferSuppression(OaiRecord resource) {
 		// FOLIO uses 999$t to infer suppression, evaluate it here and set accordingly
-		log.info("FOLIO inferSuppression...");
-
 		if ( ( resource == null ) ||
 				 ( resource.metadata() == null ) ||
 				 ( resource.metadata().record() == null ) )
@@ -103,9 +101,13 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 						log.warn("FOLIO 999$t suppression detected");
 						return Boolean.TRUE;
 					}
+					else {
+						log.info("FOLIO 999$t detected byt with value {} so not suppressed",sft.getData());
+					}
 				}
 			}
 			
+			// Default no suppression
 			return Boolean.FALSE;
   }
 
