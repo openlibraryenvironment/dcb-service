@@ -78,7 +78,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		this.recordClusteringService = recordClusteringService;
 		this.lockService = lockService;
 		
-		log.info("Ingest job is active");
+		log.info("Ingest job construction complete");
 	}
 	
 	@NonNull
@@ -328,6 +328,9 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 				if (res == null) {
 					log.info(JOB_NAME + "allready running (NOOP)");
 				} 
+        else {
+					log.info(JOB_NAME + "Scheduled");
+        }
 			})
 			.subscribe(
 					TupleUtils.consumer(this::jobSubscriber),

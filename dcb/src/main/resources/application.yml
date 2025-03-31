@@ -78,6 +78,12 @@ micronaut:
     binders:
       reactor: true
 
+
+reactor:
+  bufferSize:
+    small: 512
+    # https://github.com/r2dbc/r2dbc-pool/issues/198
+   
 endpoints:
   prometheus:
     sensitive: true
