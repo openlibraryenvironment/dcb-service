@@ -135,6 +135,20 @@ public class PatronRequestController {
 			.map(PatronRequestView::from);
 	}
 
+	/**
+	 * For situations such as on-site borrowing. Must include item due date in response.
+	 */
+	@SingleResult
+	@Post(value = "/place/expeditedCheckout", consumes = APPLICATION_JSON)
+	public Mono<PatronRequestView> placePatronRequestExpeditedCheckout(
+		@Body @Valid PlacePatronRequestCommand command) {
+
+		log.info("REST, place patron request with expedited checkout: {}", command);
+
+		return patronRequestService.placePatronRequestExpeditedCheckout(command)
+			.map(PatronRequestView::from);
+	}
+
 	@Error
 	public HttpResponse<ChecksFailure> onCheckFailure(PreflightCheckFailedException exception) {
 		return badRequest(ChecksFailure.builder()
