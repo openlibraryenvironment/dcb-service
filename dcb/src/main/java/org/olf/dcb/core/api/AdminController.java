@@ -172,6 +172,13 @@ public class AdminController {
 			.dedupeMatchPoints()
 			.map(HttpResponse.accepted()::<String>body);
 	}
+
+	@Post(uri = "/reprocess", produces = APPLICATION_JSON)
+	public Mono<MutableHttpResponse<String>> reprocess() {
+		return housekeeping
+			.reprocessAll()
+			.map(HttpResponse.accepted()::<String>body);
+	}
 	
 	@Get(uri = "/threads", produces = MediaType.TEXT_PLAIN)
 	public String threads() {
