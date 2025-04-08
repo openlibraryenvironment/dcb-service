@@ -11,6 +11,7 @@ import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -64,10 +65,17 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
     return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
       ( ctx.getSupplierRequest() != null ) &&
       ( 
-				( ctx.getSupplierRequest().getLocalHoldCount() > 0 ) &&
+				( checkSupplierHoldCount(ctx) ) &&
 				( Set.of(null, PatronRequest.RenewalStatus.ALLOWED).contains(ctx.getPatronRequest().getRenewalStatus() ) )
 			);
   }
+
+	private static boolean checkSupplierHoldCount(RequestWorkflowContext ctx) {
+		return Optional.ofNullable(ctx.getSupplierRequest())
+			.map(SupplierRequest::getLocalHoldCount)
+			.filter(count -> count > 0)
+			.isPresent();
+	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {

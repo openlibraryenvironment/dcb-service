@@ -32,6 +32,30 @@ class PatronRequestApiClient {
 		return placePatronRequest(bibClusterId,localId,pickupLocationCode,localSystemCode,homeLibraryCode,null);
 	}
 
+	HttpResponse<PlacedPatronRequest> placePatronRequestForItem(UUID bibClusterId,
+		String localId, String pickupLocationCode, String localSystemCode, String homeLibraryCode,
+		String itemLocalId, String itemLocalSystemCode, String itemAgencyCode) {
+
+		return placePatronRequest(PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localId(localId)
+				.localSystemCode(localSystemCode)
+				.homeLibraryCode(homeLibraryCode)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(bibClusterId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(pickupLocationCode)
+				.build())
+			.item(Item.builder()
+				.localId(itemLocalId)
+				.localSystemCode(itemLocalSystemCode)
+				.agencyCode(itemAgencyCode)
+				.build())
+			.build());
+	}
+
 	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
 		String localId, String pickupLocationCode, String localSystemCode,
 		String homeLibraryCode, String volumeDesignation) {
@@ -51,8 +75,6 @@ class PatronRequestApiClient {
 				.build())
 			.build());
 	}
-	
-	
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(PlacePatronRequestCommand command) {
 
@@ -62,6 +84,16 @@ class PatronRequestApiClient {
 			.bearerAuth(accessToken);
 
 		return blockingClient.exchange(request, PlacedPatronRequest.class);
+	}
+
+	HttpResponse<UUID> updatePatronRequest(UUID patronRequestId) {
+
+		final var blockingClient = httpClient.toBlocking();
+
+		final var request = HttpRequest.POST("/patrons/requests/" + patronRequestId + "/update", patronRequestId)
+			.bearerAuth(accessToken);
+
+		return blockingClient.exchange(request, UUID.class);
 	}
 
 	HttpResponse<UUID> rollbackPatronRequest(UUID patronRequestId) {
@@ -85,6 +117,7 @@ class PatronRequestApiClient {
 		@Nullable Citation citation;
 		@Nullable Requestor requestor;
 		@Nullable PickupLocation pickupLocation;
+		@Nullable Item item;
 	}
 
 	@Serdeable
@@ -134,5 +167,14 @@ class PatronRequestApiClient {
 	@Builder
 	public static class PickupLocation {
 		@Nullable String code;
+	}
+
+	@Serdeable
+	@Value
+	@Builder
+	public static class Item {
+		@Nullable String localId;
+		@Nullable String localSystemCode;	// hostlms code
+		@Nullable String agencyCode;
 	}
 }
