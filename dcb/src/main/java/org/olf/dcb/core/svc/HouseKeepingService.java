@@ -8,6 +8,7 @@ import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 @Slf4j
 @Singleton
@@ -22,13 +23,27 @@ public class HouseKeepingService {
 			+ "	WHERE dupe.row_num > 1 AND dupe.id = m.id\n"
 			+ ");";
 	private Mono<String> dedupe;
+
+  private static final int BATCH_SIZE = 10_000;
+
+  private static final String QUERY_DUPLICATE_IDS = """
+      SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY bib_id, "value" ORDER BY id) AS rn
+        FROM match_point
+      ) sub
+      WHERE rn > 1
+      LIMIT $1
+      """;
+
+  private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
+
 	
 	public HouseKeepingService(R2dbcOperations dbops) {
 		this.dbops = dbops;
 	}
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	public Mono<String> dedupeMatchPoints() {
+	public Mono<String> legacyDedupeMatchPoints() {
 		if (dedupe == null) {
 			synchronized (this) {
 				if (dedupe == null) {
@@ -62,4 +77,57 @@ public class HouseKeepingService {
 		
 		return dedupe;
 	}
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Mono<String> dedupeMatchPoints() {
+    if (dedupe == null) {
+      synchronized (this) {
+        if (dedupe == null) {
+          dedupe = Mono.<String>create(report -> {
+            log.info("Starting MatchPoint deduplication");
+            report.success("Dedupe started at [%s]".formatted(Instant.now()));
+
+            deleteDuplicatesBatch()
+              .doOnTerminate(() -> {
+                dedupe = null;
+                log.info("Finished MatchPoint deduplication");
+              })
+              .subscribe();
+          }).cache();
+        }
+      }
+    } else {
+      log.debug("Dedupe MatchPoints already running. NOOP");
+    }
+
+    return dedupe;
+  }
+
+  private Mono<Void> deleteDuplicatesBatch() {
+    return Mono.from(
+      dbops.withConnection(conn -> 
+        Flux.from(conn.createStatement(QUERY_DUPLICATE_IDS)
+          .bind("$1", BATCH_SIZE)
+          .execute())
+        .flatMap(result -> result.map((row, meta) -> row.get("id", Long.class)))
+        .collectList()
+        .flatMap(ids -> {
+          if (ids.isEmpty()) {
+            return Mono.empty(); // Done!
+          }
+
+          log.info("Deleting batch of {} duplicates", ids.size());
+
+          return Mono.from(dbops.withTransaction(tx -> 
+              Mono.from(tx.getConnection()
+                  .createStatement(DELETE_BY_IDS)
+                  .bind("$1", ids.toArray(new Long[0]))
+                  .execute())
+              .flatMap(r -> Mono.from(r.getRowsUpdated()))
+              .then()
+          )).then(deleteDuplicatesBatch()); // Recurse to process next batch
+        })  
+      )
+    );
+  }
 }
