@@ -1164,6 +1164,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
   public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
 		// See https://s3.amazonaws.com/foliodocs/api/mod-circulation/p/circulation.html#circulation_loans__loanid__put
 		// Specifcally PUT /circulation/loans/{loanId} and renewalCount property - needs the loan ID
+    log.info("Folio prevent renewal {}",prc);
     return Mono.empty();
   }
 

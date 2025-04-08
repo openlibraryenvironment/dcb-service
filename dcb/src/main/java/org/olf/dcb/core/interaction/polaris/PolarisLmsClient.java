@@ -1751,6 +1751,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
   @Override
   public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+		// 
+    log.info("Polaris prevent renewal {}",prc);
     return Mono.empty();
   }
 
