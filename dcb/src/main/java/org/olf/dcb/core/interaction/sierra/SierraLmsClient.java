@@ -1855,6 +1855,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
   @Override
   public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+		// Item fixed field 71 contains the renewal count https://techdocs.iii.com/sierraapi/Content/zObjects/itemObjectDescription.htm?Highlight=renew
+		log.info("Sierra prevent renewal {}",prc);
     return Mono.empty();
   }
 

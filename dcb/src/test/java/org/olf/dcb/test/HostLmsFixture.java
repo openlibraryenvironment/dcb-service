@@ -3,10 +3,7 @@ package org.olf.dcb.test;
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -153,8 +150,26 @@ public class HostLmsFixture {
 
 	public DataHostLms createDummyHostLms(String code) {
 
+		Map<String, Object> clientConfig = new HashMap<>();
+		clientConfig.put("base-url", generateBaseUrl(code));
+
 		return createHostLms(randomUUID(), code, DummyLmsClient.class,
-			Optional.of(DummyLmsClient.class), new HashMap<>());
+			Optional.of(DummyLmsClient.class), clientConfig);
+	}
+
+	public DataHostLms createDummyHostLms(String code, String shelvingLocationsCSV) {
+
+		Map<String, Object> clientConfig = new HashMap<>();
+		clientConfig.put("base-url", generateBaseUrl(code));
+		clientConfig.put("shelving-locations", shelvingLocationsCSV);
+
+		return createHostLms(randomUUID(), code, DummyLmsClient.class,
+			Optional.of(DummyLmsClient.class), clientConfig);
+	}
+
+	private String generateBaseUrl(String code) {
+		Random random = new Random();
+		return "http://test-url-" + code + ".com:" + (8000 + random.nextInt(2000));
 	}
 
 	public <T extends HostLmsClient, R extends IngestSource> DataHostLms createHostLms(
@@ -197,6 +212,33 @@ public class HostLmsFixture {
 	@Nullable
 	public IngestSource getIngestSource(String code) {
 		return singleValueFrom(hostLmsService.getIngestSourceFor(code));
+	}
+
+	public DataHostLms setDummyState(String code, String state, String role, String responseType) {
+		return singleValueFrom(hostLmsService.findByCode(code)
+			.map(hostLms -> updateHostLms(hostLms, state, role, responseType))
+			.flatMap(hostLmsRepository::saveOrUpdate));
+	}
+
+	private DataHostLms updateHostLms(DataHostLms hostLms, String state, String role, String responseType) {
+		if (state != null) {
+			hostLms.getClientConfig().put("state", state);
+		}
+		if (role != null) {
+			hostLms.getClientConfig().put("role", role);
+		}
+		if (responseType != null) {
+			hostLms.getClientConfig().put("response-type", responseType);
+		}
+		return hostLms;
+	}
+
+	public void setDummyState(String code, String state) {
+		setDummyState(code, state, null, null);
+	}
+
+	public void setDummyState(String code, String state, String role) {
+		setDummyState(code, state, role, null);
 	}
 
 	public HostLmsSierraApiClient createLowLevelSierraClient(String code, HttpClient client) {

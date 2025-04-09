@@ -60,6 +60,10 @@ public class SupplierRequestsFixture {
 		return singleValueFrom(supplierRequestRepository.save(supplierRequest));
 	}
 
+	public SupplierRequest updateSupplierRequest(SupplierRequest supplierRequest) {
+		return singleValueFrom(supplierRequestRepository.update(supplierRequest));
+	}
+
 	public SupplierRequest findById(UUID id) {
 		return singleValueFrom(supplierRequestRepository.findById(id));
 	}

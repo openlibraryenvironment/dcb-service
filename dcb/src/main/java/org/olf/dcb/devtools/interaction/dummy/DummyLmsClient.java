@@ -38,10 +38,12 @@ import java.time.Instant;
 import java.util.*;
 
 import static java.lang.Boolean.TRUE;
+import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
+import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 
 /**
@@ -56,19 +58,54 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	private final ProcessStateService processStateService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final ReferenceValueMappingService referenceValueMappingService;
+	private final LmsResponseResolver lmsResponseResolver;
 	private final static Map<String, DummySystemData> dummySystems = new HashMap<String, DummySystemData>();
+	private String state;
 
 	private static final String[] titleWords = { "Science", "Philosophy", "Music", "Art", "Nonsense", "Dialectic",
 			"FlipDeBoop", "FlopLehoop", "Affdgerandunique", "Literacy" };
 
 	public DummyLmsClient(@Parameter HostLms lms, ProcessStateService processStateService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		ReferenceValueMappingService referenceValueMappingService) {
+		ReferenceValueMappingService referenceValueMappingService,
+		LmsResponseResolver lmsResponseResolver) {
 
 		this.lms = lms;
 		this.processStateService = processStateService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.referenceValueMappingService = referenceValueMappingService;
+		this.lmsResponseResolver = lmsResponseResolver;
+
+		checkState();
+	}
+
+	/**
+	 * A way to change the state of the Dummy LMS client based on configuration.
+	 */
+	void checkState() {
+		String configState = (String) lms.getClientConfig().get("state");
+
+		log.info("{}/{} state is {}", lms.getName(), lms.getCode(), configState);
+
+		// By setting this value we allow methods to check the state before responding.
+		if (configState != null) {
+			state = configState;
+		}
+	}
+
+	Mono<DummyResponse> getDummyResponse() {
+		String role = (String) lms.getClientConfig().get("role");
+		String responseType = (String) lms.getClientConfig().get("response-type");
+
+		Optional<DummyResponse> response = lmsResponseResolver.resolve(state, role, responseType);
+		if (response.isPresent()) {
+			return Mono.just(response.get());
+		} else {
+			log.error("No dummy response found.");
+
+			// This will cause tracking to fail with audit
+			return Mono.empty();
+		}
 	}
 
 	@Override
@@ -117,7 +154,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 							.name(s)
 							.build())
 						.barcode(localBibId + "-i" + n)
-						.callNumber("CN-" + localBibId).holdCount(0)
+						.callNumber("CN-" + localBibId)
+						.holdCount(0)
 						.localItemType("Books/Monographs")
 						.localItemTypeCode("BKM")
 						// Real host lms adapters use mappings to convert item types into canonical codes CIRC, CIRCAV and NONCIRC
@@ -130,7 +168,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 			return Flux.fromIterable(result_items)
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
-				.collectList();
+				.collectList()
+				.doOnSuccess(items -> log.debug("Found {} items for bib {}", items, localBibId));
 		}
 
 		return Mono.empty();
@@ -170,8 +209,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public Mono<Patron> getPatronByIdentifier(String id) {
-		log.warn("Get patron by identifier is not currently implemented for Dummy");
-		return null;
+		log.info("getPatronByIdentifier({})", id);
+		Patron result = Patron.builder().localId(List.of(id)).localNames(List.of("Dummy Name"))
+			.localBarcodes(List.of("66635556635")).uniqueIds(List.of("994746466")).localPatronType("STD")
+			.localHomeLibraryCode("TR").build();
+		return Mono.just(result);
 	}
 
 	@Override
@@ -238,7 +280,10 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	public Mono<Patron> updatePatron(String localId, String patronType) {
 		log.info("Update patron {},{}", localId, patronType);
-		return Mono.empty();
+		return Mono.just(Patron.builder()
+			.localId(singletonList(localId))
+			.localPatronType(patronType)
+			.build());
 	}
 
 	@Override
@@ -263,6 +308,21 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		log.debug("getRequest({})", localRequestId);
+
+		if (state != null) {
+			return getDummyResponse()
+				.map(dummyResponse -> {
+					final var responseData = dummyResponse.getData();
+					final var requestStatus = (String) responseData.get("requestStatus");
+					final var rawRequestStatus = (String) responseData.get("rawRequestStatus");
+					return HostLmsRequest.builder()
+						.localId(localRequestId)
+						.status(requestStatus)
+						.rawStatus(rawRequestStatus)
+						.build();
+				});
+		}
+
 		DummyRequestData drd = getDummyRequest(localRequestId);
 
     if ( drd != null ) {
@@ -282,6 +342,21 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
 		log.debug("getItem(localItemId:{}, localRequestId:{})", localItemId, localRequestId);
+
+		if (state != null) {
+			return getDummyResponse()
+				.map(dummyResponse -> {
+					final var responseData = dummyResponse.getData();
+					final var itemStatus = (String) responseData.get("itemStatus");
+					final var rawItemStatus = (String) responseData.get("rawItemStatus");
+
+					return HostLmsItem.builder()
+						.localId(localItemId)
+						.status(itemStatus)
+						.rawStatus(rawItemStatus)
+						.build();
+				});
+		}
 
 		DummyRequestData drd = getDummyRequest(localRequestId);
 
@@ -427,7 +502,12 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
-		return placeHoldRequest(parameters);
+		return placeHoldRequest(parameters)
+			.map(localRequest -> LocalRequest.builder()
+				.localId(localRequest.getLocalId())
+				// to help trigger HandleSupplierRequestConfirmed without tracking
+				.localStatus(HostLmsRequest.HOLD_CONFIRMED)
+				.build());
 	}
 
 	@Override
@@ -581,15 +661,14 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
   	public Map<String, DummyItemData> items = new HashMap<String, DummyItemData>();
   }
 
-
   @Data
   @Builder
   @Serdeable
-	static class DummyRequestData {
-		public PlaceHoldRequestParameters initialParameters;
-		public String requestId;
-		public String requestStatus;
-	}
+  static class DummyRequestData {
+	  public PlaceHoldRequestParameters initialParameters;
+	  public String requestId;
+	  public String requestStatus;
+  }
 
   @Data
   @Builder

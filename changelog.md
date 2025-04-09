@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 8.20.1
+
+### Changes
+* [Chore]
+	* tidy logging around FOLIO bib suppression
+	* Adds a default inferSuppression method to the base OaiPmhIngestSource and an override to the folio adapter ready to address folio 999 sub t suppression
+* [Test]
+	* shouldTerminatePUARequestsWhenReResolutionIsNotRequired
+
+### Fixes
+* [General]
+	* add context hierarchy to mapLocalPatronTypeToCanonical [DCB-1865]
+	* Add FOLIO default behaviour for inferring suppression from 999 subfield t. DCB-1670
+	* exclude deleted mappings when finding NRMs [DCB-1865]
+
 ## Version 8.20.0
 
 ### Additions
@@ -12,6 +27,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* AlmaItem progress
 	* Add Alma Client and associated resources
 

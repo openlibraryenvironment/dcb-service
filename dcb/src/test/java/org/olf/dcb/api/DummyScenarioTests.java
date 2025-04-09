@@ -1,0 +1,277 @@
+package org.olf.dcb.api;
+
+import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.*;
+import org.olf.dcb.core.model.*;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.test.*;
+import services.k_int.test.mockserver.MockServerMicronautTest;
+
+import java.util.UUID;
+
+import static io.micronaut.http.HttpStatus.OK;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
+
+@MockServerMicronautTest
+@TestInstance(PER_CLASS)
+@Slf4j
+class DummyScenarioTests {
+	@Inject private PatronFixture patronFixture;
+	@Inject private PatronRequestsFixture patronRequestsFixture;
+	@Inject private SupplierRequestsFixture supplierRequestsFixture;
+	@Inject private InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture;
+	@Inject private HostLmsFixture hostLmsFixture;
+	@Inject private AgencyFixture agencyFixture;
+	@Inject private ConsortiumFixture consortiumFixture;
+	@Inject private RequestWorkflowContextHelper requestWorkflowContextHelper;
+	@Inject private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject private LocationFixture locationFixture;
+	@Inject private PatronRequestApiClient patronRequestApiClient;
+	@Inject private ClusterRecordFixture clusterRecordFixture;
+	@Inject private BibRecordFixture bibRecordFixture;
+	@Inject private AdminApiClient adminApiClient;
+	@Inject private EventLogFixture eventLogFixture;
+
+	private static final String SUPPLYING_HOST_LMS_CODE = "dummy-tests-supplying-agency";
+	private static final String SUPPLYING_BASE_URL = "https://supplier-patron-request-api-tests.com";
+	private static final String BORROWING_HOST_LMS_CODE = "dummy-tests-borrowing-agency";
+	private static final String BORROWING_BASE_URL = "https://borrower-patron-request-api-tests.com";
+	private static final String PICKUP_HOST_LMS_CODE = "dummy-tests-pickup-agency";
+	private static final String PICKUP_BASE_URL = "https://pickup-patron-request-api-tests.com";
+	private static final String BORROWING_PATRON_LOCAL_ID = "872321";
+	private static final String VIRTUAL_PATRON_LOCAL_ID = "2745326";
+	private static final String PICKUP_LOCATION_CODE = "ABC123";
+	private static final String SUPPLYING_LOCATION_CODE = "ab6";
+	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
+	private static final String PICKUP_AGENCY_CODE = "pickup-agency";
+	private static final String SUPPLYING_ITEM_BARCODE = "6565750674";
+	private static final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
+	private static final String HOME_LIBRARY_CODE = "home-library";
+	private static final String EXPECTED_UNIQUE_ID = "%s@%s".formatted(BORROWING_PATRON_LOCAL_ID, BORROWING_AGENCY_CODE);
+	private static final Integer COMMON_VIRTUAL_BIB_ID = 7916920;
+	private static final String COMMON_VIRTUAL_LOCAL_ITEM_ID = "7916922";
+	private static final String COMMON_AVAILABLE_ITEM_LOCAL_ID = "798472";
+	private static final Integer COMMON_ITEM_TYPE = 999;
+	private static final String COMMON_PATRON_TYPE = "15";
+	private DataHostLms BORROWING_HOST_LMS;
+	private DataHostLms SUPPLYING_HOST_LMS;
+	private DataHostLms PICKUP_HOST_LMS;
+	private DataAgency borrowingAgency;
+	private DataAgency supplyingAgency;
+	private DataAgency pickupAgency;
+
+	@BeforeAll
+	void setUp() {
+		setUpHostLms();
+		defineAgencies();
+		createPickupLocation();
+	}
+
+	@BeforeEach
+	void beforeEach() {
+		clearFixtures();
+		defineMappings();
+	}
+
+	@AfterAll
+	void tearDown() {
+		patronRequestApiClient.removeTokenFromValidTokens();
+	}
+
+	@Test
+	void pickupAnywhereWorkflowScenario() {
+		log.info("Starting test: pickupAnywhereWorkflowScenario");
+
+		// Arrange
+		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
+		final var borrowingPatronLocalId = "872321";
+		final var homeLibraryCode = "HOME_LIBRARY_CODE";
+
+		// Act
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, borrowingPatronLocalId, VALID_PICKUP_LOCATION_ID, BORROWING_HOST_LMS_CODE, homeLibraryCode);
+
+		// Assert
+		assertThat(placedRequestResponse.getStatus(), is(OK));
+
+		final var placedPatronRequest = placedRequestResponse.body();
+		assertThat(placedPatronRequest, is(notNullValue()));
+
+		final var placedRequestUUID = placedPatronRequest.getId();
+		assertThat(placedRequestUUID, is(notNullValue()));
+		assertThat(placedRequestUUID, is(Matchers.instanceOf(UUID.class)));
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_PICKUP_AGENCY);
+		assertPatronRequestUsesPickupAnywhereWorkflow(placedRequestUUID);
+
+		log.info("Circulation starting..");
+		log.info("Putting supplier item in transit");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "PICKUP_TRANSIT", "supplier", "RET-PUA");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "PICKUP_TRANSIT", "pickup", "RET-PUA");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "PICKUP_TRANSIT", "borrower", "RET-PUA");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, PICKUP_TRANSIT);
+
+		log.info("Pickup location receiving item");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "RECEIVED_AT_PICKUP", "supplier", "RET-PUA");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "RECEIVED_AT_PICKUP", "pickup", "RET-PUA");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "RECEIVED_AT_PICKUP", "borrower", "RET-PUA");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, RECEIVED_AT_PICKUP);
+
+		log.info("Item is being put on hold shelf");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "READY_FOR_PICKUP", "supplier", "RET-PUA");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "READY_FOR_PICKUP", "pickup", "RET-PUA");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "READY_FOR_PICKUP", "borrower", "RET-PUA");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, READY_FOR_PICKUP);
+
+		log.info("Item is ready for pickup");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "READY_FOR_PICKUP", "supplier", "RET-PUA");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "READY_FOR_PICKUP", "pickup", "RET-PUA");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "READY_FOR_PICKUP", "borrower", "RET-PUA");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, READY_FOR_PICKUP);
+
+		log.info("Patron picking up item");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "LOANED", "supplier", "RET-PUA");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "LOANED", "pickup", "RET-PUA");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "LOANED", "borrower", "RET-PUA");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, LOANED);
+
+		log.info("Patron returned item");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "RETURN_TRANSIT", "supplier", "RET-PUA");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "RETURN_TRANSIT", "pickup", "RET-PUA");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "RETURN_TRANSIT", "borrower", "RET-PUA");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, RETURN_TRANSIT);
+
+		log.info("Patron request completing");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "COMPLETED", "supplier", "RET-PUA");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "COMPLETED", "pickup", "RET-PUA");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "COMPLETED", "borrower", "RET-PUA");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		// We missed the "COMPLETED" state of the patron request as it happens too quick to catch
+		assertRequestIsInExpectedStatus(placedRequestUUID, FINALISED);
+	}
+
+	// Helper methods
+
+	private void clearFixtures() {
+		patronRequestsFixture.deleteAll();
+		supplierRequestsFixture.deleteAll();
+		patronFixture.deleteAllPatrons();
+		clusterRecordFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
+		eventLogFixture.deleteAll();
+	}
+
+	private UUID createClusterRecordWithOneAvailableItem() {
+		final var clusterRecordId = UUID.randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+		bibRecordFixture.createBibRecord(clusterRecordId, SUPPLYING_HOST_LMS.getId(), COMMON_AVAILABLE_ITEM_LOCAL_ID, clusterRecord);
+
+		return clusterRecordId;
+	}
+
+	private void defineAgencies() {
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, "Supplying Agency", SUPPLYING_HOST_LMS);
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, "Borrowing Agency", BORROWING_HOST_LMS);
+		agencyFixture.defineAgency(PICKUP_AGENCY_CODE, "Pickup Agency", PICKUP_HOST_LMS);
+	}
+
+	private void createPickupLocation() {
+		locationFixture.createPickupLocation(UUID.fromString(VALID_PICKUP_LOCATION_ID),
+			PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, agencyFixture.findByCode(PICKUP_AGENCY_CODE));
+	}
+
+	private void setUpHostLms() {
+		hostLmsFixture.deleteAll();
+		// Create dummy host LMS instances
+		BORROWING_HOST_LMS = hostLmsFixture.createDummyHostLms(BORROWING_HOST_LMS_CODE);
+		PICKUP_HOST_LMS = hostLmsFixture.createDummyHostLms(PICKUP_HOST_LMS_CODE);
+		SUPPLYING_HOST_LMS = hostLmsFixture.createDummyHostLms(SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE);
+	}
+
+	private void defineMappings() {
+		final int COMMON_PATRON_TYPE_INT = Integer.parseInt(COMMON_PATRON_TYPE);
+
+		// Location to Agency Mappings
+		referenceValueMappingFixture.defineLocationToAgencyMapping(SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE, "TR", BORROWING_AGENCY_CODE);
+		// Item type mappings
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			SUPPLYING_HOST_LMS_CODE, COMMON_ITEM_TYPE, COMMON_ITEM_TYPE, "loanable-item");
+		// Patron type mappings
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", COMMON_PATRON_TYPE,
+			SUPPLYING_HOST_LMS_CODE, COMMON_PATRON_TYPE);
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", COMMON_PATRON_TYPE,
+			PICKUP_HOST_LMS_CODE, COMMON_PATRON_TYPE);
+
+		// Dummy hostlms has a static STD value as local patron type
+		referenceValueMappingFixture.definePatronTypeMapping(BORROWING_HOST_LMS_CODE, "STD",
+			"DCB", COMMON_PATRON_TYPE);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, COMMON_PATRON_TYPE_INT, COMMON_PATRON_TYPE_INT, "DCB", COMMON_PATRON_TYPE);
+	}
+
+	private void assertRequestIsInExpectedStatus(UUID requestUUID, PatronRequest.Status expectedStatus) {
+		log.info("Verifying that request ID {} is in expected status {}...", requestUUID, expectedStatus);
+
+		int timeoutInSeconds = 10;
+
+		try {
+			await()
+				.atMost(timeoutInSeconds, SECONDS)
+				.until(() -> {
+					final var response = patronRequestsFixture.findById(requestUUID);
+					final var currentStatus = response.getStatus();
+					log.debug("Current status for request ID {}: {}", requestUUID, currentStatus);
+					return expectedStatus.equals(currentStatus);
+				});
+
+			log.info("Request ID {} successfully in expected status {}.", requestUUID, expectedStatus);
+		} catch (Exception e) {
+			log.error("Verification failed for request ID {} within {} seconds.", requestUUID, timeoutInSeconds, e);
+			throw new AssertionError("Request was not in expected status as expected", e);
+		}
+	}
+
+	private void assertPatronRequestUsesPickupAnywhereWorkflow(UUID placedRequestUUID) {
+		final var patronRequest = patronRequestsFixture.findById(placedRequestUUID);
+
+		assertThat(patronRequest, is(notNullValue()));
+		assertThat("patron request should use RET-PUA workflow", patronRequest.getActiveWorkflow(), is("RET-PUA"));
+	}
+}

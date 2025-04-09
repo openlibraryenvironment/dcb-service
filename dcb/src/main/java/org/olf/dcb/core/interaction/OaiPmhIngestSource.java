@@ -519,11 +519,12 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			// If we have a retryable state and a resumption token.... Then recursively return this,
 			// But without a token.
 			if (resumptionToken.isPresent()) {
-				
-				log.atInfo().log("Retrying without a resumption token and a 'since' of [{}]", since);
+				log.error("**Error in fetch page** {} Retrying fetchPage without a resumption token and a 'since' of [{}]", re.getMessage(), since);
 				return fetchPage(since, Optional.empty());
 			}
 			
+			log.error("**Error** in fetchPage (No token present) - bubble up {}",re.getMessage());
+
 			// Else bubble it up.
 			return Mono.error(re);
 		})
@@ -600,6 +601,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 				log.info("Retrying without a resumption token, params [{}]", params.map(Objects::toString).orElse("<empty>"));
 				
 				// We had a token so this error is valid. Retry without.
+				
 				return listRecords( params.map( p -> p.toBuilder().resumptionToken(null).build() ));
 			}
 		);
