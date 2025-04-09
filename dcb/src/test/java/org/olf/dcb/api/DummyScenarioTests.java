@@ -12,6 +12,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 import java.util.UUID;
 
 import static io.micronaut.http.HttpStatus.OK;
+import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.*;
@@ -53,7 +54,8 @@ class DummyScenarioTests {
 	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
 	private static final String PICKUP_AGENCY_CODE = "pickup-agency";
 	private static final String SUPPLYING_ITEM_BARCODE = "6565750674";
-	private static final String VALID_PICKUP_LOCATION_ID = "0f102b5a-e300-41c8-9aca-afd170e17921";
+	private static String PUA_PICKUP_LOCATION_ID;
+	private static String STANDARD_PICKUP_LOCATION_ID;
 	private static final String HOME_LIBRARY_CODE = "home-library";
 	private static final String EXPECTED_UNIQUE_ID = "%s@%s".formatted(BORROWING_PATRON_LOCAL_ID, BORROWING_AGENCY_CODE);
 	private static final Integer COMMON_VIRTUAL_BIB_ID = 7916920;
@@ -72,7 +74,7 @@ class DummyScenarioTests {
 	void setUp() {
 		setUpHostLms();
 		defineAgencies();
-		createPickupLocation();
+
 	}
 
 	@BeforeEach
@@ -87,17 +89,105 @@ class DummyScenarioTests {
 	}
 
 	@Test
-	void pickupAnywhereWorkflowScenario() {
-		log.info("Starting test: pickupAnywhereWorkflowScenario");
+	void standardWorkflowScenario() {
+		log.info("Starting test: standardWorkflowScenario");
 
 		// Arrange
+		STANDARD_PICKUP_LOCATION_ID = randomUUID().toString();
+		createStandardPickupLocation();
+
 		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
 		final var borrowingPatronLocalId = "872321";
 		final var homeLibraryCode = "HOME_LIBRARY_CODE";
 
 		// Act
 		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, borrowingPatronLocalId, VALID_PICKUP_LOCATION_ID, BORROWING_HOST_LMS_CODE, homeLibraryCode);
+			clusterRecordId, borrowingPatronLocalId, STANDARD_PICKUP_LOCATION_ID, BORROWING_HOST_LMS_CODE, homeLibraryCode);
+
+		// Assert
+		assertThat(placedRequestResponse.getStatus(), is(OK));
+
+		final var placedPatronRequest = placedRequestResponse.body();
+		assertThat(placedPatronRequest, is(notNullValue()));
+
+		final var placedRequestUUID = placedPatronRequest.getId();
+		assertThat(placedRequestUUID, is(notNullValue()));
+		assertThat(placedRequestUUID, is(Matchers.instanceOf(UUID.class)));
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_BORROWING_AGENCY);
+		assertPatronRequestUsesWorkflow(placedRequestUUID, "RET-STD");
+
+		log.info("Circulation starting..");
+		log.info("Putting supplier item in transit");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "PICKUP_TRANSIT", "supplier", "RET-STD");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "PICKUP_TRANSIT", "borrower", "RET-STD");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, PICKUP_TRANSIT);
+
+		log.info("Pickup location receiving item");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "RECEIVED_AT_PICKUP", "supplier", "RET-STD");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "RECEIVED_AT_PICKUP", "borrower", "RET-STD");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, RECEIVED_AT_PICKUP);
+
+		log.info("Item is being put on hold shelf");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "READY_FOR_PICKUP", "supplier", "RET-STD");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "READY_FOR_PICKUP", "borrower", "RET-STD");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, READY_FOR_PICKUP);
+
+		log.info("Patron picking up item");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "LOANED", "supplier", "RET-STD");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "LOANED", "borrower", "RET-STD");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, LOANED);
+
+		log.info("Patron returned item");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "RETURN_TRANSIT", "supplier", "RET-STD");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "RETURN_TRANSIT", "borrower", "RET-STD");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, RETURN_TRANSIT);
+
+		log.info("Patron request completing");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "COMPLETED", "supplier", "RET-STD");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "COMPLETED", "borrower", "RET-STD");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		// We missed the "COMPLETED" state of the patron request as it happens too quick to catch
+		assertRequestIsInExpectedStatus(placedRequestUUID, FINALISED);
+	}
+
+	@Test
+	void pickupAnywhereWorkflowScenario() {
+		log.info("Starting test: pickupAnywhereWorkflowScenario");
+
+		// Arrange
+		PUA_PICKUP_LOCATION_ID = randomUUID().toString();
+		createPUAPickupLocation();
+		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
+		final var borrowingPatronLocalId = "872321";
+		final var homeLibraryCode = "HOME_LIBRARY_CODE";
+
+		// Act
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, borrowingPatronLocalId, PUA_PICKUP_LOCATION_ID, BORROWING_HOST_LMS_CODE, homeLibraryCode);
 
 		// Assert
 		assertThat(placedRequestResponse.getStatus(), is(OK));
@@ -110,7 +200,7 @@ class DummyScenarioTests {
 		assertThat(placedRequestUUID, is(Matchers.instanceOf(UUID.class)));
 
 		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_PICKUP_AGENCY);
-		assertPatronRequestUsesPickupAnywhereWorkflow(placedRequestUUID);
+		assertPatronRequestUsesWorkflow(placedRequestUUID, "RET-PUA");
 
 		log.info("Circulation starting..");
 		log.info("Putting supplier item in transit");
@@ -134,16 +224,6 @@ class DummyScenarioTests {
 		assertRequestIsInExpectedStatus(placedRequestUUID, RECEIVED_AT_PICKUP);
 
 		log.info("Item is being put on hold shelf");
-
-		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "READY_FOR_PICKUP", "supplier", "RET-PUA");
-		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "READY_FOR_PICKUP", "pickup", "RET-PUA");
-		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "READY_FOR_PICKUP", "borrower", "RET-PUA");
-
-		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
-
-		assertRequestIsInExpectedStatus(placedRequestUUID, READY_FOR_PICKUP);
-
-		log.info("Item is ready for pickup");
 
 		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "READY_FOR_PICKUP", "supplier", "RET-PUA");
 		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "READY_FOR_PICKUP", "pickup", "RET-PUA");
@@ -185,6 +265,65 @@ class DummyScenarioTests {
 		assertRequestIsInExpectedStatus(placedRequestUUID, FINALISED);
 	}
 
+	@Test
+	void skippedLoanCustomWorkflowScenario() {
+		log.info("Starting test: customWorkflowScenario");
+
+		// Arrange
+		PUA_PICKUP_LOCATION_ID = randomUUID().toString();
+		createPUAPickupLocation();
+
+		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
+		final var borrowingPatronLocalId = "872321";
+		final var homeLibraryCode = "HOME_LIBRARY_CODE";
+
+		// Act
+		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, borrowingPatronLocalId, PUA_PICKUP_LOCATION_ID, BORROWING_HOST_LMS_CODE, homeLibraryCode);
+
+		// Assert
+		assertThat(placedRequestResponse.getStatus(), is(OK));
+
+		final var placedPatronRequest = placedRequestResponse.body();
+		assertThat(placedPatronRequest, is(notNullValue()));
+
+		final var placedRequestUUID = placedPatronRequest.getId();
+		assertThat(placedRequestUUID, is(notNullValue()));
+		assertThat(placedRequestUUID, is(Matchers.instanceOf(UUID.class)));
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_PICKUP_AGENCY);
+		assertPatronRequestUsesWorkflow(placedRequestUUID, "RET-PUA");
+
+		log.info("Circulation starting..");
+		log.info("Putting supplier item in transit");
+
+		// first tracking round we should set the state of each hostlms
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "PICKUP_TRANSIT", "supplier", "CUSTOM");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "PICKUP_TRANSIT", "borrower", "CUSTOM");
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "PICKUP_TRANSIT", "pickup", "CUSTOM");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, PICKUP_TRANSIT);
+
+		log.info("Skipping loan");
+
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, "COMPLETED", "pickup", "CUSTOM");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		assertRequestIsInExpectedStatus(placedRequestUUID, RETURN_TRANSIT);
+
+		log.info("Patron request completing");
+
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, "COMPLETED", "supplier", "CUSTOM");
+
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		// We missed the "COMPLETED" state of the patron request as it happens too quick to catch
+		assertRequestIsInExpectedStatus(placedRequestUUID, FINALISED);
+	}
+
 	// Helper methods
 
 	private void clearFixtures() {
@@ -197,7 +336,7 @@ class DummyScenarioTests {
 	}
 
 	private UUID createClusterRecordWithOneAvailableItem() {
-		final var clusterRecordId = UUID.randomUUID();
+		final var clusterRecordId = randomUUID();
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
 		bibRecordFixture.createBibRecord(clusterRecordId, SUPPLYING_HOST_LMS.getId(), COMMON_AVAILABLE_ITEM_LOCAL_ID, clusterRecord);
 
@@ -210,8 +349,15 @@ class DummyScenarioTests {
 		agencyFixture.defineAgency(PICKUP_AGENCY_CODE, "Pickup Agency", PICKUP_HOST_LMS);
 	}
 
-	private void createPickupLocation() {
-		locationFixture.createPickupLocation(UUID.fromString(VALID_PICKUP_LOCATION_ID),
+	private void createStandardPickupLocation() {
+		// Standard
+		locationFixture.createPickupLocation(UUID.fromString(STANDARD_PICKUP_LOCATION_ID),
+			PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, agencyFixture.findByCode(BORROWING_AGENCY_CODE));
+	}
+
+	private void createPUAPickupLocation() {
+		// PUA
+		locationFixture.createPickupLocation(UUID.fromString(PUA_PICKUP_LOCATION_ID),
 			PICKUP_LOCATION_CODE, PICKUP_LOCATION_CODE, agencyFixture.findByCode(PICKUP_AGENCY_CODE));
 	}
 
@@ -268,10 +414,10 @@ class DummyScenarioTests {
 		}
 	}
 
-	private void assertPatronRequestUsesPickupAnywhereWorkflow(UUID placedRequestUUID) {
+	private void assertPatronRequestUsesWorkflow(UUID placedRequestUUID, String workflow) {
 		final var patronRequest = patronRequestsFixture.findById(placedRequestUUID);
 
 		assertThat(patronRequest, is(notNullValue()));
-		assertThat("patron request should use RET-PUA workflow", patronRequest.getActiveWorkflow(), is("RET-PUA"));
+		assertThat("patron request should use " + workflow + " workflow", patronRequest.getActiveWorkflow(), is(workflow));
 	}
 }

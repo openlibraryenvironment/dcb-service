@@ -23,6 +23,8 @@ import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.devtools.interaction.dummy.responder.DummyResponse;
+import org.olf.dcb.devtools.interaction.dummy.responder.LmsResponseResolver;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
@@ -42,8 +44,6 @@ import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.ReactorUtils.raiseError;
-import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 
 /**

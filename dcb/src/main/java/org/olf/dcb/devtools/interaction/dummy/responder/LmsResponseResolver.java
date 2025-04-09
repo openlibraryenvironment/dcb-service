@@ -1,4 +1,4 @@
-package org.olf.dcb.devtools.interaction.dummy;
+package org.olf.dcb.devtools.interaction.dummy.responder;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;

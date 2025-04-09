@@ -1,0 +1,32 @@
+{
+	"pickup_transit-borrower": {
+		"itemStatus": "CONFIRMED",
+		"rawItemStatus": "CONFIRMED",
+		"requestStatus": "CONFIRMED",
+		"rawRequestStatus": "CONFIRMED"
+	},
+	"pickup_transit-supplier": {
+		"itemStatus": "TRANSIT",
+		"rawItemStatus": "TRANSIT",
+		"requestStatus": "CONFIRMED",
+		"rawRequestStatus": "CONFIRMED"
+	},
+	"pickup_transit-pickup": {
+		"itemStatus": "CONFIRMED",
+		"rawItemStatus": "CONFIRMED",
+		"requestStatus": "CONFIRMED",
+		"rawRequestStatus": "CONFIRMED"
+	},
+	"completed-pickup": {
+		"itemStatus": "AVAILABLE",
+		"rawItemStatus": "AVAILABLE",
+		"requestStatus": "MISSING",
+		"rawRequestStatus": "MISSING"
+	},
+	"completed-supplier": {
+		"itemStatus": "AVAILABLE",
+		"rawItemStatus": "AVAILABLE",
+		"requestStatus": "MISSING",
+		"rawRequestStatus": "MISSING"
+	}
+}

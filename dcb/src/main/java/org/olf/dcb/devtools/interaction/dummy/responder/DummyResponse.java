@@ -1,4 +1,4 @@
-package org.olf.dcb.devtools.interaction.dummy;
+package org.olf.dcb.devtools.interaction.dummy.responder;
 
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
