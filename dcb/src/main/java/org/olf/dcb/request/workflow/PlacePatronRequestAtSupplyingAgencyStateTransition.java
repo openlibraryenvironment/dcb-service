@@ -50,12 +50,23 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 			.doOnSuccess(pr -> {
 				log.debug("Placed patron request to supplier: pr={}", pr);
 				ctx.getWorkflowMessages().add("Placed patron request to supplier");
+				addAuditDetail(ctx);
 			})
 			.doOnError(error -> {
 				log.error("Error occurred during placing a patron request to supplier: {}", error.getMessage());
 				ctx.getWorkflowMessages().add("Error occurred during placing a patron request to supplier: "+error.getMessage());
+				addAuditDetail(ctx);
 			})
 			.thenReturn(ctx);
+	}
+
+	private void addAuditDetail(RequestWorkflowContext ctx) {
+		if ( ctx != null ) {
+			ctx.getWorkflowMessages().add("Pickup library"+ ( ctx.getPickupLibrary() != null ? ctx.getPickupLibrary().getAbbreviatedName() : "MISSING" ) );
+			ctx.getWorkflowMessages().add("Pickup agency code"+ctx.getPickupAgencyCode());
+			ctx.getWorkflowMessages().add("Pickup system code"+ctx.getPickupSystemCode());
+			ctx.getWorkflowMessages().add("Pickup location code"+ ( ctx.getPickupLocation() != null ? ctx.getPickupLocation().getCode() : "MISSING" ) );
+		}
 	}
 
 	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest) {
