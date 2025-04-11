@@ -62,10 +62,11 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 
 	private void addAuditDetail(RequestWorkflowContext ctx) {
 		if ( ctx != null ) {
-			ctx.getWorkflowMessages().add("Pickup library"+ ( ctx.getPickupLibrary() != null ? ctx.getPickupLibrary().getAbbreviatedName() : "MISSING" ) );
-			ctx.getWorkflowMessages().add("Pickup agency code"+ctx.getPickupAgencyCode());
-			ctx.getWorkflowMessages().add("Pickup system code"+ctx.getPickupSystemCode());
-			ctx.getWorkflowMessages().add("Pickup location code"+ ( ctx.getPickupLocation() != null ? ctx.getPickupLocation().getCode() : "MISSING" ) );
+			ctx.getWorkflowMessages().add("Pickup library "+ ( ctx.getPickupLibrary() != null ? ctx.getPickupLibrary().getAbbreviatedName() : "MISSING" ) );
+			ctx.getWorkflowMessages().add("Pickup agency code "+ctx.getPickupAgencyCode());
+			ctx.getWorkflowMessages().add("Pickup system code "+ctx.getPickupSystemCode());
+			ctx.getWorkflowMessages().add("Pickup location code "+ ( ctx.getPickupLocation() != null ? ctx.getPickupLocation().getCode() : "MISSING" ) );
+			ctx.getWorkflowMessages().add("Transaction note "+ ctx.generateTransactionNote() );
 		}
 	}
 

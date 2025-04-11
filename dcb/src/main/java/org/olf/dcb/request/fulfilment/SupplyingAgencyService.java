@@ -306,6 +306,8 @@ public class SupplyingAgencyService {
 		// String note = "Consortial Hold. tno=" + patronRequest.getId();
 		String note = context.generateTransactionNote();
 
+		String dcb_default_pickup_note = context.generatePickupNote();
+
 		// The patron type and barcode are needed by FOLIO
 		// due to how edge-dcb creates a virtual patron on DCB's behalf
 		// Have to use the values from the home identity as cannot trust
@@ -326,6 +328,7 @@ public class SupplyingAgencyService {
 					.pickupLocation(context.getPickupLocation())
 					.pickupAgency(context.getPickupAgency())
 					.pickupLibrary(context.getPickupLibrary())
+					.pickupNote(dcb_default_pickup_note)
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())
 					// It is common in III systems to want the pickup location at the supplying library

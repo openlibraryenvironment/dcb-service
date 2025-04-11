@@ -207,6 +207,15 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		});
 	}
 
+  @SingleResult
+  @Retryable
+  public Publisher<SierraItem> getItem(final String itemId, List<String> fields) {
+    if ( fields != null )
+      return get("items/"+itemId, Argument.of(SierraItem.class), uri -> uri.queryParam("fields", String.join(",",fields)));
+      
+    return get("items/"+itemId, Argument.of(SierraItem.class), uri -> {});
+  }
+
 	@Override
 	@SingleResult
 	@Retryable

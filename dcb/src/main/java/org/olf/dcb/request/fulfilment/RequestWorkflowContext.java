@@ -75,7 +75,7 @@ public class RequestWorkflowContext {
 		return note;
 	}
 
-	private String generatePickupNote() {
+	public String generatePickupNote() {
 		String note = "\n Pickup "+
 			( pickupLibrary != null ? pickupLibrary.getAbbreviatedName() : "MISSING-PICKUP-LIB") +
 			"@" +

@@ -116,12 +116,12 @@ public interface PatronRequestRepository {
 	Publisher<PatronRequest> getPatronRequestByInactiveSupplierRequestId(UUID inactiveSupplierRequestId);
 
 	// Borrowing system tracking updates
-	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localRequestStatus, String rawLocalRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
-	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
+	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, @Nullable String localRequestStatus, @Nullable String rawLocalRequestStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
+	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, @Nullable String localItemStatus, @Nullable String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 
 	// Pickup system tracking updates
-	Publisher<Long> updatePickupRequestTracking(@Id @NotNull UUID id, String pickupRequestStatus, String rawPickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
-	Publisher<Long> updatePickupItemTracking(@Id @NotNull UUID id, String pickupItemStatus, String rawPickupItemStatus, Instant pickupItemLastCheckTimestamp, Long pickupItemStatusRepeat);
+	Publisher<Long> updatePickupRequestTracking(@Id @NotNull UUID id, @Nullable String pickupRequestStatus, @Nullable String rawPickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
+	Publisher<Long> updatePickupItemTracking(@Id @NotNull UUID id, @Nullable String pickupItemStatus, @Nullable String rawPickupItemStatus, Instant pickupItemLastCheckTimestamp, Long pickupItemStatusRepeat);
 
 	@Join("requestingIdentity")
 	Publisher<PatronRequest> findAllByPatronHostlmsCodeAndBibClusterIdOrderByDateCreatedDesc(

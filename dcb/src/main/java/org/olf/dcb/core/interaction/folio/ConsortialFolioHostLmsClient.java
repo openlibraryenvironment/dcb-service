@@ -273,7 +273,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var agencyCode = getValueOrNull(parameters.getPickupAgency(), Agency::getCode);
 		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
-		final var libraryCode = getValueOrNull(parameters.getPickupLibrary(), Library::getAbbreviatedName);
+		final var libraryCode = getLibraryCode(parameters);
 		final var servicePointName = getValueOrNull(parameters.getPickupLocation(), Location::getPrintLabel);
 
 		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
@@ -301,6 +301,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.localStatus(HOLD_CONFIRMED)
 				.rawLocalStatus(response.getStatus())
 				.build());
+	}
+
+	private String getLibraryCode(PlaceHoldRequestParameters parameters) {
+		if ( parameters.getPickupLibrary() == null )
+			return "NoPickLibC= "+parameters.getPickupLocationCode()+"a="+ 
+				( parameters.getPickupAgency() != null ? parameters.getPickupAgency().getCode() : "Missing Pickup Agency" );
+		else
+			return parameters.getPickupLibrary().getAbbreviatedName();
 	}
 
 	private Mono<CreateTransactionResponse> createTransaction(

@@ -657,8 +657,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.deleted(false)
 				.bibIds(List.of(localBibId))
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed", "bibIds", "location",
-					"status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
-					"fixedFields", "varFields"))))
+          "status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
+          "fixedFields", "varFields"))))
 			.map(ResultSet::getEntries)
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(result -> mapItemWithRuleset(result, localBibId))
@@ -884,6 +884,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// When placing the hold on a suppling location, the item will be "Picked up" by the transit van at the
 		// location where the item currently resides
 		// return placeHoldRequest(parameters, parameters.getSupplyingLocalItemLocation());
+		/*
 		String pickup_location_code = parameters.getPickupLocationCode();
 
 		// We would like pickup location to be code@agency not just agency
@@ -892,6 +893,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				pickup_location_code = parameters.getPickupLocation().getCode() + "@" + parameters.getPickupLocationCode();
 			}
 		}
+		*/
+		String pickup_location_code = parameters.getPickupNote();
 
 		return placeHoldRequest(parameters, parameters.getPickupLocationCode(), "supplier");
 	}
@@ -904,6 +907,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// the patron
 
 		// Start with the default - a fallback - but unlikely to be correct
+		/*
 		String pickup_location_code = parameters.getPickupLocationCode();
 
 		// Now, look to see if we have attached the location record corresponding to a user selection. If so,
@@ -916,6 +920,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				pickup_location_code = parameters.getPickupLocation().getCode();
 			}
 		}
+		*/
+		String pickup_location_code = parameters.getPickupNote();
 
 		return placeHoldRequest(parameters, pickup_location_code, "pickup");
 	}
