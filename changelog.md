@@ -1,9 +1,31 @@
 # Changelog
 
+## Version 8.21.0
+
+### Additions
+* [General]
+	* Add reingest operation to admin controller. Use with care
+
+### Changes
+* [Chore]
+	* Add some audit messages when placing the hold on a supplier system
+	* renewal logging
+	* Signposting FOLIO renewal prevention
+	* additional logging in OAI client
+	* Refactor match point cleanup to use batched deletes in a separate transaction
+* [Test]
+	* PUA borrower skipped loan scenario [DCB-1534]
+	* pickup anywhere scenario using dummy lms [DCB-1534]
+
+### Fixes
+* [General]
+	* explicitly label rawLocalItemStatus as nullable in repository methods for tracking, adjust Sierra pickup location to match new spec
+
 ## Version 8.20.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* tidy logging around FOLIO bib suppression
 	* Adds a default inferSuppression method to the base OaiPmhIngestSource and an override to the folio adapter ready to address folio 999 sub t suppression
 * [Test]
