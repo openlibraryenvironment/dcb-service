@@ -106,8 +106,30 @@ info:
   env:
     code: ${dcb.env.code:Unknown - set DCB_ENV_CODE}
     description: ${dcb.env.description:Unknown - set DCB_ENV_DESCRIPTION}
-  circulation:
-    tracking-profile: ${dcb.circulation.tracking-profile:}
+  dcb:
+    circulation:
+      tracking-profile: ${dcb.circulation.tracking-profile:}
+    itemresolver:
+      code: ${dcb.itemresolver.code:}
+    demo:
+      ingest:
+        limit: ${dcb.demo.ingest.limit:}
+    request-workflow:
+      state-transition-delay: ${dcb.request-workflow.state-transition-delay:}
+    requests:
+      supplying:
+        patron-type: ${dcb.requests.supplying.patron-type:}
+      preflight-checks:
+        pickup-location:
+          enabled: ${dcb.requests.preflight-checks.pickup-location.enabled:}
+        pickup-location-to-agency-mapping:
+          enabled: ${dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled:}
+        resolve-patron:
+          enabled: ${dcb.requests.preflight-checks.resolve-patron.enabled:}
+        duplicate-requests:
+          enabled: ${dcb.requests.preflight-checks.duplicate-requests.enabled:}
+          request-window: ${dcb.requests.preflight-checks.duplicate-requests.request-window:}
+
 
 flyway:
   enabled: true
