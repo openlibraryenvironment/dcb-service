@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 8.21.1
+
+### Changes
+* [Chore]
+	* add optional configuration to info endpoint [DCB-1828]
+* [Feature]
+	* Add a confidence value to BibIdentifiers so that record matching can...
+
 ## Version 8.21.0
 
 ### Additions
@@ -8,6 +16,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add some audit messages when placing the hold on a supplier system
 	* renewal logging
 	* Signposting FOLIO renewal prevention
