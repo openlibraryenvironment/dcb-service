@@ -145,7 +145,7 @@ dependencies {
 	implementation("jakarta.persistence:jakarta.persistence-api")
 	implementation("org.apache.lucene:lucene-queryparser")
 
-	implementation 'com.hazelcast:hazelcast:5.3.8'
+	implementation 'com.hazelcast:hazelcast'
 
 	// Tests
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -205,7 +205,7 @@ dependencies {
   implementation("io.micronaut.aws:micronaut-aws-secretsmanager")
   implementation("io.micronaut.aws:micronaut-aws-sdk-v2")  // Required for AWS SDK v2
 
-	implementation project(':openrs-core')
+	// implementation project(':openrs-core')
 }
 
 application {

@@ -36,8 +36,8 @@ export MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH="20971520"
 
 # SourceRecordService - tracks the SourceRecord table looking for records that need to be processed
 
-export DCB_SCHEDULED_TASKS_SKIPPED=TrackingServiceV3,IngestService,SourceRecordService,IngestJob.scheduleJob
-# export DCB_SCHEDULED_TASKS_SKIPPED=IngestService,IngestJob,SourceRecordService,TrackingServiceV3 IngestJob.scheduleJob
+export DCB_SCHEDULED_TASKS_SKIPPED=TrackingServiceV3,IngestService,SourceRecordService,AvailabilityCheckJob
+# export DCB_SCHEDULED_TASKS_SKIPPED=TrackingServiceV3,IngestService,SourceRecordService,IngestJob,AvailabilityCheckJob
 export DCB_TRACKING_DRYRUN=true
 
 # export DCB_SCHEDULED_TASKS_SKIPPED=TrackingServiceV3
@@ -51,7 +51,9 @@ export ELASTICSEARCH_INDEXES_INSTANCES="mobius"
 
 # export CONCURRENCY_GROUPS_DEFAULT_LIMIT=3
 # export CONCURRENCY_GROUPS_FOLIO_OAI_LIMIT=3
+#
 
-export JAVA_OPTIONS="-server -Xmx12G -XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.management/sun.management=ALL-UNNAMED --add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED -XX:+CrashOnOutOfMemoryError"
+
+export JAVA_OPTIONS="-server -Xmx12G -XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.management/sun.management=ALL-UNNAMED --add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED -XX:+CrashOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=~/dumps"
 
 java $JAVA_OPTIONS -jar ./dcb/build/libs/dcb-all.jar

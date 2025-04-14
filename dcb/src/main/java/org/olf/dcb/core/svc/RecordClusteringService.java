@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.annotation.Timed;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.env.Environment;
+import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
@@ -122,8 +123,13 @@ public class RecordClusteringService {
 
 		boolean include = usefulClusteringIdentifiers.contains( bibId.getNamespace().toUpperCase() );
 
-		if ( !include )
-			log.atInfo().log("Local identifier discarded for clustering: {}:{}",bibId.getNamespace(),bibId.getValue());
+		if ( ( bibId.getConfidence() != null ) && ( bibId.getConfidence().intValue() > 0 ) )
+			include = false;
+
+		// if ( !include )
+		// 	log.atInfo().log("Local identifier discarded for clustering: {}:{} - confidence={}",bibId.getNamespace(),bibId.getValue(),bibId.getConfidence());
+    // else
+		// 	log.atInfo().log("Local identifier included for clustering: {}:{} - confidence={}",bibId.getNamespace(),bibId.getValue(),bibId.getConfidence());
 
 		return include;
 	}
@@ -326,6 +332,9 @@ public class RecordClusteringService {
 					return mp;
         } );
 	}
+	
+	@Introspected
+	public static record MissingAvailabilityInfo (@NonNull UUID clusterId, @NonNull UUID bibId, @NonNull UUID sourceSystemId) {};
 
   /*
    * Add any non identifier fingerprints we wish to use here

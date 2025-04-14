@@ -9,8 +9,11 @@ dependencies {
 		implementation 'org.apache.http:httpcore:4.2'
 		
 		
-		implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
-		implementation("org.apache.lucene:lucene-queryparser:9.7.0")
+		implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+		implementation 'org.apache.lucene:lucene-queryparser:9.7.0'
+
+	// 4.5.x is last version with Community version of CP subsystem.
+		implementation 'com.hazelcast:hazelcast:5.4.0'
 
 		// Tests
 		

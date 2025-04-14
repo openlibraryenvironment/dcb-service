@@ -105,7 +105,10 @@ public class HostLmsService implements IngestSourcesProvider {
 			.filter(IngestSource.class::isAssignableFrom)
 			.switchIfEmpty(Mono.error(new InvalidHostLmsConfigurationException( hostLms.getCode(), "ingest source class is either unknown or invalid")))
 			.map(type -> context.createBean(type, hostLms))
-			.cast(IngestSource.class);
+			.cast(IngestSource.class)
+      .doOnError(e -> {
+        log.error("Error creating ingest source for {} : {}",  hostLms.getCode(), e.getMessage());
+      });
 	}
 
 	public Mono<IngestSource> getIngestSourceFor(String code) {

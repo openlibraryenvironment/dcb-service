@@ -6,8 +6,6 @@ import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.OaiPmhIngestSource;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.storage.RawSourceRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -26,9 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Prototype
 public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
-	
-	@SuppressWarnings("unused")
-	private static final Logger log = LoggerFactory.getLogger(FolioOaiPmhIngestSource2.class);
 	
 	private static final String CONCURRENCY_GROUP_KEY = "folio-oai";
 	

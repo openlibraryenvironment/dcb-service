@@ -19,6 +19,8 @@ public class Identifier {
 
 	@NotNull
 	String value;
+
+	Integer confidence;
 	
 	public static class IdentifierBuilder {}
 	

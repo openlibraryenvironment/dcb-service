@@ -7,6 +7,8 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+
+import graphql.com.google.common.base.Predicates;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -21,6 +23,7 @@ import static reactor.function.TupleUtils.function;
 @Slf4j
 @Singleton
 public class LocationToAgencyMappingService {
+	private static final String KEY_CONTEXT_HIERARCHY = "contextHierarchy";
 	private final AgencyService agencyService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final HostLmsService hostLmsService;
@@ -92,30 +95,34 @@ public class LocationToAgencyMappingService {
 			.flatMap(sourceContexts -> referenceValueMappingService.findMappingUsingHierarchyWithFallback(
 				fromCategory, sourceContexts, lookupCodeList, "AGENCY", "DCB"));
 	}
+	
+	public Mono<List<String>> getContextHierarchyFor(String context) {
+		return getContextHierarchyFor( context, List.of(context));
+	}
 
 	/**
 	 * A way to fetch a context hierarchy for a given context.
 	 */
-	private Mono<List<String>> getContextHierarchyFor(String context) {
+	public Mono<List<String>> getContextHierarchyFor(String context, List<String> defaults) {
 
 		// guard clause for non-hostlms contexts
-		if ("DCB".equals(context)) return Mono.just(List.of(context));
+		if ("DCB".equals(context)) return Mono.justOrEmpty(defaults);
 
 		return hostLmsService.getClientFor(context)
-			.map(hostLmsClient -> (List<String>) hostLmsClient.getConfig().get("contextHierarchy"))
 			// Keep non-null & non-empty lists
-			.filter(list -> list != null && !list.isEmpty())
+			.mapNotNull(hostLmsClient -> (List<String>) hostLmsClient.getConfig().get(KEY_CONTEXT_HIERARCHY))
+			.filter(Predicates.not(List::isEmpty))
 			// Fallback for non-null & non-empty lists
 			.switchIfEmpty(Mono.defer(() -> {
 				log.debug("[CONTEXT-HIERARCHY-EMPTY] " +
 					"- Fetching 'contextHierarchy' returned an EMPTY list for context: '{}'", context);
-				return Mono.just(List.of(context));
+				return Mono.justOrEmpty(defaults);
 			}))
 			// Fallback for error
 			.onErrorResume(error -> {
 				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
 					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
-				return Mono.just(List.of(context));
+				return Mono.justOrEmpty(defaults);
 			});
 	}
 

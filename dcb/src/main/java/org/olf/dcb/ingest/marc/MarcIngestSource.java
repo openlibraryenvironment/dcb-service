@@ -57,9 +57,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
 	final static Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
 	final static Pattern REGEX_REMOVE_PUNCTUATION = Pattern.compile("\\p{Punct}");
-  final static Pattern REGEX_ISXN_VALUE=Pattern.compile(
-      "\\b\\d{9,12}[\\dXx]\\b|\\b\\d{1,5}[- ]?\\d{1,7}[- ]?\\d{1,7}[- ]?\\d{1,7}[- ][\\dXx]\\b" +  // ISBN-10 or ISBN-13
-      "|\\b(\\d{4}[- ]?\\d{3}[\\dxX])\\b"); // ISSN
+
+  // \b((?:\d[\-\s]?){9}[\dXx]|(?:\d[\-\s]?){13}|\d{4}-\d{3}[\dXx])\b(?:\s+(.*))?
+  final static Pattern REGEX_ISXN_VALUE=Pattern.compile("\\b((?:\\d[\\-\\s]?){9}[\\dXx]|(?:\\d[\\-\\s]?){13}|\\d{4}-\\d{3}[\\dXx])\\b(?:\\s+(.*))?");
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
@@ -200,7 +200,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 				.filter(Objects::nonNull).flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
 				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
 					if (StringUtils.isEmpty(current)) {
+
 						ingestRecord.title(item);
+
 						ingestRecord.addIdentifier(id -> {
 							// This allows us to add in important discriminators into the blocking title - edition being
 							// the most obvious one for now. Ideally we would normalised this tho into a canonical string
@@ -222,8 +224,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 							// suffer with double spacing, so using that here as it provides cleaner matching.
 							id.namespace("BLOCKING_TITLE").value(
 								DCBStringUtilities.generateBlockingString(item, qualifiers)
-							);
+							).confidence(Integer.valueOf(0));
 						});
+
 						return item;
 					}
 
@@ -247,9 +250,12 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			final String cnAuthority = extractControlData(marcRecord, "003").findFirst()
 					.orElse(getDefaultControlIdNamespace());
 
+      // log.info("Consider control number {} {}",cnAuthority,cn);
+
 			return Optional.ofNullable(StringUtils.isEmpty(cnAuthority) ? null : Identifier.build(id -> {
 				id.namespace(cnAuthority).value(cn);
 			}));
+
 		}).ifPresent(ingestRecord::addIdentifiers);
 
 		return ingestRecord;
@@ -257,13 +263,40 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 	default IngestRecordBuilder handleSystemControlNumber(final IngestRecordBuilder ingestRecord,
 			final Record marcRecord) {
+
+    // We are seeing duplicated 035$a fields causing failure to store record identifiers. Need to remove duplicated values
+    List seen_identifiers = new ArrayList<String>();
+
 		concatSubfieldData(marcRecord, "035", "a").forEach(val -> {
 			final Matcher matcher = REGEX_NAMESPACE_ID_PAIR.matcher(val);
 
 			if (matcher.matches()) {
-				ingestRecord.addIdentifier(id -> {
-					id.namespace(Objects.requireNonNullElse(matcher.group(3), matcher.group(5))).value(matcher.group(6));
-				});
+				// Common to get lots of spaces here for some reason - so trim
+				final String idns = Objects.requireNonNullElse(matcher.group(3), matcher.group(5)).trim();
+
+				final Integer confidence = switch ( idns ) {
+					case "OCoLC" -> Integer.valueOf(0);
+					default -> Integer.valueOf(10);
+				};
+
+        String value = matcher.group(6).trim();
+        String duplicate_detection_str = (idns+":"+value).toUpperCase();
+
+        if ( seen_identifiers.contains(duplicate_detection_str) == false ) {
+
+          // log.info("Adding system control number \"{}\"",duplicate_detection_str);
+
+  				ingestRecord.addIdentifier(id -> {
+	  				id
+		  				.namespace(idns.equalsIgnoreCase("OCoLC") ? "OCoLC" : idns)  // Fix weird capitialisation variants of OCoLC number
+			  			.value(value)
+				  		.confidence(confidence);
+  				});
+          seen_identifiers.add(duplicate_detection_str);
+        }
+        else {
+          // log.info("Skip duplicate system control number \"{}\"",duplicate_detection_str);
+        }
 			}
 		});
 
@@ -278,22 +311,66 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		handleControlNumber(ingestRecord, marcRecord);
 		handleSystemControlNumber(ingestRecord, marcRecord);
 
+		// It turns out that in some conventional cataloging standards, the FIRST 020 or 022 has substantially more standing
+		// than subsequent values. Rather than using an indicator or a subfield this convention is positional. We use this list
+		// to be able to track the first occurrence of an identifier type. /sigh.
+		List seen_identifier_types = new java.util.ArrayList<String>();
+
+    // We're encountering copies of the same identifier in a record - short hand list of identifiers so we can drop duplicates
+    List seen_identifiers = new java.util.ArrayList<String>();
+
 		IDENTIFIER_FIELD_NAMESPACE.keySet().stream().flatMap(tag -> marcRecord.getVariableFields(tag).stream())
 				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
 					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
+
             String idns = IDENTIFIER_FIELD_NAMESPACE.get(df.getTag());
 
-						ingestRecord.addIdentifier(id -> {
-							id.namespace(idns).value(sfs);
-						});
+            String duplicate_detection_key = idns+":"+sfs;
 
-            // Add normalised versions of ISSN and ISBN
-            if ( "ISBN".equals(idns) || "ISSN".equals(idns) ) {
-  						ingestRecord.addIdentifier(id -> {
-							  id.namespace(idns+"-n").value(cleanIsxn(sfs));
-              });
+            // Don't add duplicates
+            if ( seen_identifiers.contains(duplicate_detection_key) == false ) {
+						  final boolean first_occurrence_of_type = !(seen_identifier_types.contains( idns ));
+
+  						if ( first_occurrence_of_type )
+	  						seen_identifier_types.add(idns);
+
+		  				final Integer confidence = switch ( idns ) {
+			  				case "LCCN" -> Integer.valueOf(10);
+				  			case "ISBN" -> first_occurrence_of_type ? Integer.valueOf(0) : Integer.valueOf(11);
+					  		case "ISSN" -> first_occurrence_of_type ? Integer.valueOf(0) : Integer.valueOf(11);
+						  	default -> Integer.valueOf(12);
+  						};
+
+	  					ingestRecord.addIdentifier(id -> {
+		  					id.namespace(idns).value(sfs).confidence(confidence);
+			  			});
+
+              seen_identifiers.add(duplicate_detection_key);
+
+              // Add normalised versions of ISSN and ISBN
+              if ( "ISBN".equals(idns) || "ISSN".equals(idns) ) {
+
+                String cleaned_isxn = cleanIsxn(sfs);
+
+                String norm_id_key = idns+"-n:" + cleaned_isxn;
+
+                if ( seen_identifiers.contains(norm_id_key) == false ) {
+                  // IN the case where an ISBN value is repeated, but with extra punc - e.g. "1234567890" vs "1234567890 :"
+                  // the actual identifier value is different BUT the normalised value is not - so we have to check that we don't add
+                  // duplicate normalised values. Sad but true
+  				  	  	ingestRecord.addIdentifier(id -> {
+				  			    id
+			  					  	.namespace(idns+"-n")
+		  							  .value(cleaned_isxn)
+    									.confidence(confidence);
+                  });
+                  seen_identifiers.add(norm_id_key);
+                }
+              }
+
             }
-
+            else {
+            }
 					});
 				});
 
@@ -302,8 +379,8 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
   default String cleanIsxn(String v) {
     Matcher m = REGEX_ISXN_VALUE.matcher(v);
-    if ( m.find() ) {
-      return m.group().replaceAll("[^\\dXx]","");
+    if ( m.matches() ) {
+      return m.group(1).replaceAll("[^\\dXx]","");
     }
     return v;
   }

@@ -62,6 +62,7 @@
 	<logger name="org.olf.dcb.ingest" level="INFO"/>
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
 	<logger name="org.olf.dcb.core.svc.BibRecordService" level="DEBUG" />
+	<logger name="org.olf.dcb.ingest.job" level="DEBUG" />
 	<logger name="services.k_int" level="INFO"/>
 	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="INFO"/>
 	<logger name="io.micronaut.security.authentication" level="WARN" />

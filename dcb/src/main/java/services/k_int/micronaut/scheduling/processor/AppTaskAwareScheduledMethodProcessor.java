@@ -48,7 +48,7 @@ public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcess
 			return;
 		}
 
-		log.info("Continue to process {}.{} / {}",method.getDeclaringType().getSimpleName(), method.getName(), AppTask.class.getSimpleName());
+		log.info("Continue to process {}(.{}) / {}",method.getDeclaringType().getSimpleName(), method.getName(), AppTask.class.getSimpleName());
 
 		super.process(beanDefinition, method);
 	}
