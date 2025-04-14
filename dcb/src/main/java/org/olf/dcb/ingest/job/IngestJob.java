@@ -57,7 +57,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	private static final String JOB_NAME = "Data ingest job";
 	
-	private final int PAGE_SIZE = 100;
+	private final int PAGE_SIZE = 500;
 	private final Map<String, Mono<SourceToIngestRecordConverter>> sourceRecConverterCache = new ConcurrentHashMap<>();
 	
 	
@@ -163,7 +163,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 				}
 			}
 		} else {
-			log.debug("Returning SourceToIngestRecordConverter for [{}] from cache", hostLmsIdStr);
+			// log.debug("Returning SourceToIngestRecordConverter for [{}] from cache", hostLmsIdStr);
 		}
 		// Returning from cache.
 		return conv;
@@ -217,7 +217,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			.flatMap(op -> processSingleOperation(op, processedTime)
 					
 				// Do this error handling here as the mono is set to retry on exception.
-				.onErrorResume(err -> opFail(op, processedTime, "Failed to process bib: {}", err)))
+				.onErrorResume(err -> opFail(op, processedTime, "Failed to process bib: {}", err)), 100)
 			
 			.then( Mono.just(chunk) );
 			
@@ -240,10 +240,8 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
     // log.info("title {} - {}",ir.getTitle(),ir.getIdentifiers());
 		
 		return bibRecordService.process( ir )
-
-			.switchIfEmpty( opSuccess(op, processedTime, "No returned Bib. Assumed redacted or without sufficient title info") )
-			
 			// Returned bib (Not delete operation), try cluster.
+			.switchIfEmpty( opSuccess(op, processedTime, "No returned Bib. Assumed redacted or without sufficient title info") )
 			.flatMap( bib -> processNoneDelete( op, bib, processedTime ));
 	}
 	
@@ -266,9 +264,9 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected <T> Mono<T> opSuccess (IngestOperation op, Instant time, String info) {
 		// Update the details of the SourceRecord
-		if (log.isDebugEnabled()) {
-			log.debug("Success: {}", info);
-		}
+		// if (log.isDebugEnabled()) {
+		// 	log.debug("Success: {}", info);
+		// }
 		return sourceRecordService.updateProcessingInformation(op.getSourceId(), time, ProcessingStatus.SUCCESS, info).then(Mono.empty());
 	}
 	

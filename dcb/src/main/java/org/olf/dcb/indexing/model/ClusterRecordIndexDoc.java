@@ -13,12 +13,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import org.olf.dcb.availability.job.BibAvailabilityCount;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.ingest.model.Author;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.serde.annotation.Serdeable;
@@ -30,10 +28,12 @@ public class ClusterRecordIndexDoc {
 	
 	private final ClusterRecord cluster;
 	private final Function<UUID, String> hostLmsIdToCodeResolver;
+	private final Map<String, Collection<BibAvailabilityCount>> availability;
 	
-	public ClusterRecordIndexDoc(@NonNull ClusterRecord cluster, @NonNull Function<UUID, String> hostLmsIdToCodeResolver) {
+	public ClusterRecordIndexDoc(@NonNull ClusterRecord cluster, @NonNull Function<UUID, String> hostLmsIdToCodeResolver, Map<String, Collection<BibAvailabilityCount>> map) {
 		this.cluster = cluster;
 		this.hostLmsIdToCodeResolver = hostLmsIdToCodeResolver;
+		this.availability = map;
 	}
 	
 	public String getTitle() {
@@ -116,7 +116,7 @@ public class ClusterRecordIndexDoc {
 			.flatMap( Set::stream )
   		.map( bib -> {
   			String lmsCode = hostLmsIdToCodeResolver.apply(bib.getSourceSystemId());
-  			return new NestedBibIndexDoc(bib, lmsCode);
+  			return new NestedBibIndexDoc(bib, lmsCode, false, availability.get(bib.getId().toString()));
   		})
 			.toList();
 	}

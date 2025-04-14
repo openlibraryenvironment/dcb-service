@@ -3,6 +3,8 @@ package org.olf.dcb.core.svc;
 import static org.olf.dcb.utils.DCBStringUtilities.generateBlockingString;
 import static org.olf.dcb.utils.DCBStringUtilities.uuid5ForIdentifier;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.UUID;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.svc.RecordClusteringService.MissingAvailabilityInfo;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.processing.ProcessingStep;
@@ -131,8 +134,11 @@ public class BibRecordService {
 
 	@Transactional
 	protected Mono<BibRecord> saveIdentifiers(BibRecord savedBib, IngestRecord source) {
+    // log.info("Saving identifiers for {}",savedBib != null ? savedBib.getId() : "null" );
 		return Flux.fromIterable(source.getIdentifiers())
 				.map(id -> ingestRecordIdentifierToModel(id, savedBib))
+        .distinct()
+        // .doOnNext(id -> log.info("processing identifier {} {} {}",id.getValue(),id.getNamespace(),id.getConfidence()))
 				.flatMap(this::saveOrUpdateIdentifier)
         .map(BibIdentifier::getId)
         .collectList()
@@ -169,11 +175,22 @@ public class BibRecordService {
 
 	@Transactional
 	protected Mono<BibIdentifier> saveOrUpdateIdentifier(BibIdentifier bibIdentifier) {
-		// log.debug("saveOrupdateIdentifier {}
-		// {}",bibIdentifier,bibIdentifier.getId());
-		return Mono.from(bibIdentifierRepo.existsById(bibIdentifier.getId())).flatMap(exists -> Mono
-				.fromDirect(exists ? bibIdentifierRepo.update(bibIdentifier) : bibIdentifierRepo.save(bibIdentifier)));
+	  // log.debug("saveOrupdateIdentifier {} {} {} hc={}",bibIdentifier.getNamespace()+":"+bibIdentifier.getValue(),bibIdentifier.getId(),bibIdentifier.hashCode());
+		return Mono.from(bibIdentifierRepo.existsById(bibIdentifier.getId()))
+      .flatMap(exists -> Mono
+				.fromDirect(exists ? 
+          updateIdentifier(bibIdentifier) : 
+          saveIdentifier(bibIdentifier)))
+        .doOnError( e -> log.error("Problem saving identifier "+bibIdentifier.getNamespace()+":"+bibIdentifier.getValue()+" "+bibIdentifier.getConfidence()+" "+bibIdentifier.hashCode()));
 	}
+
+  private Publisher<? extends BibIdentifier> saveIdentifier(BibIdentifier bibIdentifier) {
+    return bibIdentifierRepo.save(bibIdentifier);
+  }
+
+  private Publisher<? extends BibIdentifier> updateIdentifier(BibIdentifier bibIdentifier) {
+    return bibIdentifierRepo.update(bibIdentifier);
+  }
 
 	private BibIdentifier ingestRecordIdentifierToModel(Identifier id, BibRecord owner) {
 
@@ -183,6 +200,7 @@ public class BibRecordService {
       .owner(owner)
 			.value(id.getValue() != null ? id.getValue().substring(0, Math.min(id.getValue().length(), 254)) : null)
 			.namespace(id.getNamespace() != null ? id.getNamespace().substring(0, Math.min(id.getNamespace().length(), 254))	: null)
+			.confidence(id.getConfidence())
 			.build();
 	}
 
@@ -266,6 +284,8 @@ public class BibRecordService {
 		final boolean deleted = Boolean.TRUE.equals( source.getDeleted() );
 		
 		if ( suppressed || deleted ) {
+
+      log.info("Processing a delete");
 			
 			// Suppress...			
 			return deleteAssociatedBib(source)
@@ -274,7 +294,7 @@ public class BibRecordService {
 					
 					if (log.isDebugEnabled()) {
 						final String removalReason = deleted ? "deleted" : "suppressed";
-						log.debug("Record {} flagged as {}, redact accordingly", source, removalReason);
+						log.debug("removal -- Record {} flagged as {}, redact accordingly", source, removalReason);
 					}
 					
 					return Mono.empty();
@@ -282,6 +302,7 @@ public class BibRecordService {
 		}
 		
 		if ( StringUtils.trimToNull(source.getTitle()) == null ) {
+      log.info("Processing an empty title");
 			return Mono.just(source)
 				.flatMap( s -> {
 					statsService.notifyEvent("DroppedNullTitle",s.getSourceSystem().getCode());
@@ -296,6 +317,7 @@ public class BibRecordService {
 		
 		// None deleted or suppressed items...
 		
+    //  log.info("Progress to get or seed");
 		return getOrSeed(source)
 			.map( bib -> {
 				statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
@@ -324,8 +346,17 @@ public class BibRecordService {
 	}
 	
 	@Transactional
+	public Flux<BibRecord> getAllByIdIn(@NonNull Collection<UUID> ids) {
+		return Flux.from( bibRepo.getAllByIdIn(ids) );
+	}
+	
+	@Transactional
 	public Mono<Page<BibRecord>> getPageOfBibs(@NonNull Pageable page) {
 		return Mono.from( bibRepo.queryAll(page) );
+	}
+
+	public Flux<MissingAvailabilityInfo> findMissingAvailability ( int limit ) {
+		return Flux.from( bibRepo.findMissingAvailability(limit, Instant.now().minus(2, ChronoUnit.DAYS)) );
 	}
 
 	public Publisher<Void> cleanup() {

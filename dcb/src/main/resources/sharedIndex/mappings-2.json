@@ -98,7 +98,18 @@
           },
           "title": {
             "type": "text"
-          }
+          },
+          "availability": {
+			      "type": "nested",
+			      "properties": {
+			        "location": {
+			          "type": "keyword"
+			        },
+			        "count": {
+			          "type": "integer"
+			        }
+			      }
+			    }
         }
       },
       "metadata": {

@@ -5,13 +5,19 @@ buildscript {
 }
 
 plugins {
-  id("java-library")
-	id("io.micronaut.library") version "$micronautGradleVersion"
+	id("com.github.johnrengelman.shadow") version "8.1.1"
+	// See https://plugins.gradle.org/plugin/io.micronaut.application
+	id("io.micronaut.application") version "$micronautGradleVersion"
 	id("io.micronaut.test-resources") version "$micronautGradleVersion"
+	// id("io.micronaut.aot") version "$micronautGradleVersion"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
+  // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
+  id "com.gorylenko.gradle-git-properties" version "2.4.1"
+  id('com.jaredsburrows.license') version '0.9.8'
 }
+
 
 //version = "0.1"
 group = "org.olf.dcb"

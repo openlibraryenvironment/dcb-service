@@ -7,6 +7,7 @@ import static org.olf.dcb.item.availability.AvailabilityReport.ofItems;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -104,6 +105,10 @@ public class LiveAvailabilityService {
 			Optional.ofNullable(filters));
 	}
 	
+	public Mono<AvailabilityReport> checkBibAvailability (BibRecord bib, Duration timeout, String filters) {
+		return checkBibAvailabilityAtHost(Optional.ofNullable(timeout), bib, Collections.emptyList(), Optional.ofNullable(filters));
+	}
+		
 	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
 		Optional<Duration> timeout, Optional<String> filters) {
 

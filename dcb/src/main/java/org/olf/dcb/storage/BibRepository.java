@@ -1,11 +1,13 @@
 package org.olf.dcb.storage;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.svc.RecordClusteringService.MissingAvailabilityInfo;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.Introspected;
@@ -21,6 +23,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 public interface BibRepository {
+	
+	@NonNull
+	Publisher<BibRecord> getAllByIdIn( Collection<UUID> ids );
 
 	@NonNull
 	@SingleResult
@@ -111,10 +116,7 @@ public interface BibRepository {
 	@Query(value = "select b.id as bibId, b.title as title, b.source_record_id as sourceRecordId, b.metadata_score as metadataScore, b.cluster_reason as clusterReason, h.code as sourceSystem from bib_record b, host_lms h where b.source_system_id = h.id and b.contributes_to = :clusterId", nativeQuery = true)
 	Publisher<MemberBib> findMemberBibsForCluster(@NonNull UUID clusterId);
 
-	@Introspected
-	public record MemberBib(UUID bibid, @Nullable String title, String sourcerecordid, @Nullable String metadatascore,
-			@Nullable String clusterreason, String sourcesystem) {
-	};
+	
 
 	@Query(value = "select a.id as source_system_id, a.name as source_system_name, sq.total as record_count from ( select source_system_id id, count(*) total from bib_record group by source_system_id ) sq, host_lms a where sq.id = a.id", nativeQuery = true)
 	public Publisher<RecordCountSummary> getIngestReport();
@@ -122,4 +124,12 @@ public interface BibRepository {
 	@SingleResult
 	@Query(value = "select count(*) count from bib_record where source_system_id = :hostLmsId", nativeQuery = true)
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
+	
+	@Vetoed
+	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit, Instant lastCheckedBefore );
+	
+	@Introspected
+	public static record MemberBib(UUID bibid, @Nullable String title, String sourcerecordid, @Nullable String metadatascore,
+			@Nullable String clusterreason, String sourcesystem) {
+	};
 }

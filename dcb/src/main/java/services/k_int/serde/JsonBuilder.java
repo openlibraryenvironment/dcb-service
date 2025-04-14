@@ -24,7 +24,7 @@ public class JsonBuilder {
 		return JsonValueApi.INSTANCE.array(json);
 	}
 	
-	static class JsonObjApi {
+	public static class JsonObjApi {
 		private final Map<String, JsonNode> delegate;
 		protected static JsonObjApi from(Map<String, JsonNode> delegate) {
 			return new JsonObjApi(delegate);
@@ -56,7 +56,7 @@ public class JsonBuilder {
 		}
 	}
 	
-	static class JsonValueApi {
+	public static class JsonValueApi {
 		
 		protected static final JsonValueApi INSTANCE = new JsonValueApi();
 		
