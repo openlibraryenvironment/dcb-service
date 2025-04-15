@@ -803,11 +803,11 @@ public class DataFetchers {
 							if (h != null) {
 								return Mono.from(postgresHostLmsRepository.findById(h.getId()))
 									.flatMap(hostLms -> {
+										ArrayList roles = (ArrayList) hostLms.getClientConfig().get("roles");
+										ArrayList context = (ArrayList) hostLms.getClientConfig().get("contextHierarchy");
 										// we shouldn't be trying to look up if roles is not there or isn't bigger than 2 - this indicates no second Host LMS present
-										if (hostLms.getClientConfig() != null)
+										if (context !=null && !context.isEmpty())
 										{
-											ArrayList roles = (ArrayList) hostLms.getClientConfig().get("roles");
-											ArrayList context = (ArrayList) hostLms.getClientConfig().get("contextHierarchy");
 											String hostLmsCode = (String) context.get(1);
 											if (roles != null && roles.size() < 2) {
 												return Mono.from(postgresHostLmsRepository.findByCode(hostLmsCode));
