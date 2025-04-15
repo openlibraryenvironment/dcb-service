@@ -68,6 +68,7 @@ public class RequestWorkflowContextHelper {
 		.flatMap(this::decorateContextWithPatronDetails)
 		.flatMap(this::decorateContextWithLenderDetails)
 		.flatMap(this::resolvePickupLocationAgency)
+		.flatMap(this::decorateWithPickupLibrary)
 		.flatMap(this::decorateWithPickupPatronIdentity)
 		.onErrorResume(error -> {
 			log.error("Error in RequestWorkflowContextHelper fromPatronRequest: {}",
@@ -285,11 +286,14 @@ public class RequestWorkflowContextHelper {
 			log.warn("pickupSymbolContext is null");
 		}
 
+		// Pickup location code is the correct field for the UUID of the pickup location
 		String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
+    ctx.getWorkflowMessages().add("Resolve PickupSymbol \""+pickupSymbol+"\"");
 
 		if ( pickupSymbol == null ) {
 			// Should not happen in normal operation but can happen in tests :(
 			log.error("pickupSymbol is null");
+      ctx.getWorkflowMessages().add("PickupSymbol is null");
 			return Mono.just(ctx);
 		}
 
@@ -312,6 +316,9 @@ public class RequestWorkflowContextHelper {
 					return this.setPickupSystemFrom(ctx);
 				})
 				.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
+		}
+		else {
+      ctx.getWorkflowMessages().add("PickupSymbol is not 36 characters");
 		}
 
 		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
