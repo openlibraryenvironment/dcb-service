@@ -1,9 +1,20 @@
 # Changelog
 
+## Version 8.21.2
+
+### Changes
+* [Chore]
+	* add sorted item list to resolution audit [DCB-1828]
+
+### Fixes
+* [General]
+	* Alternate pathing for decorating request context with pickup location - should address print label issue
+
 ## Version 8.21.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add optional configuration to info endpoint [DCB-1828]
 * [Feature]
 	* Add a confidence value to BibIdentifiers so that record matching can...
