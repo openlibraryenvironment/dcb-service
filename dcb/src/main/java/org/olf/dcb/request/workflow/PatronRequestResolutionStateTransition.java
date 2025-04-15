@@ -20,6 +20,7 @@ import reactor.core.publisher.Mono;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
@@ -112,25 +113,38 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		final var auditData = new HashMap<String, Object>();
 
-		final var itemStatusCode = getValueOrNull(chosenItem, Item::getStatus, ItemStatus::getCode);
-
 		// For values that could be "unknown", "null" is used as a differentiating default
-		final var presentableItem = PresentableItem.builder()
-			.barcode(getValue(chosenItem, Item::getBarcode, "Unknown"))
-			.statusCode(getValue(itemStatusCode, Enum::name, "null"))
-			.requestable(getValue(chosenItem, Item::getIsRequestable, false))
-			.localItemType(getValue(chosenItem, Item::getLocalItemType, "null"))
-			.canonicalItemType(getValue(chosenItem, Item::getCanonicalItemType, "null"))
-			.holdCount(getValue(chosenItem, Item::getHoldCount, 0))
-			.agencyCode(getValue(chosenItem, Item::getAgencyCode, "Unknown"))
-			.build();
+		final var presentableItem = buildPresentableItem(chosenItem);
 
 		putNonNullValue(auditData, "selectedItem", presentableItem);
+
+		// adding the list the item was chosen from, helps us debug the resolution
+		final var sortedItems = resolution.getSortedItems().stream()
+			.map(this::buildPresentableItem).collect(Collectors.toList());
+
+		putNonNullValue(auditData, "sortedItems", sortedItems);
 
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
 				"Resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
 					chosenItem.getLocalId(), chosenItem.getHostLmsCode()), auditData)
 			.then(Mono.just(resolution));
+	}
+
+	private PresentableItem buildPresentableItem(Item item) {
+		return PresentableItem.builder()
+			.barcode(getValue(item, Item::getBarcode, "Unknown"))
+			.statusCode(getStatusCode(item))
+			.requestable(getValue(item, Item::getIsRequestable, false))
+			.localItemType(getValue(item, Item::getLocalItemType, "null"))
+			.canonicalItemType(getValue(item, Item::getCanonicalItemType, "null"))
+			.holdCount(getValue(item, Item::getHoldCount, 0))
+			.agencyCode(getValue(item, Item::getAgencyCode, "Unknown"))
+			.build();
+	}
+
+	private String getStatusCode(Item chosenItem) {
+		final var itemStatusCode = getValueOrNull(chosenItem, Item::getStatus, ItemStatus::getCode);
+		return getValue(itemStatusCode, Enum::name, "null");
 	}
 
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {

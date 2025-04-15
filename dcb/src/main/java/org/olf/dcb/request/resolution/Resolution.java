@@ -98,6 +98,7 @@ public class Resolution {
 			.borrowingAgencyCode(borrowingAgencyCode)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
+			.sortedItems(sortedItems)
 			.chosenItem(item)
 			.build();
 	}
