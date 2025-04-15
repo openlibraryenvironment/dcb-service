@@ -87,9 +87,11 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 				log.info("Re-resolution required: {}", isRequired);
 
 				if (isRequired) {
+          context.getWorkflowMessages().add("ReResolution is required");
 					return resolveNextSupplier(context);
 				}
 				else {
+          context.getWorkflowMessages().add("ReResolution is NOT required - terminating");
 					return terminateSupplierCancellation(context);
 				}
 			});
@@ -248,7 +250,11 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			PatronRequest::getLocalRequestStatus, "");
 
 		if (localRequestStatus.equals(HOLD_MISSING) || localRequestStatus.equals(HOLD_CANCELLED)) {
+			context.getWorkflowMessages().add("cancelLocalBorrowingRequest - HOLD_MISSING or HOLD_CANCELLED - noop");
 			return Mono.just(context);
+		}
+		else {
+			context.getWorkflowMessages().add("cancelLocalBorrowingRequest - local request status: "+localRequestStatus);
 		}
 
 		final var homePatronIdentity = getValue(context, RequestWorkflowContext::getPatronHomeIdentity, null);
@@ -265,11 +271,13 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 				.formatted(patronRequestId);
 
 			log.warn(message);
+			context.getWorkflowMessages().add(message);
 
 			return patronRequestAuditService.addAuditEntry(patronRequest, message)
 				.thenReturn(context);
 		}
 
+		context.getWorkflowMessages().add("Attemptig cancelHoldRequest "+borrowingHostLmsCode+" "+localRequestId+" "+localItemId+" "+localPatronId);
 		return hostLmsService.getClientFor(borrowingHostLmsCode)
 			.flatMap(hostLmsClient -> hostLmsClient.cancelHoldRequest(CancelHoldRequestParameters.builder()
 				.localRequestId(localRequestId)
