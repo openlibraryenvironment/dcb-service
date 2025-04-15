@@ -1,6 +1,5 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.BeanProvider;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -8,13 +7,8 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.tracking.TrackingService;
 import reactor.core.publisher.Mono;
 
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.putAuditData;
-
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -24,20 +18,16 @@ import java.util.Optional;
 @Named("ExpeditedCheckoutTransition")
 public class ExpeditedCheckoutTransition implements PatronRequestStateTransition {
 
-//	private final TrackingService trackingService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAuditService patronRequestAuditService;
-	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 
 	private static final List<PatronRequest.Status> possibleSourceStatus = List.of(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY, PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY);
 
-	public ExpeditedCheckoutTransition( PatronRequestRepository patronRequestRepository, 	BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider, PatronRequestAuditService patronRequestAuditService)
-																			 {
-//		this.trackingService = trackingService;
+	public ExpeditedCheckoutTransition(PatronRequestRepository patronRequestRepository,
+																		 PatronRequestAuditService patronRequestAuditService)
+	{
 		this.patronRequestRepository = patronRequestRepository;
-																				 this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
-																				 this.patronRequestAuditService = patronRequestAuditService;
-
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	private String[] extractPatronBarcodes(String inputstr) {
@@ -54,7 +44,11 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus());
+		// Should be applicable if it is a request of any workflow in REQUEST_PLACED_AT_BORROWING_AGENCY OR a RET_LOCAL workflow request at REQUEST_PLACED_AT_SUPPLYING_AGENCY
+// Restore this if it causes issues removing it, check PICKUP_AGENCY as well
+		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus()) || ctx.getPatronRequest().getStatus() == PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY  && ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL") ;
+//		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus()) ;
+
 		log.debug("Status applicable? {}", isStatusApplicable);
 		log.debug("Expedited checkout? {}", ctx.getPatronRequest().getIsExpeditedCheckout());
 
@@ -67,35 +61,40 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 
 		log.debug("Status: {}",ctx.getPatronRequest().getStatus());
 		log.debug("We would do the checkout here");
-		final String[] patron_barcodes = extractPatronBarcodes(ctx.getPatronVirtualIdentity().getLocalBarcode());
-		// previous code was causing a loop which kills everything. one assumes there is a better way of forcing it to progress to the status
-		// can we get to REQUEST_PLACED_AT_BORROWING_AGENCY in a legit, but faster fashion
+//		final String[] patron_barcodes = extractPatronBarcodes(ctx.getPatronVirtualIdentity().getLocalBarcode());
 
-		ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
-
-
-
-		// Add workflow message
-		ctx.getWorkflowMessages().add("Expedited checkout completed - item status changed to LOANED");
-
-		// Create audit entry with workflow messages
-		HashMap<String, Object> auditData = new HashMap<>();
-		auditData.put("workflowMessages", ctx.getWorkflowMessages());
-		auditData.put("expeditedCheckout", true);
-		auditData.put("sourceStatus", ctx.getPatronRequestStateOnEntry());
-
-		auditData.put("virtual-patron-barcode", Arrays.toString(patron_barcodes));
-
-
-		// Add audit, update patron request once done.
-		return patronRequestAuditService.addAuditEntry(
-				ctx.getPatronRequest(),
-				"ExpeditedCheckoutTransition has completed",
-				auditData)
-			.then(updatePatronRequest(ctx));
-//		return patronRequestWorkflowServiceProvider.get().progressUsing(ctx)
-//			.doOnError(error -> log.error("Problem attempting to progress request",error))
-//			.doOnSuccess(context -> log.info("Context status {}",context.getPatronRequest().getStatus()));
+		// If any RET-LOCAL requests do accidentally end up here, send them on their way
+		// We might not need this handling - investigate and restore patron_barcodes also so the patron barcode is logged in audit
+		if (ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL")) {
+			ctx.getPatronRequest().setStatus(PatronRequest.Status.CONFIRMED);
+			ctx.getWorkflowMessages().add("Expedited checkout completed for RET-LOCAL: re-routing");
+			// Create audit entry with workflow messages
+			HashMap<String, Object> auditData = new HashMap<>();
+			auditData.put("workflowMessages", ctx.getWorkflowMessages());
+			auditData.put("expeditedCheckout", true);
+			auditData.put("sourceStatus", ctx.getPatronRequestStateOnEntry());
+			return patronRequestAuditService.addAuditEntry(
+					ctx.getPatronRequest(),
+					"Expedited checkout completed for RET-LOCAL: setting to CONFIRMED to trigger standard RET-LOCAL workflow",
+					auditData)
+				.then(updatePatronRequest(ctx));
+			// This should hopefully get them back on track to HANDED_OFF_AS_LOCAL
+		}
+		else
+		{
+			ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
+			ctx.getWorkflowMessages().add("Expedited checkout completed - item status changed to LOANED");
+			// Create audit entry with workflow messages
+			HashMap<String, Object> auditData = new HashMap<>();
+			auditData.put("workflowMessages", ctx.getWorkflowMessages());
+			auditData.put("expeditedCheckout", true);
+			auditData.put("sourceStatus", ctx.getPatronRequestStateOnEntry());
+			return patronRequestAuditService.addAuditEntry(
+					ctx.getPatronRequest(),
+					"ExpeditedCheckoutTransition has completed",
+					auditData)
+				.then(updatePatronRequest(ctx));
+		}
 	}
 
 	@Override
@@ -105,15 +104,11 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 
 	@Override
 	public List<PatronRequest.Status> getPossibleSourceStatus() {
-		// ideally, we would want to only skip from REQUEST_PLACED_AT_BORROWING_AGENCY onwards
-		// but that may not be possible
-//		return List.of(PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY, PatronRequest.Status.CONFIRMED, PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 		return possibleSourceStatus;
 	}
 
 	@Override
 	public boolean attemptAutomatically() {
-		// Should be true ONLY if this is automatically if the condition is met
 		return true;
 	}
 
