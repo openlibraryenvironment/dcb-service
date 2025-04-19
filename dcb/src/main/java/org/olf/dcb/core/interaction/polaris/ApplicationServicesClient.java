@@ -994,6 +994,23 @@ class ApplicationServicesClient {
       });
 	}
 
+	public Mono<Void> placeItemBlock(String itemId, Integer noteId, String text) {
+  
+    final var path = createPath("itemrecords",itemId,"blockingnote");
+
+		final DtoItemRecordBlockingNote blockingNote = DtoItemRecordBlockingNote.builder()
+			.noteId(noteId)
+			.text(text)
+			.build();
+    
+
+    return createRequest(POST, path, uri -> {})
+      .flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
+      .doOnSuccess(bool -> {
+				log.info("Placed item block {}",bool);
+			})
+			.then();
+	}
 
 	@Builder
 	@Data
@@ -2143,5 +2160,16 @@ class ApplicationServicesClient {
 		private String dueDate;
     @JsonProperty("VolumeName")
 		private String volumeName;
+	}
+
+  @Builder
+  @Data
+  @AllArgsConstructor
+  @Serdeable
+  static class DtoItemRecordBlockingNote {
+		@JsonProperty("NoteId")
+		private Integer noteId;
+		@JsonProperty("Text")
+		private String text;
 	}
 }

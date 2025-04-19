@@ -1753,7 +1753,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
   public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
 		// https://stlouis-training.polarislibrary.com/Polaris.ApplicationServices/help/itemrecords/post_blocking_note
     log.info("Polaris prevent renewal {}",prc);
-    return Mono.empty();
+    return ApplicationServices.placeItemBlock(prc.getItemId(), Integer.valueOf(255),"A hold has been placed on this item by a patron at the owning library. Please do not renew")
+			.then();
   }
 
 }
