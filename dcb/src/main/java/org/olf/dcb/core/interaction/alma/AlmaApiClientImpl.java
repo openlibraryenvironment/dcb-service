@@ -81,18 +81,18 @@ public class AlmaApiClientImpl implements AlmaApiClient {
     this.conversionService = conversionService;
   }
 
-	public Publisher<UserList> users() {
+	public Publisher<AlmaUserList> users() {
 		log.debug("Get users - apikey={}",apikey);
-		return get("/users", Argument.of(UserList.class),
+		return get("/users", Argument.of(AlmaUserList.class),
 			uri -> uri.queryParam("apikey",apikey)
 				.queryParam("limit","10")
 				.queryParam("offset","0"));
 	}
 
 	// See https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_users.xsd
-	public Publisher<User> user(String id) {
+	public Publisher<AlmaUser> user(String id) {
 		log.debug("Get user id={}, apikey={}",id,apikey);
-		return get("/users/"+id, Argument.of(User.class),
+		return get("/users/"+id, Argument.of(AlmaUser.class),
 			uri -> uri.queryParam("apikey",apikey));
 	}
 
@@ -138,5 +138,10 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   public URI getRootUri() {
     return this.rootUri;
   }
+
+	@Override
+  public Publisher<AlmaUser> createPatron(AlmaUser patron) {
+		return Mono.empty();
+	}
 
 }

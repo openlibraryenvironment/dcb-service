@@ -24,4 +24,7 @@ import services.k_int.interaction.alma.types.*;
 public interface AlmaApiClient {
 	String CONFIG_ROOT = "alma.client";
 	URI getRootUri();
+
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
+	Publisher<AlmaUser> createPatron(AlmaUser patron);
 }

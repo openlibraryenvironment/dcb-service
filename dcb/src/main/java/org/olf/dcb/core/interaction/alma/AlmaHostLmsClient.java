@@ -200,7 +200,26 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 		// POST /almaws/v1/users
-		return Mono.empty();
+		AlmaUser almaUser = AlmaUser.builder()
+      .primary_id("")
+      .first_name("")
+      .last_name("")
+      .is_researcher(Boolean.FALSE)
+      .link("")
+      // CodeValuePair status;
+      // CodeValuePair gender;
+      // String password;
+			.build();
+
+		return Mono.from(client.createPatron(almaUser))
+			.flatMap(returnedUser -> {
+				log.info("Created alma user {}",returnedUser);
+				return Mono.just("OK");
+			})
+			.onErrorResume( error -> {
+				log.error("Problem creating alma user",error);
+				return Mono.just("ERROR"); 
+			});
 	}
 
 	@Override
