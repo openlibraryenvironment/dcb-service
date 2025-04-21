@@ -711,7 +711,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
 			log.debug("{} cancelHoldRequest({})", getHostLms().getName(), parameters);
-
 			return updateTransactionStatus(parameters.getLocalRequestId(), TransactionStatus.CANCELLED)
 				.thenReturn(parameters.getLocalRequestId());
 		}
@@ -1172,8 +1171,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
   public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
 		// See https://s3.amazonaws.com/foliodocs/api/mod-circulation/p/circulation.html#circulation_loans__loanid__put
 		// Specifcally PUT /circulation/loans/{loanId} and renewalCount property - needs the loan ID
+		// WE don't seem to access to loan id :/
     log.info("Folio prevent renewal {}",prc);
-    return Mono.empty();
+		// This is fugly
+		return updateTransactionStatus(prc.getRequestId(), TransactionStatus.CANCELLED)
+			.then();
   }
 
 }

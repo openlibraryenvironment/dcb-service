@@ -18,6 +18,13 @@ import java.util.UUID;
 @ExcludeFromGeneratedCoverageReport
 public class PreventRenewalCommand {
 
+	// For folio we need access to the request ID rather than the item id.
+	private String requestId;
+
+  // Barcode of the virtual item at the borrowing system
+	private String itemBarcode;
+
+	// ItemID of the virtual item at the borrowing system
 	private String itemId;
 
 }

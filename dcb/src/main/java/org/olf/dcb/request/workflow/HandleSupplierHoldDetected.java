@@ -83,7 +83,12 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		log.info("PR {} detected that a hold has been placed at the owning library",ctx.getPatronRequest().getId());
 
     return hostLmsService.getClientFor(ctx.getPatronSystemCode())
-			.flatMap(hostLmsClient -> hostLmsClient.preventRenewalOnLoan(PreventRenewalCommand.builder().itemId(ctx.getPatronRequest().getLocalItemId()).build()))
+			.flatMap(hostLmsClient -> hostLmsClient.preventRenewalOnLoan(
+				PreventRenewalCommand.builder()
+					.requestId(ctx.getPatronRequest().getLocalRequestId())
+					.itemBarcode(ctx.getPatronRequest().getPickupItemBarcode())
+					.itemId(ctx.getPatronRequest().getLocalItemId())
+					.build()))
 			.then( markPatronRequestNotRenewable(ctx) )
 			.then( auditService.addAuditEntry(ctx.getPatronRequest(), "Hold detected at owning Library. Borrowing Library told to prevent renewals") )
       .thenReturn(ctx);

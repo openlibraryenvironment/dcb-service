@@ -23,8 +23,5 @@ import services.k_int.interaction.alma.types.*;
 
 public interface AlmaApiClient {
 	String CONFIG_ROOT = "alma.client";
-	Logger log = LoggerFactory.getLogger(AlmaApiClient.class);
-	
 	URI getRootUri();
-
 }
