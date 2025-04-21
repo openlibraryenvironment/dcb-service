@@ -8,6 +8,9 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import java.net.URI;
 import java.util.List;
 
+import services.k_int.interaction.alma.AlmaApiClient;
+import services.k_int.interaction.alma.types.*;
+
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -41,12 +44,14 @@ import reactor.core.publisher.Mono;
 @Prototype
 public class AlmaHostLmsClient implements HostLmsClient {
 
+	// @See https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
+
 	// These are the same config keys as from FolioOaiPmhIngestSource
 	// which was implemented prior to this client
 	private static final HostLmsPropertyDefinition BASE_URL_SETTING
-		= urlPropertyDefinition("base-url", "Base URL of the FOLIO system", TRUE);
+		= urlPropertyDefinition("base-url", "Base URL of the ALMA system", TRUE);
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
-		= stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE);
+		= stringPropertyDefinition("apikey", "API key for this ALMA system", TRUE);
 
 	private final HostLms hostLms;
 
@@ -54,6 +59,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final ConversionService conversionService;
+	private final AlmaApiClient client;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -62,7 +68,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	public AlmaHostLmsClient(@Parameter HostLms hostLms,
 		@Parameter("client") HttpClient httpClient,
-		// ConsortialFolioItemMapper consortialFolioItemMapper,
+		AlmaClientFactory almaClientFactory,
 		ReferenceValueMappingService referenceValueMappingService,
 		ConversionService conversionService) {
 
@@ -70,6 +76,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		this.httpClient = httpClient;
 
 		// this.consortialFolioItemMapper = consortialFolioItemMapper;
+		this.client = almaClientFactory.createClientFor(hostLms);
 
 		this.referenceValueMappingService = referenceValueMappingService;
 
@@ -192,6 +199,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
+		// POST /almaws/v1/users
 		return Mono.empty();
 	}
 
