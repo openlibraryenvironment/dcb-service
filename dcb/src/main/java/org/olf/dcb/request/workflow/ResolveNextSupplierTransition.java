@@ -181,11 +181,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 		final var patronRequest = resolution.getPatronRequest();
 
-		if (resolution.successful()) {
-			patronRequest.resolve();
-		} else {
-			patronRequest.resolveToNoItemsSelectable();
-		}
+		patronRequest.resolve();
 
 		final var patronRequestService = patronRequestServiceProvider.get();
 
@@ -194,10 +190,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {
-		if (!resolution.successful()) {
-			return Mono.just(resolution);
-		}
-
 		final var auditData = new HashMap<String, Object>();
 
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
@@ -225,10 +217,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
 		log.debug("saveSupplierRequest({})", resolution);
-
-		if (!resolution.successful()) {
-			return Mono.just(resolution);
-		}
 
 		return supplierRequestService.saveSupplierRequest(
 				mapToSupplierRequest(resolution.getChosenItem(), resolution.getPatronRequest()))
