@@ -1,16 +1,17 @@
 package org.olf.dcb.request.resolution;
 
-import lombok.Builder;
-import lombok.Value;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.PatronRequest;
+import static java.util.Collections.emptyList;
+import static lombok.AccessLevel.PRIVATE;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.UUID;
 
-import static java.util.Collections.emptyList;
-import static lombok.AccessLevel.PRIVATE;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronRequest;
+
+import lombok.Builder;
+import lombok.Value;
 
 @Builder(access = PRIVATE)
 @Value
@@ -27,6 +28,10 @@ public class Resolution {
 
 	public static Resolution forPatronRequest(PatronRequest patronRequest) {
 		return builder().patronRequest(patronRequest).build();
+	}
+
+	public boolean successful() {
+		return getChosenItem() != null;
 	}
 
 	public Resolution withPatronRequest(PatronRequest newPatronRequest) {

@@ -1,14 +1,22 @@
 package org.olf.dcb.test;
 
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.storage.*;
+import static java.util.UUID.randomUUID;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.UUID;
 
-import static java.util.UUID.randomUUID;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import org.olf.dcb.core.model.Consortium;
+import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSetting;
+import org.olf.dcb.core.model.FunctionalSettingType;
+import org.olf.dcb.core.model.LibraryGroup;
+import org.olf.dcb.storage.ConsortiumFunctionalSettingRepository;
+import org.olf.dcb.storage.ConsortiumRepository;
+import org.olf.dcb.storage.FunctionalSettingRepository;
+import org.olf.dcb.storage.LibraryGroupRepository;
+
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton
@@ -79,6 +87,14 @@ public class ConsortiumFixture {
 		}
 	}
 
+	public Consortium enableSetting(FunctionalSettingType settingType) {
+		return createConsortiumWithFunctionalSetting(settingType, true);
+	}
+
+	public Consortium disableSetting(FunctionalSettingType settingType) {
+		return createConsortiumWithFunctionalSetting(settingType, false);
+	}
+
 	/**
 	 * Creates a complete consortium setup with all necessary related entities.
 	 * Includes a library group, consortium, functional setting, and links them together.
@@ -123,8 +139,8 @@ public class ConsortiumFixture {
 	private Consortium findConsortiumById(UUID id) {
 		return singleValueFrom(consortiumRepository.findById(id));
 	}
-
 	// Factory methods for creating entities
+
 	private static LibraryGroup createMobiusLibraryGroup() {
 		return LibraryGroup.builder()
 			.id(randomUUID())

@@ -121,40 +121,45 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		supplierRequestService = supplierRequestServiceProvider.get();
 
 		return checkAndIncludeCurrentSupplierRequestsFor(patronRequest)
-			.flatMap(this::resolve)
-			.flatMap(resolution -> transitionSupplierRequest(resolution, context))
+			.flatMap(this::reResolve)
 			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()))
-			.flatMap(this::auditResolution)
-			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
-			.flatMap(this::saveSupplierRequest)
-			.flatMap(this::updatePatronRequest)
+			.flatMap(resolution -> applyReResolution(resolution, context))
 			.thenReturn(context);
 	}
 
-	private Mono<Resolution> resolve(PatronRequest patronRequest) {
+	private Mono<Resolution> reResolve(PatronRequest patronRequest) {
 		log.info("Re-resolving Patron Request {}", getValue(patronRequest,
 			PatronRequest::getId, "Unknown"));
 
 		final var excludedAgencyCode = getValue(patronRequest,
 			PatronRequest::determineSupplyingAgencyCode, null);
 
-		return patronRequestResolutionService.resolvePatronRequest(patronRequest,
-			excludedAgencyCode);
+		return patronRequestResolutionService.resolvePatronRequest(patronRequest, excludedAgencyCode);
 	}
 
-	/**
-	 * Transitions the previous supplier request to an inactive state.
-	 *
-	 * This method takes the current resolution and the request workflow context as input,
-	 * saves the previous supplier request as an inactive supplier request, and returns the resolution.
-	 *
-	 * @param resolution the current resolution
-	 * @param context the request workflow context
-	 * @return a Mono containing the resolution
-	 */
-	private Mono<Resolution> transitionSupplierRequest(Resolution resolution, RequestWorkflowContext context) {
+	private Mono<Void> applyReResolution(Resolution resolution, RequestWorkflowContext context) {
+		if (resolution.successful()) {
+			return applySuccessfulResolution(resolution, context);
+		}
+		else {
+			return terminateSupplierCancellation(context)
+				.then();
+		}
+	}
 
+	private Mono<Void> applySuccessfulResolution(Resolution resolution,
+		RequestWorkflowContext context) {
+		
+		return makeSupplierRequestInactive(resolution, context)
+			.flatMap(this::auditResolution)
+			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
+			.flatMap(this::saveSupplierRequest)
+			.flatMap(this::updatePatronRequest)
+			.then();
+	}
+
+	private Mono<Resolution> makeSupplierRequestInactive(Resolution resolution, RequestWorkflowContext context) {
 		final var previousSupplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
 
 		return supplierRequestService.saveInactiveSupplierRequest(previousSupplierRequest)
@@ -176,11 +181,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 		final var patronRequest = resolution.getPatronRequest();
 
-		if (resolution.getChosenItem() != null) {
-			patronRequest.resolve();
-		} else {
-			patronRequest.resolveToNoItemsSelectable();
-		}
+		patronRequest.resolve();
 
 		final var patronRequestService = patronRequestServiceProvider.get();
 
@@ -189,14 +190,9 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {
-		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
-
-		// Do not audit a resolution when an item hasn't been chosen
-		if (chosenItem == null) {
-			return Mono.just(resolution);
-		}
-
 		final var auditData = new HashMap<String, Object>();
+
+		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 
 		final var itemStatusCode = getValueOrNull(chosenItem, Item::getStatus, ItemStatus::getCode);
 
@@ -222,14 +218,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
 		log.debug("saveSupplierRequest({})", resolution);
 
-		final var chosenItem = resolution.getChosenItem();
-
-		if (chosenItem == null) {
-			return Mono.just(resolution);
-		}
-
 		return supplierRequestService.saveSupplierRequest(
-				mapToSupplierRequest(chosenItem, resolution.getPatronRequest()))
+				mapToSupplierRequest(resolution.getChosenItem(), resolution.getPatronRequest()))
 			.thenReturn(resolution);
 	}
 

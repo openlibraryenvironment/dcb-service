@@ -5,9 +5,11 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
@@ -39,6 +41,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
@@ -161,10 +164,50 @@ class ResolveNextSupplierTransitionTests {
 			"Previously Supplying Agency", previouslySupplyingHostLms);
 	}
 
+	@Test
+	void shouldTerminateRequestWhenSettingIsDisabled() {
+		// Arrange
+		disableFunctionalSetting();
+
+		final var borrowingLocalRequestId = "4656352";
+
+		final var patron = patronFixture.definePatron("265635", "home-library",
+			borrowingHostLms, borrowingAgency);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.localRequestId(borrowingLocalRequestId)
+			.localRequestStatus(HOLD_CONFIRMED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasNoResolutionCount()
+		));
+
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = {HOLD_MISSING, HOLD_CANCELLED})
 	void shouldNotCancelBorrowingRequestWhenMissingOrCancelled(String localRequestStatus) {
 		// Arrange
+		enableFunctionalSetting();
+
 		final var borrowingLocalRequestId = "7836734";
 
 		final var patron = patronFixture.definePatron("783174", "home-library",
@@ -181,7 +224,7 @@ class ResolveNextSupplierTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+		final var supplierRequest = defineSupplierRequest(patronRequest, HOLD_CANCELLED);
 
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
@@ -192,6 +235,12 @@ class ResolveNextSupplierTransitionTests {
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasNoResolutionCount()
 		));
+
+		assertThat("Previous supplier request should still exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
+
+		assertThat("There should be no inactive supplier requests",
+			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
 
 		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
@@ -305,7 +354,7 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldSelectNewSupplierWhenAnItemFromDifferentSupplierIsSelectable() {
-		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
+		enableFunctionalSetting();
 
 		final var sourceRecordId = "798472";
 		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
@@ -366,11 +415,15 @@ class ResolveNextSupplierTransitionTests {
 		assertThat(oneInactiveSupplierRequest, notNullValue());
 		assertThat("Inactive supplier request should exist and match previous supplier request",
 			oneInactiveSupplierRequest.getLocalId(), is(supplierRequest.getLocalId()));
+
+		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest),
+			hasBriefDescription("Re-resolved to item with local ID \"%s\" from Host LMS \"%s\""
+				.formatted(newItemId, supplyingHostLms.getCode())));
 	}
 
 	@Test
 	void shouldExcludeItemsFromSameAgencyAsPreviouslySupplied() {
-		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
+		enableFunctionalSetting();
 
 		final var sourceRecordId = "236455";
 		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
@@ -380,7 +433,8 @@ class ResolveNextSupplierTransitionTests {
 		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
 
-		saveSupplierRequest(patronRequest, supplyingHostLms.getCode(), previouslySupplyingAgency);
+		final var supplierRequest = saveSupplierRequest(patronRequest,
+			supplyingHostLms.getCode(), previouslySupplyingAgency);
 
 		final var itemLocationCode = "same-as-previous-supplier";
 
@@ -404,6 +458,8 @@ class ResolveNextSupplierTransitionTests {
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			previouslySupplyingHostLms.getCode(), 999, 999, "BKM");
 
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
+
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
 
@@ -413,11 +469,19 @@ class ResolveNextSupplierTransitionTests {
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasResolutionCount(1)
 		));
+
+		assertThat("Previous supplier request should still exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
+
+		assertThat("There should be no inactive supplier requests",
+			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
+
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 
 	@Test
-	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution() {
-		final var savedConsortium = consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
+	void shouldTerminateBorrowingRequestWhenNoItemSelectableDuringReResolution() {
+		enableFunctionalSetting();
 
 		final var sourceRecordId = "798475";
 		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
@@ -450,6 +514,8 @@ class ResolveNextSupplierTransitionTests {
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			supplyingHostLms.code, 999, 999, "BKM");
 
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
+
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
 
@@ -460,24 +526,19 @@ class ResolveNextSupplierTransitionTests {
 			hasResolutionCount(1)
 		));
 
-		final var existingSupplierRequest = supplierRequestsFixture.exists(supplierRequest.getId());
+		assertThat("Previous supplier request should still exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
 
-		assertThat(savedConsortium, notNullValue());
-		assertThat(existingSupplierRequest, notNullValue());
-		assertThat("Previous supplier request should not exist", existingSupplierRequest, is(false));
+		assertThat("There should be no inactive supplier requests",
+			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
 
-		final var listOfInactiveSupplierRequests = inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest);
-		final var oneInactiveSupplierRequest = listOfInactiveSupplierRequests.get(0);
-
-		assertThat(oneInactiveSupplierRequest, notNullValue());
-		assertThat("Inactive supplier request should exist and match previous supplier request",
-			oneInactiveSupplierRequest.getLocalId(), is(supplierRequest.getLocalId()));
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 
 	@Test
 	void shouldFailWhenMoreThanOneConsortiumIsDefined() {
-		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
-		consortiumFixture.createConsortiumWithFunctionalSetting(RE_RESOLUTION, true);
+		enableFunctionalSetting();
+		enableFunctionalSetting();
 
 		final var clusterRecordId = randomUUID();
 		final var borrowingLocalRequestId = "3635625";
@@ -535,8 +596,8 @@ class ResolveNextSupplierTransitionTests {
 		return patronRequest;
 	}
 
-	private void defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
+	private SupplierRequest defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
+		return supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 			.id(UUID.randomUUID())
 			.patronRequest(patronRequest)
 			.hostLmsCode("next-supplier-supplying-host-lms")
@@ -578,5 +639,13 @@ class ResolveNextSupplierTransitionTests {
 				.localItemLocationCode("supplying-location")
 				.resolvedAgency(previousSupplyingAgency)
 				.build());
+	}
+
+	private Consortium enableFunctionalSetting() {
+		return consortiumFixture.enableSetting(RE_RESOLUTION);
+	}
+
+	private void disableFunctionalSetting() {
+		consortiumFixture.disableSetting(RE_RESOLUTION);
 	}
 }
