@@ -1,26 +1,43 @@
 package org.olf.dcb.request.workflow;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.ConsortiumFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.InactiveSupplierRequestsFixture;
+import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
+
+import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.*;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -53,6 +70,7 @@ class ResolveNextSupplierTransitionPUATests {
 
 	@BeforeAll
 	void beforeAll() {
+		locationFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 		// Create dummy host LMS instances
 		borrowingHostLms = createHostLms(BORROWING_HOST_LMS_CODE);
