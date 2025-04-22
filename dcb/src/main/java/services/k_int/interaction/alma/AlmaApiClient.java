@@ -8,7 +8,8 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import io.micronaut.json.tree.JsonNode;
 
@@ -26,5 +27,5 @@ public interface AlmaApiClient {
 	URI getRootUri();
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
-	Publisher<AlmaUser> createPatron(AlmaUser patron);
+	Mono<AlmaUser> createPatron(AlmaUser patron);
 }

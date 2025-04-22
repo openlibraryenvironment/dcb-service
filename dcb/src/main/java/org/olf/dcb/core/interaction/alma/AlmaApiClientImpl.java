@@ -41,7 +41,8 @@ import services.k_int.interaction.alma.*;
 import services.k_int.interaction.alma.types.*;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.*;
+
 
 
 @Slf4j
@@ -140,8 +141,13 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   }
 
 	@Override
-  public Publisher<AlmaUser> createPatron(AlmaUser patron) {
-		return Mono.empty();
+  public Mono<AlmaUser> createPatron(AlmaUser patron) {
+		// POST /almaws/v1/users
+		// See: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
+		final String path="/almaws/v1/users";
+    return createRequest(POST, path)
+			.map(request -> request.body(patron))
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaUser.class))));
 	}
 
 }

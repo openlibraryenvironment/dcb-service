@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import java.util.List;
 
 // https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_users.xsd
 
@@ -16,12 +17,28 @@ import lombok.ToString;
 @ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class AlmaUser {
-        String primary_id;
-        String first_name;
-        String last_name;
-        Boolean is_researcher;
-        String link;
-        CodeValuePair status;
-        CodeValuePair gender;
-        String password;
+	// CONTACT, PUBLIC, STAFF
+	CodeValuePair record_type;
+	String primary_id;
+	String first_name;
+	String last_name;
+	Boolean is_researcher;
+	String link;
+	CodeValuePair gender;
+	String password;
+	CodeValuePair user_title;
+	// FACULTY, STAFF, GRAD, UNDRGRD, GUEST, ACADSTAFF, ALUM, PT
+	CodeValuePair user_group;
+	CodeValuePair campus_code;
+	CodeValuePair preferred_language;
+	// EXTERNAL, INTERNAL, INTEXTAUTH
+	CodeValuePair account_type;
+	String external_id;
+	// ACTIVE, INACTIVE, DELETED
+	CodeValuePair status;
+	List<UserIdentifier> user_identifiers;
+	
+
+	
+
 }
