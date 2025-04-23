@@ -1,9 +1,29 @@
 # Changelog
 
+## Version 8.22.0
+
+### Additions
+* [General]
+	* Terminate request when re-resolution is unsuccessful DCB-1411
+	* FOLIO renewal prevention first pass
+	* Polaris renewal blocking via item blocks
+	* Use renewal count to prevent renewals in sierra systems
+
+### Changes
+* [Chore]
+	* Bump commit to test new CICD pipeline
+	* Extend alma user DTO
+	* rename alma types
+	* refine alma patron
+	* Use AlmaClientFactory to yield Client
+	* updated note on polaris lms client
+	* Add some messages to audit log in reresolution processing
+
 ## Version 8.21.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add sorted item list to resolution audit [DCB-1828]
 
 ### Fixes
