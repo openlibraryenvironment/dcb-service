@@ -116,4 +116,7 @@ public class Library implements Auditable {
 
 	@Nullable
 	private String changeReferenceUrl;
+
+	@Nullable
+	private String targetLoanToBorrowRatio;
 }
