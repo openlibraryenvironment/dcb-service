@@ -44,26 +44,26 @@ public class GeoDistanceResolutionSortOrder implements ResolutionSortOrder {
 
 		// Look up location by code
 		return Mono.from(locationRepository.findById(pickupLocationId))
-			// Create an ItemWithDistance for each item that calculates the distance to pickupLocation
+			// Create an SupplyCandidateItem for each item that calculates the distance to pickupLocation
 			.flatMapMany(pickupLocation ->
 				Flux.fromIterable(items)
 					.filter(Item::hasAgency)
 					.map (item ->
-						ItemWithDistance.builder()
+						SupplyCandidateItem.builder()
 							.item(item)
 							.pickupLocation(pickupLocation)
 							.build())
 					.map(this::calculateDistanceFromPickupLocation))
-			.sort(Comparator.comparingDouble(ItemWithDistance::getDistance))
-			.map(ItemWithDistance::getItem)
+			.sort(Comparator.comparingDouble(SupplyCandidateItem::getDistance))
+			.map(SupplyCandidateItem::getItem)
 			.collectList();
 	}
 
-	private ItemWithDistance calculateDistanceFromPickupLocation(ItemWithDistance iwd) {
-		final var item = getValueOrNull(iwd, ItemWithDistance::getItem);
+	private SupplyCandidateItem calculateDistanceFromPickupLocation(SupplyCandidateItem iwd) {
+		final var item = getValueOrNull(iwd, SupplyCandidateItem::getItem);
 
 		final var agency = getValueOrNull(item, Item::getAgency);
-		final var pickupLocation = getValueOrNull(iwd, ItemWithDistance::getPickupLocation);
+		final var pickupLocation = getValueOrNull(iwd, SupplyCandidateItem::getPickupLocation);
 
 		iwd.setDistance(calculateDistance(agency, pickupLocation));
 		log.debug("Distance:{}", iwd.getDistance());

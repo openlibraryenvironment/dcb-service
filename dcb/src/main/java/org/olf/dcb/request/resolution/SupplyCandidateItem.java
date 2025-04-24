@@ -16,7 +16,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @NoArgsConstructor
 @Builder
 @Accessors(chain = true)
-public class ItemWithDistance {
+public class SupplyCandidateItem {
 	private Location pickupLocation;
 	private Item item;
 	private double distance;
