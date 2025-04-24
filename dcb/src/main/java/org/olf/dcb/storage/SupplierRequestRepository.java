@@ -2,6 +2,7 @@ package org.olf.dcb.storage;
 
 import java.util.UUID;
 
+import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -70,8 +71,8 @@ public interface SupplierRequestRepository {
   Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 
-	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localStatus, String rawLocalStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
-	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
+	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, @Nullable String localStatus, @Nullable String rawLocalStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
+	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, @Nullable String localItemStatus, @Nullable String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 
 }
 

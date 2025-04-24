@@ -17,6 +17,7 @@ import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -139,6 +140,10 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.canonicalItemType(getValue(item, Item::getCanonicalItemType, "null"))
 			.holdCount(getValue(item, Item::getHoldCount, 0))
 			.agencyCode(getValue(item, Item::getAgencyCode, "Unknown"))
+			.availableDate(Optional.ofNullable(getValue(item, Item::getAvailableDate, null))
+				.map(Instant::toString).orElse("null"))
+			.dueDate(Optional.ofNullable(getValue(item, Item::getDueDate, null))
+				.map(Instant::toString).orElse("null"))
 			.build();
 	}
 
@@ -242,5 +247,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		String canonicalItemType;
 		Integer holdCount;
 		String agencyCode;
+		String availableDate;
+		String dueDate;
 	}
 }
