@@ -199,11 +199,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
+
+		String patron_id = patron.getUniqueIds().get(0);
+
 		// POST /almaws/v1/users
 		AlmaUser almaUser = AlmaUser.builder()
-      .primary_id("")
-      .first_name("")
-      .last_name("")
+      .primary_id(patron_id)
+      .first_name("DCB")
+      .last_name("VPATRON")
       .is_researcher(Boolean.FALSE)
       .link("")
       // CodeValuePair status;

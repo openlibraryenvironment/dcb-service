@@ -68,21 +68,54 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to create a consortium.");
 		}
 
+		String agencyCode = input_map.containsKey("agencyCode") ?
+			input_map.get("agencyCode").toString() : null;
+		String fullName = input_map.containsKey("fullName") ?
+			input_map.get("fullName").toString() : null;
+		String shortName = input_map.containsKey("shortName") ?
+			input_map.get("shortName").toString() : null;
+		String abbreviatedName = input_map.containsKey("abbreviatedName") ?
+			input_map.get("abbreviatedName").toString() : null;
+		String address = input_map.containsKey("address") ?
+			input_map.get("address").toString() : null;
+		String type = input_map.containsKey("type") ?
+			input_map.get("type").toString() : null;
+
+		Float latitude = input_map.containsKey("latitude") ?
+			Float.valueOf(input_map.get("longitude").toString()): null;
+		Float longitude = input_map.containsKey("longitude") ?
+			Float.valueOf(input_map.get("longitude").toString()) : null;
+
+		String backupDowntimeSchedule = input_map.containsKey("backupDowntimeSchedule") ?
+			(input_map.get("backupDowntimeSchedule").toString()) : null;
+		String supportHours = input_map.containsKey("supportHours") ?
+			input_map.get("supportHours").toString() : null;
+		String discoverySystem = input_map.containsKey("discoverySystem") ?
+			input_map.get("discoverySystem").toString() : null;
+		String patronWebsite = input_map.containsKey("patronWebsite") ?
+			input_map.get("patronWebsite").toString() : null;
+		String hostLmsConfiguration = input_map.containsKey("hostLmsConfiguration") ?
+			input_map.get("hostLmsConfiguration").toString() : null;
+
+		String targetLoanToBorrowRatio = input_map.containsKey("targetLoanToBorrowRatio") ?
+			input_map.get("targetLoanToBorrowRatio").toString() : null;
+
 		Library input = Library.builder()
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)
-			.agencyCode(input_map.get("agencyCode").toString())
-			.fullName(input_map.get("fullName").toString())
-			.shortName(input_map.get("shortName").toString())
-			.abbreviatedName(input_map.get("abbreviatedName").toString())
-			.address(input_map.get("address").toString())
-			.type(input_map.get("type").toString())
-			.longitude(Float.valueOf(input_map.get("longitude").toString()))
-			.latitude(Float.valueOf(input_map.get("latitude").toString()))
-			.supportHours(input_map.get("supportHours").toString())
-			.backupDowntimeSchedule(input_map.get("backupDowntimeSchedule").toString())
-			.discoverySystem(input_map.get("discoverySystem").toString())
-			.patronWebsite(input_map.get("patronWebsite").toString())
-			.hostLmsConfiguration(input_map.get("hostLmsConfiguration").toString())
+			.agencyCode(agencyCode)
+			.fullName(fullName)
+			.shortName(shortName)
+			.abbreviatedName(abbreviatedName)
+			.address(address)
+			.type(type)
+			.longitude(longitude)
+			.latitude(latitude)
+			.supportHours(supportHours)
+			.backupDowntimeSchedule(backupDowntimeSchedule)
+			.discoverySystem(discoverySystem)
+			.patronWebsite(patronWebsite)
+			.hostLmsConfiguration(hostLmsConfiguration)
+			.targetLoanToBorrowRatio(targetLoanToBorrowRatio)
 			.reason("Adding a new library")
 			.changeCategory("New member")
 			.lastEditedBy(userString)

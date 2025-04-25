@@ -1,9 +1,47 @@
 # Changelog
 
+## Version 8.23.0
+
+### Additions
+* [General]
+	* Add LBRatio field to Library
+
+### Changes
+* [Chore]
+	* Add targetLoanBorrowerRatio to GraphQL [DCB-1884]
+	* upgrade GraalVM in release yml
+	* Refactor ItemWithDistance into SupplyCandidateItem so that it can carry Loan to Borrow Ratios for different ranking methods
+	* add availability date and due date to resolution audits [DCB-1882]
+
+### Fixes
+* [General]
+	* supplier rawLocalItemStatus tracking failure [DCB-1874]
+
+## Version 8.22.0
+
+### Additions
+* [General]
+	* Terminate request when re-resolution is unsuccessful DCB-1411
+	* FOLIO renewal prevention first pass
+	* Polaris renewal blocking via item blocks
+	* Use renewal count to prevent renewals in sierra systems
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Bump commit to test new CICD pipeline
+	* Extend alma user DTO
+	* rename alma types
+	* refine alma patron
+	* Use AlmaClientFactory to yield Client
+	* updated note on polaris lms client
+	* Add some messages to audit log in reresolution processing
+
 ## Version 8.21.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add sorted item list to resolution audit [DCB-1828]
 
 ### Fixes
