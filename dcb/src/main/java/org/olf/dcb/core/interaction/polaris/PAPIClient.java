@@ -12,6 +12,8 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
+import org.olf.dcb.core.model.HostLms;
+
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -57,11 +59,13 @@ public class PAPIClient {
 	private final String PROTECTED_PARAMETERS;
 	private final PolarisConfig polarisConfig;
 	private final ConversionService conversionService;
+	private final HostLms lms;
 
-	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService) {
+	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService, HostLms lms) {
 		this.client = client;
 		this.polarisConfig = polarisConfig;
 		this.authFilter = new PAPIAuthFilter(client, polarisConfig);
+		this.lms = lms;
 
 		// Build PAPI base parameters
 		String PAPI_PARAMETERS = polarisConfig.pAPIServiceUriParameters();
@@ -97,7 +101,17 @@ public class PAPIClient {
 				.localPatronType(valueOf(patronValidateResult.getPatronCodeID()))
 				.localBarcodes(singletonList(patronValidateResult.getBarcode()))
 				.localHomeLibraryCode(valueOf(patronValidateResult.getAssignedBranchID()))
-				.build());
+				.hostLmsCode(lms.getCode())
+				.build())
+			.flatMap(this::resolveHomeLibraryCode);
+	}
+
+	/**
+ 	 * If this Patron carries a valid .localHomeLibraryCode see if we can resolve it into an agency
+	 */
+	private Mono<Patron> resolveHomeLibraryCode(Patron patron) {
+		log.debug("resolveHomeLibraryCode({})",patron);
+		return Mono.just(patron);
 	}
 
 	public Mono<PatronRegistrationCreateResult> patronRegistrationCreate(Patron patron) {

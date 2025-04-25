@@ -72,9 +72,13 @@ public class PatronAuthController {
 		return hostLmsService.getClientFor(agency.getHostLms().code)
 				.flatMap(
 						hostLmsClient -> hostLmsClient.patronAuth(agency.getAuthProfile(), creds.patronPrinciple, creds.secret))
-				.map(patron -> LocalPatronDetails.builder().status(VALID).localPatronId(patron.getLocalId())
-						.agencyCode(agency.getCode()).systemCode(agency.getHostLms().code)
-						.homeLocationCode(patron.getLocalHomeLibraryCode()).build());
+				.map(patron -> LocalPatronDetails.builder()
+					.status(VALID)
+					.localPatronId(patron.getLocalId())
+					.agencyCode(agency.getCode())
+					.systemCode(agency.getHostLms().code)
+					.homeLocationCode(patron.getLocalHomeLibraryCode())
+					.build());
 	}
 
 	private static Mono<LocalPatronDetails> invalid(PatronCredentials patronCredentials) {
@@ -104,6 +108,9 @@ public class PatronAuthController {
 		String agencyCode;
 		String systemCode;
 		String homeLocationCode;
+
+		// If we are able to infer a DCB agency code from the data returned from the patron, store it here
+		String inferredAgencyCode;
 
 		private boolean isValid() {
 			return VALID.equals(status);

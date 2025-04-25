@@ -133,7 +133,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
 		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig);
-		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService);
+		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;

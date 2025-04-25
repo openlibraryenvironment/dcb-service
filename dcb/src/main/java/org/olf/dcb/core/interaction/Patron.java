@@ -31,6 +31,7 @@ public class Patron {
 	private List<String> uniqueIds;
 	private String localPatronType;
 	private String localHomeLibraryCode;
+	private String hostLmsCode;
 
 	// Because different ILS systems will have different needs for converting local patron type
 	// into a canonical type, Sierra for example uses a numeric range mapping, we should hide the
