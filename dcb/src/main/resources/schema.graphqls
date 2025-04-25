@@ -193,6 +193,7 @@ input LibraryInput {
 	patronWebsite: String
 	discoverySystem: String
 	hostLmsConfiguration: String
+	targetLoanToBorrowRatio: String
 	supportHours: String
 	backupDowntimeSchedule: String
 	reason: String
@@ -276,6 +277,7 @@ input UpdateLibraryInput {
 	longitude: Float
 	fullName: String
 	shortName: String
+	targetLoanToBorrowRatio: String
 	abbreviatedName: String
 	reason: String
 	changeReferenceUrl: String
@@ -538,6 +540,7 @@ type Library {
 	membership: [LibraryGroupMember]
 	principalLabel: String
 	secretLabel: String
+	targetLoanToBorrowRatio: String
 }
 
 type LibraryContact {

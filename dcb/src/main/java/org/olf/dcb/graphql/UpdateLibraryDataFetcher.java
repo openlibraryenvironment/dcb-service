@@ -69,6 +69,8 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			input_map.get("shortName").toString() : null;
 		String abbreviatedName = input_map.containsKey("abbreviatedName") ?
 			input_map.get("abbreviatedName").toString() : null;
+		String targetLoanToBorrowRatio = input_map.containsKey("targetLoanToBorrowRatio") ?
+			input_map.get("targetLoanToBorrowRatio").toString() : null;
 
 		Float latitude = input_map.containsKey("latitude") ?
 			((Number) input_map.get("latitude")).floatValue() : null;
@@ -99,6 +101,9 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 					}
 					if (abbreviatedName != null) {
 						library.setAbbreviatedName(abbreviatedName);
+					}
+					if (targetLoanToBorrowRatio != null) {
+						library.setTargetLoanToBorrowRatio(targetLoanToBorrowRatio);
 					}
 					library.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(library::setChangeReferenceUrl);
