@@ -1,5 +1,22 @@
 # Changelog
 
+## Version 8.23.0
+
+### Additions
+* [General]
+	* Add LBRatio field to Library
+
+### Changes
+* [Chore]
+	* Add targetLoanBorrowerRatio to GraphQL [DCB-1884]
+	* upgrade GraalVM in release yml
+	* Refactor ItemWithDistance into SupplyCandidateItem so that it can carry Loan to Borrow Ratios for different ranking methods
+	* add availability date and due date to resolution audits [DCB-1882]
+
+### Fixes
+* [General]
+	* supplier rawLocalItemStatus tracking failure [DCB-1874]
+
 ## Version 8.22.0
 
 ### Additions
@@ -11,6 +28,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Bump commit to test new CICD pipeline
 	* Extend alma user DTO
 	* rename alma types
