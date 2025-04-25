@@ -1,13 +1,16 @@
 package org.olf.dcb.request.resolution;
 
 import static java.time.temporal.ChronoUnit.HOURS;
+import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
@@ -24,13 +27,28 @@ import java.util.List;
 import java.util.Map;
 
 import org.hamcrest.Matcher;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.test.*;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.FunctionalSettingType;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
@@ -526,7 +544,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldExcludeItemFromPreviousSupplierRequestAgency() {
+	void shouldExcludeItemsFromAnAgency() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -559,8 +577,7 @@ class PatronRequestResolutionServiceTests {
 			.build();
 
 		// Act
-		final var resolution = singleValueFrom(
-			patronRequestResolutionService.resolvePatronRequest(patronRequest, SUPPLYING_AGENCY_CODE));
+		final var resolution = resolve(patronRequest, List.of(SUPPLYING_AGENCY_CODE));
 
 		// Assert
 		assertThat(resolution, allOf(
@@ -1170,7 +1187,12 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	private Resolution resolve(PatronRequest patronRequest) {
-		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
+		return resolve(patronRequest, emptyList());
+	}
+
+	private Resolution resolve(PatronRequest patronRequest, List<String> excludedAgencyCodes) {
+		return singleValueFrom(patronRequestResolutionService
+			.resolvePatronRequest(patronRequest, excludedAgencyCodes));
 	}
 
 	private Patron definePatron(String localId, String homeLibraryCode) {

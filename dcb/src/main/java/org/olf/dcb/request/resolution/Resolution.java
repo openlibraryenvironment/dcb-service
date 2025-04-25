@@ -15,9 +15,9 @@ import lombok.Value;
 
 @Builder(access = PRIVATE)
 @Value
-public class Resolution {
+public class Resolution implements ItemFilterParameters {
 	PatronRequest patronRequest;
-	String excludedAgencyCode;
+	@Builder.Default List<String> excludedAgencyCodes = emptyList();
 	String borrowingAgencyCode;
 
 	Item chosenItem;
@@ -37,12 +37,13 @@ public class Resolution {
 	public Resolution withPatronRequest(PatronRequest newPatronRequest) {
 		return builder()
 			.patronRequest(newPatronRequest)
-			.excludedAgencyCode(excludedAgencyCode)
+			.excludedAgencyCodes(excludedAgencyCodes)
 			.borrowingAgencyCode(borrowingAgencyCode)
 			.chosenItem(chosenItem)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
 			.sortedItems(sortedItems)
+			.chosenItem(chosenItem)
 			.build();
 	}
 
@@ -50,56 +51,70 @@ public class Resolution {
 		return getValueOrNull(patronRequest, PatronRequest::getBibClusterId);
 	}
 
-	public Resolution excludeAgency(String agencyCode) {
+	public Resolution excludeAgencies(List<String> excludedAgencyCodes) {
 		return builder()
 			.patronRequest(patronRequest)
+			.excludedAgencyCodes(excludedAgencyCodes)
 			.borrowingAgencyCode(borrowingAgencyCode)
-			.excludedAgencyCode(agencyCode)
+			.allItems(allItems)
+			.filteredItems(filteredItems)
+			.sortedItems(sortedItems)
+			.chosenItem(chosenItem)
 			.build();
 	}
 
 	public Resolution borrowingAgency(String agencyCode) {
 		return builder()
 			.patronRequest(patronRequest)
-			.excludedAgencyCode(excludedAgencyCode)
+			.excludedAgencyCodes(excludedAgencyCodes)
 			.borrowingAgencyCode(agencyCode)
+			.allItems(allItems)
+			.filteredItems(filteredItems)
+			.sortedItems(sortedItems)
+			.chosenItem(chosenItem)
 			.build();
 	}
 
 	public Resolution trackAllItems(List<Item> allItems) {
 		return builder()
 			.patronRequest(patronRequest)
-			.excludedAgencyCode(excludedAgencyCode)
+			.excludedAgencyCodes(excludedAgencyCodes)
 			.borrowingAgencyCode(borrowingAgencyCode)
 			.allItems(allItems)
+			.filteredItems(filteredItems)
+			.sortedItems(sortedItems)
+			.chosenItem(chosenItem)
 			.build();
 	}
 
 	public Resolution trackFilteredItems(List<Item> filteredItems) {
 		return Resolution.builder()
 			.patronRequest(patronRequest)
-			.excludedAgencyCode(excludedAgencyCode)
+			.excludedAgencyCodes(excludedAgencyCodes)
 			.borrowingAgencyCode(borrowingAgencyCode)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
+			.sortedItems(sortedItems)
+			.chosenItem(chosenItem)
 			.build();
 	}
 
 	public Resolution trackSortedItems(List<Item> sortedItems) {
 		return Resolution.builder()
 			.patronRequest(patronRequest)
-			.excludedAgencyCode(excludedAgencyCode)
+			.excludedAgencyCodes(excludedAgencyCodes)
 			.borrowingAgencyCode(borrowingAgencyCode)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
 			.sortedItems(sortedItems)
+			.chosenItem(chosenItem)
 			.build();
 	}
 
 	public Resolution selectItem(Item item) {
 		return Resolution.builder()
 			.patronRequest(patronRequest)
-			.excludedAgencyCode(excludedAgencyCode)
+			.excludedAgencyCodes(excludedAgencyCodes)
 			.borrowingAgencyCode(borrowingAgencyCode)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
