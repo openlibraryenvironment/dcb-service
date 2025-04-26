@@ -109,6 +109,8 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<String> deleteHold(String id);
 
+	Mono<String> deletePatron(String id);
+
 	/**
 	 * Use whatever system specific method is appropriate to prevent a patron from renewing a loaned item. This could be
 	 * setting the renewal count artificially high, issuing a recall, setting other flags on the item. The method used WILL be

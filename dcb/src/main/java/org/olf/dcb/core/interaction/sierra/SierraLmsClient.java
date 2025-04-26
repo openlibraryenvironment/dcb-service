@@ -1778,6 +1778,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.deleteHold(id)).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
+  public Mono<String> deletePatron(String id) {
+    log.info("Delete patron is not currently implemented");
+    return Mono.empty();
+  }
+
 	@Override
 	public ProcessStateService getProcessStateService() {
 		return this.processStateService;

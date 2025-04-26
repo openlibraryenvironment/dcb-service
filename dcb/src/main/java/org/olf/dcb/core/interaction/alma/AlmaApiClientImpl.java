@@ -150,4 +150,13 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaUser.class))));
 	}
 
+	// q=primary_id~abc_def
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
+	// https://developers.exlibrisgroup.com/alma/apis/users/
+	public Mono<AlmaUser> getAlmaUserByUserId(String user_id) {
+		final String path="/almaws/v1/users/"+user_id;
+    return createRequest(GET, path)
+      .flatMap(req -> Mono.from(doRetrieve(req, Argument.of(AlmaUser.class))));
+	}
+
 }

@@ -1326,6 +1326,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return ApplicationServices.deleteBibliographicRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
+  public Mono<String> deletePatron(String id) {
+    log.info("Delete patron is not currently implemented");
+    return Mono.empty();
+  }
+
 	@Override
 	public String getDefaultControlIdNamespace() {
 		return lms.getName();

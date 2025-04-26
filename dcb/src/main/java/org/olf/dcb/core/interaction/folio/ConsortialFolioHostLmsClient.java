@@ -1008,6 +1008,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just("OK");
 	}
 
+  public Mono<String> deletePatron(String id) {
+    log.info("Delete patron is not currently implemented");
+    return Mono.empty();
+  }
+
 	/**
 	 * Make HTTP request to a FOLIO system
 	 *

@@ -393,6 +393,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.just("DUMMY");
 	}
 
+  public Mono<String> deletePatron(String id) {
+    log.info("Delete patron is not currently implemented");
+    return Mono.empty();
+  }
+
 	@Override
 	public Publisher<IngestRecord> apply(@Nullable Instant changedSince, Publisher<String> terminator) {
 

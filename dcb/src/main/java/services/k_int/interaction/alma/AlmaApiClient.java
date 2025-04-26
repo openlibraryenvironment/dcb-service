@@ -28,4 +28,8 @@ public interface AlmaApiClient {
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
 	Mono<AlmaUser> createPatron(AlmaUser patron);
+
+	// https://developers.exlibrisgroup.com/alma/apis/users/
+  Mono<AlmaUser> getAlmaUserByUserId(String user_id);
+
 }

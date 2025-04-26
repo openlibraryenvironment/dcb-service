@@ -37,8 +37,4 @@ public class AlmaUser {
 	// ACTIVE, INACTIVE, DELETED
 	CodeValuePair status;
 	List<UserIdentifier> user_identifiers;
-	
-
-	
-
 }

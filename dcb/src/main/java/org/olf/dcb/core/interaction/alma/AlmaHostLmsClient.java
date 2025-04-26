@@ -178,19 +178,25 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		return Mono.empty();
+		// Almas API has a nice feature whereby the {userid} part of the GET /almaws/v1/users/{userid} can be any of the
+		// identifiers from the AlmaUser user_identifiers list
+		return client.getAlmaUserByUserId(localPatronId)
+			.map(this::almaUserToPatron);
 	}
 
 	@Override
 	public Mono<Patron> getPatronByIdentifier(String id) {
-		return Mono.empty();
+		// Almas API has a nice feature whereby the {userid} part of the GET /almaws/v1/users/{userid} can be any of the
+		// identifiers from the AlmaUser user_identifiers list
+		return client.getAlmaUserByUserId(id)
+			.map(this::almaUserToPatron);
 	}
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
-		return Mono.empty();
+		return client.getAlmaUserByUserId(localUsername)
+			.map(this::almaUserToPatron);
 	}
-
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
@@ -336,6 +342,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return Mono.empty();
   }
 
+  public Mono<String> deletePatron(String id) {
+		log.info("Delete patron is not currently implemented");
+		return Mono.empty();
+	}
+
+
 	@Override
 	public Mono<String> deleteBib(String id) {
 		log.info("Delete virtual bib is not currently implemented");
@@ -358,4 +370,65 @@ public class AlmaHostLmsClient implements HostLmsClient {
     return Mono.just(Boolean.TRUE);
   }
 
+	private Patron almaUserToPatron(AlmaUser almaUser) {
+
+		List<String> localIds = new ArrayList<String>();
+		List<String> uniqueIds = new ArrayList<String>();
+		List<String> localBarcodes = new ArrayList<String>();
+		List<String> localNames = new ArrayList<String>();
+
+		if ( almaUser.getPrimary_id() != null ) {
+			localIds.add(almaUser.getPrimary_id());
+			uniqueIds.add(almaUser.getPrimary_id());
+		}
+
+		if ( almaUser.getExternal_id() != null ) {
+			localIds.add(almaUser.getExternal_id());
+		}
+
+		localNames.add(almaUser.getFirst_name());
+		localNames.add(almaUser.getLast_name());
+
+		// Extract BARCODE from user_identifiers with id_type="BARCODE"
+
+		// AlmaUser properties
+		// CodeValuePair record_type;
+		// String primary_id;
+		// String first_name;
+		// String last_name;
+		// Boolean is_researcher;
+		// String link;
+		// CodeValuePair gender;
+		// String password;
+		// CodeValuePair user_title;
+		// FACULTY, STAFF, GRAD, UNDRGRD, GUEST, ACADSTAFF, ALUM, PT
+		// CodeValuePair user_group;
+		// CodeValuePair campus_code;
+		// CodeValuePair preferred_language;
+		// EXTERNAL, INTERNAL, INTEXTAUTH
+		// CodeValuePair account_type;
+		// String external_id;
+		// ACTIVE, INACTIVE, DELETED
+		// CodeValuePair status;
+		// List<UserIdentifier> user_identifiers;
+
+
+		return Patron.builder()
+			.localId(localIds) // list
+			.localNames(localNames)
+			.localBarcodes(localBarcodes)
+			.uniqueIds(uniqueIds)
+			// .localHomeLibraryCode
+			// .canonicalPatronType
+			// .expiryDate
+			// .localItemId
+			// .localItemLocationId
+			.isDeleted(Boolean.FALSE)
+			.isBlocked(Boolean.FALSE)
+			// .city
+			// .postalCode
+			// .state
+			.isActive(Boolean.TRUE)
+			.build();
+	}
 }
