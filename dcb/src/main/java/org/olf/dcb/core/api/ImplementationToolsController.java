@@ -54,4 +54,8 @@ public class ImplementationToolsController {
     return interopTestService.testIls(code);
   }
 
+
+	public Mono<InteropTestResult> createPatronTest() {
+		return Mono.just(InteropTestResult.builder().build());
+	}
 }
