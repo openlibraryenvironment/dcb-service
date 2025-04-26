@@ -6,7 +6,8 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlProperty
 import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
@@ -200,14 +201,41 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
-		String patron_id = patron.getUniqueIds().get(0);
+		String patron_id = UUID.randomUUID().toString();
+		String firstname = "DCB";
+		String lastname = "VPATRON";
+		String external_id = null;
+
+		if ( ( patron.getLocalNames() != null ) && ( patron.getLocalNames().size() > 0 ) ) {
+			firstname = patron.getLocalNames().get(0);
+			lastname = patron.getLocalNames().get(patron.getLocalNames().size()-1);
+		}
+
+		if ( ( patron.getUniqueIds() != null ) && ( patron.getUniqueIds().size() > 0 ) ) {
+			external_id = patron.getUniqueIds().get(0);
+		}
+
+		List<UserIdentifier> user_identifiers = null;
+
+		if ( patron.getLocalBarcodes() != null ) {
+			user_identifiers = patron.getLocalBarcodes().stream()
+				.map(value -> UserIdentifier.builder()
+					.id_type( WithAttr.builder().value("BARCODE").build() )
+					.value(value)
+					.note(null)
+					.status(null)
+					.build())
+				.collect(Collectors.toList());
+		}
 
 		// POST /almaws/v1/users
 		AlmaUser almaUser = AlmaUser.builder()
       .primary_id(patron_id)
-      .first_name("DCB")
-      .last_name("VPATRON")
+      .first_name(firstname)
+      .last_name(lastname)
       .is_researcher(Boolean.FALSE)
+			.user_identifiers(user_identifiers)
+			.external_id(external_id) // DCB Patron ID for home library system
       .link("")
       // CodeValuePair status;
       // CodeValuePair gender;
@@ -217,12 +245,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return Mono.from(client.createPatron(almaUser))
 			.flatMap(returnedUser -> {
 				log.info("Created alma user {}",returnedUser);
-				return Mono.just("OK");
-			})
-			.onErrorResume( error -> {
-				log.error("Problem creating alma user",error);
-				return Mono.just("ERROR"); 
+				return Mono.just(patron_id);
 			});
+			// N.B. Can return mono.error.
 	}
 
 	@Override

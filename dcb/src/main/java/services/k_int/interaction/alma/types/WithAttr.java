@@ -13,10 +13,6 @@ import lombok.ToString;
 @Builder
 @ToString(onlyExplicitlyIncluded = true)
 @Serdeable
-public class UserIdentifier {
-	// BARCODE, INST_ID, ILLIAD_ID, GoogleScholarID, ORCID,...
-	WithAttr id_type;
-	String value;
-	String note;
-	String status;
+public class WithAttr {
+        String value;
 }
