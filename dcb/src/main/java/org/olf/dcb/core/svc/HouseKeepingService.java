@@ -167,7 +167,7 @@ public class HouseKeepingService {
   private Mono<Void> reprocessQuery() {
     return Mono.from(
       dbops.withConnection(conn ->
-        Flux.from(conn.createStatement(QUERY_DUPLICATE_IDS)
+        Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS)
           .execute())
         .flatMap(result -> result.map((row, meta) -> row.get("id", Long.class)))
 				.buffer(10000)
