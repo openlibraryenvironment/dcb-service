@@ -489,6 +489,8 @@ public class RecordClusteringService {
 		// In prepraration for changing the rules so that a cluster can contain only 1 ONLY-ISBN-13 value
 		String unique_isbn = findUniqueIsbn(matchPoints);
 
+		log.info("matchClusters working with unique ISBN {}",unique_isbn);
+
 		return Flux.fromIterable( matchPoints )
 		 	.map( MatchPoint::getValue )
 		 	.distinct()

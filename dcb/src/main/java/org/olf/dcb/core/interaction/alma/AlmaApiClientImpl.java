@@ -159,4 +159,35 @@ public class AlmaApiClientImpl implements AlmaApiClient {
       .flatMap(req -> Mono.from(doRetrieve(req, Argument.of(AlmaUser.class))));
 	}
 
+	public Mono<Void> deleteAlmaUser(String user_id) {
+		final String path="/almaws/v1/users/"+user_id;
+    return createRequest(DELETE, path)
+      .flatMap(req -> Mono.from(doRetrieve(req, Argument.of(Void.class))));
+	}
+
+	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
+
+	// create bib - post /almaws/v1/bibs
+	public Mono<AlmaBib> createAlmaTemporaryBib(AlmaBib almaBib) {
+		final String path="/almaws/v1/bibs";
+    return createRequest(POST, path)
+      .map(request -> request.body(almaBib))
+      .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaBib.class))));
+	}
+
+	// create holding - post /almaws/v1/bibs/{mms_id}/holdings
+	public Mono<AlmaHolding> createAlmaTemporaryHolding(AlmaHolding almaHolding, String mms_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
+    return createRequest(POST, path)
+      .map(request -> request.body(almaHolding))
+      .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaHolding.class))));
+	}
+
+	// create item - POST /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items
+	public Mono<AlmaItem> createAlmaTemporaryItem(String mms_id, String holding_id, AlmaItem almaItem) {
+    final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
+    return createRequest(POST, path)
+      .map(request -> request.body(almaItem))
+      .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaItem.class))));
+	}
 }

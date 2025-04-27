@@ -26,10 +26,14 @@ public interface AlmaApiClient {
 	String CONFIG_ROOT = "alma.client";
 	URI getRootUri();
 
+	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
+
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
 	Mono<AlmaUser> createPatron(AlmaUser patron);
 
 	// https://developers.exlibrisgroup.com/alma/apis/users/
   Mono<AlmaUser> getAlmaUserByUserId(String user_id);
+
+  Mono<Void> deleteAlmaUser(String user_id);
 
 }
