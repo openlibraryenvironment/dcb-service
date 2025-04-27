@@ -9,6 +9,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -319,6 +321,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
     // We're encountering copies of the same identifier in a record - short hand list of identifiers so we can drop duplicates
     List seen_identifiers = new java.util.ArrayList<String>();
 
+		// Make a unique list of normalised ISBN13s (that contains converted normalised ISBN10 values) in order to
+		// determine if this record contains just 1 useful ISBN13.
+		Set<String> unqique_normalised_isbn13_set = new java.util.HashSet<String>();
+
 		IDENTIFIER_FIELD_NAMESPACE.keySet().stream().flatMap(tag -> marcRecord.getVariableFields(tag).stream())
 				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
 					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
@@ -336,7 +342,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 		  				final Integer confidence = switch ( idns ) {
 			  				case "LCCN" -> Integer.valueOf(10);
-				  			case "ISBN" -> first_occurrence_of_type ? Integer.valueOf(0) : Integer.valueOf(11);
+				  			case "ISBN" -> Integer.valueOf(11); // All ISBNs are untrustworthy at this stage - unless there is only 1
 					  		case "ISSN" -> first_occurrence_of_type ? Integer.valueOf(0) : Integer.valueOf(11);
 						  	default -> Integer.valueOf(12);
   						};
@@ -364,18 +370,61 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		  							  .value(cleaned_isxn)
     									.confidence(confidence);
                   });
+
                   seen_identifiers.add(norm_id_key);
+					
+									// Extra processing for ISBNs - 
+									if ( "ISBN".equals(idns) ) {
+										String isbn_to_consier = cleaned_isxn.length() == 13 ? cleaned_isxn : isbn10to13(cleaned_isxn);
+										unqique_normalised_isbn13_set.add(isbn_to_consier);
+									}
+
                 }
               }
-
             }
             else {
             }
 					});
 				});
 
+		// IF the record carries ONLY A UNIQUE ISBN - then we can consider it useful for clustering.
+		// Unhelpful practices like listing analytical item ISBNs in series level records, or (worse) omnibus records that only carry the 
+		// ISBN for the sub-items and not the ISBN of the parent item itself mean the dangers of ISBN match when a record carries multiple
+		// distinct values mean we're now forced to be more selective
+		if ( unqique_normalised_isbn13_set.size() == 1 ) {
+  		ingestRecord.addIdentifier(id -> {
+				id
+			  	.namespace("ONLY-ISBN-13")
+		  		.value(unqique_normalised_isbn13_set.iterator().next())
+    			.confidence(1);
+      });
+		}
+		
 		return ingestRecord;
 	}
+
+
+	public static String isbn10to13(String isbn10) {
+
+		if (isbn10 == null || isbn10.length() != 10) {
+			throw new IllegalArgumentException("Input must be exactly 10 digits but value was \""+isbn10+"\"");
+		}
+
+		// Start with the "978" prefix and the first 9 digits of the ISBN-10
+		String isbn13Body = "978" + isbn10.substring(0, 9);
+
+		// Calculate the check digit
+		int sum = 0;
+		for (int i = 0; i < isbn13Body.length(); i++) {
+			int digit = Character.getNumericValue(isbn13Body.charAt(i));
+			sum += (i % 2 == 0) ? digit : digit * 3;
+		}
+		int checkDigit = (10 - (sum % 10)) % 10;
+
+		// Return the full ISBN-13
+		return isbn13Body + checkDigit;
+	}
+
 
   default String cleanIsxn(String v) {
     Matcher m = REGEX_ISXN_VALUE.matcher(v);

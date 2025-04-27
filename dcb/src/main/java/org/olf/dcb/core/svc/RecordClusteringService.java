@@ -115,7 +115,9 @@ public class RecordClusteringService {
 		return value;
 	}
 
-	private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ISBN-N", "ISSN-N", "ISBN", "ISSN", "LCCN", "OCOLC", "STRN" );
+	// private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ISBN-N", "ISSN-N", "ISBN", "ISSN", "LCCN", "OCOLC", "STRN" );
+	// ONLY-ISBN-13 is a type indicating that this ISBN was the ONLY one in the record, and therefore should be safe to use
+	private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" );
 
 	// Whilst a bib can have many identifiers, some are "Local" and not useful to the clustering process here
 	// we restrict the identifiers used for clustering to keep the match set as small as possible.
