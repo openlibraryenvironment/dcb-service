@@ -62,6 +62,15 @@ public interface PostgresClusterRecordRepository extends
 			+ " ORDER BY date_created ASC;")
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 	
+  @Query(value = "SELECT cr_.*, mp_.value mp_val FROM cluster_record cr_"
+      + " INNER JOIN bib_record br_ ON br_.contributes_to = cr_.id"
+      + " INNER JOIN match_point mp_ ON mp_.bib_id = br_.id"
+      + " WHERE br_.derived_type = :derivedType "
+      + "   AND mp_.value IN (:points)"
+			+ "   AND not exists ( Select bi_.id from bib_identifier bi_ where bi_.owner = br_.id AND bi_.namespace='ONLY-ISBN-13' AND bi_.value <> :isbnExclusion"
+      + " ORDER BY date_created ASC;")
+  Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsWithISBNExclusion ( String derivedType, Collection<UUID> points, String isbnExclusion );
+
 
 	@NonNull
 	@SingleResult

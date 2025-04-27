@@ -72,6 +72,10 @@ public interface ClusterRecordRepository {
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 
 	@NonNull
+	@Vetoed
+  Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsWithISBNExclusion ( String derivedType, Collection<UUID> points, String isbnExclusion );
+
+	@NonNull
 	@SingleResult
 	Publisher<Void> delete(@NonNull UUID id);
 	

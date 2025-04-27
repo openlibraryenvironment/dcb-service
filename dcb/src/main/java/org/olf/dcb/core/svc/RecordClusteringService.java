@@ -485,12 +485,25 @@ public class RecordClusteringService {
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Flux<ClusterRecord> matchClusters( BibRecord bib, Collection<MatchPoint> matchPoints ) {
+
+		// In prepraration for changing the rules so that a cluster can contain only 1 ONLY-ISBN-13 value
+		String unique_isbn = findUniqueIsbn(matchPoints);
+
 		return Flux.fromIterable( matchPoints )
 		 	.map( MatchPoint::getValue )
 		 	.distinct()
 		 	.collectList()
 		 	.flux()
 		 	.flatMap(ids -> clusterRecords.findAllByDerivedTypeAndMatchPoints(bib.getDerivedType(), ids));
+	}
+
+	// Look into the list of match points to see if we have a ONLY-ISBN-13 identifier ( there should be at most 1 )
+	public String findUniqueIsbn(Collection<MatchPoint> matchPoints ) {
+		return matchPoints.stream()
+			.filter(mp -> "".equals(mp.getDomain()))
+			.map(MatchPoint::getSourceValue)
+			.findFirst()
+			.orElse(null);
 	}
 	
 	@Timed("bib.cluster")
