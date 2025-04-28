@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -52,40 +53,55 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		log.debug("Status applicable? {}", isStatusApplicable);
 		log.debug("Expedited checkout? {}", ctx.getPatronRequest().getIsExpeditedCheckout());
 
-		return isStatusApplicable && ctx.getPatronRequest().getIsExpeditedCheckout();
+		final boolean isExpeditedCheckout = ctx.getPatronRequest().getIsExpeditedCheckout() != null && ctx.getPatronRequest().getIsExpeditedCheckout();
+
+		return isStatusApplicable && isExpeditedCheckout;
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-		log.info("Execute action: ExpeditedCheckoutTransition...");
+		log.info("Execute action: ExpeditedCheckoutTransition... for patron request in status {}", ctx.getPatronRequest().getStatus());
 
-		log.debug("Status: {}",ctx.getPatronRequest().getStatus());
-		log.debug("We would do the checkout here");
-//		final String[] patron_barcodes = extractPatronBarcodes(ctx.getPatronVirtualIdentity().getLocalBarcode());
+		String[] patronBarcodes;
+		String auditBarcodeMessage;
+		HashMap<String, Object> auditData = new HashMap<>();
+		// Safely get the local barcode string using Optional
+		String localBarcodeStr = Optional.ofNullable(ctx.getPatronVirtualIdentity())
+			.map(PatronIdentity::getLocalBarcode)
+			.orElse(null);
+
+		if (localBarcodeStr != null) {
+			patronBarcodes = extractPatronBarcodes(localBarcodeStr);
+			auditBarcodeMessage = "Patron Barcodes: " + String.join(", ", patronBarcodes);
+			log.debug("Extracted patron barcodes: {}", auditBarcodeMessage);
+		} else {
+			auditBarcodeMessage = "No patron identity or local barcodes available";
+			log.debug("{} for request {}", auditBarcodeMessage, ctx.getPatronRequest().getId());
+		}
+		auditData.put("patronBarcodes", auditBarcodeMessage);
 
 		// If any RET-LOCAL requests do accidentally end up here, send them on their way
 		// We might not need this handling - investigate and restore patron_barcodes also so the patron barcode is logged in audit
-		if (ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL")) {
+		if (ctx.getPatronRequest().getActiveWorkflow() != null && ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL")) {
 			ctx.getPatronRequest().setStatus(PatronRequest.Status.CONFIRMED);
 			ctx.getWorkflowMessages().add("Expedited checkout completed for RET-LOCAL: re-routing");
 			// Create audit entry with workflow messages
-			HashMap<String, Object> auditData = new HashMap<>();
 			auditData.put("workflowMessages", ctx.getWorkflowMessages());
 			auditData.put("expeditedCheckout", true);
 			auditData.put("sourceStatus", ctx.getPatronRequestStateOnEntry());
+			// Back on track to be HANDED_OFF_AS_LOCAL
 			return patronRequestAuditService.addAuditEntry(
 					ctx.getPatronRequest(),
 					"Expedited checkout completed for RET-LOCAL: setting to CONFIRMED to trigger standard RET-LOCAL workflow",
 					auditData)
 				.then(updatePatronRequest(ctx));
-			// This should hopefully get them back on track to HANDED_OFF_AS_LOCAL
 		}
 		else
 		{
+			// Standard workflow. Progress to LOANED.
 			ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
 			ctx.getWorkflowMessages().add("Expedited checkout completed - item status changed to LOANED");
 			// Create audit entry with workflow messages
-			HashMap<String, Object> auditData = new HashMap<>();
 			auditData.put("workflowMessages", ctx.getWorkflowMessages());
 			auditData.put("expeditedCheckout", true);
 			auditData.put("sourceStatus", ctx.getPatronRequestStateOnEntry());
@@ -96,6 +112,7 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 				.then(updatePatronRequest(ctx));
 		}
 	}
+
 
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
