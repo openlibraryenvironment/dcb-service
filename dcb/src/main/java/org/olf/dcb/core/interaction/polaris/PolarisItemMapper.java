@@ -14,6 +14,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,6 +36,8 @@ import io.micronaut.json.tree.JsonNode;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 @Slf4j
 @Singleton
@@ -71,6 +75,7 @@ public class PolarisItemMapper {
 
 		log.debug("map polaris item {} {} {} {}", itemGetRow, hostLmsCode, localBibId, itemAgencyResolutionMethod);
 
+		List<String> decisionLogEntries = new ArrayList<String>();
 
 		return mapStatus(itemGetRow.getCircStatusName(), hostLmsCode)
 			.map(status -> {
@@ -78,12 +83,12 @@ public class PolarisItemMapper {
 				final var dueDate = convertFrom(itemGetRow.getDueDate());
 				final var location = getLocation(itemGetRow, itemAgencyResolutionMethod);
 				final var shelvingLocation = itemGetRow.getShelfLocation();
-				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules);
+				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules, decisionLogEntries);
 				final var parsedVolumeStatement = parseVolumeStatement(itemGetRow.getVolumeNumber());
 
 				// Check the shelving location if present. If the value is in the list of local only shelving locations
 				// then set to LOCAL_ONLY
-				DerivedLoanPolicy derivedLoanPolicy = deriveLoanPolicy(shelvingLocation, polarisConfig.getShelfLocationPolicyMap());
+				DerivedLoanPolicy derivedLoanPolicy = deriveLoanPolicy(shelvingLocation, polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
 
 				return org.olf.dcb.core.model.Item.builder()
 					.localId(localId)
@@ -104,6 +109,11 @@ public class PolarisItemMapper {
 					.shelvingLocation(shelvingLocation)
 					// API doesn't provide hold count, it is assumed that item's have no holds
 					.holdCount(0)
+					.rawDataValue("circStatusName",itemGetRow.getCircStatusName())
+					.rawDataValue("locationID",""+itemGetRow.getLocationID())
+					.rawDataValue("collectionID",""+itemGetRow.getCollectionID())
+					.rawDataValue("shelfLocation",itemGetRow.getShelfLocation())
+					.decisionLogEntries(decisionLogEntries)
 					.build();
 			})
 			.flatMap(item -> enrichItemWithAgency(itemGetRow, item, hostLmsCode, itemAgencyResolutionMethod))
@@ -111,17 +121,21 @@ public class PolarisItemMapper {
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
 	}
 
-	private DerivedLoanPolicy deriveLoanPolicy(String shelvingLocation, Map<String,String> shelfLocationPolicyMap) {
+	private DerivedLoanPolicy deriveLoanPolicy(String shelvingLocation, Map<String,String> shelfLocationPolicyMap, List<String> decisionLogEntries) {
 
 		// If anything is missing, default to GENERAL
 		if ( ( shelvingLocation == null ) || 
 		     ( shelfLocationPolicyMap == null ) ||
          ( ! shelfLocationPolicyMap.containsKey(shelvingLocation) ) )
+		{
+			decisionLogEntries.add("LoanPolicy GENERAL because shelvingLocation null OR shelfLocationPolicyMap null OR "+shelfLocationPolicyMap+" contains key "+shelvingLocation);
 			return DerivedLoanPolicy.GENERAL;
+		}
 
 		// Interrogate list of shelving location policies to see if this is a LocalOnly or Reference. Possible 
 		// this choice belongs in the core.... 
 
+		decisionLogEntries.add("LoanPolicy derived by taking value of "+shelvingLocation+" for shelving location");
 		return DerivedLoanPolicy.valueOf(shelvingLocation);
 	}
 
@@ -197,13 +211,13 @@ public class PolarisItemMapper {
 	}
 
 	private boolean deriveItemSuppressedFlag(@NonNull PAPIClient.ItemGetRow itemGetRow,
-		@NonNull Optional<ObjectRuleset> itemSuppressionRules) {
+		@NonNull Optional<ObjectRuleset> itemSuppressionRules, List<String> decisionLog) {
 
 		// do we display in pac? if false we need true for suppression
 		// if display in pac is set to true then suppression is false
 		if ( Boolean.TRUE.equals(!itemGetRow.getIsDisplayInPAC()) ) {
-			log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}",
-				itemGetRow.getItemRecordID(), "isDisplayInPAC is false");
+			log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}", itemGetRow.getItemRecordID(), "isDisplayInPAC is false");
+			decisionLog.add("suppress because isDisplayInPAC is FALSE");
 			return true;
 		}
 
@@ -214,10 +228,11 @@ public class PolarisItemMapper {
 		// False is the default value for suppression if we can't find the named ruleset
 		// or if there isn't one.
 		return itemSuppressionRules
-			.map( rules -> rules.negate().test(itemGetRowMap) ) // Negate as the rules evaluate "true" for inclusion
-			.map(flag -> {
-				if (flag) log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}",
-					itemGetRow.getItemRecordID(), "ruleset condition match");
+
+      .map( rules -> rules.negate().test(itemGetRowMap) ) // Negate as the rules evaluate "true" for inclusion
+      .map(flag -> {
+        if (flag) 
+					log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}", itemGetRow.getItemRecordID(), "ruleset condition match");
 				return flag;
 			})
 			.orElse(FALSE);

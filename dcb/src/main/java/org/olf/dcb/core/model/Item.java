@@ -7,15 +7,20 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import io.micronaut.data.annotation.Transient;
+
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.Map;
+import java.util.List;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Singular;
 import lombok.experimental.Accessors;
 
 @Data
@@ -47,6 +52,22 @@ public class Item implements Comparable<Item> {
 	// and the processed volume statement. parsed volume statement
 	private String rawVolumeStatement;
 	private String parsedVolumeStatement;
+
+	/**
+	 * use rawDataValues to make information from the raw source available to the client. Useful in
+	 * diagnostics and error tracing
+	 */
+  @Transient
+  @Singular("rawDataValue")
+	private Map<String,String> rawDataValues;
+
+	/**
+	 * When a rule has an implication for the UI (EG Suppression, Availabilty) make an entry
+	 * in this list so we can explain to the user why things are happening the way they are
+	 */
+  @Transient
+  @Singular("decisionLogEntry")
+	private List<String> decisionLogEntries;
 
 	/** A shelving location. A classifier that is shared throughout all branches in a library and
 	 * infers a particular meaning on the item (But not a physical location) - for example all branch libraries
