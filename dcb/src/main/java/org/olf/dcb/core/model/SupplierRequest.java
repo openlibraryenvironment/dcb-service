@@ -1,19 +1,29 @@
 package org.olf.dcb.core.model;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.UUID;
+
+import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
+
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
-import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-
-import java.util.UUID;
 
 /**
  * Important reminder: This class needs to be representative of many different target systems.
@@ -32,6 +42,7 @@ import java.util.UUID;
 @Setter
 @Getter
 public class SupplierRequest extends BaseSupplierRequest<SupplierRequest> {
+	@ToString.Include
 	@Id
 	@TypeDef(type = DataType.UUID)
 	private UUID id;
@@ -39,6 +50,11 @@ public class SupplierRequest extends BaseSupplierRequest<SupplierRequest> {
 	@Nullable
 	@Builder.Default
 	private Boolean isActive = true;
+
+	@Transient
+	public UUID getResolvedAgencyId() {
+		return getValueOrNull(this, SupplierRequest::getResolvedAgency, DataAgency::getId);
+	}
 
 	public SupplierRequest placed(
 		String localId, String localStatus,

@@ -1,17 +1,25 @@
 package org.olf.dcb.core.model;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.UUID;
+
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
-import lombok.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import lombok.experimental.SuperBuilder;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-
-import java.util.UUID;
 
 @Setter
 @Getter
@@ -28,4 +36,9 @@ public class InactiveSupplierRequest extends BaseSupplierRequest<InactiveSupplie
 	@Id
 	@TypeDef(type = DataType.UUID)
 	private UUID id;
+
+	@Transient
+	public UUID getResolvedAgencyId() {
+		return getValueOrNull(this, InactiveSupplierRequest::getResolvedAgency, DataAgency::getId);
+	}
 }

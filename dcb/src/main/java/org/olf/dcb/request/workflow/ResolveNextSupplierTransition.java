@@ -172,7 +172,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<PatronRequest> checkAndIncludeCurrentSupplierRequestsFor(PatronRequest patronRequest) {
-		return supplierRequestService.findAllSupplierRequestsWithDataAgencyFor(patronRequest)
+		return supplierRequestService.findAllActiveSupplierRequestsFor(patronRequest)
 			.map(patronRequest::setSupplierRequests)
 			.doOnSuccess(pr -> log.info("Supplier request and data agency successfully included for patron request {}", pr.getId()))
 			.doOnError(error -> log.error("Error including supplier request and data agency for patron request {}", patronRequest.getId(), error));
