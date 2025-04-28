@@ -429,6 +429,9 @@ public class PatronRequest {
   @Builder.Default
 	private Integer localRenewalCount = 0;
 
+	@Nullable
+	private Boolean isExpeditedCheckout;
+
 	@Transient
 	@Nullable
 	public String determineSupplyingAgencyCode() {

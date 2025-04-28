@@ -72,6 +72,27 @@ public class PatronRequestService {
 			.doOnError(e -> log.error("Placing request {} failed", command, e));
 	}
 
+	public Mono<? extends PatronRequest> placePatronRequestExpeditedCheckout(
+		PlacePatronRequestCommand command) {
+
+		log.info("PRS::placePatronRequestExpeditedCheckout({})", command);
+
+		return preflightChecksService.check(command)
+			.doOnError(PreflightCheckFailedException.class,
+				e -> log.error("Preflight check for expedited request {} failed", command, e))
+			.zipWhen(this::findOrCreatePatron)
+			.map(function(this::mapToPatronRequest))
+			.map(mapManualItemSelectionIfPresent(command))
+			// Set an expedited flag in the context
+			.map(patronRequest -> {
+				patronRequest.setIsExpeditedCheckout(true);
+				return patronRequest;
+			})
+			.flatMap(this::savePatronRequest)
+			.doOnSuccess(requestWorkflow::initiate)
+			.doOnError(e -> log.error("Placing expedited request {} failed", command, e));
+	}
+
 	public static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(
 		PlacePatronRequestCommand command) {
 
