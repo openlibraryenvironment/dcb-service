@@ -62,7 +62,10 @@ public class AvailabilityResponseView {
 			owningContext, item.getIsRequestable(), item.getSuppressed(),
 			item.getHoldCount(), item.getAvailableDate(), item.getLocalItemType(),
 			item.getCanonicalItemType(), item.getLocalItemTypeCode(), mappedAgency,
-			item.getRawVolumeStatement(), item.getParsedVolumeStatement());
+			item.getRawVolumeStatement(), item.getParsedVolumeStatement(),
+			item.getRawDataValues(),
+			item.getDecisionLogEntries()
+		);
 	}
 
 	@Data
@@ -97,6 +100,9 @@ public class AvailabilityResponseView {
     private final String rawVolumeStatement;
 		@Nullable
     private final String parsedVolumeStatement;
+
+		private final Map<String,String> rawDataValues;
+		private final List<String> decisionLogEntries;
 	}
 
 	@Data

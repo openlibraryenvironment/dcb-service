@@ -1,7 +1,6 @@
 package org.olf.dcb.request.workflow;
 
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static org.olf.dcb.core.AppConfig.CIRCULATION_TRACKING_PROFILE_KEY;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 
 import java.time.Duration;
@@ -41,14 +40,13 @@ public class PatronRequestWorkflowService {
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final List<PatronRequestStateTransition> allTransitions;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
-
-	@Value("${" + CIRCULATION_TRACKING_PROFILE_KEY + ":}")
-	String circulationTrackingProfile;
+	private final TrackingHelpers trackingHelpers;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
+		TrackingHelpers trackingHelpers) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		// By loading the list of all transitions, we can declare new transitions
@@ -57,11 +55,14 @@ public class PatronRequestWorkflowService {
 		this.allTransitions = allTransitions;
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+		this.trackingHelpers = trackingHelpers;
 
-		log.debug("Initialising workflow engine with available transitions");
+		log.info("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
 			log.debug(t.getClass().getName());
 		}
+
+		log.info("Tracking durations : ",trackingHelpers.getDurations());
 	}
 
 	/**
@@ -287,7 +288,7 @@ public class PatronRequestWorkflowService {
 	private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
 		final var patronRequest = ctx.getPatronRequest();
 
-		final var duration = TrackingHelpers.getDurationFor(patronRequest.getStatus(), circulationTrackingProfile);
+		final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
 
 		Instant next_poll = null;
 

@@ -29,6 +29,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.rules.ObjectRuleset;
+import org.olf.dcb.rules.AnnotatedObject;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
@@ -228,8 +229,7 @@ public class PolarisItemMapper {
 		// False is the default value for suppression if we can't find the named ruleset
 		// or if there isn't one.
 		return itemSuppressionRules
-
-      .map( rules -> rules.negate().test(itemGetRowMap) ) // Negate as the rules evaluate "true" for inclusion
+      .map( rules -> rules.negate().test(new AnnotatedObject(itemGetRowMap, decisionLog)) ) // Negate as the rules evaluate "true" for inclusion
       .map(flag -> {
         if (flag) 
 					log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}", itemGetRow.getItemRecordID(), "ruleset condition match");

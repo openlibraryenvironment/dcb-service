@@ -3,12 +3,14 @@ package org.olf.dcb.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.rules.ObjectRuleset;
+import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.test.DcbTest;
 
 import io.micronaut.core.annotation.Introspected;
@@ -77,8 +79,9 @@ public class GenericRulesTest {
 		log.atInfo()
 			.log("Injected filterSet: {}", injectedRuleset);
 		
-		// Generate a stream and then apply the injected filterSet
-		List<FixedFieldObject> results = generateFixedFieldObjectsWithFixedFieldValues(3,
+		// Generate a stream and then apply the injected filterSet - An AnnotatedObject is a source object
+		// And a List<String> that document the application of the rules so we can show our workings to the user
+		List<AnnotatedObject> results = generateFixedFieldObjectsWithFixedFieldValues(3,
 				"z", "f",
 				"b", "a", "s",
 				"b", "c", "d", null, "", "n")
@@ -105,7 +108,7 @@ public class GenericRulesTest {
 		
 		log.info("Parsed (JSON) filterSet: {}", parsedRuleset);
 		
-		List<FixedFieldObject> results = Flux.fromStream(generateFixedFieldObjectsWithFixedFieldValues(2,
+		List<AnnotatedObject> results = Flux.fromStream(generateFixedFieldObjectsWithFixedFieldValues(2,
 				"z", "r",
 				"r", "s", "s",
 				"b", "r", "z", null, "", "n"))
@@ -117,12 +120,14 @@ public class GenericRulesTest {
 		assertEquals(7, results.size());
 	}
 	
-	private Stream<FixedFieldObject> generateFixedFieldObjectsWithFixedFieldValues(int fieldNumber, String... vals) {
+	// private Stream<FixedFieldObject> generateFixedFieldObjectsWithFixedFieldValues(int fieldNumber, String... vals) {
+	private Stream<AnnotatedObject> generateFixedFieldObjectsWithFixedFieldValues(int fieldNumber, String... vals) {
 		return Stream.of(vals)
 			.map(FixedField.builder()::value)
 			.map(FixedFieldBuilder::build)
 			.map(field -> Map.of(fieldNumber, field))
-			.map(FixedFieldObject::new);
+			.map(FixedFieldObject::new)
+			.map(ffo -> new AnnotatedObject(ffo, new java.util.ArrayList()));
 	}
 	
 	@Introspected

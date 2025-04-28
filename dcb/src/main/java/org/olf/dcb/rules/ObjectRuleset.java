@@ -40,7 +40,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 //@AllArgsConstructor(onConstructor_ = @JsonCreator())
 @MappedEntity
 @EachProperty("dcb.rulesets")
-public class ObjectRuleset implements Predicate<Object> {
+public class ObjectRuleset implements Predicate<AnnotatedObject> {
 
 	public static enum Type {
 		DISJUNCTIVE, CONJUNCTIVE
@@ -68,18 +68,18 @@ public class ObjectRuleset implements Predicate<Object> {
 	}
 
 	@Override
-	public boolean test( @NonNull Object t ) {
+	public boolean test( @NonNull AnnotatedObject t ) {
 		return switch ( type ) {
 			case CONJUNCTIVE -> conjunctiveTest( t );
 			case DISJUNCTIVE -> disjunctiveTest( t );
 		};
 	}
 	
-	private boolean conjunctiveTest( Object subject ) {
+	private boolean conjunctiveTest( AnnotatedObject subject ) {
 		
 		for ( int i=0; i<conditions.size(); i++ ) {
 			var cond = conditions.get(i);
-			if (!cond.test(subject)) {
+			if (!cond.test(subject.getT())) {
 
 				if (log.isDebugEnabled()) {
 					log.debug( "Condition #[{}] of conjunctive ruleset [{}] failed for [{}]. No further evaluation necessary, return false", i+1, name, subject);
@@ -95,11 +95,11 @@ public class ObjectRuleset implements Predicate<Object> {
 		return true;
 	}
 	
-	private boolean disjunctiveTest( Object subject ) {
+	private boolean disjunctiveTest( AnnotatedObject subject ) {
 		
 		for ( int i=0; i<conditions.size(); i++ ) {
 			var cond = conditions.get(i);
-			if (cond.test(subject)) {
+			if (cond.test(subject.getT())) {
 				if (log.isDebugEnabled()) {
 					log.debug( "Condition #[{}] of disjunctive ruleset [{}] passed for [{}]. No further evaluation necessary, return true", i+1, name, subject);
 				}
@@ -112,7 +112,7 @@ public class ObjectRuleset implements Predicate<Object> {
 		}
 		return false;
 	}
-	
+
 	@Serdeable
 	@Getter
 	@Setter

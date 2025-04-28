@@ -9,7 +9,6 @@ import java.util.ArrayList;
 public class AppConfig {
 	
 	public static final String ROOT = "dcb";
-	public static final String CIRCULATION_TRACKING_PROFILE_KEY = AppConfig.ROOT + ".circulation.tracking-profile";
 
 	@ConfigurationProperties("scheduled-tasks")
 	public static class ScheduledTasks implements Toggleable {

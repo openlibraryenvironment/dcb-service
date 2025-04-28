@@ -9,6 +9,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,6 +21,7 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.rules.ObjectRuleset;
+import org.olf.dcb.rules.AnnotatedObject;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -48,13 +50,16 @@ public class SierraItemMapper {
 	
 	private boolean deriveItemSuppressedFlag( @NonNull SierraItem item, @NonNull Optional<ObjectRuleset> itemSuppressionRules) {
 		
+		List<String> decisionLog = new ArrayList<String>();
 		if ( Boolean.TRUE.equals(item.getSuppressed()) ) return true;
+
+		
 		
 		// Grab the suppression rules set against the Host Lms
 		// False is the default value for suppression if we can't find the named ruleset
 		// or if there isn't one.
 		return itemSuppressionRules
-		  .map( rules -> rules.negate().test(item) ) // Negate as the rules evaluate "true" for inclusion
+		  .map( rules -> rules.negate().test(new AnnotatedObject(item, decisionLog) ) ) // Negate as the rules evaluate "true" for inclusion
 		  .orElse(FALSE);
 	}
 

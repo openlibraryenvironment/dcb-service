@@ -224,6 +224,25 @@ dcb:
     maxwait: 0
   tracking:
     dryRun: false
+  polling:
+    durations:
+      SUBMITTED_TO_DCB: null
+      PATRON_VERIFIED: null
+      RESOLVED: null
+      NOT_SUPPLIED_CURRENT_SUPPLIER: null
+      NO_ITEMS_SELECTABLE_AT_ANY_AGENCY: null
+      REQUEST_PLACED_AT_SUPPLYING_AGENCY: 1s
+      CONFIRMED: 10m
+      REQUEST_PLACED_AT_BORROWING_AGENCY: 1h
+      RECEIVED_AT_PICKUP: 1h
+      READY_FOR_PICKUP: 1h
+      LOANED: 6h
+      PICKUP_TRANSIT: 1h
+      RETURN_TRANSIT: 1h
+      CANCELLED: null
+      COMPLETED: null
+      FINALISED: null
+      ERROR: null
 
 concurrency:
   groups:

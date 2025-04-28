@@ -31,6 +31,7 @@ import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.rules.ObjectRuleset;
+import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.olf.dcb.tracking.model.LenderTrackingEvent;
 import org.olf.dcb.tracking.model.PatronTrackingEvent;
@@ -507,6 +508,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 	
 	private boolean derriveBibSuppressedFlag( BibResult resource ) {
+
+		List<String> decisionLog = new ArrayList<String>();
 		
 		if ( Boolean.TRUE.equals(resource.suppressed()) ) return true;
 		
@@ -514,7 +517,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// False is the default value for suppression if we can't find the named ruleset
 		// or if there isn't one.
 		return getLmsBibSuppressionRuleset()
-		  .map( rules -> rules.negate().test(resource) ) // Negate as the rules evaluate "true" for inclusion
+		  .map( rules -> rules.negate().test(new AnnotatedObject(resource, decisionLog)) ) // Negate as the rules evaluate "true" for inclusion
 		  .orElse(FALSE);
 	}
 
