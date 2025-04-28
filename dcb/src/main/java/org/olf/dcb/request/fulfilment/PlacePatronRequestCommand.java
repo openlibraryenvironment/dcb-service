@@ -18,6 +18,7 @@ public class PlacePatronRequestCommand {
 	@Nullable String description;
 	@Nullable String requesterNote;
 	@Nullable Item item;
+	@Nullable Boolean isExpeditedRequest;
 
 	String getPickupLocationCode() {
 		return getPickupLocation().getCode();

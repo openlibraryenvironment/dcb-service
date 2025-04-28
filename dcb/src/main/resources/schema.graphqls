@@ -425,6 +425,7 @@ type PatronRequest {
   rawPickupRequestStatus: String
   pickupBibId: String
   pickupItemBarcode: String
+	isExpeditedCheckout: Boolean
 }
 
 type PatronRequestAudit {
