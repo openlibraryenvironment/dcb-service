@@ -400,7 +400,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
       });
 		}
 		else {
-			log.info("No unqiue ISBN13 in record: "+unqique_normalised_isbn13_set+" ISBN matching skipped");
+			log.info("No unqiue ISBN13 in record: "+unqique_normalised_isbn13_set+" ISBN matching skipped seen="+seen_identifiers);
 		}
 		
 		return ingestRecord;
