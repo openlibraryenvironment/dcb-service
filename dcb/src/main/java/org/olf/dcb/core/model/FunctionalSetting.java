@@ -74,4 +74,5 @@ public class FunctionalSetting implements Auditable {
 	public static boolean isEnabled(FunctionalSetting setting) {
 		return setting != null && setting.getEnabled() != null ? setting.getEnabled() : false;
 	}
+
 }

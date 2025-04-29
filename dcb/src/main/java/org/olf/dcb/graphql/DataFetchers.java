@@ -727,10 +727,26 @@ public class DataFetchers {
 		};
 	}
 
+	/**
+	 * This isn't nice, but it's done like this so locate can avoid having to put logic in the front end.
+   * if Pick up anywhere is enabled, return all locations, otherwise only return the patrons agency locations
+	 */
 	public DataFetcher<CompletableFuture<List<Location>>> getPickupLocationsDataFetcher() {
 		return env -> {                 
 			String agency = env.getArgument("forAgency");
-			return Flux.from(postgresLocationRepository.getSortedPickupLocations(agency)).collectList().toFuture();
+    
+			return Mono.from(postgresFunctionalSettingRepository.findByName(FunctionalSettingType.PICKUP_ANYWHERE))
+      .flatMap(pua -> {
+        if (FunctionalSetting.isEnabled(pua)) {
+          return Flux.from(postgresLocationRepository.getSortedPickupLocations(agency)).collectList();
+        } else {
+          return Flux.from(postgresLocationRepository.getPickupLocationsByAgencyCode(agency)).collectList();
+        }
+      })
+      .switchIfEmpty(Mono.defer(() ->
+        Flux.from(postgresLocationRepository.getSortedPickupLocations(agency)).collectList()
+      ))
+      .toFuture();  // Convert the Mono<List<Location>> to CompletableFuture<List<Location>>
 		};
 	}
 
