@@ -51,7 +51,7 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 	public Mono<CheckResult> checkGlobalActiveRequestLimit(PlacePatronRequestCommand command) {
 		log.info("Checking that patron has < global setting for max active requests {}",command);
 
-		return Mono.from(patronRequestRepository.getCountForHostLms(command.getRequestorLocalSystemCode(),command.getRequestorLocalId()))
+		return Mono.from(patronRequestRepository.getActiveRequestCountForPatron(command.getRequestorLocalSystemCode(),command.getRequestorLocalId()))
 			.flatMap( count -> {
 				if ( globalActiveRequestLimit.intValue() == 0 )
 					return Mono.just(passed("global request limit disabled"));

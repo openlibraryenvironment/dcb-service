@@ -139,7 +139,10 @@ public interface PatronRequestRepository {
       and pi.host_lms = hl.id
       and pi.local_id=:patronId and 
       and hl.code = :hostLmsCode
+      and pr.status_code in ( 'SUBMITTED_TO_DCB', 'PATRON_VERIFIED', 'RESOLVED', 'REQUEST_PLACED_AT_SUPPLYING_AGENCY',
+                              'CONFIRMED', 'REQUEST_PLACED_AT_BORROWING_AGENCY', 'REQUEST_PLACED_AT_PICKUP_AGENCY',
+                              'RECEIVED_AT_PICKUP', 'READY_FOR_PICKUP', 'LOANED', 'PICKUP_TRANSIT' )
     """, nativeQuery = true)
-  public Publisher<Long> getCountForHostLms(String hostLmsCode, String patronId);
+  public Publisher<Long> getActiveRequestCountForPatron(String hostLmsCode, String patronId);
 
 }
