@@ -36,7 +36,7 @@ export MICRONAUT_HTTP_CLIENT_MAX_CONTENT_LENGTH="20971520"
 
 # SourceRecordService - tracks the SourceRecord table looking for records that need to be processed
 
-export DCB_SCHEDULED_TASKS_SKIPPED=TrackingServiceV3,IngestService,SourceRecordService,AvailabilityCheckJob
+export DCB_SCHEDULED_TASKS_SKIPPED=TrackingServiceV3,AvailabilityCheckJob
 # export DCB_SCHEDULED_TASKS_SKIPPED=TrackingServiceV3,IngestService,SourceRecordService,IngestJob,AvailabilityCheckJob
 export DCB_TRACKING_DRYRUN=true
 

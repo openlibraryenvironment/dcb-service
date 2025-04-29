@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Singleton
@@ -39,7 +40,7 @@ public class HouseKeepingService {
       """;
 
 	private static final String QUERY_SOURCE_RECORD_IDS = """
-		SELECT id from source_record where processsing_state != 'PROCESSING_REQUIRED'
+		SELECT id from source_record where processing_state != 'PROCESSING_REQUIRED'
     """;
 
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
@@ -138,8 +139,8 @@ public class HouseKeepingService {
     );
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Mono<String> reprocessAll() {
+    log.info("reprocessAll");
     if (reprocess == null) {
       synchronized (this) {
         if (reprocess == null) {
@@ -163,25 +164,26 @@ public class HouseKeepingService {
     return reprocess;
   }
 
-
   private Mono<Void> reprocessQuery() {
+    log.info("Running reprocessQuery");
     return Mono.from(
       dbops.withConnection(conn ->
         Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS)
           .execute())
-        .flatMap(result -> result.map((row, meta) -> row.get("id", Long.class)))
+        .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
 				.buffer(10000)
-				.flatMap(batch -> updateSourceRecordBatch(batch))
+				.concatMap(batch -> updateSourceRecordBatch(batch))
       )
     );
   }
 
-	private Mono<Void> updateSourceRecordBatch(List<Long> batch) {
+	public Mono<Void> updateSourceRecordBatch(List<UUID> batch) {
+    log.info("Update source batch {}",batch.size());
 		return Mono.from(dbops.withTransaction(tx -> 
 			Mono.from(
 				tx.getConnection()
-        	.createStatement("update source_record set record_status = 'PROCESSING_REQUIRED' where id = ANY($1)")
-        	.bind("$1", batch.toArray(new Long[0]))
+        	.createStatement("update source_record set processing_state = 'PROCESSING_REQUIRED' where id = ANY($1)")
+        	.bind("$1", batch.toArray(new UUID[0]))
         	.execute()
     	)
     	.flatMap(result -> Mono.from(result.getRowsUpdated()))

@@ -218,7 +218,7 @@ public class LiveAvailabilityService {
 					})
 					.onErrorResume(error -> Mono.defer(() -> {
 						final long elapsed = System.nanoTime() - start;
-						log.error("Error fetching items", error);
+						log.error("Error fetching items"+error.getMessage());
 						var tags = new ArrayList<>(List.of( Tag.of("status", "error") ));
 						tags.addAll(commonTags);
 						Timer timer = meterRegistry.timer(METRIC_NAME, tags);
