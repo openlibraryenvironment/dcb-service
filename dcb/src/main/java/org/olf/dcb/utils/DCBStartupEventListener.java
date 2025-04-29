@@ -34,6 +34,8 @@ import org.olf.dcb.core.AppConfig;
 
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 
+import org.olf.dcb.tracking.PollingConfig;
+
 @Slf4j
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
@@ -44,6 +46,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final Collection<ConfigHostLms> configHosts;
 	private final HazelcastInstance hazelcastInstance;
 	private final AppConfig appConfig;
+	private final PollingConfig pollingConfig;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
@@ -51,7 +54,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		HostLmsRepository hostLmsRepository, StatusCodeRepository statusCodeRepository,
 		GrantRepository grantRepository, List<ConfigHostLms> configHosts,
 		HazelcastInstance hazelcastInstance,
-		AppConfig appConfig) {
+		AppConfig appConfig,
+		PollingConfig pollingConfig) {
 
 		this.environment = environment;
 		this.statusCodeRepository = statusCodeRepository;
@@ -60,6 +64,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		this.configHosts = configHosts;
 		this.hazelcastInstance = hazelcastInstance;
 		this.appConfig = appConfig;
+		this.pollingConfig = pollingConfig;
 	}
 
 	@Override
@@ -84,6 +89,9 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		} else {
 			log.info("bearer tokens will be validated using {}", keycloak_cert_url);
 		}
+
+		// Make these clearly available in the startup log
+		log.info("Starting with polling intervals: {}", pollingConfig.getDurations());
 
 		// Enumerate any host LMS entries and create corresponding DB entries
 		configHosts.forEach(this::saveConfigHostLms);

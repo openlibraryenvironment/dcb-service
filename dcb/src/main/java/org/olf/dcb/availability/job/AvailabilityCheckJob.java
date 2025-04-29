@@ -62,7 +62,11 @@ import services.k_int.utils.UUIDUtils;
 public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobChunkProcessor {
 	
 	private static final int CLUSTER_MAX_DEFAULT = 200;
-	private static final int EXTERNAL_FETCH_CONCURRENCY = 100;
+	// II Adding CLUSTER_CHECK_CONCURRENCY Because I'm concerned that we are creating a large queue of
+	// clusters to check and then limiting the concurrency of the lookups for bibs in that cluster
+	// So although we never check more than 100 bibs at a time, we can have many more than 100 of those flows in play
+	private static final int CLUSTER_CHECK_CONCURRENCY = 25;
+	private static final int EXTERNAL_FETCH_CONCURRENCY = 5;
 	private static final Duration TIMEOUT = Duration.of(30, ChronoUnit.SECONDS);
 	private static final String filters = "none";
 	
@@ -378,7 +382,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				.flatMapIterable( Map::entrySet )
 				
 				.flatMap(entry -> checkClusterAvailability(entry.getValue())
-					.map(locationMap -> Map.entry( entry.getKey(), locationMap )))
+					.map(locationMap -> Map.entry( entry.getKey(), locationMap )), CLUSTER_CHECK_CONCURRENCY)
 				.collectMap(Entry::getKey, Entry::getValue)	
 				.map( this::reindexAffectedClusters )
 			.then( Mono.just(chunk) );
