@@ -399,6 +399,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
     			.confidence(1);
       });
 		}
+		else {
+			log.info("No unqiue ISBN13 in record: "+unqique_normalised_isbn13_set+" ISBN matching skipped");
+		}
 		
 		return ingestRecord;
 	}

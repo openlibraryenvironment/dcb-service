@@ -129,4 +129,17 @@ public interface PatronRequestRepository {
 
 	Publisher<PatronRequest> findAllByPickupLocationCode(String pickupLocationCode);
 
+  @SingleResult
+  @Query(value = """
+    select count(pr.*) 
+    from patron_request pr, 
+         patron_identity pi, 
+         host_lms hl
+    where pr.requesting_identity = pi.id 
+      and pi.host_lms = hl.id
+      and pi.local_id=:patronId and 
+      and hl.code = :hostLmsCode
+    """, nativeQuery = true)
+  public Publisher<Long> getCountForHostLms(String hostLmsCode, String patronId);
+
 }
