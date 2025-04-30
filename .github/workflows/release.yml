@@ -57,6 +57,9 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: true
           BRANCH_NAME: ${{ github.ref_name }}
         run: |
+          echo "git.tag=$GIT_TAG" > dcb/src/main/resources/git.properties
+          echo "git.commit.id=$(git rev-parse HEAD)" >> src/main/resources/git.properties
+          echo "git.branch=$(git rev-parse --abbrev-ref HEAD)" >> src/main/resources/git.properties
           export DCB_NAME_PART=$([ "$BRANCH_NAME" = "main" ] && echo "dcb" || echo dcb-${BRANCH_NAME} )
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew check jacocoTestReport licenseReport dockerPush --no-daemon
