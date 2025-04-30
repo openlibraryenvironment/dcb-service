@@ -39,7 +39,7 @@
 
 	<logger name="io.micronaut.http.client" level="WARN"/>
 	<logger name="services.k_int.interaction" level="INFO"/>
-	<logger name="services.k_int.integration" level="INFO"/>
+	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="INFO"/>
 	
 	<logger name="io.r2dbc.postgresql.QUERY" level="ERROR"/>
 	<logger name="io.micronaut.data.query" level="WARN"/>
