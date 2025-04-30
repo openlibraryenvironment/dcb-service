@@ -68,22 +68,9 @@ public interface LibraryContactRepository {
 
 	@NonNull
 	@SingleResult
-	Publisher<LibraryContact> queryAllByLibrary(@NotNull Library library);
+	Publisher<LibraryContact> findByLibraryIdAndPersonId(@NotNull UUID libraryId, @NotNull UUID personId);
 
-	@NonNull
-	@SingleResult
-	Publisher<LibraryContact> findAllByLibrary(@NotNull Library library);
+	Mono<Long> countByPersonId(UUID personId);
 
-	@NonNull
-	@SingleResult
-	Publisher<LibraryContact> findAllByLibraryId(@NotNull UUID libraryId);
-
-	@NonNull
-	@SingleResult
-	Publisher<LibraryContact> findAllByPerson(@NotNull Person person);
-
-
-
-	// may change to 'findAllBy'
 
 }

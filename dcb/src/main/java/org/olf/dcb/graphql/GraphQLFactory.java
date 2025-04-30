@@ -56,7 +56,9 @@ public class GraphQLFactory {
 			CreateRoleDataFetcher createRoleDataFetcher, UpdateRoleDataFetcher updateRoleDataFetcher,
 			CreateFunctionalSettingDataFetcher createFunctionalSettingDataFetcher,
 			CreateReferenceValueMappingDataFetcher createReferenceValueMappingDataFetcher,
-			CreateLocationDataFetcher createLocationDataFetcher, DataFetchers dataFetchers) {
+			CreateLocationDataFetcher createLocationDataFetcher, CreateLibraryContactDataFetcher createLibraryContactDataFetcher,
+			DeleteLibraryContactDataFetcher deleteLibraryContactDataFetcher,
+			DeleteConsortiumContactDataFetcher deleteConsortiumContactDataFetcher, DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
 
@@ -119,12 +121,15 @@ public class GraphQLFactory {
 						.dataFetcher("updateConsortium", updateConsortiumDataFetcher)
 						.dataFetcher("updateFunctionalSetting", updateFunctionalSettingDataFetcher)
 						.dataFetcher("createContact", createContactDataFetcher)
+						.dataFetcher("deleteContact", deleteConsortiumContactDataFetcher)
 						.dataFetcher("deleteConsortium", deleteConsortiumDataFetcher)
 						.dataFetcher("createRole", createRoleDataFetcher)
 						.dataFetcher("updateRole", updateRoleDataFetcher)
 						.dataFetcher("createFunctionalSetting", createFunctionalSettingDataFetcher)
 						.dataFetcher("createReferenceValueMapping", createReferenceValueMappingDataFetcher)
-						.dataFetcher("createLocation", createLocationDataFetcher))
+						.dataFetcher("createLocation", createLocationDataFetcher)
+						.dataFetcher("createLibraryContact", createLibraryContactDataFetcher)
+						.dataFetcher("deleteLibraryContact", deleteLibraryContactDataFetcher))
 			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())

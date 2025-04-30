@@ -23,36 +23,37 @@ type Query {
 		dataChangeLog(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): DataChangeLogPage!
 		roles(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): RolePage!
 		functionalSettings(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): FunctionalSettingPage!
-
-
 }
 
 type Mutation {
-    createAgencyGroup(input: AgencyGroupInput): AgencyGroup!
-    addAgencyToGroup(input: AddAgencyToGroupCommand): AgencyGroupMember!
-		createConsortium(input: ConsortiumInput): Consortium!
-		createLibrary(input: LibraryInput): Library!
-		createLibraryGroup(input: LibraryGroupInput): LibraryGroup!
-		addLibraryToGroup(input: AddLibraryToGroupCommand): LibraryGroupMember!
 		updateAgencyParticipationStatus(input: UpdateAgencyParticipationInput): Agency!
-		deleteLibrary(input: DeleteEntityInput): DeleteEntityPayload!
-		deleteLocation(input: DeleteEntityInput): DeleteEntityPayload!
-		updateLocation(input: UpdateLocationInput): Location!
-		updateLibrary(input: UpdateLibraryInput): Library!
-		updatePerson(input: UpdatePersonInput): Person!
-		updateReferenceValueMapping(input: UpdateReferenceValueMappingInput): ReferenceValueMapping!
-		updateNumericRangeMapping(input: UpdateNumericRangeMappingInput): NumericRangeMapping!
-		deleteReferenceValueMapping(input: DeleteEntityInput): DeleteEntityPayload!
-		deleteNumericRangeMapping(input: DeleteEntityInput): DeleteEntityPayload!
+		createAgencyGroup(input: AgencyGroupInput): AgencyGroup!
+    addAgencyToGroup(input: AddAgencyToGroupCommand): AgencyGroupMember!
+		deleteContact(input: DeleteConsortiumContactInput): DeleteEntityPayload!
+		createContact(input: ConsortiumContactInput): ConsortiumContact!
+		createConsortium(input: ConsortiumInput): Consortium!
+		deleteConsortium(input: DeleteEntityInput): DeleteEntityPayload!
 		updateConsortium(input: UpdateConsortiumInput): Consortium!
 		updateFunctionalSetting(input: UpdateFunctionalSettingInput): FunctionalSetting!
-	  createContact(input: ConsortiumContactInput): ConsortiumContact!
-		deleteConsortium(input: DeleteEntityInput): DeleteEntityPayload!
 		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
+		createLibrary(input: LibraryInput): Library!
+		deleteLibrary(input: DeleteEntityInput): DeleteEntityPayload!
+		updateLibrary(input: UpdateLibraryInput): Library!
+		createLibraryContact(input: CreateLibraryContactInput): LibraryContact!
+		deleteLibraryContact(input: DeleteLibraryContactInput): DeleteEntityPayload!
+		addLibraryToGroup(input: AddLibraryToGroupCommand): LibraryGroupMember!
+		createLibraryGroup(input: LibraryGroupInput): LibraryGroup!
+		createLocation(input: CreateLocationInput): Location!
+		deleteLocation(input: DeleteEntityInput): DeleteEntityPayload!
+		updateLocation(input: UpdateLocationInput): Location!
+		updateReferenceValueMapping(input: UpdateReferenceValueMappingInput): ReferenceValueMapping!
+		deleteNumericRangeMapping(input: DeleteEntityInput): DeleteEntityPayload!
+		updateNumericRangeMapping(input: UpdateNumericRangeMappingInput): NumericRangeMapping!
+		updatePerson(input: UpdatePersonInput): Person!
+		createReferenceValueMapping(input: CreateReferenceValueMappingInput): ReferenceValueMapping!
+		deleteReferenceValueMapping(input: DeleteEntityInput): DeleteEntityPayload!
 		createRole(input: CreateRoleInput): Role!
 		updateRole(input: UpdateRoleInput): Role!
-		createReferenceValueMapping(input: CreateReferenceValueMappingInput): ReferenceValueMapping!
-	  createLocation(input: CreateLocationInput): Location!
 }
 
 input AddAgencyToGroupCommand {
@@ -136,6 +137,18 @@ input CreateLocationInput {
 	changeCategory: String
 }
 
+input CreateLibraryContactInput {
+	firstName: String!
+	lastName: String!
+	role: String!
+	isPrimaryContact: Boolean!
+	email: String!
+	libraryId: String!
+	reason: String!
+	changeCategory: String!
+	changeReferenceUrl: String
+}
+
 input CreateRoleInput {
 	name: String!
 	displayName: String!
@@ -217,8 +230,24 @@ input PersonInput {
 	email: String!
 }
 
+input DeleteConsortiumContactInput {
+	personId: ID!
+	consortiumId: ID!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
 input DeleteEntityInput {
 	id: ID!
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+
+input DeleteLibraryContactInput {
+	personId: ID!
+	libraryId: ID!
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String

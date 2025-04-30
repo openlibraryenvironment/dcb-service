@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumContact;
+import org.olf.dcb.core.model.LibraryContact;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -53,6 +54,11 @@ public interface ConsortiumContactRepository {
 	Publisher<Void> delete(UUID id);
 
 	Publisher<Void> deleteAllByConsortiumId(UUID id);
+
+	Mono<Long> countByPersonId(UUID personId);
+
+	Publisher<ConsortiumContact> findByConsortiumIdAndPersonId(@NotNull UUID consortiumId, @NotNull UUID personId);
+
 
 	@SingleResult
 	@NonNull
