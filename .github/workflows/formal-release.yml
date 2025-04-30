@@ -54,8 +54,8 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: true
         run: |
           echo "git.tag=$GIT_TAG" > dcb/src/main/resources/git.properties
-          echo "git.commit.id=$(git rev-parse HEAD)" >> src/main/resources/git.properties
-          echo "git.branch=$(git rev-parse --abbrev-ref HEAD)" >> src/main/resources/git.properties
+          echo "git.commit.id=$(git rev-parse HEAD)" >> dcb/src/main/resources/git.properties
+          echo "git.branch=$(git rev-parse --abbrev-ref HEAD)" >> dcb/src/main/resources/git.properties
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/dcb" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew check jacocoTestReport dockerPushNative dockerPush --no-daemon
 
