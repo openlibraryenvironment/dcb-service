@@ -1,5 +1,43 @@
 # Changelog
 
+## Version 8.24.0
+
+### Additions
+* [General]
+	* Support creating and deleting individual library or consortium contacts [DCB-1744]
+	* graphql pickup location query now observes PUA functional setting. When enabled, now sorts by isLocal,Agency-name,LocationName. When PUA not set, just returns the loacations for the supplied agency.
+	* ISBN values how have a confidence of 9 and will be excluded from matching. If a record carries a single unique normalised ISBN it is added as a new ONLY-ISBN-13 identifier type with a confidence of 1. Net effect is that ISBN matching will now only happen on a record that carries a single unique ISBN
+	* Introduce ImplementationToolsController as a target for methods to run interop tests against configured HostILS systems
+
+### Changes
+* [Chore]
+	* correct path to git props file in build
+	* Tidy reingest call
+	* Extend states used for active request counting in global limits preflight check
+	* add non-sensitive environment variables to health endpoint
+	* more info on ISBN processing
+	* Lower concurrency on availabilty check job, place structure for global limits preflight check, surface polling durations in app startup for logs
+	* Preparing work for exposing raw values from Host ILS systems in admin app
+	* Improve handling of patron barcodes [DCB-1555]
+	* update dependency of apidocs build workflow
+	* improvements to Alma DTOs for items
+	* Preparatory work for exclusions in record clustering
+	* Add context to interop test service
+	* add deleteUser to HostLmsClient in prep for interop test endpoint
+	* additional props for Alma create user
+	* Preparation work for setting resolved agency on patron records, which in turn will allow us to know if a users agency is participating in borrowing - useful for shared systems where one agency is participating and one is not
+	* upgrade deploy-pages workflow to use upload-pages v3
+	* Rename expedited checkout migration [DCB-1555]
+	* Add expedited checkout flag to patron request command [DCB-1555]
+	* Improve handling of second Host LMS in libraries data fetcher
+* [Feature]
+	* Allow deep LMS specific routines to provide raw data and decision logs up to Item records in RTAC responses - in order that the admin app can explain why items are suppressed or not. Also adjust the mechanism used to configure polling intervals
+
+### Fixes
+* [General]
+	* Allow LIBRARY_ADMIN and CONSORTIUM_ADMIN users to do patron lookup [DCB-1890]
+	* Wrong query in houskeeping service reprocess all routine
+
 ## Version 8.23.0
 
 ### Additions
@@ -8,6 +46,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add targetLoanBorrowerRatio to GraphQL [DCB-1884]
 	* upgrade GraalVM in release yml
 	* Refactor ItemWithDistance into SupplyCandidateItem so that it can carry Loan to Borrow Ratios for different ranking methods
