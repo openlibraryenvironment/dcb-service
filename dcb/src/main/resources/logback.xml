@@ -56,6 +56,7 @@
 	<logger name="io.micronaut.flyway" level="WARN"/>
 	<logger name="org.olf.dcb" level="INFO"/>
 	
+	<logger name="org.olf.dcb.core.svc" level="INFO"/>
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	<logger name="org.olf.dcb.tracking" level="DEBUG"/>
 	<logger name="org.olf.dcb.request" level="DEBUG"/>
