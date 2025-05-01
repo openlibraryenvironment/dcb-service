@@ -89,7 +89,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 				final var currentPage = nextP.getPageNumber();
 				
 				if (currentPage > 0 && currentPage % 10 == 0) {
-					log.atInfo().log("Processed {} items", currentPage * 1000);
+					log.info("Processed {} items", currentPage * 1000);
 				}		
 				log.debug("Processing page {}", nextP.getPageNumber() + 1);
 			})
