@@ -116,7 +116,7 @@ public class SupplierRequestService {
 			.build();
 	}
 
-	public Flux<DataAgency> findPossiblySupplyingAgencies(PatronRequest patronRequest) {
+	public Flux<DataAgency> findAllSupplyingAgencies(PatronRequest patronRequest) {
 		return findAgenciesFromSupplierRequests(patronRequest)
 			.concatWith(findAgenciesFromInactiveSupplierRequests(patronRequest));
 	}

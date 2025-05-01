@@ -7,7 +7,6 @@ import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
-import static org.olf.dcb.utils.CollectionUtils.emptyListWhenNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.MapUtils.putNonNullValue;
@@ -19,6 +18,7 @@ import java.util.Optional;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.FunctionalSetting;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
@@ -116,28 +116,29 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	// Main handler for re-resolution logic
 	private Mono<RequestWorkflowContext> resolveNextSupplier(RequestWorkflowContext context) {
-		log.debug("resolveNextSupplier");
+		log.debug("resolveNextSupplier({})", context);
 
 		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
 		supplierRequestService = supplierRequestServiceProvider.get();
 
-		return checkAndIncludeCurrentSupplierRequestsFor(patronRequest)
-			.flatMap(this::reResolve)
+		log.info("Resolving Patron Request {}", getValue(patronRequest, PatronRequest::getId, "Unknown"));
+		return findExcludedAgencyCodes(patronRequest)
+			.flatMap(excludedAgencyCodes -> resolve(patronRequest, excludedAgencyCodes))
 			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()))
 			.flatMap(resolution -> applyReResolution(resolution, context))
 			.thenReturn(context);
 	}
 
-	private Mono<Resolution> reResolve(PatronRequest patronRequest) {
-		log.info("Re-resolving Patron Request {}", getValue(patronRequest,
-			PatronRequest::getId, "Unknown"));
+	private Mono<Resolution> resolve(PatronRequest patronRequest, List<String> excludedAgencyCodes) {
+		return patronRequestResolutionService.resolvePatronRequest(patronRequest, excludedAgencyCodes);
+	}
 
-		final var excludedAgencyCode = getValue(patronRequest,
-			PatronRequest::determineSupplyingAgencyCode, null);
-
-		return patronRequestResolutionService.resolvePatronRequest(patronRequest,
-			emptyListWhenNull(excludedAgencyCode));
+	private Mono<List<String>> findExcludedAgencyCodes(PatronRequest patronRequest) {
+		return supplierRequestService.findAllSupplyingAgencies(patronRequest)
+			.mapNotNull(agency -> getValueOrNull(agency, DataAgency::getCode))
+			.collectList()
+			.doOnSuccess(codes -> log.debug("Excluded agency codes: {}", codes));
 	}
 
 	private Mono<Void> applyReResolution(Resolution resolution, RequestWorkflowContext context) {
