@@ -80,33 +80,43 @@ public class DeleteLibraryContactDataFetcher implements DataFetcher<CompletableF
 				.switchIfEmpty(Mono.error(new HttpStatusException(HttpStatus.NOT_FOUND,
 					"Library contact for library "+libraryId+ "with person ID " + personId + " not found")))
 				.flatMap(libraryContact -> {
+
+					// Set audit information. We must update before deletion so it gets recorded in the data change log.
 					libraryContact.setReason(reason);
 					libraryContact.setLastEditedBy(userString);
 					libraryContact.setChangeCategory(changeCategory);
 					libraryContact.setChangeReferenceUrl(changeReferenceUrl);
-					Person personToDelete = libraryContact.getPerson();
 
+					// If a library contact somehow doesn't have a person associated with it, it's worth making a note of.
+					Person personToDelete = libraryContact.getPerson();
 					if (personToDelete == null) {
 						log.debug("deleteLibraryContactDataFetcher: Library contact {} has no associated person", personId);
+						return Mono.error(new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+							"Library contact has no associated person record"));
 					}
-					// First delete the library contact, then the person record IF no other library contacts are using it
-					return Mono.from(libraryContactRepository.delete(libraryContact.getId()))
-						// After deleting the library contact, check if any other contacts reference this person
-						.then(Mono.from(libraryContactRepository.countByPersonId(personId)))
-						.flatMap(count -> {
-							if (count > 0) {
-								// Other library contacts are using this person, don't delete the person record
-								log.info("deleteLibraryContactDataFetcher: Person {} is still referenced by {} other library contacts. Not deleting person record.",
-									personId, count);
-								return Mono.just(createResult(true,
-									"Successfully deleted library contact. Person record was retained as it's still referenced by "+count+" other contacts."));
-							} else {
-								// No other references, safe to delete the person
-								log.info("deleteLibraryContactDataFetcher: No other references to Person {}. Proceeding with person deletion.", personToDelete.getId());
-								return Mono.from(personRepository.delete(personToDelete.getId()))
-									.then(Mono.just(createResult(true,
-										"Successfully deleted library contact and associated person record")));
-							}
+
+					// Update the entity with audit information before deletion
+					return Mono.from(libraryContactRepository.update(libraryContact))
+						.flatMap(updatedContact -> {
+							// After updating with audit info, delete the library contact
+							return Mono.from(libraryContactRepository.delete(updatedContact.getId()))
+								// After deleting the library contact, check if any other contacts reference this person
+								.then(Mono.from(libraryContactRepository.countByPersonId(personId)))
+								.flatMap(count -> {
+									if (count > 0) {
+										// Other library contacts are using this person, don't delete the person record
+										log.info("deleteLibraryContactDataFetcher: Person {} is still referenced by {} other library contacts. Not deleting person record.",
+											personId, count);
+										return Mono.just(createResult(true,
+											"Successfully deleted library contact. Person record was retained as it's still referenced by " + count + " other contacts."));
+									} else {
+										// No other references, safe to delete the person
+										log.info("deleteLibraryContactDataFetcher: No other references to Person {}. Proceeding with person deletion.", personToDelete.getId());
+										return Mono.from(personRepository.delete(personToDelete.getId()))
+											.then(Mono.just(createResult(true,
+												"Successfully deleted library contact and associated person record")));
+									}
+								});
 						})
 						.onErrorResume(e -> {
 							log.error("Error deleting library contact", e);

@@ -121,6 +121,9 @@ public class CreateContactDataFetcher implements DataFetcher<CompletableFuture<C
 											.person(savedPerson)
 											.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
 												"ConsortiumContact:" + consortium.getId() + "," + savedPerson.getId()))
+											.lastEditedBy(userString)
+											.changeCategory("New contact")
+											.reason("Association created between new contact and consortium")
 											.build();
 
 										return Mono.from(consortiumContactRepository.saveOrUpdate(contact));

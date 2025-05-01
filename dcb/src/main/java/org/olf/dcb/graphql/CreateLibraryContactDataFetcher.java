@@ -115,6 +115,9 @@ public class CreateLibraryContactDataFetcher implements DataFetcher<CompletableF
 										.person(savedPerson)
 										.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
 											"LibraryContact:" + library.getId() + "," + savedPerson.getId()))
+										.lastEditedBy(userString)
+										.changeCategory("New contact")
+										.reason("Association created between new contact and library")
 										.build();
 
 									return Mono.from(libraryContactRepository.saveOrUpdate(contact));

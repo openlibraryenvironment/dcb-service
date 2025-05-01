@@ -156,7 +156,7 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 													.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person))))
 												.collectList();
 										Mono<? extends List<? extends FunctionalSetting>> functionalSettingMono = Flux.fromIterable(functionalSettingsInput)
-											.map(this::createFunctionalSettingFromInput)
+											.map(settingInput -> createFunctionalSettingFromInput(settingInput, userString))
 											.flatMap(functionalSetting -> Mono.from(functionalSettingRepository.saveOrUpdate(functionalSetting)))
 											.collectList();
 										return functionalSettingMono.flatMap(functionalSettings -> {
@@ -207,6 +207,8 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 						Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
 					.email(contactInput.get("email").toString().trim())
 					.lastEditedBy(username)
+					.reason("Add initial contacts for consortium")
+					.changeCategory("Initial setup")
 					.build();
 			});
 	}
@@ -224,7 +226,7 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			.then();
 	}
 
-	private FunctionalSetting createFunctionalSettingFromInput(Map<String, Object> settingInput) {
+	private FunctionalSetting createFunctionalSettingFromInput(Map<String, Object> settingInput, String userString) {
 		String settingName = settingInput.get("name").toString();
 		// Check for validity. We use a FunctionalSettingType enum for this.
 		if (!FunctionalSettingType.isValid(settingName)) {
@@ -241,6 +243,9 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			.name(type)
 			.enabled(Boolean.valueOf(settingInput.get("enabled").toString()))
 			.description(settingInput.get("description").toString())
+			.lastEditedBy(userString)
+			.changeCategory("Initial setup")
+			.reason("Add initial functional settings for consortium")
 			.build();
 	}
 

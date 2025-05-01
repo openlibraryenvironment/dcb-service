@@ -8,7 +8,6 @@ import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
-import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
 import org.olf.dcb.core.model.FunctionalSetting;
 import org.olf.dcb.core.model.FunctionalSettingType;
@@ -33,14 +32,14 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 @Slf4j
 public class CreateFunctionalSettingDataFetcher implements DataFetcher<CompletableFuture<FunctionalSetting>> {
 
-	private ConsortiumRepository consortiumRepository;
-	private ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository;
-	private FunctionalSettingRepository functionalSettingRepository;
-	private R2dbcOperations r2dbcOperations;
+	private final ConsortiumRepository consortiumRepository;
+	private final ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository;
+	private final FunctionalSettingRepository functionalSettingRepository;
+	private final R2dbcOperations r2dbcOperations;
 
 
-	public CreateFunctionalSettingDataFetcher(ConsortiumRepository consortiumRepostory, ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository, FunctionalSettingRepository functionalSettingRepository, R2dbcOperations r2dbcOperations) {
-		this.consortiumRepository = consortiumRepostory;
+	public CreateFunctionalSettingDataFetcher(ConsortiumRepository consortiumRepository, ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository, FunctionalSettingRepository functionalSettingRepository, R2dbcOperations r2dbcOperations) {
+		this.consortiumRepository = consortiumRepository;
 		this.consortiumFunctionalSettingRepository = consortiumFunctionalSettingRepository;
 		this.functionalSettingRepository = functionalSettingRepository;
 		this.r2dbcOperations = r2dbcOperations;
@@ -107,10 +106,10 @@ public class CreateFunctionalSettingDataFetcher implements DataFetcher<Completab
 						// Now we must check if the setting is already associated with this consortium
 						return Mono.from(consortiumFunctionalSettingRepository
 								.findByConsortiumAndFunctionalSetting(consortium, existingSetting))
-							  .map(existingAssociation -> {
-									log.info("Functional setting {} already exists and is associated with consortium {}",
-										settingName, consortiumName);
-									return existingSetting;
+							.map(existingAssociation -> {
+								log.info("Functional setting {} already exists and is associated with consortium {}",
+									settingName, consortiumName);
+								return existingSetting;
 							})
 							.switchIfEmpty(Mono.defer(() -> {
 								// The setting is not already associated with this consortium.
@@ -127,6 +126,7 @@ public class CreateFunctionalSettingDataFetcher implements DataFetcher<Completab
 									reason.ifPresent(newAssociation::setReason);
 									changeReferenceUrl.ifPresent(newAssociation::setChangeReferenceUrl);
 									changeCategory.ifPresent(newAssociation::setChangeCategory);
+									newAssociation.setLastEditedBy(userString);
 									log.debug("New association has been created for an existing non-associated setting {} {}", newAssociation, existingSetting);
 									return Mono.from(consortiumFunctionalSettingRepository.saveOrUpdate(newAssociation))
 										.thenReturn(existingSetting);
@@ -137,7 +137,7 @@ public class CreateFunctionalSettingDataFetcher implements DataFetcher<Completab
 					.switchIfEmpty(Mono.defer(() -> {
 						// No existing setting with that name - so create a new setting and associate with provided consortium
 						return Mono.from(r2dbcOperations.withTransaction(status ->
-							Mono.from(functionalSettingRepository.save(createFunctionalSettingFromInput(input_map)))
+							Mono.from(functionalSettingRepository.save(createFunctionalSettingFromInput(input_map, userString)))
 								.flatMap(savedSetting -> {
 									ConsortiumFunctionalSetting newAssociation = new ConsortiumFunctionalSetting();
 									newAssociation.setId(UUIDUtils.nameUUIDFromNamespaceAndString(
@@ -146,6 +146,7 @@ public class CreateFunctionalSettingDataFetcher implements DataFetcher<Completab
 											" consortium: " + consortium.getName()));
 									newAssociation.setConsortium(consortium);
 									newAssociation.setFunctionalSetting(savedSetting);
+									newAssociation.setLastEditedBy(userString);
 									// Set optional data change log fields if provided
 									reason.ifPresent(newAssociation::setReason);
 									changeReferenceUrl.ifPresent(newAssociation::setChangeReferenceUrl);
@@ -161,7 +162,7 @@ public class CreateFunctionalSettingDataFetcher implements DataFetcher<Completab
 	}
 
 
-	private FunctionalSetting createFunctionalSettingFromInput(Map<String, Object> settingInput) {
+	private FunctionalSetting createFunctionalSettingFromInput(Map<String, Object> settingInput, String username) {
 		String settingName = settingInput.get("name").toString();
 		// Check for validity. We use a FunctionalSettingType enum for this.
 		if (!FunctionalSettingType.isValid(settingName)) {
@@ -184,14 +185,10 @@ public class CreateFunctionalSettingDataFetcher implements DataFetcher<Completab
 			.name(type)
 			.enabled(enabled)
 			.description(settingInput.get("description").toString())
+			.lastEditedBy(username)
+			.reason("Create functional setting")
+			.changeCategory("Add functional setting")
 			.build();
 	}
-
-	private Mono<Void> associateFunctionalSettingWithConsortium(Consortium consortium, FunctionalSetting functionalSetting) {
-		ConsortiumFunctionalSetting consortiumFunctionalSetting = new ConsortiumFunctionalSetting();
-		consortiumFunctionalSetting.setId(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "ConsortiumFunctionalSetting:" + functionalSetting.getName() + "consortium: {}" + consortium.getName()));
-		consortiumFunctionalSetting.setConsortium(consortium);
-		consortiumFunctionalSetting.setFunctionalSetting(functionalSetting);
-		return Mono.from(consortiumFunctionalSettingRepository.saveOrUpdate(consortiumFunctionalSetting)).then();
-	}}
+}
 

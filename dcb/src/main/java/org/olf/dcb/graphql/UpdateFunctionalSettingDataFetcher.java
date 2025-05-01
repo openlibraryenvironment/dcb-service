@@ -6,13 +6,10 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
-import org.olf.dcb.core.model.Consortium;
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.FunctionalSetting;
-import org.olf.dcb.storage.ConsortiumRepository;
 import org.olf.dcb.storage.FunctionalSettingRepository;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import java.util.Collection;
@@ -23,20 +20,15 @@ import java.util.concurrent.CompletableFuture;
 
 
 @Singleton
+@Slf4j
 public class UpdateFunctionalSettingDataFetcher implements DataFetcher<CompletableFuture<FunctionalSetting>> {
 
 	private final FunctionalSettingRepository functionalSettingRepository;
 
-	private final ConsortiumRepository consortiumRepository;
-
 	private final R2dbcOperations r2dbcOperations;
 
-	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
-
-
-	public UpdateFunctionalSettingDataFetcher(FunctionalSettingRepository functionalSettingRepository, ConsortiumRepository consortiumRepository, R2dbcOperations r2dbcOperations) {
+	public UpdateFunctionalSettingDataFetcher(FunctionalSettingRepository functionalSettingRepository, R2dbcOperations r2dbcOperations) {
 		this.functionalSettingRepository = functionalSettingRepository;
-		this.consortiumRepository = consortiumRepository;
 		this.r2dbcOperations = r2dbcOperations;
 	}
 
@@ -52,8 +44,9 @@ public class UpdateFunctionalSettingDataFetcher implements DataFetcher<Completab
 		String description = input_map.get("description") != null ? input_map.get("description").toString() : null;
 
 	 // For the data change log
-		Optional<String> reason = Optional.ofNullable(input_map.get("reason"))
-			.map(Object::toString);
+		String reason = Optional.ofNullable(input_map.get("reason"))
+			.map(Object::toString)
+			.orElse("Update functional setting");
 		Optional<String> changeReferenceUrl = Optional.ofNullable(input_map.get("changeReferenceUrl"))
 			.map(Object::toString);
 		Optional<String> changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
@@ -83,9 +76,9 @@ public class UpdateFunctionalSettingDataFetcher implements DataFetcher<Completab
 						functionalSetting.setDescription(description);
 					}
 					functionalSetting.setLastEditedBy(userString);
+					functionalSetting.setReason(reason);
 					changeReferenceUrl.ifPresent(functionalSetting::setChangeReferenceUrl);
 					changeCategory.ifPresent(functionalSetting::setChangeCategory);
-					reason.ifPresent(functionalSetting::setReason);
 					return Mono.from(functionalSettingRepository.update(functionalSetting));
 				})
 		));

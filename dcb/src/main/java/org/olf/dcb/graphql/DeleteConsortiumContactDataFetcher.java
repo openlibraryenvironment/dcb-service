@@ -5,7 +5,6 @@ import java.util.concurrent.CompletableFuture;
 
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.olf.dcb.core.model.Person;
@@ -56,7 +55,7 @@ public class DeleteConsortiumContactDataFetcher implements DataFetcher<Completab
 			.orElse("Removing consortium contact");
 		String changeCategory = Optional.ofNullable(input.get("changeCategory"))
 			.map(Object::toString)
-			.orElse("Removing consortium contact");
+			.orElse("Deletion");
 		String changeReferenceUrl = Optional.ofNullable(input.get("changeReferenceUrl"))
 			.map(Object::toString)
 			.orElse("Removing consortium contact");
@@ -83,36 +82,42 @@ public class DeleteConsortiumContactDataFetcher implements DataFetcher<Completab
 					"Consortium contact for consortium "+consortiumId+ "with person ID " + personId + " not found")))
 				.flatMap(consortiumContact -> {
 
+					// Set audit information. We must update before deletion so it gets recorded in the data change log.
+					consortiumContact.setReason(reason);
+					consortiumContact.setLastEditedBy(userString);
+					consortiumContact.setChangeCategory(changeCategory);
+					consortiumContact.setChangeReferenceUrl(changeReferenceUrl);
+
+					// If a consortium contact somehow doesn't have a person associated with it, it's worth making a note of.
 					Person personToDelete = consortiumContact.getPerson();
 					if (personToDelete == null) {
 						log.debug("deleteConsortiumContactDataFetcher: Consortium contact {} has no associated person", personId);
 						return Mono.error(new HttpStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
 							"Consortium contact has no associated person record"));
 					}
-					personToDelete.setReason(reason);
-					personToDelete.setLastEditedBy(userString);
-					personToDelete.setChangeCategory(changeCategory);
-					personToDelete.setChangeReferenceUrl(changeReferenceUrl);
 
-					// First delete the consortium contact, then the person record IF no other consortium contacts are using it
-					// We would only really expect this to happen if we ever supported multiple consortia
-					return Mono.from(consortiumContactRepository.delete(consortiumContact.getId()))
-						// After deleting the consortium contact, check if any other contacts reference this person
-						.then(Mono.from(consortiumContactRepository.countByPersonId(personId)))
-						.flatMap(count -> {
-							if (count > 0) {
-								// Other consortium contacts are using this person, don't delete the person record
-								log.info("deleteConsortiumContactDataFetcher: Person {} is still referenced by {} other consortium contacts. Not deleting person record.",
-									personId, count);
-								return Mono.just(createResult(true,
-									"Successfully deleted consortium contact. Person record was retained as it's still referenced by "+count+" other contacts."));
-							} else {
-								// No other references, safe to delete the person
-								log.info("deleteConsortiumContactDataFetcher: No other references to Person {}. Proceeding with person deletion.", personToDelete.getId());
-								return Mono.from(personRepository.delete(personToDelete.getId()))
-									.then(Mono.just(createResult(true,
-										"Successfully deleted consortium contact and associated person record")));
-							}
+					// Update the entity with audit information before deletion
+					return Mono.from(consortiumContactRepository.update(consortiumContact))
+						.flatMap(updatedContact -> {
+							// After updating with audit info, delete the consortium contact
+							return Mono.from(consortiumContactRepository.delete(updatedContact.getId()))
+								// After deleting the consortium contact, check if any other contacts reference this person
+								.then(Mono.from(consortiumContactRepository.countByPersonId(personId)))
+								.flatMap(count -> {
+									if (count > 0) {
+										// Other consortium contacts are using this person, don't delete the person record
+										log.info("deleteConsortiumContactDataFetcher: Person {} is still referenced by {} other consortium contacts. Not deleting person record.",
+											personId, count);
+										return Mono.just(createResult(true,
+											"Successfully deleted consortium contact. Person record was retained as it's still referenced by " + count + " other contacts."));
+									} else {
+										// No other references, safe to delete the person
+										log.info("deleteConsortiumContactDataFetcher: No other references to Person {}. Proceeding with person deletion.", personToDelete.getId());
+										return Mono.from(personRepository.delete(personToDelete.getId()))
+											.then(Mono.just(createResult(true,
+												"Successfully deleted consortium contact and associated person record")));
+									}
+								});
 						})
 						.onErrorResume(e -> {
 							log.error("Error deleting consortium contact", e);
