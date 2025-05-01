@@ -1,6 +1,5 @@
 package org.olf.dcb.core.svc;
 
-import java.time.Instant;
 
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
@@ -9,8 +8,10 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Singleton
@@ -166,19 +167,19 @@ public class HouseKeepingService {
 
   private Mono<Void> reprocessQuery() {
     log.info("Running reprocessQuery");
+		AtomicInteger page = new AtomicInteger(0);
     return Mono.from(
       dbops.withConnection(conn ->
-        Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS)
-          .execute())
+        Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS).execute())
         .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
 				.buffer(10000)
-				.concatMap(batch -> updateSourceRecordBatch(batch))
+				.concatMap(batch -> updateSourceRecordBatch(batch, page.incrementAndGet()))
       )
     );
   }
 
-	public Mono<Void> updateSourceRecordBatch(List<UUID> batch) {
-    log.info("Update source batch {}",batch.size());
+	public Mono<Void> updateSourceRecordBatch(List<UUID> batch, long pageno) {
+    log.info("Update source batch {} - pageno {}",batch.size(),pageno);
 		return Mono.from(dbops.withTransaction(tx -> 
 			Mono.from(
 				tx.getConnection()
