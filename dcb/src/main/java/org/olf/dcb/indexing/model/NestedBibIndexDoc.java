@@ -55,14 +55,18 @@ public class NestedBibIndexDoc {
 				.flatMap(Collection::stream)
 				.map( count -> {
 					String code = count.getInternalLocationCode();
-					return new AvailabilityEntry(code != null ? code : count.getRemoteLocationCode(), count.getCount());
+					String location = count.getRemoteLocationCode();
+
+					return new AvailabilityEntry(code, location, code+"."+location, count.getCount());
 				})
 				.toList();
 	}
 	
 	@Serdeable
 	protected static record AvailabilityEntry(
+			String library,
 			String location,
+			String combined,
 			int count ) {
 	}
 }

@@ -114,9 +114,10 @@ public class ClusterRecordIndexDoc {
   public List<NestedBibIndexDoc> getMembers() {
   	return Stream.ofNullable(cluster.getBibs())
 			.flatMap( Set::stream )
-  		.map( bib -> {
+  		.map( bib -> {  // BibAvailabilityCount
   			String lmsCode = hostLmsIdToCodeResolver.apply(bib.getSourceSystemId());
-  			return new NestedBibIndexDoc(bib, lmsCode, false, availability.get(bib.getId().toString()));
+				Collection<BibAvailabilityCount> a = availability.get(bib.getId().toString());
+  			return new NestedBibIndexDoc(bib, lmsCode, false, a);
   		})
 			.toList();
 	}
