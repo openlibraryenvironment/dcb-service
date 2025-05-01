@@ -147,7 +147,6 @@ class ResolveNextSupplierTransitionTests {
 	@BeforeEach
 	void beforeEach() {
 		supplierRequestsFixture.deleteAll();
-		inactiveSupplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		agencyFixture.deleteAll();

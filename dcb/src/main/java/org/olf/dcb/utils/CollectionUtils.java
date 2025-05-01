@@ -1,5 +1,7 @@
 package org.olf.dcb.utils;
 
+import static java.util.Collections.emptyList;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -47,5 +49,15 @@ public class CollectionUtils {
 		}
 
 		return collection.stream();
+	}
+
+	public static <R> R firstValueOrNull(Collection<R> collection) {
+		return emptyWhenNull(collection).findFirst().orElse(null);
+	}
+
+	public static List<String> emptyListWhenNull(String value) {
+		return value != null
+			? nonNullValuesList(value)
+			: emptyList();
 	}
 }

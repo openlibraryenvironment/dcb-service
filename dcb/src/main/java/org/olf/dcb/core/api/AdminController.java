@@ -114,7 +114,7 @@ public class AdminController {
 	private Mono<PatronRequestAdminView> assembleAdminView( PatronRequest patronRequest ) {
 		return Mono.zip(
 			Mono.just(patronRequest),
-			supplierRequestService.findAllSupplierRequestsFor(patronRequest),
+			supplierRequestService.findAllActiveSupplierRequestsFor(patronRequest),
 			patronRequestService.findAllAuditsFor(patronRequest))
 		
 		.map(TupleUtils.function(PatronRequestAdminView::from));

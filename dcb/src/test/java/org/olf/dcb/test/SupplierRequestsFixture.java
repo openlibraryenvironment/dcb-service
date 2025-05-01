@@ -12,29 +12,24 @@ import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.reactivestreams.Publisher;
 
-import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Singleton;
+import lombok.RequiredArgsConstructor;
 
 @Singleton
+@RequiredArgsConstructor
 public class SupplierRequestsFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplierRequestService supplierRequestService;
-
-	public SupplierRequestsFixture(SupplierRequestRepository supplierRequestRepository,
-		SupplierRequestService supplierRequestService) {
-
-		this.supplierRequestRepository = supplierRequestRepository;
-		this.supplierRequestService = supplierRequestService;
-	}
-
+	private final InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture;
 
 	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
 		String localBibId, String localItemId, String localLocationCode, String localItemBarcode,
 		String hostLmsCode, String supplyingLocalItemLocation) {
 
-		saveSupplierRequest(supplierRequestId,patronRequest,localBibId,localItemId,localLocationCode,localItemBarcode,hostLmsCode, Boolean.TRUE, supplyingLocalItemLocation);
+		saveSupplierRequest(supplierRequestId, patronRequest, localBibId, localItemId,
+			localLocationCode, localItemBarcode, hostLmsCode, true, supplyingLocalItemLocation);
 	}
 
 	public void saveSupplierRequest(UUID supplierRequestId, PatronRequest patronRequest,
@@ -42,8 +37,7 @@ public class SupplierRequestsFixture {
 		String hostLmsCode, Boolean isActive, String supplyingLocalItemLocation) {
 
 		saveSupplierRequest(
-			SupplierRequest
-				.builder()
+			SupplierRequest.builder()
 				.id(supplierRequestId)
 				.patronRequest(patronRequest)
 				.localItemId(localItemId)
@@ -57,11 +51,7 @@ public class SupplierRequestsFixture {
 	}
 
 	public SupplierRequest saveSupplierRequest(SupplierRequest supplierRequest) {
-		return singleValueFrom(supplierRequestRepository.save(supplierRequest));
-	}
-
-	public SupplierRequest updateSupplierRequest(SupplierRequest supplierRequest) {
-		return singleValueFrom(supplierRequestRepository.update(supplierRequest));
+		return singleValueFrom(supplierRequestService.saveSupplierRequest(supplierRequest));
 	}
 
 	public SupplierRequest findById(UUID id) {
@@ -78,11 +68,12 @@ public class SupplierRequestsFixture {
 	}
 
 	public SupplierRequest findFor(PatronRequest patronRequest) {
-		return singleValueFrom(supplierRequestService.findSupplierRequestFor(patronRequest));
+		return singleValueFrom(supplierRequestService.findActiveSupplierRequestFor(patronRequest));
 	}
 
 	public void deleteAll() {
 		dataAccess.deleteAll(supplierRequestRepository.queryAll(), this::deleteSupplierRequest);
+		inactiveSupplierRequestsFixture.deleteAll();
 	}
 
 	private Publisher<Void> deleteSupplierRequest(SupplierRequest supplierRequest) {

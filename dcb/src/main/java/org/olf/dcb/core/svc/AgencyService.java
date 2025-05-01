@@ -33,6 +33,8 @@ public class AgencyService {
 	}
 
 	public Mono<DataAgency> findById(UUID id) {
+		log.debug("findById({})", id);
+
 		return Mono.from(agencyRepository.findById(id));
 	}
 

@@ -3,10 +3,9 @@ package org.olf.dcb.request.resolution;
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.InactiveSupplierRequest;
@@ -16,8 +15,10 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.storage.InactiveSupplierRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import org.olf.dcb.utils.CollectionUtils;
 
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -25,51 +26,26 @@ import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Singleton
+@AllArgsConstructor
 public class SupplierRequestService {
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final InactiveSupplierRequestRepository inactiveSupplierRequestRepository;
 	private final AgencyService agencyService;
 
-	public SupplierRequestService(SupplierRequestRepository supplierRequestRepository,
-		InactiveSupplierRequestRepository inactiveSupplierRequestRepository, AgencyService agencyService) {
+	public Mono<List<SupplierRequest>> findAllActiveSupplierRequestsFor(PatronRequest patronRequest) {
+		log.debug("findAllActiveSupplierRequestsFor({})", patronRequest);
 
-		this.supplierRequestRepository = supplierRequestRepository;
-		this.inactiveSupplierRequestRepository = inactiveSupplierRequestRepository;
-		this.agencyService = agencyService;
-	}
-
-	public Mono<List<SupplierRequest>> findAllSupplierRequestsWithDataAgencyFor(PatronRequest patronRequest) {
 		return Flux.from(supplierRequestRepository.findAllByPatronRequestAndIsActive(patronRequest, true))
+			.doOnNext(supplierRequest -> log.debug("found supplier request: {}", supplierRequest))
 			.flatMap(this::includeResolvedAgency)
 			.collectList();
 	}
 
-	public Mono<List<SupplierRequest>> findAllSupplierRequestsFor(PatronRequest patronRequest) {
-		return Flux.from(supplierRequestRepository.findAllByPatronRequestAndIsActive(patronRequest, true))
-			.collectList();
-	}
-
-	private Mono<SupplierRequest> includeResolvedAgency(SupplierRequest supplierRequest) {
-
-		final var resolvedAgencyUUID = extractResolvedAgencyUUID(supplierRequest);
-
-		if (resolvedAgencyUUID == null) {
-			log.error("SupplierRequest {} has no resolved agency", supplierRequest.getId());
-			return Mono.just(supplierRequest);
-		}
-
-		return agencyService.findById(extractResolvedAgencyUUID(supplierRequest))
-			.map(supplierRequest::setResolvedAgency);
-	}
-
 	// ToDo: This is not safe.. later on we will have multiple supplier requests for a patron request this method
 	// is probably looking for the active supplier request
-	public Mono<SupplierRequest> findSupplierRequestFor(PatronRequest patronRequest) {
-		return findAllSupplierRequestsFor(patronRequest)
-			.mapNotNull(supplierRequests ->
-				supplierRequests.stream()
-					.findFirst()
-					.orElse(null));
+	public Mono<SupplierRequest> findActiveSupplierRequestFor(PatronRequest patronRequest) {
+		return findAllActiveSupplierRequestsFor(patronRequest)
+			.mapNotNull(CollectionUtils::firstValueOrNull);
 
 			// There may be no supplier request yet for this patron request
 			// .switchIfEmpty(Mono.error(() -> new RuntimeException("No SupplierRequests found for PatronRequest")));
@@ -111,14 +87,6 @@ public class SupplierRequestService {
 			.build();
 	}
 
-	// Utility method to extract resolved agency uuid
-	public static UUID extractResolvedAgencyUUID(SupplierRequest supplierRequest) {
-		return Optional.ofNullable(supplierRequest)
-			.map(SupplierRequest::getResolvedAgency)
-			.map(DataAgency::getId)
-			.orElse(null);
-	}
-
 	public Mono<InactiveSupplierRequest> saveInactiveSupplierRequest(SupplierRequest supplierRequest) {
 
 		final var inactiveSupplierRequest = buildInactiveSupplierRequestFor(supplierRequest);
@@ -146,5 +114,62 @@ public class SupplierRequestService {
 			.statusCode(supplierRequest.getStatusCode())
 			.resolvedAgency(supplierRequest.getResolvedAgency())
 			.build();
+	}
+
+	public Flux<DataAgency> findPossiblySupplyingAgencies(PatronRequest patronRequest) {
+		return findAgenciesFromSupplierRequests(patronRequest)
+			.concatWith(findAgenciesFromInactiveSupplierRequests(patronRequest));
+	}
+
+	private Flux<DataAgency> findAgenciesFromSupplierRequests(PatronRequest patronRequest) {
+		return Flux.from(supplierRequestRepository.findAllByPatronRequest(patronRequest))
+			.flatMap(this::includeResolvedAgency)
+			.mapNotNull(SupplierRequest::getResolvedAgency);
+	}
+
+	private Flux<DataAgency> findAgenciesFromInactiveSupplierRequests(PatronRequest patronRequest) {
+		return Flux.from(inactiveSupplierRequestRepository.findAllByPatronRequest(patronRequest))
+			.flatMap(this::includeResolvedAgency)
+			.mapNotNull(InactiveSupplierRequest::getResolvedAgency);
+	}
+
+	private Mono<SupplierRequest> includeResolvedAgency(SupplierRequest supplierRequest) {
+		log.debug("includeResolvedAgency({})", supplierRequest);
+
+		return findResolvedAgencyForSupplierRequest(supplierRequest)
+			.map(supplierRequest::setResolvedAgency)
+			.defaultIfEmpty(supplierRequest);
+	}
+
+	private Mono<DataAgency> findResolvedAgencyForSupplierRequest(SupplierRequest supplierRequest) {
+		final var resolvedAgencyId = getValueOrNull(supplierRequest, SupplierRequest::getResolvedAgencyId);
+
+		if (resolvedAgencyId == null) {
+			log.warn("SupplierRequest {} has no resolved agency", supplierRequest.getId());
+
+			return Mono.empty();
+		}
+
+		return agencyService.findById(resolvedAgencyId);
+	}
+
+	private Mono<InactiveSupplierRequest> includeResolvedAgency(InactiveSupplierRequest supplierRequest) {
+		log.debug("includeResolvedAgency({})", supplierRequest);
+
+		return findResolvedAgencyForSupplierRequest(supplierRequest)
+			.map(supplierRequest::setResolvedAgency)
+			.defaultIfEmpty(supplierRequest);
+	}
+
+	private Mono<DataAgency> findResolvedAgencyForSupplierRequest(InactiveSupplierRequest supplierRequest) {
+		final var resolvedAgencyId = getValueOrNull(supplierRequest, InactiveSupplierRequest::getResolvedAgencyId);
+
+		if (resolvedAgencyId == null) {
+			log.warn("SupplierRequest {} has no resolved agency", supplierRequest.getId());
+
+			return Mono.empty();
+		}
+
+		return agencyService.findById(resolvedAgencyId);
 	}
 }

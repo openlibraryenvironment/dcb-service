@@ -377,7 +377,7 @@ public class BorrowingAgencyService {
 	}
 
 	private Mono<SupplierRequest> fetchSupplierRequestFor(PatronRequest patronRequest) {
-		return supplierRequestService.findSupplierRequestFor(patronRequest)
+		return supplierRequestService.findActiveSupplierRequestFor(patronRequest)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(new DcbError("Failed to find SupplierRequest."))));
 	}
 

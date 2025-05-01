@@ -39,7 +39,6 @@ public class PatronRequestsFixture {
 	public void deleteAll() {
 		deleteAllAuditEntries();
 		supplierRequestsFixture.deleteAll();
-		inactiveSupplierRequestsFixture.deleteAll();
 		deleteAllPatronRequests();
 	}
 

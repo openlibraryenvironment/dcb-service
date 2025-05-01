@@ -1,10 +1,16 @@
 package org.olf.dcb.request.fulfilment;
 
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.Agency;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
@@ -13,10 +19,11 @@ import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
+
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
-
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 @Slf4j
 @Singleton
@@ -236,13 +243,14 @@ public class RequestWorkflowContextHelper {
 
 	// Remember that @Accessors means that setSupplierRequest returns this
 	//
-	// If there is a -live- supplier request availabe for this patron request attach it to the context
+	// If there is a -live- supplier request available for this patron request attach it to the context
 	//
 	private Mono<RequestWorkflowContext> findSupplierRequest(RequestWorkflowContext ctx) {
-		log.debug("findSupplierRequest");
+		log.debug("findSupplierRequest({})", ctx);
 
-		return supplierRequestService.findSupplierRequestFor(ctx.getPatronRequest())
-			.flatMap(supplierRequest -> Mono.just(ctx.setSupplierRequest(supplierRequest)))
+		return supplierRequestService.findActiveSupplierRequestFor(ctx.getPatronRequest())
+			.doOnSuccess(supplierRequest -> log.debug("found supplier request: {}", supplierRequest))
+			.map(ctx::setSupplierRequest)
 			.defaultIfEmpty(ctx);
 	}
 

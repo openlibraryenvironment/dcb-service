@@ -7,6 +7,7 @@ import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
+import static org.olf.dcb.utils.CollectionUtils.emptyListWhenNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.MapUtils.putNonNullValue;
@@ -135,7 +136,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		final var excludedAgencyCode = getValue(patronRequest,
 			PatronRequest::determineSupplyingAgencyCode, null);
 
-		return patronRequestResolutionService.resolvePatronRequest(patronRequest, excludedAgencyCode);
+		return patronRequestResolutionService.resolvePatronRequest(patronRequest,
+			emptyListWhenNull(excludedAgencyCode));
 	}
 
 	private Mono<Void> applyReResolution(Resolution resolution, RequestWorkflowContext context) {
@@ -170,7 +172,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<PatronRequest> checkAndIncludeCurrentSupplierRequestsFor(PatronRequest patronRequest) {
-		return supplierRequestService.findAllSupplierRequestsWithDataAgencyFor(patronRequest)
+		return supplierRequestService.findAllActiveSupplierRequestsFor(patronRequest)
 			.map(patronRequest::setSupplierRequests)
 			.doOnSuccess(pr -> log.info("Supplier request and data agency successfully included for patron request {}", pr.getId()))
 			.doOnError(error -> log.error("Error including supplier request and data agency for patron request {}", patronRequest.getId(), error));

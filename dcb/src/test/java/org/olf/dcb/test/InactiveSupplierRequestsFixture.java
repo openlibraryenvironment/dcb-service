@@ -1,24 +1,24 @@
 package org.olf.dcb.test;
 
-import jakarta.inject.Singleton;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.util.List;
+
 import org.olf.dcb.core.model.InactiveSupplierRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.storage.InactiveSupplierRequestRepository;
 import org.reactivestreams.Publisher;
 
-import java.util.List;
-
-import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+import jakarta.inject.Singleton;
+import lombok.RequiredArgsConstructor;
 
 @Singleton
+@RequiredArgsConstructor
 public class InactiveSupplierRequestsFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final InactiveSupplierRequestRepository inactiveSupplierRequestRepository;
-
-	public InactiveSupplierRequestsFixture(InactiveSupplierRequestRepository inactiveSupplierRequestRepository) {
-		this.inactiveSupplierRequestRepository = inactiveSupplierRequestRepository;
-	}
 
 	public List<InactiveSupplierRequest> findAllFor(PatronRequest patronRequest) {
 		return manyValuesFrom(inactiveSupplierRequestRepository.findAllByPatronRequest(patronRequest));
@@ -30,5 +30,9 @@ public class InactiveSupplierRequestsFixture {
 
 	private Publisher<Void> deleteInactiveSupplierRequest(InactiveSupplierRequest inactiveSupplierRequest) {
 		return inactiveSupplierRequestRepository.delete(inactiveSupplierRequest.getId());
+	}
+
+	public void save(InactiveSupplierRequest inactiveSupplierRequest) {
+		singleValueFrom(inactiveSupplierRequestRepository.save(inactiveSupplierRequest));
 	}
 }

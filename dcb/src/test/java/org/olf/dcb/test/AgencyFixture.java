@@ -2,12 +2,12 @@ package org.olf.dcb.test;
 
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.AgencyRepository;
 
-import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
@@ -65,5 +65,12 @@ public class AgencyFixture {
 			.longitude(longitude)
 			.latitude(latitude)
 			.build());
+	}
+
+	public void delete(DataAgency agency) {
+		final var id = getValueOrThrow(agency, DataAgency::getId,
+			() -> new RuntimeException("Agency (%s) has no ID".formatted(agency)));
+
+		singleValueFrom(agencyRepository.delete(id));
 	}
 }

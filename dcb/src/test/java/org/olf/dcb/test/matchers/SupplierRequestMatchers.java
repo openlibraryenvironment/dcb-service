@@ -32,6 +32,10 @@ public class SupplierRequestMatchers {
 		return hasProperty("localStatus", is(nullValue()));
 	}
 
+	public static Matcher<SupplierRequest> hasLocalId(String expectedId) {
+		return hasProperty("localId", is(expectedId));
+	}
+
 	public static Matcher<SupplierRequest> hasNoLocalId() {
 		return hasProperty("localId", is(nullValue()));
 	}
@@ -54,6 +58,10 @@ public class SupplierRequestMatchers {
 			notNullValue(),
 			hasProperty("id", is(expectedAgency.getId()))
 		));
+	}
+
+	public static Matcher<SupplierRequest> hasNoResolvedAgency() {
+		return hasProperty("resolvedAgency", is(nullValue()));
 	}
 
 	public static Matcher<SupplierRequest> hasLocalAgencyCode(String expectedCode) {
