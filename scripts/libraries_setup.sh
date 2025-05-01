@@ -24,6 +24,13 @@ TARGET=$(prompt_with_default "Enter the target DCB environment URL" "http://loca
 # Prompt for file path
 FILE_PATH=$(prompt_with_default "Enter the path to the TSV file containing your libraries to add" "./scripts/libraries.tsv")
 
+# Prompt for Keycloak information
+KEYCLOAK_CLIENT=$(prompt_with_default "Enter Keycloak Client ID" "dcb")
+KEYCLOAK_SECRET=$(prompt_with_default "Enter Keycloak client secret" "dcb-keycloak-secret")
+KEYCLOAK_BASE=$(prompt_with_default "Enter Keycloak server URL" "dcb-server-url")
+DCB_ADMIN_USER=$(prompt_with_default "Enter the username for your Keycloak account" "testadmin")
+DCB_ADMIN_PASS=$(prompt_with_default "Enter the password for your Keycloak account" "examplepassword")
+
 # Prompt for consortium details
 echo "Configuring Consortium Details:"
 CONSORTIUM_NAME=$(prompt_with_default "Enter consortium name" "MOBIUS")
@@ -53,7 +60,6 @@ echo "- TRIGGER_SUPPLIER_RENEWAL"
 FUNCTIONAL_SETTINGS=$(prompt_with_default "Functional settings" "OWN_LIBRARY_BORROWING:false,RE_RESOLUTION:false,SELECT_UNAVAILABLE_ITEMS:false,TRIGGER_SUPPLIER_RENEWAL:false")
 
 echo "Logging in"
-source ~/.dcb.sh
 TOKEN=$(curl -s \
   -d "client_id=$KEYCLOAK_CLIENT" \
   -d "client_secret=$KEYCLOAK_SECRET" \
@@ -62,7 +68,7 @@ TOKEN=$(curl -s \
   -d "grant_type=password" \
   "$KEYCLOAK_BASE/protocol/openid-connect/token" | jq -r '.access_token')
 if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
-  echo "Error: Login failed. Unable to retrieve access token. Please check the supplied Keycloak config" >&2
+  echo "Error: Login failed. Unable to retrieve access token. Please check the supplied Keycloak config - you must provide the Keycloak values for your DCB environment" >&2
   exit 1
 fi
 echo "Logged in successfully with token."

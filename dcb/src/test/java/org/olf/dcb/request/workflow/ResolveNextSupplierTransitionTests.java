@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
@@ -44,6 +45,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.InactiveSupplierRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -70,8 +72,8 @@ class ResolveNextSupplierTransitionTests {
 	private static final String SUPPLYING_HOST_LMS_CODE = "next-supplier-tests";
 	private static final String PREVIOUSLY_SUPPLYING_HOST_LMS_CODE = "next-supplier-previous-tests";
 
-	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
-	private static final String PREVIOUSLY_SUPPLYING_AGENCY_CODE = "previous-agency";
+	private static final String NEWLY_SUPPLYING_AGENCY_CODE = "new-supplying-agency";
+	private static final String PREVIOUSLY_SUPPLYING_AGENCY_CODE = "previous-supplying-agency";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -156,7 +158,7 @@ class ResolveNextSupplierTransitionTests {
 		borrowingAgency = agencyFixture.defineAgency("borrowing-agency",
 			"Borrowing Agency", borrowingHostLms);
 
-		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
+		supplyingAgency = agencyFixture.defineAgency(NEWLY_SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
 
 		previouslySupplyingAgency = agencyFixture.defineAgency(PREVIOUSLY_SUPPLYING_AGENCY_CODE,
@@ -421,7 +423,28 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void shouldExcludeItemsFromSameAgencyAsPreviouslySupplied() {
+	void shouldExcludeItemsFromAgenciesThatHavePreviouslySupplied() {
+		/*
+		 This is a rather artificial set up (usually a Host LMS only maps to a single agency)
+
+		 To demonstrate that all agencies that had previously had been asked to supply are excluded
+		 multiple agencies have to be involved:
+				* initially asked to supply (first, is now inactive)
+				* previously asked to supply (second, is still active when the transition is triggered)
+
+		 The sole newly supplying host LMS provides items from all of these agencies
+
+		 It is intended to avoid some of the complexity of setting up multiple Host LMS,
+		 source records and mock expectations
+
+		It checks for unsuccessful re-resolution because that should be more stable than
+		defining an included item because that might pass incorrectly due to item ranking.
+		This is a trade-off because it's also possible that an item is excluded due to missing configuration
+
+		 A possible future improvement could be to expand the configurability
+		 of the dummy Host LMS to make it easier to define more complicated host LMS client outputs
+		*/
+
 		enableFunctionalSetting();
 
 		final var sourceRecordId = "236455";
@@ -432,10 +455,22 @@ class ResolveNextSupplierTransitionTests {
 		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
 
+		final var initialSupplyingAgency = agencyFixture.defineAgency(
+			"initial-supplying-agency", "Initial Supplying Agency", previouslySupplyingHostLms);
+
+		inactiveSupplierRequestsFixture.save(InactiveSupplierRequest.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.localItemId("7916922")
+			.hostLmsCode(supplyingHostLms.getCode())
+			.resolvedAgency(initialSupplyingAgency)
+			.build());
+
 		final var supplierRequest = saveSupplierRequest(patronRequest,
 			supplyingHostLms.getCode(), previouslySupplyingAgency);
 
-		final var itemLocationCode = "same-as-previous-supplier";
+		final var initialSupplierLocationCode = "initial-supplying-location";
+		final var previousSupplierLocationCode = "previous-supplying-location";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			SierraItem.builder()
@@ -443,16 +478,28 @@ class ResolveNextSupplierTransitionTests {
 				.barcode("26553255")
 				.statusCode("-")
 				.itemType("999")
-				.locationCode(itemLocationCode)
+				.locationCode(previousSupplierLocationCode)
 				.locationName("Same agency as previous supplier")
 				.suppressed(false)
 				.deleted(false)
-				.build()));
+				.build(),
+			SierraItem.builder()
+				.id("6737264")
+				.barcode("1084525")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode(initialSupplierLocationCode)
+				.locationName("Same agency as initial supplier")
+				.suppressed(false)
+				.deleted(false)
+				.build()
+		));
 
-		// This is a little artificial as the item comes from a different Host LMS
-		// but the location refers to the previous supplying agency
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			supplyingHostLms.getCode(), itemLocationCode, previouslySupplyingAgency.getCode());
+			supplyingHostLms.getCode(), previousSupplierLocationCode, previouslySupplyingAgency.getCode());
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			supplyingHostLms.getCode(), initialSupplierLocationCode, initialSupplyingAgency.getCode());
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			previouslySupplyingHostLms.getCode(), 999, 999, "BKM");
@@ -472,8 +519,8 @@ class ResolveNextSupplierTransitionTests {
 		assertThat("Previous supplier request should still exist",
 			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
 
-		assertThat("There should be no inactive supplier requests",
-			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
+		assertThat("There should still be only 1 inactive supplier request",
+			inactiveSupplierRequestsFixture.findAllFor(patronRequest), hasSize(1));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
@@ -625,13 +672,12 @@ class ResolveNextSupplierTransitionTests {
 		String hostLmsCode, DataAgency previousSupplyingAgency) {
 
 		return supplierRequestsFixture.saveSupplierRequest(
-			SupplierRequest
-				.builder()
+			SupplierRequest.builder()
 				.id(randomUUID())
 				.patronRequest(patronRequest)
 				.localItemId("7916922")
 				.localBibId("563653")
-				.localItemLocationCode(SUPPLYING_AGENCY_CODE)
+				.localItemLocationCode(NEWLY_SUPPLYING_AGENCY_CODE)
 				.localItemBarcode("9849123490")
 				.hostLmsCode(hostLmsCode)
 				.isActive(true)

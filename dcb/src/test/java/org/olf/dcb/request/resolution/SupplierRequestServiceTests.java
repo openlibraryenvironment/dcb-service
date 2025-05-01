@@ -192,29 +192,6 @@ public class SupplierRequestServiceTests {
 	}
 
 	@Test
-	void shouldFindAgencyFromActiveSupplierRequest() {
-		// Arrange
-		final var patronRequest = createPatronRequest();
-
-		final var activeAgency = createAgency("active-agency", "Active Agency");
-
-		createSupplierRequest(patronRequest, activeAgency, true);
-
-		// Act
-		final var possiblySupplyingAgencies = manyValuesFrom(
-			supplierRequestService.findPossiblySupplyingAgencies(patronRequest));
-
-		// Assert
-		assertThat(possiblySupplyingAgencies, allOf(
-			notNullValue(),
-			hasSize(1),
-			containsInAnyOrder(
-				hasCode("active-agency")
-			)
-		));
-	}
-
-	@Test
 	void shouldFindAgenciesFromAllSupplierRequestsForPatronRequest() {
 		// Arrange
 		final var patronRequest = createPatronRequest();
@@ -228,12 +205,16 @@ public class SupplierRequestServiceTests {
 		createSupplierRequest(patronRequest, activeFalseAgency, false);
 		createInactiveSupplierRequest(patronRequest, inactiveAgency);
 
-		createSupplierRequest(otherPatronRequest, activeAgency, true);
-		createInactiveSupplierRequest(otherPatronRequest, inactiveAgency);
+		final var otherPatronRequestAgency = createAgency(
+			"other-patron-request-agency", "Other Patron Request Agency");
+
+		createSupplierRequest(otherPatronRequest, otherPatronRequestAgency, true);
+		createSupplierRequest(otherPatronRequest, otherPatronRequestAgency, false);
+		createInactiveSupplierRequest(otherPatronRequest, otherPatronRequestAgency);
 
 		// Act
 		final var possiblySupplyingAgencies = manyValuesFrom(
-			supplierRequestService.findPossiblySupplyingAgencies(patronRequest));
+			supplierRequestService.findAllSupplyingAgencies(patronRequest));
 
 		// Assert
 		assertThat("Should include agencies from different kinds of supplier request",
@@ -259,7 +240,7 @@ public class SupplierRequestServiceTests {
 
 		// Act
 		final var possiblySupplyingAgencies = manyValuesFrom(
-			supplierRequestService.findPossiblySupplyingAgencies(patronRequest));
+			supplierRequestService.findAllSupplyingAgencies(patronRequest));
 
 		// Assert
 		assertThat("Should ignore null resolved agencies",
