@@ -396,7 +396,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 				id
 			  	.namespace("ONLY-ISBN-13")
 		  		.value(unqique_normalised_isbn13_set.iterator().next())
-    			.confidence(1);
+    			.confidence(0);
       });
 		}
 		else {

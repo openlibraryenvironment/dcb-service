@@ -45,6 +45,7 @@ public class LocationToAgencyMappingService {
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
+
 		final var locationCode = trimToNull(getValueOrNull(item, Item::getLocationCode));
 
 		if (isEmpty(locationCode)) {
