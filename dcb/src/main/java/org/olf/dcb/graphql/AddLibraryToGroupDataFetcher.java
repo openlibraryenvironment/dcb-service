@@ -3,17 +3,17 @@ package org.olf.dcb.graphql;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.LibraryGroup;
 import org.olf.dcb.core.model.LibraryGroupMember;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.LibraryGroupMemberRepository;
 import org.olf.dcb.storage.LibraryGroupRepository;
 import org.olf.dcb.storage.LibraryRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
@@ -23,9 +23,8 @@ import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
 
 @Singleton
+@Slf4j
 public class AddLibraryToGroupDataFetcher implements DataFetcher<CompletableFuture<LibraryGroupMember>> {
-
-	private static Logger log = LoggerFactory.getLogger(AddLibraryToGroupDataFetcher.class);
 
 	private LibraryGroupMemberRepository libraryGroupMemberRepository;
 	private LibraryGroupRepository libraryGroupRepository;
@@ -43,7 +42,7 @@ public class AddLibraryToGroupDataFetcher implements DataFetcher<CompletableFutu
 	@Override
 	public CompletableFuture<LibraryGroupMember> get(DataFetchingEnvironment env) {
 
-		Map input_map = env.getArgument("input");
+		Map<String, Object> input_map = env.getArgument("input");
 
 		log.debug("AddLibraryToGroupDataFetcher::get {}", input_map);
 
@@ -59,20 +58,32 @@ public class AddLibraryToGroupDataFetcher implements DataFetcher<CompletableFutu
 		// return Mono.from(pub).toFuture();
 		// }
 
+		String reason = Optional.ofNullable(input_map.get("reason"))
+			.map(Object::toString)
+			.orElse("Adding library to group");
+		String changeCategory = Optional.ofNullable(input_map.get("changeCategory"))
+			.map(Object::toString)
+			.orElse("New member");
+
+
+		// Get the authenticated user
+		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
+			.map(Object::toString)
+			.orElse("User not detected");
+
 		LibraryGroupMember gm = LibraryGroupMember.builder().build();
+		// Set audit information
+		gm.setLastEditedBy(userString);
+		gm.setReason(reason);
+		gm.setChangeCategory(changeCategory);
 		// Note: here is where we could set 'memberFrom'.
 		// 'MemberTo' is more tricky and can't be done meaningfully w/o ability to leave a LibraryGroup.
 
-		log.debug("get...");
-		// For future reference: when we expose this to end users in DCB Admin we should introduce the ability to do this
-		// by providing a name or code, and then use that for lookup.
-
-
 		return Mono.from(r2dbcOperations.withTransaction(status -> {
-			log.debug("input_map is"+input_map);
+			log.debug("input_map is{}", input_map);
 			String library_uuid_as_string = input_map.get("library").toString();
 			String group_uuid_as_string = input_map.get("libraryGroup").toString();
-			log.debug("UUIDs are "+library_uuid_as_string+"and"+group_uuid_as_string);
+			log.debug("UUIDs are {}and{}", library_uuid_as_string, group_uuid_as_string);
 			UUID library_uuid = UUID.fromString(library_uuid_as_string);
 			UUID group_uuid = UUID.fromString(group_uuid_as_string);
 
@@ -81,8 +92,8 @@ public class AddLibraryToGroupDataFetcher implements DataFetcher<CompletableFutu
 
 			log.debug("add library to group library={} group={}", library_uuid, group_uuid);
 
-			return Mono.just(gm).flatMap(gm2 -> group_mono.map(group -> gm2.setLibraryGroup(group)))
-				.flatMap(gm2 -> library_mono.map(library -> gm2.setLibrary(library))).map(gm2 -> {
+			return Mono.just(gm).flatMap(gm2 -> group_mono.map(gm2::setLibraryGroup))
+				.flatMap(gm2 -> library_mono.map(gm2::setLibrary)).map(gm2 -> {
 					UUID record_uuid = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB,
 						"LGM:" + library_uuid_as_string + ":" + group_uuid_as_string);
 					log.debug("Set uuid for member {} {}", gm2, record_uuid);

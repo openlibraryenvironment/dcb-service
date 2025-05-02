@@ -180,7 +180,7 @@ CONSORTIUM_PAYLOAD=$(jq -n \
     --arg lastName "$CONTACT_LAST_NAME" \
     --arg headerImageUrl "$CONSORTIUM_HEADER_IMAGE_URL" \
     --arg aboutImageUrl "$CONSORTIUM_ABOUT_IMAGE_URL" \
-    --arg reason "Creating a consortium as part of libraries setup" \
+    --arg reason "Adding the consortium" \
     --arg changeCategory "Initial setup" \
     --arg role "$CONTACT_ROLE" \
     --arg email "$CONTACT_EMAIL" \

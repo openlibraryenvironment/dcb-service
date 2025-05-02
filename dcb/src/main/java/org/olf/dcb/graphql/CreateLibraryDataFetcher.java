@@ -177,6 +177,8 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 						Boolean.parseBoolean(contactInput.get("isPrimaryContact").toString()) : null)
 					.email(contactInput.get("email").toString().trim())
 					.lastEditedBy(username)
+					.reason("Add initial contacts for library")
+					.changeCategory("New member")
 					.build();
 			});
 	}
