@@ -61,10 +61,10 @@ public class SourceRecord {
 	
 	@Nullable
 	private final Instant lastProcessed;
-	
+
 	@Nullable
-	private final ProcessingStatus processingState = ProcessingStatus.PROCESSING_REQUIRED;
-	
+	private final ProcessingStatus processingState;
+
 	@Nullable
 	private final String processingInformation;
 	
