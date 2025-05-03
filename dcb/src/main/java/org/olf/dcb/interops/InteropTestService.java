@@ -3,9 +3,12 @@ package org.olf.dcb.interops;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.time.Instant;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -24,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.olf.dcb.core.interaction.Patron;
+
 @Slf4j
 @Singleton
 public class InteropTestService {
@@ -38,24 +43,80 @@ public class InteropTestService {
 
 		log.debug("testIls {}",code);
 
-		List<Mono<InteropTestResult>> tests = List.of(
-			runPatronTests()
-		);
+
+		List<Function<InteropTestContext, Mono<InteropTestResult>>> testSteps = List.of(
+    	params -> patronCreateTest(params)
+      // params -> patronValidateTest(params)
+    );
 
 		return hostLmsService.getClientFor(code)
-			.flatMapMany( hostLms ->
-				Flux.concat(tests)
-					.contextWrite(ctx -> ctx.put("hostLms", hostLms) ) );
+			.map ( hostLms -> {
+				InteropTestContext testCtx = InteropTestContext.builder()
+					.hostLms(hostLms)
+					.values(new HashMap<String,Object>())
+					.build();
+				return testCtx;
+			})
+			.flatMapMany( testCtx ->
+				Flux.fromIterable(testSteps)
+					.concatMap(test -> test.apply(testCtx) )
+			);
 
 	}
 
-	Mono<InteropTestResult> runPatronTests() {
+	Mono<InteropTestResult> patronCreateTest(InteropTestContext testCtx) {
 
-    return Mono.deferContextual(ctx -> {
-        HostLmsClient thing = ctx.get("HostLms");
+		HostLmsClient hostLms = testCtx.getHostLms();
 
-        // Build and return your TestResult
-        return Mono.just(InteropTestResult.builder().build());
-    });
+		String temporaryPatronId = UUID.randomUUID().toString();
+		testCtx.getValues().put("testPatronId", temporaryPatronId);
+
+		log.info("Patron tests {}",testCtx.getValues());
+
+		// Build and return your TestResult
+		return hostLms.createPatron(
+			Patron.builder()
+				.localNames( List.of( temporaryPatronId+"-fn", temporaryPatronId+".sn" ) )
+				.localBarcodes( List.of( temporaryPatronId) )
+				.uniqueIds( List.of( temporaryPatronId) )
+				// .localPatronType( "" )
+				.canonicalPatronType( "CIRC" )
+				.build()
+			)
+			.map(newPatronId -> {
+				testCtx.getValues().put("remotePatronId", newPatronId);
+				return InteropTestResult.builder()
+					.stage("setup")
+					.step("patron")
+					.result("OK")
+					.note("Created patron with ID "+newPatronId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+					.build();
+			});
+	}
+
+	Mono<InteropTestResult> patronDeleteTest(InteropTestContext testCtx) {
+
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String remotePatronId = (String) testCtx.getValues().get("remotePatronId");
+
+		if ( remotePatronId != null ) {
+			return hostLms.deletePatron(remotePatronId)
+				.map(result -> {
+	        return InteropTestResult.builder()
+  	        .stage("cleanup")
+    	      .step("patron")
+      	    .result("OK")
+        	  .note("deletePatron returned "+result+" from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+          	.build();
+				});
+		}
+		else {
+			return Mono.just(InteropTestResult.builder()
+				.stage("cleanup")
+				.step("patron")
+				.result("NOT-RUN")
+				.note("There was no patron-id in context. Unable to test patron delete for "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+				.build());
+		}
 	}
 }

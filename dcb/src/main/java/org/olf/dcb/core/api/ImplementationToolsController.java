@@ -39,7 +39,7 @@ import jakarta.validation.constraints.NotNull;
 
 @Controller("/imps")
 @Validated
-@Secured(RoleNames.INTEROP_TESTER)
+@Secured({RoleNames.INTEROP_TESTER, RoleNames.ADMINISTRATOR})
 @Tag(name = "Implementation Tools API")
 public class ImplementationToolsController {
 

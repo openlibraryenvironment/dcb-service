@@ -25,6 +25,8 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Serdeable
 @ExcludeFromGeneratedCoverageReport
 public class Patron {
+
+	// A patron record fetched from a system like sierra can have many "ID" entries.. record them here
 	private List<String> localId;
 	private List<String> localNames;
 	private List<String> localBarcodes;
@@ -39,8 +41,12 @@ public class Patron {
 	// and pass back the mapped type here, rather than forcing the caller to know how to convert.
 	private String canonicalPatronType;
 	private Date expiryDate; // To be formatted as needed by any system
+
+
+	// These two seem to be used to carry data  in a very specific Polaris flow... Ideally move out. 
 	private String localItemId;
 	private Integer localItemLocationId;
+
 	private Boolean isDeleted;
 	@Nullable private Boolean isBlocked;
 	private String city;
