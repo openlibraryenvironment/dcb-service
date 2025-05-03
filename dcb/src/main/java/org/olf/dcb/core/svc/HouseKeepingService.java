@@ -196,10 +196,12 @@ public class HouseKeepingService {
 	public void audit() {
 
 		// Audit should run the following checks and raise alarms if any of the conditions are met
+			// Any hostlms where a simple connection test fails
+				// Code - HostLms.code.NoConnection ( Lasts until cleared )
 			// Any Libraries that point to an agency that does not exist
-				// Code - Library.{code}.InvalidAgency
+				// Code - Library.{code}.InvalidAgency ( Lasts until cleared )
 			// Any Agencies that are missing core patron type mappings for CIRC, NOCIRC, CIRCAV (And any extended list of required mappings)
-				// Code - Agency.{code}.NoMapping.Patron.{type}
+				// Code - Agency.{code}.NoMapping.Patron.{type} ( Lasts until cleared )
 			// Any Agencies that are missinig core item type mappings for ...
 				// Code - Agency.{code}.NoMapping.Item.{type}
 	}

@@ -574,6 +574,14 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class)));
 	}
 
+
+  public Publisher<HttpStatus> deletePatron(@NonNull @NotNull String id) {
+    return deleteRequest("patrons/" + id)
+      .flatMap(this::ensureToken)
+      .flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class)));
+  }
+
+
 	@Override
 	public Publisher<CheckoutResultSet> getItemCheckouts(String patronId) {
 
