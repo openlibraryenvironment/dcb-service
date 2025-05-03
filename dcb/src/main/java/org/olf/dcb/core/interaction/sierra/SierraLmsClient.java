@@ -1884,4 +1884,26 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.then();
   }
 
+  public Mono<PingResponse> ping() {
+		Instant start = Instant.now();
+		return Mono.from(client.getTokenInfo())
+			.flatMap( tokenInfo -> {
+	  	  return Mono.just(PingResponse.builder()
+  		 	  .target(getHostLmsCode())
+    		  .status("OK")
+      		.pingTime(Duration.between(start, Instant.now()))
+  	    	.build());
+			})
+			.onErrorResume( e -> {
+	  	  return Mono.just(PingResponse.builder()
+  		 	  .target(getHostLmsCode())
+    		  .status("ERROR")
+					.additional(e.getMessage())
+      		.pingTime(Duration.ofMillis(0))
+  	    	.build());
+			})
+
+		;
+  }
+
 }

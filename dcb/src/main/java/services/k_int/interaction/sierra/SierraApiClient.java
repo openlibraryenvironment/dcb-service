@@ -176,4 +176,7 @@ public interface SierraApiClient extends BasicAuthClient {
 
 	@SingleResult
 	Publisher<CheckoutEntry> renewal(String checkoutId);
+
+	@SingleResult
+	Publisher<TokenInfo> getTokenInfo();
 }

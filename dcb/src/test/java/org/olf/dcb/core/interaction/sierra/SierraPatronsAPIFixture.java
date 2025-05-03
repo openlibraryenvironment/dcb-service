@@ -24,6 +24,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.QueryEntry;
 import services.k_int.interaction.sierra.QueryResultSet;
+import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.patrons.CheckoutPatch;
 
@@ -432,7 +433,7 @@ public class SierraPatronsAPIFixture {
 			.total(1)
 			.start(0)
 			.entries(Collections.singletonList(
-				QueryResultSet.Entry.builder().link("https://sandbox.iii.com/iii/sierra-api/v6/patrons/"+localPatronId).build()
+				LinkResult.builder().link("https://sandbox.iii.com/iii/sierra-api/v6/patrons/"+localPatronId).build()
 			))
 			.build();
 

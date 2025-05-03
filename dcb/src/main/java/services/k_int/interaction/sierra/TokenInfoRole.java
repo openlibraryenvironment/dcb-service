@@ -5,22 +5,17 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-
 import java.util.List;
 
 @Data
 @Builder
 @AllArgsConstructor
 @Serdeable
-public class QueryResultSet {
-
-	@JsonProperty("total")
-	private int total;
-
-	@JsonProperty("start")
-	private int start;
-
-	@JsonProperty("entries")
-	private List<LinkResult> entries;
-
+public class TokenInfoRole {
+	@JsonProperty("name")
+	private String name;
+	@JsonProperty("tokenLifetime")
+	private Integer tokenLifetime;
+	@JsonProperty("permissions")
+	private List<String> permissions;
 }

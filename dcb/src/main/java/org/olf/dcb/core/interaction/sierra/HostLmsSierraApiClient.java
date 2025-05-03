@@ -53,29 +53,12 @@ import io.micronaut.retry.annotation.Retryable;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.auth.AuthToken;
-import services.k_int.interaction.sierra.CheckoutEntry;
-import services.k_int.interaction.sierra.CheckoutResultSet;
-import services.k_int.interaction.sierra.LinkResult;
-import services.k_int.interaction.sierra.QueryEntry;
-import services.k_int.interaction.sierra.QueryResultSet;
-import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.SierraError;
-import services.k_int.interaction.sierra.bibs.BibPatch;
-import services.k_int.interaction.sierra.bibs.BibResultSet;
-import services.k_int.interaction.sierra.configuration.BranchResultSet;
-import services.k_int.interaction.sierra.configuration.PatronMetadata;
-import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
-import services.k_int.interaction.sierra.holds.SierraPatronHold;
-import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
-import services.k_int.interaction.sierra.items.ResultSet;
-import services.k_int.interaction.sierra.items.SierraItem;
-import services.k_int.interaction.sierra.patrons.CheckoutPatch;
-import services.k_int.interaction.sierra.patrons.InternalPatronValidation;
-import services.k_int.interaction.sierra.patrons.ItemPatch;
-import services.k_int.interaction.sierra.patrons.PatronHoldPost;
-import services.k_int.interaction.sierra.patrons.PatronPatch;
-import services.k_int.interaction.sierra.patrons.PatronValidation;
-import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
+import services.k_int.interaction.sierra.*;
+import services.k_int.interaction.sierra.bibs.*;
+import services.k_int.interaction.sierra.configuration.*;
+import services.k_int.interaction.sierra.holds.*;
+import services.k_int.interaction.sierra.items.*;
+import services.k_int.interaction.sierra.patrons.*;
 
 @Secondary
 @Prototype
@@ -596,6 +579,13 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return postRequest(String.format("patrons/checkouts/%s/renewal", checkoutId))
 			.flatMap(this::ensureToken)
 			.flatMap(request -> doRetrieve(request, Argument.of(CheckoutEntry.class)));
+	}
+
+  @SingleResult
+  public Publisher<TokenInfo> getTokenInfo() {
+		return createRequest(GET,"/info/token")
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, Argument.of(TokenInfo.class)));
 	}
 
 	@Override

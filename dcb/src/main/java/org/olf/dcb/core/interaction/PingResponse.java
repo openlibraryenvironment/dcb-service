@@ -18,6 +18,7 @@ public class PingResponse {
 
   String target;
   String status;
+  String additional;
   Duration pingTime;
 
 }
