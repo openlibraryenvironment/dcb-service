@@ -28,6 +28,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PingResponse;
 
 @Slf4j
 @Singleton
@@ -37,6 +38,11 @@ public class InteropTestService {
 
 	public InteropTestService(HostLmsService hostLmsService) {
 		this.hostLmsService = hostLmsService;
+	}
+
+	public Mono<PingResponse> ping(String code) {
+		return hostLmsService.getClientFor(code)
+			.flatMap( hostLms -> hostLms.ping() );
 	}
 
 	public Flux<InteropTestResult> testIls(String code) {

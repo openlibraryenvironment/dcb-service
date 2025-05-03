@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.interops.*;
+import org.olf.dcb.core.svc.HouseKeepingService;
 
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
@@ -35,6 +36,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+import org.olf.dcb.core.interaction.PingResponse;
+
 import jakarta.validation.constraints.NotNull;
 
 @Controller("/imps")
@@ -44,10 +47,24 @@ import jakarta.validation.constraints.NotNull;
 public class ImplementationToolsController {
 
 	private final InteropTestService interopTestService;
+	private final HouseKeepingService houseKeepingService;
 
-	public ImplementationToolsController(InteropTestService interopTestService) {
+	public ImplementationToolsController(InteropTestService interopTestService, HouseKeepingService houseKeepingService) {
 		this.interopTestService = interopTestService;
+		this.houseKeepingService = houseKeepingService;
 	}
+
+  @Get(uri = "/audit", produces = MediaType.TEXT_PLAIN)
+  public Mono<MutableHttpResponse<String>> dedupeMatchPoints() {
+    return houseKeepingService
+      .initiateAudit()
+      .map(HttpResponse.accepted()::<String>body);
+  }
+
+  @Get(uri = "/ping", produces = APPLICATION_JSON)
+  public Mono<PingResponse> ping(@NotNull @QueryValue String code) {
+    return interopTestService.ping(code);
+  }
 
   @Get(uri = "/interopTest", produces = APPLICATION_JSON)
   public Flux<InteropTestResult> interopTest(@NotNull @QueryValue String code) {

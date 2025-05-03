@@ -5,6 +5,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
@@ -141,6 +142,14 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	@Override
 	default int compareTo(HostLmsClient o) {
 		return getClientId().compareTo(o.getClientId());
+	}
+
+	default Mono<PingResponse> ping() {
+		return Mono.just(PingResponse.builder()
+			.target(getHostLmsCode())
+			.status("Not implemented")
+			.pingTime(Duration.ofMillis(0))
+			.build());
 	}
 	
 	

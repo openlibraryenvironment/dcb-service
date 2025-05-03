@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.core.HostLmsService;
+
 @Slf4j
 @Singleton
 public class HouseKeepingService {
@@ -28,6 +31,8 @@ public class HouseKeepingService {
 
 	private Mono<String> dedupe;
 	private Mono<String> reprocess;
+	private final HostLmsRepository hostLmsRepository;
+  private final HostLmsService hostLmsService;
 
   private static final int BATCH_SIZE = 10_000;
 
@@ -47,8 +52,14 @@ public class HouseKeepingService {
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
 
 	
-	public HouseKeepingService(R2dbcOperations dbops) {
+	public HouseKeepingService(
+		R2dbcOperations dbops,
+		HostLmsService hostLmsService,
+		HostLmsRepository hostLmsRepository) {
+
 		this.dbops = dbops;
+		this.hostLmsService = hostLmsService;
+		this.hostLmsRepository = hostLmsRepository;
 	}
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -193,8 +204,19 @@ public class HouseKeepingService {
 	}
 
 
-	public void audit() {
+  public Mono<String> initiateAudit() {
+		audit().subscribe();
 
+		return Mono.just("Started");
+	}
+
+  public Mono<Void> audit() {
+
+		return Flux.from(hostLmsRepository.queryAll())
+			.flatMap( hostLms -> hostLmsService.getClientFor(hostLms) )
+			.flatMap( hostLmsClient -> hostLmsClient.ping() )
+			.doOnNext( pingResponse -> log.info("Ping Response {}",pingResponse ) )
+			.then();
 		// Audit should run the following checks and raise alarms if any of the conditions are met
 			// Any hostlms where a simple connection test fails
 				// Code - HostLms.code.NoConnection ( Lasts until cleared )
