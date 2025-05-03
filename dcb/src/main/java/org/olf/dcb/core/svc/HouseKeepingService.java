@@ -205,15 +205,19 @@ public class HouseKeepingService {
 
 
   public Mono<String> initiateAudit() {
+		log.info("Starting audit process");
 		audit().subscribe();
+		log.info("Started audit process");
 
 		return Mono.just("Started");
 	}
 
   public Mono<Void> audit() {
 
+		log.info("Audit....");
 		return Flux.from(hostLmsRepository.queryAll())
 			.flatMap( hostLms -> hostLmsService.getClientFor(hostLms) )
+			.doOnNext( hostLmsClient -> log.info("Audit: {}",hostLmsClient.getHostLmsCode()))
 			.flatMap( hostLmsClient -> hostLmsClient.ping() )
 			.doOnNext( pingResponse -> log.info("Ping Response {}",pingResponse ) )
 			.then();
