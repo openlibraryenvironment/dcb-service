@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.items.*;
+import services.k_int.interaction.alma.types.userRequest.*;
 
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.interaction.Bib;
@@ -103,9 +104,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			API_KEY_SETTING
 		);
 	}
-
-
-
 	
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
@@ -120,17 +118,34 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
-
 		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
-		return Mono.empty();
+
+		return client.getItemsForPID(parameters.getLocalBibId(),parameters.getLocalItemId()) // Returns https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd?tags=GET
+			.flatMap(almaItems -> {
+
+				if ( almaItems.getItems().size() != 1 )
+					return Mono.error(new AlmaHostLmsClientException("Unexpected number of items for item ID"));
+
+				return Mono.just(
+					AlmaRequest.builder()
+						.mmsId(almaItems.getItems().get(0).getBibData().getMmsId())
+						.holdingId(almaItems.getItems().get(0).getHoldingData().getHoldingId())
+						.pId(almaItems.getItems().get(0).getItemData().getPid())
+						.userPrimaryId(parameters.getLocalPatronId())
+						.requestType("HOLD")
+						.pickupLocationType("INSTITUTION")
+						.pickupLocationInstitution(parameters.getPickupLocation().getCode())
+						.build()
+				);
+			})
+			.flatMap( almaRequest -> client.placeHold(almaRequest) )
+			.map( almaRequest -> mapAlmaRequestToLocalRequest(almaRequest, parameters) );
 	}
 
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
-
 		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
-
 		return Mono.empty();
 	}
 
@@ -536,6 +551,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.name(almaLibraryCode)
 			.hostSystem((DataHostLms)hostLms)
 			.type("Library")
+			.build();
+	}
+
+	public LocalRequest mapAlmaRequestToLocalRequest(AlmaRequest almaRequest, PlaceHoldRequestParameters parameters) {
+		return LocalRequest.builder()
+			.localId(almaRequest.getRequestId())
+			.localStatus(almaRequest.getRequestStatus().getValue())
+			.rawLocalStatus(null)
+			.requestedItemId(almaRequest.getMmsId())
+			.requestedItemBarcode(parameters.getLocalItemBarcode())
+			.canonicalItemType(null)
+			.supplyingAgencyCode(null)
+			.supplyingHostLmsCode(hostLms.getCode())
 			.build();
 	}
 
