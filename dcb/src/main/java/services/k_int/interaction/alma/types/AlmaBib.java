@@ -24,7 +24,7 @@ import lombok.ToString;
 @Serdeable
 public class AlmaBib {
 	@JsonProperty("mms_id")
-	String mms_id;
+	String mmsId;
 	@JsonProperty("title")
 	String title;
 	@JsonProperty("author")
@@ -32,9 +32,9 @@ public class AlmaBib {
 	@JsonProperty("publisher")
 	String publisher;
 	@JsonProperty("publication_date")
-	String publication_date;
+	String publicationDate;
 	@JsonProperty("material_type")
-	CodeValuePair material_type;
+	CodeValuePair materialType;
 	@JsonProperty("language")
 	String language;
 	@JsonProperty("isbn")
@@ -42,8 +42,14 @@ public class AlmaBib {
 	@JsonProperty("issn")
 	String issn;
 	@JsonProperty("call_number")
-	String call_number;
+	String callNumber;
 	@JsonProperty("collections")
 	List<CodeValuePair> collections;
+	@JsonProperty("suppress_from_publishing")
+	String suppressFromPublishing;
+	@JsonProperty("suppress_from_external_search")
+	String suppressFromExternalSearch;
+	@JsonProperty("suppress_from_metadoor")
+	String suppressFromMetadoor;
 }
 

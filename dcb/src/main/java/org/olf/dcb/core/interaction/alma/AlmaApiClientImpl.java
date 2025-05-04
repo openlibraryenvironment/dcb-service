@@ -39,6 +39,7 @@ import reactor.core.publisher.Mono;
 
 import services.k_int.interaction.alma.*;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.holdings.*;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
@@ -207,4 +208,17 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			
 	}
 
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
+  public Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
+		return createRequest(GET, path)
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
+	}
+
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
+  public Mono<AlmaItems> getAllItems(String mms_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/ALL/items";
+		return createRequest(GET, path)
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
+	}
 }

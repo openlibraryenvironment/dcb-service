@@ -1,4 +1,4 @@
-package services.k_int.interaction.alma.types.holdings;
+package services.k_int.interaction.alma.types.items;
 
 import io.micronaut.serde.annotation.Serdeable;
 import com.fasterxml.jackson.annotation.JsonRootName;
@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import services.k_int.interaction.alma.types.CodeValuePair;
+import services.k_int.interaction.alma.types.AlmaBib;
 
 // https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_users.xsd
 // https://developers.exlibrisgroup.com/alma/apis/bibs/
@@ -20,17 +21,13 @@ import services.k_int.interaction.alma.types.CodeValuePair;
 @Builder
 @ToString(onlyExplicitlyIncluded = true)
 @Serdeable
-public class AlmaHolding {
-	@JsonProperty("holding_id")
-	String holdingId;
-	@JsonProperty("library")
-	CodeValuePair library;
-	@JsonProperty("location")
-	CodeValuePair location;
-	@JsonProperty("call_number")
-	String call_number;
-	@JsonProperty("accession_number")
-	String accessionNumber;
-	@JsonProperty("suppress_from_publishing")
-	String suppressFromPublishing;
+public class AlmaItem {
+	@JsonProperty("link")
+	String link;
+  @JsonProperty("bib_data")
+	AlmaBib bibData;
+  @JsonProperty("holding_data")
+	AlmaHoldingData holdingData;
+  @JsonProperty("item_data")
+	AlmaItemData itemData;
 }

@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.items.*;
 
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
@@ -22,6 +23,9 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
@@ -97,15 +101,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
-		return Mono.empty();
-
 		// /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/
-		// return getHoldings(bib.getSourceRecordId())
-		// 	.flatMap(outerHoldings -> checkResponse(outerHoldings, bib.getSourceRecordId()))
-		// 	.mapNotNull(OuterHoldings::getHoldings)
-		// 	.flatMapMany(Flux::fromIterable)
-		// 	.flatMap(this::mapHoldingsToItems)
-		// 	.collectList();
+		return client.getHoldings(bib.getSourceRecordId())
+			.flatMap(holding -> client.getAllItems(bib.getSourceRecordId()))
+			.map(this::mapAlmaItemsToDCBItemList);
 	}
 
 
@@ -460,5 +459,65 @@ public class AlmaHostLmsClient implements HostLmsClient {
     return "v1";
   }
 
+	public List<Item> mapAlmaItemsToDCBItemList(AlmaItems almaItems) {
+		List<Item> result = new ArrayList<Item>();
+		for ( AlmaItem almaItem : almaItems.getItems() ) {
+
+			ItemStatus derivedItemStatus = deriveItemStatus(almaItem);
+			Boolean isRequestable = ( derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE ? Boolean.TRUE : Boolean.FALSE );
+
+			Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
+				? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
+				: null ;
+
+			// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
+			// through a service that creates missing location records in the host lms and where possible derives agency but
+			// where not flags the location record as needing attention.
+			Location derivedLocation = almaItem.getItemData().getLibrary() != null
+				? Location.builder().code(almaItem.getItemData().getLibrary().getValue()).build()
+				: null ;
+
+			Boolean derivedSuppression = ( ( almaItem.getBibData().getSuppressFromPublishing() != null ) && ( almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true") ) )
+				? Boolean.TRUE
+				: Boolean.FALSE;
+
+			Item item = Item.builder()
+			  .localId(almaItem.getItemData().getPid())
+			  .status(derivedItemStatus)
+				// In alma we need to query the Loans API to get the due date
+			  .dueDate(due_back_instant)
+				// alma library = library of the item, location = shelving location
+		  	.location(derivedLocation)
+			  .barcode(almaItem.getItemData().getBarcode())
+			  .callNumber(almaItem.getBibData().getCallNumber())
+			  .isRequestable(isRequestable)
+			  .holdCount(null)
+			  .localBibId(almaItem.getBibData().getMmsId())
+			  .localItemType(null)
+			  .localItemTypeCode(null)
+			  .canonicalItemType(null)
+			  .deleted(null)
+			  .suppressed( derivedSuppression )
+			  .owningContext(almaItem.getItemData().getLibrary() != null ? almaItem.getItemData().getLibrary().getValue() : null )
+				// Need to query loans API for this
+			  .availableDate(null)
+	  		.rawVolumeStatement(null)
+  			.parsedVolumeStatement(null)
+				.build();
+		}
+
+		return result;
+	}
+
+	private ItemStatus deriveItemStatus(AlmaItem almaItem) {
+		// Extract base status, default to 0
+		String extracted_base_status = almaItem.getItemData().getBaseStatus() != null ? almaItem.getItemData().getBaseStatus().getValue() : "0";
+
+		return switch ( extracted_base_status ) {
+			case "1" -> new ItemStatus(ItemStatusCode.AVAILABLE);  // "1"==Item In Place
+			case "2" -> new ItemStatus(ItemStatusCode.CHECKED_OUT);  // "2"=Loaned
+			default -> new ItemStatus(ItemStatusCode.UNKNOWN);
+		};
+	}
 
 }
