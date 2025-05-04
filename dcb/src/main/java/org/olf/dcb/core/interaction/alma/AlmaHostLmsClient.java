@@ -14,6 +14,7 @@ import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.items.*;
 
+import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -61,6 +62,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final ConversionService conversionService;
+	private final LocationService locationService;
 	private final AlmaApiClient client;
 
 	private final String apiKey;
@@ -72,7 +74,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		@Parameter("client") HttpClient httpClient,
 		AlmaClientFactory almaClientFactory,
 		ReferenceValueMappingService referenceValueMappingService,
-		ConversionService conversionService) {
+		ConversionService conversionService,
+		LocationService locationService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -85,6 +88,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
 		this.conversionService = conversionService;
+		this.locationService = locationService;
 	}
 
 	@Override

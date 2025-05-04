@@ -11,10 +11,12 @@ import jakarta.inject.Singleton;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import io.micronaut.transaction.annotation.Transactional;
 
 @Slf4j
 @Singleton
 public class LocationService {
+
 	private final LocationRepository locationRepository;
 
 	public LocationService(LocationRepository locationRepository) {
@@ -58,5 +60,18 @@ public class LocationService {
 
 			return Mono.empty();
 		}
+	}
+
+	/**
+	 * Functions such as cache holdings can emit location data (where the item is held). Sometimes these item records need to be enriched
+	 * by a user. For example, in shared systems it is useful to know which agency a location should be associated with. In order to do that
+	 * it is useful to remember Locations we have seen so that they may be amended later on. Memoize location takes a statically generated
+	 * location from these functions, and if no record of that exists in the repository uses it to bootstrap a new DB record, otherwise
+	 * it returns the record as passed in.
+ 	 */
+	@Transactional
+	public Mono<Location> memoize(Location location) {
+		return Mono.from(locationRepository.findById(location.getId()))
+			.switchIfEmpty(Mono.from(locationRepository.save(location)));
 	}
 }
