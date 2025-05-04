@@ -139,7 +139,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				);
 			})
 			.flatMap( almaRequest -> client.placeHold(almaRequest) )
-			.map( almaRequest -> mapAlmaRequestToLocalRequest(almaRequest, parameters) );
+			.map( almaRequest -> mapAlmaRequestToLocalRequest(almaRequest, parameters) )
+			.switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place hold at "+getHostLmsCode()+" for bib "+parameters.getLocalBibId()+" item "+parameters.getLocalItemId()+" patron "+parameters.getLocalPatronId())));
 	}
 
 
