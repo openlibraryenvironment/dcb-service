@@ -289,7 +289,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		return Mono.empty();
+    AlmaBib alma_bib = AlmaBib.builder()
+      .title(bib.getTitle())
+      .author(bib.getAuthor())
+      .publisher(null)
+      .publicationDate(null)
+      .materialType(null)
+      .language(null)
+      .isbn(null)
+      .issn(null)
+      .callNumber(null)
+      .collections(null)
+      .suppressFromPublishing(null)
+      .suppressFromExternalSearch(null)
+      .suppressFromMetadoor(null)
+      .build();
+
+		return client.createBib(alma_bib)
+			.map ( bibresult -> bibresult.getMmsId() );
 	}
 
 
@@ -330,6 +347,18 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
+
+  // cic fields
+	// UUID patronRequestId;
+  // String bibId;
+  // String locationCode;
+  // String supplierHostLmsCode;
+  // String barcode;
+  // String canonicalItemType;
+  // String patronHomeLocation;
+
+
+		// return client.createItem(bib);
 		return Mono.empty();
 	}
 

@@ -53,5 +53,6 @@ public interface AlmaApiClient {
 
   Mono<AlmaRequest> placeHold(AlmaRequest almaRequest);
 
+	Mono<AlmaBib> createBib(AlmaBib bib);
 	
 }

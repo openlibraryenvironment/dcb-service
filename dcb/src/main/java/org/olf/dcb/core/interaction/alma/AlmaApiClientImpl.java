@@ -235,7 +235,14 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   public Mono<AlmaRequest> placeHold(AlmaRequest almaRequest) {
 		final String path="/almaws/v1/bibs/"+almaRequest.getMmsId()+"/holdings/"+almaRequest.getHoldingId()+"/items/"+almaRequest.getPId();
     return createRequest(POST, path)
+      .map(request -> request.body(almaRequest))
       .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaRequest.class))));
 	}
 
+	public Mono<AlmaBib> createBib(AlmaBib almaBib) {
+		final String path="/almaws/v1/bibs";
+    return createRequest(POST, path)
+      .map(request -> request.body(almaBib))
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaBib.class))));
+	}
 }
