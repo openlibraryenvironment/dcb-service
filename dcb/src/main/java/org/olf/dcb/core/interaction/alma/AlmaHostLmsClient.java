@@ -22,6 +22,7 @@ import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ItemStatus;
@@ -37,6 +38,8 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Prototype
@@ -474,7 +477,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			// through a service that creates missing location records in the host lms and where possible derives agency but
 			// where not flags the location record as needing attention.
 			Location derivedLocation = almaItem.getItemData().getLibrary() != null
-				? Location.builder().code(almaItem.getItemData().getLibrary().getValue()).build()
+				? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLibrary().getValue())
 				: null ;
 
 			Boolean derivedSuppression = ( ( almaItem.getBibData().getSuppressFromPublishing() != null ) && ( almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true") ) )
@@ -518,6 +521,21 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			case "2" -> new ItemStatus(ItemStatusCode.CHECKED_OUT);  // "2"=Loaned
 			default -> new ItemStatus(ItemStatusCode.UNKNOWN);
 		};
+	}
+
+	// Alma talks about "libraries" for the location where an item "belongs" and
+	// "Location" for the shelving location. These semantics don't line up neatly.
+	// Whenever we see an alma library code in the context of a hostLms code we 
+	// should check the DCB location repository and create a location record if
+	// none exists
+	private Location checkLibraryCodeInDCBLocationRegistry(String almaLibraryCode) {
+		return Location.builder()
+			.id(UUIDUtils.generateLocationId(hostLms.getCode(), almaLibraryCode))
+			.code(almaLibraryCode)
+			.name(almaLibraryCode)
+			.hostSystem((DataHostLms)hostLms)
+			.type("Library")
+			.build();
 	}
 
 }
