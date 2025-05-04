@@ -38,6 +38,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 import services.k_int.utils.UUIDUtils;
 
@@ -107,7 +108,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/
 		return client.getHoldings(bib.getSourceRecordId())
 			.flatMap(holding -> client.getAllItems(bib.getSourceRecordId()))
-			.map(this::mapAlmaItemsToDCBItemList);
+			.flatMapMany(items -> Flux.fromIterable(items.getItems()))
+			.map(almaItem -> mapAlmaItemToDCBItem(almaItem))
+			.collectList();
 	}
 
 
@@ -462,54 +465,48 @@ public class AlmaHostLmsClient implements HostLmsClient {
     return "v1";
   }
 
-	public List<Item> mapAlmaItemsToDCBItemList(AlmaItems almaItems) {
-		List<Item> result = new ArrayList<Item>();
-		for ( AlmaItem almaItem : almaItems.getItems() ) {
+	public Item mapAlmaItemToDCBItem(AlmaItem almaItem) {
+		ItemStatus derivedItemStatus = deriveItemStatus(almaItem);
+		Boolean isRequestable = ( derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE ? Boolean.TRUE : Boolean.FALSE );
 
-			ItemStatus derivedItemStatus = deriveItemStatus(almaItem);
-			Boolean isRequestable = ( derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE ? Boolean.TRUE : Boolean.FALSE );
+		Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
+			? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
+			: null ;
 
-			Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
-				? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
-				: null ;
+		// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
+		// through a service that creates missing location records in the host lms and where possible derives agency but
+		// where not flags the location record as needing attention.
+		Location derivedLocation = almaItem.getItemData().getLibrary() != null
+			? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLibrary().getValue())
+			: null ;
 
-			// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
-			// through a service that creates missing location records in the host lms and where possible derives agency but
-			// where not flags the location record as needing attention.
-			Location derivedLocation = almaItem.getItemData().getLibrary() != null
-				? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLibrary().getValue())
-				: null ;
+		Boolean derivedSuppression = ( ( almaItem.getBibData().getSuppressFromPublishing() != null ) && ( almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true") ) )
+			? Boolean.TRUE
+			: Boolean.FALSE;
 
-			Boolean derivedSuppression = ( ( almaItem.getBibData().getSuppressFromPublishing() != null ) && ( almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true") ) )
-				? Boolean.TRUE
-				: Boolean.FALSE;
-
-			Item item = Item.builder()
-			  .localId(almaItem.getItemData().getPid())
-			  .status(derivedItemStatus)
-				// In alma we need to query the Loans API to get the due date
-			  .dueDate(due_back_instant)
-				// alma library = library of the item, location = shelving location
-		  	.location(derivedLocation)
-			  .barcode(almaItem.getItemData().getBarcode())
-			  .callNumber(almaItem.getBibData().getCallNumber())
-			  .isRequestable(isRequestable)
-			  .holdCount(null)
-			  .localBibId(almaItem.getBibData().getMmsId())
-			  .localItemType(null)
-			  .localItemTypeCode(null)
-			  .canonicalItemType(null)
-			  .deleted(null)
-			  .suppressed( derivedSuppression )
-			  .owningContext(almaItem.getItemData().getLibrary() != null ? almaItem.getItemData().getLibrary().getValue() : null )
-				// Need to query loans API for this
-			  .availableDate(null)
-	  		.rawVolumeStatement(null)
-  			.parsedVolumeStatement(null)
-				.build();
-		}
-
-		return result;
+		return Item.builder()
+		  .localId(almaItem.getItemData().getPid())
+		  .status(derivedItemStatus)
+			// In alma we need to query the Loans API to get the due date
+		  .dueDate(due_back_instant)
+			// alma library = library of the item, location = shelving location
+	  	.location(derivedLocation)
+		  .barcode(almaItem.getItemData().getBarcode())
+		  .callNumber(almaItem.getBibData().getCallNumber())
+		  .isRequestable(isRequestable)
+		  .holdCount(null)
+		  .localBibId(almaItem.getBibData().getMmsId())
+		  .localItemType(null)
+		  .localItemTypeCode(null)
+		  .canonicalItemType(null)
+		  .deleted(null)
+		  .suppressed( derivedSuppression )
+		  .owningContext(almaItem.getItemData().getLibrary() != null ? almaItem.getItemData().getLibrary().getValue() : null )
+			// Need to query loans API for this
+		  .availableDate(null)
+  		.rawVolumeStatement(null)
+ 			.parsedVolumeStatement(null)
+			.build();
 	}
 
 	private ItemStatus deriveItemStatus(AlmaItem almaItem) {
