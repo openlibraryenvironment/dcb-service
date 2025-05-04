@@ -98,6 +98,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		return Mono.empty();
+
+		// /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/
 		// return getHoldings(bib.getSourceRecordId())
 		// 	.flatMap(outerHoldings -> checkResponse(outerHoldings, bib.getSourceRecordId()))
 		// 	.mapNotNull(OuterHoldings::getHoldings)

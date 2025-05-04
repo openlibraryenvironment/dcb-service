@@ -1,4 +1,4 @@
-package services.k_int.interaction.alma.types;
+package services.k_int.interaction.alma.types.holdings;
 
 import io.micronaut.serde.annotation.Serdeable;
 import com.fasterxml.jackson.annotation.JsonRootName;
@@ -22,28 +22,24 @@ import lombok.ToString;
 @Builder
 @ToString(onlyExplicitlyIncluded = true)
 @Serdeable
-public class AlmaBib {
+public class AlmaBibData {
 	@JsonProperty("mms_id")
-	String mms_id;
+	String mmsId;
 	@JsonProperty("title")
 	String title;
 	@JsonProperty("author")
 	String author;
-	@JsonProperty("publisher")
-	String publisher;
-	@JsonProperty("publication_date")
-	String publication_date;
-	@JsonProperty("material_type")
-	CodeValuePair material_type;
-	@JsonProperty("language")
-	String language;
 	@JsonProperty("isbn")
 	String isbn;
 	@JsonProperty("issn")
 	String issn;
-	@JsonProperty("call_number")
-	String call_number;
-	@JsonProperty("collections")
-	List<CodeValuePair> collections;
+	@JsonProperty("complete_edition")
+	String completeEdition;
+	@JsonProperty("network_numbers")
+	List<String> number;
+	@JsonProperty("place_of_publication")
+	String placeOfPublication;
+	@JsonProperty("publisher")
+	String publisher;
 }
 

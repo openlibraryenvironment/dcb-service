@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
 
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.holdings.*;
 
 public interface AlmaApiClient {
 	String CONFIG_ROOT = "alma.client";
@@ -35,6 +36,8 @@ public interface AlmaApiClient {
   Mono<AlmaUser> getAlmaUserByUserId(String user_id);
 
   Mono<Void> deleteAlmaUser(String user_id);
+
+	Mono<AlmaHoldings> getHoldings(String mms_id);
 
 	Mono<String> test();
 	
