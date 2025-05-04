@@ -1762,4 +1762,36 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.then();
   }
 
+  public Mono<PingResponse> ping() {
+    Instant start = Instant.now();
+    return Mono.from(ApplicationServices.test())
+      .flatMap( tokenInfo -> {
+        return Mono.just(PingResponse.builder()
+          .target(getHostLmsCode())
+          .status("OK")
+          .versionInfo(getHostSystemType()+":"+getHostSystemVersion())
+          .pingTime(Duration.between(start, Instant.now()))
+          .build());
+      })
+      .onErrorResume( e -> {
+        return Mono.just(PingResponse.builder()
+          .target(getHostLmsCode())
+          .status("ERROR")
+          .versionInfo(getHostSystemType()+":"+getHostSystemVersion())
+          .additional(e.getMessage())
+          .pingTime(Duration.ofMillis(0))
+          .build());
+      })
+
+    ;
+  }
+
+  public String getHostSystemType() {
+    return "POLARIS";
+  }
+
+  public String getHostSystemVersion() {
+    return "v1";
+  }
+
 }

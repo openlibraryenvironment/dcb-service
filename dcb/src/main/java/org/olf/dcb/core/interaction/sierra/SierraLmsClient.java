@@ -1891,6 +1891,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	  	  return Mono.just(PingResponse.builder()
   		 	  .target(getHostLmsCode())
     		  .status("OK")
+					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
       		.pingTime(Duration.between(start, Instant.now()))
   	    	.build());
 			})
@@ -1898,12 +1899,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	  	  return Mono.just(PingResponse.builder()
   		 	  .target(getHostLmsCode())
     		  .status("ERROR")
+					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
 					.additional(e.getMessage())
       		.pingTime(Duration.ofMillis(0))
   	    	.build());
 			})
 
 		;
+  }
+
+  public String getHostSystemType() {
+    return "SIERRA";
+  }
+
+  public String getHostSystemVersion() {
+    return "v1";
   }
 
 }

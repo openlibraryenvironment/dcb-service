@@ -346,7 +346,7 @@ class ApplicationServicesClient {
 			.doOnError(e -> log.debug("Error occurred when getting patron defaults", e));
 	}
 
-	private Mono<Integer> getHoldRequestDefaults() {
+	public Mono<Integer> getHoldRequestDefaults() {
 
 		final var path = createPath("holdsdefaults");
 		final Integer defaultExpirationDatePeriod = 999;
@@ -361,6 +361,22 @@ class ApplicationServicesClient {
 				return Mono.just(defaultExpirationDatePeriod);
 			});
 	}
+
+
+	/**
+	 * Used just to test the remote API for the HostLMS Ping operation
+	 */
+  public Mono<Integer> test() {
+
+    final var path = createPath("holdsdefaults");
+
+    return createRequest(GET, path, uri -> {})
+      .flatMap(request -> client.exchange(request, HoldRequestDefault.class, TRUE))
+      .map(HttpResponse::body)
+      .map(HoldRequestDefault::getExpirationDatePeriod)
+      .doOnError(e -> log.debug("Error occurred when getting hold request defaults", e));
+  }
+
 
 //	https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/patrons/get_requests_local
 	public Mono<List<SysHoldRequest>> listPatronLocalHolds(String patronId) {

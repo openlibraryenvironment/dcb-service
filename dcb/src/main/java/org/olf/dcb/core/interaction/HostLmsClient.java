@@ -152,5 +152,13 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 			.build());
 	}
 	
+	default String getHostSystemType() {
+		return "UNKNOWN";
+	}
+
+	default String getHostSystemVersion() {
+		return "UNKNOWN";
+	}
+
 	
 }

@@ -190,4 +190,11 @@ public class AlmaApiClientImpl implements AlmaApiClient {
       .map(request -> request.body(almaItem))
       .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaItem.class))));
 	}
+
+	public Mono<String> test() {
+    final String path="/almaws/v1/conf/test";
+    return createRequest(GET, path)
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(Void.class))))
+			.thenReturn("OK");
+	}
 }

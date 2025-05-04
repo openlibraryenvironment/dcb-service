@@ -36,4 +36,6 @@ public interface AlmaApiClient {
 
   Mono<Void> deleteAlmaUser(String user_id);
 
+	Mono<String> test();
+	
 }

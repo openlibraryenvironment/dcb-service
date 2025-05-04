@@ -7,6 +7,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
 import java.util.*;
+import java.time.*;
 import java.util.stream.Collectors;
 
 import services.k_int.interaction.alma.AlmaApiClient;
@@ -16,15 +17,7 @@ import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRenewal;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
@@ -432,4 +425,38 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.isActive(Boolean.TRUE)
 			.build();
 	}
+
+  public Mono<PingResponse> ping() {
+    Instant start = Instant.now();
+    return Mono.from(client.test())
+      .flatMap( tokenInfo -> {
+        return Mono.just(PingResponse.builder()
+          .target(getHostLmsCode())
+					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
+          .status("OK")
+          .pingTime(Duration.between(start, Instant.now()))
+          .build());
+      })
+      .onErrorResume( e -> {
+        return Mono.just(PingResponse.builder()
+          .target(getHostLmsCode())
+          .status("ERROR")
+					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
+          .additional(e.getMessage())
+          .pingTime(Duration.ofMillis(0))
+          .build());
+      })
+
+    ;
+  }
+
+  public String getHostSystemType() {
+    return "ALMA";
+  }
+  
+  public String getHostSystemVersion() {
+    return "v1";
+  }
+
+
 }
