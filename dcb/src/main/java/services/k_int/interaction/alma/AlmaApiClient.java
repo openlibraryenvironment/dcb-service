@@ -21,6 +21,9 @@ import java.util.function.Consumer;
 import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
 
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.items.*;
+import services.k_int.interaction.alma.types.holdings.*;
+import services.k_int.interaction.alma.types.userRequest.*;
 
 public interface AlmaApiClient {
 	String CONFIG_ROOT = "alma.client";
@@ -36,6 +39,23 @@ public interface AlmaApiClient {
 
   Mono<Void> deleteAlmaUser(String user_id);
 
+	Mono<AlmaHoldings> getHoldings(String mms_id);
+
+	Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id);
+
+	// This one is a gamble.. may need to be implemented with the above + a filter
+  Mono<AlmaItems> getItemsForPID(String mms_id, String pid);
+
+
+	Mono<AlmaItems> getAllItems(String mms_id);
+
 	Mono<String> test();
+
+  Mono<AlmaRequest> placeHold(AlmaRequest almaRequest);
+
+	Mono<AlmaBib> createBib(AlmaBib bib);
+
+
+	Mono<AlmaItemData> createItem(String mmsId, String holdingId, AlmaItemData aid);
 	
 }
