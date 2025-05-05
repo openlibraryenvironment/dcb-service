@@ -39,6 +39,9 @@ import reactor.core.publisher.Mono;
 
 import services.k_int.interaction.alma.*;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.items.*;
+import services.k_int.interaction.alma.types.userRequest.*;
+import services.k_int.interaction.alma.types.holdings.*;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.HttpMethod.*;
@@ -196,5 +199,57 @@ public class AlmaApiClientImpl implements AlmaApiClient {
     return createRequest(GET, path)
       .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(Void.class))))
 			.thenReturn("OK");
+	}
+
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
+  public Mono<AlmaHoldings> getHoldings(String mms_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
+		return createRequest(GET, path)
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaHoldings.class))));
+			
+	}
+
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
+  public Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
+		return createRequest(GET, path)
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
+	}
+
+
+	// ToDo: This is SPECULATIVE and needs testing
+	// IF this doesn't work, one option is to call getAllItems and then manually filter for the pid - same number of API requests
+  public Mono<AlmaItems> getItemsForPID(String mms_id, String pid) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/ALL/items/"+pid;
+		return createRequest(GET, path)
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
+	}
+
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
+  public Mono<AlmaItems> getAllItems(String mms_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/ALL/items";
+		return createRequest(GET, path)
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
+	}
+
+  public Mono<AlmaRequest> placeHold(AlmaRequest almaRequest) {
+		final String path="/almaws/v1/bibs/"+almaRequest.getMmsId()+"/holdings/"+almaRequest.getHoldingId()+"/items/"+almaRequest.getPId();
+    return createRequest(POST, path)
+      .map(request -> request.body(almaRequest))
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaRequest.class))));
+	}
+
+	public Mono<AlmaBib> createBib(AlmaBib almaBib) {
+		final String path="/almaws/v1/bibs";
+    return createRequest(POST, path)
+      .map(request -> request.body(almaBib))
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaBib.class))));
+	}
+
+	public Mono<AlmaItemData> createItem(String bibId, String holdingId, AlmaItemData aid) {
+    final String path="/almaws/v1/bibs/"+bibId+"/holdings/"+holdingId+"/items";
+    return createRequest(POST, path)
+      .map(request -> request.body(aid))
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItemData.class))));
 	}
 }

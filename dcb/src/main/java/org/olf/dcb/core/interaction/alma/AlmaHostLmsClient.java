@@ -12,7 +12,10 @@ import java.util.stream.Collectors;
 
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.items.*;
+import services.k_int.interaction.alma.types.userRequest.*;
 
+import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -21,7 +24,11 @@ import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
@@ -33,6 +40,9 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
+
+import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Prototype
@@ -53,6 +63,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final ConversionService conversionService;
+	private final LocationService locationService;
 	private final AlmaApiClient client;
 
 	private final String apiKey;
@@ -64,7 +75,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		@Parameter("client") HttpClient httpClient,
 		AlmaClientFactory almaClientFactory,
 		ReferenceValueMappingService referenceValueMappingService,
-		ConversionService conversionService) {
+		ConversionService conversionService,
+		LocationService locationService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -77,6 +89,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
 		this.conversionService = conversionService;
+		this.locationService = locationService;
 	}
 
 	@Override
@@ -91,48 +104,73 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			API_KEY_SETTING
 		);
 	}
-
-
-
 	
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
-		return Mono.empty();
-		// return getHoldings(bib.getSourceRecordId())
-		// 	.flatMap(outerHoldings -> checkResponse(outerHoldings, bib.getSourceRecordId()))
-		// 	.mapNotNull(OuterHoldings::getHoldings)
-		// 	.flatMapMany(Flux::fromIterable)
-		// 	.flatMap(this::mapHoldingsToItems)
-		// 	.collectList();
+		// /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/
+		return client.getHoldings(bib.getSourceRecordId())
+			.flatMap(holding -> client.getAllItems(bib.getSourceRecordId()))
+			.flatMapMany(items -> Flux.fromIterable(items.getItems()))
+			.map(almaItem -> mapAlmaItemToDCBItem(almaItem))
+			.collectList();
 	}
 
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
-
 		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
-		return Mono.empty();
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
 	}
 
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
-
 		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
-
-		return Mono.empty();
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
-		return Mono.empty();
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
+	}
+
+	private Mono<LocalRequest> placeGenericAlmaRequest(
+		String mmsId,
+		String itemId,
+		String patronId,
+		String pickupInstitutionCode,
+		String itemBarcode) {
+
+    log.debug("placeGenericAlmaRequest({},{},{},{},{})", mmsId, itemId, patronId, pickupInstitutionCode,itemBarcode);
+
+    return client.getItemsForPID(mmsId,itemId) // Returns https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd?tags=GET
+      .flatMap(almaItems -> {
+
+        if ( almaItems.getItems().size() != 1 )
+          return Mono.error(new AlmaHostLmsClientException("Unexpected number of items for item ID"));
+
+        return Mono.just(
+          AlmaRequest.builder()
+            .mmsId(mmsId)
+            .holdingId(almaItems.getItems().get(0).getHoldingData().getHoldingId())
+            .pId(itemId)
+            .userPrimaryId(patronId)
+            .requestType("HOLD")
+            .pickupLocationType("INSTITUTION")
+            .pickupLocationInstitution(pickupInstitutionCode)
+            .build()
+        );
+      })
+      .flatMap( almaRequest -> client.placeHold(almaRequest) )
+      .map( almaRequest -> mapAlmaRequestToLocalRequest(almaRequest, itemBarcode) )
+      .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
 	}
 
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by hostlms: " + getHostLmsCode()));
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
 	}
 
 
@@ -251,7 +289,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		return Mono.empty();
+    AlmaBib alma_bib = AlmaBib.builder()
+      .title(bib.getTitle())
+      .author(bib.getAuthor())
+      .publisher(null)
+      .publicationDate(null)
+      .materialType(null)
+      .language(null)
+      .isbn(null)
+      .issn(null)
+      .callNumber(null)
+      .collections(null)
+      .suppressFromPublishing(null)
+      .suppressFromExternalSearch(null)
+      .suppressFromMetadoor(null)
+      .build();
+
+		return client.createBib(alma_bib)
+			.map ( bibresult -> bibresult.getMmsId() );
 	}
 
 
@@ -292,7 +347,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
-		return Mono.empty();
+
+		// ToDo fill out
+		String bibId = "";
+		String holdingId = "";
+		AlmaItemData aid = AlmaItemData.builder()
+			.build();
+
+		return client.createItem(bibId, holdingId, aid)
+			.map( almaItem -> mapAlmaItemToHostLmsItem(almaItem) );
 	}
 
 
@@ -458,5 +521,92 @@ public class AlmaHostLmsClient implements HostLmsClient {
     return "v1";
   }
 
+	public Item mapAlmaItemToDCBItem(AlmaItem almaItem) {
+		ItemStatus derivedItemStatus = deriveItemStatus(almaItem);
+		Boolean isRequestable = ( derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE ? Boolean.TRUE : Boolean.FALSE );
+
+		Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
+			? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
+			: null ;
+
+		// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
+		// through a service that creates missing location records in the host lms and where possible derives agency but
+		// where not flags the location record as needing attention.
+		Location derivedLocation = almaItem.getItemData().getLibrary() != null
+			? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLibrary().getValue())
+			: null ;
+
+		Boolean derivedSuppression = ( ( almaItem.getBibData().getSuppressFromPublishing() != null ) && ( almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true") ) )
+			? Boolean.TRUE
+			: Boolean.FALSE;
+
+		return Item.builder()
+		  .localId(almaItem.getItemData().getPid())
+		  .status(derivedItemStatus)
+			// In alma we need to query the Loans API to get the due date
+		  .dueDate(due_back_instant)
+			// alma library = library of the item, location = shelving location
+	  	.location(derivedLocation)
+		  .barcode(almaItem.getItemData().getBarcode())
+		  .callNumber(almaItem.getBibData().getCallNumber())
+		  .isRequestable(isRequestable)
+		  .holdCount(null)
+		  .localBibId(almaItem.getBibData().getMmsId())
+		  .localItemType(null)
+		  .localItemTypeCode(null)
+		  .canonicalItemType(null)
+		  .deleted(null)
+		  .suppressed( derivedSuppression )
+		  .owningContext(almaItem.getItemData().getLibrary() != null ? almaItem.getItemData().getLibrary().getValue() : null )
+			// Need to query loans API for this
+		  .availableDate(null)
+  		.rawVolumeStatement(null)
+ 			.parsedVolumeStatement(null)
+			.build();
+	}
+
+	private ItemStatus deriveItemStatus(AlmaItem almaItem) {
+		// Extract base status, default to 0
+		String extracted_base_status = almaItem.getItemData().getBaseStatus() != null ? almaItem.getItemData().getBaseStatus().getValue() : "0";
+
+		return switch ( extracted_base_status ) {
+			case "1" -> new ItemStatus(ItemStatusCode.AVAILABLE);  // "1"==Item In Place
+			case "2" -> new ItemStatus(ItemStatusCode.CHECKED_OUT);  // "2"=Loaned
+			default -> new ItemStatus(ItemStatusCode.UNKNOWN);
+		};
+	}
+
+	// Alma talks about "libraries" for the location where an item "belongs" and
+	// "Location" for the shelving location. These semantics don't line up neatly.
+	// Whenever we see an alma library code in the context of a hostLms code we 
+	// should check the DCB location repository and create a location record if
+	// none exists
+	private Location checkLibraryCodeInDCBLocationRegistry(String almaLibraryCode) {
+		return Location.builder()
+			.id(UUIDUtils.generateLocationId(hostLms.getCode(), almaLibraryCode))
+			.code(almaLibraryCode)
+			.name(almaLibraryCode)
+			.hostSystem((DataHostLms)hostLms)
+			.type("Library")
+			.build();
+	}
+
+	public LocalRequest mapAlmaRequestToLocalRequest(AlmaRequest almaRequest, String itemBarcode) {
+		return LocalRequest.builder()
+			.localId(almaRequest.getRequestId())
+			.localStatus(almaRequest.getRequestStatus().getValue())
+			.rawLocalStatus(null)
+			.requestedItemId(almaRequest.getMmsId())
+			.requestedItemBarcode(itemBarcode)
+			.canonicalItemType(null)
+			.supplyingAgencyCode(null)
+			.supplyingHostLmsCode(hostLms.getCode())
+			.build();
+	}
+
+	public HostLmsItem mapAlmaItemToHostLmsItem(AlmaItemData aid) {
+		return HostLmsItem.builder()
+			.build();
+	}
 
 }
