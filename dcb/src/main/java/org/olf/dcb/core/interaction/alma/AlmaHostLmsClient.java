@@ -170,7 +170,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by hostlms: " + getHostLmsCode()));
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
 	}
 
 
@@ -348,18 +348,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 
-  // cic fields
-	// UUID patronRequestId;
-  // String bibId;
-  // String locationCode;
-  // String supplierHostLmsCode;
-  // String barcode;
-  // String canonicalItemType;
-  // String patronHomeLocation;
+		// ToDo fill out
+		String bibId = "";
+		String holdingId = "";
+		AlmaItemData aid = AlmaItemData.builder()
+			.build();
 
-
-		// return client.createItem(bib);
-		return Mono.empty();
+		return client.createItem(bibId, holdingId, aid)
+			.map( almaItem -> mapAlmaItemToHostLmsItem(almaItem) );
 	}
 
 
@@ -605,6 +601,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.canonicalItemType(null)
 			.supplyingAgencyCode(null)
 			.supplyingHostLmsCode(hostLms.getCode())
+			.build();
+	}
+
+	public HostLmsItem mapAlmaItemToHostLmsItem(AlmaItemData aid) {
+		return HostLmsItem.builder()
 			.build();
 	}
 
