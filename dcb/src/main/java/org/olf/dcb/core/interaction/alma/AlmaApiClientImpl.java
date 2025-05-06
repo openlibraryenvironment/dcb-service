@@ -114,6 +114,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	private <T> Mono<T> get(String path, Argument<T> argumentType, Consumer<UriBuilder> uriBuilderConsumer) {
 		return createRequest(GET, path)
 			.map(req -> req.uri(uriBuilderConsumer))
+			.doOnNext ( req -> log.info("get {}",req.getUri().toString()) )
 			.flatMap(req -> Mono.from(doRetrieve(req, argumentType)));
 	}
 
