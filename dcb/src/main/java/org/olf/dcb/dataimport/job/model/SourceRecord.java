@@ -64,7 +64,7 @@ public class SourceRecord {
 
   @Builder.Default
 	@Nullable
-  private final ProcessingStatus processingState = ProcessingStatus.PROCESSING_REQUIRED;
+  private ProcessingStatus processingState = ProcessingStatus.PROCESSING_REQUIRED;
 
 	@Nullable
 	private final String processingInformation;
