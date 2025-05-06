@@ -403,6 +403,7 @@ public class DataFetchers {
 				public DataFetcher<CompletableFuture<SourceRecord>> getSourceRecordForBibDataFetcher() {
 					return env -> {
 						BibRecord br = (BibRecord) env.getSource();
+						//ToDo: This isn't ideal.. need to find a better way
 						String sourceRecordId="%"+br.getSourceRecordId();
 						UUID sourceSystemUUID=br.getSourceSystemId();
 						log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
