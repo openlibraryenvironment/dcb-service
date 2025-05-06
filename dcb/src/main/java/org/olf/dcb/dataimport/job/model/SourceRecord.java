@@ -63,7 +63,7 @@ public class SourceRecord {
 	private final Instant lastProcessed;
 
 	@Nullable
-	private final ProcessingStatus processingState;
+  private final ProcessingStatus processingState = ProcessingStatus.PROCESSING_REQUIRED;
 
 	@Nullable
 	private final String processingInformation;
