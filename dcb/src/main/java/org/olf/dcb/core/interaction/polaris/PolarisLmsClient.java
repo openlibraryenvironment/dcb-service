@@ -707,6 +707,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(this::fetchFullItemStatus)
 			.flatMap(this::setMaterialTypeCode)
 			.flatMap(mapItemWithRuleset(localBibId))
+			.flatMap(this::enrichWithCombinedNumberOfHoldsOnItem)
 			.collectList();
 	}
 
@@ -772,18 +773,54 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.build());
 	}
 
-	// Make calls to get any holds on the item, or on the title, and set holdCount
-	private Mono<HostLmsItem> enrichWithCombinedNumberOfHoldsOnItem(HostLmsItem item) {
-		// We need to implement a call to GET /api/.../itemrecords/{id}/holds
-		// https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/itemrecords/get_item_holds
-		return ApplicationServices.getReservationsForItem(Integer.valueOf(item.getLocalId()))
-			.map(getItemHoldsResponse -> {
-				if ( ( getItemHoldsResponse != null ) && ( getItemHoldsResponse.getReservations() != null ) ) {
-					item.setHoldCount(Integer.valueOf(getItemHoldsResponse.getReservations().size()));
-				}
+
+	private Mono<Item> enrichWithCombinedNumberOfHoldsOnItem(Item item) {
+		String localId = item.getLocalId();
+		Integer currentHoldCount = item.getHoldCount();
+
+		return enrichHoldCount(localId, currentHoldCount)
+			.map(updatedHoldCount -> {
+				item.setHoldCount(updatedHoldCount);
 				return item;
+			});
+	}
+
+	private Mono<HostLmsItem> enrichWithCombinedNumberOfHoldsOnItem(HostLmsItem item) {
+		String localId = item.getLocalId();
+		Integer currentHoldCount = item.getHoldCount();
+
+		return enrichHoldCount(localId, currentHoldCount)
+			.map(updatedHoldCount -> {
+				item.setHoldCount(updatedHoldCount);
+				return item;
+			});
+	}
+
+	/**
+	 // Make calls to get any holds on the item, or on the title
+	 */
+	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount) {
+
+		// prevent NPEs
+		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
+		if (localId == null) return Mono.just(currentCount);
+
+		// Convert localId to Integer for the reservation request
+		Integer itemId = Integer.valueOf(localId);
+
+		return ApplicationServices.getReservationsForItem(itemId)
+			.map(response -> {
+				// If there's a valid response with reservation data
+				if (response != null && response.getReservations() != null) {
+					// Count the number of reservations for this item
+					int externalHoldCount = response.getReservations().size();
+					return externalHoldCount;
+				}
+				// Fall back to the original count if no reservation data is available
+				return currentCount;
 			})
-			.defaultIfEmpty(item);
+			// Handle getReservationsForItem returning empty
+			.defaultIfEmpty(currentCount);
 	}
 
 	private Mono<String> parseLocalItemId(String localItemId) {
