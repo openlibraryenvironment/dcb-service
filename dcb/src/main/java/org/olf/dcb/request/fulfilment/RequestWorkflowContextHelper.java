@@ -251,7 +251,9 @@ public class RequestWorkflowContextHelper {
 		return supplierRequestService.findActiveSupplierRequestFor(ctx.getPatronRequest())
 			.doOnSuccess(supplierRequest -> log.debug("found supplier request: {}", supplierRequest))
 			.map(ctx::setSupplierRequest)
-			.defaultIfEmpty(ctx);
+			.defaultIfEmpty(ctx)
+			.doOnNext(rwc -> log.debug("is supplier request present in context: {}",
+				rwc.getSupplierRequest() != null && rwc.getSupplierRequest().getId() != null));
 	}
 
 	private Mono<RequestWorkflowContext> decorateWithPatronVirtualIdentity(RequestWorkflowContext ctx) {

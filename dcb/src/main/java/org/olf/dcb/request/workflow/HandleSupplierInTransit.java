@@ -119,13 +119,19 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 		// This action fires when the state is REQUEST_PLACED_AT_BORROWING_AGENCY and we detected
 		// that the supplying library has placed its request IN TRANSIT
 
-		log.debug("Consider HandleSupplierInTransit - {} {}",
-			ctx.getPatronRequest().getStatus(), ctx.getSupplierRequest());
+		log.debug("Consider HandleSupplierInTransit - status: {}, supplierRequest: {}",
+			ctx.getPatronRequest().getStatus(),
+			ctx.getSupplierRequest());
 
-		return (getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus())) &&
-			(ctx.getSupplierRequest() != null) &&
-			(ctx.getSupplierRequest().getLocalItemStatus() != null) &&
-			(ctx.getSupplierRequest().getLocalItemStatus().equals(ITEM_TRANSIT));
+		boolean hasValidStatus = getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
+		boolean hasSupplierRequest = ctx.getSupplierRequest() != null;
+		boolean hasLocalItemStatus = hasSupplierRequest && ctx.getSupplierRequest().getLocalItemStatus() != null;
+		boolean isItemInTransit = hasLocalItemStatus && ctx.getSupplierRequest().getLocalItemStatus().equals(ITEM_TRANSIT);
+
+		log.debug("HandleSupplierInTransit conditions: hasValidStatus={}, hasSupplierRequest={}, hasLocalItemStatus={}, isItemInTransit={}",
+			hasValidStatus, hasSupplierRequest, hasLocalItemStatus, isItemInTransit);
+
+		return hasValidStatus && hasSupplierRequest && hasLocalItemStatus && isItemInTransit;
 	}
 
 	@Override
