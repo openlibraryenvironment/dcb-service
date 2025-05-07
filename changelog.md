@@ -1,5 +1,47 @@
 # Changelog
 
+## Version 8.25.0
+
+### Additions
+* [General]
+	* alma create item
+	* implement ping for alma via test endpoint
+	* Implement sierra tokenInfo endpoint and bind it to the ping method. Also tidy up the repeated QueryResultClass from sierra
+	* alarms
+	* Exclude all previous supplying agencies during re-resolution DCB-1885
+
+### Changes
+* [Chore]
+	* add logs to help debug [DCB-1893]
+	* don't make the processing status field final with it's assigned value
+	* Add builder.default annotaton to source record
+	* ToDo added
+	* Alma Refactoring
+	* Additional error reporting when hold fails
+	* refactor place hold
+	* memoize location data from Alma
+	* make alma item mapper flow more reactive in preparation for location processing chain
+	* working towards unified location handling
+	* info logging on audit
+	* Improve ping and audit actions
+	* Fleshing out alarams infrastructure
+	* Refactor interop test, structure setup, core, cleanup phases
+	* Improve data change log recording for library entities[DCB-1744]
+	* Update library setup script to take provided Keycloak config
+	* Keep a count of pages when updating source records for reprocessing
+	* Set confidence to 0 for ONLY-ISBN-13
+	* enable git info
+* [Refactor]
+	* enrich polaris hold count for live availability
+	* some DRY goodness
+
+### Fixes
+* [General]
+	* Add apikey into alma::getAllItemsForBib
+	* re-introduce default processing_required so that new records are processed
+	* Implementation for sierra patron delete
+	* Prevent all source records from being set to PROCESSING_REQUIRED [DCB-1886]
+
 ## Version 8.24.0
 
 ### Additions
@@ -11,6 +53,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* correct path to git props file in build
 	* Tidy reingest call
 	* Extend states used for active request counting in global limits preflight check
