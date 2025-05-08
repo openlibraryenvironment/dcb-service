@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 8.26.0
+
+### Additions
+* [General]
+	* DBMemoize locs
+
+### Fixes
+* [General]
+	* sierra item status not being updated [DCB-1893]
+
 ## Version 8.25.0
 
 ### Additions
@@ -12,6 +22,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add logs to help debug [DCB-1893]
 	* don't make the processing status field final with it's assigned value
 	* Add builder.default annotaton to source record
