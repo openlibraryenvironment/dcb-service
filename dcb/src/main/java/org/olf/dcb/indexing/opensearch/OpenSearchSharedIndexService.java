@@ -296,6 +296,11 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private Mono<Boolean> restoreRefresh() {
 		
 		log.info("Attempting to update OpenSearch refresh interval to {}",refreshInterval.get());
+
+		if ( refreshInterval.get().equals(REFRESH_INTERVAL_DISABLED) ) {
+			refreshInterval = new AtomicReference<Time>(Time.of(t->t.time("30s")));
+		}
+
 		return Mono.just(refreshInterval.get())
 			.flatMap( val -> changeIndexSettings( s -> s
 			  .index(i -> i.refreshInterval(val))));

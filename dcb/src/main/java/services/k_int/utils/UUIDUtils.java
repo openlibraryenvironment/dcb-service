@@ -115,6 +115,10 @@ public class UUIDUtils {
 		return nameUUIDFromNamespaceAndString(UUIDs.NAMESPACE_AGENCIES, agencyCode);
 	}
 
+	public static UUID generateAlarmId(String alarmCode) {
+		return nameUUIDFromNamespaceAndString(UUIDs.NAMESPACE_ALARMS, alarmCode);
+	}
+
 	/**
 	 * Generates an id for a host lms
 	 * @param code the code for the host lms

@@ -11,6 +11,7 @@ public interface Constants {
 		public static final UUID NAMESPACE_HOSTLMS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "HostLms");
 		public static final UUID NAMESPACE_LOCATION = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Location");
 		public static final UUID NAMESPACE_MAPPINGS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Mappings");
+		public static final UUID NAMESPACE_ALARMS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Alarms");
 	}
 	public static interface Environment {
 		public static final String DEMO = "demo";

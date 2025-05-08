@@ -12,7 +12,9 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -30,6 +32,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Singleton
@@ -41,12 +44,14 @@ public class PatronRequestWorkflowService {
 	private final List<PatronRequestStateTransition> allTransitions;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final TrackingHelpers trackingHelpers;
+	private final AlarmsService alarmsService;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
-		TrackingHelpers trackingHelpers) {
+		TrackingHelpers trackingHelpers,
+		AlarmsService alarmsService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		// By loading the list of all transitions, we can declare new transitions
@@ -56,6 +61,7 @@ public class PatronRequestWorkflowService {
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.trackingHelpers = trackingHelpers;
+		this.alarmsService = alarmsService;
 
 		log.info("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
@@ -117,7 +123,16 @@ public class PatronRequestWorkflowService {
 			log.debug("WORKFLOW Unable to progress {} - no transformations available from state {}",
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 
-			return incrementStateTransitionMetrics(ctx, Boolean.FALSE)
+				String alarmCode = "SYSTEM.REQ-WORKFLOW.NOACTION."+ctx.getPatronRequest().getStatus();
+
+				Alarm alarm = Alarm.builder()
+					.id(UUIDUtils.generateAlarmId(alarmCode))
+					.code(alarmCode)
+					// .alarmDetail()
+					.build();
+
+			return alarmsService.raise(alarm)
+				.then( incrementStateTransitionMetrics(ctx, Boolean.FALSE) )
 				// note: increments will only be saved by scheduleNextCheck
 				.flatMap(this::scheduleNextCheck)
 				.flatMap(ctx2 -> Mono.empty());
