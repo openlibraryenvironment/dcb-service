@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import io.micronaut.transaction.annotation.Transactional;
+import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Singleton
@@ -71,6 +72,18 @@ public class LocationService {
  	 */
 	@Transactional
 	public Mono<Location> memoize(Location location) {
+		log.debug("Memoize {}",location);
+
+		if ( ( location == null ) ||
+			 	 ( location.getCode() == null ) ||
+				 ( location.getAgency() == null ) ||
+				 ( location.getAgency().getCode() == null ) )
+			return Mono.empty();
+
+		if ( location.getId() == null ) {
+			location.setId(UUIDUtils.generateLocationId(location.getAgency().getCode(), location.getCode()));
+		}
+
 		return Mono.from(locationRepository.findById(location.getId()))
 			.switchIfEmpty(Mono.from(locationRepository.save(location)));
 	}

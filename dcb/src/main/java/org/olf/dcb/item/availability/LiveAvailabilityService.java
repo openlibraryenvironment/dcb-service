@@ -20,6 +20,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
 import org.olf.dcb.request.resolution.ClusteredBib;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
@@ -45,6 +46,7 @@ public class LiveAvailabilityService {
 	private final HostLmsService hostLmsService;
 	private final RequestableItemService requestableItemService;
 	private final SharedIndexService sharedIndexService;
+	private final LocationService locationService;
 	private final MeterRegistry meterRegistry; 
 	
 	private static final String METRIC_NAME = "dcb.availability";
@@ -56,12 +58,15 @@ public class LiveAvailabilityService {
 
 	public LiveAvailabilityService(HostLmsService hostLmsService,
 		RequestableItemService requestableItemService,
-		SharedIndexService sharedIndexService, MeterRegistry meterRegistry) {
+		SharedIndexService sharedIndexService, 
+		MeterRegistry meterRegistry,
+		LocationService locationService) {
 
 		this.hostLmsService = hostLmsService;
 		this.requestableItemService = requestableItemService;
 		this.sharedIndexService = sharedIndexService;
 		this.meterRegistry = meterRegistry;
+		this.locationService = locationService;
 	}
 	
 	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId) {
@@ -197,6 +202,7 @@ public class LiveAvailabilityService {
 		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )
 			.flatMap( start -> hostLms.getItems(bib)
 					.flatMapIterable(identity())
+					.flatMap( item -> memoizeLocationFromItem(item) )
 					.filter(conditionallyFilter(filters, Item::notSuppressed))
 					.filter(conditionallyFilter(filters, Item::notDeleted))
 					.filter(conditionallyFilter(filters, Item::hasAgency))
@@ -230,6 +236,16 @@ public class LiveAvailabilityService {
 		return timeout
 			.map(timeoutSet -> liveData.transformDeferred(addCacheFallback(timeoutSet, bib, hostLms)))
 			.orElse(liveData);
+	}
+
+	private Mono<Item> memoizeLocationFromItem(Item item) {
+
+		if ( item.getLocation() == null )
+			return Mono.just(item);
+
+		return Mono.just(item.getLocation())
+			.flatMap(loc -> locationService.memoize(loc) )
+			.thenReturn(item);
 	}
 
 	private Function<Mono<AvailabilityReport>, Mono<AvailabilityReport>> addCacheFallback(
