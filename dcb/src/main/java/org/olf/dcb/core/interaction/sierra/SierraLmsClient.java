@@ -81,6 +81,7 @@ import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
+import static services.k_int.interaction.sierra.items.SierraItem.SIERRA_ITEM_FIELDS;
 import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 
@@ -1713,7 +1714,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		localItemId = parseLocalItemId(localItemId);
 
-		return Mono.from(client.getItem(localItemId, String.join(",", List.of("id", "fixedFields", "varFields" ))))
+		return Mono.from(client.getItem(localItemId, String.join(",", SIERRA_ITEM_FIELDS)))
 			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
 			.defaultIfEmpty(HostLmsItem.builder()
 				.localId(localItemId)

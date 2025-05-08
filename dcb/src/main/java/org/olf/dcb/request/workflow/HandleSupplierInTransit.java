@@ -4,6 +4,7 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -125,13 +126,23 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 
 		boolean hasValidStatus = getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 		boolean hasSupplierRequest = ctx.getSupplierRequest() != null;
+
+		// Check item status
 		boolean hasLocalItemStatus = hasSupplierRequest && ctx.getSupplierRequest().getLocalItemStatus() != null;
-		boolean isItemInTransit = hasLocalItemStatus && ctx.getSupplierRequest().getLocalItemStatus().equals(ITEM_TRANSIT);
+		boolean isItemStatusInTransit = hasLocalItemStatus && ctx.getSupplierRequest().getLocalItemStatus().equals(ITEM_TRANSIT);
 
-		log.debug("HandleSupplierInTransit conditions: hasValidStatus={}, hasSupplierRequest={}, hasLocalItemStatus={}, isItemInTransit={}",
-			hasValidStatus, hasSupplierRequest, hasLocalItemStatus, isItemInTransit);
+		// Check hold status
+		boolean hasLocalHoldStatus = hasSupplierRequest && ctx.getSupplierRequest().getLocalStatus() != null;
+		boolean isHoldStatusInTransit = hasLocalHoldStatus && ctx.getSupplierRequest().getLocalStatus().equals(HostLmsRequest.HOLD_TRANSIT);
 
-		return hasValidStatus && hasSupplierRequest && hasLocalItemStatus && isItemInTransit;
+		// Combined transit check (either item OR hold status indicates transit)
+		boolean isInTransit = isItemStatusInTransit || isHoldStatusInTransit;
+
+		// Log each condition result
+		log.debug("HandleSupplierInTransit conditions: hasValidStatus={}, hasSupplierRequest={}, isInTransit={}",
+			hasValidStatus, hasSupplierRequest, isInTransit);
+
+		return hasValidStatus && hasSupplierRequest && isInTransit;
 	}
 
 	@Override

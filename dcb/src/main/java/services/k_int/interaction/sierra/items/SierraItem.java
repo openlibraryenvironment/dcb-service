@@ -7,14 +7,34 @@ import lombok.Data;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.VarField;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Data
 @Builder
 @Serdeable
 public class SierraItem {
+
+	public static final List<String> SIERRA_ITEM_FIELDS = List.of(
+		"id",
+		"updatedDate",
+		"createdDate",
+		"deletedDate",
+		"deleted",
+		"suppressed",
+		"bibIds",
+		"location",
+		"status",
+		"volumes",
+		"barcode",
+		"callNumber",
+		"itemType",
+		"transitInfo",
+		"copyNo",
+		"holdCount",
+		"fixedFields",
+		"varFields"
+	);
+
 	@Nullable
 	String id;
 	@Nullable
