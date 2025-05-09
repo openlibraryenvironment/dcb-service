@@ -3,6 +3,7 @@ package org.olf.dcb.core.svc;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.Workflow;
 import org.olf.dcb.storage.LocationRepository;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -85,6 +86,15 @@ public class LocationService {
 		}
 
 		return Mono.from(locationRepository.findById(location.getId()))
-			.switchIfEmpty(Mono.from(locationRepository.save(location)));
+			.switchIfEmpty(dynamicCreateLocation(location));
+	}
+
+	private Mono<Location> dynamicCreateLocation(Location location) {
+		location.getActiveWorkflows().put("DynamicLocation", 
+			Workflow.builder()
+				.code("ReviewDynamicLocation")
+				.status("PENDING")
+				.build());
+		return(Mono.from(locationRepository.save(location)));
 	}
 }

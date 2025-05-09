@@ -1,6 +1,7 @@
 package org.olf.dcb.core.model;
 
 import java.util.UUID;
+import java.util.Map;
 
 import io.micronaut.security.annotation.UpdatedBy;
 import jakarta.validation.constraints.NotNull;
@@ -24,9 +25,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
 import lombok.NoArgsConstructor;
+import lombok.Singular;
 import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import java.time.Instant;
+
+import static io.micronaut.data.model.DataType.JSON;
+
 
 @Data
 @Serdeable
@@ -133,4 +138,19 @@ public class Location implements Auditable {
 
 	@Nullable
 	private String changeReferenceUrl;
+
+	@Nullable
+	private Boolean needsAttention;
+
+  @ToString.Exclude
+  @Singular("activeWorkflow")
+  @TypeDef(type = JSON)
+	@Nullable
+	private Map<String,Workflow> activeWorkflows;
+
+  @ToString.Exclude
+  @Singular("archivedWorkflow")
+  @TypeDef(type = JSON)
+	@Nullable
+	private Map<String,Workflow> archivedWorkflows;
 }
