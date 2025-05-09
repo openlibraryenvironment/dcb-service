@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Collection;
 import java.util.UUID;
+import java.time.Instant;
 
 public interface AlarmRepository {
 
@@ -56,4 +57,7 @@ public interface AlarmRepository {
 			.flatMap( update -> Mono.from( update ? this.update(alarm) : this.save(alarm)) )
 			;
 	}
+
+	@NonNull
+	Publisher<Alarm> findByExpiresBefore(@NonNull Instant now);
 }

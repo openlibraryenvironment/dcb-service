@@ -56,4 +56,7 @@ public class Alarm {
   @TypeDef(type = DataType.JSON)
   Map<String, Object> alarmDetails;
 
+	public void incrementRepeatCount() {
+		repeatCount = Long.valueOf(repeatCount.longValue()+1);
+	}
 }
