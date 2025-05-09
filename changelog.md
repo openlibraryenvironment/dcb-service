@@ -1,10 +1,14 @@
 # Changelog
 
-## Version 8.26.0
+## Version 2.7.1
 
 ### Additions
 * [General]
 	* DBMemoize locs
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
@@ -3812,3 +3816,23 @@
 	* Issue #DCB-226
 * [Provides]
 	* Issue #DCB-90
+
+## Version 2.7.1-SNAPSHOT
+
+### Changes
+* [Chore]
+	* update guidance
+
+## Version 2.7.0
+
+### Additions
+* [General]
+	* Complete integration of new AlarmsService - allow services to raise alarms on conditions that need human attention. First example raises an alarm when a patron request transition is unable to progress
+
+### Changes
+* [Chore]
+	* working on alarms, don't ever set ES refresh-interval to -1 when unblocking the circuit breaker
+
+### Fixes
+* [General]
+	* Bump git properties plugin, seems to re-add git.properties for info endpoint
