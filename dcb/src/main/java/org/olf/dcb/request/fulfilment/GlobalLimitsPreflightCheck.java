@@ -1,6 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
-import static org.olf.dcb.request.fulfilment.CheckResult.failed;
+import static org.olf.dcb.request.fulfilment.CheckResult.failedUm;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -9,6 +9,7 @@ import io.micronaut.context.annotation.Value;
 import java.util.List;
 
 import org.olf.dcb.core.svc.LocationService;
+import org.olf.dcb.core.IntMessageService;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -28,13 +29,16 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 
 	private final Long globalActiveRequestLimit;
 	private final PatronRequestRepository patronRequestRepository;
+  private final IntMessageService intMessageService;
 
 	public GlobalLimitsPreflightCheck(
 		@Value("${dcb.globals.activeRequestLimit:25}") Long globalActiveRequestLimit,
-		PatronRequestRepository patronRequestRepository) {
+		PatronRequestRepository patronRequestRepository,
+    IntMessageService intMessageService) {
 
 		this.globalActiveRequestLimit = globalActiveRequestLimit;
 		this.patronRequestRepository = patronRequestRepository;
+    this.intMessageService = intMessageService;
 	}
 
 	@Override
@@ -59,7 +63,10 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 				if ( count.intValue() < globalActiveRequestLimit.intValue() )
 					return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
 
-				return Mono.just(failed("EXCEEDS_GLOBA_LIMIT", "Patron has more active requests than the system allows (%d)".formatted(globalActiveRequestLimit)));
+				return Mono.just(failedUm("EXCEEDS_GLOBA_LIMIT", 
+					"Patron has more active requests than the system allows (%d)".formatted(globalActiveRequestLimit),
+					intMessageService.getMessage("EXCEEDS_GLOBA_LIMIT")
+				));
 			})
 			.doOnError(e -> log.error("Unexpected error checking global limits",e))
 			.onErrorResume( e -> Mono.just(passed("Passed with error "+e.getMessage() ) ) );

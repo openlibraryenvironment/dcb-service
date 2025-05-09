@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.request.fulfilment.CheckResult.failed;
+import static org.olf.dcb.request.fulfilment.CheckResult.failedUm;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.consumer;
@@ -16,6 +17,7 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
@@ -28,6 +30,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+
 @Slf4j
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron-request.enabled", defaultValue = "true", notEquals = "false")
@@ -35,15 +38,18 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	private final PatronRequestResolutionService patronRequestResolutionService;
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 	private final LocalPatronService localPatronService;
+	private final IntMessageService intMessageService;
 
 	public ResolvePatronRequestPreflightCheck(
 		PatronRequestResolutionService patronRequestResolutionService,
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
-		LocalPatronService localPatronService) {
+		LocalPatronService localPatronService,
+		IntMessageService intMessageService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.localPatronService = localPatronService;
+		this.intMessageService = intMessageService;
 	}
 
 	@Override
@@ -69,10 +75,13 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorResume(NoBibsForClusterRecordException.class, this::clusterRecordNotFound)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
-			.defaultIfEmpty(List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
-				"Failed due to empty reactive chain")))
+			.defaultIfEmpty(List.of(failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Failed due to empty reactive chain",
+				intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST"))))
 			.timeout(Duration.ofSeconds(30), Mono.just(List.of(
-				failed("NO_ITEM_SELECTABLE_FOR_REQUEST", "Failed due to timeout"))));
+				failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST", 
+                 "Failed due to timeout",
+                 intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST")))));
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
@@ -104,10 +113,10 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 
 		if (chosenItem == null) {
-			return List.of(failed("NO_ITEM_SELECTABLE_FOR_REQUEST",
-				"Patron request for cluster record \"%s\" could not be resolved to an item"
-					.formatted(resolution.getBibClusterId())
-			));
+			return List.of(failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Patron request for cluster record \"%s\" could not be resolved to an item".formatted(resolution.getBibClusterId()),
+        intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST"))
+			);
 		}
 
 		return List.of(passed());
@@ -115,21 +124,25 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 	private Mono<List<CheckResult>> clusterRecordNotFound(CannotFindClusterRecordException error) {
 		return Mono.just(List.of(
-			failed("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
-				.formatted(getValueOrNull(error, CannotFindClusterRecordException::getClusterRecordId)))
-		));
+			failedUm("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found".formatted(getValueOrNull(error, CannotFindClusterRecordException::getClusterRecordId)),
+        intMessageService.getMessage("CLUSTER_RECORD_NOT_FOUND")))
+		);
 	}
 
 	private Mono<List<CheckResult>> clusterRecordNotFound(NoBibsForClusterRecordException error) {
 		return Mono.just(List.of(
-			failed("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
-				.formatted(getValueOrNull(error, NoBibsForClusterRecordException::getClusterRecordId)))
+			failedUm("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
+				.formatted(getValueOrNull(error, NoBibsForClusterRecordException::getClusterRecordId)),
+        intMessageService.getMessage("CLUSTER_RECORD_NOT_FOUND"))
 		));
 	}
 
 	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
 		return Mono.just(List.of(
-			failed("PATRON_NOT_FOUND", error.getMessage())
+			failed("PATRON_NOT_FOUND", 
+      error.getMessage(),
+      "A borrower account could not be found using the information provided.",
+      intMessageService.getMessage("PATRON_NOT_FOUND"))
 		));
 	}
 
@@ -137,24 +150,25 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		UnableToResolveAgencyProblem error, String localPatronId) {
 
 		return Mono.just(List.of(
-			failed("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
-				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, error.getHomeLibraryCode(),
-						error.getSystemCode()))));
+			failedUm("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency" .formatted(localPatronId, error.getHomeLibraryCode(), error.getSystemCode()),
+        intMessageService.getMessage("PATRON_NOT_ASSOCIATED_WITH_AGENCY")
+      )));
 	}
 
-	private static List<CheckResult> unknownHostLms(String localSystemCode) {
-		return List.of(failed("UNKNOWN_BORROWING_HOST_LMS",
-			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode)));
+	private List<CheckResult> unknownHostLms(String localSystemCode) {
+		return List.of(failedUm("UNKNOWN_BORROWING_HOST_LMS",
+			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode),
+      intMessageService.getMessage("UNKNOWN_BORROWING_HOST_LMS")));
 	}
 
 	private Mono<List<CheckResult>> noPatronTypeMappingFound(
 		NoPatronTypeMappingFoundException error) {
 
 		return Mono.just(List.of(
-			failed("PATRON_TYPE_NOT_MAPPED",
-				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
-					.formatted(error.getLocalPatronType(), error.getHostLmsCode()))
+			failedUm("PATRON_TYPE_NOT_MAPPED",
+				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type".formatted(error.getLocalPatronType(), error.getHostLmsCode()),
+        intMessageService.getMessage("PATRON_TYPE_NOT_MAPPED"))
 		));
 	}
 
@@ -162,9 +176,10 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		UnableToConvertLocalPatronTypeException error) {
 
 		return Mono.just(List.of(
-			failed("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
-				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
-					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()))
+			failedUm("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
+				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\"".formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()),
+				intMessageService.getMessage("LOCAL_PATRON_TYPE_IS_NON_NUMERIC")
+      )
 		));
 	}
 }

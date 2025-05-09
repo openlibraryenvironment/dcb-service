@@ -16,6 +16,7 @@ import services.k_int.utils.ReactorUtils;
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class UnableToResolveAgencyProblem extends AbstractThrowableProblem {
+
 	String systemCode;
 	String homeLibraryCode;
 	String defaultAgencyCode;

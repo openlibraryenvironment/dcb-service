@@ -2,11 +2,13 @@ package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.concat;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
-import static org.olf.dcb.request.fulfilment.CheckResult.failed;
+import static org.olf.dcb.request.fulfilment.CheckResult.failedUm;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
+
+import org.olf.dcb.core.IntMessageService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,10 +32,14 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronPreflightCheck implements PreflightCheck {
-	private final LocalPatronService localPatronService;
 
-	public ResolvePatronPreflightCheck(LocalPatronService localPatronService) {
+	private final LocalPatronService localPatronService;
+  private final IntMessageService intMessageService;
+
+	public ResolvePatronPreflightCheck(LocalPatronService localPatronService,
+    IntMessageService intMessageService) {
 		this.localPatronService = localPatronService;
+    this.intMessageService = intMessageService;
 	}
 
 	@Override
@@ -80,9 +86,11 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var firstBarcode = getValueOrNull(patron, p -> p.getFirstBarcode(""));
 
 		if (StringUtils.isEmpty(firstBarcode)) {
-			eligibilityCheckResults.add(failed("INVALID_PATRON_BARCODE",
+			eligibilityCheckResults.add(failedUm("INVALID_PATRON_BARCODE",
 				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
-					.formatted(localPatronId, hostLmsCode, firstBarcode)));
+					.formatted(localPatronId, hostLmsCode, firstBarcode),
+					intMessageService.getMessage("INVALID_PATRON_BARCODE")
+				));
 		}
 
 		return eligibilityCheckResults;
@@ -94,34 +102,37 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var eligible = getValue(patron, Patron::isEligible, true);
 
 		if (!eligible) {
-			eligibilityCheckResults.add(failed("PATRON_INELIGIBLE",
+			eligibilityCheckResults.add(failedUm("PATRON_INELIGIBLE",
 				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
 					.formatted(localPatronId, hostLmsCode,
 						getValue(patron, Patron::getLocalPatronType, "Unknown local patron type"),
-						getValue(patron, Patron::getCanonicalPatronType, "Unknown canonical patron type"))));
+						getValue(patron, Patron::getCanonicalPatronType, "Unknown canonical patron type")),
+          intMessageService.getMessage("PATRON_INELIGIBLE")));
 		}
 
 		final var blocked = getValue(patron, Patron::getIsBlocked, false);
 
 		if (blocked) {
-			eligibilityCheckResults.add(failed("PATRON_BLOCKED",
+			eligibilityCheckResults.add(failedUm("PATRON_BLOCKED",
 				"Patron \"%s\" from \"%s\" has a local account block"
-					.formatted(localPatronId, hostLmsCode)));
+					.formatted(localPatronId, hostLmsCode),
+					intMessageService.getMessage("PATRON_INELIGIBLE")
+				));
 		}
 
 		final var active = getValue(patron, Patron::getIsActive, true);
 
 		if (!active) {
-			eligibilityCheckResults.add(failed("PATRON_INACTIVE",
-				"Patron \"%s\" from \"%s\" is inactive"
-					.formatted(localPatronId, hostLmsCode)));
+			eligibilityCheckResults.add(failedUm("PATRON_INACTIVE",
+				"Patron \"%s\" from \"%s\" is inactive".formatted(localPatronId, hostLmsCode),
+				intMessageService.getMessage("PATRON_INACTIVE"))
+			);
 		}
 
 		return eligibilityCheckResults;
 	}
 
-	private static ArrayList<CheckResult> checkAgency(String localPatronId,
-		DataAgency agency, String hostLmsCode) {
+	private ArrayList<CheckResult> checkAgency(String localPatronId, DataAgency agency, String hostLmsCode) {
 
 		final var agencyCheckResults = new ArrayList<CheckResult>();
 
@@ -129,9 +140,11 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			DataAgency::getIsBorrowingAgency, false);
 
 		if (!participatingInBorrowing) {
-			agencyCheckResults.add(failed("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
+			agencyCheckResults.add(failedUm("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
 				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
-					.formatted(localPatronId, hostLmsCode, getValueOrNull(agency, DataAgency::getCode))));
+					.formatted(localPatronId, hostLmsCode, getValueOrNull(agency, DataAgency::getCode)),
+					intMessageService.getMessage("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING")
+				));
 		}
 
 		return agencyCheckResults;
@@ -139,30 +152,36 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 
 	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
 		return Mono.just(List.of(
-			failed("PATRON_NOT_FOUND", error.getMessage())
+			failedUm("PATRON_NOT_FOUND", error.getMessage(),
+				intMessageService.getMessage("PATRON_NOT_FOUND") )
 		));
 	}
 
 	private Mono<List<CheckResult>> patronDeleted(String localPatronId, String hostLmsCode) {
 		return Mono.just(List.of(
-			failed("PATRON_NOT_FOUND",
-				"Patron \"%s\" from \"%s\" has likely been deleted".formatted(localPatronId, hostLmsCode))
+			failedUm("PATRON_NOT_FOUND",
+				"Patron \"%s\" from \"%s\" has likely been deleted".formatted(localPatronId, hostLmsCode),
+				intMessageService.getMessage("PATRON_NOT_FOUND")
+			)
 		));
 	}
 
 	private Mono<List<CheckResult>> noPatronTypeMappingFound(NoPatronTypeMappingFoundException error) {
 		return Mono.just(List.of(
-			failed("PATRON_TYPE_NOT_MAPPED",
-				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
-					.formatted(error.getLocalPatronType(), error.getHostLmsCode()))
+			failedUm("PATRON_TYPE_NOT_MAPPED",
+				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type".formatted(error.getLocalPatronType(), error.getHostLmsCode()),
+				intMessageService.getMessage("PATRON_TYPE_NOT_MAPPED")
+			)
 		));
 	}
 
 	private Mono<List<CheckResult>> nonNumericPatronType(UnableToConvertLocalPatronTypeException error) {
 		return Mono.just(List.of(
-			failed("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
+			failedUm("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
 				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
-					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()))
+					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()),
+					intMessageService.getMessage("LOCAL_PATRON_TYPE_IS_NON_NUMERIC")
+			)
 		));
 	}
 
@@ -170,14 +189,17 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		UnableToResolveAgencyProblem error, String localPatronId) {
 
 		return Mono.just(List.of(
-			failed("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
-				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, error.getHomeLibraryCode(),
-						error.getSystemCode()))));
+			failedUm("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency".formatted(localPatronId, error.getHomeLibraryCode(),
+					error.getSystemCode()),
+				intMessageService.getMessage("PATRON_NOT_ASSOCIATED_WITH_AGENCY")
+			)));
 	}
 
-	private static List<CheckResult> unknownHostLms(String localSystemCode) {
-		return List.of(failed("UNKNOWN_BORROWING_HOST_LMS",
-			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode)));
+	private List<CheckResult> unknownHostLms(String localSystemCode) {
+		return List.of(failedUm("UNKNOWN_BORROWING_HOST_LMS",
+			"\"%s\" is not a recognised Host LMS".formatted(localSystemCode),
+			intMessageService.getMessage("UNKNOWN_BORROWING_HOST_LMS")
+		));
 	}
 }

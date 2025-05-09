@@ -1,6 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
-import static org.olf.dcb.request.fulfilment.CheckResult.failed;
+import static org.olf.dcb.request.fulfilment.CheckResult.failedUm;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -11,6 +11,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.utils.PropertyAccessUtils;
 
 import io.micronaut.context.annotation.Requires;
@@ -22,13 +23,17 @@ import reactor.core.publisher.Mono;
 public class PickupLocationToAgencyMappingPreflightCheck implements PreflightCheck {
 	private final AgencyService agencyService;
 	private final LocationService locationService;
+  private final IntMessageService intMessageService;
+
 
 	public PickupLocationToAgencyMappingPreflightCheck(
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		AgencyService agencyService, LocationService locationService) {
+		AgencyService agencyService, LocationService locationService,
+    IntMessageService intMessageService) {
 
 		this.agencyService = agencyService;
 		this.locationService = locationService;
+    this.intMessageService = intMessageService;
 	}
 
 	@Override
@@ -37,8 +42,10 @@ public class PickupLocationToAgencyMappingPreflightCheck implements PreflightChe
 
 		return getAgencyForPickupLocation(pickupLocationCode)
 			.map(agency -> passed())
-			.defaultIfEmpty(failed("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY",
-				"Pickup location \"%s\" is not mapped to an agency".formatted(pickupLocationCode)))
+			.defaultIfEmpty(failedUm("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY",
+				"Pickup location \"%s\" is not mapped to an agency".formatted(pickupLocationCode),
+				intMessageService.getMessage("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
+			))
 			.map(List::of);
 	}
 
