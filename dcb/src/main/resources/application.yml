@@ -129,8 +129,8 @@ info:
         duplicate-requests:
           enabled: ${dcb.requests.preflight-checks.duplicate-requests.enabled:}
           request-window: ${dcb.requests.preflight-checks.duplicate-requests.request-window:}
-  git:
-    enabled: true
+  # git:
+  #   enabled: true
 
 
 flyway:

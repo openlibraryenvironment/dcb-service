@@ -16,7 +16,7 @@ plugins {
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
   // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
-  id "com.gorylenko.gradle-git-properties" version "2.4.1"
+  id "com.gorylenko.gradle-git-properties" version "2.5.0"
   id('com.jaredsburrows.license') version '0.9.8'
 }
 
@@ -445,4 +445,13 @@ licenseReport {
   
   // Show versions in the report - default is false
   showVersions = true
+}
+
+gitProperties {
+    // if .git directory is on the same level as the root project
+    dotGitDirectory = project.rootProject.layout.projectDirectory.dir(".git")
+    failOnNoGitDirectory = false
+
+    // if .git directory is in a different location
+    // dotGitDirectory = "${project.rootDir}/../.git"
 }
