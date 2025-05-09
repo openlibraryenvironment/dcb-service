@@ -54,6 +54,7 @@ import static io.micronaut.http.HttpMethod.*;
 public class AlmaApiClientImpl implements AlmaApiClient {
   private static final String APIKEY_KEY = "apikey";
   private static final String CLIENT_BASE_URL = "base-url";
+	private static final String ALMA_URL = "alma-url";
 
   private final URI rootUri;
   private final HostLms lms;
@@ -75,7 +76,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
     log.debug("Creating Alma HostLms client for HostLms {}", hostLms);
 
-    URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
+    URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(ALMA_URL)).build();
 		apikey = (String) hostLms.getClientConfig().get(APIKEY_KEY);
     URI relativeURI = UriBuilder.of("/almaws/v1/").build();
     rootUri = RelativeUriResolver.resolve(hostUri, relativeURI);
@@ -120,10 +121,14 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
 		log.debug("Creating request for {}",APPLICATION_JSON);
+
+		final String apiKey = "apikey " + apikey;
+
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::resolve)
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString())
-				.accept(APPLICATION_JSON));
+				.accept(APPLICATION_JSON))
+			.map(req -> req.header(HttpHeaders.AUTHORIZATION, apiKey));
 	}
 
 	private URI resolve(URI relativeURI) {
