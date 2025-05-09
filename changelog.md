@@ -1,6 +1,6 @@
 # Changelog
 
-## Version 2.7.1
+## Version 2.8.0
 
 ### Additions
 * [General]
@@ -3817,10 +3817,21 @@
 * [Provides]
 	* Issue #DCB-90
 
-## Version 2.7.1-SNAPSHOT
+## Version 2.8.0-SNAPSHOT
+
+### Additions
+* [General]
+	* Add userMessage to CheckResult - a string intended to be displayed in a user interface that explains the error in more readable terms
+
+### Fixes
+* [General]
+	* use alternate base url for AlmaApiClientImpl
+
+## Version 2.7.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* update guidance
 
 ## Version 2.7.0
