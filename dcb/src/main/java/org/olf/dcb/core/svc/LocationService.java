@@ -95,6 +95,7 @@ public class LocationService {
 				.code("ReviewDynamicLocation")
 				.status("PENDING")
 				.build());
+		location.setNeedsAttention(Boolean.TRUE);
 		return(Mono.from(locationRepository.save(location)));
 	}
 }
