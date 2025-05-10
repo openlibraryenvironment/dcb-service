@@ -61,7 +61,7 @@ import services.k_int.utils.UUIDUtils;
 @ApplicableChunkTypes( AvailabilityCheckChunk.class )
 public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobChunkProcessor {
 	
-	private static final int CLUSTER_MAX_DEFAULT = 200;
+	private static final int CLUSTER_MAX_DEFAULT = 50;
 	// II Adding CLUSTER_CHECK_CONCURRENCY Because I'm concerned that we are creating a large queue of
 	// clusters to check and then limiting the concurrency of the lookups for bibs in that cluster
 	// So although we never check more than 100 bibs at a time, we can have many more than 100 of those flows in play
@@ -298,6 +298,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		
 		return Mono.just( CLUSTER_MAX_DEFAULT )
 			.flatMapMany( bibRecordService::findMissingAvailability )
+			// Temporarily adding a 50ms delay - steve to review
+			.delayElements(Duration.ofMillis(50))
 			.reduceWith( this::defaultChunkBuilder, (builder, item) -> builder.dataEntry(item) )
 			.map( AvailabilityCheckChunkBuilder::build )
 			.map( AvailabilityCheckJob::chunkPostProcess );
