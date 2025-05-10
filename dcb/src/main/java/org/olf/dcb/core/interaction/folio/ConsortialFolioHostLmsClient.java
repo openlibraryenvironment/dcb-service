@@ -34,31 +34,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import java.time.*;
+
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
-import org.olf.dcb.core.interaction.CheckoutItemCommand;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.FailedToGetItemsException;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRenewal;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.PreventRenewalCommand;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.VirtualPatronNotFound;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
-import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.shared.*;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
@@ -77,6 +58,7 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -91,6 +73,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import org.reactivestreams.Publisher;
 
 @Slf4j
 @Prototype
@@ -1181,6 +1164,30 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// This is fugly
 		return updateTransactionStatus(prc.getRequestId(), TransactionStatus.CANCELLED)
 			.then();
+  }
+
+  @Override
+  public Mono<PingResponse> ping() {
+
+		Publisher<HttpResponse<Void>> responsePublisher = httpClient.exchange("/_/proxy/health", Void.class);
+    Instant start = Instant.now();
+
+		return Mono.from(responsePublisher)
+			.flatMap(response -> {
+				if (response.getStatus().getCode() == 200) {
+					return Mono.just(PingResponse.builder()
+			      .target(getHostLmsCode())
+			      .status("OK")
+	          .pingTime(Duration.between(start, Instant.now()))
+			      .build());
+				} else {
+					return Mono.just(PingResponse.builder()
+			      .target(getHostLmsCode())
+			      .status("ERROR")
+	          .pingTime(Duration.between(start, Instant.now()))
+			      .build());
+				}
+			});
   }
 
 }
