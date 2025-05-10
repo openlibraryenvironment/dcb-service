@@ -1,6 +1,23 @@
 # Changelog
 
-## Version 2.8.0
+## Version 8.27.0
+
+### Additions
+* [General]
+	* Implement some alarms
+
+## Version 8.26.1
+
+### Additions
+* [General]
+	* Set needsAttention flag on Location when dynamically creating a new location
+	* Add Workflow methods to location, when dynamically creating a location as a part of holdings harvesting mark the new location record as needing the Review Workflow- because there are properties on a location only a human can supply
+
+### Changes
+* [Chore]
+	* extra logging around federated lock release
+
+## Version 8.26.0
 
 ### Additions
 * [General]
@@ -3817,11 +3834,15 @@
 * [Provides]
 	* Issue #DCB-90
 
-## Version 2.8.0-SNAPSHOT
+## Version 2.8.0
 
 ### Additions
 * [General]
 	* Add userMessage to CheckResult - a string intended to be displayed in a user interface that explains the error in more readable terms
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
