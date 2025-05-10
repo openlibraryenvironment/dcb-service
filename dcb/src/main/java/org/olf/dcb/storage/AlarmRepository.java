@@ -60,4 +60,7 @@ public interface AlarmRepository {
 
 	@NonNull
 	Publisher<Alarm> findByExpiresBefore(@NonNull Instant now);
+
+	Publisher<Void> deleteByCode(String code);
+
 }

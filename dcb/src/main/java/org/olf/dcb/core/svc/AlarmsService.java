@@ -58,4 +58,9 @@ public class AlarmsService {
         .flatMap(alarm -> alarmRepository.delete(alarm.getId()))
         .subscribe();
 	}
+
+	public Mono<String> cancel(String code) {
+		return Mono.from(alarmRepository.deleteByCode(code))
+			.thenReturn( code );
+	}
 }

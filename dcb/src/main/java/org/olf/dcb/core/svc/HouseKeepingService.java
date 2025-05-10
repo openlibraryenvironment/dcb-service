@@ -4,6 +4,7 @@ package org.olf.dcb.core.svc;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
+import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -16,11 +17,33 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.core.HostLmsService;
 
+import io.micrometer.core.annotation.Timed;
+import services.k_int.federation.reactor.ReactorFederatedLockService;
+import services.k_int.micronaut.scheduling.processor.AppTask;
+
+import org.olf.dcb.core.svc.AlarmsService;
+import org.olf.dcb.core.model.Alarm;
+import services.k_int.utils.UUIDUtils;
+
+
 @Slf4j
 @Singleton
 public class HouseKeepingService {
 	
 	private final R2dbcOperations dbops;
+  private final AlarmsService alarmsService;
+
+	public HouseKeepingService(
+		R2dbcOperations dbops,
+		HostLmsService hostLmsService,
+		HostLmsRepository hostLmsRepository,
+		AlarmsService alarmsService) {
+
+		this.dbops = dbops;
+		this.hostLmsService = hostLmsService;
+		this.hostLmsRepository = hostLmsRepository;
+    this.alarmsService = alarmsService;
+	}
 	
 	private static final String QUERY_POSTGRES_DEDUPE_MATCHPOINTS = "DELETE FROM match_point m WHERE EXISTS (\n"
 			+ "	SELECT dupe.id as dupeId FROM (\n"
@@ -51,16 +74,6 @@ public class HouseKeepingService {
 
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
 
-	
-	public HouseKeepingService(
-		R2dbcOperations dbops,
-		HostLmsService hostLmsService,
-		HostLmsRepository hostLmsRepository) {
-
-		this.dbops = dbops;
-		this.hostLmsService = hostLmsService;
-		this.hostLmsRepository = hostLmsRepository;
-	}
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<String> legacyDedupeMatchPoints() {
@@ -204,6 +217,9 @@ public class HouseKeepingService {
 	}
 
 
+  @Timed("tracking.run")
+  @AppTask
+  @Scheduled(initialDelay = "2m", fixedDelay = "${dcb.task.housekeeping.interval:24h}")
   public Mono<String> initiateAudit() {
 		log.info("Starting audit process");
 		audit().subscribe();
@@ -212,15 +228,31 @@ public class HouseKeepingService {
 		return Mono.just("Started");
 	}
 
+	public static interface AuditTask {
+    Mono<String> run();
+	}
+
   public Mono<Void> audit() {
 
+		List<AuditTask> checks = List.of( 
+			() -> pingTests(),
+			() -> systemsLibrarianContactableTests()
+		);
+
 		log.info("Audit....");
-		return Flux.from(hostLmsRepository.queryAll())
-			.flatMap( hostLms -> hostLmsService.getClientFor(hostLms) )
-			.doOnNext( hostLmsClient -> log.info("Audit: {}",hostLmsClient.getHostLmsCode()))
-			.flatMap( hostLmsClient -> hostLmsClient.ping() )
-			.doOnNext( pingResponse -> log.info("Ping Response {}",pingResponse ) )
+		return Flux.fromIterable(checks)
+	    .concatMap(fn -> 
+        fn.run()
+					.onErrorResume(ex -> {
+						log.error("Audit check [{}] failed with exception", fn, ex);
+						return Mono.empty();
+					})
+					.doOnNext(result -> log.info("Audit [{}] completed", fn))
+			)
+			.collectList()
+	    .doOnSuccess(results -> log.info("All audit checks completed."))
 			.then();
+
 		// Audit should run the following checks and raise alarms if any of the conditions are met
 			// Any hostlms where a simple connection test fails
 				// Code - HostLms.code.NoConnection ( Lasts until cleared )
@@ -231,4 +263,58 @@ public class HouseKeepingService {
 			// Any Agencies that are missinig core item type mappings for ...
 				// Code - Agency.{code}.NoMapping.Item.{type}
 	}
+
+	private Mono<String> pingTests() {
+    return Flux.from(hostLmsRepository.queryAll())
+      .flatMap( hostLms -> hostLmsService.getClientFor(hostLms) )
+      .doOnNext( hostLmsClient -> log.info("Audit: {}",hostLmsClient.getHostLmsCode()))
+      .flatMap( hostLmsClient -> hostLmsClient.ping() )
+			.flatMap ( pingResponse -> {
+				log.info("Ping Response {}",pingResponse );
+
+				String alarmCode = "ILS."+pingResponse.getTarget()+".PING_FAILURE".toUpperCase();
+
+				if ( pingResponse.getStatus().equals("OK") ) {
+					return alarmsService.cancel(alarmCode)
+						.thenReturn(Mono.just("OK"));
+				}
+				else {
+					return alarmsService.raise(
+						Alarm.builder()
+							.id(UUIDUtils.generateAlarmId(alarmCode))
+							.code(alarmCode)
+							.build()
+						)
+						.thenReturn( Mono.just(pingResponse) );
+				}
+			})
+			.collectList()
+      .thenReturn("OK");
+	}
+
+  private Mono<String> systemsLibrarianContactableTests() {
+    return Flux.from(hostLmsRepository.queryAll())
+      .flatMap ( hostLmsData -> {
+				String alarmCode = "ILS."+hostLmsData.getCode()+".NO_SYSTEMS_EMAIL".toUpperCase();
+				if ( ( hostLmsData.getClientConfig() != null ) &&
+						 ( hostLmsData.getClientConfig().containsKey("systemsLibrarianContactEmail") ) ) {
+					// Pass
+					return alarmsService.cancel(alarmCode)
+						.thenReturn(Mono.just("OK"));
+				}
+				else {
+          return alarmsService.raise(
+            Alarm.builder()
+              .id(UUIDUtils.generateAlarmId(alarmCode))
+              .code(alarmCode)
+              .build()
+          )
+          .thenReturn( Mono.just("FAIL") );
+				}
+			})
+      .collectList()
+      .thenReturn("OK");
+  }
+
+	
 }
