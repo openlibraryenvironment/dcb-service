@@ -121,6 +121,7 @@ public class AlarmsService {
 	public Mono<Void> publishToWebhook(String url, Map<String, Object> payload) {
 		// This is where you get HttpClient programmatically
 		try {
+			log.info("Announce alarm on webhook : {}",url);
 
 			HttpClient client = HttpClient.create(new URL(url));
 
