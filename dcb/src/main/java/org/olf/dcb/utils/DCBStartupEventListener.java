@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
 
+import java.net.URL;
+
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Grant;
 import org.olf.dcb.core.model.StatusCode;
@@ -18,9 +20,17 @@ import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.context.annotation.Value;
 import io.micronaut.context.env.Environment;
 import io.micronaut.context.event.ApplicationEventListener;
 import io.micronaut.context.event.StartupEvent;
+
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.HttpClientConfiguration;
+import io.micronaut.http.client.exceptions.NoHostException;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.MediaType;
+
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Hooks;
@@ -36,9 +46,11 @@ import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 
 import org.olf.dcb.tracking.PollingConfig;
 
+
 @Slf4j
 @Singleton
 public class DCBStartupEventListener implements ApplicationEventListener<StartupEvent> {
+
 	private final Environment environment;
 	private final HostLmsRepository hostLmsRepository;
 	private final StatusCodeRepository statusCodeRepository;
@@ -47,6 +59,12 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final HazelcastInstance hazelcastInstance;
 	private final AppConfig appConfig;
 	private final PollingConfig pollingConfig;
+
+  @Value("${dcb.global.notifications.webhooks:}")
+  List<String> webhookUrls;
+
+	@Value("${dcb.env.code:UNKNOWN}")
+	String envCode;
 
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
@@ -74,11 +92,26 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		if (environment.getProperty(REACTOR_DEBUG_VAR, String.class)
 				.orElse("false").equalsIgnoreCase("true")) {
 			log.info("Switching on operator debug mode");
+
 			Hooks.onOperatorDebug();
 		}
 		else {
 			log.info("operator debug not enabled");
 		}
+
+		Hooks.onErrorDropped( error -> {
+			logAndReportError(error);
+		});
+
+		Hooks.onOperatorError((error, data) -> {
+			logAndReportError(error);
+			return error;
+		});
+
+		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+			logAndReportError(throwable);
+			log.error("Uncaught exception in thread " + thread.getName() + ": " + throwable.getMessage());
+		});
 
 		final var keycloak_cert_url = environment
 			.getProperty("KEYCLOAK_CERT_URL", String.class)
@@ -255,6 +288,31 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			// log.error("pre-destroy problem",e);
 			// If this was the last HZ instance, an exception is thrown - lets not pollute the logs as this is OK
 		}
+	}
+
+
+	private void logAndReportError(Throwable error) {
+		log.error("Unhandled Reactor exception: {}",error);
+		for ( String url : webhookUrls ) {
+			try {
+				HttpClient httpClient = HttpClient.create(new URL(url));
+				HttpRequest<?> request = HttpRequest.POST("/", 
+					Map.of("blocks", List.of(
+				    Map.of(
+					    "type", "section",
+						  "text", Map.of(
+							  "type", "markdown",
+								"text", envCode+" UNCAUGHT EXCEPTION: "+error.getMessage()
+	            )
+		        )
+				  ))
+				);
+				httpClient.toBlocking().exchange(request);
+			}
+			catch ( Exception e ) {
+			}
+		}
+		// Send to Slack or another alerting system
 	}
 
 }

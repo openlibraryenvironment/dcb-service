@@ -41,6 +41,9 @@ public class AlarmsService {
 	@Value("${dcb.global.notifications.webhooks:}")
 	List<String> webhookUrls;
 
+  @Value("${dcb.env.code:UNKNOWN}")
+  String envCode;
+
 	public AlarmsService(
 		AlarmRepository alarmRepository
 	){
@@ -92,7 +95,7 @@ public class AlarmsService {
 						"type", "section",
 						"text", Map.of(
 							"type", "markdown",
-							"text", "DCB-ALARM: "+alarmCode+" "+status
+							"text", "DCB-ALARM: "+envCode+" "+alarmCode+" "+status
 						)
 					)
 				)));
