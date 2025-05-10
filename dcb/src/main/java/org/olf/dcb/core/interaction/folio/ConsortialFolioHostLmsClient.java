@@ -1169,10 +1169,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
   @Override
   public Mono<PingResponse> ping() {
 
-		Publisher<HttpResponse<Void>> responsePublisher = httpClient.exchange("/_/proxy/health", Void.class);
+		Publisher<HttpResponse<Void>> responsePublisher = httpClient.exchange(rootUri+"/_/proxy/health", Void.class);
     Instant start = Instant.now();
 
 		return Mono.from(responsePublisher)
+			.onErrorResume ( e -> {
+				log.error("Problem pinging host {}",e.getMessage());
+				return Mono.empty();
+			})
 			.flatMap(response -> {
 				if (response.getStatus().getCode() == 200) {
 					return Mono.just(PingResponse.builder()
