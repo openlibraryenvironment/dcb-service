@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import services.k_int.federation.FederatedLockService;
@@ -77,7 +78,7 @@ public class ReactorFederatedLockService {
 	}
 
 	/**
-	 * Publisher transformer that attempts to obtained a a unique lock across the federation when the target publisher is subscribed to.
+	 * Publisher transformer that attempts to obtain a unique lock across the federation when the target publisher is subscribed to.
 	 * If a lock cannot be obtained then the transformed publisher will be an empty publisher.
 	 * You should aim to call this transformer just after the last operator you wish to protect with the lock. 
 	 * 
@@ -108,12 +109,28 @@ public class ReactorFederatedLockService {
 					log.debug("Obtained lock[{}]", lockName);
 					return lockWrapper.isObtained() ? lockWrapper : null;
 				})
-				.flatMapMany(_lock -> source) // Play the original publisher.
+				.flatMapMany(_lock ->   // Play the original publisher.
+					// II: Added this where we used to just do  _lock -> source in order to more defensively trap 
+					// unchecked exception errors inside the source stream so we don't mis them and skip lock release
+					Flux.from(source)
+						.onErrorResume(ex -> {
+						log.error("Error during locked operation for [{}]: {}", lockName, ex.toString(), ex);
+	            return Flux.error(ex); // propagate while ensuring logging
+		       })
+					.map(value -> (T) value)
+				)
 				.publishOn(lockScheduler) // Ensure the publisher uses the owning thread to relinquish the lock.
+				.doOnCancel(() -> log.warn("Flow cancelled during locked operation for [{}]", lockName))
+	      .doOnError(e -> log.error("Unhandled error for lock [{}]: {}", lockName, e.toString(), e))
 				.doFinally(_signal -> {
 					if (lockContext.isObtained()) {
-						relinquish(lockContext.getLock());
-						log.debug("Relinquished lock[{}]", lockName);
+						try {
+							relinquish(lockContext.getLock());
+							log.debug("Relinquished lock[{}] on signal [{}]", lockName,_signal);
+						}
+						catch ( Exception e ) {
+							log.error("Failed to relinquish lock [{}]: {}", lockName, e.toString(), e);
+						}
 						lockScheduler.dispose();
 					}
 				});
