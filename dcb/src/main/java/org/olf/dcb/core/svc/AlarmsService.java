@@ -116,6 +116,7 @@ public class AlarmsService {
 	}
 
 	public Mono<String> cancel(String code) {
+		log.info("Cancel alarm: {}",code);
 		return Mono.from(alarmRepository.deleteByCode(code))
 			.then( optionallyNotify(code, "DEACTIVATED") )
 			.thenReturn( code );

@@ -267,8 +267,12 @@ public class HouseKeepingService {
 	private Mono<String> pingTests() {
     return Flux.from(hostLmsRepository.queryAll())
       .flatMap( hostLms -> hostLmsService.getClientFor(hostLms) )
-      .doOnNext( hostLmsClient -> log.info("Audit: {}",hostLmsClient.getHostLmsCode()))
+      .doOnNext( hostLmsClient -> log.info("Audit -- LMS connectivity test: {}",hostLmsClient.getHostLmsCode()))
       .flatMap( hostLmsClient -> hostLmsClient.ping() )
+			.onErrorResume( e -> {
+				log.error("Problem in ping test {}",e.getMessage());
+				return Mono.empty();
+			})
 			.flatMap ( pingResponse -> {
 				log.info("Ping Response {}",pingResponse );
 
@@ -294,8 +298,11 @@ public class HouseKeepingService {
 
   private Mono<String> systemsLibrarianContactableTests() {
     return Flux.from(hostLmsRepository.queryAll())
+      .doOnNext( hostLmsData -> log.info("Audit -- Ping systems librarian contact checks: {}",hostLmsData.getCode()))
       .flatMap ( hostLmsData -> {
+
 				String alarmCode = "ILS."+hostLmsData.getCode()+".NO_SYSTEMS_EMAIL".toUpperCase();
+
 				if ( ( hostLmsData.getClientConfig() != null ) &&
 						 ( hostLmsData.getClientConfig().containsKey("systemsLibrarianContactEmail") ) ) {
 					// Pass
