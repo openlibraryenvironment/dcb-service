@@ -19,6 +19,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.HttpClientConfiguration;
+import io.micronaut.http.client.exceptions.NoHostException;
 
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.core.model.Alarm;
@@ -126,11 +127,16 @@ public class AlarmsService {
 			HttpClient client = HttpClient.create(new URL(url));
 
 			HttpRequest<Map<String, Object>> request = HttpRequest
-				.POST("", payload)
+				.POST(url, payload)
 				.contentType(MediaType.APPLICATION_JSON_TYPE);
                 
 			// Sending the POST request to each webhook URL
 			return Mono.from(client.exchange(request))
+				.onErrorResume(NoHostException.class, e -> {
+					// Handle the error gracefully, log or return fallback
+					log.warn("Host could not be resolved: {} {}", e.getMessage(), url.toString());
+					return Mono.empty(); // or a fallback Mono.just(...)
+				})
 				.then();
 		}
 		catch ( Exception e ) {
