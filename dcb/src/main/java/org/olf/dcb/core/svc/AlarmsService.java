@@ -50,7 +50,7 @@ public class AlarmsService {
 		this.alarmRepository = alarmRepository;
 	}
 
-	// 
+  @Transactional
 	public Mono<Alarm> raise(Alarm alarm) {
 
 		return Mono.from(alarmRepository.findById(alarm.getId()))
@@ -72,7 +72,8 @@ public class AlarmsService {
 			);
 	}	
 
-	private Mono<Alarm> createNewAlarm(Alarm alarm) {
+  @Transactional
+	public Mono<Alarm> createNewAlarm(Alarm alarm) {
 		alarm.setLastSeen(Instant.now());
 		alarm.setCreated(Instant.now());
 		alarm.setRepeatCount(Long.valueOf(0));
@@ -104,6 +105,7 @@ public class AlarmsService {
 	}
 
 	// Prune expired alarms
+  @Transactional
 	public void prune() {
     Instant now = Instant.now();
 
@@ -115,6 +117,7 @@ public class AlarmsService {
         .subscribe();
 	}
 
+  @Transactional
 	public Mono<String> cancel(String code) {
 		log.info("Cancel alarm: {}",code);
 		return Mono.from(alarmRepository.deleteByCode(code))
