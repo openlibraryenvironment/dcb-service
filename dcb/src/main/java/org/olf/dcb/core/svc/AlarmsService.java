@@ -86,6 +86,8 @@ public class AlarmsService {
 		// email or slack notifications configured, if so send
 		log.info("Optionally notify {} : {}",alarmCode,status);
 		List<String> combined = this.webhookUrls; // + any hostLms specific ones
+                                              //
+    log.info("Registered webhooks: {}",webhookUrls);
 
 		return Flux.fromIterable(combined)
 			.map( target -> {
@@ -128,6 +130,12 @@ public class AlarmsService {
 
 	public Mono<Void> publishToWebhook(String url, Map<String, Object> payload) {
 		// This is where you get HttpClient programmatically
+    if ( ( url == null ) ||
+         ( url.trim().length() == 0 ) ) {
+      log.error("publish to webhook called with empty URL");
+      return Mono.empty();
+    }
+
 		try {
 			log.info("Announce alarm on webhook : {}",url);
 
