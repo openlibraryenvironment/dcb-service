@@ -136,9 +136,9 @@ public class AlarmsService {
                 
 			// Sending the POST request to each webhook URL
 			return Mono.from(client.exchange(request))
-				.onErrorResume(NoHostException.class, e -> {
+				.onErrorResume( e -> {
 					// Handle the error gracefully, log or return fallback
-					log.warn("Host could not be resolved: {} {}", e.getMessage(), url.toString());
+					log.warn("Unable to post to webhook: {} {}", e.getMessage(), url.toString());
 					return Mono.empty(); // or a fallback Mono.just(...)
 				})
 				.then();
