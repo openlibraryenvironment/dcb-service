@@ -14,6 +14,7 @@ import io.micronaut.http.uri.UriBuilder;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,9 @@ import reactor.core.publisher.Mono;
 
 import services.k_int.interaction.alma.*;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.error.AlmaError;
+import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
+import services.k_int.interaction.alma.types.error.AlmaException;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.*;
 import services.k_int.interaction.alma.types.holdings.*;
@@ -140,10 +144,34 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 				}
 			})
 			.onErrorResume(HttpClientResponseException.class, ex -> {
-				String errorMsg = String.format("HTTP error for request to %s: %s",
-					request.getPath(), ex.getMessage());
-				log.error(errorMsg, ex);
-				return Mono.error(ex);
+				HttpStatus status = ex.getStatus();
+				Optional<String> responseBody = ex.getResponse().getBody(String.class);
+
+				if (responseBody.isPresent()) {
+					Optional<AlmaErrorResponse> almaError = conversionService.convert(
+						responseBody.get(),
+						Argument.of(AlmaErrorResponse.class)
+					);
+
+					if (almaError.isPresent()) {
+						AlmaErrorResponse errorResponse = almaError.get();
+
+						StringBuilder logMsg = new StringBuilder();
+						logMsg.append(String.format("Alma API error for %s (HTTP %d)", request.getPath(), status.getCode()));
+						if (errorResponse.getErrorList() != null && errorResponse.getErrorList().getError() != null) {
+							for (AlmaError e : errorResponse.getErrorList().getError()) {
+								logMsg.append(String.format("%n - [%s] %s", e.getErrorCode(), e.getErrorMessage()));
+							}
+						}
+						log.error(logMsg.toString());
+						return Mono.error(new AlmaException("Alma API error", errorResponse, status));
+					} else {
+						log.error("Failed to convert error body to AlmaErrorResponse for request to {}", request.getPath());
+					}
+				}
+
+				log.error("HTTP {} error for request to {}: {}", status.getCode(), request.getPath(), responseBody.orElse("No body"), ex);
+				return Mono.error(ex); // fallback
 			});
 	}
 
