@@ -13,8 +13,11 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.core.publisher.Flux.fromIterable;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -207,11 +210,16 @@ public class PatronRequestResolutionService {
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
 		return Mono.justOrEmpty(resolution.getBibClusterId())
-			.flatMap(liveAvailabilityService::checkAvailability)
+			.flatMap(this::checkAvailability)
 			.onErrorMap(NoBibsForClusterRecordException.class,
 				error -> new UnableToResolvePatronRequest(error.getMessage()))
 			.map(AvailabilityReport::getItems)
 			.map(resolution::trackAllItems);
+	}
+
+	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
+		return liveAvailabilityService.checkAvailability(clusteredBibId,
+			Optional.of(Duration.ofSeconds(30)));
 	}
 
 	private Mono<Resolution> sortItems(ResolutionSortOrder resolutionSortOrder,

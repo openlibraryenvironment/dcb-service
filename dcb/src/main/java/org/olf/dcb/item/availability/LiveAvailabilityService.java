@@ -98,9 +98,10 @@ public class LiveAvailabilityService {
 			.orElse(report);
 	}
 
-	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
-		return checkAvailability(clusteredBibId, Optional.empty(),
-			Optional.ofNullable("all"));
+	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
+		Optional<Duration> timeout) {
+
+		return checkAvailability(clusteredBibId, timeout, Optional.of("all"));
 	}
 	
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,

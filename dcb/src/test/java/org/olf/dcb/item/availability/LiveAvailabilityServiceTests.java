@@ -21,6 +21,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
@@ -479,7 +480,8 @@ class LiveAvailabilityServiceTests {
 	}
 
 	private AvailabilityReport checkAvailability(UUID clusterRecordId) {
-		return singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId));
+		return singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId,
+			Optional.empty()));
 	}
 
 	private AvailabilityReport checkAvailability(ClusterRecord clusterRecord) {
