@@ -66,7 +66,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	// II Adding CLUSTER_CHECK_CONCURRENCY Because I'm concerned that we are creating a large queue of
 	// clusters to check and then limiting the concurrency of the lookups for bibs in that cluster
 	// So although we never check more than 100 bibs at a time, we can have many more than 100 of those flows in play
-	private static final int EXTERNAL_FETCH_CONCURRENCY = 5;
+	
+	// SO: I have removed that particular throttle as it's a bug if we are generating the next chunk before we have finished processing this one.
+	// I have fixed that in the runner. 
+	
+	private static final int EXTERNAL_FETCH_TOTAL_CONCURRENCY = 5;	
+	private static final int EXTERNAL_FETCH_PER_SYSTEM = 2;
+	
 	private static final Duration TIMEOUT = Duration.of(30, ChronoUnit.SECONDS);
 	private static final String filters = "none";
 	
@@ -216,12 +222,26 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 //		locationToAgencyMappingService.findLocationToAgencyMapping(filters, filters);
 	}
 	
+	public Flux<BibAvailabilityCount> throttleFetchBySourceSystem( Collection<UUID> ids ) {
+		return bibRecordService.getAllByIdIn( ids )
+			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
+			.flatMapIterable(Map::values)
+			.flatMap( sameSourceBibs -> {
+				return Flux.fromIterable(sameSourceBibs)
+					.buffer(EXTERNAL_FETCH_PER_SYSTEM)
+					.delayElements(Duration.of(1, ChronoUnit.SECONDS))
+					.concatMap( items -> {
+						return Flux.fromIterable(items)
+							.flatMap( this::checkSingleBib );
+					}, 0); // No prefetching
+			}, EXTERNAL_FETCH_TOTAL_CONCURRENCY);
+	}
+	
 	@Transactional
 	public Mono<Map<String, Collection<BibAvailabilityCount>>> checkClusterAvailability( Collection<UUID> bibs ) {
 		
 		// Manifest the bibs that need updating.
-		return bibRecordService.getAllByIdIn( bibs )
-			.flatMap( this::checkSingleBib, EXTERNAL_FETCH_CONCURRENCY )
+		return throttleFetchBySourceSystem( bibs )
 			
 			// Convert to and store the Location Entry
 			.flatMap( this::updateMappingIfRequired )

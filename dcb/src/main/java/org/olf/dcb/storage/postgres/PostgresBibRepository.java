@@ -37,7 +37,7 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 		WHERE
 			contributes_to IN (
 				SELECT cluster_record.id FROM cluster_record
-				LEFT JOIN bib_record ON bib_record.contributes_to = cluster_record.id
+				INNER JOIN bib_record ON bib_record.contributes_to = cluster_record.id
 				WHERE NOT EXISTS (
 					SELECT bib_availability_count.id
 					FROM bib_availability_count
