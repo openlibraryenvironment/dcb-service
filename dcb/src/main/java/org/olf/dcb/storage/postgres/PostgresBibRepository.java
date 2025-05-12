@@ -43,19 +43,15 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 					FROM bib_availability_count
 					WHERE bib_availability_count.bib_id = bib_record.id
 					AND bib_availability_count.status != 'RECHECK_REQUIRED'
-					AND (bib_availability_count.status = 'MAPPED'
-						OR bib_availability_count.last_updated > :lastCheckedBefore))
+					AND bib_availability_count.status = 'MAPPED')
 				ORDER BY cluster_record.date_updated ASC
 				LIMIT :limit)
 			
-			AND (bib_availability_count.status = 'RECHECK_REQUIRED'
-			  OR (
-				(bib_availability_count.status IS NULL OR bib_availability_count.status != 'MAPPED')
-			  	AND (bib_availability_count.last_updated IS NULL OR bib_availability_count.last_updated <= :lastCheckedBefore)))
+			AND (bib_availability_count.status = 'RECHECK_REQUIRED' OR bib_availability_count.status IS NULL)
 		ORDER BY contributes_to,
 		  bib_availability_count.status NULLS FIRST,
 		  bib_availability_count.last_updated NULLS FIRST;""", nativeQuery = true)
-	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit, Instant lastCheckedBefore );
+	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit );
 	
 	
 	@Override

@@ -126,7 +126,7 @@ public interface BibRepository {
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
 	
 	@Vetoed
-	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit, Instant lastCheckedBefore );
+	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit );
 	
 	@Introspected
 	public static record MemberBib(UUID bibid, @Nullable String title, String sourcerecordid, @Nullable String metadatascore,

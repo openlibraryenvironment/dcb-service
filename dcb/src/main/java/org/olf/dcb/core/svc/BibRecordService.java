@@ -356,7 +356,7 @@ public class BibRecordService {
 	}
 
 	public Flux<MissingAvailabilityInfo> findMissingAvailability ( int limit ) {
-		return Flux.from( bibRepo.findMissingAvailability(limit, Instant.now().minus(2, ChronoUnit.DAYS)) );
+		return Flux.from( bibRepo.findMissingAvailability( limit ));
 	}
 
 	public Publisher<Void> cleanup() {

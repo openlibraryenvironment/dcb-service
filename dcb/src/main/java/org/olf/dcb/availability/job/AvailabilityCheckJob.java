@@ -299,6 +299,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	
 	private Mono<JobChunk<MissingAvailabilityInfo>> getChunk( Optional<JsonNode> resumption ) {
 		
+		log.info("Creating next chunk subscription {}");
+		
 		return Mono.just( CLUSTER_MAX_DEFAULT )
 			.flatMapMany( bibRecordService::findMissingAvailability )
 			// Temporarily adding a 50ms delay - steve to review
