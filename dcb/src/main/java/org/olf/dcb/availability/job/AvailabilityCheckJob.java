@@ -27,6 +27,7 @@ import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.AvailabilityReport.Error;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
+import org.olf.dcb.operations.OperationsService;
 import org.olf.dcb.storage.BibAvailabilityCountRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.event.Level;
@@ -151,8 +152,9 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	private final BibRecordService bibRecordService;
 	private final ReactiveJobRunnerService jobRunnerService;
   private final ReactorFederatedLockService lockService;
+  private final OperationsService operations;
 
-	public AvailabilityCheckJob( LiveAvailabilityService liveAvailabilityService, SharedIndexService sharedIndexService, BibRecordService bibRecordService, LocationToAgencyMappingService locationToAgencyMappingService, HostLmsService hostLmsService, BibAvailabilityCountRepository bibCounts, ReactiveJobRunnerService jobRunnerService, ReactorFederatedLockService lockService ) {
+	public AvailabilityCheckJob( LiveAvailabilityService liveAvailabilityService, SharedIndexService sharedIndexService, BibRecordService bibRecordService, LocationToAgencyMappingService locationToAgencyMappingService, HostLmsService hostLmsService, BibAvailabilityCountRepository bibCounts, ReactiveJobRunnerService jobRunnerService, ReactorFederatedLockService lockService, OperationsService operations ) {
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.sharedIndexService = sharedIndexService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -161,6 +163,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		this.bibRecordService = bibRecordService;
 		this.jobRunnerService = jobRunnerService;
 		this.lockService = lockService;
+		this.operations = operations;
 	}
 
 	private static BibAvailabilityCountBuilder getAvailabilityCountDefaults( BibRecord bib ) {
@@ -321,7 +324,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					.orElse(0L))
 			.reduce( Long::sum )
 			.elapsed()
-			.transformDeferred(lockService.withLockOrEmpty(JOB_LOCK))
+			.transformDeferred( lockService.withLockOrEmpty(JOB_LOCK) )
+			.transformDeferred( operations::subscribeOnlyOutsideOfficeHours )
 			.doOnSuccess( res -> {
 				if (res == null) {
 					log.info(JOB_NAME + "allready running (NOOP)");
@@ -330,19 +334,6 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			.subscribe(
 					TupleUtils.consumer(this::jobSubscriber),
 					this::errorSubscriber);
-		
-		
-//		getChunk()
-//			.publishOn( Schedulers.boundedElastic() )
-//			.subscribeOn( Schedulers.boundedElastic() )
-//			.transform( ReactorUtils.withFluxLogging(log, f ->
-//					f.doOnNext(Level.INFO, item -> log.info("Check availability for {}", item.toString()))) )
-//			.collectMultimap( info -> info.clusterId().toString(), MissingAvailabilityInfo::bibId )
-//			.flatMapIterable( Map::entrySet )
-//			.flatMap(entry -> checkClusterAvailability(entry.getValue())
-//				.map(locationMap -> Map.entry( entry.getKey(), locationMap )))
-//			.collectMap(Entry::getKey, Entry::getValue)
-//			.subscribe( this::reindexAffectedClusters, this::logError );
 	}
 
 	private static final String JOB_NAME = "Availability job";
