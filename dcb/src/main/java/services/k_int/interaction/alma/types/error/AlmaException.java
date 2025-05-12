@@ -1,7 +1,9 @@
 package services.k_int.interaction.alma.types.error;
 
 import io.micronaut.http.HttpStatus;
+import lombok.Getter;
 
+@Getter
 public class AlmaException extends RuntimeException {
 	private final AlmaErrorResponse errorResponse;
 	private final HttpStatus status;
@@ -10,13 +12,5 @@ public class AlmaException extends RuntimeException {
 		super(message);
 		this.errorResponse = errorResponse;
 		this.status = status;
-	}
-
-	public AlmaErrorResponse getErrorResponse() {
-		return errorResponse;
-	}
-
-	public HttpStatus getStatus() {
-		return status;
 	}
 }

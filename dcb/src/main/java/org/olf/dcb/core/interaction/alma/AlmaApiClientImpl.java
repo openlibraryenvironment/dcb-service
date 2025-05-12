@@ -148,10 +148,16 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 				Optional<String> responseBody = ex.getResponse().getBody(String.class);
 
 				if (responseBody.isPresent()) {
-					Optional<AlmaErrorResponse> almaError = conversionService.convert(
-						responseBody.get(),
-						Argument.of(AlmaErrorResponse.class)
-					);
+
+					Optional<AlmaErrorResponse> almaError = Optional.empty();
+					try {
+						almaError = conversionService.convert(
+							responseBody.get(),
+							Argument.of(AlmaErrorResponse.class)
+						);
+					} catch (Exception e) {
+						log.error("Conversion service failed to convert response body to AlmaErrorResponse: {}", responseBody.get(), e);
+					}
 
 					if (almaError.isPresent()) {
 						AlmaErrorResponse errorResponse = almaError.get();
