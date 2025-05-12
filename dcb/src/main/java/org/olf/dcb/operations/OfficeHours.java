@@ -46,6 +46,7 @@ public class OfficeHours {
 	private final Optional<OffsetTime> end;
 
 	public boolean isInsideHours( @NonNull @NotNull OffsetTime time ) {
+		if ( bothValuesNotSupplied() ) return true; 
 		
 		OffsetTime timeToCompare = time.withOffsetSameInstant(ZoneOffset.UTC);
 		
@@ -60,7 +61,18 @@ public class OfficeHours {
 	}
 	
 	public boolean isOutsideHours( @NonNull @NotNull OffsetTime time ) {
-		return !isInsideHours(time);
+		if ( bothValuesNotSupplied() ) return true; 
+		
+		OffsetTime timeToCompare = time.withOffsetSameInstant(ZoneOffset.UTC);
+		
+		// To do this comparison we'll use default values for null to allow none present start/end to pass.
+		OffsetTime timeStart = getStart().orElse(DEFAULT_START);
+		OffsetTime timeEnd = getEnd().orElse(DEFAULT_END);
+		
+		int startComp = timeToCompare.compareTo(timeStart);		
+		int endComp = timeToCompare.compareTo(timeEnd);
+		
+		return startComp < 0 && endComp > 0;
 	}
 	
 	public boolean isInsideHours() {
@@ -69,6 +81,10 @@ public class OfficeHours {
 	
 	public boolean isOutsideHours() {
 		return isOutsideHours(OffsetTime.now());
+	}
+	
+	private boolean bothValuesNotSupplied() {
+		return getStart().isEmpty() && getEnd().isEmpty();
 	}
 	
 }
