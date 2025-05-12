@@ -3,29 +3,18 @@ package org.olf.dcb.core.interaction.alma;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
-import io.micronaut.context.BeanContext;
 import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.*;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.http.client.HttpClient;
 
-
-import jakarta.inject.Singleton;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,7 +23,6 @@ import org.olf.dcb.core.interaction.RelativeUriResolver;
 
 import org.reactivestreams.Publisher;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import services.k_int.interaction.alma.*;
@@ -135,12 +123,28 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
 	}
 
-	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Class<T> type) {
-		return Mono.from(client.exchange(request, Argument.of(type)));
+	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
+		return Mono.from(client.retrieve(request, argumentType, Argument.of(HttpClientResponseException.class)));
 	}
 
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return Mono.from(client.retrieve(request, argumentType));
+	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
+		return Mono.from(client.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
+			.flatMap(response -> {
+				if (response.getBody().isPresent()) {
+					return Mono.just(response);
+				} else {
+					String errorMsg = String.format("Response body is empty for request to %s with expected type %s",
+						request.getPath(), argumentType.getType().getSimpleName());
+					log.error(errorMsg);
+					return Mono.error(new IllegalStateException(errorMsg));
+				}
+			})
+			.onErrorResume(HttpClientResponseException.class, ex -> {
+				String errorMsg = String.format("HTTP error for request to %s: %s",
+					request.getPath(), ex.getMessage());
+				log.error(errorMsg, ex);
+				return Mono.error(ex);
+			});
 	}
 
   @Override
@@ -156,7 +160,9 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		final String path="/almaws/v1/users";
     return createRequest(POST, path)
 			.map(request -> request.body(patron))
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaUser.class))));
+			.flatMap(request -> doExchange(request, Argument.of(AlmaUser.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(user -> log.info("Created user {}",user));
 	}
 
 	// q=primary_id~abc_def
@@ -197,7 +203,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
     final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
     return createRequest(POST, path)
       .map(request -> request.body(almaItem))
-      .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaItem.class))));
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItem.class))));
 	}
 
 	public Mono<String> test() {
