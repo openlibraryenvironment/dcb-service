@@ -274,6 +274,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.user_identifiers(user_identifiers)
 			.external_id(external_id) // DCB Patron ID for home library system
       .link("")
+			// https://developers.exlibrisgroup.com/blog/Users-API-working-with-external-internal-users/
+			.account_type(CodeValuePair.builder().value("INTERNAL").build())
       // CodeValuePair status;
       // CodeValuePair gender;
       // String password;

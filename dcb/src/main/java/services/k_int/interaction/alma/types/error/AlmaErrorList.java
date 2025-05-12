@@ -1,13 +1,16 @@
 package services.k_int.interaction.alma.types.error;
 
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 
-@Serdeable.Deserializable
+@Serdeable
+@NoArgsConstructor
+@Getter
+@Setter
 public class AlmaErrorList {
 	private List<AlmaError> error;
-
-	public List<AlmaError> getError() { return error; }
-	public void setError(List<AlmaError> error) { this.error = error; }
 }
