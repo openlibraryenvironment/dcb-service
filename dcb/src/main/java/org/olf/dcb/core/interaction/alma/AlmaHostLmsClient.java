@@ -53,7 +53,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	// These are the same config keys as from FolioOaiPmhIngestSource
 	// which was implemented prior to this client
 	private static final HostLmsPropertyDefinition BASE_URL_SETTING
-		= urlPropertyDefinition("base-url", "Base URL of the ALMA system", TRUE);
+		= urlPropertyDefinition("alma-url", "Base request URL of the ALMA system", TRUE);
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
 		= stringPropertyDefinition("apikey", "API key for this ALMA system", TRUE);
 
