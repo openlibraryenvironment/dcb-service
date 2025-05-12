@@ -203,8 +203,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	public Mono<String> test() {
     final String path="/almaws/v1/conf/test";
     return createRequest(GET, path)
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(Void.class))))
-			.thenReturn("OK");
+      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(String.class))));
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
