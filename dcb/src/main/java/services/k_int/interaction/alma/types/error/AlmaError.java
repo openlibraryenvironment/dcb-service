@@ -5,11 +5,9 @@ import java.util.Optional;
 import io.micronaut.http.hateoas.JsonError;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Serdeable
-@NoArgsConstructor
 @Getter
 @Setter
 public class AlmaError extends JsonError {
