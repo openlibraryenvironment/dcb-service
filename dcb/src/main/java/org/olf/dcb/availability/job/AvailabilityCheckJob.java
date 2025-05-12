@@ -66,7 +66,6 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	// II Adding CLUSTER_CHECK_CONCURRENCY Because I'm concerned that we are creating a large queue of
 	// clusters to check and then limiting the concurrency of the lookups for bibs in that cluster
 	// So although we never check more than 100 bibs at a time, we can have many more than 100 of those flows in play
-	private static final int CLUSTER_CHECK_CONCURRENCY = 25;
 	private static final int EXTERNAL_FETCH_CONCURRENCY = 5;
 	private static final Duration TIMEOUT = Duration.of(30, ChronoUnit.SECONDS);
 	private static final String filters = "none";
@@ -298,11 +297,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	}
 	
 	private Mono<JobChunk<MissingAvailabilityInfo>> getChunk( Optional<JsonNode> resumption ) {
-		
-		log.info("Creating next chunk subscription {}");
+
+		log.info("Creating next chunk subscription");
 		
 		return Mono.just( CLUSTER_MAX_DEFAULT )
+			.doOnNext( _v -> log.debug ("Producing next set of availability lookup") )
 			.flatMapMany( bibRecordService::findMissingAvailability )
+			
 			// Temporarily adding a 50ms delay - steve to review
 			.delayElements(Duration.ofMillis(50))
 			.reduceWith( this::defaultChunkBuilder, (builder, item) -> builder.dataEntry(item) )
@@ -327,10 +328,15 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			.reduce( Long::sum )
 			.elapsed()
 			.transformDeferred( lockService.withLockOrEmpty(JOB_LOCK) )
+			.doOnSuccess( res -> {
+				if (res == null) {
+					log.info(JOB_NAME + " allready running (NOOP)");
+				}
+			})
 			.transformDeferred( operations::subscribeOnlyOutsideOfficeHours )
 			.doOnSuccess( res -> {
 				if (res == null) {
-					log.info(JOB_NAME + "allready running (NOOP)");
+					log.info(JOB_NAME + " skipping as set to run ouside office hours");
 				}
 			})
 			.subscribe(
@@ -377,7 +383,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				.flatMapIterable( Map::entrySet )
 				
 				.flatMap(entry -> checkClusterAvailability(entry.getValue())
-					.map(locationMap -> Map.entry( entry.getKey(), locationMap )), CLUSTER_CHECK_CONCURRENCY)
+					.map(locationMap -> Map.entry( entry.getKey(), locationMap )))
 				.collectMap(Entry::getKey, Entry::getValue)	
 				.map( this::reindexAffectedClusters )
 			.then( Mono.just(chunk) );
