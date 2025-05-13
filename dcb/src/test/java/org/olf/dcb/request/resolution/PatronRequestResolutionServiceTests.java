@@ -50,6 +50,7 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
+import io.micronaut.context.annotation.Property;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +61,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
+@Property(name = "dcb.resolution.live-availability.timeout", value = "PT1S")
 class PatronRequestResolutionServiceTests {
 	private final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
@@ -379,6 +381,56 @@ class PatronRequestResolutionServiceTests {
 			hasNoChosenItem()
 		));
 	}
+
+	@Test
+	void shouldNotWaitForSlowResponseForAvailability() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "651463";
+		final var onlyAvailableItemBarcode = "76653672456";
+
+		final var unavailableItemId = "372656";
+		final var unavailableItemBarcode = "6256486473634";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			CheckedOutItem(unavailableItemId, unavailableItemBarcode),
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
+		), 2000);
+
+		final var homeLibraryCode = "home-library";
+
+		final var patron = definePatron("298485", homeLibraryCode);
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		final var resolution = resolve(patronRequest);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem()
+		));
+	}
+
 
 	@Test
 	void shouldExcludeItemFromSameAgencyAsBorrowerWhenSettingIsDisabledForConsortia() {
