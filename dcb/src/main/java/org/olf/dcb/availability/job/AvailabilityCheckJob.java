@@ -62,7 +62,7 @@ import services.k_int.utils.UUIDUtils;
 @ApplicableChunkTypes( AvailabilityCheckChunk.class )
 public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobChunkProcessor {
 	
-	private static final int CLUSTER_MAX_DEFAULT = 50;
+	private static final int CLUSTER_MAX_DEFAULT = 25;
 	// II Adding CLUSTER_CHECK_CONCURRENCY Because I'm concerned that we are creating a large queue of
 	// clusters to check and then limiting the concurrency of the lookups for bibs in that cluster
 	// So although we never check more than 100 bibs at a time, we can have many more than 100 of those flows in play
@@ -299,8 +299,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	
 	private AvailabilityCheckChunkBuilder defaultChunkBuilder() {
 		
+		final boolean transitionedIntoOfficeHours = operations.getOfficeHours().isInsideHours();
+		if (transitionedIntoOfficeHours)
+			log.debug("Making this the last chunk as we've entered office hours");
+		
 		return AvailabilityCheckChunk.builder()
 			.jobId(getId())
+			.lastChunk( transitionedIntoOfficeHours ) // Default this chunk to last if we have gone into outside hours.
 			.checkpoint(JsonBuilder.obj(o -> o
 				.key("runStarted", vals -> vals.str(Instant.now().toString()))
 				.key("lastFetched", vals -> vals.str(Instant.now().toString()))));
@@ -327,6 +332,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			// Temporarily adding a 50ms delay - steve to review
 			.delayElements(Duration.ofMillis(50))
 			.reduceWith( this::defaultChunkBuilder, (builder, item) -> builder.dataEntry(item) )
+			
 			.map( AvailabilityCheckChunkBuilder::build )
 			.map( AvailabilityCheckJob::chunkPostProcess );
 	}

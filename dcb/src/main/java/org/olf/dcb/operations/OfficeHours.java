@@ -11,13 +11,18 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Start and End are assumed to be UTC.
+ * If no data is present for either start/end then always assume outside hours. 
+ * 
+ * If ONLY start or end is supplied the other value defaults to day start/end 
  * 
  * @author Steve Osguthorpe
  */
 @Data
+@Slf4j
 @ConfigurationProperties("dcb.officehours")
 public class OfficeHours {
 
@@ -46,7 +51,10 @@ public class OfficeHours {
 	private final Optional<OffsetTime> end;
 
 	public boolean isInsideHours( @NonNull @NotNull OffsetTime time ) {
-		if ( bothValuesNotSupplied() ) return true; 
+		if ( bothValuesNotSupplied() ) {
+			log.debug("No office hours data, assuming outside hours.");
+			return false;
+		}
 		
 		OffsetTime timeToCompare = time.withOffsetSameInstant(ZoneOffset.UTC);
 		
@@ -56,23 +64,16 @@ public class OfficeHours {
 		
 		int startComp = timeToCompare.compareTo(timeStart);		
 		int endComp = timeToCompare.compareTo(timeEnd);
+		
+		boolean inside = startComp > -1 && endComp < 1;
+
+		log.debug("[{}] Evaluated as {} office hours [{} -> {}]", timeToCompare, (inside ? "inside" : "ouside"), timeStart, timeEnd);
 		
 		return startComp > -1 && endComp < 1;
 	}
 	
 	public boolean isOutsideHours( @NonNull @NotNull OffsetTime time ) {
-		if ( bothValuesNotSupplied() ) return true; 
-		
-		OffsetTime timeToCompare = time.withOffsetSameInstant(ZoneOffset.UTC);
-		
-		// To do this comparison we'll use default values for null to allow none present start/end to pass.
-		OffsetTime timeStart = getStart().orElse(DEFAULT_START);
-		OffsetTime timeEnd = getEnd().orElse(DEFAULT_END);
-		
-		int startComp = timeToCompare.compareTo(timeStart);		
-		int endComp = timeToCompare.compareTo(timeEnd);
-		
-		return startComp < 0 && endComp > 0;
+		return !isInsideHours(time);
 	}
 	
 	public boolean isInsideHours() {
