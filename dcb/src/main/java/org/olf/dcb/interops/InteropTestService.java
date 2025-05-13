@@ -51,8 +51,9 @@ public class InteropTestService {
 
 
 		List<Function<InteropTestContext, Mono<InteropTestResult>>> testSteps = List.of(
-    	params -> patronCreateTest(params)
-      // params -> patronValidateTest(params)
+    	params -> patronCreateTest(params),
+      params -> patronValidateTest(params),
+			params -> patronDeleteTest(params)
     );
 
 		return hostLmsService.getClientFor(code)
@@ -68,6 +69,20 @@ public class InteropTestService {
 					.concatMap(test -> test.apply(testCtx) )
 			);
 
+	}
+
+	private Mono<InteropTestResult> patronValidateTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String testPatronId = (String) testCtx.getValues().get("testPatronId");
+
+		return hostLms.getPatronByIdentifier(testPatronId)
+			.map(patron -> InteropTestResult.builder()
+				.stage("setup")
+				.step("patron")
+				.result("OK")
+				.note("Validated patron with testPatronId "+testPatronId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+				.build()
+			);
 	}
 
 	Mono<InteropTestResult> patronCreateTest(InteropTestContext testCtx) {
