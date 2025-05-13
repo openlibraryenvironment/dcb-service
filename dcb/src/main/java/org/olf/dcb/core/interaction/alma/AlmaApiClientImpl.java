@@ -143,7 +143,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 				if (response.getBody().isPresent()) {
 					return Mono.just(response);
 
-				} else if (response.getBody().isEmpty() && argumentType.equalsType(Argument.of(Void.TYPE))) {
+				} else if (response.getBody().isEmpty() && argumentType.equalsType(Argument.of(Void.class))) {
 					log.debug("Response body is empty for request to {} with expected type {}", request.getPath(), argumentType.getType().getSimpleName());
 					return Mono.just(response);
 				}
