@@ -96,8 +96,14 @@ public class AlarmsService {
 		return Flux.fromIterable( targets )
 			.map( target -> {
 				log.info("Publish {} {} to {}",alarmCode, status, target);
+
+        if ( target.getProfile() == null ) {
+          log.error("Missing profile {}",target);
+          return Mono.empty();
+        }
+          
 				
-        return switch ( target.getProfile() ) {
+        return switch ( target.getProfile().toUpperCase() ) {
           case "SLACK" -> publishToWebhook(target.getUrl(), mapStringToSlackPayload("DCB-ALARM: "+envCode+" "+alarmCode+" "+status));
           case "TEAMS" -> publishToWebhook(target.getUrl(), mapStringToTeamsPayload("DCB-ALARM: "+envCode+" "+alarmCode+" "+status));
           case "LOG" -> {
