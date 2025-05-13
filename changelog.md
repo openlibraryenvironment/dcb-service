@@ -1,10 +1,54 @@
 # Changelog
 
+## Version 8.28.0
+
+### Additions
+* [Alma]
+	* add validate patron and delete patron to testIls
+	* External Id must be empty for internal user.
+	* error improvements and add required create user field
+	* try to convert HttpClientResponseExceptions to Alma specific errors
+	* validate responses for creating user/patron
+* [General]
+	* Timeout availability during resolution DCB-1896
+	* Introduce idea of office hours
+	* First pass of alarm notifications to system wide slack webhook. Set an env var like "DCB_GLOBAL_NOTIFICATIONS_WEBHOOKS[0]":"https://hooks.slack.com/services/***/***/***" to have alarms broadcast to the selected slack channel
+
+### Changes
+* [Chore]
+	* Remove the CLUSTER_CHECK_CONCURRENCY var
+	* use alternate base url for AlmaHostLmsClient class
+	* change return type for alma test method
+	* log webhooks at startup
+	* defensive code for webhook url
+	* adjusting folio ping, and add resumeOnError
+	* more defensive code arounf Folio ping operation
+	* Register handlers for uncaught exceptions and log them
+	* alter HttpClient for slack publishing
+	* Additional logging
+	* Trial delay as a short term measure
+	* Attempt to implement ping for FOLIO
+
+### Fixes
+* [General]
+	* Stop job when transitioning into hours.
+	* Throttles per sourceSystemId for availability check.
+	* Correction to the query for unprocessed availability.
+	* Office hours methods should pass if no data is supplied.
+	* Ensure we wait for chunk to be processed
+	* Prevent cyclic check of resources every 2 days
+	* Remove duplicate "and" from getActiveRequestCountForPatron [DCB-1897]
+	* build - remove no args annotation on AlmaError class
+
 ## Version 8.27.0
 
 ### Additions
 * [General]
 	* Implement some alarms
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ## Version 8.26.1
 
@@ -12,10 +56,16 @@
 * [General]
 	* Set needsAttention flag on Location when dynamically creating a new location
 	* Add Workflow methods to location, when dynamically creating a location as a part of holdings harvesting mark the new location record as needing the Review Workflow- because there are properties on a location only a human can supply
+	* Add userMessage to CheckResult - a string intended to be displayed in a user interface that explains the error in more readable terms
 
 ### Changes
 * [Chore]
 	* extra logging around federated lock release
+	* Changelog - Generate the changelog
+
+### Fixes
+* [General]
+	* use alternate base url for AlmaApiClientImpl
 
 ## Version 8.26.0
 
@@ -3833,20 +3883,6 @@
 	* Issue #DCB-226
 * [Provides]
 	* Issue #DCB-90
-
-## Version 2.8.0
-
-### Additions
-* [General]
-	* Add userMessage to CheckResult - a string intended to be displayed in a user interface that explains the error in more readable terms
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* use alternate base url for AlmaApiClientImpl
 
 ## Version 2.7.1
 
