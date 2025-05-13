@@ -36,6 +36,7 @@ import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.*;
 import services.k_int.interaction.alma.types.holdings.*;
 
+import static io.micronaut.http.HttpStatus.NO_CONTENT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.HttpMethod.*;
 
@@ -138,9 +139,16 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
 		return Mono.from(client.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
+
 				if (response.getBody().isPresent()) {
 					return Mono.just(response);
-				} else {
+
+				} else if (response.getBody().isEmpty() && argumentType.equalsType(Argument.of(Void.TYPE))) {
+					log.debug("Response body is empty for request to {} with expected type {}", request.getPath(), argumentType.getType().getSimpleName());
+					return Mono.just(response);
+				}
+
+				else {
 					String errorMsg = String.format("Response body is empty for request to %s with expected type %s",
 						request.getPath(), argumentType.getType().getSimpleName());
 					log.error(errorMsg);
@@ -214,9 +222,10 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	public Mono<String> deleteAlmaUser(String user_id) {
 		final String path="/almaws/v1/users/"+user_id;
     return createRequest(DELETE, path)
-      .flatMap(req -> doExchange(req, Argument.of(String.class)))
-			.map(response -> response.getBody().get())
-			.doOnNext(returnedStr -> log.info("User deleted {}",returnedStr));
+      .flatMap(req -> doExchange(req, Argument.of(Void.class)))
+			// This method returns HTTP 204 (No Content)
+			// which means that the server successfully processed the request, but is not returning any content.
+			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "User deleted" : "User not deleted");
 	}
 
 	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
