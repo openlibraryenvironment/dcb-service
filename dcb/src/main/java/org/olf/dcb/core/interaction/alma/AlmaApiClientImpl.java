@@ -11,6 +11,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 
+import io.micronaut.serde.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -53,6 +54,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   private final HttpClient client;
   private final String apikey;
   private final ConversionService conversionService;
+	private final ObjectMapper objectMapper;
 
   public AlmaApiClientImpl() {
     // No args constructor needed for Micronaut bean
@@ -64,19 +66,21 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   }
 
   @Creator
-  public AlmaApiClientImpl(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client, ConversionService conversionService) {
+  public AlmaApiClientImpl(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
+													 ConversionService conversionService, ObjectMapper objectMapper) {
 
-    log.debug("Creating Alma HostLms client for HostLms {}", hostLms);
+		log.debug("Creating Alma HostLms client for HostLms {}", hostLms);
 
-    URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(ALMA_URL)).build();
+		URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(ALMA_URL)).build();
 		apikey = (String) hostLms.getClientConfig().get(APIKEY_KEY);
-    URI relativeURI = UriBuilder.of("/almaws/v1/").build();
-    rootUri = RelativeUriResolver.resolve(hostUri, relativeURI);
+		URI relativeURI = UriBuilder.of("/almaws/v1/").build();
+		rootUri = RelativeUriResolver.resolve(hostUri, relativeURI);
 
-    lms = hostLms;
-    this.client = client;
-    this.conversionService = conversionService;
-  }
+		lms = hostLms;
+		this.client = client;
+		this.conversionService = conversionService;
+		this.objectMapper = objectMapper;
+	}
 
 	public Publisher<AlmaUserList> users() {
 		log.debug("Get users - apikey={}",apikey);
@@ -151,10 +155,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 					Optional<AlmaErrorResponse> almaError = Optional.empty();
 					try {
-						almaError = conversionService.convert(
-							responseBody.get(),
-							Argument.of(AlmaErrorResponse.class)
-						);
+						almaError = Optional.of(objectMapper.readValue(responseBody.get(), AlmaErrorResponse.class));
 					} catch (Exception e) {
 						log.error("Conversion service failed to convert response body to AlmaErrorResponse: {}", responseBody.get(), e);
 					}
