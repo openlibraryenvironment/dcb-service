@@ -29,6 +29,8 @@ import reactor.util.function.Tuples;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.annotation.Value;
 
+import org.olf.dcb.configuration.NotificationEndpointDefinition;
+
 @Slf4j
 @Singleton
 public class AlarmsService {
@@ -38,16 +40,17 @@ public class AlarmsService {
 	// Default to an empty list
 	// Add webhooks in environment variables as
 	// DCB_GLOBAL_NOTIFICATIONS_WEBHOOKS[0]=https://example.com/notify
-	@Value("${dcb.global.notifications.webhooks:}")
-	List<String> webhookUrls;
+	List<NotificationEndpointDefinition> notificationEndpointDefinitions;
 
   @Value("${dcb.env.code:UNKNOWN}")
   String envCode;
 
 	public AlarmsService(
-		AlarmRepository alarmRepository
+		AlarmRepository alarmRepository,
+    List<NotificationEndpointDefinition> notificationEndpointDefinitions
 	){
 		this.alarmRepository = alarmRepository;
+    this.notificationEndpointDefinitions = notificationEndpointDefinitions;
 	}
 
   @Transactional
@@ -85,26 +88,45 @@ public class AlarmsService {
 		// Work out the context of the alarm, and see if that context has 
 		// email or slack notifications configured, if so send
 		log.info("Optionally notify {} : {}",alarmCode,status);
-		List<String> combined = this.webhookUrls; // + any hostLms specific ones
-                                              //
-    log.info("Registered webhooks: {}",webhookUrls);
+		List<NotificationEndpointDefinition> combined = this.notificationEndpointDefinitions; // + any hostLms specific ones
+    return optionallyNotify(combined, alarmCode, status);
+  }
 
-		return Flux.fromIterable(combined)
+  private Mono<String> optionallyNotify(List<NotificationEndpointDefinition> targets, String alarmCode, String status) {
+		return Flux.fromIterable( targets )
 			.map( target -> {
 				log.info("Publish {} {} to {}",alarmCode, status, target);
 				
-				return publishToWebhook(target, Map.of("blocks", List.of(
-					Map.of(
-						"type", "section",
-						"text", Map.of(
-							"type", "markdown",
-							"text", "DCB-ALARM: "+envCode+" "+alarmCode+" "+status
-						)
-					)
-				)));
+        return switch ( target.getProfile() ) {
+          case "SLACK" -> publishToWebhook(target.getUrl(), mapStringToSlackPayload("DCB-ALARM: "+envCode+" "+alarmCode+" "+status));
+          case "TEAMS" -> publishToWebhook(target.getUrl(), mapStringToTeamsPayload("DCB-ALARM: "+envCode+" "+alarmCode+" "+status));
+          case "LOG" -> {
+            log.info("DCB-ALARM: "+envCode+" "+alarmCode+" "+status);
+            yield Mono.empty();
+          }
+          default -> {
+            log.error("Unknown profile for notification {}", target);
+            yield Mono.empty();
+          }
+        };
 			})
 			.then(Mono.just("OK") );
 	}
+
+  private Map<String, Object> mapStringToTeamsPayload(String markdownText) {
+      return mapStringToSlackPayload(markdownText);
+  }
+
+  private Map<String, Object> mapStringToSlackPayload(String markdownText) {
+    return Map.of("blocks", List.of(
+      Map.of(
+      "type", "section",
+      "text", Map.of(
+        "type", "markdown",
+        "text", markdownText)
+      ) 
+    ));
+  }
 
 	// Prune expired alarms
   @Transactional
@@ -127,6 +149,28 @@ public class AlarmsService {
 			.thenReturn( code );
 	}
 
+  /**
+   * Post a simple string message to all system webhooks
+   */
+  public Mono<Void> simpleAnnounce(String markdownMessage) {
+		return Flux.fromIterable( notificationEndpointDefinitions )
+      .flatMap( target -> 
+        switch ( target.getProfile() ) {
+          case "SLACK" -> publishToWebhook(target.getUrl(), mapStringToSlackPayload(markdownMessage));
+          case "TEAMS" -> publishToWebhook(target.getUrl(), mapStringToTeamsPayload(markdownMessage));
+          case "LOG" -> {
+            log.info("ANNOUNCE {}",markdownMessage);
+            yield Mono.empty();
+          }
+          default -> {
+            log.error("Unknown profile for notification {}", target);
+            yield Mono.empty();
+          }
+        })
+      .collectList()
+      .then();
+
+  }
 
 	public Mono<Void> publishToWebhook(String url, Map<String, Object> payload) {
 		// This is where you get HttpClient programmatically
@@ -159,4 +203,13 @@ public class AlarmsService {
 		}
 	}
 
+  public void debugConfig() {
+    for ( NotificationEndpointDefinition defn : notificationEndpointDefinitions ) {
+      log.info("NOTIFICATION ENDPOINT: {}",defn);
+    }
+  }
+
+  public List<NotificationEndpointDefinition> getEndpoints() {
+    return notificationEndpointDefinitions;
+  }
 }

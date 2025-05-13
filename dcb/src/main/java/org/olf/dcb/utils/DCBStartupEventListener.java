@@ -45,6 +45,7 @@ import org.olf.dcb.core.AppConfig;
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 
 import org.olf.dcb.tracking.PollingConfig;
+import org.olf.dcb.core.svc.AlarmsService;
 
 
 @Slf4j
@@ -59,9 +60,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private final HazelcastInstance hazelcastInstance;
 	private final AppConfig appConfig;
 	private final PollingConfig pollingConfig;
-
-  @Value("${dcb.global.notifications.webhooks:}")
-  List<String> webhookUrls;
+	private final AlarmsService alarmsService;
 
 	@Value("${dcb.env.code:UNKNOWN}")
 	String envCode;
@@ -73,7 +72,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		GrantRepository grantRepository, List<ConfigHostLms> configHosts,
 		HazelcastInstance hazelcastInstance,
 		AppConfig appConfig,
-		PollingConfig pollingConfig) {
+		PollingConfig pollingConfig,
+    AlarmsService alarmsService) {
 
 		this.environment = environment;
 		this.statusCodeRepository = statusCodeRepository;
@@ -83,13 +83,14 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		this.hazelcastInstance = hazelcastInstance;
 		this.appConfig = appConfig;
 		this.pollingConfig = pollingConfig;
+		this.alarmsService = alarmsService;
 	}
 
 	@Override
 	public void onApplicationEvent(StartupEvent event) {
 		log.info("Bootstrapping DCB - onApplicationEvent");
 
-    log.info("Configured system webhooks: {}",webhookUrls);
+    log.info("Configured system notification endpoints: {}",alarmsService.getEndpoints());
 
 		if (environment.getProperty(REACTOR_DEBUG_VAR, String.class)
 				.orElse("false").equalsIgnoreCase("true")) {
@@ -134,6 +135,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		bootstrapStatusCodes();
 
 		registerNode();
+
+    alarmsService.simpleAnnounce("Startup completed");
 
 		log.info("Exit onApplicationEvent");
 	}
@@ -295,26 +298,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 	private void logAndReportError(Throwable error) {
 		log.error("Unhandled Reactor exception: {}",error);
-		for ( String url : webhookUrls ) {
-			try {
-				HttpClient httpClient = HttpClient.create(new URL(url));
-				HttpRequest<?> request = HttpRequest.POST("/", 
-					Map.of("blocks", List.of(
-				    Map.of(
-					    "type", "section",
-						  "text", Map.of(
-							  "type", "markdown",
-								"text", envCode+" UNCAUGHT EXCEPTION: "+error.getMessage()
-	            )
-		        )
-				  ))
-				);
-				httpClient.toBlocking().exchange(request);
-			}
-			catch ( Exception e ) {
-			}
-		}
-		// Send to Slack or another alerting system
+    alarmsService.simpleAnnounce(envCode+" UNCAUGHT EXCEPTION: "+error.getMessage())
+     .subscribe();
 	}
 
 }
