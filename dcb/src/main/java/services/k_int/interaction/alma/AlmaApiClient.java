@@ -37,7 +37,7 @@ public interface AlmaApiClient {
 	// https://developers.exlibrisgroup.com/alma/apis/users/
   Mono<AlmaUser> getAlmaUserByUserId(String user_id);
 
-  Mono<Void> deleteAlmaUser(String user_id);
+  Mono<String> deleteAlmaUser(String user_id);
 
 	Mono<AlmaHoldings> getHoldings(String mms_id);
 

@@ -196,7 +196,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(request -> request.body(patron))
 			.flatMap(request -> doExchange(request, Argument.of(AlmaUser.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(user -> log.info("Created user {}",user));
+			.doOnNext(user -> log.info("Created user {}",user.getPrimary_id()));
 	}
 
 	// q=primary_id~abc_def
@@ -205,13 +205,17 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	public Mono<AlmaUser> getAlmaUserByUserId(String user_id) {
 		final String path="/almaws/v1/users/"+user_id;
     return createRequest(GET, path)
-      .flatMap(req -> Mono.from(doRetrieve(req, Argument.of(AlmaUser.class))));
+      .flatMap(req -> doExchange(req, Argument.of(AlmaUser.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(user -> log.info("User retrieved {}",user.getPrimary_id()));
 	}
 
-	public Mono<Void> deleteAlmaUser(String user_id) {
+	public Mono<String> deleteAlmaUser(String user_id) {
 		final String path="/almaws/v1/users/"+user_id;
     return createRequest(DELETE, path)
-      .flatMap(req -> Mono.from(doRetrieve(req, Argument.of(Void.class))));
+      .flatMap(req -> doExchange(req, Argument.of(String.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(returnedStr -> log.info("User deleted {}",returnedStr));
 	}
 
 	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
