@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 8.29.0
+
+### Additions
+* [Alma]
+	* use remotePatronId when validating patron
+	* changes to deleteAlmaUser
+* [General]
+	* Improvements to alarms and notifications in preparation for Teams and Slack integration
+
+### Changes
+* [Chore]
+	* Add missing file
+
 ## Version 8.28.0
 
 ### Additions
@@ -16,6 +29,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Remove the CLUSTER_CHECK_CONCURRENCY var
 	* use alternate base url for AlmaHostLmsClient class
 	* change return type for alma test method

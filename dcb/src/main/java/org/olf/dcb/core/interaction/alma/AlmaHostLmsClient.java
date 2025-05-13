@@ -401,7 +401,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
   }
 
   public Mono<String> deletePatron(String id) {
-		log.info("Delete patron is not currently implemented");
 		return Mono.from(client.deleteAlmaUser(id))
 			.then(Mono.just("OK"));
 	}

@@ -73,14 +73,14 @@ public class InteropTestService {
 
 	private Mono<InteropTestResult> patronValidateTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
-		String testPatronId = (String) testCtx.getValues().get("testPatronId");
+		String remotePatronId = (String) testCtx.getValues().get("remotePatronId");
 
-		return hostLms.getPatronByIdentifier(testPatronId)
+		return hostLms.getPatronByIdentifier(remotePatronId)
 			.map(patron -> InteropTestResult.builder()
 				.stage("setup")
 				.step("patron")
 				.result("OK")
-				.note("Validated patron with testPatronId "+testPatronId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+				.note("Validated patron with remotePatronId "+remotePatronId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
 				.build()
 			);
 	}

@@ -11,6 +11,7 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 
+import io.micronaut.serde.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -35,6 +36,7 @@ import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.*;
 import services.k_int.interaction.alma.types.holdings.*;
 
+import static io.micronaut.http.HttpStatus.NO_CONTENT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.HttpMethod.*;
 
@@ -53,6 +55,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   private final HttpClient client;
   private final String apikey;
   private final ConversionService conversionService;
+	private final ObjectMapper objectMapper;
 
   public AlmaApiClientImpl() {
     // No args constructor needed for Micronaut bean
@@ -64,19 +67,21 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   }
 
   @Creator
-  public AlmaApiClientImpl(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client, ConversionService conversionService) {
+  public AlmaApiClientImpl(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
+													 ConversionService conversionService, ObjectMapper objectMapper) {
 
-    log.debug("Creating Alma HostLms client for HostLms {}", hostLms);
+		log.debug("Creating Alma HostLms client for HostLms {}", hostLms);
 
-    URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(ALMA_URL)).build();
+		URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(ALMA_URL)).build();
 		apikey = (String) hostLms.getClientConfig().get(APIKEY_KEY);
-    URI relativeURI = UriBuilder.of("/almaws/v1/").build();
-    rootUri = RelativeUriResolver.resolve(hostUri, relativeURI);
+		URI relativeURI = UriBuilder.of("/almaws/v1/").build();
+		rootUri = RelativeUriResolver.resolve(hostUri, relativeURI);
 
-    lms = hostLms;
-    this.client = client;
-    this.conversionService = conversionService;
-  }
+		lms = hostLms;
+		this.client = client;
+		this.conversionService = conversionService;
+		this.objectMapper = objectMapper;
+	}
 
 	public Publisher<AlmaUserList> users() {
 		log.debug("Get users - apikey={}",apikey);
@@ -134,9 +139,16 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
 		return Mono.from(client.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
+
 				if (response.getBody().isPresent()) {
 					return Mono.just(response);
-				} else {
+
+				} else if (response.getBody().isEmpty() && argumentType.equalsType(Argument.of(Void.class))) {
+					log.debug("Response body is empty for request to {} with expected type {}", request.getPath(), argumentType.getType().getSimpleName());
+					return Mono.just(response);
+				}
+
+				else {
 					String errorMsg = String.format("Response body is empty for request to %s with expected type %s",
 						request.getPath(), argumentType.getType().getSimpleName());
 					log.error(errorMsg);
@@ -151,10 +163,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 					Optional<AlmaErrorResponse> almaError = Optional.empty();
 					try {
-						almaError = conversionService.convert(
-							responseBody.get(),
-							Argument.of(AlmaErrorResponse.class)
-						);
+						almaError = Optional.of(objectMapper.readValue(responseBody.get(), AlmaErrorResponse.class));
 					} catch (Exception e) {
 						log.error("Conversion service failed to convert response body to AlmaErrorResponse: {}", responseBody.get(), e);
 					}
@@ -213,9 +222,10 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	public Mono<String> deleteAlmaUser(String user_id) {
 		final String path="/almaws/v1/users/"+user_id;
     return createRequest(DELETE, path)
-      .flatMap(req -> doExchange(req, Argument.of(String.class)))
-			.map(response -> response.getBody().get())
-			.doOnNext(returnedStr -> log.info("User deleted {}",returnedStr));
+      .flatMap(req -> doExchange(req, Argument.of(Void.class)))
+			// This method returns HTTP 204 (No Content)
+			// which means that the server successfully processed the request, but is not returning any content.
+			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "User deleted" : "User not deleted");
 	}
 
 	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
