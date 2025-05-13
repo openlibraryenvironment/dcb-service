@@ -75,6 +75,7 @@
 	
 	<logger name="services.k_int.federation" level="DEBUG"/>
 	<logger name="services.k_int.hazelcast" level="DEBUG"/>
+	<logger name="org.olf.dcb.operations" level="DEBUG"/>
 	
 	<logger name="com.hazelcast" level="error" />
 	<logger name="com.hazelcast.internal.cluster.ClusterService" level="info" />
