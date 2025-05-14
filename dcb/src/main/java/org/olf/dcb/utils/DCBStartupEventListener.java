@@ -65,6 +65,10 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	@Value("${dcb.env.code:UNKNOWN}")
 	String envCode;
 
+  @Value("${git.commit.id.describe:UNKNOWN}")
+  protected String commitIdDescribe;
+
+
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
 	public DCBStartupEventListener(Environment environment,
@@ -88,7 +92,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 	@Override
 	public void onApplicationEvent(StartupEvent event) {
-		log.info("Bootstrapping DCB - onApplicationEvent");
+		log.info("Bootstrapping DCB "+envCode+" - onApplicationEvent "+commitIdDescribe);
 
     log.info("Configured system notification endpoints: {}",alarmsService.getEndpoints());
 
@@ -136,7 +140,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		registerNode();
 
-    alarmsService.simpleAnnounce("Startup completed");
+    alarmsService.simpleAnnounce(envCode+":DCB Startup completed : "+commitIdDescribe);
 
 		log.info("Exit onApplicationEvent");
 	}
