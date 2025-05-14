@@ -107,16 +107,16 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		}
 
 		Hooks.onErrorDropped( error -> {
-			logAndReportError(error);
+			logAndReportError(error, Map.of("context","Hooks.OnErrorDropped"));
 		});
 
 		Hooks.onOperatorError((error, data) -> {
-			logAndReportError(error);
+			logAndReportError(error, Map.of("context","Hooks.OnOperatorError"));
 			return error;
 		});
 
 		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-			logAndReportError(throwable);
+			logAndReportError(error, Map.of("context","Thread.setDefaultUncaughtExceptionHandler"));
 			log.error("Uncaught exception in thread " + thread.getName() + ": " + throwable.getMessage());
 		});
 
@@ -138,7 +138,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		bootstrapStatusCodes();
 
-		registerNode();
+		registerNode(;
 
     alarmsService.simpleAnnounce(envCode+":DCB Startup completed : "+commitIdDescribe);
 
@@ -300,9 +300,9 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	}
 
 
-	private void logAndReportError(Throwable error) {
-		log.error("Unhandled Reactor exception: {}",error);
-    alarmsService.simpleAnnounce(envCode+" UNCAUGHT EXCEPTION: "+error.getMessage())
+	private void logAndReportError(Throwable error, Map<String,String> additional=null) {
+		log.error("Unhandled Reactor exception: {} {}",additional,error);
+    alarmsService.simpleAnnounce(envCode+" UNCAUGHT EXCEPTION: "+error.getMessage()+" "+additional)
      .subscribe();
 	}
 

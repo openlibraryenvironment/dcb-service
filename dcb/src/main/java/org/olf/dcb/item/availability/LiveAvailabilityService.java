@@ -89,7 +89,7 @@ public class LiveAvailabilityService {
 			.filter(this::shouldCache)
 			.map( ar -> {
 				String bibIdStr = bib.getId().toString();
-				log.info("Caching availability for bibId: [{}]", bibIdStr);
+				log.debug("Caching availability for bibId: [{}]", bibIdStr);
 				availabilityCache.put(bibIdStr, ar);
 				return ar;
 			})

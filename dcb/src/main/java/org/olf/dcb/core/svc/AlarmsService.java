@@ -209,6 +209,7 @@ public class AlarmsService {
 				.then();
 		}
 		catch ( Exception e ) {
+      log.warn("Problem trying to announce alarm on {} with payload {}",url, payload, e);
 			return Mono.empty();
 		}
 	}
