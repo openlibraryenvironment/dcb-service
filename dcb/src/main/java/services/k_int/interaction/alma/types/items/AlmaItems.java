@@ -19,10 +19,9 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @Builder
-@ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class AlmaItems {
-	@JsonProperty("record_count")
+	@JsonProperty("total_record_count")
 	Integer recordCount;
 	@JsonProperty("item")
 	List<AlmaItem> items;

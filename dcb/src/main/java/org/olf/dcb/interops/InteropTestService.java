@@ -11,10 +11,11 @@ import java.util.function.Function;
 import java.time.Instant;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.*;
 
 import java.time.Duration;
 
+import org.olf.dcb.core.model.BibRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.BeanContext;
@@ -26,9 +27,6 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PingResponse;
 
 @Slf4j
 @Singleton
@@ -53,6 +51,11 @@ public class InteropTestService {
 		List<Function<InteropTestContext, Mono<InteropTestResult>>> testSteps = List.of(
     	params -> patronCreateTest(params),
       params -> patronValidateTest(params),
+			params -> createBibTest(params),
+			params -> createItemTest(params),
+			params -> getItemsTest(params),
+			params -> deleteItemTest(params),
+			params -> deleteBibTest(params),
 			params -> patronDeleteTest(params)
     );
 
@@ -69,6 +72,108 @@ public class InteropTestService {
 					.concatMap(test -> test.apply(testCtx) )
 			);
 
+	}
+
+	private Mono<InteropTestResult> getItemsTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String bib_id = (String) testCtx.getValues().get("mms_id");
+
+		return Mono.delay(Duration.ofSeconds(10))
+			.flatMap(tick -> hostLms.getItems(BibRecord.builder().sourceRecordId(bib_id).build()))
+			.map(items -> InteropTestResult.builder()
+				.stage("setup")
+				.step("live availability")
+				.result("OK")
+				.note("getItems returned " + items + " from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+				.build()
+			);
+	}
+
+	private Mono<InteropTestResult> deleteItemTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String item_id = (String) testCtx.getValues().get("item_id");
+		String mms_id = (String) testCtx.getValues().get("mms_id");
+		String holding_id = (String) testCtx.getValues().get("holding_id");
+
+		if ( item_id != null ) {
+			return hostLms.deleteItem(item_id, holding_id, mms_id)
+				.map(result -> {
+					return InteropTestResult.builder()
+						.stage("cleanup")
+						.step("item")
+						.result("OK")
+						.note("delete item returned "+result+" from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+						.build();
+				});
+		}
+		else {
+			return Mono.just(InteropTestResult.builder()
+				.stage("cleanup")
+				.step("item")
+				.result("NOT-RUN")
+				.note("There was no item_id in context. Unable to test item delete for "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+				.build());
+		}
+	}
+
+	private Mono<InteropTestResult> createItemTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String mms_id = (String) testCtx.getValues().get("mms_id");
+		String barcode = "TEST-" + Instant.now().toString();
+
+		return hostLms.createItem(CreateItemCommand.builder().bibId(mms_id).locationCode("GTLSC").barcode(barcode).build())
+			.map(item -> {
+					testCtx.getValues().put("item_id", item.getLocalId());
+					testCtx.getValues().put("holding_id", item.getHoldingId());
+					return InteropTestResult.builder()
+						.stage("setup")
+						.step("bib")
+						.result("OK")
+						.note("Created item with ID "+item.getLocalId()+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+						.build();
+				}
+			);
+	}
+
+	private Mono<InteropTestResult> deleteBibTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String mms_id = (String) testCtx.getValues().get("mms_id");
+
+		if ( mms_id != null ) {
+			return hostLms.deleteBib(mms_id)
+				.map(result -> {
+					return InteropTestResult.builder()
+						.stage("cleanup")
+						.step("bib")
+						.result("OK")
+						.note("delete bib returned "+result+" from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+						.build();
+				});
+		}
+		else {
+			return Mono.just(InteropTestResult.builder()
+				.stage("cleanup")
+				.step("bib")
+				.result("NOT-RUN")
+				.note("There was no mms_id in context. Unable to test bib delete for "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+				.build());
+		}
+	}
+
+	private Mono<InteropTestResult> createBibTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+
+		return hostLms.createBib(Bib.builder().author("testAuthor").title("testTitle").build())
+			.map(bibId -> {
+				testCtx.getValues().put("mms_id", bibId);
+				return InteropTestResult.builder()
+						.stage("setup")
+						.step("bib")
+						.result("OK")
+						.note("Created bib with ID "+bibId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
+						.build();
+				}
+			);
 	}
 
 	private Mono<InteropTestResult> patronValidateTest(InteropTestContext testCtx) {

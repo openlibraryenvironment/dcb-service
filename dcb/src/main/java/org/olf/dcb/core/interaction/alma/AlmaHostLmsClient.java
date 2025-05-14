@@ -3,15 +3,18 @@ package org.olf.dcb.core.interaction.alma;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
-import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
 import java.util.*;
 import java.time.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.NotImplementedException;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.holdings.AlmaHolding;
+import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.*;
 
@@ -109,9 +112,29 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		// /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/
 		return client.getHoldings(bib.getSourceRecordId())
-			.flatMap(holding -> client.getAllItems(bib.getSourceRecordId()))
-			.flatMapMany(items -> Flux.fromIterable(items.getItems()))
-			.map(almaItem -> mapAlmaItemToDCBItem(almaItem))
+			.flatMapMany(holdingResponse -> {
+				List<AlmaHolding> holdings = holdingResponse.getHoldings();
+				if (holdings == null || holdings.isEmpty()) {
+					return Flux.empty();
+				}
+				return Flux.fromIterable(holdings)
+					.flatMap(holding -> client.getAllItems(bib.getSourceRecordId(), holding.getHoldingId())
+						.onErrorResume(e -> {
+							log.warn("Failed to fetch items for holding ID {}: {}", holding.getHoldingId(), e.getMessage());
+							return Mono.empty(); // Skip this holding on error
+						}));
+			})
+			.flatMap(itemListResponse -> {
+				List<AlmaItem> items = itemListResponse.getItems();
+				if (items == null || items.isEmpty()) {
+					return Flux.empty();
+				}
+				return Flux.fromIterable(items);
+			})
+			.map(this::mapAlmaItemToDCBItem)
+			.onErrorContinue((throwable, item) -> {
+				log.warn("Mapping error for item {}: {}", item, throwable.getMessage());
+			})
 			.collectList();
 	}
 
@@ -291,21 +314,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-    AlmaBib alma_bib = AlmaBib.builder()
-      .title(bib.getTitle())
-      .author(bib.getAuthor())
-      .publisher(null)
-      .publicationDate(null)
-      .materialType(null)
-      .language(null)
-      .isbn(null)
-      .issn(null)
-      .callNumber(null)
-      .collections(null)
-      .suppressFromPublishing(null)
-      .suppressFromExternalSearch(null)
-      .suppressFromMetadoor(null)
-      .build();
+		final var author = (bib.getAuthor() != null) ? bib.getAuthor() : null;
+		final var title = (bib.getTitle() != null) ? bib.getTitle() : null;
+
+		final var alma_bib = AlmaMarcXmlGenerator.createBibXml(title, author);
 
 		return client.createBib(alma_bib)
 			.map ( bibresult -> bibresult.getMmsId() );
@@ -350,14 +362,56 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 
-		// ToDo fill out
-		String bibId = "";
-		String holdingId = "";
-		AlmaItemData aid = AlmaItemData.builder()
+		String bibId = cic.getBibId();
+
+		// Need mapping, temp values for testing
+		String policy = "BOOK";
+		String itemPolicy = "BOOK";
+		String shelfLocation = "GENERAL";
+		String callNumber = "TEST_COLLECTION";
+		String holdingNote = "Test holding record";
+
+		String holdingxml = AlmaMarcXmlGenerator.generateHoldingXml(
+			cic.getLocationCode(), shelfLocation, callNumber, holdingNote);
+
+		AlmaItemData almaItemData = AlmaItemData.builder()
+			.barcode(cic.getBarcode())
+			.physicalMaterialType(CodeValuePair.builder().value(cic.getCanonicalItemType()).build())
+			.itemPolicy(CodeValuePair.builder().value(itemPolicy).build())
+			.policy(CodeValuePair.builder().value(policy).build())
+			.baseStatus(CodeValuePair.builder().value("1").build())
+			.description("Test copy")
+			.statisticsNote1("Test item")
+			.publicNote("Test item = created by DCB")
+			.fulfillmentNote("Test item = created by DCB")
+			.internalNote1("Test item = created by DCB")
+			.holdingData(
+				AlmaHolding.builder()
+					.library(CodeValuePair.builder().value(cic.getLocationCode()).build())
+					.location(CodeValuePair.builder().value(shelfLocation).build())
+					.build()
+			)
 			.build();
 
-		return client.createItem(bibId, holdingId, aid)
-			.map( almaItem -> mapAlmaItemToHostLmsItem(almaItem) );
+		AlmaItem almaItem = AlmaItem.builder().itemData(almaItemData).build();
+
+		AtomicReference<String> holdingId = new AtomicReference<>();
+		return createHolding(bibId, holdingxml)
+			.flatMap(holding -> {
+				holdingId.set(holding.getHoldingId());
+				return client.createItem(bibId, holding.getHoldingId(), almaItem);
+			})
+			.map(AlmaItem::getItemData)
+			.map( item -> HostLmsItem.builder()
+				.localId(item.getPid())
+				.barcode(item.getBarcode())
+				.status(item.getBaseStatus().getValue())
+				.holdingId(holdingId.get())
+				.build() );
+	}
+
+	private Mono<AlmaHolding> createHolding(String bibId, String almaHolding) {
+		return client.createHolding(bibId, almaHolding);
 	}
 
 
@@ -390,8 +444,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> deleteItem(String id) {
-		log.info("Delete virtual item is not currently implemented");
-		return Mono.just("OK");
+		return Mono.error(new NotImplementedException("Delete item is not currently implemented"));
+	}
+
+	@Override
+	public Mono<String> deleteItem(String id, String holdingsId, String mms_id) {
+		return client.deleteItem(id, holdingsId, mms_id)
+			.flatMap(result -> client.deleteHolding(holdingsId, mms_id));
 	}
 
   @Override
@@ -408,8 +467,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		log.info("Delete virtual bib is not currently implemented");
-		return Mono.empty();
+		return Mono.from(client.deleteBib(id))
+			.then(Mono.just("OK"));
 	}
 
 	@Override

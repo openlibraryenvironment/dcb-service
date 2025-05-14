@@ -1,9 +1,11 @@
 package services.k_int.interaction.alma;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.*;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,15 +49,22 @@ public interface AlmaApiClient {
   Mono<AlmaItems> getItemsForPID(String mms_id, String pid);
 
 
-	Mono<AlmaItems> getAllItems(String mms_id);
+	Mono<AlmaItems> getAllItems(String mms_id, String holding_id);
 
 	Mono<String> test();
 
   Mono<AlmaRequest> placeHold(AlmaRequest almaRequest);
 
-	Mono<AlmaBib> createBib(AlmaBib bib);
+	Mono<AlmaBib> createBib(String bib);
 
 
-	Mono<AlmaItemData> createItem(String mmsId, String holdingId, AlmaItemData aid);
-	
+	Mono<AlmaItem> createItem(String mmsId, String holdingId, AlmaItem aid);
+
+	Publisher<String> deleteBib(String id);
+
+	Mono<AlmaHolding> createHolding(String bibId, String almaHolding);
+
+	Mono<String> deleteItem(String id, String holdingsId, String mmsId);
+
+	Mono<String> deleteHolding(String holdingsId, String mmsId);
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.time.Duration;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
@@ -105,6 +106,12 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand);
 
 	Mono<String> deleteItem(String id);
+
+	// Work around for adding extra params to delete item
+	// Alma expects more than just the item id
+	default Mono<String> deleteItem(String id, String holdingsId, String bibId) {
+		return Mono.error(new NotImplementedException("Delete item is not currently implemented"));
+	}
 
 	Mono<String> deleteBib(String id);
 

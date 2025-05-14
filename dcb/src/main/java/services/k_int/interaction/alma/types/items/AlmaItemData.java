@@ -12,6 +12,7 @@ import lombok.ToString;
 
 import services.k_int.interaction.alma.types.CodeValuePair;
 import services.k_int.interaction.alma.types.WithAttr;
+import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 
 // https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_users.xsd
 // https://developers.exlibrisgroup.com/alma/apis/bibs/
@@ -19,7 +20,6 @@ import services.k_int.interaction.alma.types.WithAttr;
 @Data
 @AllArgsConstructor
 @Builder
-@ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class AlmaItemData {
 	@JsonProperty("pid")
@@ -38,6 +38,8 @@ public class AlmaItemData {
 	String awaitingReshelving;
 	@JsonProperty("reshelving_time")
 	String reshelvingTime;
+	@JsonProperty("item_policy")
+	CodeValuePair itemPolicy;
 	@JsonProperty("policy")
 	CodeValuePair policy;
 	@JsonProperty("provenance")
@@ -146,4 +148,6 @@ public class AlmaItemData {
 	WithAttr retentionReason;
 	@JsonProperty("retention_note")
 	String retentionNote;
+	@JsonProperty("holding_data")
+	AlmaHolding holdingData;
 }
