@@ -123,15 +123,19 @@ public class AlarmsService {
       return mapStringToSlackPayload(markdownText);
   }
 
+
   private Map<String, Object> mapStringToSlackPayload(String markdownText) {
-    return Map.of("blocks", List.of(
-      Map.of(
-      "type", "section",
-      "text", Map.of(
-        "type", "markdown",
-        "text", markdownText)
-      ) 
-    ));
+    return Map.of(
+      "text", "DCB status message : "+envCode,
+      "blocks", List.of(
+        Map.of(
+          "type", "section",
+          "text", Map.of(
+            "type", "mrkdwn",
+            "text", markdownText)
+        ) 
+      )
+    );
   }
 
 	// Prune expired alarms
@@ -199,7 +203,7 @@ public class AlarmsService {
 			return Mono.from(client.exchange(request))
 				.onErrorResume( e -> {
 					// Handle the error gracefully, log or return fallback
-					log.warn("Unable to post to webhook: {} {}", e.getMessage(), url.toString());
+					log.warn("Unable to post to webhook: {} {} {}", e.getMessage(), url.toString(), payload);
 					return Mono.empty(); // or a fallback Mono.just(...)
 				})
 				.then();
