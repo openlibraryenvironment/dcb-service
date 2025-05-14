@@ -271,7 +271,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				.map(e -> "%s=%s".formatted(e.getKey(), e.getValue()))
 				.collect(Collectors.joining(","));
 			
-			log.info("Avaiability for [{}]: {}", clusterId, deets);
+			log.debug("Avaiability for [{}]: {}", clusterId, deets);
 			sharedIndexService.update( UUID.fromString( clusterId ));
 		}
 		
@@ -403,7 +403,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		return Flux.fromIterable( acc.getData() )
 				// Special logging transformer only adds the operators if the log level is equal or greater.
 				.transform( ReactorUtils.withFluxLogging(log, f ->
-					f.doOnNext(Level.INFO, item -> log.info("Check availability for {}", item.toString()))) )
+					f.doOnNext(Level.INFO, item -> log.debug("Check availability for {}", item.toString()))) )
 				
 				.collectMultimap( info -> info.clusterId().toString(), MissingAvailabilityInfo::bibId )
 				.flatMapIterable( Map::entrySet )
