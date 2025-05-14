@@ -116,7 +116,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		});
 
 		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-			logAndReportError(error, Map.of("context","Thread.setDefaultUncaughtExceptionHandler"));
+			logAndReportError(throwable, Map.of("context","Thread.setDefaultUncaughtExceptionHandler"));
 			log.error("Uncaught exception in thread " + thread.getName() + ": " + throwable.getMessage());
 		});
 

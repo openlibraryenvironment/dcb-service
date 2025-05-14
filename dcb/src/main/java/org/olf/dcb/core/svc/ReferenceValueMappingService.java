@@ -29,7 +29,7 @@ public class ReferenceValueMappingService {
 		return Mono.from(repository.findOneByFromCategoryAndFromContextAndFromValueAndToCategoryAndToContext(
 				sourceCategory, sourceContext, sourceValue, targetCategory, targetContext))
 			.doOnSuccess(consumeOnSuccess(
-				() -> log.warn("No mapping(1) found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
+				() -> log.debug("mapping(1) found for from category: {}, from context: {}, source value: {}, to category: {}, to context: {}",
 					sourceCategory, sourceContext, sourceValue, targetCategory, targetContext),
 				mapping -> log.debug("Found mapping from {} to {}: {}", sourceCategory, targetCategory, mapping)));
 	}
