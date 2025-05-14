@@ -39,7 +39,7 @@ public class LuceneRangeQueryNodeBuilder<T> implements JpaQuerySpecificationBuil
 		boolean lowerInclusive = rangeNode.isLowerInclusive();
 		boolean upperInclusive = rangeNode.isUpperInclusive();
 
-		log.info("Range... {}:[{} TO {}]", fieldName, lowerTerm, upperTerm);
+		log.debug("Range... {}:[{} TO {}]", fieldName, lowerTerm, upperTerm);
 
 		return (root, query, criteriaBuilder) -> {
 			try {

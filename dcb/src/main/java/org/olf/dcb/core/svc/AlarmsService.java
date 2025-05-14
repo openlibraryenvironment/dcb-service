@@ -116,6 +116,7 @@ public class AlarmsService {
           }
         };
 			})
+      .collectList()
 			.then(Mono.just("OK") );
 	}
 

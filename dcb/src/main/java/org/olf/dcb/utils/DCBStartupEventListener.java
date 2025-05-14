@@ -144,7 +144,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		registerNode();
 
-    alarmsService.simpleAnnounce(envCode+":DCB Startup completed : "+commitIdDescribe);
+    alarmsService.simpleAnnounce(envCode+":DCB Startup completed : "+commitIdDescribe)
+      .subscribe();
 
 		log.info("Exit onApplicationEvent");
 	}
