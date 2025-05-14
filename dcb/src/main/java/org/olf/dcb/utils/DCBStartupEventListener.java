@@ -3,11 +3,15 @@ package org.olf.dcb.utils;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+
 
 import java.net.URL;
 
@@ -301,8 +305,9 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 
 	private void logAndReportError(Throwable error, Map<String,String> additional) {
+    String timestamp = ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 		log.error("Unhandled Reactor exception: {} {}",additional,error);
-    alarmsService.simpleAnnounce(envCode+" UNCAUGHT EXCEPTION: "+error.getMessage()+" "+additional)
+    alarmsService.simpleAnnounce(envCode+" UNCAUGHT EXCEPTION "+error.getClass().getName()+" @ "+timestamp+": "+error.getMessage()+" "+additional)
      .subscribe();
 	}
 
