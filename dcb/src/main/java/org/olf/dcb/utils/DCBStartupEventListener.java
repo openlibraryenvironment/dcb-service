@@ -138,7 +138,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		bootstrapStatusCodes();
 
-		registerNode(;
+		registerNode();
 
     alarmsService.simpleAnnounce(envCode+":DCB Startup completed : "+commitIdDescribe);
 
@@ -300,7 +300,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	}
 
 
-	private void logAndReportError(Throwable error, Map<String,String> additional=null) {
+	private void logAndReportError(Throwable error, Map<String,String> additional) {
 		log.error("Unhandled Reactor exception: {} {}",additional,error);
     alarmsService.simpleAnnounce(envCode+" UNCAUGHT EXCEPTION: "+error.getMessage()+" "+additional)
      .subscribe();
