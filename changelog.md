@@ -1,5 +1,36 @@
 # Changelog
 
+## Version 8.30.0
+
+### Additions
+* [Alma]
+	* placing hold adjustments
+	* include holding id from placing holds and tracking items
+	* refactor bib and items methods
+	* handle 204 No Content responses using Void.class
+	* change return type for delete patron
+* [General]
+	* Allow alarms to pass a Map of additional properties that will be rendered in slack or teams
+	* Configurable availability timeout during resolution DCB-1896
+
+### Changes
+* [Chore]
+	* Add logging for reindex error
+	* Tidy up reporting, open up prometheus metrics
+	* GraphQL support for alarms [DCB-1902]
+	* error trapping on alarms service
+	* Additional log tuning
+	* Extra configuration of intercept url endpoint to allow OPTIONS on /graphql to anyone but secure POST - to try and reduce the incidence of exceptions in the logs
+	* Useful info logged on startup
+	* More logging adjustments to get prod defaults into a sensible shape
+	* Reduce logging be default a little
+
+### Fixes
+* [General]
+	* collectList when broadcasting alarms to slack and teams
+	* Syntax error in startup event listener
+	* disable per-test XML output to reduce build report size
+
 ## Version 8.29.0
 
 ### Additions
@@ -11,6 +42,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add missing file
 
 ## Version 8.28.0

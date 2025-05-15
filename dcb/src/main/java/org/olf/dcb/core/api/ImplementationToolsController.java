@@ -66,11 +66,11 @@ public class ImplementationToolsController {
     return interopTestService.ping(code);
   }
 
-  @Get(uri = "/interopTest", produces = APPLICATION_JSON)
-  public Flux<InteropTestResult> interopTest(@NotNull @QueryValue String code) {
-    return interopTestService.testIls(code);
-  }
-
+	@Get(uri = "/interopTest", produces = APPLICATION_JSON)
+	public Flux<InteropTestResult> interopTest(@NotNull @QueryValue String code,
+			@QueryValue(defaultValue = "false") boolean forceCleanup) {
+		return interopTestService.testIls(code, forceCleanup);
+	}
 
 	public Mono<InteropTestResult> createPatronTest() {
 		return Mono.just(InteropTestResult.builder().build());

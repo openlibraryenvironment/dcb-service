@@ -13,4 +13,14 @@ public class AlmaException extends RuntimeException {
 		this.errorResponse = errorResponse;
 		this.status = status;
 	}
+
+	@Override
+	public String toString() {
+		return "AlmaException{" +
+			"message=" + getMessage() +
+			"message=" + getMessage() +
+			", status=" + status +
+			", errorResponse=" + errorResponse +
+			'}';
+	}
 }

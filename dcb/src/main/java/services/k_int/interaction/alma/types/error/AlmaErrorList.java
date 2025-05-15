@@ -11,4 +11,10 @@ import java.util.List;
 @Setter
 public class AlmaErrorList {
 	private List<AlmaError> error;
+
+	public String toString() {
+		return "AlmaErrorList{" +
+			"error=" + error +
+			'}';
+	}
 }

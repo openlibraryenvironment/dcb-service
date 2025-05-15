@@ -12,9 +12,11 @@ import io.micronaut.http.*;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.micronaut.http.uri.UriBuilder;
 
 import io.micronaut.serde.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -55,8 +57,8 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
   private final URI rootUri;
   private final HostLms lms;
-	@Client("alma")
   private final HttpClient client;
+
   private final String apikey;
   private final ConversionService conversionService;
 	private final ObjectMapper objectMapper;
@@ -93,6 +95,14 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			uri -> uri.queryParam("apikey",apikey)
 				.queryParam("limit","10")
 				.queryParam("offset","0"));
+	}
+
+	@PostConstruct
+	void logClientConfig() {
+		if (client instanceof DefaultHttpClient) {
+			DefaultHttpClient defaultClient = (DefaultHttpClient) client;
+			log.info("Alma client read timeout: {}", defaultClient.getConfiguration().getReadTimeout().orElse(null));
+		}
 	}
 
 	// See https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_users.xsd
@@ -331,11 +341,16 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.doOnNext(almaItems -> log.info("Got {} items",almaItems));
 	}
 
-  public Mono<AlmaRequest> placeHold(AlmaRequest almaRequest) {
-		final String path="/almaws/v1/bibs/"+almaRequest.getMmsId()+"/holdings/"+almaRequest.getHoldingId()+"/items/"+almaRequest.getPId();
+  public Mono<AlmaRequest> placeHold(String userId, AlmaRequest almaRequest) {
+		final String path="/almaws/v1/bibs/"+almaRequest.getMmsId()+"/holdings/"+almaRequest.getHoldingId()+"/items/"+almaRequest.getPId()+"/requests";
     return createRequest(POST, path)
-      .map(request -> request.body(almaRequest))
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaRequest.class))));
+			.map(req -> req.uri(uriBuilder -> uriBuilder
+				.queryParam("user_id", userId)
+				.build()))
+			.map(request -> request.body(almaRequest))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaRequest.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(hold -> log.info("Created hold {}",hold.getRequestId()));
 	}
 
 	public Mono<AlmaBib> createBib(String almaBib) {

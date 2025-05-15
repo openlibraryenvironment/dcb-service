@@ -3,246 +3,375 @@ package org.olf.dcb.interops;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.time.Duration;
 import java.time.Instant;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.*;
-
-import java.time.Duration;
-
 import org.olf.dcb.core.model.BibRecord;
-import org.reactivestreams.Publisher;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
 
-import io.micronaut.context.BeanContext;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.data.model.Pageable;
-import io.micronaut.transaction.TransactionDefinition.Propagation;
-import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.alma.types.error.AlmaException;
 
+/**
+ * Service to test interoperability with host library management systems.
+ * Handles creating, testing, and cleaning up test data in integrated systems.
+ */
 @Slf4j
 @Singleton
 public class InteropTestService {
 
-	private HostLmsService hostLmsService;
+	private static final String TEST_LOCATION_CODE = "GTLSC";
+	private static final Duration ITEM_SYNC_DELAY = Duration.ofSeconds(10);
+
+	private final HostLmsService hostLmsService;
 
 	public InteropTestService(HostLmsService hostLmsService) {
 		this.hostLmsService = hostLmsService;
 	}
 
+	/**
+	 * Ping a host LMS system to check connectivity.
+	 *
+	 * @param code The host LMS code
+	 * @return the ping response
+	 */
 	public Mono<PingResponse> ping(String code) {
 		return hostLmsService.getClientFor(code)
-			.flatMap( hostLms -> hostLms.ping() );
+			.flatMap(HostLmsClient::ping);
 	}
 
-	public Flux<InteropTestResult> testIls(String code) {
-
-		log.debug("testIls {}",code);
-
+	/**
+	 * Run a comprehensive test suite against the specified host LMS.
+	 * Tests include patron management, bibliographic record operations,
+	 * item operations, and hold placement.
+	 *
+	 * @param code The host LMS code to test
+	 * @param forceCleanup If true, cleanup steps will run even after test failures
+	 * @return test results for each step
+	 */
+	public Flux<InteropTestResult> testIls(String code, boolean forceCleanup) {
+		log.debug("Testing ILS with code: {}, forceCleanup: {}", code, forceCleanup);
 
 		List<Function<InteropTestContext, Mono<InteropTestResult>>> testSteps = List.of(
-    	params -> patronCreateTest(params),
-      params -> patronValidateTest(params),
-			params -> createBibTest(params),
-			params -> createItemTest(params),
-			params -> getItemsTest(params),
-			params -> deleteItemTest(params),
-			params -> deleteBibTest(params),
-			params -> patronDeleteTest(params)
-    );
+			this::patronCreateTest,
+			this::patronValidateTest,
+			this::createBibTest,
+			this::createItemTest,
+			this::getItemsTest,
+			this::getItemTest,
+			this::placeHoldTest
+		);
+
+		List<Function<InteropTestContext, Mono<InteropTestResult>>> cleanupSteps = List.of(
+			this::deleteItemTest,
+			this::deleteBibTest,
+			this::patronDeleteTest
+		);
 
 		return hostLmsService.getClientFor(code)
-			.map ( hostLms -> {
-				InteropTestContext testCtx = InteropTestContext.builder()
-					.hostLms(hostLms)
-					.values(new HashMap<String,Object>())
-					.build();
-				return testCtx;
-			})
-			.flatMapMany( testCtx ->
-				Flux.fromIterable(testSteps)
-					.concatMap(test -> test.apply(testCtx) )
-			);
+			.map(hostLms -> InteropTestContext.builder()
+				.hostLms(hostLms)
+				.values(new HashMap<>())
+				.success(true)
+				.build())
+			.flatMapMany(testCtx -> {
+				Flux<InteropTestResult> testFlux = Flux.fromIterable(testSteps)
+					.concatMap(step -> executeTestStep(step, testCtx))
+					.takeUntil(result -> !testCtx.isSuccess() && !forceCleanup);
 
+				if (forceCleanup) {
+					return testFlux.concatWith(Flux.fromIterable(cleanupSteps)
+						.concatMap(step -> executeCleanupStep(step, testCtx)));
+				} else {
+					return testFlux;
+				}
+			});
+	}
+
+	/**
+	 * Execute a test step with error handling.
+	 * If a step fails, mark the context as failed but continue with the test.
+	 */
+	private Mono<InteropTestResult> executeTestStep(
+		Function<InteropTestContext, Mono<InteropTestResult>> step,
+		InteropTestContext testCtx) {
+
+		return step.apply(testCtx)
+			.onErrorResume(error -> {
+				testCtx.setSuccess(false);
+				String stepName = step.getClass().getSimpleName().toString();
+				log.error("Error in test step {}: {}", stepName, error.getMessage(), error);
+
+				return createErrorResult("setup", stepName, error);
+			});
+	}
+
+	/**
+	 * Execute a cleanup step with error handling.
+	 * Cleanup steps always run regardless of previous test success.
+	 */
+	private Mono<InteropTestResult> executeCleanupStep(
+		Function<InteropTestContext, Mono<InteropTestResult>> step,
+		InteropTestContext testCtx) {
+
+		return step.apply(testCtx)
+			.onErrorResume(error -> {
+				String stepName = step.getClass().getSimpleName();
+				log.error("Error in cleanup step {}: {}", stepName, error.getMessage(), error);
+
+				return createErrorResult("cleanup", stepName, error);
+			});
+	}
+
+	private Mono<InteropTestResult> createErrorResult(String stage, String step, Throwable error) {
+
+		if (error instanceof AlmaException) {
+			return Mono.just(InteropTestResult.builder()
+				.stage(stage)
+				.step(step)
+				.result("ERROR")
+				.note(((AlmaException) error).toString())
+				.build());
+		}
+
+		return Mono.just(InteropTestResult.builder()
+			.stage(stage)
+			.step(step)
+			.result("ERROR")
+			.note("Failed with error: " + "[" + error.getClass().getSimpleName() + "] " + error.getMessage())
+			.build());
+	}
+
+	/**
+	 * Create a success result with standard format.
+	 */
+	private InteropTestResult createSuccessResult(String stage, String step, String message, HostLmsClient hostLms) {
+		return InteropTestResult.builder()
+			.stage(stage)
+			.step(step)
+			.result("OK")
+			.note(message + " from " + hostLms.getHostLmsCode() + " at " + Instant.now())
+			.build();
+	}
+
+	private InteropTestResult createNotRunResult(String stage, String step, String message, HostLmsClient hostLms) {
+		return InteropTestResult.builder()
+			.stage(stage)
+			.step(step)
+			.result("NOT-RUN")
+			.note(message + " for " + hostLms.getHostLmsCode() + " at " + Instant.now())
+			.build();
+	}
+
+	private Mono<InteropTestResult> placeHoldTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+
+		String bibId = (String) testCtx.getValues().get("mms_id");
+		String itemId = (String) testCtx.getValues().get("item_id");
+		String holdingId = (String) testCtx.getValues().get("holding_id");
+		String patronId = (String) testCtx.getValues().get("testPatronId");
+		String itemBarcode = (String) testCtx.getValues().get("item_barcode");
+
+		if (anyNull(bibId, itemId, holdingId, patronId, itemBarcode)) {
+			return Mono.just(createNotRunResult("setup", "place hold",
+				"Missing required values for hold placement", hostLms));
+		}
+
+		Location pickupLocation = Location.builder().code(TEST_LOCATION_CODE).build();
+
+		final var hold = PlaceHoldRequestParameters.builder()
+			.localBibId(bibId)
+			.localItemId(itemId)
+			.localHoldingId(holdingId)
+			.localPatronId(patronId)
+			.pickupLocation(pickupLocation)
+			.localItemBarcode(itemBarcode)
+			.build();
+
+		return hostLms.placeHoldRequestAtBorrowingAgency(hold)
+			.map(localRequest -> createSuccessResult("setup", "place hold",
+				"placeHold returned " + localRequest, hostLms));
 	}
 
 	private Mono<InteropTestResult> getItemsTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
-		String bib_id = (String) testCtx.getValues().get("mms_id");
+		String bibId = (String) testCtx.getValues().get("mms_id");
 
-		return Mono.delay(Duration.ofSeconds(10))
-			.flatMap(tick -> hostLms.getItems(BibRecord.builder().sourceRecordId(bib_id).build()))
-			.map(items -> InteropTestResult.builder()
-				.stage("setup")
-				.step("live availability")
-				.result("OK")
-				.note("getItems returned " + items + " from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-				.build()
-			);
+		if (bibId == null) {
+			return Mono.just(createNotRunResult("setup", "live availability",
+				"Missing bibliographic ID", hostLms));
+		}
+
+		return Mono.delay(ITEM_SYNC_DELAY)
+			.flatMap(tick -> hostLms.getItems(BibRecord.builder().sourceRecordId(bibId).build()))
+			.map(items -> createSuccessResult("setup", "live availability",
+				"getItems returned " + items, hostLms));
+	}
+
+	private Mono<InteropTestResult> getItemTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+
+		String bibId = (String) testCtx.getValues().get("mms_id");
+		String itemId = (String) testCtx.getValues().get("item_id");
+		String holdingId = (String) testCtx.getValues().get("holding_id");
+
+		if (anyNull(bibId, itemId, holdingId)) {
+			return Mono.just(createNotRunResult("setup", "item tracking",
+				"Missing required item identifiers", hostLms));
+		}
+
+		final var item = HostLmsItem.builder()
+			.localId(itemId)
+			.holdingId(holdingId)
+			.bibId(bibId)
+			.build();
+
+		return hostLms.getItem(item)
+			.map(hostLmsItem -> {
+				testCtx.getValues().put("item_barcode", hostLmsItem.getBarcode());
+				return createSuccessResult("setup", "item tracking",
+					"getItem returned " + hostLmsItem, hostLms);
+			});
 	}
 
 	private Mono<InteropTestResult> deleteItemTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
-		String item_id = (String) testCtx.getValues().get("item_id");
-		String mms_id = (String) testCtx.getValues().get("mms_id");
-		String holding_id = (String) testCtx.getValues().get("holding_id");
 
-		if ( item_id != null ) {
-			return hostLms.deleteItem(item_id, holding_id, mms_id)
-				.map(result -> {
-					return InteropTestResult.builder()
-						.stage("cleanup")
-						.step("item")
-						.result("OK")
-						.note("delete item returned "+result+" from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-						.build();
-				});
+		String itemId = (String) testCtx.getValues().get("item_id");
+		String bibId = (String) testCtx.getValues().get("mms_id");
+		String holdingId = (String) testCtx.getValues().get("holding_id");
+
+		if (anyNull(itemId, bibId, holdingId)) {
+			return Mono.just(createNotRunResult("cleanup", "item",
+				"Missing required item identifiers. Unable to test item delete", hostLms));
 		}
-		else {
-			return Mono.just(InteropTestResult.builder()
-				.stage("cleanup")
-				.step("item")
-				.result("NOT-RUN")
-				.note("There was no item_id in context. Unable to test item delete for "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-				.build());
-		}
+
+		return hostLms.deleteItem(itemId, holdingId, bibId)
+			.map(result -> createSuccessResult("cleanup", "item",
+				"delete item returned " + result, hostLms));
 	}
 
 	private Mono<InteropTestResult> createItemTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
-		String mms_id = (String) testCtx.getValues().get("mms_id");
-		String barcode = "TEST-" + Instant.now().toString();
+		String bibId = (String) testCtx.getValues().get("mms_id");
 
-		return hostLms.createItem(CreateItemCommand.builder().bibId(mms_id).locationCode("GTLSC").barcode(barcode).build())
+		if (bibId == null) {
+			return Mono.just(createNotRunResult("setup", "create item",
+				"Missing bibliographic ID required for item creation", hostLms));
+		}
+
+		String barcode = "TEST-" + Instant.now();
+
+		return hostLms.createItem(CreateItemCommand.builder()
+				.bibId(bibId)
+				.locationCode(TEST_LOCATION_CODE)
+				.barcode(barcode)
+				.build())
 			.map(item -> {
-					testCtx.getValues().put("item_id", item.getLocalId());
-					testCtx.getValues().put("holding_id", item.getHoldingId());
-					return InteropTestResult.builder()
-						.stage("setup")
-						.step("bib")
-						.result("OK")
-						.note("Created item with ID "+item.getLocalId()+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-						.build();
-				}
-			);
+				testCtx.getValues().put("item_id", item.getLocalId());
+				testCtx.getValues().put("holding_id", item.getHoldingId());
+				return createSuccessResult("setup", "create item",
+					"Created item with ID " + item.getLocalId(), hostLms);
+			});
 	}
 
 	private Mono<InteropTestResult> deleteBibTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
-		String mms_id = (String) testCtx.getValues().get("mms_id");
+		String bibId = (String) testCtx.getValues().get("mms_id");
 
-		if ( mms_id != null ) {
-			return hostLms.deleteBib(mms_id)
-				.map(result -> {
-					return InteropTestResult.builder()
-						.stage("cleanup")
-						.step("bib")
-						.result("OK")
-						.note("delete bib returned "+result+" from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-						.build();
-				});
+		if (bibId == null) {
+			return Mono.just(createNotRunResult("cleanup", "bib",
+				"There was no mms_id in context. Unable to test bib delete", hostLms));
 		}
-		else {
-			return Mono.just(InteropTestResult.builder()
-				.stage("cleanup")
-				.step("bib")
-				.result("NOT-RUN")
-				.note("There was no mms_id in context. Unable to test bib delete for "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-				.build());
-		}
+
+		return hostLms.deleteBib(bibId)
+			.map(result -> createSuccessResult("cleanup", "bib",
+				"delete bib returned " + result, hostLms));
 	}
 
 	private Mono<InteropTestResult> createBibTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
 
-		return hostLms.createBib(Bib.builder().author("testAuthor").title("testTitle").build())
+		return hostLms.createBib(Bib.builder()
+				.author("testAuthor")
+				.title("testTitle")
+				.build())
 			.map(bibId -> {
 				testCtx.getValues().put("mms_id", bibId);
-				return InteropTestResult.builder()
-						.stage("setup")
-						.step("bib")
-						.result("OK")
-						.note("Created bib with ID "+bibId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-						.build();
-				}
-			);
+				return createSuccessResult("setup", "create bib",
+					"Created bib with ID " + bibId, hostLms);
+			});
 	}
 
 	private Mono<InteropTestResult> patronValidateTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
 		String remotePatronId = (String) testCtx.getValues().get("remotePatronId");
 
+		if (remotePatronId == null) {
+			return Mono.just(createNotRunResult("setup", "patron validation",
+				"Missing remote patron ID", hostLms));
+		}
+
 		return hostLms.getPatronByIdentifier(remotePatronId)
-			.map(patron -> InteropTestResult.builder()
-				.stage("setup")
-				.step("patron")
-				.result("OK")
-				.note("Validated patron with remotePatronId "+remotePatronId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-				.build()
-			);
+			.map(patron -> createSuccessResult("setup", "patron validation",
+				"Validated patron with remotePatronId " + remotePatronId, hostLms));
 	}
 
-	Mono<InteropTestResult> patronCreateTest(InteropTestContext testCtx) {
-
+	private Mono<InteropTestResult> patronCreateTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
 
 		String temporaryPatronId = UUID.randomUUID().toString();
 		testCtx.getValues().put("testPatronId", temporaryPatronId);
 
-		log.info("Patron tests {}",testCtx.getValues());
+		log.info("Starting patron tests with context: {}", testCtx.getValues());
 
-		// Build and return your TestResult
 		return hostLms.createPatron(
-			Patron.builder()
-				.localNames( List.of( temporaryPatronId+"-fn", temporaryPatronId+".sn" ) )
-				.localBarcodes( List.of( temporaryPatronId) )
-				.uniqueIds( List.of( temporaryPatronId) )
-				// .localPatronType( "" )
-				.canonicalPatronType( "CIRC" )
-				.build()
+				Patron.builder()
+					.localNames(List.of(temporaryPatronId + "-fn", temporaryPatronId + ".sn"))
+					.localBarcodes(List.of(temporaryPatronId))
+					.uniqueIds(List.of(temporaryPatronId))
+					.canonicalPatronType("CIRC")
+					.build()
 			)
 			.map(newPatronId -> {
 				testCtx.getValues().put("remotePatronId", newPatronId);
-				return InteropTestResult.builder()
-					.stage("setup")
-					.step("patron")
-					.result("OK")
-					.note("Created patron with ID "+newPatronId+" at "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-					.build();
+				return createSuccessResult("setup", "patron creation",
+					"Created patron with ID " + newPatronId, hostLms);
 			});
 	}
 
-	Mono<InteropTestResult> patronDeleteTest(InteropTestContext testCtx) {
-
+	private Mono<InteropTestResult> patronDeleteTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
 		String remotePatronId = (String) testCtx.getValues().get("remotePatronId");
 
-		if ( remotePatronId != null ) {
-			return hostLms.deletePatron(remotePatronId)
-				.map(result -> {
-	        return InteropTestResult.builder()
-  	        .stage("cleanup")
-    	      .step("patron")
-      	    .result("OK")
-        	  .note("deletePatron returned "+result+" from "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-          	.build();
-				});
+		if (remotePatronId == null) {
+			return Mono.just(createNotRunResult("cleanup", "patron",
+				"There was no patron-id in context. Unable to test patron delete", hostLms));
 		}
-		else {
-			return Mono.just(InteropTestResult.builder()
-				.stage("cleanup")
-				.step("patron")
-				.result("NOT-RUN")
-				.note("There was no patron-id in context. Unable to test patron delete for "+hostLms.getHostLmsCode()+ " at "+Instant.now().toString())
-				.build());
+
+		return hostLms.deletePatron(remotePatronId)
+			.map(result -> createSuccessResult("cleanup", "patron",
+				"deletePatron returned " + result, hostLms));
+	}
+
+	/**
+	 * Utility method to check if any values are null.
+	 */
+	private boolean anyNull(Object... values) {
+		for (Object value : values) {
+			if (value == null) {
+				return true;
+			}
 		}
+		return false;
 	}
 }

@@ -12,4 +12,12 @@ import lombok.Setter;
 public class AlmaErrorResponse {
 	private boolean errorsExist;
 	private AlmaErrorList errorList;
+
+	@Override
+	public String toString() {
+		return "AlmaErrorResponse{" +
+			"errorsExist=" + errorsExist +
+			", errorList=" + errorList +
+			'}';
+	}
 }
