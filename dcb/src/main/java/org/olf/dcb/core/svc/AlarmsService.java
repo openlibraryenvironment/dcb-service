@@ -10,8 +10,10 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.time.Instant;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.net.URL;
 
@@ -120,7 +122,8 @@ public class AlarmsService {
         log.error("Problem notifying alarm", error) ;
         return Mono.empty();
       } )
-      .collectList()
+      .count()
+      .doOnNext(count -> log.info("Completed notifying {}",count) )
 			.then(Mono.just("OK") );
 	}
 
@@ -130,17 +133,36 @@ public class AlarmsService {
 
 
   private Map<String, Object> mapStringToSlackPayload(String markdownText) {
-    return Map.of(
-      "text", "DCB status message : "+envCode,
-      "blocks", List.of(
-        Map.of(
-          "type", "section",
-          "text", Map.of(
-            "type", "mrkdwn",
-            "text", markdownText)
-        ) 
-      )
-    );
+    return mapStringToSlackPayload(markdownText, null);
+  }
+
+  private Map<String, Object> mapStringToSlackPayload(String markdownText, Map<String, Object> params) {
+
+    Map<String, Object> payload = new HashMap<String, Object>();
+
+    payload.put("text", "DCB status message : "+envCode);
+  
+    List<Object> blocks = new ArrayList();
+
+    blocks.add ( Map.of( "type", "section", "text", Map.of( "type", "mrkdwn", "text", markdownText)));
+
+    if ( ( params != null ) && ( params.size() > 0 ) ) {
+
+      List<Map<String,Object>> fields = new ArrayList<Map<String,Object>>();
+
+      for ( Map.Entry e : params.entrySet() ) {
+        Map<String,Object> field = new HashMap<String,Object>();
+        field.put ( "type", "mrkdwn");
+        field.put ( e.getKey().toString(), e.getValue() );
+        fields.add(field);
+      }
+
+      blocks.add( Map.of( "type", "section", "fields", fields ) );
+    }
+
+    payload.put("blocks", blocks);
+
+    return payload;
   }
 
 	// Prune expired alarms
