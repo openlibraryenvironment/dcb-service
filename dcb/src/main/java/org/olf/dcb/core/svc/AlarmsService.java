@@ -116,6 +116,10 @@ public class AlarmsService {
           }
         };
 			})
+      .onErrorResume( error -> {
+        log.error("Problem notifying alarm", error) ;
+        return Mono.empty();
+      } )
       .collectList()
 			.then(Mono.just("OK") );
 	}
@@ -204,9 +208,10 @@ public class AlarmsService {
 			return Mono.from(client.exchange(request))
 				.onErrorResume( e -> {
 					// Handle the error gracefully, log or return fallback
-					log.warn("Unable to post to webhook: {} {} {}", e.getMessage(), url.toString(), payload);
+					log.error("Unable to post to webhook: {} {} {}", e.getMessage(), url.toString(), payload);
 					return Mono.empty(); // or a fallback Mono.just(...)
 				})
+        .doOnNext(next -> log.debug("Webhook called {}", next) )
 				.then();
 		}
 		catch ( Exception e ) {
