@@ -1091,7 +1091,9 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(localItemId, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
+		final var localItem = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -1114,7 +1116,9 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(localItemId, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
+		final var localItem = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -1136,8 +1140,10 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> singleValueFrom(client.getItem(localItemId, null)));
+			() -> singleValueFrom(client.getItem(hostLmsItem)));
 
 		// Assert
 		assertThat(problem, allOf(

@@ -8,6 +8,7 @@ import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -30,6 +31,7 @@ import java.util.function.Function;
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Refreshable
@@ -309,8 +311,16 @@ public class TrackingServiceV3 implements TrackingService {
 		log.info("TRACKING Check (local) virtualItem from patron request {} {} {}", pr.getLocalItemId(), pr.getLocalItemStatus(), pr.getPatronHostlmsCode());
 
 		if (pr.getPatronHostlmsCode() != null) {
+
+			final var hostLmsItem = HostLmsItem.builder()
+				.localId(pr.getLocalItemId())
+				.localRequestId(pr.getLocalRequestId())
+				.holdingId(getValueOrNull(pr, PatronRequest::getLocalHoldingId))
+				.bibId(getValueOrNull(pr, PatronRequest::getLocalBibId))
+				.build();
+
 			return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
-				.flatMap(client -> Mono.from(client.getItem(pr.getLocalItemId(), pr.getLocalRequestId())))
+				.flatMap(client -> Mono.from(client.getItem(hostLmsItem)))
 				.flatMap( item -> {
 					if ( ((item.getStatus() == null) && (pr.getLocalItemStatus() != null)) ||
 						((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
@@ -385,8 +395,15 @@ public class TrackingServiceV3 implements TrackingService {
 		if (sr.getHostLmsCode() != null) {
 			log.debug("TRACKING hostLms code and itemId present.. continue");
 
+			final var hostLmsItem = HostLmsItem.builder()
+				.localId(sr.getLocalItemId())
+				.localRequestId(sr.getLocalId())
+				.holdingId(getValueOrNull(sr, SupplierRequest::getLocalHoldingId))
+				.bibId(getValueOrNull(sr, SupplierRequest::getLocalBibId))
+				.build();
+
 			return hostLmsService.getClientFor(sr.getHostLmsCode())
-				.flatMap(client -> Mono.from(client.getItem(sr.getLocalItemId(), sr.getLocalId())))
+				.flatMap(client -> Mono.from(client.getItem(hostLmsItem)))
 				.doOnNext(item -> log.debug("Process tracking supplier request item {}", item))
 				.flatMap( item -> {
 					// *Ian: Surely the next else block here is better dealt with by a new || condition here?
@@ -583,9 +600,16 @@ public class TrackingServiceV3 implements TrackingService {
 
 		log.info("TRACKING Check (local) pickupItem from patron request {} {} {}", pr.getPickupItemId(), pr.getPickupItemStatus(), rwc.getPickupSystemCode());
 
+		final var hostLmsItem = HostLmsItem.builder()
+			.localId(pr.getPickupItemId())
+			.localRequestId(pr.getPickupRequestId())
+			.holdingId(getValueOrNull(pr, PatronRequest::getPickupHoldingId))
+			.bibId(getValueOrNull(pr, PatronRequest::getPickupBibId))
+			.build();
+
 		if (rwc.getPickupSystemCode() != null) {
 			return hostLmsService.getClientFor(rwc.getPickupSystemCode())
-				.flatMap(client -> Mono.from(client.getItem(pr.getPickupItemId(), pr.getPickupRequestId())))
+				.flatMap(client -> Mono.from(client.getItem(hostLmsItem)))
 				.flatMap( item -> {
 					if ( ((item.getStatus() == null) && (pr.getPickupItemStatus() != null)) ||
 						((item.getStatus() != null) && (pr.getPickupItemStatus() == null)) ||

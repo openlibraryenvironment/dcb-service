@@ -607,7 +607,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			// .map(result -> deRestify(result.getLink())).map(localId -> HostLmsItem.builder().localId(localId).build())
 			// Try to read back the created item until we succeed or reach max retries - Sierra returns an ID but the ID is not ready for consumption
 			// immediately.
-      .flatMap(itemId -> Mono.defer(() -> getItem(itemId, null)).retry(getHoldsRetryAttempts))
+      .flatMap(itemId -> Mono.defer(() -> getItem(HostLmsItem.builder().localId(itemId).build())).retry(getHoldsRetryAttempts))
 			.switchIfEmpty(Mono.error(new RuntimeException("Unable to map canonical item type " + cic.getCanonicalItemType() + " for " + lms.getCode() + " context")));
 	}
 
@@ -1130,7 +1130,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private Mono<LocalRequest> addBarcodeIfItemIdPresent(LocalRequest localRequest) {
 		if ( localRequest.getRequestedItemId() != null ) {
-			return getItem(localRequest.getRequestedItemId(), localRequest.getLocalId())
+			return getItem(HostLmsItem.builder().localId(localRequest.getRequestedItemId()).localRequestId(localRequest.getLocalId()).build())
           .map(item -> LocalRequest.builder()
             .localId(localRequest.getLocalId())
             .localStatus(localRequest.getLocalStatus())
@@ -1580,7 +1580,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				new HostLmsRequest(holdId, status, rawStatus, requestedItemId, null));
 		}
 
-		return getItem(requestedItemId, holdId)
+		return getItem(HostLmsItem.builder().localId(requestedItemId).localRequestId(holdId).build())
 			.map(item -> new HostLmsRequest(holdId, status, rawStatus, requestedItemId, item.getBarcode()));
 	}
 
@@ -1709,10 +1709,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
-		log.debug("getItem({}, {})", localItemId, localRequestId);
+	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
 
-		localItemId = parseLocalItemId(localItemId);
+		final var localItemId = parseLocalItemId(hostLmsItem.getLocalId());
+		final var localRequestId = hostLmsItem.getLocalRequestId();
+
+		log.debug("getItem({}, {})", localItemId, localRequestId);
 
 		return Mono.from(client.getItem(localItemId, String.join(",", SIERRA_ITEM_FIELDS)))
 			.flatMap(sierraItem -> Mono.just(sierraItemToHostLmsItem(sierraItem)))
@@ -1752,7 +1754,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				}
 
 				log.debug("checkOutItemToPatron: Item barcode not known");
-				return getItem(itemId, localRequestId).map(HostLmsItem::getBarcode);
+				return getItem(HostLmsItem.builder().localId(itemId).localRequestId(localRequestId).build()).map(HostLmsItem::getBarcode);
+
 			})
 			// Sierra checkout operation uses patron barcode and item barcode
 			.flatMap(itemBarcode -> Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode, getVirtualPatronPin(getConfig()))))

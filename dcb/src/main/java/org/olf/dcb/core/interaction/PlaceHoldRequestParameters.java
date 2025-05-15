@@ -14,6 +14,7 @@ public class PlaceHoldRequestParameters {
 	String localPatronBarcode;
 	String localPatronType;
 	String localBibId;
+	String localHoldingId;
 	String localItemId;
 	String localItemBarcode;
 	String title;

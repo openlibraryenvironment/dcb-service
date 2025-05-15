@@ -40,6 +40,7 @@ public class HostLmsItem {
 	public static final String ITEM_LOANED = "LOANED";
 
 	String localId;
+	String localRequestId;
 	String status;
 	// The local status that hasn't been altered
 	@Nullable
@@ -52,4 +53,6 @@ public class HostLmsItem {
 	Integer holdCount;
 	@Nullable
 	String holdingId;
+	@Nullable
+	String bibId;
 }

@@ -299,6 +299,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					// FOLIO needs both the ID and barcode to cross-check the item identity
 					// SIERRA when placing a BIB hold - the ITEM that gets held may not be the one we selected
 					.localItemId(patronRequest.getPickupItemId())
+					.localHoldingId(getValueOrNull(patronRequest, PatronRequest::getPickupHoldingId))
 
 					// TODO: we should pass the pickup item barcode here
 					// Have to pass both because Sierra and Polaris still use code only

@@ -836,7 +836,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
+	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
+
+		final var localItemId = hostLmsItem.getLocalId();
+		final var localRequestId = hostLmsItem.getLocalRequestId();
+
 		log.debug("getItem({}, {})", localItemId, localRequestId);
 
 		return getTransactionStatus(localRequestId)

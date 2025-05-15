@@ -340,7 +340,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	}
 
-	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
+	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
+
+		final var localItemId = hostLmsItem.getLocalId();
+		final var localRequestId = hostLmsItem.getLocalRequestId();
+
 		log.debug("getItem(localItemId:{}, localRequestId:{})", localItemId, localRequestId);
 
 		if (state != null) {

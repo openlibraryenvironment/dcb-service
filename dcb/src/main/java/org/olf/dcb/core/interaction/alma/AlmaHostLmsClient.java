@@ -14,7 +14,6 @@ import org.apache.commons.lang3.NotImplementedException;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
-import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.*;
 
@@ -142,58 +141,71 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),
+			parameters.getLocalItemId(),
+			parameters.getLocalHoldingId(),
+			parameters.getLocalPatronId(),
+			parameters.getPickupLocation().getCode(),
+			parameters.getLocalItemBarcode());
 	}
 
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),
+			parameters.getLocalItemId(),
+			parameters.getLocalHoldingId(),
+			parameters.getLocalPatronId(),
+			parameters.getPickupLocation().getCode(),
+			parameters.getLocalItemBarcode());
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),
+			parameters.getLocalItemId(),
+			parameters.getLocalHoldingId(),
+			parameters.getLocalPatronId(),
+			parameters.getPickupLocation().getCode(),
+			parameters.getLocalItemBarcode());
 	}
 
 	private Mono<LocalRequest> placeGenericAlmaRequest(
 		String mmsId,
 		String itemId,
+		String holdingId,
 		String patronId,
 		String pickupInstitutionCode,
 		String itemBarcode) {
 
-    log.debug("placeGenericAlmaRequest({},{},{},{},{})", mmsId, itemId, patronId, pickupInstitutionCode,itemBarcode);
+    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupInstitutionCode,itemBarcode);
 
-    return client.getItemsForPID(mmsId,itemId) // Returns https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd?tags=GET
-      .flatMap(almaItems -> {
+		final var almaRequest = AlmaRequest.builder()
+			.mmsId(mmsId)
+			.holdingId(holdingId)
+			.pId(itemId)
+			.userPrimaryId(patronId)
+			.requestType("HOLD")
+			.pickupLocationType("INSTITUTION")
+			.pickupLocationInstitution(pickupInstitutionCode)
+			.build();
 
-        if ( almaItems.getItems().size() != 1 )
-          return Mono.error(new AlmaHostLmsClientException("Unexpected number of items for item ID"));
-
-        return Mono.just(
-          AlmaRequest.builder()
-            .mmsId(mmsId)
-            .holdingId(almaItems.getItems().get(0).getHoldingData().getHoldingId())
-            .pId(itemId)
-            .userPrimaryId(patronId)
-            .requestType("HOLD")
-            .pickupLocationType("INSTITUTION")
-            .pickupLocationInstitution(pickupInstitutionCode)
-            .build()
-        );
-      })
-      .flatMap( almaRequest -> client.placeHold(almaRequest) )
-      .map( almaRequest -> mapAlmaRequestToLocalRequest(almaRequest, itemBarcode) )
+    return client.placeHold(almaRequest)
+      .map( response -> mapAlmaRequestToLocalRequest(response, itemBarcode) )
       .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
 	}
 
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),parameters.getLocalItemId(),parameters.getLocalPatronId(),parameters.getPickupLocation().getCode(), parameters.getLocalItemBarcode());
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),
+			parameters.getLocalItemId(),
+			parameters.getLocalHoldingId(),
+			parameters.getLocalPatronId(),
+			parameters.getPickupLocation().getCode(),
+			parameters.getLocalItemBarcode());
 	}
 
 
@@ -407,6 +419,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.barcode(item.getBarcode())
 				.status(item.getBaseStatus().getValue())
 				.holdingId(holdingId.get())
+				.bibId(bibId)
 				.build() );
 	}
 
@@ -414,20 +427,21 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return client.createHolding(bibId, almaHolding);
 	}
 
-
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
 		return Mono.empty();
 	}
 
-
 	@Override
-	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
-		log.debug("getItem({}, {})", localItemId, localRequestId);
-
-		
-
-		return Mono.empty();
+	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
+		return client.getItemForPID(hostLmsItem.getBibId(), hostLmsItem.getHoldingId(), hostLmsItem.getLocalId())
+			.map( item -> HostLmsItem.builder()
+				.localId(item.getItemData().getPid())
+				.barcode(item.getItemData().getBarcode())
+				.status(item.getItemData().getBaseStatus().getValue())
+				.bibId(hostLmsItem.getBibId())
+				.holdingId(hostLmsItem.getHoldingId())
+				.build() );
 	}
 
 

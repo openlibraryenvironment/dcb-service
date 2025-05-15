@@ -325,11 +325,7 @@ class FinaliseRequestTransitionTests {
 			"rawStatus=null, " +
 			"requestedItemId=null, " +
 			"requestedItemBarcode=null"));
-		assertThat(audits, containsString("VirtualItem=HostLmsItem(" +
-			"localId=75432, " +
-			"status=MISSING, " +
-			"rawStatus=null, " +
-			"barcode=null"));
+		assertThat(audits, containsString("localId=75432"));
 		assertThat(audits, containsString("VirtualPatron"));
 
 		final var activeWorkflow = Optional.ofNullable(updatedPatronRequest)

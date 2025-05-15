@@ -466,6 +466,8 @@ type PatronRequest {
   pickupBibId: String
   pickupItemBarcode: String
 	isExpeditedCheckout: Boolean
+	localHoldingId: String
+	pickupHoldingId: String
 }
 
 type PatronRequestAudit {
@@ -499,6 +501,7 @@ type SupplierRequest {
   rawLocalItemStatus: String
   rawLocalStatus: String
   localRenewalCount: Int
+  localHoldingId: String
 }
 
 type InactiveSupplierRequest {
@@ -521,6 +524,7 @@ type InactiveSupplierRequest {
   rawLocalItemStatus: String
   rawLocalStatus: String
   localRenewalCount: Int
+  localHoldingId: String
 }
 
 type Patron {

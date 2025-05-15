@@ -312,13 +312,14 @@ public class AlmaApiClientImpl implements AlmaApiClient {
       .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
 	}
 
-
-	// ToDo: This is SPECULATIVE and needs testing
 	// IF this doesn't work, one option is to call getAllItems and then manually filter for the pid - same number of API requests
-  public Mono<AlmaItems> getItemsForPID(String mms_id, String pid) {
-		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/ALL/items/"+pid;
-		return get(path, Argument.of(AlmaItems.class),
-			uri -> uri.queryParam("apikey",apikey));
+  public Mono<AlmaItem> getItemForPID(String mms_id, String holdingId, String pid) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holdingId+"/items/"+pid;
+
+		return createRequest(GET, path)
+			.flatMap(req -> doExchange(req, Argument.of(AlmaItem.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(items -> log.info("Got item {}", items.getItemData().getPid()));
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET

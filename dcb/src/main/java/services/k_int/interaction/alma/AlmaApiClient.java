@@ -1,26 +1,10 @@
 package services.k_int.interaction.alma;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.annotation.*;
-import org.olf.dcb.core.interaction.HostLmsItem;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import io.micronaut.json.tree.JsonNode;
-
 import java.net.URI;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
-
-import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
 
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.items.*;
@@ -46,7 +30,7 @@ public interface AlmaApiClient {
 	Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id);
 
 	// This one is a gamble.. may need to be implemented with the above + a filter
-  Mono<AlmaItems> getItemsForPID(String mms_id, String pid);
+  Mono<AlmaItem> getItemForPID(String mms_id, String holdingId, String pid);
 
 
 	Mono<AlmaItems> getAllItems(String mms_id, String holding_id);

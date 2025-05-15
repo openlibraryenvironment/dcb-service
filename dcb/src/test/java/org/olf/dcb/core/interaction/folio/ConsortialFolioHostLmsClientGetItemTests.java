@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.ValidationError;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -59,7 +60,9 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).localRequestId(localRequestId).build();
+
+		final var localItem = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -81,7 +84,9 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).localRequestId(localRequestId).build();
+
+		final var localItem = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -104,7 +109,9 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).localRequestId(localRequestId).build();
+
+		final var localItem = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -126,7 +133,9 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).localRequestId(localRequestId).build();
+
+		final var localItem = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -157,7 +166,9 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).localRequestId(localRequestId).build();
+
+		final var localItem = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -191,7 +202,9 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var localRequest = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).localRequestId(localRequestId).build();
+
+		final var localRequest = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(localRequest, allOf(
@@ -212,8 +225,10 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).localRequestId(localRequestId).build();
+
 		final var exception = assertThrows(RuntimeException.class,
-			() -> singleValueFrom(client.getItem(localItemId, localRequestId)));
+			() -> singleValueFrom(client.getItem(hostLmsItem)));
 
 		// Assert
 		assertThat(exception, hasMessage(

@@ -743,7 +743,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
+	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
+
+		final var localItemId = hostLmsItem.getLocalId();
 
 		return parseLocalItemId(localItemId)
 			.flatMap(id -> ApplicationServices.itemrecords(id,TRUE))
