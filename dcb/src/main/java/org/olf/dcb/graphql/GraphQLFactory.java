@@ -99,6 +99,7 @@ public class GraphQLFactory {
 						.dataFetcher("dataChangeLog", dataFetchers.getDataChangeLogDataFetcher())
 						.dataFetcher("roles", dataFetchers.getRolesDataFetcher())
 						.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsDataFetcher())
+						.dataFetcher("alarms", dataFetchers.getAlarmsDataFetcher())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
