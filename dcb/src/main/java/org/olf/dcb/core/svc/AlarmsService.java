@@ -131,6 +131,10 @@ public class AlarmsService {
       return mapStringToSlackPayload(markdownText);
   }
 
+  private Map<String, Object> mapStringToTeamsPayload(String markdownText, Map params) {
+      return mapStringToSlackPayload(markdownText, null);
+  }
+
 
   private Map<String, Object> mapStringToSlackPayload(String markdownText) {
     return mapStringToSlackPayload(markdownText, null);
@@ -186,15 +190,19 @@ public class AlarmsService {
 			.thenReturn( code );
 	}
 
+  public Mono<Void> simpleAnnounce(String markdownMessage) {
+    return simpleAnnounce(markdownMessage, null);
+  }
+
   /**
    * Post a simple string message to all system webhooks
    */
-  public Mono<Void> simpleAnnounce(String markdownMessage) {
+  public Mono<Void> simpleAnnounce(String markdownMessage, Map params) {
 		return Flux.fromIterable( notificationEndpointDefinitions )
       .flatMap( target -> 
         switch ( target.getProfile() ) {
-          case "SLACK" -> publishToWebhook(target.getUrl(), mapStringToSlackPayload(markdownMessage));
-          case "TEAMS" -> publishToWebhook(target.getUrl(), mapStringToTeamsPayload(markdownMessage));
+          case "SLACK" -> publishToWebhook(target.getUrl(), mapStringToSlackPayload(markdownMessage, params));
+          case "TEAMS" -> publishToWebhook(target.getUrl(), mapStringToTeamsPayload(markdownMessage, params));
           case "LOG" -> {
             log.info("ANNOUNCE {}",markdownMessage);
             yield Mono.empty();
@@ -209,7 +217,7 @@ public class AlarmsService {
 
   }
 
-	public Mono<Void> publishToWebhook(String url, Map<String, Object> payload) {
+	public Mono<Void> publishToWebhook(String url, Map<String,Object> payload) {
 		// This is where you get HttpClient programmatically
     if ( ( url == null ) ||
          ( url.trim().length() == 0 ) ) {

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
 
+import io.micronaut.management.endpoint.info.*;
 
 import java.net.URL;
 
@@ -39,6 +40,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
@@ -69,10 +71,6 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	@Value("${dcb.env.code:UNKNOWN}")
 	String envCode;
 
-  @Value("${git.commit.id.describe:UNKNOWN}")
-  protected String commitIdDescribe;
-
-
 	private static final String REACTOR_DEBUG_VAR = "REACTOR_DEBUG";
 
 	public DCBStartupEventListener(Environment environment,
@@ -96,7 +94,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 	@Override
 	public void onApplicationEvent(StartupEvent event) {
-		log.info("Bootstrapping DCB "+envCode+" - onApplicationEvent "+commitIdDescribe);
+
+    String timestamp = ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
     log.info("Configured system notification endpoints: {}",alarmsService.getEndpoints());
 
@@ -144,7 +143,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 		registerNode();
 
-    alarmsService.simpleAnnounce(envCode+":DCB Startup completed : "+commitIdDescribe)
+    alarmsService.simpleAnnounce(envCode+":DCB Startup completed : "+timestamp)
       .subscribe();
 
 		log.info("Exit onApplicationEvent");
