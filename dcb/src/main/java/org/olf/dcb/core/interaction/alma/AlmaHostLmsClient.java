@@ -186,13 +186,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.mmsId(mmsId)
 			.holdingId(holdingId)
 			.pId(itemId)
-			.userPrimaryId(patronId)
 			.requestType("HOLD")
 			.pickupLocationType("INSTITUTION")
 			.pickupLocationInstitution(pickupInstitutionCode)
+			.pickupLocationCircuationDesk("DEFAULT_CIRC_DESK")
+			.comment("DCB Request")
 			.build();
 
-    return client.placeHold(almaRequest)
+    return client.placeHold(patronId, almaRequest)
       .map( response -> mapAlmaRequestToLocalRequest(response, itemBarcode) )
       .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
 	}

@@ -37,7 +37,7 @@ public interface AlmaApiClient {
 
 	Mono<String> test();
 
-  Mono<AlmaRequest> placeHold(AlmaRequest almaRequest);
+  Mono<AlmaRequest> placeHold(String userId, AlmaRequest almaRequest);
 
 	Mono<AlmaBib> createBib(String bib);
 
