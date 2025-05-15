@@ -25,7 +25,7 @@ public class AlmaHoldings {
 	@JsonProperty("total_record_count")
 	Integer totalRecordCount;
 
-	@JsonProperty("holdings")
+	@JsonProperty("holding")
 	List<AlmaHolding> holdings;
 
 	@JsonProperty("bib_data")

@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.alma;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -8,6 +10,7 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.*;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 
@@ -52,6 +55,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
   private final URI rootUri;
   private final HostLms lms;
+	@Client("alma")
   private final HttpClient client;
   private final String apikey;
   private final ConversionService conversionService;
@@ -117,7 +121,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
-		log.debug("Creating request for {}",APPLICATION_JSON);
+		log.info("Creating request for {}", path);
 
 		final String apiKey = "apikey " + apikey;
 
@@ -125,6 +129,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(this::resolve)
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString())
 				.accept(APPLICATION_JSON))
+
 			.map(req -> req.header(HttpHeaders.AUTHORIZATION, apiKey));
 	}
 
@@ -141,6 +146,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.flatMap(response -> {
 
 				if (response.getBody().isPresent()) {
+					log.info("Response body: {}", response.getBody().get());
 					return Mono.just(response);
 
 				} else if (response.getBody().isEmpty() && argumentType.equalsType(Argument.of(Void.class))) {
@@ -228,6 +234,36 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "User deleted" : "User not deleted");
 	}
 
+	public Mono<String> deleteBib(String mms_id) {
+		final String path="/almaws/v1/bibs/"+mms_id;
+		return createRequest(DELETE, path)
+			.map(req -> req.uri(uriBuilder -> uriBuilder.queryParam("override", true).build()))
+			.flatMap(req -> doExchange(req, Argument.of(Void.class)))
+			// This method returns HTTP 204 (No Content)
+			// which means that the server successfully processed the request, but is not returning any content.
+			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "Bib deleted" : "Bib not deleted");
+	}
+
+	public Mono<String> deleteItem(String id, String holdingsId, String mms_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holdingsId+"/items/"+id;
+		return createRequest(DELETE, path)
+			.map(req -> req.uri(uriBuilder -> uriBuilder.queryParam("override", true).build()))
+			.flatMap(req -> doExchange(req, Argument.of(Void.class)))
+			// This method returns HTTP 204 (No Content)
+			// which means that the server successfully processed the request, but is not returning any content.
+			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "Item deleted" : "Item not deleted");
+	}
+
+	public Mono<String> deleteHolding(String holdingsId, String mms_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holdingsId;
+		return createRequest(DELETE, path)
+			.map(req -> req.uri(uriBuilder -> uriBuilder.queryParam("override", true).build()))
+			.flatMap(req -> doExchange(req, Argument.of(Void.class)))
+			// This method returns HTTP 204 (No Content)
+			// which means that the server successfully processed the request, but is not returning any content.
+			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "Holding deleted" : "Holding not deleted");
+	}
+
 	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
 
 	// create bib - post /almaws/v1/bibs
@@ -264,8 +300,9 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   public Mono<AlmaHoldings> getHoldings(String mms_id) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
 		return createRequest(GET, path)
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaHoldings.class))));
-			
+      .flatMap(request -> doExchange(request, Argument.of(AlmaHoldings.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaHoldings -> log.info("retrieved {}", almaHoldings));
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
@@ -285,10 +322,12 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
-  public Mono<AlmaItems> getAllItems(String mms_id) {
-		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/ALL/items";
+  public Mono<AlmaItems> getAllItems(String mms_id, String holding_id) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
 		return createRequest(GET, path)
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
+      .flatMap(request -> doExchange(request, Argument.of(AlmaItems.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaItems -> log.info("Got {} items",almaItems));
 	}
 
   public Mono<AlmaRequest> placeHold(AlmaRequest almaRequest) {
@@ -298,17 +337,32 @@ public class AlmaApiClientImpl implements AlmaApiClient {
       .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaRequest.class))));
 	}
 
-	public Mono<AlmaBib> createBib(AlmaBib almaBib) {
+	public Mono<AlmaBib> createBib(String almaBib) {
 		final String path="/almaws/v1/bibs";
-    return createRequest(POST, path)
-      .map(request -> request.body(almaBib))
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaBib.class))));
+
+		return createRequest(POST, path)
+      .map(request -> request.body(almaBib).contentType(MediaType.APPLICATION_XML))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaBib.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(bib -> log.info("Created bib {}",bib.getMmsId()));
 	}
 
-	public Mono<AlmaItemData> createItem(String bibId, String holdingId, AlmaItemData aid) {
+	public Mono<AlmaHolding> createHolding(String mms_id, String almaHolding) {
+		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
+
+		return createRequest(POST, path)
+			.map(request -> request.body(almaHolding).contentType(MediaType.APPLICATION_XML))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaHolding.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(holding -> log.info("Created holding {}",holding.getHoldingId()));
+	}
+
+	public Mono<AlmaItem> createItem(String bibId, String holdingId, AlmaItem item) {
     final String path="/almaws/v1/bibs/"+bibId+"/holdings/"+holdingId+"/items";
     return createRequest(POST, path)
-      .map(request -> request.body(aid))
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItemData.class))));
+			.map(request -> request.body(item))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaItem.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaItemData -> log.info("Created item {}",almaItemData.getItemData().getPid()));
 	}
 }
