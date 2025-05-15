@@ -98,7 +98,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 			.limitRate(2, 1) // Fetch 2 pages, and fetch another 2 when we're at 1.
 			.doFinally( _signal -> this.jobMono = null )
 			.subscribe(this::logResults, err -> {
-				log.error("Error in reindex job");
+				log.error("Error in reindex job", err);
 			});
 	}
 	
