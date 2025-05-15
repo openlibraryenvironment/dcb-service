@@ -73,7 +73,7 @@ public class DataFetchers {
 	private final PostgresRoleRepository postgresRoleRepository;
 
 	private final PostgresSourceRecordRepository postgresSourceRecordRepository;
-
+	private final PostgresAlarmRepository postgresAlarmRepository;
 	private final QueryService qs;
 
 	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
@@ -102,6 +102,7 @@ public class DataFetchers {
 											PostgresConsortiumFunctionalSettingRepository postgresConsortiumFunctionalSettingRepository,
 											PostgresRoleRepository postgresRoleRepository,
 											PostgresSourceRecordRepository postgresSourceRecordRepository,
+											PostgresAlarmRepository postgresAlarmRepository,
 											QueryService qs) {
 		this.qs = qs;
 		this.postgresAgencyRepository = postgresAgencyRepository;
@@ -133,6 +134,7 @@ public class DataFetchers {
 		this.postgresConsortiumFunctionalSettingRepository = postgresConsortiumFunctionalSettingRepository;
 		this.postgresRoleRepository = postgresRoleRepository;
 		this.postgresSourceRecordRepository = postgresSourceRecordRepository;
+		this.postgresAlarmRepository = postgresAlarmRepository;
 	}
 
 
@@ -1069,6 +1071,32 @@ public class DataFetchers {
 			}
 
 			return Mono.from(postgresFunctionalSettingRepository.findAll(pageable)).toFuture();
+		};
+	}
+	public DataFetcher<CompletableFuture<Page<Alarm>>> getAlarmsDataFetcher() {
+		return env -> {
+			Integer pageno = env.getArgument("pageno");
+			Integer pagesize = env.getArgument("pagesize");
+			String query = env.getArgument("query");
+			String order = env.getArgument("order");
+			String direction = env.getArgument("orderBy");
+
+			if (pageno == null) pageno = Integer.valueOf(0);
+			if (pagesize == null) pagesize = Integer.valueOf(10);
+			if (order == null) order = "name";
+			if (direction == null) direction = "ASC";
+
+			Sort.Order.Direction orderBy = Sort.Order.Direction.valueOf(direction);
+
+			log.debug("AlarmDataFetcher::get({},{},{})", pageno, pagesize, query);
+			Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
+
+			if ((query != null) && (query.length() > 0)) {
+				var spec = qs.evaluate(query, Alarm.class);
+				return Mono.from(postgresAlarmRepository.findAll(spec, pageable)).toFuture();
+			}
+
+			return Mono.from(postgresAlarmRepository.findAll(pageable)).toFuture();
 		};
 	}
 }
