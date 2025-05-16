@@ -135,7 +135,7 @@ public interface PatronRequestRepository {
     from patron_request pr, 
          patron_identity pi, 
          host_lms hl
-    where pr.requesting_identity = pi.id 
+    where pr.requesting_identity_id = pi.id 
       and pi.host_lms = hl.id
       and pi.local_id=:patronId
       and hl.code = :hostLmsCode
