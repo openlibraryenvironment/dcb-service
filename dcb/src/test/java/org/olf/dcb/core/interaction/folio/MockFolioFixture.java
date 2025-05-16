@@ -164,6 +164,22 @@ public class MockFolioFixture {
 			.withPath("/dcbService/transactions/%s".formatted(transactionId));
 	}
 
+	void mockRenewTransaction(String transactionId, HttpResponse response) {
+		mockServerClient
+			.when(renewTransactionRequest(transactionId))
+			.respond(response);
+	}
+
+	public void verifyRenewTransaction(String transactionId) {
+		mockServerClient.verify(renewTransactionRequest(transactionId), once());
+	}
+
+	private HttpRequest renewTransactionRequest(String transactionId) {
+		return authorizedRequest("PUT")
+			.withPath("/dcbService/transactions/%s/renew".formatted(transactionId));
+	}
+
+
 	private HttpRequest authorizedRequest(String method) {
 		return request()
 			.withMethod(method)

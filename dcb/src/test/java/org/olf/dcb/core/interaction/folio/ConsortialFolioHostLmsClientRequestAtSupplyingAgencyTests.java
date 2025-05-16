@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -13,6 +14,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
@@ -22,7 +24,6 @@ import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,10 +76,10 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	@Test
 	void shouldPlaceRequestSuccessfully() {
 		// Arrange
-		final var itemId = UUID.randomUUID().toString();
+		final var itemId = randomUUID().toString();
 		final var itemBarcode = "68526614";
 
-		final var patronId = UUID.randomUUID().toString();
+		final var patronId = randomUUID().toString();
 		final var patronBarcode = "67129553";
 
 		mockFolioFixture.mockCreateTransaction(CreateTransactionResponse.builder()
@@ -151,9 +152,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var problem = assertThrows(CannotPlaceRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
-					.localItemId(UUID.randomUUID().toString())
+					.localItemId(randomUUID().toString())
 					.localItemBarcode("6736583")
-					.localPatronId(UUID.randomUUID().toString())
+					.localPatronId(randomUUID().toString())
 					.localPatronBarcode("8847474")
 					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
@@ -188,9 +189,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var problem = assertThrows(CannotPlaceRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
-					.localItemId(UUID.randomUUID().toString())
+					.localItemId(randomUUID().toString())
 					.localItemBarcode("4759385")
-					.localPatronId(UUID.randomUUID().toString())
+					.localPatronId(randomUUID().toString())
 					.localPatronBarcode("2365865")
 					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
@@ -228,9 +229,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var exception = assertThrows(InvalidApiKeyException.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
-					.localItemId(UUID.randomUUID().toString())
+					.localItemId(randomUUID().toString())
 					.localItemBarcode("7837315")
-					.localPatronId(UUID.randomUUID().toString())
+					.localPatronId(randomUUID().toString())
 					.localPatronBarcode("5486193")
 					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
@@ -257,9 +258,9 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var problem = assertThrows(UnexpectedHttpResponseProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
-					.localItemId(UUID.randomUUID().toString())
+					.localItemId(randomUUID().toString())
 					.localItemBarcode("46397196")
-					.localPatronId(UUID.randomUUID().toString())
+					.localPatronId(randomUUID().toString())
 					.localPatronBarcode("9265614")
 					.localPatronType("undergrad")
 					.pickupAgency(pickupAgency)
@@ -276,14 +277,26 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	@Test
 	void shouldRenewItemSuccessfully() {
 		// Arrange
-		final var localItemId = "9521387";
-		final var localPatronId = "8174632";
+		final var localTransactionId = randomUUID().toString();
+
+		mockFolioFixture.mockRenewTransaction(localTransactionId, response()
+			.withStatusCode(200)
+			.withBody(json(TransactionStatus.builder()
+				.status("ITEM_CHECKED_OUT")
+				.build())));
+
+		final var localItemId = randomUUID().toString();
 		final var localItemBarcode = "1357921";
+		final var localPatronId = randomUUID().toString();
 		final var localPatronBarcode = "6543219";
 
 		final var hostLmsRenewal = HostLmsRenewal.builder()
-			.localItemId(localItemId).localPatronId(localPatronId)
-			.localItemBarcode(localItemBarcode).localPatronBarcode(localPatronBarcode).build();
+			.localRequestId(localTransactionId)
+			.localItemId(localItemId)
+			.localPatronId(localPatronId)
+			.localItemBarcode(localItemBarcode)
+			.localPatronBarcode(localPatronBarcode)
+			.build();
 
 		// Act
 		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
@@ -291,12 +304,67 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		final var response = singleValueFrom(client.renew(hostLmsRenewal));
 
 		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response, allOf(
-			hasProperty("localItemId", is("9521387")),
-			hasProperty("localPatronId", is("8174632")),
-			hasProperty("localItemBarcode", is("1357921")),
-			hasProperty("localPatronBarcode", is("6543219"))
+		mockFolioFixture.verifyRenewTransaction(localTransactionId);
+
+		assertThat("Should echo back renewal parameters", response, allOf(
+			notNullValue(),
+			hasProperty("localItemId", is(localItemId)),
+			hasProperty("localItemBarcode", is(localItemBarcode)),
+			hasProperty("localPatronId", is(localPatronId)),
+			hasProperty("localPatronBarcode", is(localPatronBarcode))
+		));
+	}
+
+	@Test
+	void shouldFailToRenewWhenNoRequestIdProvided() {
+		// Arrange
+		final var hostLmsRenewal = HostLmsRenewal.builder()
+			.localRequestId(null)
+			.localItemId(randomUUID().toString())
+			.localItemBarcode("0583763")
+			.localPatronId(randomUUID().toString())
+			.localPatronBarcode("20457275")
+			.build();
+
+		// Act
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
+
+		final var error = assertThrows(RuntimeException.class,
+			() -> singleValueFrom(client.renew(hostLmsRenewal)));
+
+		// Assert
+		assertThat(error, allOf(
+			notNullValue(),
+			hasMessage("Cannot renew transaction without a transaction ID")
+		));
+	}
+
+	@Test
+	void shouldFailRenewalWhenUnexpectedHttpResponseIsReturned() {
+		final var localTransactionId = randomUUID().toString();
+
+		mockFolioFixture.mockRenewTransaction(localTransactionId, response()
+			.withStatusCode(400)
+			// This is a made up body that is only intended to demonstrate how it's captured
+			.withBody(json(Map.of("message", "something went wrong"))));
+
+		// Act
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(UnexpectedHttpResponseProblem.class,
+			() -> singleValueFrom(client.renew(HostLmsRenewal.builder()
+				.localRequestId(localTransactionId)
+				.localItemId(randomUUID().toString())
+				.localItemBarcode("19473645")
+				.localPatronId(randomUUID().toString())
+				.localPatronBarcode("57663652")
+				.build())));
+
+		// Assert
+		assertThat(problem, allOf(
+			hasMessageForHostLms(SUPPLYING_HOST_LMS_CODE),
+			hasResponseStatusCode(400),
+			hasJsonResponseBodyProperty("message", "something went wrong")
 		));
 	}
 

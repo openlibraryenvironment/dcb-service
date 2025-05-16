@@ -1040,6 +1040,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				final var itemBarcode = deRestify(resp.getBarcode());
 
 				return HostLmsRenewal.builder()
+					.localRequestId(hostLmsRenewal.getLocalRequestId())
 					.localPatronId(respPatronId)
 					.localItemId(respItemId)
 					.localItemBarcode(itemBarcode)

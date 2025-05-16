@@ -700,9 +700,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
+		final var transactionId = getValueOrThrow(hostLmsRenewal,
+			HostLmsRenewal::getLocalRequestId, () -> new RuntimeException("Cannot renew transaction without a transaction ID"));
 
-		return Mono.just(hostLmsRenewal);
+		final var path = "/dcbService/transactions/%s/renew".formatted(transactionId);
+
+		return makeRequest(authorisedRequest(PUT, path))
+			.then(Mono.just(hostLmsRenewal));
+
 	}
 
 	@Override

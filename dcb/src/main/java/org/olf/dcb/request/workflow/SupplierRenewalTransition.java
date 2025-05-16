@@ -160,6 +160,7 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 
 	private HostLmsRenewal createHostLmsRenewal(SupplierRequest supplierRequest, PatronIdentity virtualPatron) {
 		return HostLmsRenewal.builder()
+			.localRequestId(getValueOrNull(supplierRequest, SupplierRequest::getLocalId))
 			.localItemId(supplierRequest.getLocalItemId())
 			.localItemBarcode(supplierRequest.getLocalItemBarcode())
 			.localPatronId(virtualPatron.getLocalId())
