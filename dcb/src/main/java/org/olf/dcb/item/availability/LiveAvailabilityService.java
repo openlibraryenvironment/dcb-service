@@ -197,7 +197,9 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
 		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms, Optional<String> filters) {
 
-		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("bib", bib.getId().toString()), Tag.of("lms", hostLms.getHostLmsCode())));
+		// Removing bib ID from metric as we need 1 entry per system and task rather one for every bib.
+		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("lms", hostLms.getHostLmsCode())));
+//		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("bib", bib.getId().toString()), Tag.of("lms", hostLms.getHostLmsCode())));
 		commonTags.addAll(parentTags);
 		
 		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )
