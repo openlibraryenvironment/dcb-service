@@ -1,5 +1,6 @@
 package services.k_int.interaction.alma;
 
+import org.olf.dcb.core.interaction.Patron;
 import org.reactivestreams.Publisher;
 
 import reactor.core.publisher.Mono;
@@ -22,6 +23,9 @@ public interface AlmaApiClient {
 
 	// https://developers.exlibrisgroup.com/alma/apis/users/
   Mono<AlmaUser> getAlmaUserByUserId(String user_id);
+
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
+	Mono<AlmaUserList> getUsersByExternalId(String external_id);
 
   Mono<String> deleteAlmaUser(String user_id);
 
@@ -51,4 +55,6 @@ public interface AlmaApiClient {
 	Mono<String> deleteItem(String id, String holdingsId, String mmsId);
 
 	Mono<String> deleteHolding(String holdingsId, String mmsId);
+
+	Mono<AlmaUser> authenticateOrRefreshUser(String barcode, String secret);
 }

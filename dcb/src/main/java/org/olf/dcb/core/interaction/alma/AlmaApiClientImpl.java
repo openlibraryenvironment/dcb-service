@@ -1,7 +1,5 @@
 package org.olf.dcb.core.interaction.alma;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Secondary;
@@ -10,7 +8,6 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.*;
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.micronaut.http.uri.UriBuilder;
@@ -21,7 +18,6 @@ import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,8 +40,6 @@ import services.k_int.interaction.alma.types.holdings.*;
 import static io.micronaut.http.HttpStatus.NO_CONTENT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.HttpMethod.*;
-
-
 
 @Slf4j
 @Secondary
@@ -89,14 +83,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		this.objectMapper = objectMapper;
 	}
 
-	public Publisher<AlmaUserList> users() {
-		log.debug("Get users - apikey={}",apikey);
-		return get("/users", Argument.of(AlmaUserList.class),
-			uri -> uri.queryParam("apikey",apikey)
-				.queryParam("limit","10")
-				.queryParam("offset","0"));
-	}
-
 	@PostConstruct
 	void logClientConfig() {
 		if (client instanceof DefaultHttpClient) {
@@ -105,11 +91,34 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		}
 	}
 
+	public Publisher<AlmaUserList> users() {
+		final String path="/users";
+		return createRequest(GET, path)
+			.flatMap(req -> doExchange(req, Argument.of(AlmaUserList.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaUserList -> log.info("Got {} users", almaUserList));
+	}
+
+	public Mono<AlmaUserList> getUsersByExternalId(String externalId) {
+		final String path="/users";
+		final String query="external_id="+externalId;
+
+		return createRequest(GET, path)
+			.map(req -> req.uri(uriBuilder -> uriBuilder
+				.queryParam("q", query)
+				.build()))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaUserList.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaUserList -> log.info("Got {} users",almaUserList));
+	}
+
 	// See https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_users.xsd
-	public Publisher<AlmaUser> user(String id) {
-		log.debug("Get user id={}, apikey={}",id,apikey);
-		return get("/users/"+id, Argument.of(AlmaUser.class),
-			uri -> uri.queryParam("apikey",apikey));
+	public Publisher<AlmaUser> users(String id) {
+		final String path="/users/"+id;
+		return createRequest(GET, path)
+			.flatMap(req -> doExchange(req, Argument.of(AlmaUser.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaUser -> log.info("Retrieved user {}", almaUser));
 	}
 
 	// /almaws/v1/bibs/{mms_id}
@@ -121,13 +130,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	// https://developers.exlibrisgroup.com/forums/topic/retrieve-item-via-almaws-v1-itemsbarcode/
 	private Mono<AlmaItem> getItem(String item_barcode) {
 		return Mono.just(AlmaItem.builder().build());
-	}
-
-	private <T> Mono<T> get(String path, Argument<T> argumentType, Consumer<UriBuilder> uriBuilderConsumer) {
-		return createRequest(GET, path)
-			.map(req -> req.uri(uriBuilderConsumer))
-			.doOnNext ( req -> log.info("get {}",req.getUri().toString()) )
-			.flatMap(req -> Mono.from(doRetrieve(req, argumentType)));
 	}
 
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
@@ -145,10 +147,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	private URI resolve(URI relativeURI) {
 		return RelativeUriResolver.resolve(rootUri, relativeURI);
-	}
-
-	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		return Mono.from(client.retrieve(request, argumentType, Argument.of(HttpClientResponseException.class)));
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
@@ -274,36 +272,23 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "Holding deleted" : "Holding not deleted");
 	}
 
-	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
+	@Override
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfQ==/
+	public Mono<AlmaUser> authenticateOrRefreshUser(String user_id, String password) {
+		final String path="/almaws/v1/users/"+user_id;
 
-	// create bib - post /almaws/v1/bibs
-	public Mono<AlmaBib> createAlmaTemporaryBib(AlmaBib almaBib) {
-		final String path="/almaws/v1/bibs";
-    return createRequest(POST, path)
-      .map(request -> request.body(almaBib))
-      .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaBib.class))));
-	}
-
-	// create holding - post /almaws/v1/bibs/{mms_id}/holdings
-	public Mono<AlmaHolding> createAlmaTemporaryHolding(AlmaHolding almaHolding, String mms_id) {
-		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
-    return createRequest(POST, path)
-      .map(request -> request.body(almaHolding))
-      .flatMap(request -> Mono.from(client.retrieve(request, Argument.of(AlmaHolding.class))));
-	}
-
-	// create item - POST /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items
-	public Mono<AlmaItem> createAlmaTemporaryItem(String mms_id, String holding_id, AlmaItem almaItem) {
-    final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
-    return createRequest(POST, path)
-      .map(request -> request.body(almaItem))
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItem.class))));
+		return createRequest(GET, path)
+			.map(req -> req.uri(uriBuilder -> uriBuilder.queryParam("password", password).build()))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaUser.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaUser -> log.info("retrieved user {}", almaUser.getPrimary_id()));
 	}
 
 	public Mono<String> test() {
     final String path="/almaws/v1/conf/test";
     return createRequest(GET, path)
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(String.class))));
+      .flatMap(request -> Mono.from(doExchange(request, Argument.of(String.class))))
+			.map(response -> response.getBody().get());
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
@@ -319,7 +304,8 @@ public class AlmaApiClientImpl implements AlmaApiClient {
   public Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
 		return createRequest(GET, path)
-      .flatMap(request -> Mono.from(doRetrieve(request, Argument.of(AlmaItems.class))));
+      .flatMap(request -> Mono.from(doExchange(request, Argument.of(AlmaItems.class))))
+			.map(response -> response.getBody().get());
 	}
 
 	// IF this doesn't work, one option is to call getAllItems and then manually filter for the pid - same number of API requests

@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.alma;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.net.URI;
 import java.util.*;
@@ -58,6 +59,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		= urlPropertyDefinition("alma-url", "Base request URL of the ALMA system", TRUE);
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
 		= stringPropertyDefinition("apikey", "API key for this ALMA system", TRUE);
+	private static final HostLmsPropertyDefinition POLICY_SETTING
+		= stringPropertyDefinition("policy", "Policy for this ALMA system", TRUE);
+	private static final HostLmsPropertyDefinition ITEM_POLICY_SETTING
+		= stringPropertyDefinition("item-policy", "Item policy for this ALMA system", TRUE);
 
 	private final HostLms hostLms;
 
@@ -70,8 +75,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private final String apiKey;
 	private final URI rootUri;
-
-
 
 	public AlmaHostLmsClient(@Parameter HostLms hostLms,
 		@Parameter("client") HttpClient httpClient,
@@ -137,7 +140,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.collectList();
 	}
 
-
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
@@ -148,7 +150,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			parameters.getPickupLocation().getCode(),
 			parameters.getLocalItemBarcode());
 	}
-
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
@@ -198,7 +199,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
       .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
 	}
 
-
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
 		return placeGenericAlmaRequest(parameters.getLocalBibId(),
@@ -208,7 +208,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			parameters.getPickupLocation().getCode(),
 			parameters.getLocalItemBarcode());
 	}
-
 
 	/** ToDo: This should be a default method I think */
 	@Override
@@ -225,7 +224,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				getHostLmsCode(), canonicalPatronType)));
 	}
 
-
 	/** ToDo: This should be a default method I think */
 	@Override
 	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
@@ -241,7 +239,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
 				hostLmsCode, localPatronType)));
 	}
-
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
@@ -267,9 +264,41 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		return Mono.empty();
-	}
 
+		// find user by external_id (DCB patron uniqueId)
+		// this is assuming when a virtual patron is created the external_id is set with DCBs patron uniqueId
+		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
+		return client.getUsersByExternalId(uniqueId)
+			.map(almaUserList -> {
+
+				final var users = getValueOrNull(almaUserList, AlmaUserList::getUser);
+				final var usersSize = (users != null) ? users.size() : 0;
+
+				if (usersSize < 1) {
+					log.warn("No virtual Patron found.");
+
+					throw VirtualPatronNotFound.builder()
+						.withDetail(usersSize + " records found")
+						.with("uniqueId", uniqueId)
+						.with("Response", almaUserList)
+						.build();
+				}
+
+				if (usersSize > 1) {
+					log.error("More than one virtual patron found: {}", almaUserList);
+
+					throw MultipleVirtualPatronsFound.builder()
+						.withDetail(usersSize + " records found")
+						.with("uniqueId", uniqueId)
+						.with("Response", almaUserList)
+						.build();
+				}
+
+				final var onlyUser = users.get(0);
+
+				return almaUserToPatron(onlyUser);
+			});
+	}
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
@@ -336,11 +365,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map ( bibresult -> bibresult.getMmsId() );
 	}
 
-
 	@Override
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
 		log.debug("{} cancelHoldRequest({})", getHostLms().getName(), parameters);
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Cancel hold request is not currently implemented in " + getHostLmsCode()));
 	}
 
 	@Override
@@ -352,7 +380,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Update patron request is not currently implemented in " + getHostLmsCode()));
 	}
 
 	@Override
@@ -362,15 +390,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		log.warn("NOOP: updatePatron called for hostlms {} localPatronId {} localPatronType {}",
 			getHostLms().getName(), localId, patronType);
 
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Update patron is not currently implemented in " + getHostLmsCode()));
 	}
-
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
-		return Mono.empty();
-	}
 
+		return client.authenticateOrRefreshUser(barcode, secret)
+			.map(almaUser -> almaUserToPatron(almaUser));
+	}
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
@@ -430,7 +458,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(String localRequestId) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Get patron request is not currently implemented"));
 	}
 
 	@Override
@@ -445,21 +473,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.build() );
 	}
 
-
 	@Override
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Update item status is not currently implemented in " + getHostLmsCode()));
 	}
-
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Check out item to patron is not currently implemented in " + getHostLmsCode()));
 	}
 
 	@Override
 	public Mono<String> deleteItem(String id) {
-		return Mono.error(new NotImplementedException("Delete item is not currently implemented"));
+		return Mono.error(new NotImplementedException("Delete item is not currently implemented in " + getHostLmsCode()));
 	}
 
 	@Override
@@ -470,8 +496,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
   @Override
   public Mono<String> deleteHold(String id) {
-		log.info("Delete hold is not currently implemented");
-		return Mono.empty();
+		return Mono.error(new NotImplementedException("Delete hold is not currently implemented in " + getHostLmsCode()));
   }
 
   public Mono<String> deletePatron(String id) {
@@ -493,7 +518,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
   @Override
   public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
-    return Mono.empty();
+    return Mono.error(new NotImplementedException("Prevent renewal on loan is not currently implemented in " + getHostLmsCode()));
   }
 
   @Override
