@@ -1,5 +1,24 @@
 # Changelog
 
+## Version 8.31.0
+
+### Additions
+* [General]
+	* Web metrics to include host and uri unless overridden.
+	* Detect renewal at FOLIO borrowing library DCB-1894
+	* Perform renewal at FOLIO supplying library DCB-1894
+
+### Changes
+* [Chore]
+	* Add logging to troubleshoot FOLIO on-site-borrowing [DCB-1555]
+	* Add instrumented HttpClient as a way to inject a HttpClient that adds the host label to the prometheus metrics endpoint
+
+### Fixes
+* [General]
+	* Lower metric entries for lookups by removing bib ID
+	* Global preflights error on host_lms column [DCB-1903]
+	* Fix global limits preflight error [DCB-1903]
+
 ## Version 8.30.0
 
 ### Additions
@@ -15,6 +34,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add logging for reindex error
 	* Tidy up reporting, open up prometheus metrics
 	* GraphQL support for alarms [DCB-1902]
