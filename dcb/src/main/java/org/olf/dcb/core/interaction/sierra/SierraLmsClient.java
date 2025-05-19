@@ -1119,7 +1119,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 					return updateItem(itemId, itemPatch);
 				})
-			.flatMap(_itemID -> getRequest(localRequest.getLocalId()))
+			.flatMap(_itemID -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build()))
 			.map(hostLmsRequest -> LocalRequest.builder()
 				.localId(hostLmsRequest.getLocalId())
 				.localStatus(hostLmsRequest.getStatus())
@@ -1577,16 +1577,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final var rawStatus = sierraHold.status() != null ? sierraHold.status().toString() : null;
 
 		if (requestedItemId == null) {
-			return Mono.just(
-				new HostLmsRequest(holdId, status, rawStatus, requestedItemId, null));
+			return Mono.just(HostLmsRequest.builder().localId(holdId).status(status).rawStatus(rawStatus).build());
 		}
 
 		return getItem(HostLmsItem.builder().localId(requestedItemId).localRequestId(holdId).build())
-			.map(item -> new HostLmsRequest(holdId, status, rawStatus, requestedItemId, item.getBarcode()));
+			.map(item -> HostLmsRequest.builder().localId(holdId)
+				.status(status).rawStatus(rawStatus)
+				.requestedItemId(requestedItemId).requestedItemBarcode(item.getBarcode())
+				.build());
 	}
 
 	@Override
-	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
+
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
+
 		log.debug("getRequest({})", localRequestId);
 
 		return parseLocalRequestId(localRequestId)

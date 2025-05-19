@@ -101,4 +101,8 @@ public class AlmaRequest {
 	String dueBackDate;
   @JsonProperty("copyrights_declaration_signed_by_patro")
 	String copyDeclarationSigned;
+	@JsonProperty("barcode")
+	String itemBarcode;
+	@JsonProperty("item_id")
+	String itemId;
 }

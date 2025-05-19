@@ -457,8 +457,43 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsRequest> getRequest(String localRequestId) {
-		return Mono.error(new NotImplementedException("Get patron request is not currently implemented"));
+	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
+		final var patronId = getValueOrNull(request, HostLmsRequest::getLocalPatronId);
+
+		return client.retrieveUserRequest(patronId, localRequestId)
+			.map(almaRequest -> {
+
+				final var itemId = getValueOrNull(almaRequest, AlmaRequest::getItemId);
+				final var itemBarcode = getValueOrNull(almaRequest, AlmaRequest::getItemBarcode);
+				final var rawStatus = getValueOrNull(almaRequest, AlmaRequest::getRequestStatus, CodeValuePair::getValue);
+
+				return HostLmsRequest.builder()
+					.localId(almaRequest.getRequestId())
+					.status(checkHoldStatus(rawStatus))
+					.rawStatus(rawStatus)
+					.requestedItemId(itemId)
+					.requestedItemBarcode(itemBarcode)
+					.build();
+			});
+	}
+
+	// This will default to the raw status when no mapping is available
+	// The code of the resource sharing request status.
+	// Comes from the MandatoryBorrowingWorkflowSteps or OptionalBorrowingWorkflowSteps code tables.
+	private String checkHoldStatus(String status) {
+		log.debug("Checking hold status: {}", status);
+		return switch (status) {
+			case "REJECTED", "LOCATE_FAILED" -> HostLmsRequest.HOLD_CANCELLED;
+			case "PENDING_APPROVAL", "READY_TO_SEND", "REQUEST_SENT",
+					 "REQUEST_CREATED_BOR", "LOCATE_IN_PROCESS",
+					 // Edge case that the item has been put in transit by staff
+					 // before DCB had a chance to confirm the supplier request
+					 "SHIPPED_DIGITALLY", "SHIPPED_PHYSICALLY" -> HostLmsRequest.HOLD_CONFIRMED;
+			case "LOANED", "RECEIVED_DIGITALLY", "RECEIVED_PHYSICALLY" -> HostLmsRequest.HOLD_READY;
+			case "DELETED" -> HostLmsRequest.HOLD_MISSING;
+			default -> status;
+		};
 	}
 
 	@Override
@@ -695,7 +730,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return LocalRequest.builder()
 			.localId(almaRequest.getRequestId())
 			.localStatus(almaRequest.getRequestStatus().getValue())
-			.rawLocalStatus(null)
+			.rawLocalStatus(almaRequest.getRequestStatus().getValue())
 			.requestedItemId(almaRequest.getMmsId())
 			.requestedItemBarcode(itemBarcode)
 			.canonicalItemType(null)

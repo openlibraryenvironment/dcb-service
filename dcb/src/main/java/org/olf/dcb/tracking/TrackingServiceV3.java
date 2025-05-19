@@ -9,6 +9,8 @@ import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -257,8 +259,13 @@ public class TrackingServiceV3 implements TrackingService {
 			return Mono.just(pr);
 		}
 
+		final var requestId = getValueOrNull(pr, PatronRequest::getLocalRequestId);
+		// assuming the identity is attached when the context is built
+		final var localPatronId = getValueOrNull(pr, PatronRequest::getRequestingIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(requestId).localPatronId(localPatronId).build();
+
 		return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
-			.flatMap(client -> client.getRequest(pr.getLocalRequestId()))
+			.flatMap(client -> client.getRequest(hostlmsRequest))
 			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(), e))
 			.doOnNext(hold -> log.info("TRACKING Compare patron request {} states: {} and {}", pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()))
 			.flatMap( hold -> {
@@ -479,6 +486,10 @@ public class TrackingServiceV3 implements TrackingService {
 
 		log.info("TRACKING Check supplier request {} with local status \"{}\"", sr.getId(), sr.getLocalStatus());
 
+		final var localRequestId = sr.getLocalId();
+		final var supplierPatronId = getValueOrNull(sr, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(localRequestId).localPatronId(supplierPatronId).build();
+
 		// We fetch the state of the hold at the supplying library. If it is different to the last state
 		// we stashed in SupplierRequest.localStatus then we have detected a change. We emit an event to let
 		// observers know that the state has changed but we DO NOT directly update localStatus. the handler
@@ -488,7 +499,7 @@ public class TrackingServiceV3 implements TrackingService {
 		// has changed to "InTransit" the handler needs to update the pickup site and the patron site, if either of
 		// these operations fail, we don't update the state - which will cause the handler to re-fire until
 		// successful completion.
-		return supplyingAgencyService.getRequest(sr.getHostLmsCode(), sr.getLocalId())
+		return supplyingAgencyService.getRequest(sr.getHostLmsCode(), hostlmsRequest)
 			.flatMap( hold -> {
 				if ( !hold.getStatus().equals(sr.getLocalStatus()) ) {
 					log.debug("TRACKING current request status: {}", hold);
@@ -556,8 +567,12 @@ public class TrackingServiceV3 implements TrackingService {
 			return Mono.just(rwc);
 		}
 
+		final var requestId = getValueOrNull(pr, PatronRequest::getPickupRequestId);
+		final var pickupPatronId = getValueOrNull(rwc, RequestWorkflowContext::getPickupPatronIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(requestId).localPatronId(pickupPatronId).build();
+
 		return hostLmsService.getClientFor(rwc.getPickupSystemCode())
-			.flatMap(client -> client.getRequest(pr.getPickupRequestId()))
+			.flatMap(client -> client.getRequest(hostlmsRequest))
 			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(), e))
 			.doOnNext(hold -> log.info("TRACKING Compare pickup request {} states: {} and {}", pr.getPickupRequestId(), hold.getStatus(), pr.getPickupRequestStatus()))
 			.flatMap( hold -> {

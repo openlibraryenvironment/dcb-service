@@ -95,7 +95,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand);
 
-	Mono<HostLmsRequest> getRequest(String localRequestId);
+	Mono<HostLmsRequest> getRequest(HostLmsRequest request);
 
 	Mono<HostLmsItem> getItem(HostLmsItem item);
 

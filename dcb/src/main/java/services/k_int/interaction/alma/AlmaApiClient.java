@@ -24,6 +24,9 @@ public interface AlmaApiClient {
 	// https://developers.exlibrisgroup.com/alma/apis/users/
   Mono<AlmaUser> getAlmaUserByUserId(String user_id);
 
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
+	Mono<AlmaRequest> retrieveUserRequest(String user_id, String request_id);
+
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
 	Mono<AlmaUserList> getUsersByExternalId(String external_id);
 
@@ -36,7 +39,6 @@ public interface AlmaApiClient {
 	// This one is a gamble.. may need to be implemented with the above + a filter
   Mono<AlmaItem> getItemForPID(String mms_id, String holdingId, String pid);
 
-
 	Mono<AlmaItems> getAllItems(String mms_id, String holding_id);
 
 	Mono<String> test();
@@ -44,7 +46,6 @@ public interface AlmaApiClient {
   Mono<AlmaRequest> placeHold(String userId, AlmaRequest almaRequest);
 
 	Mono<AlmaBib> createBib(String bib);
-
 
 	Mono<AlmaItem> createItem(String mmsId, String holdingId, AlmaItem aid);
 

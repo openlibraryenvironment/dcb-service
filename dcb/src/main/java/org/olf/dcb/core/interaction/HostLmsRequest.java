@@ -43,6 +43,9 @@ public class HostLmsRequest {
 	@Nullable
 	String localId;
 
+	@Nullable
+	String localPatronId;
+
 	// N.B. That if we are unable to map a status, this string MAY contain a value not from the set above!
 	@Nullable
 	String status;

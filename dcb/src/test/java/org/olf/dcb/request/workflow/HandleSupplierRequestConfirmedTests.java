@@ -29,6 +29,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -74,6 +75,8 @@ class HandleSupplierRequestConfirmedTests {
 	@Inject
 	private HandleSupplierRequestConfirmed handleSupplierRequestConfirmed;
 
+	private DataHostLms SUPPLYING_HOST_LMS;
+
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
@@ -87,7 +90,7 @@ class HandleSupplierRequestConfirmedTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
+		SUPPLYING_HOST_LMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "title");
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
@@ -118,6 +121,11 @@ class HandleSupplierRequestConfirmedTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
+		// save the virtual identity (supplier patron)
+		final var localPatronId = "562967";
+		final var virtualIdentity = patronFixture.saveIdentity(patron, SUPPLYING_HOST_LMS,
+			localPatronId, true, "-", localPatronId, null);
+
 		final var localSupplyingHoldId = "7357356";
 
 		supplierRequestsFixture.saveSupplierRequest(
@@ -129,6 +137,7 @@ class HandleSupplierRequestConfirmedTests {
 				.localItemBarcode("26123553")
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualIdentity)
 				.build());
 
 		// Update the hold to be an item level hold
@@ -188,6 +197,11 @@ class HandleSupplierRequestConfirmedTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
+		// save the virtual identity (supplier patron)
+		final var localPatronId = "562967";
+		final var virtualIdentity = patronFixture.saveIdentity(patron, SUPPLYING_HOST_LMS,
+			localPatronId, true, "-", localPatronId, null);
+
 		final var localSupplyingHoldId = "3525635";
 
 		supplierRequestsFixture.saveSupplierRequest(
@@ -199,6 +213,7 @@ class HandleSupplierRequestConfirmedTests {
 				.localItemBarcode("1745736")
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualIdentity)
 				.build());
 
 		// Update the hold to be an item level hold
@@ -325,6 +340,11 @@ class HandleSupplierRequestConfirmedTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
+		// save the virtual identity (supplier patron)
+		final var localPatronId = "562967";
+		final var virtualIdentity = patronFixture.saveIdentity(patron, SUPPLYING_HOST_LMS,
+			localPatronId, true, "-", localPatronId, null);
+
 		final var localSupplyingHoldId = "4625522";
 		final var originalLocalItemId = "647375678";
 
@@ -336,6 +356,7 @@ class HandleSupplierRequestConfirmedTests {
 				.localItemId(originalLocalItemId)
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualIdentity)
 				.build());
 
 		// Update the hold to be an item level hold
@@ -383,6 +404,12 @@ class HandleSupplierRequestConfirmedTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
+		// save the virtual identity (supplier patron)
+		final var localPatronId = "562967";
+		final var virtualIdentity = patronFixture.saveIdentity(patron, SUPPLYING_HOST_LMS,
+			localPatronId, true, "-", localPatronId, null);
+
+
 		final var localSupplyingHoldId = "2632353";
 		final var originalLocalItemId = "5365332";
 		final var originalLocalItemBarcode = "2645245";
@@ -396,6 +423,7 @@ class HandleSupplierRequestConfirmedTests {
 				.localItemBarcode(originalLocalItemBarcode)
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualIdentity)
 				.build());
 
 		// Update the hold to be an item level hold
@@ -452,6 +480,11 @@ class HandleSupplierRequestConfirmedTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
+		// save the virtual identity (supplier patron)
+		final var localPatronId = "562967";
+		final var virtualIdentity = patronFixture.saveIdentity(patron, SUPPLYING_HOST_LMS,
+			localPatronId, true, "-", localPatronId, null);
+
 		final var localSupplyingHoldId = "5724732";
 		final var originalLocalItemId = "73456242";
 
@@ -463,6 +496,7 @@ class HandleSupplierRequestConfirmedTests {
 				.localItemId(originalLocalItemId)
 				.patronRequest(patronRequest)
 				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualIdentity)
 				.build());
 
 		// Update the hold to be an item level hold

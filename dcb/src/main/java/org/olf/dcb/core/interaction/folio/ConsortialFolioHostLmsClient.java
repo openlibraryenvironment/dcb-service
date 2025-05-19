@@ -825,7 +825,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
 		return getTransactionStatus(localRequestId)
 			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus))
 			.onErrorResume(TransactionNotFoundException.class,

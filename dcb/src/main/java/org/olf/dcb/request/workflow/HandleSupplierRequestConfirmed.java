@@ -5,11 +5,14 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -58,9 +61,12 @@ public class HandleSupplierRequestConfirmed extends AbstractPatronRequestStateTr
 		// The presence of a supplier is checked in `isApplicableFor` so not repeated here
 		final var supplierRequest = ctx.getSupplierRequest();
 		final var patronRequest = ctx.getPatronRequest();
+		final var requestId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
+		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(requestId).localPatronId(supplierPatronId).build();
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(hostLmsClient -> hostLmsClient.getRequest(supplierRequest.getLocalId()))
+			.flatMap(hostLmsClient -> hostLmsClient.getRequest(hostlmsRequest))
 			.flatMap(localRequest -> {
 				final var localItemId = localRequest.getRequestedItemId();
 				final var localItemBarcode = localRequest.getRequestedItemBarcode();

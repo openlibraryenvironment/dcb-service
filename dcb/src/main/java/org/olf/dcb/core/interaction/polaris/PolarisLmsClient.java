@@ -237,7 +237,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			})
 			.doOnSuccess(item -> log.info("Successfully updated item, returning {}.", item))
 			.doOnError(error -> log.error("Error updating item: {}", error.getMessage()))
-			.flatMap(__ -> getRequest(localRequest.getLocalId()))
+			.flatMap(__ -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build()))
 			.map(hostLmsRequest -> LocalRequest.builder()
 				.localId(hostLmsRequest.getLocalId())
 				.localStatus(hostLmsRequest.getStatus())
@@ -593,7 +593,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
+
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
+
 		log.info("getRequest({})", localRequestId);
 
 		return parseLocalRequestId(localRequestId)

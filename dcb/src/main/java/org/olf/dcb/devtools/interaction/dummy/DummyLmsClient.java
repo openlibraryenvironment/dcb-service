@@ -306,7 +306,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 				.barcode(cic.getBarcode()).build());
 	}
 
-	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
+
 		log.debug("getRequest({})", localRequestId);
 
 		if (state != null) {

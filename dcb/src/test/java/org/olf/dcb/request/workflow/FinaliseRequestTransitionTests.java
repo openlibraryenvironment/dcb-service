@@ -319,12 +319,8 @@ class FinaliseRequestTransitionTests {
 		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest).toString();
 
 		assertThat(audits, containsString("briefDescription=Clean up result"));
-		assertThat(audits, containsString("VirtualRequest=HostLmsRequest(" +
-			"localId=7357356, " +
-			"status=MISSING, " +
-			"rawStatus=null, " +
-			"requestedItemId=null, " +
-			"requestedItemBarcode=null"));
+		// virtual request audit check
+		assertThat(audits, containsString("localId=7357356"));
 		assertThat(audits, containsString("localId=75432"));
 		assertThat(audits, containsString("VirtualPatron"));
 

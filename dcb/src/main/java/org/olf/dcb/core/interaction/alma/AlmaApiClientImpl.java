@@ -300,6 +300,15 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.doOnNext(almaHoldings -> log.info("retrieved {}", almaHoldings));
 	}
 
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_user_request.xsd/?tags=GET
+	public Mono<AlmaRequest> retrieveUserRequest(String user_id, String request_id) {
+		final String path="/almaws/v1/users/"+user_id+"/requests/"+request_id;
+		return createRequest(GET, path)
+			.flatMap(request -> doExchange(request, Argument.of(AlmaRequest.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaRequest -> log.info("retrieved almaRequest {}", almaRequest));
+	}
+
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
   public Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";

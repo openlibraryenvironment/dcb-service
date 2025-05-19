@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -87,7 +88,9 @@ class SierraHostLmsClientGetRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
+
+		final var foundRequest = singleValueFrom(client.getRequest(hostLmsRequest));
 
 		// Assert
 		assertThat(foundRequest, allOf(
@@ -125,7 +128,9 @@ class SierraHostLmsClientGetRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
+
+		final var foundRequest = singleValueFrom(client.getRequest(hostLmsRequest));
 
 		// Assert
 		assertThat(foundRequest, allOf(
@@ -147,7 +152,9 @@ class SierraHostLmsClientGetRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
+
+		final var foundRequest = singleValueFrom(client.getRequest(hostLmsRequest));
 
 		// Assert
 		assertThat(foundRequest, allOf(
@@ -180,7 +187,9 @@ class SierraHostLmsClientGetRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
+
+		final var foundRequest = singleValueFrom(client.getRequest(hostLmsRequest));
 
 		// Assert
 		assertThat(foundRequest, allOf(
@@ -213,7 +222,9 @@ class SierraHostLmsClientGetRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var foundRequest = singleValueFrom(client.getRequest(localRequestId));
+		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
+
+		final var foundRequest = singleValueFrom(client.getRequest(hostLmsRequest));
 
 		// Assert
 		assertThat(foundRequest, allOf(
