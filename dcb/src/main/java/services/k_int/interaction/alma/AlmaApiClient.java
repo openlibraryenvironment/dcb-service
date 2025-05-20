@@ -25,7 +25,7 @@ public interface AlmaApiClient {
   Mono<AlmaUser> getAlmaUserByUserId(String user_id);
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
-	Mono<AlmaRequest> retrieveUserRequest(String user_id, String request_id);
+	Mono<AlmaRequestResponse> retrieveUserRequest(String user_id, String request_id);
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
 	Mono<AlmaUserList> getUsersByExternalId(String external_id);

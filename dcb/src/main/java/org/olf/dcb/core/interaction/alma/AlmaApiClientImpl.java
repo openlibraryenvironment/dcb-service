@@ -312,12 +312,12 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_user_request.xsd/?tags=GET
-	public Mono<AlmaRequest> retrieveUserRequest(String user_id, String request_id) {
+	public Mono<AlmaRequestResponse> retrieveUserRequest(String user_id, String request_id) {
 		final String path="/almaws/v1/users/"+user_id+"/requests/"+request_id;
 		return createRequest(GET, path)
-			.flatMap(request -> doExchange(request, Argument.of(AlmaRequest.class)))
+			.flatMap(request -> doExchange(request, Argument.of(AlmaRequestResponse.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(almaRequest -> log.info("retrieved almaRequest {}", almaRequest));
+			.doOnNext(response -> log.info("retrieved almaRequest {}", response));
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
