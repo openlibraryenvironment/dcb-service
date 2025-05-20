@@ -91,8 +91,9 @@ dependencies {
 	implementation("ch.qos.logback:logback-core")
 	implementation("ch.qos.logback:logback-classic")
 
-	// This is needed to address a critical CVE that blocks deployment
+	// These are needed to address critical CVEs that block deployment
 	implementation("io.netty:netty-handler:4.1.118.Final")
+	implementation("org.apache.httpcomponents.client5:httpclient5:5.4.4")
 
   runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
   runtimeOnly("ch.qos.logback.contrib:logback-jackson:0.1.5")
