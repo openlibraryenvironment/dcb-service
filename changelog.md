@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 8.31.1
+
+### Changes
+* [Refactor]
+	* Change transactional boundaries to only wrap the db fetch
+
 ## Version 8.31.0
 
 ### Additions
@@ -10,6 +16,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add logging to troubleshoot FOLIO on-site-borrowing [DCB-1555]
 	* Add instrumented HttpClient as a way to inject a HttpClient that adds the host label to the prometheus metrics endpoint
 
