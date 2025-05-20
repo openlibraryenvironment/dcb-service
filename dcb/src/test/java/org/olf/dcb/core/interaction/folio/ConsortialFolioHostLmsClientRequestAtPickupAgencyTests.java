@@ -101,7 +101,7 @@ class ConsortialFolioHostLmsClientRequestAtPickupAgencyTests {
 			.patron(CreateTransactionRequest.Patron.builder()
 				.id(patronId)
 				.barcode("67129553")
-				.group("undergrad")
+				.group("\"undergrad\"")
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
 				.servicePointId(pickupLocation.getLocalId())
