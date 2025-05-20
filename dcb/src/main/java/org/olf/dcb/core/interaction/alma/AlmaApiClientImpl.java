@@ -40,6 +40,7 @@ import services.k_int.interaction.alma.types.holdings.*;
 import static io.micronaut.http.HttpStatus.NO_CONTENT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.HttpMethod.*;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Secondary
@@ -272,6 +273,16 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "Holding deleted" : "Holding not deleted");
 	}
 
+	public Mono<String> deleteUserRequest(String userId, String requestId) {
+		final String path="/almaws/v1/users/"+userId+"/requests/"+requestId;
+		return createRequest(DELETE, path)
+			.map(req -> req.uri(uriBuilder -> uriBuilder.queryParam("override", true).build()))
+			.flatMap(req -> doExchange(req, Argument.of(Void.class)))
+			// This method returns HTTP 204 (No Content)
+			// which means that the server successfully processed the request, but is not returning any content.
+			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "Hold deleted" : "Hold not deleted");
+	}
+
 	@Override
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfQ==/
 	public Mono<AlmaUser> authenticateOrRefreshUser(String user_id, String password) {
@@ -336,14 +347,17 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.doOnNext(almaItems -> log.info("Got {} items",almaItems));
 	}
 
-  public Mono<AlmaRequest> placeHold(String userId, AlmaRequest almaRequest) {
-		final String path="/almaws/v1/bibs/"+almaRequest.getMmsId()+"/holdings/"+almaRequest.getHoldingId()+"/items/"+almaRequest.getPId()+"/requests";
+  public Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest) {
+		final String path="/almaws/v1/users/"+userId+"/requests";
+		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
+
+		log.info("Placing hold for item {}", itemId);
     return createRequest(POST, path)
 			.map(req -> req.uri(uriBuilder -> uriBuilder
-				.queryParam("user_id", userId)
+				.queryParam("item_pid", itemId)
 				.build()))
 			.map(request -> request.body(almaRequest))
-			.flatMap(req -> doExchange(req, Argument.of(AlmaRequest.class)))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaRequestResponse.class)))
 			.map(response -> response.getBody().get())
 			.doOnNext(hold -> log.info("Created hold {}",hold.getRequestId()));
 	}

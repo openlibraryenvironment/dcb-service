@@ -184,12 +184,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
     log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupInstitutionCode,itemBarcode);
 
 		final var almaRequest = AlmaRequest.builder()
-			.mmsId(mmsId)
-			.holdingId(holdingId)
 			.pId(itemId)
 			.requestType("HOLD")
-			.pickupLocationType("INSTITUTION")
-			.pickupLocationInstitution(pickupInstitutionCode)
+			.pickupLocationType("LIBRARY")
+			.pickupLocationLibrary(pickupInstitutionCode)
 			.pickupLocationCircuationDesk("DEFAULT_CIRC_DESK")
 			.comment("DCB Request")
 			.build();
@@ -303,7 +301,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
-		String patron_id = UUID.randomUUID().toString();
+		String patron_id = patron.getLocalId().get(0);
 		String firstname = "DCB";
 		String lastname = "VPATRON";
 		String external_id = null;
@@ -332,9 +330,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		// POST /almaws/v1/users
 		AlmaUser almaUser = AlmaUser.builder()
+			.record_type(CodeValuePair.builder().value("PUBLIC").build())
       .primary_id(patron_id)
       .first_name(firstname)
       .last_name(lastname)
+			.status(CodeValuePair.builder().value("ACTIVE").build())
+			.user_group(CodeValuePair.builder().value("UNDERGRAD").build())
       .is_researcher(Boolean.FALSE)
 			.user_identifiers(user_identifiers)
 			.external_id(external_id) // DCB Patron ID for home library system
@@ -534,11 +535,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return Mono.error(new NotImplementedException("Delete hold is not currently implemented in " + getHostLmsCode()));
   }
 
+	@Override
+	public Mono<String> deleteHold(String userId, String requestId) {
+		return client.deleteUserRequest(userId, requestId);
+	}
+
   public Mono<String> deletePatron(String id) {
 		return Mono.from(client.deleteAlmaUser(id))
 			.then(Mono.just("OK"));
 	}
-
 
 	@Override
 	public Mono<String> deleteBib(String id) {
@@ -726,16 +731,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
-	public LocalRequest mapAlmaRequestToLocalRequest(AlmaRequest almaRequest, String itemBarcode) {
+	public LocalRequest mapAlmaRequestToLocalRequest(AlmaRequestResponse response, String itemBarcode) {
 		return LocalRequest.builder()
-			.localId(almaRequest.getRequestId())
-			.localStatus(almaRequest.getRequestStatus().getValue())
-			.rawLocalStatus(almaRequest.getRequestStatus().getValue())
-			.requestedItemId(almaRequest.getMmsId())
-			.requestedItemBarcode(itemBarcode)
-			.canonicalItemType(null)
-			.supplyingAgencyCode(null)
-			.supplyingHostLmsCode(hostLms.getCode())
+			.localId(response.getRequestId())
+			.localStatus(checkHoldStatus(response.getRequestStatus()))
+			.rawLocalStatus(response.getRequestStatus())
+			.requestedItemId(response.getItemId())
+			.requestedItemBarcode(response.getItemBarcode())
 			.build();
 	}
 

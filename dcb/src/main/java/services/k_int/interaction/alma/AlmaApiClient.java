@@ -43,7 +43,7 @@ public interface AlmaApiClient {
 
 	Mono<String> test();
 
-  Mono<AlmaRequest> placeHold(String userId, AlmaRequest almaRequest);
+  Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest);
 
 	Mono<AlmaBib> createBib(String bib);
 
@@ -58,4 +58,6 @@ public interface AlmaApiClient {
 	Mono<String> deleteHolding(String holdingsId, String mmsId);
 
 	Mono<AlmaUser> authenticateOrRefreshUser(String barcode, String secret);
+
+	Mono<String> deleteUserRequest(String userId, String requestId);
 }

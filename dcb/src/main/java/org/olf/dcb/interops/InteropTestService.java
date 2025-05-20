@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.time.Duration;
 import java.time.Instant;
 
+import com.ctc.wstx.shaded.msv_core.reader.xmlschema.IncludeState;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.BibRecord;
@@ -30,6 +31,7 @@ import services.k_int.interaction.alma.types.error.AlmaException;
 public class InteropTestService {
 
 	private static final String TEST_LOCATION_CODE = "GTLSC";
+	private static final String TEST_PICKUP_LOCATION_CODE = "GTMAIN";
 	private static final Duration ITEM_SYNC_DELAY = Duration.ofSeconds(10);
 
 	private final HostLmsService hostLmsService;
@@ -72,6 +74,7 @@ public class InteropTestService {
 		);
 
 		List<Function<InteropTestContext, Mono<InteropTestResult>>> cleanupSteps = List.of(
+			this::deleteHoldTest,
 			this::deleteItemTest,
 			this::deleteBibTest,
 			this::patronDeleteTest
@@ -122,6 +125,7 @@ public class InteropTestService {
 	private Mono<InteropTestResult> executeCleanupStep(
 		Function<InteropTestContext, Mono<InteropTestResult>> step,
 		InteropTestContext testCtx) {
+
 
 		return step.apply(testCtx)
 			.onErrorResume(error -> {
@@ -186,7 +190,7 @@ public class InteropTestService {
 				"Missing required values for hold placement", hostLms));
 		}
 
-		Location pickupLocation = Location.builder().code(TEST_LOCATION_CODE).build();
+		Location pickupLocation = Location.builder().code(TEST_PICKUP_LOCATION_CODE).build();
 
 		final var hold = PlaceHoldRequestParameters.builder()
 			.localBibId(bibId)
@@ -198,8 +202,11 @@ public class InteropTestService {
 			.build();
 
 		return hostLms.placeHoldRequestAtBorrowingAgency(hold)
-			.map(localRequest -> createSuccessResult("setup", "place hold",
-				"placeHold returned " + localRequest, hostLms));
+			.map(localRequest -> {
+				testCtx.getValues().put("hold_id", localRequest.getLocalId());
+				return createSuccessResult("setup", "place hold",
+					"placeHold returned " + localRequest, hostLms);
+			});
 	}
 
 	private Mono<InteropTestResult> getItemsTest(InteropTestContext testCtx) {
@@ -241,6 +248,22 @@ public class InteropTestService {
 				return createSuccessResult("setup", "item tracking",
 					"getItem returned " + hostLmsItem, hostLms);
 			});
+	}
+
+	private Mono<InteropTestResult> deleteHoldTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+
+		String patronId = (String) testCtx.getValues().get("testPatronId");
+		String holdId = (String) testCtx.getValues().get("hold_id");
+
+		if (anyNull(patronId, holdId)) {
+			return Mono.just(createNotRunResult("cleanup", "hold",
+				"Missing required hold identifiers. Unable to test hold delete", hostLms));
+		}
+
+		return hostLms.deleteHold(patronId, holdId)
+			.map(result -> createSuccessResult("cleanup", "hold",
+				"delete hold returned " + result, hostLms));
 	}
 
 	private Mono<InteropTestResult> deleteItemTest(InteropTestContext testCtx) {
@@ -329,13 +352,15 @@ public class InteropTestService {
 	private Mono<InteropTestResult> patronCreateTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
 
-		String temporaryPatronId = UUID.randomUUID().toString();
+//		String temporaryPatronId = UUID.randomUUID().toString();
+		String temporaryPatronId = "test_user_"+Instant.now().toString();
 		testCtx.getValues().put("testPatronId", temporaryPatronId);
 
 		log.info("Starting patron tests with context: {}", testCtx.getValues());
 
 		return hostLms.createPatron(
 				Patron.builder()
+					.localId(List.of(temporaryPatronId))
 					.localNames(List.of(temporaryPatronId + "-fn", temporaryPatronId + ".sn"))
 					.localBarcodes(List.of(temporaryPatronId))
 					.uniqueIds(List.of(temporaryPatronId))
