@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.alma;
 
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
@@ -59,10 +60,17 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		= urlPropertyDefinition("alma-url", "Base request URL of the ALMA system", TRUE);
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
 		= stringPropertyDefinition("apikey", "API key for this ALMA system", TRUE);
-	private static final HostLmsPropertyDefinition POLICY_SETTING
-		= stringPropertyDefinition("policy", "Policy for this ALMA system", TRUE);
+
+//	The item's override policy for loan rules.
+//	Defines the conditions under which a request for this item can be fulfilled.
+//	Possible codes are listed in 'ItemPolicy' code table.
+	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd/?tags=POST
 	private static final HostLmsPropertyDefinition ITEM_POLICY_SETTING
-		= stringPropertyDefinition("item-policy", "Item policy for this ALMA system", TRUE);
+		= stringPropertyDefinition("item-policy", "Item policy for this ALMA system", FALSE);
+	private static final HostLmsPropertyDefinition SHELF_LOCATION_SETTING
+		= stringPropertyDefinition("shelf-location", "Shelf location for this ALMA system", FALSE);
+	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
+		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
 
 	private final HostLms hostLms;
 
@@ -106,7 +114,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return List.of(
 			BASE_URL_SETTING,
-			API_KEY_SETTING
+			API_KEY_SETTING,
+			ITEM_POLICY_SETTING,
+			SHELF_LOCATION_SETTING
 		);
 	}
 	
@@ -178,17 +188,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String itemId,
 		String holdingId,
 		String patronId,
-		String pickupInstitutionCode,
+		String pickupLocationCode,
 		String itemBarcode) {
 
-    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupInstitutionCode,itemBarcode);
+    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupLocationCode,itemBarcode);
+
+		final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
 
 		final var almaRequest = AlmaRequest.builder()
 			.pId(itemId)
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
-			.pickupLocationLibrary(pickupInstitutionCode)
-			.pickupLocationCircuationDesk("DEFAULT_CIRC_DESK")
+			.pickupLocationLibrary(pickupLocationCode)
+			.pickupLocationCirculationDesk(pickupLocationCircuationDesk)
 			.comment("DCB Request")
 			.build();
 
@@ -298,61 +310,97 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
+	// Static create patron defaults
+	private static final String DEFAULT_FIRST_NAME = "DCB";
+	private static final String DEFAULT_LAST_NAME = "VPATRON";
+	private static final String RECORD_TYPE_PUBLIC = "PUBLIC";
+	private static final String STATUS_ACTIVE = "ACTIVE";
+	private static final String ACCOUNT_TYPE_EXTERNAL = "EXTERNAL";
+	private static final String ID_TYPE_BARCODE = "BARCODE";
+
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
-		String patron_id = patron.getLocalId().get(0);
-		String firstname = "DCB";
-		String lastname = "VPATRON";
-		String external_id = null;
+		final var patronId = extractPatronId(patron);
+		final var firstName = extractFirstName(patron);
+		final var lastName = extractLastName(patron);
+		final var externalId = extractExternalId(patron);
 
-		if ( ( patron.getLocalNames() != null ) && ( patron.getLocalNames().size() > 0 ) ) {
-			firstname = patron.getLocalNames().get(0);
-			lastname = patron.getLocalNames().get(patron.getLocalNames().size()-1);
+		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
+		AlmaUser almaUser = buildAlmaUser(patronId, firstName, lastName, externalId, userIdentifiers);
+
+		return determinePatronType(patron)
+			.flatMap(patronType -> {
+				almaUser.setUser_group(CodeValuePair.builder().value(patronType).build());
+
+				return Mono.from(client.createPatron(almaUser))
+					.flatMap(returnedUser -> {
+						log.debug("Created alma user {}", returnedUser);
+						return Mono.just(patronId);
+					});
+			});
+	}
+
+	private String extractPatronId(Patron patron) {
+		return patron.getLocalId().get(0);
+	}
+
+	private String extractFirstName(Patron patron) {
+		if (hasLocalNames(patron)) {
+			return patron.getLocalNames().get(0);
 		}
+		return DEFAULT_FIRST_NAME;
+	}
 
-		if ( ( patron.getUniqueIds() != null ) && ( patron.getUniqueIds().size() > 0 ) ) {
-			external_id = patron.getUniqueIds().get(0);
+	private String extractLastName(Patron patron) {
+		if (hasLocalNames(patron)) {
+			return patron.getLocalNames().get(patron.getLocalNames().size() - 1);
 		}
+		return DEFAULT_LAST_NAME;
+	}
 
-		List<UserIdentifier> user_identifiers = null;
+	private boolean hasLocalNames(Patron patron) {
+		return patron.getLocalNames() != null && !patron.getLocalNames().isEmpty();
+	}
 
-		if ( patron.getLocalBarcodes() != null ) {
-			user_identifiers = patron.getLocalBarcodes().stream()
+	private String extractExternalId(Patron patron) {
+		if (patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()) {
+			return patron.getUniqueIds().get(0);
+		}
+		return null;
+	}
+
+	private List<UserIdentifier> createUserIdentifiers(Patron patron) {
+		if (patron.getLocalBarcodes() != null) {
+			return patron.getLocalBarcodes().stream()
 				.map(value -> UserIdentifier.builder()
-					.id_type( WithAttr.builder().value("BARCODE").build() )
+					.id_type(WithAttr.builder().value(ID_TYPE_BARCODE).build())
 					.value(value)
-					.note(null)
-					.status(null)
 					.build())
 				.collect(Collectors.toList());
 		}
+		return null;
+	}
 
-		// POST /almaws/v1/users
-		AlmaUser almaUser = AlmaUser.builder()
-			.record_type(CodeValuePair.builder().value("PUBLIC").build())
-      .primary_id(patron_id)
-      .first_name(firstname)
-      .last_name(lastname)
-			.status(CodeValuePair.builder().value("ACTIVE").build())
-			.user_group(CodeValuePair.builder().value("UNDERGRAD").build())
-      .is_researcher(Boolean.FALSE)
-			.user_identifiers(user_identifiers)
-			.external_id(external_id) // DCB Patron ID for home library system
-      .link("")
-			// https://developers.exlibrisgroup.com/blog/Users-API-working-with-external-internal-users/
-			.account_type(CodeValuePair.builder().value("EXTERNAL").build())
-      // CodeValuePair status;
-      // CodeValuePair gender;
-      // String password;
+	private AlmaUser buildAlmaUser(String patronId, String firstName, String lastName,
+																 String externalId, List<UserIdentifier> userIdentifiers) {
+		return AlmaUser.builder()
+			.record_type(CodeValuePair.builder().value(RECORD_TYPE_PUBLIC).build())
+			.primary_id(patronId)
+			.first_name(firstName)
+			.last_name(lastName)
+			.status(CodeValuePair.builder().value(STATUS_ACTIVE).build())
+			.is_researcher(Boolean.FALSE)
+			.user_identifiers(userIdentifiers)
+			.external_id(externalId) // DCB Patron ID for home library system
+			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
+	}
 
-		return Mono.from(client.createPatron(almaUser))
-			.flatMap(returnedUser -> {
-				log.info("Created alma user {}",returnedUser);
-				return Mono.just(patron_id);
-			});
-			// N.B. Can return mono.error.
+	private Mono<String> determinePatronType(Patron patron) {
+		return (patron.getLocalPatronType() != null)
+			? Mono.just(patron.getLocalPatronType())
+			: findLocalPatronType(patron.getCanonicalPatronType());
 	}
 
 	@Override
@@ -360,7 +408,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var author = (bib.getAuthor() != null) ? bib.getAuthor() : null;
 		final var title = (bib.getTitle() != null) ? bib.getTitle() : null;
 
-		final var alma_bib = AlmaMarcXmlGenerator.createBibXml(title, author);
+		final var alma_bib = AlmaXmlGenerator.createBibXml(title, author);
 
 		return client.createBib(alma_bib)
 			.map ( bibresult -> bibresult.getMmsId() );
@@ -404,32 +452,32 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 
-		String bibId = cic.getBibId();
+		String bibId = getValueOrNull(cic, CreateItemCommand::getBibId);
 
-		// Need mapping, temp values for testing
-		String policy = "BOOK";
-		String itemPolicy = "BOOK";
-		String shelfLocation = "GENERAL";
-		String callNumber = "TEST_COLLECTION";
-		String holdingNote = "Test holding record";
+		// default found: '/conf/code-tables/ItemPolicy'
+		String policy = ITEM_POLICY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "BOOK");
+		String shelfLocation = SHELF_LOCATION_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GENERAL");
+		String callNumber = "DCB_VIRTUAL_COLLECTION";
+		String holdingNote = "DCB Virtual holding record";
+		String baseStatus = "1"; // available
+		String location = getValueOrNull(cic, CreateItemCommand::getLocationCode);
 
-		String holdingxml = AlmaMarcXmlGenerator.generateHoldingXml(
-			cic.getLocationCode(), shelfLocation, callNumber, holdingNote);
+		String holdingxml = AlmaXmlGenerator.generateHoldingXml(
+			location, shelfLocation, callNumber, holdingNote);
 
 		AlmaItemData almaItemData = AlmaItemData.builder()
 			.barcode(cic.getBarcode())
 			.physicalMaterialType(CodeValuePair.builder().value(cic.getCanonicalItemType()).build())
-			.itemPolicy(CodeValuePair.builder().value(itemPolicy).build())
 			.policy(CodeValuePair.builder().value(policy).build())
-			.baseStatus(CodeValuePair.builder().value("1").build())
-			.description("Test copy")
-			.statisticsNote1("Test item")
-			.publicNote("Test item = created by DCB")
-			.fulfillmentNote("Test item = created by DCB")
-			.internalNote1("Test item = created by DCB")
+			.baseStatus(CodeValuePair.builder().value(baseStatus).build())
+			.description("DCB copy")
+			.statisticsNote1("DCB item")
+			.publicNote("Virtual item = created by DCB")
+			.fulfillmentNote("Virtual item = created by DCB")
+			.internalNote1("Virtual item = created by DCB")
 			.holdingData(
 				AlmaHolding.builder()
-					.library(CodeValuePair.builder().value(cic.getLocationCode()).build())
+					.library(CodeValuePair.builder().value(location).build())
 					.location(CodeValuePair.builder().value(shelfLocation).build())
 					.build()
 			)
@@ -447,7 +495,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map( item -> HostLmsItem.builder()
 				.localId(item.getPid())
 				.barcode(item.getBarcode())
-				.status(item.getBaseStatus().getValue())
+				.status(deriveItemStatus(item).getCode().name())
 				.holdingId(holdingId.get())
 				.bibId(bibId)
 				.build() );
@@ -465,9 +513,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return client.retrieveUserRequest(patronId, localRequestId)
 			.map(almaRequest -> {
 
-				final var itemId = getValueOrNull(almaRequest, AlmaRequest::getItemId);
-				final var itemBarcode = getValueOrNull(almaRequest, AlmaRequest::getItemBarcode);
-				final var rawStatus = getValueOrNull(almaRequest, AlmaRequest::getRequestStatus, CodeValuePair::getValue);
+				final var itemId = getValueOrNull(almaRequest, AlmaRequestResponse::getItemId);
+				final var itemBarcode = getValueOrNull(almaRequest, AlmaRequestResponse::getItemBarcode);
+				final var rawStatus = getValueOrNull(almaRequest, AlmaRequestResponse::getRequestStatus);
 
 				return HostLmsRequest.builder()
 					.localId(almaRequest.getRequestId())
@@ -487,7 +535,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return switch (status) {
 			case "REJECTED", "LOCATE_FAILED" -> HostLmsRequest.HOLD_CANCELLED;
 			case "PENDING_APPROVAL", "READY_TO_SEND", "REQUEST_SENT",
-					 "REQUEST_CREATED_BOR", "LOCATE_IN_PROCESS",
+					 "REQUEST_CREATED_BOR", "LOCATE_IN_PROCESS", "IN_PROCESS",
 					 // Edge case that the item has been put in transit by staff
 					 // before DCB had a chance to confirm the supplier request
 					 "SHIPPED_DIGITALLY", "SHIPPED_PHYSICALLY" -> HostLmsRequest.HOLD_CONFIRMED;
@@ -503,7 +551,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map( item -> HostLmsItem.builder()
 				.localId(item.getItemData().getPid())
 				.barcode(item.getItemData().getBarcode())
-				.status(item.getItemData().getBaseStatus().getValue())
+				.rawStatus(item.getItemData().getBaseStatus().getValue())
+				.status(deriveItemStatus(item.getItemData()).getCode().name())
 				.bibId(hostLmsItem.getBibId())
 				.holdingId(hostLmsItem.getHoldingId())
 				.build() );
@@ -615,6 +664,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.localNames(localNames)
 			.localBarcodes(localBarcodes)
 			.uniqueIds(uniqueIds)
+			.localPatronType(almaUser.getUser_group().getValue())
 			// .localHomeLibraryCode
 			// .canonicalPatronType
 			// .expiryDate
@@ -662,7 +712,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
   }
 
 	public Item mapAlmaItemToDCBItem(AlmaItem almaItem) {
-		ItemStatus derivedItemStatus = deriveItemStatus(almaItem);
+		ItemStatus derivedItemStatus = deriveItemStatus(almaItem.getItemData());
 		Boolean isRequestable = ( derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE ? Boolean.TRUE : Boolean.FALSE );
 
 		Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
@@ -705,9 +755,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
-	private ItemStatus deriveItemStatus(AlmaItem almaItem) {
+	private ItemStatus deriveItemStatus(AlmaItemData almaItem) {
 		// Extract base status, default to 0
-		String extracted_base_status = almaItem.getItemData().getBaseStatus() != null ? almaItem.getItemData().getBaseStatus().getValue() : "0";
+		String extracted_base_status = almaItem.getBaseStatus() != null ? almaItem.getBaseStatus().getValue() : "0";
 
 		return switch ( extracted_base_status ) {
 			case "1" -> new ItemStatus(ItemStatusCode.AVAILABLE);  // "1"==Item In Place

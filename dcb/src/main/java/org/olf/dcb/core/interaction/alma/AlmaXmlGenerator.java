@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Utility class for generating MARC XML payloads
+ * Utility class for generating XML payloads
  * compatible with the Ex Libris Alma API.
 */
-public class AlmaMarcXmlGenerator {
+public class AlmaXmlGenerator {
 
 	private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 	private static final DateTimeFormatter DATE_008_FORMAT = DateTimeFormatter.ofPattern("yyMMdd");
@@ -38,11 +38,11 @@ public class AlmaMarcXmlGenerator {
 			  <suppress_from_publishing>false</suppress_from_publishing>
 			  <record>
 			    <leader>00000nam a2200000 a 4500</leader>
-			    <controlfield tag="001">TEST%s</controlfield>
+			    <controlfield tag="001">DCB%s</controlfield>
 			    <controlfield tag="005">%s.0</controlfield>
 			    <controlfield tag="008">%ss2023    xxu           000 0 eng d</controlfield>
 			    <datafield tag="020" ind1=" " ind2=" ">
-			      <subfield code="a">978-0-TEST-%s</subfield>
+			      <subfield code="a">978-0-DCB-%s</subfield>
 			    </datafield>
 			    <datafield tag="100" ind1="1" ind2=" ">
 			      <subfield code="a">%s</subfield>
@@ -52,15 +52,15 @@ public class AlmaMarcXmlGenerator {
 			      <subfield code="c">%s</subfield>
 			    </datafield>
 			    <datafield tag="260" ind1=" " ind2=" ">
-			      <subfield code="a">Test City</subfield>
-			      <subfield code="b">Test Publisher</subfield>
+			      <subfield code="a">DCB City</subfield>
+			      <subfield code="b">DCB Publisher</subfield>
 			      <subfield code="c">2023</subfield>
 			    </datafield>
 			    <datafield tag="300" ind1=" " ind2=" ">
 			      <subfield code="a">100 p.</subfield>
 			    </datafield>
 			    <datafield tag="650" ind1=" " ind2="0">
-			      <subfield code="a">Test Subject</subfield>
+			      <subfield code="a">DCB Subject</subfield>
 			    </datafield>
 			  </record>
 			</bib>
