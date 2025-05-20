@@ -291,7 +291,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.patron(CreateTransactionRequest.Patron.builder()
 					.id(parameters.getLocalPatronId())
 					.barcode(firstBarcodeInList)
-					.group(parameters.getLocalPatronType())
+					.group('"' + parameters.getLocalPatronType() + '"') // Needs to be double quoted, otherwise errors in the folio call if there are reserved characters, eg. bracket
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
 					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
@@ -495,7 +495,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.patron(CreateTransactionRequest.Patron.builder()
 						.id(parameters.getLocalPatronId())
 						.barcode(firstPatronBarcodeInList)
-						.group(parameters.getLocalPatronType())
+						.group('"' + parameters.getLocalPatronType() + '"') // Needs to be double quoted, otherwise errors in the folio call if there are reserved characters, eg. bracket
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(pickupLocation)
