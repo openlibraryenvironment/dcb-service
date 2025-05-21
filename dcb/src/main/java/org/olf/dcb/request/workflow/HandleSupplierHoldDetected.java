@@ -59,16 +59,19 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		this.hostLmsService = hostLmsService;
 	}
 
-  @Override
-  public boolean isApplicableFor(RequestWorkflowContext ctx) {
+	@Override
+	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 
-    return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
-      ( ctx.getSupplierRequest() != null ) &&
-      ( 
+		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
+			( ctx.getSupplierRequest() != null ) &&
+			( 
 				( checkSupplierHoldCount(ctx) ) &&
-				( Set.of(null, PatronRequest.RenewalStatus.ALLOWED).contains(ctx.getPatronRequest().getRenewalStatus() ) )
+				(
+					(ctx.getPatronRequest().getRenewalStatus() == null) || 
+					(PatronRequest.RenewalStatus.ALLOWED == ctx.getPatronRequest().getRenewalStatus())
+				)
 			);
-  }
+	}
 
 	private static boolean checkSupplierHoldCount(RequestWorkflowContext ctx) {
 		return Optional.ofNullable(ctx.getSupplierRequest())
