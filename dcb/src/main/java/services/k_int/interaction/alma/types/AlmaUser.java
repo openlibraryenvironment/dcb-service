@@ -19,6 +19,7 @@ import java.util.List;
 public class AlmaUser {
 	// CONTACT, PUBLIC, STAFF
 	CodeValuePair record_type;
+	@ToString.Include
 	String primary_id;
 	String first_name;
 	String last_name;
@@ -33,8 +34,10 @@ public class AlmaUser {
 	CodeValuePair preferred_language;
 	// EXTERNAL, INTERNAL, INTEXTAUTH
 	CodeValuePair account_type;
+	@ToString.Include
 	String external_id;
 	// ACTIVE, INACTIVE, DELETED
 	CodeValuePair status;
+	@ToString.Include
 	List<UserIdentifier> user_identifiers;
 }
