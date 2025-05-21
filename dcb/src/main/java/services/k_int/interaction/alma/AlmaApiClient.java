@@ -63,4 +63,6 @@ public interface AlmaApiClient {
 	Mono<AlmaUser> authenticateOrRefreshUser(String barcode, String secret);
 
 	Mono<String> deleteUserRequest(String userId, String requestId);
+
+	Mono<AlmaItemLoanResponse> createUserLoan(String patronId, String itemId, AlmaItemLoan almaItemLoan);
 }

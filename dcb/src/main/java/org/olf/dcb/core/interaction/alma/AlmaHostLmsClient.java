@@ -591,7 +591,23 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
-		return Mono.error(new NotImplementedException("Check out item to patron is not currently implemented in " + getHostLmsCode()));
+		final var patronId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getPatronId);
+		final var requestId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLocalRequestId);
+		final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+		final var libraryCode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLibraryCode);
+		final var itemId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemId);
+
+		log.info("Checking out item {} to patron {} with request id {} and pickup location {} and library code {}",
+			itemId, patronId, requestId, pickupLocationCircuationDesk, libraryCode);
+
+		AlmaItemLoan almaItemLoan = AlmaItemLoan.builder().circDesk(CodeValuePair.builder().value(pickupLocationCircuationDesk).build())
+			.returnCircDesk(CodeValuePair.builder().value(pickupLocationCircuationDesk).build())
+			.library(CodeValuePair.builder().value(libraryCode).build())
+			.requestId(CodeValuePair.builder().value(requestId).build())
+			.build();
+
+		return client.createUserLoan(patronId, itemId, almaItemLoan)
+			.thenReturn("OK");
 	}
 
 	@Override

@@ -71,6 +71,7 @@ public class InteropTestService {
 			this::getItemsTest,
 			this::getItemTest,
 			this::placeHoldTest,
+//			this::checkoutTest,
 			this::getHoldTest
 		);
 
@@ -421,6 +422,21 @@ public class InteropTestService {
 				return createSuccessResult("setup", "patron creation",
 					"Created patron with ID " + newPatronId, hostLms);
 			});
+	}
+
+	private Mono<InteropTestResult> checkoutTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+
+		return hostLms.checkOutItemToPatron(
+				CheckoutItemCommand.builder()
+					.itemId((String) testCtx.getValues().get("item_id"))
+					.patronId((String) testCtx.getValues().get("remotePatronId"))
+					.localRequestId((String) testCtx.getValues().get("hold_id"))
+					.libraryCode(TEST_PICKUP_LOCATION_CODE)
+					.build()
+			)
+			.map(checkout -> createSuccessResult("setup", "patron checkout",
+				"Checkout returned: " + checkout, hostLms));
 	}
 
 	private Mono<InteropTestResult> patronDeleteTest(InteropTestContext testCtx) {

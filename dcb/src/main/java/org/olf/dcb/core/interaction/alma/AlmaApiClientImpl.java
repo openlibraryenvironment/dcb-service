@@ -332,6 +332,18 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.doOnNext(response -> log.info("retrieved almaRequest {}", response));
 	}
 
+	public Mono<AlmaItemLoanResponse> createUserLoan(String user_id, String item_pid, AlmaItemLoan loan) {
+		final String path="/almaws/v1/users/"+user_id+"/loans";
+		return createRequest(POST, path)
+			.map(req -> req.uri(uriBuilder -> uriBuilder
+				.queryParam("item_pid", item_pid)
+				.build()))
+			.map(request -> request.body(loan))
+			.flatMap(req -> doExchange(req, Argument.of(AlmaItemLoanResponse.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(returnedLoan -> log.info("retrieved loan {}", returnedLoan));
+	}
+
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
   public Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
