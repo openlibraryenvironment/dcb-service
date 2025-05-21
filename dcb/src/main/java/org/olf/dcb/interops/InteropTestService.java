@@ -13,6 +13,7 @@ import org.olf.dcb.core.model.Location;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.model.PatronIdentity;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.types.error.AlmaException;
@@ -28,6 +29,7 @@ public class InteropTestService {
 	private static final String TEST_ITEM_LOCATION_CODE = "GTLSC";
 	private static final String TEST_PICKUP_LOCATION_CODE = "GTMAIN";
 	private static final String TEST_LOCAL_PATRON_TYPE = "UNDERGRAD";
+	private static final String TEST_UPDATE_LOCAL_PATRON_TYPE = "LOCATE";
 	private static final Duration SYNC_DELAY = Duration.ofSeconds(10);
 
 	private final HostLmsService hostLmsService;
@@ -62,6 +64,8 @@ public class InteropTestService {
 		List<Function<InteropTestContext, Mono<InteropTestResult>>> testSteps = List.of(
 			this::patronCreateTest,
 			this::patronValidateTest,
+//			this::findVirtualPatronTest,
+//			this::updatePatronTest,
 			this::createBibTest,
 			this::createItemTest,
 			this::getItemsTest,
@@ -179,7 +183,7 @@ public class InteropTestService {
 		String bibId = (String) testCtx.getValues().get("mms_id");
 		String itemId = (String) testCtx.getValues().get("item_id");
 		String holdingId = (String) testCtx.getValues().get("holding_id");
-		String patronId = (String) testCtx.getValues().get("testPatronId");
+		String patronId = (String) testCtx.getValues().get("remotePatronId");
 		String itemBarcode = (String) testCtx.getValues().get("item_barcode");
 
 		if (anyNull(bibId, itemId, holdingId, patronId, itemBarcode)) {
@@ -250,7 +254,7 @@ public class InteropTestService {
 	private Mono<InteropTestResult> deleteHoldTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
 
-		String patronId = (String) testCtx.getValues().get("testPatronId");
+		String patronId = (String) testCtx.getValues().get("remotePatronId");
 		String holdId = (String) testCtx.getValues().get("hold_id");
 
 		if (anyNull(patronId, holdId)) {
@@ -265,7 +269,7 @@ public class InteropTestService {
 
 	private Mono<InteropTestResult> getHoldTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
-		String patronId = (String) testCtx.getValues().get("testPatronId");
+		String patronId = (String) testCtx.getValues().get("remotePatronId");
 		String holdId = (String) testCtx.getValues().get("hold_id");
 
 		if (anyNull(patronId, holdId)) {
@@ -364,12 +368,41 @@ public class InteropTestService {
 				"Validated patron with remotePatronId " + remotePatronId, hostLms));
 	}
 
+	private Mono<InteropTestResult> findVirtualPatronTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String externalPatronId = (String) testCtx.getValues().get("external_patron_id");
+
+		if (externalPatronId == null) {
+			return Mono.just(createNotRunResult("setup", "find virtual patron",
+				"Missing external patron ID", hostLms));
+		}
+
+
+		return hostLms.findVirtualPatron(org.olf.dcb.core.model.Patron.builder().homeLibraryCode(externalPatronId).build())
+			.map(patron -> createSuccessResult("setup", "find virtual patron",
+				"Found virtual patron with externalPatronId " + externalPatronId, hostLms));
+	}
+
+	private Mono<InteropTestResult> updatePatronTest(InteropTestContext testCtx) {
+		HostLmsClient hostLms = testCtx.getHostLms();
+		String remotePatronId = (String) testCtx.getValues().get("remotePatronId");
+
+		if (remotePatronId == null) {
+			return Mono.just(createNotRunResult("setup", "update patron",
+				"Missing remote patron ID", hostLms));
+		}
+
+		return hostLms.updatePatron(remotePatronId, TEST_UPDATE_LOCAL_PATRON_TYPE)
+			.map(patron -> createSuccessResult("setup", "patron update",
+				"Updated patron with remotePatronId " + remotePatronId, hostLms));
+	}
+
 	private Mono<InteropTestResult> patronCreateTest(InteropTestContext testCtx) {
 		HostLmsClient hostLms = testCtx.getHostLms();
 
 //		String temporaryPatronId = UUID.randomUUID().toString();
 		String temporaryPatronId = "test_user_"+Instant.now().toString();
-		testCtx.getValues().put("testPatronId", temporaryPatronId);
+		testCtx.getValues().put("external_patron_id", temporaryPatronId);
 
 		log.info("Starting patron tests with context: {}", testCtx.getValues());
 

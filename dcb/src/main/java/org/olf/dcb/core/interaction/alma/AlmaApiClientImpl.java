@@ -101,8 +101,8 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	public Mono<AlmaUserList> getUsersByExternalId(String externalId) {
-		final String path="/users";
-		final String query="external_id="+externalId;
+		final String path="/almaws/v1/users";
+		final String query="external_id~"+externalId;
 
 		return createRequest(GET, path)
 			.map(req -> req.uri(uriBuilder -> uriBuilder
@@ -221,6 +221,18 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.flatMap(request -> doExchange(request, Argument.of(AlmaUser.class)))
 			.map(response -> response.getBody().get())
 			.doOnNext(user -> log.info("Created user {}",user.getPrimary_id()));
+	}
+
+	@Override
+	public Mono<AlmaUser> updateUserDetails(String user_id, AlmaUser patron) {
+		// PUT /almaws/v1/users
+		// See: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
+		final String path="/almaws/v1/users/"+user_id;
+		return createRequest(PUT, path)
+			.map(request -> request.body(patron))
+			.flatMap(request -> doExchange(request, Argument.of(AlmaUser.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(user -> log.info("Updated user {}",user.getPrimary_id()));
 	}
 
 	// q=primary_id~abc_def

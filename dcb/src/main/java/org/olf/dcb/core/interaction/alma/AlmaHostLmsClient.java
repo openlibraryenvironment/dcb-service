@@ -277,7 +277,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		// find user by external_id (DCB patron uniqueId)
 		// this is assuming when a virtual patron is created the external_id is set with DCBs patron uniqueId
-		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
+//		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
+		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::getHomeLibraryCode);
 		return client.getUsersByExternalId(uniqueId)
 			.map(almaUserList -> {
 
@@ -372,12 +373,18 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private List<UserIdentifier> createUserIdentifiers(Patron patron) {
 		if (patron.getLocalBarcodes() != null) {
-			return patron.getLocalBarcodes().stream()
+			var userIdentifiers = patron.getLocalBarcodes().stream()
 				.map(value -> UserIdentifier.builder()
 					.id_type(WithAttr.builder().value(ID_TYPE_BARCODE).build())
 					.value(value)
 					.build())
 				.collect(Collectors.toList());
+
+			userIdentifiers.add(UserIdentifier.builder()
+				.id_type(WithAttr.builder().value("DCB uniqueId").build())
+				.value(extractExternalId(patron)).build());
+
+			return userIdentifiers;
 		}
 		return null;
 	}
@@ -434,12 +441,31 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
-		// DCB has no means to update users via the available edge modules
-		// and edge-dcb does not do this on DCB's behalf when creating the transaction
-		log.warn("NOOP: updatePatron called for hostlms {} localPatronId {} localPatronType {}",
-			getHostLms().getName(), localId, patronType);
+		// The update is done in a 'Swap All' mode: existing fields' information will be replaced with the incoming information.
+		// Incoming lists will replace existing lists.
+		// Ref: https://developers.exlibrisgroup.com/alma/apis/docs/users/UFVUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
 
-		return Mono.error(new NotImplementedException("Update patron is not currently implemented in " + getHostLmsCode()));
+		// to avoid overwriting we fetch the user first
+		return client.getAlmaUserByUserId(localId)
+			.flatMap(returnedUser -> {
+				final var almaUser = AlmaUser.builder()
+					.record_type(returnedUser.getRecord_type())
+					.primary_id(returnedUser.getPrimary_id())
+					.first_name(returnedUser.getFirst_name())
+					.last_name(returnedUser.getLast_name())
+					.status(returnedUser.getStatus())
+					.is_researcher(returnedUser.getIs_researcher())
+					.user_identifiers(returnedUser.getUser_identifiers())
+					.external_id(returnedUser.getExternal_id())
+					.account_type(returnedUser.getAccount_type())
+
+					// update fields below
+					// for now DCB only updates the patron type
+					.user_group(CodeValuePair.builder().value(patronType).build())
+					.build();
+				return client.updateUserDetails(localId, almaUser);
+			})
+			.map(returnedUser -> almaUserToPatron(returnedUser));
 	}
 
 	@Override

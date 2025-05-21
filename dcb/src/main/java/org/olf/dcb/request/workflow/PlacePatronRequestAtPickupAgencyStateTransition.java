@@ -188,9 +188,12 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 		log.info("pickupItemRequest for pickupBibId {}/{}", pickupBibId, supplierRequest.getLocalItemLocationCode());
 		log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
 			supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
-		log.info("localHomeLibraryCode: {}", Optional.ofNullable(requestWorkflowContext.getPatronHomeIdentity())
+		log.info("localHomeLibraryCode: {}", Optional.ofNullable(requestWorkflowContext.getPickupPatronIdentity())
 			.map(PatronIdentity::getLocalHomeLibraryCode)
 			.orElse(null));
+
+		final var pickupPatronHomeLocation = getValueOrNull(requestWorkflowContext,
+			RequestWorkflowContext::getPickupPatronIdentity, PatronIdentity::getLocalHomeLibraryCode);
 
 		// So far, when creating items, we have used the supplying library code as the location for the item. This is so that
 		// the borrowing library knows where to return the item. We pass this as locationCode in the CreateItemCommand.
@@ -210,7 +213,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					supplierRequest.getLocalItemBarcode(),
 					supplierRequest.getCanonicalItemType(),
 
-					requestWorkflowContext.getPatronHomeIdentity().getLocalHomeLibraryCode()))
+					pickupPatronHomeLocation))
 			.doOnSuccess(hostLmsItem -> log.info("Created pickup item: {}", hostLmsItem))
 			.map(patronRequest::addPickupItemDetails)
 			.map(requestWorkflowContext::setPatronRequest)

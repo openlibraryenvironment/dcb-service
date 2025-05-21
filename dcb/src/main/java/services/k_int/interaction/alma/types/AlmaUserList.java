@@ -16,5 +16,6 @@ import lombok.ToString;
 @Serdeable
 public class AlmaUserList {
 	private List<AlmaUser> user;
+	@ToString.Include
 	private Long total_record_count;
 }
