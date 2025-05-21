@@ -1,8 +1,18 @@
 # Changelog
 
+## Version 8.31.2
+
+### Fixes
+* [General]
+	* use correct pickup library code for PUA in Polaris systems
+	* Updated the tests to go with the previous change
+	* Folio CreateTransaction fails if the patron group has a reserved character in it, so have enclosed it in double quotes, so it dosn't treat it as a special character
+
 ## Version 8.31.1
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Refactor]
 	* Change transactional boundaries to only wrap the db fetch
 
