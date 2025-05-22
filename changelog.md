@@ -2,6 +2,10 @@
 
 ## Version 8.31.4
 
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ### Fixes
 * [General]
 	* Removed the double quotes that were added the other day as requested
