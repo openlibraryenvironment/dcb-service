@@ -116,48 +116,54 @@ public class LocationController {
 		if (UUIDUtils.isEmpty(locationId)) {
 			locationId = UUIDUtils.generateLocationId(location.agencyCode(), location.code());
 		}
+
 		UUID agencyId = location.agency();
 		if ((agencyId == null) && (location.agencyCode() != null)) {
 			agencyId = UUIDUtils.generateAgencyId(location.agencyCode());
 		}
 		
-		// Look up any agency if given on the incoming DTO
-		DataAgency agency = agencyId != null ? Mono.from(agencyRepository.findById(agencyId)).block()
-				: null;
+		// Convert AgencyDTO into DataAgency with correctly linked HostLMS
+		Location l = Location.builder()
+			.id(locationId)
+			.code(location.code())
+			.name(location.name())
+			.type(location.type())
+			.isPickup(location.isPickup())
+			.isShelving(location.isShelving())
+			.longitude(location.longitude())
+			.latitude(location.latitude())
+			.deliveryStops(location.deliveryStops())
+			.printLabel(location.printLabel())
+			.localId(location.localId())
+			.build();
 
-		DataHostLms hostSystem = location.hostLms() != null
-				? Mono.from(hostLmsRepository.findById(location.hostLms())).block()
-				: null;
-
-		// We allow HUB locations which are not attached to an agency
-		if ((location.type().equals("HUB")) || (agencyId != null) && (agency != null)) {
-			// If we weren't given an host system, see if we can infer one from the agency.
-			if ((hostSystem == null) && (agency != null))
-				hostSystem = agency.getHostLms();
-
-			// Convert AgencyDTO into DataAgency with correctly linked HostLMS
-			Location l = Location.builder()
-				.id(locationId)
-				.code(location.code())
-				.name(location.name())
-				.type(location.type())
-				.agency(agency)
-				.hostSystem(hostSystem)
-				.isPickup(location.isPickup())
-				.isShelving(location.isShelving())
-				.longitude(location.longitude())
-				.latitude(location.latitude())
-				.deliveryStops(location.deliveryStops())
-				.printLabel(location.printLabel())
-				.localId(location.localId())
-				.build();
-
-			return Mono.from(locationRepository.existsById(l.getId()))
-					.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
-		} else {
-			log.warn("Client upload a location {} with an unknown agency UUID", location);
-			return Mono.empty();
-		}
+		return enrichAgency(l, agencyId)
+      .flatMap(loc -> enrichHostLms(l, location.hostLms()))
+      .flatMap(loc -> Mono.from(locationRepository.existsById(l.getId())))
+			.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
 	}
+
+  private Mono<Location> enrichAgency(Location l, UUID agencyId) {
+    return Mono.from(agencyRepository.findById(agencyId))
+      .map( agency -> l.setAgency(agency) )
+      .switchIfEmpty(Mono.defer(() -> {
+        log.error("Unable to locate agency using supplied UUID {}", agencyId);
+        return Mono.empty();
+      }))
+      .thenReturn(l);
+  }
+
+  private Mono<Location> enrichHostLms(Location l, UUID hostLmsId) {
+    if ( hostLmsId != null ) {
+      return Mono.from(hostLmsRepository.findById(hostLmsId))
+        .map(hostSystem -> l.setHostSystem(hostSystem) )
+        .thenReturn(l);
+    }
+    else {
+      log.error("No Host LMS supplied for location");
+    }
+
+    return Mono.just(l);
+  }
 
 }
