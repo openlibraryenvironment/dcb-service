@@ -586,7 +586,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
-		return Mono.error(new NotImplementedException("Update item status is not currently implemented in " + getHostLmsCode()));
+		// We need a way to let an alma system know that a supplier has put the item in transit
+		// updating an item status isn't going to work here so we need to do something else
+
+		// until we understand alma better we pass through here so we can progress the DCB workflow
+
+		return Mono.just("OK");
 	}
 
 	@Override
