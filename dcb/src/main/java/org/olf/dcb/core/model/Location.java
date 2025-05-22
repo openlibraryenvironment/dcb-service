@@ -26,6 +26,7 @@ import lombok.Data;
 import lombok.ToString;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
+import lombok.experimental.Accessors;
 import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 import java.time.Instant;
@@ -39,6 +40,7 @@ import static io.micronaut.data.model.DataType.JSON;
 @MappedEntity
 @NoArgsConstructor(onConstructor_ = @Creator())
 @AllArgsConstructor
+@Accessors(chain=true)
 @Builder
 public class Location implements Auditable {
 
