@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 8.31.4
+
+### Fixes
+* [General]
+	* Removed the double quotes that were added the other day as requested
+	* Remove blocking calls from LocationController and replace with reactive variants. Suspect that when post to location controller is made with an unknown UUID the blocking call breaks in unhelpful ways. New messages should clarify the error when scripts wrongly create UUIDs and explect them to match
+
 ## Version 8.31.3
 
 ### Changes
