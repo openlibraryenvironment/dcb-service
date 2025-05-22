@@ -2,6 +2,10 @@
 
 ## Version 8.31.3
 
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ### Fixes
 * [General]
 	* Apparently Set.of(null, ...) is not allowed, so have replaced it in this method
