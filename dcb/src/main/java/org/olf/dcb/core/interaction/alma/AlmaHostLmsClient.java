@@ -704,7 +704,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// ACTIVE, INACTIVE, DELETED
 		// CodeValuePair status;
 		// List<UserIdentifier> user_identifiers;
-
+		localBarcodes.add(almaUser.getPrimary_id());
 
 		return Patron.builder()
 			.localId(localIds) // list
