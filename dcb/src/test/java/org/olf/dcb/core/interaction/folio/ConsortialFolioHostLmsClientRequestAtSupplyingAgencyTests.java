@@ -121,7 +121,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			.patron(CreateTransactionRequest.Patron.builder()
 				.id(patronId)
 				.barcode(patronBarcode)
-				.group("\"undergrad\"")
+				.group("undergrad")
 				.build())
 			.pickup(CreateTransactionRequest.Pickup.builder()
 				.servicePointId(dnsUUID("FolioServicePoint:" + pickupAgency.getCode()).toString())
