@@ -84,7 +84,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var eligibilityCheckResults = new ArrayList<CheckResult>();
 
 		final var firstBarcode = getValueOrNull(patron, p -> p.getFirstBarcode(""));
-
+		// LOGGING FOR DCB-1907
+		log.debug("The patron is {}", patron);
 		if (StringUtils.isEmpty(firstBarcode)) {
 			eligibilityCheckResults.add(failedUm("INVALID_PATRON_BARCODE",
 				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
