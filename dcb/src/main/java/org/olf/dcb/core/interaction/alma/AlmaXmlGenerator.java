@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.alma;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -7,6 +9,7 @@ import java.time.format.DateTimeFormatter;
  * Utility class for generating XML payloads
  * compatible with the Ex Libris Alma API.
 */
+@Slf4j
 public class AlmaXmlGenerator {
 
 	private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -19,14 +22,15 @@ public class AlmaXmlGenerator {
 	 * @param author Author of the work (MARC 100 and 245 fields)
 	 * @return XML string to be sent as request body to POST /almaws/v1/bibs
 	 *
-	 * @throws IllegalArgumentException if title or author are null/empty
+	 * @throws IllegalArgumentException if title is null/empty
 	 */
 	public static String createBibXml(String title, String author) {
 		if (title == null || title.isBlank()) {
 			throw new IllegalArgumentException("Title must not be null or empty.");
 		}
 		if (author == null || author.isBlank()) {
-			throw new IllegalArgumentException("Author must not be null or empty.");
+			log.warn("Author is null or empty.");
+			author = "";
 		}
 
 		String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
