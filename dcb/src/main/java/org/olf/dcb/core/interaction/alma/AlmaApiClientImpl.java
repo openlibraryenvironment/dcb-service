@@ -134,7 +134,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	private <T> Mono<MutableHttpRequest<T>> createRequest(HttpMethod method, String path) {
-		log.info("Creating request for {}", path);
+		log.info("Creating request for {} {}", path, method);
 
 		final String apiKey = "apikey " + apikey;
 
@@ -143,7 +143,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(resolvedUri -> HttpRequest.<T>create(method, resolvedUri.toString())
 				.accept(APPLICATION_JSON))
 
-			.map(req -> req.header(HttpHeaders.AUTHORIZATION, apiKey));
+			.map(req -> req.header(HttpHeaders.AUTHORIZATION, apiKey)).doOnSuccess(req -> { log.info("Request {}",req);});
 	}
 
 	private URI resolve(URI relativeURI) {
@@ -285,6 +285,8 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(response -> NO_CONTENT.equals(response.getStatus()) ? "Holding deleted" : "Holding not deleted");
 	}
 
+	// This is failing - User with identifier X of type Y was not found.
+
 	public Mono<String> deleteUserRequest(String userId, String requestId) {
 		final String path="/almaws/v1/users/"+userId+"/requests/"+requestId;
 		return createRequest(DELETE, path)
@@ -375,13 +377,18 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		final String path="/almaws/v1/users/"+userId+"/requests";
 		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
 
-		log.info("Placing hold for item {}", itemId);
+		log.info("Placing hold for user {} and item {}", userId, itemId);
     return createRequest(POST, path)
 			.map(req -> req.uri(uriBuilder -> uriBuilder
 				.queryParam("item_pid", itemId)
 				.build()))
+			.doOnNext(req -> log.info("Final request method: {}, URI: {}", req.getMethod(), req.getUri()))
 			.map(request -> request.body(almaRequest))
 			.flatMap(req -> doExchange(req, Argument.of(AlmaRequestResponse.class)))
+			.doOnNext(response -> log.info("doExchange returned response with status: {}, hasBody: {}",
+				response.getStatus(), response.getBody().isPresent()))
+			.doOnError(error -> log.error("doExchange failed with error: {}", error.getMessage(), error))
+			.doOnNext(req -> log.info("The response is {}" , req))
 			.map(response -> response.getBody().get())
 			.doOnNext(hold -> log.info("Created hold {}",hold.getRequestId()));
 	}
