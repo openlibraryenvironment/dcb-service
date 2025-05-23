@@ -115,6 +115,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		}
 
 		else if (hostLmsPatron.getLocalId().size() > 1) {
+
+			if (hostLmsPatron.getFirstLocalId() != null && !hostLmsPatron.getFirstLocalId().isEmpty()) {
+				log.debug("Using first local id from hostLmsPatron: {}", hostLmsPatron.getFirstLocalId());
+				return hostLmsPatron.getFirstLocalId();
+			}
+
 			throw Problem.builder()
 				.withTitle("ValidatePatronIdentity failed")
 				.withDetail("HostLmsPatron returned more than one local patron ID")

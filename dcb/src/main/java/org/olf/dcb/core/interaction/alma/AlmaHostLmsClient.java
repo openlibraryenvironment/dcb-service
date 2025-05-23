@@ -672,11 +672,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		if ( almaUser.getPrimary_id() != null ) {
 			localIds.add(almaUser.getPrimary_id());
-			uniqueIds.add(almaUser.getPrimary_id());
 		}
 
 		if ( almaUser.getExternal_id() != null ) {
-			localIds.add(almaUser.getExternal_id());
+			uniqueIds.add(almaUser.getExternal_id());
 		}
 
 		localNames.add(almaUser.getFirst_name());
