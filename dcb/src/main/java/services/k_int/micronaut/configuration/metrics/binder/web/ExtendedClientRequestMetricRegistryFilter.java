@@ -17,6 +17,7 @@ import io.micronaut.configuration.metrics.binder.web.ClientRequestMetricRegistry
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.order.Ordered;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpHeaders;
@@ -56,7 +57,7 @@ public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilt
 	/**
 	 * @param meterRegistry The metrics registry
 	 */
-	public ExtendedClientRequestMetricRegistryFilter( @Value("${" + METRIC_CONFIG_ROOT + ".static-templates}") List<String> defaultTemplateReplacements) {
+	public ExtendedClientRequestMetricRegistryFilter( @Nullable @Value("${" + METRIC_CONFIG_ROOT + ".static-templates}") List<String> defaultTemplateReplacements) {
 		this.defaultTemplateReplacements = Stream.ofNullable(defaultTemplateReplacements)
 			.flatMap( List::stream )
 			.map( tmp -> Map.entry(tmp, UriMatchTemplate.of(tmp)) )
