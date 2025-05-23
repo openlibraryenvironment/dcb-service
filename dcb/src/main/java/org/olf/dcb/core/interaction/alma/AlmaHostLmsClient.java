@@ -330,13 +330,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
-		final var patronId = extractPatronId(patron);
+		final var homeIdentityLocalId = extractPatronId(patron);
 		final var firstName = extractFirstName(patron);
 		final var lastName = extractLastName(patron);
 		final var externalId = extractExternalId(patron);
 
 		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
-		AlmaUser almaUser = buildAlmaUser(patronId, firstName, lastName, externalId, userIdentifiers);
+		AlmaUser almaUser = buildAlmaUser(homeIdentityLocalId, firstName, lastName, externalId, userIdentifiers);
 
 		return determinePatronType(patron)
 			.flatMap(patronType -> {
@@ -345,13 +345,18 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				return Mono.from(client.createPatron(almaUser))
 					.flatMap(returnedUser -> {
 						log.debug("Created alma user {}", returnedUser);
-						return Mono.just(patronId);
+						return Mono.just(homeIdentityLocalId);
 					});
 			});
 	}
 
 	private String extractPatronId(Patron patron) {
-		return patron.getLocalId().get(0);
+
+		if (patron.getLocalId() != null && !patron.getLocalId().isEmpty()) {
+			return patron.getLocalId().get(0);
+		}
+
+		return null;
 	}
 
 	private String extractFirstName(Patron patron) {
@@ -389,8 +394,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.collect(Collectors.toList());
 
 			userIdentifiers.add(UserIdentifier.builder()
-				.id_type(WithAttr.builder().value("DCB uniqueId").build())
+				.id_type(WithAttr.builder().value("dcb_unique_id").build())
 				.value(extractExternalId(patron)).build());
+
+			userIdentifiers.add(UserIdentifier.builder()
+				.id_type(WithAttr.builder().value("home_identity_local_id").build())
+				.value(extractPatronId(patron)).build());
 
 			return userIdentifiers;
 		}
@@ -401,7 +410,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 																 String externalId, List<UserIdentifier> userIdentifiers) {
 		return AlmaUser.builder()
 			.record_type(CodeValuePair.builder().value(RECORD_TYPE_PUBLIC).build())
-			.primary_id(patronId)
 			.first_name(firstName)
 			.last_name(lastName)
 			.status(CodeValuePair.builder().value(STATUS_ACTIVE).build())

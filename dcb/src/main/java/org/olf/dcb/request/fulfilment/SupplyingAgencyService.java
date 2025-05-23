@@ -23,10 +23,7 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
@@ -569,8 +566,10 @@ public class SupplyingAgencyService {
 			.flatMap(tuple -> {
 				final var patronType = tuple.getT1();
 				final var uniqueId = tuple.getT2().determineUniqueId();
+				final var homeIdentityLocalId = getValueOrNull(requestingPatronIdentity, PatronIdentity::getLocalId);
 				return client.createPatron(
 					Patron.builder()
+						.localId(Collections.singletonList(homeIdentityLocalId))
 						.localBarcodes(patron_barcodes)
 						.localPatronType(patronType)
 						.uniqueIds(stringToList(uniqueId))
