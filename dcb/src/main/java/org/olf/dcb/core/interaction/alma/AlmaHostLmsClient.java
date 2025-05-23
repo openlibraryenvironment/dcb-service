@@ -13,6 +13,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.NotImplementedException;
+import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
@@ -77,6 +79,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private final HttpClient httpClient;
 
 	private final ReferenceValueMappingService referenceValueMappingService;
+	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
+	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final ConversionService conversionService;
 	private final LocationService locationService;
 	private final AlmaApiClient client;
@@ -85,14 +89,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private final URI rootUri;
 
 	public AlmaHostLmsClient(@Parameter HostLms hostLms,
-		@Parameter("client") HttpClient httpClient,
-		AlmaClientFactory almaClientFactory,
-		ReferenceValueMappingService referenceValueMappingService,
-		ConversionService conversionService,
-		LocationService locationService) {
+													 @Parameter("client") HttpClient httpClient,
+													 AlmaClientFactory almaClientFactory,
+													 ReferenceValueMappingService referenceValueMappingService, MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService, LocationToAgencyMappingService locationToAgencyMappingService,
+													 ConversionService conversionService,
+													 LocationService locationService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
+		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
+		this.locationToAgencyMappingService = locationToAgencyMappingService;
 
 		// this.consortialFolioItemMapper = consortialFolioItemMapper;
 		this.client = almaClientFactory.createClientFor(hostLms);
@@ -144,6 +150,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				return Flux.fromIterable(items);
 			})
 			.map(this::mapAlmaItemToDCBItem)
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
+			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
 			.onErrorContinue((throwable, item) -> {
 				log.warn("Mapping error for item {}: {}", item, throwable.getMessage());
 			})
@@ -768,8 +776,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
 		// through a service that creates missing location records in the host lms and where possible derives agency but
 		// where not flags the location record as needing attention.
-		Location derivedLocation = almaItem.getItemData().getLibrary() != null
-			? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLibrary().getValue())
+		Location derivedLocation = almaItem.getItemData().getLocation() != null
+			? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLocation().getValue())
 			: null ;
 
 		Boolean derivedSuppression = ( ( almaItem.getBibData().getSuppressFromPublishing() != null ) && ( almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true") ) )
@@ -789,11 +797,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		  .holdCount(null)
 		  .localBibId(almaItem.getBibData().getMmsId())
 		  .localItemType(null)
-		  .localItemTypeCode(null)
+		  .localItemTypeCode(almaItem.getItemData().getPhysicalMaterialType().getValue())
 		  .canonicalItemType(null)
 		  .deleted(null)
 		  .suppressed( derivedSuppression )
-		  .owningContext(almaItem.getItemData().getLibrary() != null ? almaItem.getItemData().getLibrary().getValue() : null )
+		  .owningContext(getHostLms().getCode())
 			// Need to query loans API for this
 		  .availableDate(null)
   		.rawVolumeStatement(null)
