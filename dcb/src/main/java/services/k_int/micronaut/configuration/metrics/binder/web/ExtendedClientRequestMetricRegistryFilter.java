@@ -43,7 +43,7 @@ import reactor.core.publisher.Flux;
 @Requires(bean = ClientRequestMetricRegistryFilter.class)
 @Requires(property = ExtendedClientRequestMetricRegistryFilter.METRIC_CONFIG_ROOT + ".use-extended-client-metrics", notEquals = FALSE)
 public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilter {
-	private static final String METRIC_CONFIG_ROOT = "k-int.metrics";
+	protected static final String METRIC_CONFIG_ROOT = "k-int.metrics";
 	
 	private static final String METRIC_TEMPLATE_DEFAULT = METRIC_CONFIG_ROOT + ".uri.template";
 	
