@@ -1883,7 +1883,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		log.info("Sierra prevent renewal {}",prc);
 
 		final var fixedFields = Map.of(
-            71, FixedField.builder().label("Recalled by owning library").value(255).build());
+            71, FixedField.builder().label("No. of Renewals").value(255).build());
             // 75, FixedField.builder().label("Recall date").value("&").build());
 
 		final var itemPatch = ItemPatch.builder()
