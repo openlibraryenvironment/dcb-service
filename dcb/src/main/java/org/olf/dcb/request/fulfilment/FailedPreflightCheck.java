@@ -10,11 +10,16 @@ import lombok.Value;
 public class FailedPreflightCheck {
 	String code;
 	String description;
+  String notes;
+  String userMessage;
+
 
 	static FailedPreflightCheck fromResult(CheckResult result) {
 		return builder()
 			.code(result.getFailureCode())
 			.description(result.getFailureDescription())
+			.notes(result.getNotes())
+			.userMessage(result.getUserMessage())
 			.build();
 	}
 }
