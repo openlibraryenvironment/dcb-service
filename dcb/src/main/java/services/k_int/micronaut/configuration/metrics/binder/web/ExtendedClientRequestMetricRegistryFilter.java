@@ -4,19 +4,30 @@ import static io.micronaut.core.util.StringUtils.FALSE;
 import static io.micronaut.http.HttpAttributes.SERVICE_ID;
 import static io.micronaut.http.HttpAttributes.URI_TEMPLATE;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.reactivestreams.Publisher;
 
 import io.micronaut.configuration.metrics.binder.web.ClientRequestMetricRegistryFilter;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.order.Ordered;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpHeaders;
+import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.annotation.Filter;
 import io.micronaut.http.filter.ClientFilterChain;
 import io.micronaut.http.filter.HttpClientFilter;
+import io.micronaut.http.uri.UriMatchTemplate;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
@@ -30,20 +41,58 @@ import reactor.core.publisher.Flux;
 @Slf4j
 @Filter("${micronaut.metrics.http.client.path:/**}")
 @Requires(bean = ClientRequestMetricRegistryFilter.class)
-@Requires(property = "k-int.metrics.use-extended-client-metrics", notEquals = FALSE)
+@Requires(property = ExtendedClientRequestMetricRegistryFilter.METRIC_CONFIG_ROOT + ".use-extended-client-metrics", notEquals = FALSE)
 public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilter {
+	private static final String METRIC_CONFIG_ROOT = "k-int.metrics";
 	
-	// Run last as we are setting defaults when no value present.
-	@Override
-	public int getOrder() {
-		return Ordered.LOWEST_PRECEDENCE;
+	private static final String METRIC_TEMPLATE_DEFAULT = METRIC_CONFIG_ROOT + ".uri.template";
+	
+	public static <T extends Object> HttpRequest<T> defaultUriTemplateForRequestMetrics( HttpRequest<T> request, @NotNull @NonNull String template ) {
+		return request.setAttribute(METRIC_TEMPLATE_DEFAULT, template);
 	}
-
+	
+	private final Map<String, UriMatchTemplate> defaultTemplateReplacements;
+	
 	/**
 	 * @param meterRegistry The metrics registry
 	 */
-	public ExtendedClientRequestMetricRegistryFilter() {
+	public ExtendedClientRequestMetricRegistryFilter( @Value("${" + METRIC_CONFIG_ROOT + ".static-templates}") List<String> defaultTemplateReplacements) {
+		this.defaultTemplateReplacements = Stream.ofNullable(defaultTemplateReplacements)
+			.flatMap( List::stream )
+			.map( tmp -> Map.entry(tmp, UriMatchTemplate.of(tmp)) )
+			.collect( Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue) );
+			
 		log.info("Extended metrics enabled");
+	}
+
+	private <T extends MutableHttpRequest<?>> T defaultToHostAsServiceId(T request) {
+
+		Optional<String> svcId = request.getAttribute(SERVICE_ID.toString(), String.class);
+		if (svcId.isEmpty()) {
+			String host = resolveHostFromRequest(request);
+			request.setAttribute(SERVICE_ID, host);
+		}
+		return request;
+	}
+	
+	private Predicate<Map.Entry<String, UriMatchTemplate>> templateMapEntryPredicate( final String requestPath ) {
+		return toTest -> toTest.getValue().match(requestPath).isPresent();
+	}
+	
+	private Optional<String> findMatchedStaticTemplate(HttpRequest<?> request) {
+
+		final String requestPath = StringUtils.prependUri("/", request.getUri().getPath()); 
+		
+		return defaultTemplateReplacements.entrySet().stream()
+			.filter(templateMapEntryPredicate(requestPath))
+			.findFirst()
+			.map( entry -> {
+				String matchedTemplate = entry.getKey();
+				if (log.isDebugEnabled()) {
+					log.debug("Uri [{}] matched template [{}]", requestPath, matchedTemplate);
+				}
+				return matchedTemplate;
+			});
 	}
 
 	@Override
@@ -56,24 +105,30 @@ public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilt
 	}
 	
 	private <T extends MutableHttpRequest<?>> T ensurePath(T request) {
+		
+		Optional<String> staticRoute = findMatchedStaticTemplate( request );
+		
+		// Always use the URI_TEMPLATE if present, to avoid breaking expected core behaviour.
+		Optional<String> definedRoute = request.getAttribute(URI_TEMPLATE, String.class);
+		
+		if (staticRoute.isPresent() || definedRoute.isEmpty()) {
 
-		Optional<String> route = request.getAttribute(URI_TEMPLATE, String.class);
-		if (route.isEmpty()) {
-			String path = request.getPath();
+			// Allows a default to be supplied if the URI_TEMPLATE isn't present.
+			String path = staticRoute
+				.or(() -> request.getAttribute(METRIC_TEMPLATE_DEFAULT, String.class))
+				.orElse(request.getPath());
+			
+			// Write it to the template attribute.
 			request.setAttribute(URI_TEMPLATE, path);
 		}
 
 		return request;
 	}
 
-	private <T extends MutableHttpRequest<?>> T defaultToHostAsServiceId(T request) {
-
-		Optional<String> svcId = request.getAttribute(SERVICE_ID.toString(), String.class);
-		if (svcId.isEmpty()) {
-			String host = resolveHostFromRequest(request);
-			request.setAttribute(SERVICE_ID, host);
-		}
-		return request;
+	// Run last as we are setting defaults when no value present.
+	@Override
+	public int getOrder() {
+		return Ordered.LOWEST_PRECEDENCE;
 	}
 
 	private String resolveHostFromRequest(MutableHttpRequest<?> request) {
