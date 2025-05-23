@@ -376,14 +376,17 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
   public Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest) {
+		log.info("The alma request follows {}", almaRequest);
 		final String path="/almaws/v1/users/"+userId+"/requests";
-		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
+		// Commenting out as it looks like we already set this on the request that's been passed in
+		// Not sure if this is perhaps what is causing the weirdness
+//		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
 
-		log.info("Placing hold for user {} and item {}", userId, itemId);
+//		log.info("Placing hold for user {} and item {}", userId, itemId);
+		log.info("Placing hold for user {}", userId);
     return createRequest(POST, path)
-			.map(req -> req.uri(uriBuilder -> uriBuilder
-				.queryParam("item_pid", itemId)
-				.build()))
+			.map(req -> //				.queryParam("item_pid", itemId)
+				req.uri(UriBuilder::build))
 			.doOnNext(req -> log.info("Final request method: {}, URI: {}, Full request: {}", req.getMethod(), req.getUri(), req))
 			.map(request -> request.body(almaRequest))
 			.doOnNext(req-> log.info("Now changing to an Alma request which looks like this {}", req) )
