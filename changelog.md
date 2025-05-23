@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 8.31.5
+
+### Changes
+* [Chore]
+	* Add primary ID to barcodes field for Alma patrons [DCB-1907]
+
+### Fixes
+* [General]
+	* use first local id when multiple local ids are found during the ValidatePatronTransition
+
 ## Version 8.31.4
 
 ### Changes
