@@ -167,6 +167,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 				.patronId(rwc.getPatronVirtualIdentity().getLocalId())
 				.patronBarcode(patronBarcode[0])
 				.localRequestId(supplierRequest.getLocalId())
+				.libraryCode(supplierRequest.getLocalItemLocationCode())
 				.build();
 
 			return hostLmsClient.checkOutItemToPatron(command)
@@ -227,6 +228,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 			.patronId(rwc.getPatronHomeIdentity().getLocalId())
 			.patronBarcode(patronBarcode)
 			.localRequestId(rwc.getPatronRequest().getLocalRequestId())
+			.libraryCode(rwc.getPatronHomeIdentity().getLocalHomeLibraryCode())
 			.build();
 	}
 

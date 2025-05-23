@@ -1,25 +1,26 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.*;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasRenewalCount;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasStatus;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.ValidationError;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -50,38 +51,35 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	@Test
 	void shouldDetectItemHasBeenReceivedAtThePickupLocation() {
 		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-		final var localItemId = UUID.randomUUID().toString();
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
 
-		// When the item is checked in at the pickup agency
+		// When the item is checked in at the pickup library
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "AWAITING_PICKUP");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var localItem = getItem(localItemId, localRequestId);
 
 		// Assert
 		assertThat(localItem, allOf(
 			notNullValue(),
 			hasLocalId(localItemId),
-			hasStatus("HOLDSHELF")
+			hasStatus("HOLDSHELF"),
+			hasRenewalCount(0)
 		));
 	}
 
 	@Test
 	void shouldDetectItemHasBeenBorrowedByPatron() {
 		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-		final var localItemId = UUID.randomUUID().toString();
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
 
-		// When the item is checked in at the pickup agency
+		// When the item is checked out by the patron
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "ITEM_CHECKED_OUT");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var localItem = getItem(localItemId, localRequestId);
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -93,54 +91,81 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	}
 
 	@Test
-	void shouldDetectItemHasBeenReturnedByPatron() {
+	void shouldDetectItemHasBeenRenewedByPatron() {
 		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-		final var localItemId = UUID.randomUUID().toString();
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
 
-		// When the item is checked in at the pickup agency
-		mockFolioFixture.mockGetTransactionStatus(localRequestId, "ITEM_CHECKED_IN");
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, response()
+			.withStatusCode(200)
+			.withBody(json(TransactionStatus.builder()
+				.status("ITEM_CHECKED_OUT")
+				.item(TransactionStatus.Item.builder()
+					.renewalInfo(TransactionStatus.RenewalInformation.builder()
+						.renewalCount(2)
+						.build())
+					.build())
+				.build())));
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var localItem = getItem(localItemId, localRequestId);
 
 		// Assert
 		assertThat(localItem, allOf(
 			notNullValue(),
 			hasLocalId(localItemId),
-			hasStatus("TRANSIT")
+			hasStatus("LOANED"),
+			hasRenewalCount(2)
+		));
+	}
+
+	@Test
+	void shouldDetectItemHasBeenReturnedByPatron() {
+		// Arrange
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
+
+		// When the item is checked in at the pickup agency
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "ITEM_CHECKED_IN");
+
+		// Act
+		final var localItem = getItem(localItemId, localRequestId);
+
+		// Assert
+		assertThat(localItem, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasStatus("TRANSIT"),
+			hasRenewalCount(0)
 		));
 	}
 
 	@Test
 	void shouldDetectItemHasBeenReturnedToSupplier() {
 		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-		final var localItemId = UUID.randomUUID().toString();
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
 
 		// When the item is checked in at the supplying agency, the DCB transaction is closed
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CLOSED");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var localItem = getItem(localItemId, localRequestId);
 
 		// Assert
 		assertThat(localItem, allOf(
 			notNullValue(),
 			hasLocalId(localItemId),
-			hasStatus("AVAILABLE")
+			hasStatus("AVAILABLE"),
+			hasRenewalCount(0)
 		));
 	}
 
 	@Test
 	void shouldDetectRequestIsMissing() {
 		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-		final var localItemId = UUID.randomUUID().toString();
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
 
 		mockFolioFixture.mockGetTransactionStatus(localRequestId,
 			response()
@@ -155,9 +180,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 					.build())));
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localItem = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var localItem = getItem(localItemId, localRequestId);
 
 		// Assert
 		assertThat(localItem, allOf(
@@ -183,15 +206,13 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	@ValueSource(strings = {"CREATED", "CANCELLED", "ERROR"})
 	void shouldReturnUnmappedTransactionStatusForAnyOtherStatus(String transactionStatus) {
 		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-		final var localItemId = UUID.randomUUID().toString();
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
 
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, transactionStatus);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var localRequest = singleValueFrom(client.getItem(localItemId, localRequestId));
+		final var localRequest = getItem(localItemId, localRequestId);
 
 		// Assert
 		assertThat(localRequest, allOf(
@@ -204,20 +225,29 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	@Test
 	void shouldRaiseErrorForUnexpectedStatus() {
 		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-		final var localItemId = UUID.randomUUID().toString();
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
 
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "UNEXPECTED_STATUS");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		final var exception = assertThrows(RuntimeException.class,
-			() -> singleValueFrom(client.getItem(localItemId, localRequestId)));
+			() -> getItem(localItemId, localRequestId));
 
 		// Assert
 		assertThat(exception, hasMessage(
 			"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 				.formatted("UNEXPECTED_STATUS", localRequestId)));
+	}
+
+	private HostLmsItem getItem(String localItemId, String localRequestId) {
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var hostLmsItem = HostLmsItem.builder()
+			.localId(localItemId)
+			.localRequestId(localRequestId)
+			.build();
+
+		return singleValueFrom(client.getItem(hostLmsItem));
 	}
 }

@@ -432,6 +432,15 @@ public class PatronRequest {
 	@Nullable
 	private Boolean isExpeditedCheckout;
 
+	// Used in tracking item requests
+	@ToString.Include
+	@Nullable
+	private String localHoldingId;
+
+	@ToString.Include
+	@Nullable
+	private String pickupHoldingId;
+
 	@Transient
 	@Nullable
 	public String determineSupplyingAgencyCode() {
@@ -458,13 +467,15 @@ public class PatronRequest {
 	public PatronRequest addLocalItemDetails(HostLmsItem hostLmsItem) {
 		return setLocalItemId(hostLmsItem.getLocalId() != null ? hostLmsItem.getLocalId() : null)
 			.setLocalItemStatus(hostLmsItem.getStatus() != null ? hostLmsItem.getStatus() : null)
-			.setRawLocalItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
+			.setRawLocalItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null)
+			.setLocalHoldingId(hostLmsItem.getHoldingId() != null ? hostLmsItem.getHoldingId() : null);
 	}
 
 	public PatronRequest addPickupItemDetails(HostLmsItem hostLmsItem) {
 		return setPickupItemId(hostLmsItem.getLocalId() != null ? hostLmsItem.getLocalId() : null)
 			.setPickupItemStatus(hostLmsItem.getStatus() != null ? hostLmsItem.getStatus() : null)
-			.setRawPickupItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null);
+			.setRawPickupItemStatus(hostLmsItem.getRawStatus() != null ? hostLmsItem.getRawStatus() : null)
+			.setPickupHoldingId(hostLmsItem.getHoldingId() != null ? hostLmsItem.getHoldingId() : null);
 	}
 
 

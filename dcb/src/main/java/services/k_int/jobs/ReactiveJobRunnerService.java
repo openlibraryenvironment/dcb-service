@@ -98,16 +98,27 @@ public class ReactiveJobRunnerService {
 				return Mono.from(pub);
 			})
 			.expand( chunk -> {
-				if (chunk.isLastChunk()) {
-					log.info("Ending job run as chunk was marked as the last one");
-					return Mono.empty();
-				}
 				
-				final var checkpoint = chunk.getCheckpoint();
-				return Mono.from( jobInstance.resume( checkpoint ) )
-						.doOnNext( cp -> log.trace("Get next chunk using checkpoint [{}]", cp));
-			})
-			.concatMap( this::processChunkAndSaveCheckpoint );
+				return processChunkAndSaveCheckpoint(chunk)
+					.flatMap(theChunk -> {
+						if (theChunk.isLastChunk()) {
+							log.info("Ending job run as chunk was marked as the last one");
+							return Mono.empty();
+						}
+						final var checkpoint = theChunk.getCheckpoint();
+						return Mono.from( jobInstance.resume( checkpoint ) )
+								.doOnNext( cp -> log.trace("Get next chunk using checkpoint [{}]", cp));
+					});
+				
+//				if (chunk.isLastChunk()) {
+//					log.info("Ending job run as chunk was marked as the last one");
+//					return Mono.empty();
+//				}
+//				
+//				final var checkpoint = chunk.getCheckpoint();
+//				return Mono.from( jobInstance.resume( checkpoint ) )
+//						.doOnNext( cp -> log.trace("Get next chunk using checkpoint [{}]", cp));
+			});
 	}
 
 	@Transactional(readOnly = true)

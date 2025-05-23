@@ -7,9 +7,9 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.consumer;
 import static reactor.function.TupleUtils.function;
 
-import java.time.Duration;
 import java.util.List;
 
+import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
@@ -17,7 +17,6 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
@@ -77,11 +76,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.defaultIfEmpty(List.of(failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST",
 				"Failed due to empty reactive chain",
-				intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST"))))
-			.timeout(Duration.ofSeconds(30), Mono.just(List.of(
-				failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST", 
-                 "Failed due to timeout",
-                 intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST")))));
+				intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST"))));
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {

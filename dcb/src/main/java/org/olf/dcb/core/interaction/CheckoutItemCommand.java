@@ -26,6 +26,9 @@ public class CheckoutItemCommand {
 	String patronBarcode;
 	@Nullable
 	String localRequestId;
+	// location of the item
+	@Nullable
+	String libraryCode;
 }
 
 

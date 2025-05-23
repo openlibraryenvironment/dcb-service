@@ -97,7 +97,14 @@ public class PickupAgencyService {
 
 		final var pickupRequestId = getValueOrNull(patronRequest, PatronRequest::getPickupRequestId);
 
-		return client.getItem(pickupItemId, pickupRequestId)
+		final var hostLmsItem = HostLmsItem.builder()
+			.localId(pickupItemId)
+			.localRequestId(pickupRequestId)
+			.holdingId(getValueOrNull(patronRequest, PatronRequest::getPickupHoldingId))
+			.bibId(getValueOrNull(patronRequest, PatronRequest::getPickupBibId))
+			.build();
+
+		return client.getItem(hostLmsItem)
 			.flatMap(item -> {
 
 				// if the item exists a local id will be present
@@ -144,8 +151,11 @@ public class PickupAgencyService {
 	private Mono<String> checkHoldExists(HostLmsClient client, PatronRequest patronRequest, String operation) {
 
 		final var pickupRequestId = patronRequest.getPickupRequestId();
+		final var pickupPatronId = patronRequest.getPickupPatronId();
+		final var hostlmsRequest = HostLmsRequest.builder().localId(pickupRequestId)
+			.localPatronId(pickupPatronId).build();
 
-		return client.getRequest(pickupRequestId)
+		return client.getRequest(hostlmsRequest)
 			.flatMap(hostLmsRequest -> {
 
 				// if the hold exists a local id will be present
@@ -178,7 +188,12 @@ public class PickupAgencyService {
 		final var pickupItemId = patronRequest.getPickupItemId();
 		final var pickupRequestId = patronRequest.getPickupRequestId();
 
-		return pickupSystem.getItem(pickupItemId, pickupRequestId);
+		return pickupSystem.getItem(HostLmsItem.builder()
+			.localId(pickupItemId)
+			.localRequestId(pickupRequestId)
+			.holdingId(patronRequest.getPickupHoldingId())
+			.bibId(patronRequest.getPickupBibId())
+			.build());
 	}
 
 	public Mono<Patron> getPatron(RequestWorkflowContext requestWorkflowContext) {

@@ -5,8 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.*;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -19,7 +21,6 @@ import java.util.function.Function;
 
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowableMonoWrap;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.putAuditData;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
@@ -119,7 +120,12 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	}
 
 	private Mono<HashMap<String, Object>> fetchVirtualRequest(RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
-		return supplyingAgencyService.getRequest(ctx.getSupplierRequest().getHostLmsCode(), ctx.getSupplierRequest().getLocalId())
+		final var localRequestId = ctx.getSupplierRequest().getLocalId();
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(localRequestId).localPatronId(supplierPatronId).build();
+
+		return supplyingAgencyService.getRequest(ctx.getSupplierRequest().getHostLmsCode(), hostlmsRequest)
 			.map(request -> putAuditData(auditData,"VirtualRequest", getValueOrNull(request, HostLmsRequest::toString)))
 			.onErrorResume(error -> auditThrowableMonoWrap(auditData, "VirtualRequest", error))
 			.thenReturn(auditData);

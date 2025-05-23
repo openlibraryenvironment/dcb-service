@@ -9,7 +9,6 @@ import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -23,7 +22,6 @@ import reactor.core.publisher.Mono;
 @Singleton
 @Named("BorrowerRequestItemOnHoldShelf")
 public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransition {
-	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestRepository patronRequestRepository;
 	private final HostLmsService hostLmsService;
 
@@ -32,10 +30,9 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 	
 	public HandleBorrowerItemOnHoldShelf(
 		PatronRequestRepository patronRequestRepository,
-		HostLmsService hostLmsService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+		HostLmsService hostLmsService) {
+
 		this.patronRequestRepository = patronRequestRepository;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
 	}
 
@@ -137,7 +134,6 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 
 		if (requestWorkflowContext.getPatronSystemCode() == null ||
 			requestWorkflowContext.getPatronRequest() == null ||
-			requestWorkflowContext.getPatronRequest().getLocalItemId() == null ||
 			requestWorkflowContext.getPatronRequest().getLocalRequestId() == null) {
 
 			return Mono.error(new IllegalStateException("updateBorrowerItemToReceived called with missing data"));

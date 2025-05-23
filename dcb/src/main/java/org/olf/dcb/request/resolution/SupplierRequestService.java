@@ -84,6 +84,7 @@ public class SupplierRequestService {
 			.statusCode(PENDING)
 			.isActive(true)
 			.resolvedAgency(item.getAgency())
+			.localHoldingId(getValueOrNull(item, Item::getLocalHoldingId))
 			.build();
 	}
 

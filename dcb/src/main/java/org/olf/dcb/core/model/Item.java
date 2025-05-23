@@ -39,6 +39,8 @@ public class Item implements Comparable<Item> {
 	private Boolean isRequestable;
 	private Integer holdCount;
 	private String localBibId;
+	@Nullable
+	private String localHoldingId;
 	private String localItemType;
 	private String localItemTypeCode;
 	private String canonicalItemType;

@@ -25,8 +25,8 @@ import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
 import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoSink;
 
 @Requires(bean = SharedIndexService.class)
 @ExecuteOn(TaskExecutors.BLOCKING)
@@ -41,14 +41,12 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 	
 	private final SharedIndexService sharedIndexService;
 	private final RecordClusteringService clusters;
-	private final R2dbcOperations r2dbcOperations;
 	
 	private static final Logger log = LoggerFactory.getLogger(SharedIndexLiveUpdater.class);
 	
 	public SharedIndexLiveUpdater(SharedIndexService sharedIndexService, RecordClusteringService recordClusteringService, R2dbcOperations r2dbcOperations) {
 		this.sharedIndexService = sharedIndexService;
 		this.clusters = recordClusteringService;
-		this.r2dbcOperations = r2dbcOperations;
 	}
 
 	@Override
@@ -60,21 +58,23 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 		Mono.from(sharedIndexService.initialize()).block();
 	}
 	
+	@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+	protected Mono<Page<UUID>> getNextPage(@NonNull Instant before, @NonNull Pageable page) {
+		return clusters.findNext1000UpdatedBefore(before, page);
+	}
+	
 	private Disposable reindexTask = null;
 
-	@ExecuteOn(TaskExecutors.BLOCKING)
-	protected void doAndReportReindex( @NonNull MonoSink<Void> startedSignal ) {
+	protected Flux<List<IndexOperation<UUID, ClusterRecord>>> doAndReportReindex() {
 		// Grab the current timestamp to filter out resources that have been updated since we started.
 		
 		final Instant start = Instant.now();
 		
-		reindexTask = clusters.findNext1000UpdatedBefore(start, Pageable.from(0, 1000))
-			.doOnSuccess(_v -> startedSignal.success() )
-			.doOnError( startedSignal::error )
+		var reindexMono = getNextPage(start, Pageable.from(0, 1000))
 			.expand(p -> {
 				log.trace("Preparing next page fetch");
 				Pageable nextPage = p.nextPageable();
-				return Mono.from(clusters.findNext1000UpdatedBefore(start, nextPage))
+				return getNextPage(start, nextPage)
 					.doOnSubscribe(_s -> log.trace("Fetch next page of 1000"));
 			})
 			.takeWhile( p -> {
@@ -95,11 +95,9 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 			})
 			.map(Page::getContent)
 			.transform(sharedIndexService::expandAndProcess)
-			.limitRate(2, 1) // Fetch 2 pages, and fetch another 2 when we're at 1.
-			.doFinally( _signal -> this.jobMono = null )
-			.subscribe(this::logResults, err -> {
-				log.error("Error in reindex job");
-			});
+			.limitRate(2, 1); // Fetch 2 pages, and fetch another 2 when we're at 1.
+		
+		return reindexMono;
 	}
 	
 	private void logResults( final List<IndexOperation<UUID, ClusterRecord>> processed ) {
@@ -139,8 +137,25 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 			return Mono.empty();
 		}
 	}
+
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	protected Mono<Void> startIndexJob() {
+		
+		// Create a mono to return once we have started the job.
+		return Mono.create( cb -> {
+			reindexTask = doAndReportReindex()
+				.doOnSubscribe(_v -> cb.success() )
+				.doOnError( cb::error )
+				.doFinally( _signal -> this.jobMono = null )
+				.subscribe(this::logResults, err -> {
+					log.error("Error in reindex job", err);
+				});
+		})
+		.then()
+		.cache();
+	}
 	
-	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+//	@Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
 	public Mono<Void> reindexAllClusters( @NonNull ReindexOp op ) {
 		if (op == ReindexOp.STOP) {
 			return this.cancelReindexJob();
@@ -150,11 +165,7 @@ public class SharedIndexLiveUpdater implements ApplicationEventListener<StartupE
 			synchronized (this) {
 				if (jobMono == null) {
 					log.debug("Begin re-index");
-					jobMono = Mono.fromDirect(r2dbcOperations.withTransaction(c -> {
-						
-						return Mono.create(this::doAndReportReindex);
-						
-					})).cache();
+					jobMono = startIndexJob();
 				}
 			}
 		} else {

@@ -280,7 +280,7 @@ public class HouseKeepingService {
 
 				if ( pingResponse.getStatus().equals("OK") ) {
 					return alarmsService.cancel(alarmCode)
-						.thenReturn(Mono.just("OK"));
+						.thenReturn("OK");
 				}
 				else {
 					return alarmsService.raise(
@@ -289,7 +289,7 @@ public class HouseKeepingService {
 							.code(alarmCode)
 							.build()
 						)
-						.thenReturn( Mono.just(pingResponse) );
+						.thenReturn( pingResponse );
 				}
 			})
 			.collectList()
@@ -298,7 +298,7 @@ public class HouseKeepingService {
 
   private Mono<String> systemsLibrarianContactableTests() {
     return Flux.from(hostLmsRepository.queryAll())
-      .doOnNext( hostLmsData -> log.info("Audit -- Ping systems librarian contact checks: {}",hostLmsData.getCode()))
+      .doOnNext( hostLmsData -> log.info("Audit -- Systems librarian contact checks: {}",hostLmsData.getCode()))
       .flatMap ( hostLmsData -> {
 
 				String alarmCode = "ILS."+hostLmsData.getCode()+".NO_SYSTEMS_EMAIL".toUpperCase();

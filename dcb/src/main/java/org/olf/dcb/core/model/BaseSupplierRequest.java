@@ -51,6 +51,10 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 
 	@Nullable
 	@Size(max = 200)
+	private String localHoldingId;
+
+	@Nullable
+	@Size(max = 200)
 	private String localItemBarcode;
 
 	@Nullable
@@ -155,6 +159,11 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 
 	public T setLocalBibId(@Size(max = 200) String localBibId) {
 		this.localBibId = localBibId;
+		return (T) this;
+	}
+
+	public T setLocalHoldingId(@Size(max = 200) String localHoldingId) {
+		this.localHoldingId = localHoldingId;
 		return (T) this;
 	}
 

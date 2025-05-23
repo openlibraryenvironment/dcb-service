@@ -163,7 +163,14 @@ public class BorrowingAgencyService {
 
 		final var localRequestId = getValueOrNull(patronRequest, PatronRequest::getLocalRequestId);
 
-		return client.getItem(localItemId, localRequestId)
+		final var hostLmsItem = HostLmsItem.builder()
+			.localId(localItemId)
+			.localRequestId(localRequestId)
+			.holdingId(getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId))
+			.bibId(getValueOrNull(patronRequest, PatronRequest::getLocalBibId))
+			.build();
+
+		return client.getItem(hostLmsItem)
 			.flatMap(item -> {
 
 				// if the item exists a local id will be present
@@ -342,6 +349,7 @@ public class BorrowingAgencyService {
 			.localPatronBarcode(borrowingIdentity.getLocalBarcode())
 			.localBibId(patronRequest.getLocalBibId())
 			.localItemId(patronRequest.getLocalItemId())
+			.localHoldingId(getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId))
 			.pickupLocationCode(patronRequest.getPickupLocationCode())
 			.pickupLocation(ctx.getPickupLocation())
 			.pickupAgency(ctx.getPickupAgency())
@@ -383,8 +391,16 @@ public class BorrowingAgencyService {
 
 	public Mono<HostLmsItem> getItem(PatronRequest patronRequest) {
 		if (patronRequest.getPatronHostlmsCode() != null) {
+
+			final var hostLmsItem = HostLmsItem.builder()
+				.localId(patronRequest.getLocalItemId())
+				.localRequestId(patronRequest.getLocalRequestId())
+				.holdingId(getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId))
+				.bibId(getValueOrNull(patronRequest, PatronRequest::getLocalBibId))
+				.build();
+
 			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
-				.flatMap(hostLmsClient -> hostLmsClient.getItem(patronRequest.getLocalItemId(), patronRequest.getLocalRequestId()));
+				.flatMap(hostLmsClient -> hostLmsClient.getItem(hostLmsItem));
 		}
 
 		return raiseError(new DcbError("Can not get virtual records status with null HostLmsCode"));
@@ -414,6 +430,7 @@ public class BorrowingAgencyService {
 						// the real local bib id and the real item id to place the hold
 						.localBibId(supplierRequest.getLocalBibId())
 						.localItemId(supplierRequest.getLocalItemId())
+						.localHoldingId(getValueOrNull(supplierRequest, SupplierRequest::getLocalHoldingId))
 						.pickupLocationCode(patronRequest.getPickupLocationCode())
 						.pickupLocation(ctx.getPickupLocation())
 						.note(note)

@@ -1,24 +1,11 @@
 package services.k_int.interaction.alma;
 
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.annotation.*;
+import org.olf.dcb.core.interaction.Patron;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import io.micronaut.json.tree.JsonNode;
-
 import java.net.URI;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
-
-import static org.olf.dcb.utils.CollectionUtils.nullIfEmpty;
 
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.items.*;
@@ -34,28 +21,48 @@ public interface AlmaApiClient {
 	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
 	Mono<AlmaUser> createPatron(AlmaUser patron);
 
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UFVUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
+	Mono<AlmaUser> updateUserDetails(String user_id, AlmaUser patron);
+
 	// https://developers.exlibrisgroup.com/alma/apis/users/
   Mono<AlmaUser> getAlmaUserByUserId(String user_id);
 
-  Mono<Void> deleteAlmaUser(String user_id);
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
+	Mono<AlmaRequestResponse> retrieveUserRequest(String user_id, String request_id);
+
+	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
+	Mono<AlmaUserList> getUsersByExternalId(String external_id);
+
+  Mono<String> deleteAlmaUser(String user_id);
 
 	Mono<AlmaHoldings> getHoldings(String mms_id);
 
 	Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id);
 
 	// This one is a gamble.. may need to be implemented with the above + a filter
-  Mono<AlmaItems> getItemsForPID(String mms_id, String pid);
+  Mono<AlmaItem> getItemForPID(String mms_id, String holdingId, String pid);
 
-
-	Mono<AlmaItems> getAllItems(String mms_id);
+	Mono<AlmaItems> getAllItems(String mms_id, String holding_id);
 
 	Mono<String> test();
 
-  Mono<AlmaRequest> placeHold(AlmaRequest almaRequest);
+  Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest);
 
-	Mono<AlmaBib> createBib(AlmaBib bib);
+	Mono<AlmaBib> createBib(String bib);
 
+	Mono<AlmaItem> createItem(String mmsId, String holdingId, AlmaItem aid);
 
-	Mono<AlmaItemData> createItem(String mmsId, String holdingId, AlmaItemData aid);
-	
+	Publisher<String> deleteBib(String id);
+
+	Mono<AlmaHolding> createHolding(String bibId, String almaHolding);
+
+	Mono<String> deleteItem(String id, String holdingsId, String mmsId);
+
+	Mono<String> deleteHolding(String holdingsId, String mmsId);
+
+	Mono<AlmaUser> authenticateOrRefreshUser(String barcode, String secret);
+
+	Mono<String> deleteUserRequest(String userId, String requestId);
+
+	Mono<AlmaItemLoanResponse> createUserLoan(String patronId, String itemId, AlmaItemLoan almaItemLoan);
 }

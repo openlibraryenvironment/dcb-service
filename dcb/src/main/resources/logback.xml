@@ -58,12 +58,13 @@
 	
 	<logger name="org.olf.dcb.core.svc" level="INFO"/>
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
-	<logger name="org.olf.dcb.tracking" level="DEBUG"/>
-	<logger name="org.olf.dcb.request" level="DEBUG"/>
+	<logger name="org.olf.dcb.core.interaction" level="INFO" />
+	<logger name="org.olf.dcb.tracking" level="INFO"/>
+	<logger name="org.olf.dcb.request" level="INFO"/>
 	<logger name="org.olf.dcb.ingest" level="INFO"/>
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
-	<logger name="org.olf.dcb.core.svc.BibRecordService" level="DEBUG" />
-	<logger name="org.olf.dcb.ingest.job" level="DEBUG" />
+	<logger name="org.olf.dcb.core.svc.BibRecordService" level="INFO" />
+	<logger name="org.olf.dcb.ingest.job" level="INFO" />
 	<logger name="services.k_int" level="INFO"/>
 	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="INFO"/>
 	<logger name="io.micronaut.security.authentication" level="WARN" />
@@ -73,12 +74,13 @@
 	<logger name="io.micronaut.security" level="WARN" />
 	
 	
-	<logger name="services.k_int.federation" level="DEBUG"/>
-	<logger name="services.k_int.hazelcast" level="DEBUG"/>
+	<logger name="services.k_int.federation" level="INFO"/>
+	<logger name="services.k_int.hazelcast" level="INFO"/>
+	<logger name="org.olf.dcb.operations" level="INFO"/>
 	
 	<logger name="com.hazelcast" level="error" />
-	<logger name="com.hazelcast.internal.cluster.ClusterService" level="info" />
-	<logger name="org.olf.dcb.core.interaction.RelativeUriResolver" level="warn" />
+	<logger name="com.hazelcast.internal.cluster.ClusterService" level="INFO" />
+	<logger name="org.olf.dcb.core.interaction.RelativeUriResolver" level="WARN" />
 
 	<root level="info">
 		<appender-ref ref="${DCB_LOG_APPENDERS:-STDOUT_SYNC}"/>

@@ -38,7 +38,7 @@ public class LuceneWildcardQueryNodeBuilder<T> implements JpaQuerySpecificationB
 		
 		var fieldName = wildcardNode.getFieldAsString();
 		
-		log.info("Wildcard... {}:{}", fieldName, fieldText);
+		log.debug("Wildcard... {}:{}", fieldName, fieldText);
 		QuerySpecification<T> cb = (root, query, criteriaBuilder) -> {
 			Path<String> path = root.get(fieldName);
 			Expression<String> strExp = criteriaBuilder.literal(fieldText);

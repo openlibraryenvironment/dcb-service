@@ -89,7 +89,7 @@ public class LiveAvailabilityService {
 			.filter(this::shouldCache)
 			.map( ar -> {
 				String bibIdStr = bib.getId().toString();
-				log.info("Caching availability for bibId: [{}]", bibIdStr);
+				log.debug("Caching availability for bibId: [{}]", bibIdStr);
 				availabilityCache.put(bibIdStr, ar);
 				return ar;
 			})
@@ -98,9 +98,10 @@ public class LiveAvailabilityService {
 			.orElse(report);
 	}
 
-	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
-		return checkAvailability(clusteredBibId, Optional.empty(),
-			Optional.ofNullable("all"));
+	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
+		Optional<Duration> timeout) {
+
+		return checkAvailability(clusteredBibId, timeout, Optional.of("all"));
 	}
 	
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
@@ -196,7 +197,9 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
 		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms, Optional<String> filters) {
 
-		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("bib", bib.getId().toString()), Tag.of("lms", hostLms.getHostLmsCode())));
+		// Removing bib ID from metric as we need 1 entry per system and task rather one for every bib.
+		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("lms", hostLms.getHostLmsCode())));
+//		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("bib", bib.getId().toString()), Tag.of("lms", hostLms.getHostLmsCode())));
 		commonTags.addAll(parentTags);
 		
 		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )

@@ -47,8 +47,13 @@ micronaut:
       #   access:
       #     - isAnonymous()
       - pattern: "/graphql/**"
+        http-method: POST
         access:
           - isAuthenticated()
+      - pattern: /graphql
+        http-method: OPTIONS
+        access:
+          - isAnonymous()
   http:
     client:
       read-timeout: PT1M
@@ -86,7 +91,8 @@ reactor:
    
 endpoints:
   prometheus:
-    sensitive: true
+    enabled: true
+    sensitive: false
   health:
     executor: health-check
     enabled: true

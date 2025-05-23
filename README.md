@@ -60,17 +60,17 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 
 Additional optional configuration values. These may be set in configuration files or using environment variables.
 
-| Name                                                                    | Description                                                                       | Format                                                                               | Default |
-|-------------------------------------------------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|---------|
-| dcb.demo.ingest.limit                                                   | Maximum number of records to ingest when running in demo environment              | Integer value                                                                        | 1000    |
-| dcb.request-workflow.state-transition-delay                             | Delay between transitions in the request workflow                                 | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT0.0S  |
-| dcb.requests.supplying.patron-type                                      | Fixed patron type for supplying agency virtual patrons                            | Integer                                                                              | 210     |
-| dcb.requests.preflight-checks.pickup-location.enabled                   | Whether pickup location preflight checks are enabled                              | Boolean                                                                              | true    |
-| dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled | Whether pickup location to agency mapping preflight checks are enabled            | Boolean                                                                              | true    |
-| dcb.requests.preflight-checks.resolve-patron.enabled                    | Whether patron resolution preflight checks are enabled                            | Boolean                                                                              | true    |
-| dcb.requests.preflight-checks.duplicate-requests.enabled                | Whether patron duplicate requests preflight checks are enabled                    | Boolean                                                                              | true    |
-| dcb.requests.preflight-checks.duplicate-requests.request-window         | Request window that duplicate requests are disallowed (In seconds)                | Integer value                                                                        | 900     |
-
+| Name                                                                    | Description                                                            | Format                                                                               | Default    |
+|-------------------------------------------------------------------------|------------------------------------------------------------------------|--------------------------------------------------------------------------------------|------------|
+| dcb.demo.ingest.limit                                                   | Maximum number of records to ingest when running in demo environment   | Integer value                                                                        | 1000       |
+| dcb.request-workflow.state-transition-delay                             | Delay between transitions in the request workflow                      | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT0.0S     |
+| dcb.requests.supplying.patron-type                                      | Fixed patron type for supplying agency virtual patrons                 | Integer                                                                              | 210        |
+| dcb.requests.preflight-checks.pickup-location.enabled                   | Whether pickup location preflight checks are enabled                   | Boolean                                                                              | true       |
+| dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled | Whether pickup location to agency mapping preflight checks are enabled | Boolean                                                                              | true       |
+| dcb.requests.preflight-checks.resolve-patron.enabled                    | Whether patron resolution preflight checks are enabled                 | Boolean                                                                              | true       |
+| dcb.requests.preflight-checks.duplicate-requests.enabled                | Whether patron duplicate requests preflight checks are enabled         | Boolean                                                                              | true       |
+| dcb.requests.preflight-checks.duplicate-requests.request-window         | Request window that duplicate requests are disallowed (In seconds)     | Integer value                                                                        | 900        |
+| dcb.resolution.live-availability.timeout                                | Maximum wait for responses for live availability during resolution     | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | 30 Seconds |
 
 # API Documentation
 

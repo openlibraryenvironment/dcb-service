@@ -15,6 +15,7 @@ import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -173,8 +174,13 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private Mono<HostLmsRequest> fetchLocal(SupplierRequest supplierRequest) {
+
+		final var localRequestId = supplierRequest.getLocalId();
+		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(localRequestId).localPatronId(supplierPatronId).build();
+
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap(hostLmsClient -> hostLmsClient.getRequest(supplierRequest.getLocalId()));
+			.flatMap(hostLmsClient -> hostLmsClient.getRequest(hostlmsRequest));
 	}
 
 	private Function<HostLmsRequest, Mono<RequestWorkflowContext>> verify(

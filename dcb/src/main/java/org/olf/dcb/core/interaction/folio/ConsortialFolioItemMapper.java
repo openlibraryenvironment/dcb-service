@@ -40,7 +40,7 @@ public class ConsortialFolioItemMapper {
 			.map(status -> buildItem(holding, instanceId, status))
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
-			.doOnSuccess(item -> log.info("Mapped holding to item: {}", item));
+			.doOnSuccess(item -> log.trace("Mapped holding to item: {}", item));
 	}
 
 	private Item buildItem(Holding holding, String instanceId, ItemStatus status) {

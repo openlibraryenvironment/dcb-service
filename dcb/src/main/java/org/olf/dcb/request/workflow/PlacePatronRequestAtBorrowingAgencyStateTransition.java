@@ -3,11 +3,11 @@ package org.olf.dcb.request.workflow;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Predicate;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -16,12 +16,9 @@ import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 
-import com.hazelcast.query.Predicates;
-
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import services.k_int.utils.Functions;
 
 @Slf4j
 @Prototype
@@ -70,7 +67,17 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 		return borrowingAgencyService.placePatronRequestAtBorrowingAgency(ctx)
 			.doOnSuccess(pr -> {
 				log.info("Placed patron request to borrowing agency: {}", pr);
+
+				final var localBibId = getValue(pr, PatronRequest::getLocalBibId, "none");
+				final var localHoldingId = getValue(pr, PatronRequest::getLocalHoldingId, "none");
+				final var localItemId = getValue(pr, PatronRequest::getLocalItemId, "none");
+				final var localRequestId = getValue(pr, PatronRequest::getLocalRequestId, "none");
+
 				ctx.getWorkflowMessages().add("Placed patron request to borrowing agency");
+				ctx.getWorkflowMessages().add("Local bib ID: \"%s\"".formatted(localBibId));
+				ctx.getWorkflowMessages().add("Local holding ID: \"%s\"".formatted(localHoldingId));
+				ctx.getWorkflowMessages().add("Local item ID: \"%s\"".formatted(localItemId));
+				ctx.getWorkflowMessages().add("Local request ID: \"%s\"".formatted(localRequestId));
 			})
 			.doOnError(error -> {
 				log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage());

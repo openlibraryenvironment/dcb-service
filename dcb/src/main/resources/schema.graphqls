@@ -23,6 +23,7 @@ type Query {
 		dataChangeLog(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): DataChangeLogPage!
 		roles(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): RolePage!
 		functionalSettings(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): FunctionalSettingPage!
+		alarms(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): AlarmPage!
 }
 
 type Mutation {
@@ -404,6 +405,16 @@ type AgencyGroupMember {
   group: AgencyGroup
 }
 
+type Alarm {
+	id: ID!
+	code: String
+	created: String
+	lastSeen: String
+	repeatCount: Float
+	expires: String
+	alarmDetails: JSON
+}
+
 type PatronRequest {
   id: ID!
   dateCreated: String
@@ -455,6 +466,8 @@ type PatronRequest {
   pickupBibId: String
   pickupItemBarcode: String
 	isExpeditedCheckout: Boolean
+	localHoldingId: String
+	pickupHoldingId: String
 }
 
 type PatronRequestAudit {
@@ -488,6 +501,7 @@ type SupplierRequest {
   rawLocalItemStatus: String
   rawLocalStatus: String
   localRenewalCount: Int
+  localHoldingId: String
 }
 
 type InactiveSupplierRequest {
@@ -510,6 +524,7 @@ type InactiveSupplierRequest {
   rawLocalItemStatus: String
   rawLocalStatus: String
   localRenewalCount: Int
+  localHoldingId: String
 }
 
 type Patron {
@@ -662,6 +677,12 @@ type AgencyGroupPage {
   content: [AgencyGroup]
   totalSize: Int
   pageable: Pageable
+}
+
+type AlarmPage {
+	content: [Alarm]
+	totalSize: Int
+	pageable: Pageable
 }
 
 type DataChangeLogPage {

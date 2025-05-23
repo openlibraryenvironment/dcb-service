@@ -188,9 +188,12 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 		log.info("pickupItemRequest for pickupBibId {}/{}", pickupBibId, supplierRequest.getLocalItemLocationCode());
 		log.info("slToAgency:{} {} {} {} {}", "Location", supplierRequest.getHostLmsCode(),
 			supplierRequest.getLocalItemLocationCode(), "AGENCY", "DCB");
-		log.info("localHomeLibraryCode: {}", Optional.ofNullable(requestWorkflowContext.getPatronHomeIdentity())
+		log.info("localHomeLibraryCode: {}", Optional.ofNullable(requestWorkflowContext.getPickupPatronIdentity())
 			.map(PatronIdentity::getLocalHomeLibraryCode)
 			.orElse(null));
+
+		final var pickupPatronHomeLocation = getValueOrNull(requestWorkflowContext,
+			RequestWorkflowContext::getPickupPatronIdentity, PatronIdentity::getLocalHomeLibraryCode);
 
 		// So far, when creating items, we have used the supplying library code as the location for the item. This is so that
 		// the borrowing library knows where to return the item. We pass this as locationCode in the CreateItemCommand.
@@ -210,7 +213,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					supplierRequest.getLocalItemBarcode(),
 					supplierRequest.getCanonicalItemType(),
 
-					requestWorkflowContext.getPatronHomeIdentity().getLocalHomeLibraryCode()))
+					pickupPatronHomeLocation))
 			.doOnSuccess(hostLmsItem -> log.info("Created pickup item: {}", hostLmsItem))
 			.map(patronRequest::addPickupItemDetails)
 			.map(requestWorkflowContext::setPatronRequest)
@@ -299,6 +302,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					// FOLIO needs both the ID and barcode to cross-check the item identity
 					// SIERRA when placing a BIB hold - the ITEM that gets held may not be the one we selected
 					.localItemId(patronRequest.getPickupItemId())
+					.localHoldingId(getValueOrNull(patronRequest, PatronRequest::getPickupHoldingId))
 
 					// TODO: we should pass the pickup item barcode here
 					// Have to pass both because Sierra and Polaris still use code only

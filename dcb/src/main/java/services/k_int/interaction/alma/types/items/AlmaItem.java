@@ -19,7 +19,6 @@ import services.k_int.interaction.alma.types.AlmaBib;
 @Data
 @AllArgsConstructor
 @Builder
-@ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class AlmaItem {
 	@JsonProperty("link")

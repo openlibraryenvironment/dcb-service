@@ -19,6 +19,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
@@ -81,7 +82,9 @@ class SierraHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var item = singleValueFrom(client.getItem(localItemId, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
+		final var item = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(item, allOf(
@@ -105,7 +108,9 @@ class SierraHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var item = singleValueFrom(client.getItem(localItemId, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
+		final var item = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(item, allOf(
@@ -131,7 +136,9 @@ class SierraHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var item = singleValueFrom(client.getItem(localItemId, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
+		final var item = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(item, allOf(
@@ -162,7 +169,9 @@ class SierraHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var item = singleValueFrom(client.getItem(localItemId, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
+		final var item = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(item, allOf(
@@ -191,7 +200,9 @@ class SierraHostLmsClientGetItemTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var item = singleValueFrom(client.getItem(localItemId, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+
+		final var item = singleValueFrom(client.getItem(hostLmsItem));
 
 		// Assert
 		assertThat(item, allOf(

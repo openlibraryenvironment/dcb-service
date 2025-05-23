@@ -30,16 +30,38 @@ import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
-import java.time.*;
-
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.shared.*;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.FailedToGetItemsException;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PingResponse;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
@@ -50,6 +72,7 @@ import org.olf.dcb.core.model.NoHomeBarcodeException;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -73,7 +96,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import org.reactivestreams.Publisher;
 
 @Slf4j
 @Prototype
@@ -269,7 +291,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.patron(CreateTransactionRequest.Patron.builder()
 					.id(parameters.getLocalPatronId())
 					.barcode(firstBarcodeInList)
-					.group(parameters.getLocalPatronType())
+					.group(parameters.getLocalPatronType()) // Needs to be double quoted, otherwise errors in the folio call if there are reserved characters, eg. bracket
 					.build())
 				.pickup(CreateTransactionRequest.Pickup.builder()
 					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
@@ -473,7 +495,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.patron(CreateTransactionRequest.Patron.builder()
 						.id(parameters.getLocalPatronId())
 						.barcode(firstPatronBarcodeInList)
-						.group(parameters.getLocalPatronType())
+						.group(parameters.getLocalPatronType()) // Needs to be double quoted, otherwise errors in the folio call if there are reserved characters, eg. bracket
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(pickupLocation)
@@ -700,9 +722,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
+		final var transactionId = getValueOrThrow(hostLmsRenewal,
+			HostLmsRenewal::getLocalRequestId, () -> new RuntimeException("Cannot renew transaction without a transaction ID"));
 
-		return Mono.just(hostLmsRenewal);
+		final var path = "/dcbService/transactions/%s/renew".formatted(transactionId);
+
+		return makeRequest(authorisedRequest(PUT, path))
+			.then(Mono.just(hostLmsRenewal));
+
 	}
 
 	@Override
@@ -798,7 +825,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
 		return getTransactionStatus(localRequestId)
 			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus))
 			.onErrorResume(TransactionNotFoundException.class,
@@ -836,10 +864,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
-		log.debug("getItem({}, {})", localItemId, localRequestId);
+	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
+		log.debug("getItem({})", hostLmsItem);
+
+		final var localItemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
+		final var localRequestId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalRequestId);
 
 		return getTransactionStatus(localRequestId)
+			.doOnSuccess(transactionStatus -> log.debug("got transaction {} status {}",  localRequestId, transactionStatus))
 			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus, localRequestId))
 			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
 	}
@@ -847,10 +879,25 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static HostLmsItem mapToHostLmsItem(String itemId,
 		TransactionStatus transactionStatus, String transactionId) {
 
-		final var status = getValueOrNull(transactionStatus, TransactionStatus::getStatus);
+		if (itemId == null) {
+			log.warn("getItem returning HostLmsItem with a null item id.");
+		}
 
+		final var rawLocalStatus = getValueOrNull(transactionStatus, TransactionStatus::getStatus);
+
+		return HostLmsItem.builder()
+			.localId(itemId)
+			.status(mapLocalStatus(rawLocalStatus, transactionId))
+			.rawStatus(rawLocalStatus)
+			.renewalCount(getValue(transactionStatus, TransactionStatus::getRenewalCount, 0))
+			// Guessing that hold count is also not currently supported by edge-dcb
+			.holdCount(null)
+			.build();
+	}
+
+	private static String mapLocalStatus(String status, String transactionId) {
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
-		final var mappedStatus = switch(status) {
+		return switch (status) {
 			// When the item is returned back to the supplying agency, the transaction is closed
 			// The Host LMS reactions use the available local item status to represent the item becoming available again at the end
 			case "CLOSED" -> ITEM_AVAILABLE;
@@ -866,21 +913,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 					.formatted(status, transactionId));
 		};
-
-		if (itemId == null) {
-			log.warn("getItem returning HostLmsItem with a null item id.");
-		}
-
-		return HostLmsItem.builder()
-			.localId(itemId)
-			.status(mappedStatus)
-			.rawStatus(status)
-			// Renewal count is not currently supported by edge-dcb, so we default to 0
-			// This is because edge-dcb does not provide this information in its item API responses
-			.renewalCount(0)
-			// Guessing that hold count is also not currenly supported by edge-dcb
-      .holdCount(null)
-			.build();
 	}
 
 	private static Mono<HostLmsItem> missingHostLmsItem(String itemId) {

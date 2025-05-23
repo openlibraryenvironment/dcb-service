@@ -1,10 +1,172 @@
 # Changelog
 
+## Version 8.31.5
+
+### Changes
+* [Chore]
+	* Add primary ID to barcodes field for Alma patrons [DCB-1907]
+
+### Fixes
+* [General]
+	* use first local id when multiple local ids are found during the ValidatePatronTransition
+
+## Version 8.31.4
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
+### Fixes
+* [General]
+	* Removed the double quotes that were added the other day as requested
+	* Remove blocking calls from LocationController and replace with reactive variants. Suspect that when post to location controller is made with an unknown UUID the blocking call breaks in unhelpful ways. New messages should clarify the error when scripts wrongly create UUIDs and explect them to match
+
+## Version 8.31.3
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
+### Fixes
+* [General]
+	* Apparently Set.of(null, ...) is not allowed, so have replaced it in this method
+
+## Version 8.31.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
+### Fixes
+* [General]
+	* use correct pickup library code for PUA in Polaris systems
+	* Updated the tests to go with the previous change
+	* Folio CreateTransaction fails if the patron group has a reserved character in it, so have enclosed it in double quotes, so it dosn't treat it as a special character
+
+## Version 8.31.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+* [Refactor]
+	* Change transactional boundaries to only wrap the db fetch
+
+## Version 8.31.0
+
+### Additions
+* [General]
+	* Web metrics to include host and uri unless overridden.
+	* Detect renewal at FOLIO borrowing library DCB-1894
+	* Perform renewal at FOLIO supplying library DCB-1894
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Add logging to troubleshoot FOLIO on-site-borrowing [DCB-1555]
+	* Add instrumented HttpClient as a way to inject a HttpClient that adds the host label to the prometheus metrics endpoint
+
+### Fixes
+* [General]
+	* Lower metric entries for lookups by removing bib ID
+	* Global preflights error on host_lms column [DCB-1903]
+	* Fix global limits preflight error [DCB-1903]
+
+## Version 8.30.0
+
+### Additions
+* [Alma]
+	* placing hold adjustments
+	* include holding id from placing holds and tracking items
+	* refactor bib and items methods
+	* handle 204 No Content responses using Void.class
+	* change return type for delete patron
+* [General]
+	* Allow alarms to pass a Map of additional properties that will be rendered in slack or teams
+	* Configurable availability timeout during resolution DCB-1896
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Add logging for reindex error
+	* Tidy up reporting, open up prometheus metrics
+	* GraphQL support for alarms [DCB-1902]
+	* error trapping on alarms service
+	* Additional log tuning
+	* Extra configuration of intercept url endpoint to allow OPTIONS on /graphql to anyone but secure POST - to try and reduce the incidence of exceptions in the logs
+	* Useful info logged on startup
+	* More logging adjustments to get prod defaults into a sensible shape
+	* Reduce logging be default a little
+
+### Fixes
+* [General]
+	* collectList when broadcasting alarms to slack and teams
+	* Syntax error in startup event listener
+	* disable per-test XML output to reduce build report size
+
+## Version 8.29.0
+
+### Additions
+* [Alma]
+	* use remotePatronId when validating patron
+	* changes to deleteAlmaUser
+* [General]
+	* Improvements to alarms and notifications in preparation for Teams and Slack integration
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Add missing file
+
+## Version 8.28.0
+
+### Additions
+* [Alma]
+	* add validate patron and delete patron to testIls
+	* External Id must be empty for internal user.
+	* error improvements and add required create user field
+	* try to convert HttpClientResponseExceptions to Alma specific errors
+	* validate responses for creating user/patron
+* [General]
+	* Timeout availability during resolution DCB-1896
+	* Introduce idea of office hours
+	* First pass of alarm notifications to system wide slack webhook. Set an env var like "DCB_GLOBAL_NOTIFICATIONS_WEBHOOKS[0]":"https://hooks.slack.com/services/***/***/***" to have alarms broadcast to the selected slack channel
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Remove the CLUSTER_CHECK_CONCURRENCY var
+	* use alternate base url for AlmaHostLmsClient class
+	* change return type for alma test method
+	* log webhooks at startup
+	* defensive code for webhook url
+	* adjusting folio ping, and add resumeOnError
+	* more defensive code arounf Folio ping operation
+	* Register handlers for uncaught exceptions and log them
+	* alter HttpClient for slack publishing
+	* Additional logging
+	* Trial delay as a short term measure
+	* Attempt to implement ping for FOLIO
+
+### Fixes
+* [General]
+	* Stop job when transitioning into hours.
+	* Throttles per sourceSystemId for availability check.
+	* Correction to the query for unprocessed availability.
+	* Office hours methods should pass if no data is supplied.
+	* Ensure we wait for chunk to be processed
+	* Prevent cyclic check of resources every 2 days
+	* Remove duplicate "and" from getActiveRequestCountForPatron [DCB-1897]
+	* build - remove no args annotation on AlmaError class
+
 ## Version 8.27.0
 
 ### Additions
 * [General]
 	* Implement some alarms
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ## Version 8.26.1
 
@@ -12,10 +174,16 @@
 * [General]
 	* Set needsAttention flag on Location when dynamically creating a new location
 	* Add Workflow methods to location, when dynamically creating a location as a part of holdings harvesting mark the new location record as needing the Review Workflow- because there are properties on a location only a human can supply
+	* Add userMessage to CheckResult - a string intended to be displayed in a user interface that explains the error in more readable terms
 
 ### Changes
 * [Chore]
 	* extra logging around federated lock release
+	* Changelog - Generate the changelog
+
+### Fixes
+* [General]
+	* use alternate base url for AlmaApiClientImpl
 
 ## Version 8.26.0
 
@@ -3833,20 +4001,6 @@
 	* Issue #DCB-226
 * [Provides]
 	* Issue #DCB-90
-
-## Version 2.8.0
-
-### Additions
-* [General]
-	* Add userMessage to CheckResult - a string intended to be displayed in a user interface that explains the error in more readable terms
-
-### Changes
-* [Chore]
-	* Changelog - Generate the changelog
-
-### Fixes
-* [General]
-	* use alternate base url for AlmaApiClientImpl
 
 ## Version 2.7.1
 

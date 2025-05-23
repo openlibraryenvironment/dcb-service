@@ -13,8 +13,11 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.core.publisher.Flux.fromIterable;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -42,18 +45,22 @@ public class PatronRequestResolutionService {
 	private final String itemResolver;
 	private final ManualSelection manualSelection;
 	private final ItemFilter itemFilter;
+	private final Duration timeout;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies, ManualSelection manualSelection,
-		ItemFilter itemFilter) {
+		ItemFilter itemFilter,
+		@Value("${dcb.resolution.live-availability.timeout:PT30S}") Duration timeout) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.manualSelection = manualSelection;
 		this.itemFilter = itemFilter;
+		this.timeout = timeout;
 
+		log.debug("Using live availability timeout of {} during resolution", timeout);
 		log.debug("Available item resolver strategies (selected={})", this.itemResolver);
 
 		for (ResolutionSortOrder t : allResolutionStrategies) {
@@ -207,11 +214,15 @@ public class PatronRequestResolutionService {
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
 		return Mono.justOrEmpty(resolution.getBibClusterId())
-			.flatMap(liveAvailabilityService::checkAvailability)
+			.flatMap(this::checkAvailability)
 			.onErrorMap(NoBibsForClusterRecordException.class,
 				error -> new UnableToResolvePatronRequest(error.getMessage()))
 			.map(AvailabilityReport::getItems)
 			.map(resolution::trackAllItems);
+	}
+
+	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
+		return liveAvailabilityService.checkAvailability(clusteredBibId, Optional.of(timeout));
 	}
 
 	private Mono<Resolution> sortItems(ResolutionSortOrder resolutionSortOrder,

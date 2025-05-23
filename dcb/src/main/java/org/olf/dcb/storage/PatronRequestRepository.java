@@ -135,9 +135,9 @@ public interface PatronRequestRepository {
     from patron_request pr, 
          patron_identity pi, 
          host_lms hl
-    where pr.requesting_identity = pi.id 
-      and pi.host_lms = hl.id
-      and pi.local_id=:patronId and 
+    where pr.requesting_identity_id = pi.id 
+      and pi.host_lms_id = hl.id
+      and pi.local_id=:patronId
       and hl.code = :hostLmsCode
       and pr.status_code in ( 'SUBMITTED_TO_DCB', 'PATRON_VERIFIED', 'RESOLVED', 'REQUEST_PLACED_AT_SUPPLYING_AGENCY',
                               'CONFIRMED', 'REQUEST_PLACED_AT_BORROWING_AGENCY', 'REQUEST_PLACED_AT_PICKUP_AGENCY',

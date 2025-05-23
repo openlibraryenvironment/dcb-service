@@ -19,4 +19,5 @@ public class InteropTestContext {
 
 	HostLmsClient hostLms;
  	Map<String,Object> values;
+	boolean success;
 }

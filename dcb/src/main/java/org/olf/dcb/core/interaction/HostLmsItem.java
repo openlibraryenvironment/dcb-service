@@ -40,6 +40,7 @@ public class HostLmsItem {
 	public static final String ITEM_LOANED = "LOANED";
 
 	String localId;
+	String localRequestId;
 	String status;
 	// The local status that hasn't been altered
 	@Nullable
@@ -50,4 +51,8 @@ public class HostLmsItem {
 	// Aggregated hold count - for DCB purposes we want to convey itemHolds+titleHolds into this number
 	// We don't care for our purposes what the hold has been placed on, only that someone has dibs on this item.
 	Integer holdCount;
+	@Nullable
+	String holdingId;
+	@Nullable
+	String bibId;
 }

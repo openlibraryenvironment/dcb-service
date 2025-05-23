@@ -31,8 +31,6 @@ import java.util.function.Function;
 
 import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
-import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromVirtualIdentity;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
@@ -170,8 +168,8 @@ public class SupplyingAgencyService {
 						return client.deleteHold(localRequestId);
 					case CANCEL:
 						// For cancel operation, we need additional parameters
-						final var localItemId = extractFromSupplierReq(context, SupplierRequest::getLocalItemId, "LocalItemId");
-						final var virtualPatronLocalID = extractFromVirtualIdentity(context, PatronIdentity::getLocalId, "VirtualPatronLocalID");
+						final var localItemId = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemId);
+						final var virtualPatronLocalID = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
 
 						return client.cancelHoldRequest(CancelHoldRequestParameters.builder()
 							.localRequestId(localRequestId)
@@ -201,8 +199,11 @@ public class SupplyingAgencyService {
 		HostLmsClient client, String localRequestId, RequestWorkflowContext context) {
 
 		final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
+		final var supplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
+		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(localRequestId).localPatronId(supplierPatronId).build();
 
-		return client.getRequest(localRequestId)
+		return client.getRequest(hostlmsRequest)
 			.flatMap(hostLmsRequest -> {
 
 				// if the hold exists a local id will be present
@@ -322,6 +323,7 @@ public class SupplyingAgencyService {
 					// FOLIO needs both the ID and barcode to cross-check the item identity
 					// SIERRA when placing a BIB hold - the ITEM that gets held may not be the one we selected
 					.localItemId(supplierRequest.getLocalItemId())
+					.localHoldingId(getValueOrNull(supplierRequest, SupplierRequest::getLocalHoldingId))
 					.localItemBarcode(supplierRequest.getLocalItemBarcode())
 					// Have to pass both because Sierra and Polaris still use code only
 					.pickupLocationCode(context.getPickupAgencyCode())
@@ -612,11 +614,14 @@ public class SupplyingAgencyService {
 			requestingIdentity.getLocalPtype(), requestingIdentity.getLocalId());
 	}
 
-	public Mono<HostLmsRequest> getRequest(String hostLmsCode, String localRequestId) {
+	public Mono<HostLmsRequest> getRequest(String hostLmsCode, HostLmsRequest request) {
+
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
+
 		log.debug("getHold({}, {})", hostLmsCode, localRequestId);
 
 		return hostLmsService.getClientFor(hostLmsCode)
-			.flatMap(client -> client.getRequest(localRequestId));
+			.flatMap(client -> client.getRequest(request));
 	}
 
 	public Mono<Patron> getPatron(RequestWorkflowContext ctx) {

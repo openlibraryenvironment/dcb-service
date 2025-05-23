@@ -306,7 +306,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 				.barcode(cic.getBarcode()).build());
 	}
 
-	public Mono<HostLmsRequest> getRequest(String localRequestId) {
+	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
+		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
+
 		log.debug("getRequest({})", localRequestId);
 
 		if (state != null) {
@@ -340,7 +342,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	}
 
-	public Mono<HostLmsItem> getItem(String localItemId, String localRequestId) {
+	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
+
+		final var localItemId = hostLmsItem.getLocalId();
+		final var localRequestId = hostLmsItem.getLocalRequestId();
+
 		log.debug("getItem(localItemId:{}, localRequestId:{})", localItemId, localRequestId);
 
 		if (state != null) {

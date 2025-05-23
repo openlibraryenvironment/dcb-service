@@ -27,6 +27,7 @@ import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.AvailabilityReport.Error;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
+import org.olf.dcb.operations.OperationsService;
 import org.olf.dcb.storage.BibAvailabilityCountRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.event.Level;
@@ -61,12 +62,17 @@ import services.k_int.utils.UUIDUtils;
 @ApplicableChunkTypes( AvailabilityCheckChunk.class )
 public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobChunkProcessor {
 	
-	private static final int CLUSTER_MAX_DEFAULT = 50;
+	private static final int CLUSTER_MAX_DEFAULT = 25;
 	// II Adding CLUSTER_CHECK_CONCURRENCY Because I'm concerned that we are creating a large queue of
 	// clusters to check and then limiting the concurrency of the lookups for bibs in that cluster
 	// So although we never check more than 100 bibs at a time, we can have many more than 100 of those flows in play
-	private static final int CLUSTER_CHECK_CONCURRENCY = 25;
-	private static final int EXTERNAL_FETCH_CONCURRENCY = 5;
+	
+	// SO: I have removed that particular throttle as it's a bug if we are generating the next chunk before we have finished processing this one.
+	// I have fixed that in the runner. 
+	
+	private static final int EXTERNAL_FETCH_TOTAL_CONCURRENCY = 5;	
+	private static final int EXTERNAL_FETCH_PER_SYSTEM = 2;
+	
 	private static final Duration TIMEOUT = Duration.of(30, ChronoUnit.SECONDS);
 	private static final String filters = "none";
 	
@@ -151,8 +157,9 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	private final BibRecordService bibRecordService;
 	private final ReactiveJobRunnerService jobRunnerService;
   private final ReactorFederatedLockService lockService;
+  private final OperationsService operations;
 
-	public AvailabilityCheckJob( LiveAvailabilityService liveAvailabilityService, SharedIndexService sharedIndexService, BibRecordService bibRecordService, LocationToAgencyMappingService locationToAgencyMappingService, HostLmsService hostLmsService, BibAvailabilityCountRepository bibCounts, ReactiveJobRunnerService jobRunnerService, ReactorFederatedLockService lockService ) {
+	public AvailabilityCheckJob( LiveAvailabilityService liveAvailabilityService, SharedIndexService sharedIndexService, BibRecordService bibRecordService, LocationToAgencyMappingService locationToAgencyMappingService, HostLmsService hostLmsService, BibAvailabilityCountRepository bibCounts, ReactiveJobRunnerService jobRunnerService, ReactorFederatedLockService lockService, OperationsService operations ) {
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.sharedIndexService = sharedIndexService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -161,6 +168,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		this.bibRecordService = bibRecordService;
 		this.jobRunnerService = jobRunnerService;
 		this.lockService = lockService;
+		this.operations = operations;
 	}
 
 	private static BibAvailabilityCountBuilder getAvailabilityCountDefaults( BibRecord bib ) {
@@ -214,12 +222,26 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 //		locationToAgencyMappingService.findLocationToAgencyMapping(filters, filters);
 	}
 	
+	public Flux<BibAvailabilityCount> throttleFetchBySourceSystem( Collection<UUID> ids ) {
+		return bibRecordService.getAllByIdIn( ids )
+			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
+			.flatMapIterable(Map::values)
+			.flatMap( sameSourceBibs -> {
+				return Flux.fromIterable(sameSourceBibs)
+					.buffer(EXTERNAL_FETCH_PER_SYSTEM)
+					.delayElements(Duration.of(1, ChronoUnit.SECONDS))
+					.concatMap( items -> {
+						return Flux.fromIterable(items)
+							.flatMap( this::checkSingleBib );
+					}, 0); // No prefetching
+			}, EXTERNAL_FETCH_TOTAL_CONCURRENCY);
+	}
+	
 	@Transactional
 	public Mono<Map<String, Collection<BibAvailabilityCount>>> checkClusterAvailability( Collection<UUID> bibs ) {
 		
 		// Manifest the bibs that need updating.
-		return bibRecordService.getAllByIdIn( bibs )
-			.flatMap( this::checkSingleBib, EXTERNAL_FETCH_CONCURRENCY )
+		return throttleFetchBySourceSystem( bibs )
 			
 			// Convert to and store the Location Entry
 			.flatMap( this::updateMappingIfRequired )
@@ -249,7 +271,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				.map(e -> "%s=%s".formatted(e.getKey(), e.getValue()))
 				.collect(Collectors.joining(","));
 			
-			log.info("Avaiability for [{}]: {}", clusterId, deets);
+			log.debug("Avaiability for [{}]: {}", clusterId, deets);
 			sharedIndexService.update( UUID.fromString( clusterId ));
 		}
 		
@@ -277,8 +299,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	
 	private AvailabilityCheckChunkBuilder defaultChunkBuilder() {
 		
+		final boolean transitionedIntoOfficeHours = operations.getOfficeHours().isInsideHours();
+		if (transitionedIntoOfficeHours)
+			log.debug("Making this the last chunk as we've entered office hours");
+		
 		return AvailabilityCheckChunk.builder()
 			.jobId(getId())
+			.lastChunk( transitionedIntoOfficeHours ) // Default this chunk to last if we have gone into outside hours.
 			.checkpoint(JsonBuilder.obj(o -> o
 				.key("runStarted", vals -> vals.str(Instant.now().toString()))
 				.key("lastFetched", vals -> vals.str(Instant.now().toString()))));
@@ -295,12 +322,17 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	}
 	
 	private Mono<JobChunk<MissingAvailabilityInfo>> getChunk( Optional<JsonNode> resumption ) {
+
+		log.info("Creating next chunk subscription");
 		
 		return Mono.just( CLUSTER_MAX_DEFAULT )
+			.doOnNext( _v -> log.debug ("Producing next set of availability lookup") )
 			.flatMapMany( bibRecordService::findMissingAvailability )
+			
 			// Temporarily adding a 50ms delay - steve to review
 			.delayElements(Duration.ofMillis(50))
 			.reduceWith( this::defaultChunkBuilder, (builder, item) -> builder.dataEntry(item) )
+			
 			.map( AvailabilityCheckChunkBuilder::build )
 			.map( AvailabilityCheckJob::chunkPostProcess );
 	}
@@ -321,28 +353,21 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					.orElse(0L))
 			.reduce( Long::sum )
 			.elapsed()
-			.transformDeferred(lockService.withLockOrEmpty(JOB_LOCK))
+			.transformDeferred( lockService.withLockOrEmpty(JOB_LOCK) )
 			.doOnSuccess( res -> {
 				if (res == null) {
-					log.info(JOB_NAME + "allready running (NOOP)");
+					log.info(JOB_NAME + " allready running (NOOP)");
+				}
+			})
+			.transformDeferred( operations::subscribeOnlyOutsideOfficeHours )
+			.doOnSuccess( res -> {
+				if (res == null) {
+					log.info(JOB_NAME + " skipping as set to run ouside office hours");
 				}
 			})
 			.subscribe(
 					TupleUtils.consumer(this::jobSubscriber),
 					this::errorSubscriber);
-		
-		
-//		getChunk()
-//			.publishOn( Schedulers.boundedElastic() )
-//			.subscribeOn( Schedulers.boundedElastic() )
-//			.transform( ReactorUtils.withFluxLogging(log, f ->
-//					f.doOnNext(Level.INFO, item -> log.info("Check availability for {}", item.toString()))) )
-//			.collectMultimap( info -> info.clusterId().toString(), MissingAvailabilityInfo::bibId )
-//			.flatMapIterable( Map::entrySet )
-//			.flatMap(entry -> checkClusterAvailability(entry.getValue())
-//				.map(locationMap -> Map.entry( entry.getKey(), locationMap )))
-//			.collectMap(Entry::getKey, Entry::getValue)
-//			.subscribe( this::reindexAffectedClusters, this::logError );
 	}
 
 	private static final String JOB_NAME = "Availability job";
@@ -378,13 +403,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		return Flux.fromIterable( acc.getData() )
 				// Special logging transformer only adds the operators if the log level is equal or greater.
 				.transform( ReactorUtils.withFluxLogging(log, f ->
-					f.doOnNext(Level.INFO, item -> log.info("Check availability for {}", item.toString()))) )
+					f.doOnNext(Level.INFO, item -> log.debug("Check availability for {}", item.toString()))) )
 				
 				.collectMultimap( info -> info.clusterId().toString(), MissingAvailabilityInfo::bibId )
 				.flatMapIterable( Map::entrySet )
 				
 				.flatMap(entry -> checkClusterAvailability(entry.getValue())
-					.map(locationMap -> Map.entry( entry.getKey(), locationMap )), CLUSTER_CHECK_CONCURRENCY)
+					.map(locationMap -> Map.entry( entry.getKey(), locationMap )))
 				.collectMap(Entry::getKey, Entry::getValue)	
 				.map( this::reindexAffectedClusters )
 			.then( Mono.just(chunk) );

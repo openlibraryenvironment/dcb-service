@@ -56,7 +56,7 @@ public class AlmaRequest {
   @JsonProperty("pickup_location_library")
 	String pickupLocationLibrary; // See alma Get Libraries API 
   @JsonProperty("pickup_location_circulation_desk")
-	String pickupLocationCircuationDesk; // The pickup location circulation desk code.  Relevant when request_type = HOLD or BOOKING, if pickup_location_type = CIRCULATION_DESK.
+	String pickupLocationCirculationDesk; // The pickup location circulation desk code.  Relevant when request_type = HOLD or BOOKING, if pickup_location_type = CIRCULATION_DESK.
   @JsonProperty("pickup_location_institution")
 	String pickupLocationInstitution; // The pickup location institution code.  Relevant when request_type = HOLD or BOOKING, if the request is to be picked up in a different institution.
   @JsonProperty("target_destination")
@@ -101,4 +101,8 @@ public class AlmaRequest {
 	String dueBackDate;
   @JsonProperty("copyrights_declaration_signed_by_patro")
 	String copyDeclarationSigned;
+	@JsonProperty("barcode")
+	String itemBarcode;
+	@JsonProperty("item_id")
+	String itemId;
 }
