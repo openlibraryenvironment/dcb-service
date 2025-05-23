@@ -151,6 +151,8 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
+		log.info("doExchange - Method: {}, URI: {}, argumentType: {}", request.getMethod(), request.getUri(), argumentType);
+		log.info("doExchange - Full Request: {}", request);
 		return Mono.from(client.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
 
@@ -382,8 +384,9 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(req -> req.uri(uriBuilder -> uriBuilder
 				.queryParam("item_pid", itemId)
 				.build()))
-			.doOnNext(req -> log.info("Final request method: {}, URI: {}", req.getMethod(), req.getUri()))
+			.doOnNext(req -> log.info("Final request method: {}, URI: {}, Full request: {}", req.getMethod(), req.getUri(), req))
 			.map(request -> request.body(almaRequest))
+			.doOnNext(req-> log.info("Now changing to an Alma request which looks like this {}", req) )
 			.flatMap(req -> doExchange(req, Argument.of(AlmaRequestResponse.class)))
 			.doOnNext(response -> log.info("doExchange returned response with status: {}, hasBody: {}",
 				response.getStatus(), response.getBody().isPresent()))
