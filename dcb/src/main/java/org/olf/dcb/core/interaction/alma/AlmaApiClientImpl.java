@@ -377,21 +377,15 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
   public Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest) {
 		final String path="/almaws/v1/users/"+userId+"/requests";
-
 		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
 
 		// Trying to understand what's in here
-		log.info(String.valueOf(almaRequest));
 		try {
 			String almaRequestJson = objectMapper.writeValueAsString(almaRequest);
 			log.info("Full AlmaRequest body to be sent: {}", almaRequestJson);
 		} catch (Exception e) {
 			log.error("Could not serialize AlmaRequest object for logging", e);
 		}
-		// Trying to see if making the pID in the body null does anything
-		almaRequest.setPId(null);
-
-
 		log.info("Placing hold for user {} and item {}", userId, itemId);
     return createRequest(POST, path)
 			.map(req -> req.uri(uriBuilder -> uriBuilder
@@ -422,6 +416,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	public Mono<AlmaHolding> createHolding(String mms_id, String almaHolding) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
+		log.info(almaHolding);
 
 		return createRequest(POST, path)
 			.map(request -> request.body(almaHolding).contentType(MediaType.APPLICATION_XML))
