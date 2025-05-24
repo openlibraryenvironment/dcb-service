@@ -376,18 +376,29 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
   public Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest) {
-		log.info("The alma request follows {}", almaRequest);
 		final String path="/almaws/v1/users/"+userId+"/requests";
-		// Commenting out as it looks like we already set this on the request that's been passed in
-		// Not sure if this is perhaps what is causing the weirdness
-//		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
 
-//		log.info("Placing hold for user {} and item {}", userId, itemId);
-		log.info("Placing hold for user {}", userId);
+		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
+
+		// Trying to understand what's in here
+		log.info(String.valueOf(almaRequest));
+		try {
+			String almaRequestJson = objectMapper.writeValueAsString(almaRequest);
+			log.info("Full AlmaRequest body to be sent: {}", almaRequestJson);
+		} catch (Exception e) {
+			log.error("Could not serialize AlmaRequest object for logging", e);
+		}
+		// Trying to see if making the pID in the body null does anything
+		almaRequest.setPId(null);
+
+
+		log.info("Placing hold for user {} and item {}", userId, itemId);
     return createRequest(POST, path)
-			.map(req -> //				.queryParam("item_pid", itemId)
-				req.uri(UriBuilder::build))
+			.map(req -> req.uri(uriBuilder -> uriBuilder
+				.queryParam("item_pid", itemId)
+				.build()))
 			.doOnNext(req -> log.info("Final request method: {}, URI: {}, Full request: {}", req.getMethod(), req.getUri(), req))
+			// I am wondering if the PID being in the body and the query params is causing some issues
 			.map(request -> request.body(almaRequest))
 			.doOnNext(req-> log.info("Now changing to an Alma request which looks like this {}", req) )
 			.flatMap(req -> doExchange(req, Argument.of(AlmaRequestResponse.class)))
