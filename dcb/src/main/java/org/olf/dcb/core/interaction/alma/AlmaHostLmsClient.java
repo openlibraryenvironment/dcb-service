@@ -339,7 +339,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// We need the primary ID  here to build our Alma user with it, but I don't think we have it
 
 		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
-		AlmaUser almaUser = buildAlmaUser(homeIdentityLocalId, firstName, lastName, externalId, userIdentifiers, primaryId);
+		AlmaUser almaUser = buildAlmaUser(primaryId, firstName, lastName, externalId, userIdentifiers, primaryId);
 
 		return determinePatronType(patron)
 			.flatMap(patronType -> {

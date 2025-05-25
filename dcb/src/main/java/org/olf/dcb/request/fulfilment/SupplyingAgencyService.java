@@ -568,6 +568,7 @@ public class SupplyingAgencyService {
 				final var patronType = tuple.getT1();
 				final var uniqueId = tuple.getT2().determineUniqueId();
 				final var homeIdentityLocalId = getValueOrNull(requestingPatronIdentity, PatronIdentity::getLocalId);
+				log.info("Local id is {} and unique ID is {} and identity is {}", homeIdentityLocalId,uniqueId, requestingPatronIdentity);
 				return client.createPatron(
 					Patron.builder()
 						.localId(Collections.singletonList(homeIdentityLocalId))
