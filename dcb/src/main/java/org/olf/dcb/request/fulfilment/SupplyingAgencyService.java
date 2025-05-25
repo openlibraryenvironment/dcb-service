@@ -300,6 +300,7 @@ public class SupplyingAgencyService {
 		final var homeIdentity = patron.getHomeIdentity()
 			.orElseThrow(() -> new NoHomeIdentityException(patron.getId(),
 				patron.getPatronIdentities()));
+		log.info("Identity at supplier {}, and supplier request {}", patronIdentityAtSupplier, supplierRequest);
 
 		// String note = "Consortial Hold. tno=" + patronRequest.getId();
 		String note = context.generateTransactionNote();

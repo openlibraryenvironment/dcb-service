@@ -330,13 +330,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
+		log.info("Alma patron creation starts with this patron {}", patron);
 		final var homeIdentityLocalId = extractPatronId(patron);
 		final var firstName = extractFirstName(patron);
 		final var lastName = extractLastName(patron);
 		final var externalId = extractExternalId(patron);
+		final var primaryId = extractPrimaryId(patron);
+		// We need the primary ID  here to build our Alma user with it, but I don't think we have it
 
 		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
-		AlmaUser almaUser = buildAlmaUser(homeIdentityLocalId, firstName, lastName, externalId, userIdentifiers);
+		AlmaUser almaUser = buildAlmaUser(homeIdentityLocalId, firstName, lastName, externalId, userIdentifiers, primaryId);
 
 		return determinePatronType(patron)
 			.flatMap(patronType -> {
@@ -344,7 +347,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 				return Mono.from(client.createPatron(almaUser))
 					.flatMap(returnedUser -> {
-						log.debug("Created alma user {}", returnedUser);
+						log.info("Created alma user {}", returnedUser);
 						return Mono.just(homeIdentityLocalId);
 					});
 			});
@@ -384,6 +387,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return null;
 	}
 
+
+	private String extractPrimaryId(Patron patron) {
+		if (patron.getLocalId() != null && !patron.getLocalId().isEmpty()) {
+			return patron.getUniqueIds().get(0);
+		}
+		return null;
+	}
+
 	private List<UserIdentifier> createUserIdentifiers(Patron patron) {
 		if (patron.getLocalBarcodes() != null) {
 			var userIdentifiers = patron.getLocalBarcodes().stream()
@@ -407,7 +418,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	private AlmaUser buildAlmaUser(String patronId, String firstName, String lastName,
-																 String externalId, List<UserIdentifier> userIdentifiers) {
+																 String externalId, List<UserIdentifier> userIdentifiers, String primaryId) {
 		return AlmaUser.builder()
 			.record_type(CodeValuePair.builder().value(RECORD_TYPE_PUBLIC).build())
 			.first_name(firstName)
@@ -416,6 +427,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.is_researcher(Boolean.FALSE)
 			.user_identifiers(userIdentifiers)
 			.external_id(externalId) // DCB Patron ID for home library system
+			.primary_id(primaryId)
 			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
 	}
