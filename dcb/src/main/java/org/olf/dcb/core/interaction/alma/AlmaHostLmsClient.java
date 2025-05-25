@@ -390,7 +390,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private String extractPrimaryId(Patron patron) {
 		if (patron.getLocalId() != null && !patron.getLocalId().isEmpty()) {
-			return patron.getUniqueIds().get(0);
+			return patron.getLocalId().get(0);
 		}
 		return null;
 	}
@@ -419,6 +419,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private AlmaUser buildAlmaUser(String patronId, String firstName, String lastName,
 																 String externalId, List<UserIdentifier> userIdentifiers, String primaryId) {
+		log.info("Building an alma user with patronId {}, externalId {}, identifiers {}, primaryId {}", patronId, externalId, userIdentifiers, primaryId);
 		return AlmaUser.builder()
 			.record_type(CodeValuePair.builder().value(RECORD_TYPE_PUBLIC).build())
 			.first_name(firstName)
@@ -427,7 +428,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.is_researcher(Boolean.FALSE)
 			.user_identifiers(userIdentifiers)
 			.external_id(externalId) // DCB Patron ID for home library system
-			.primary_id(primaryId)
+			.primary_id(externalId)
 			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
 	}
@@ -692,6 +693,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
   }
 
 	private Patron almaUserToPatron(AlmaUser almaUser) {
+		log.info("Alma user is {}", almaUser);
 
 		List<String> localIds = new ArrayList<String>();
 		List<String> uniqueIds = new ArrayList<String>();
