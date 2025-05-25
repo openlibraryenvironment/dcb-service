@@ -330,12 +330,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
-		log.info("Alma patron creation starts with this patron {}", patron);
-		final var homeIdentityLocalId = extractPatronId(patron);
+		final var homeIdentityLocalId = extractExternalId(patron);
 		final var firstName = extractFirstName(patron);
 		final var lastName = extractLastName(patron);
 		final var externalId = extractExternalId(patron);
 		final var primaryId = extractPrimaryId(patron);
+		log.info("Alma patron creation starts with this patron {} and this homeIdentityLocalId {}, this externalId {}, and this primary ID {}", patron, homeIdentityLocalId, externalId, primaryId);
+
 		// We need the primary ID  here to build our Alma user with it, but I don't think we have it
 
 		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
