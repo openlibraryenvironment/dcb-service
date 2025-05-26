@@ -417,7 +417,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	public Mono<AlmaHolding> createHolding(String mms_id, String almaHolding) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
 		log.info(almaHolding);
-		log.info(mms_id);
 		return createRequest(POST, path)
 			.map(request -> request.body(almaHolding).contentType(MediaType.APPLICATION_XML))
 			.flatMap(req -> doExchange(req, Argument.of(AlmaHolding.class)))

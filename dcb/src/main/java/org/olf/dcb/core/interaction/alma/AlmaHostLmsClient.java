@@ -74,6 +74,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
 		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
 
+	private static final HostLmsPropertyDefinition PICKUP_LIBRARY_SETTING
+		= stringPropertyDefinition("pickup-location-library", "Default pickup library for this ALMA system", FALSE);
+
 	private final HostLms hostLms;
 
 	private final HttpClient httpClient;
@@ -202,12 +205,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
     log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupLocationCode,itemBarcode);
 
 		final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+		final var pickupLocationLibrary = PICKUP_LIBRARY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN");
 
 		final var almaRequest = AlmaRequest.builder()
 			.pId(itemId)
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
-			.pickupLocationLibrary(pickupLocationCode)
+			.pickupLocationLibrary(pickupLocationLibrary)
 			.pickupLocationCirculationDesk(pickupLocationCircuationDesk)
 			.comment("DCB Request")
 			.build();
