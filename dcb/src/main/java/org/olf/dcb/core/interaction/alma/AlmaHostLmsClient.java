@@ -73,6 +73,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		= stringPropertyDefinition("shelf-location", "Shelf location for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
 		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
+	private static final HostLmsPropertyDefinition USER_IDENTIFIER
+		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
 
 	private static final HostLmsPropertyDefinition PICKUP_LIBRARY_SETTING
 		= stringPropertyDefinition("pickup-location-library", "Default pickup library for this ALMA system", FALSE);
@@ -287,42 +289,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 
-		// find user by external_id (DCB patron uniqueId)
-		// this is assuming when a virtual patron is created the external_id is set with DCBs patron uniqueId
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
-		final var uniqueId2 = getValueOrNull(patron, org.olf.dcb.core.model.Patron::getHomeLibraryCode);
 
-		log.info(uniqueId, uniqueId2);
-		return client.getUsersByExternalId(uniqueId)
-			.map(almaUserList -> {
+		if (uniqueId == null) {
+			return Mono.error(new IllegalArgumentException("Unable to find uniqueId for virtual patron"));
+		}
 
-				final var users = getValueOrNull(almaUserList, AlmaUserList::getUser);
-				final var usersSize = (users != null) ? users.size() : 0;
-
-				if (usersSize < 1) {
-					log.warn("No virtual Patron found.");
-
-					throw VirtualPatronNotFound.builder()
-						.withDetail(usersSize + " records found")
-						.with("uniqueId", uniqueId)
-						.with("Response", almaUserList)
-						.build();
-				}
-
-				if (usersSize > 1) {
-					log.error("More than one virtual patron found: {}", almaUserList);
-
-					throw MultipleVirtualPatronsFound.builder()
-						.withDetail(usersSize + " records found")
-						.with("uniqueId", uniqueId)
-						.with("Response", almaUserList)
-						.build();
-				}
-
-				final var onlyUser = users.get(0);
-
-				return almaUserToPatron(onlyUser);
-			});
+		// this relies on implementation relies on alma finding the user by our uniqueId
+		// if we have created a user with a user identifier correctly we should be good
+		// the user will need to have the user identifier enabled
+		return client.getAlmaUserByUserId(uniqueId)
+			.doOnNext(almaUser -> log.info("Found virtual patron with uniqueId: {}", uniqueId))
+			.map(this::almaUserToPatron)
+			.doOnError(e -> log.error("Unable to find virtual patron with uniqueId: {}", uniqueId, e));
 	}
 
 	// Static create patron defaults
@@ -332,21 +311,17 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final String STATUS_ACTIVE = "ACTIVE";
 	private static final String ACCOUNT_TYPE_EXTERNAL = "EXTERNAL";
 	private static final String ID_TYPE_BARCODE = "BARCODE";
+	private static final String ID_TYPE_INST_ID = "INST_ID";
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 
-		final var homeIdentityLocalId = extractExternalId(patron);
 		final var firstName = extractFirstName(patron);
 		final var lastName = extractLastName(patron);
 		final var externalId = extractExternalId(patron);
-		final var primaryId = extractPrimaryId(patron);
-		log.info("Alma patron creation starts with this patron {} and this homeIdentityLocalId {}, this externalId {}, and this primary ID {}", patron, homeIdentityLocalId, externalId, primaryId);
 
-		// We need the primary ID  here to build our Alma user with it, but I don't think we have it
-
-		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
-		AlmaUser almaUser = buildAlmaUser(primaryId, firstName, lastName, externalId, userIdentifiers, primaryId);
+		UserIdentifiers userIdentifiers = createUserIdentifiers(patron);
+		AlmaUser almaUser = buildAlmaUser(firstName, lastName, externalId, userIdentifiers);
 
 		return determinePatronType(patron)
 			.flatMap(patronType -> {
@@ -354,19 +329,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 				return Mono.from(client.createPatron(almaUser))
 					.flatMap(returnedUser -> {
-						log.info("Created alma user {}", returnedUser);
-						return Mono.just(homeIdentityLocalId);
+						log.debug("Created alma user {}", returnedUser);
+						return Mono.just(returnedUser.getPrimary_id());
 					});
 			});
-	}
-
-	private String extractPatronId(Patron patron) {
-
-		if (patron.getLocalId() != null && !patron.getLocalId().isEmpty()) {
-			return patron.getLocalId().get(0);
-		}
-
-		return null;
 	}
 
 	private String extractFirstName(Patron patron) {
@@ -394,15 +360,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return null;
 	}
 
+	private UserIdentifiers createUserIdentifiers(Patron patron) {
 
-	private String extractPrimaryId(Patron patron) {
-		if (patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()) {
-			return patron.getUniqueIds().get(0);
-		}
-		return null;
-	}
+		// We need to use an identifier that is enabled on the Alma system to store the DCB uniqueId
+		// This identifier needs to be enabled on the Alma system
+		// API documentation: https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_user.xsd/?tags=POST#user_identifiers
+		final var identifier = USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), ID_TYPE_INST_ID);
 
-	private List<UserIdentifier> createUserIdentifiers(Patron patron) {
 		if (patron.getLocalBarcodes() != null) {
 			var userIdentifiers = patron.getLocalBarcodes().stream()
 				.map(value -> UserIdentifier.builder()
@@ -412,30 +376,28 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.collect(Collectors.toList());
 
 			userIdentifiers.add(UserIdentifier.builder()
-				.id_type(WithAttr.builder().value("dcb_unique_id").build())
+				.id_type(WithAttr.builder().value(identifier).build())
 				.value(extractExternalId(patron)).build());
 
-			userIdentifiers.add(UserIdentifier.builder()
-				.id_type(WithAttr.builder().value("home_identity_local_id").build())
-				.value(extractPatronId(patron)).build());
-
-			return userIdentifiers;
+			return UserIdentifiers.builder().identifiers(userIdentifiers).build();
+		} else if (extractExternalId(patron) != null) {
+			return UserIdentifiers.builder().identifiers(Collections.singletonList(UserIdentifier.builder()
+				.id_type(WithAttr.builder().value(identifier).build())
+				.value(extractExternalId(patron)).build())).build();
 		}
 		return null;
 	}
 
-	private AlmaUser buildAlmaUser(String patronId, String firstName, String lastName,
-																 String externalId, List<UserIdentifier> userIdentifiers, String primaryId) {
-		log.info("Building an alma user with patronId {}, externalId {}, identifiers {}, primaryId {}", patronId, externalId, userIdentifiers, primaryId);
+	private AlmaUser buildAlmaUser(String firstName, String lastName, String externalId,
+																 UserIdentifiers userIdentifiers) {
 		return AlmaUser.builder()
 			.record_type(CodeValuePair.builder().value(RECORD_TYPE_PUBLIC).build())
 			.first_name(firstName)
 			.last_name(lastName)
 			.status(CodeValuePair.builder().value(STATUS_ACTIVE).build())
 			.is_researcher(Boolean.FALSE)
-			.user_identifiers(userIdentifiers)
-			.external_id(externalId) // DCB Patron ID for home library system
-			.primary_id(primaryId)
+			.identifiers(userIdentifiers)
+			.external_id(externalId)
 			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
 	}
@@ -491,7 +453,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.last_name(returnedUser.getLast_name())
 					.status(returnedUser.getStatus())
 					.is_researcher(returnedUser.getIs_researcher())
-					.user_identifiers(returnedUser.getUser_identifiers())
+					.identifiers(returnedUser.getIdentifiers())
 					.external_id(returnedUser.getExternal_id())
 					.account_type(returnedUser.getAccount_type())
 
