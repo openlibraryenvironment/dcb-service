@@ -17,6 +17,7 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.error.AlmaError;
 import services.k_int.interaction.alma.types.error.AlmaException;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.types.items.*;
@@ -304,15 +305,44 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.doOnNext(almaUser -> log.info("Found virtual patron with uniqueId: {}", uniqueId))
 			.map(this::almaUserToPatron)
 			.onErrorResume(e -> {
-				if (e instanceof AlmaException) {
-					throw VirtualPatronNotFound.builder()
-						.withDetail("0 records found")
-						.with("uniqueId", uniqueId)
-						.with("Response", e.toString())
-						.build();
+				if (isVirtualPatronNotFoundError(e)) {
+					throw createVirtualPatronNotFoundException(uniqueId, e);
 				}
 				return Mono.error(e);
 			});
+	}
+
+	private static final int BAD_REQUEST_STATUS = 400;
+	private static final String VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE = "401861";
+
+	private boolean isVirtualPatronNotFoundError(Throwable e) {
+		if (!(e instanceof AlmaException almaException)) {
+			return false;
+		}
+
+		if (almaException.getStatus().getCode() != BAD_REQUEST_STATUS) {
+			return false;
+		}
+
+		try {
+			List<AlmaError> errors = almaException.getErrorResponse()
+				.getErrorList()
+				.getError();
+
+			return errors.stream()
+				.anyMatch(error -> VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE.equals(error.getErrorCode()));
+		} catch (Exception ex) {
+			log.error("Unable to determine if virtual patron not found error", ex);
+			return false;
+		}
+	}
+
+	private VirtualPatronNotFound createVirtualPatronNotFoundException(String uniqueId, Throwable cause) {
+		return VirtualPatronNotFound.builder()
+			.withDetail("No records found")
+			.with("uniqueId", uniqueId)
+			.with("Response", cause.toString())
+			.build();
 	}
 
 	// Static create patron defaults
