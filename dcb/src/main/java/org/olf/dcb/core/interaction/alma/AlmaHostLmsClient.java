@@ -292,7 +292,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 		final var uniqueId2 = getValueOrNull(patron, org.olf.dcb.core.model.Patron::getHomeLibraryCode);
 
-		log.info("U1 {}, U2{}", uniqueId, uniqueId2);
+		log.info(uniqueId, uniqueId2);
 		return client.getUsersByExternalId(uniqueId)
 			.map(almaUserList -> {
 

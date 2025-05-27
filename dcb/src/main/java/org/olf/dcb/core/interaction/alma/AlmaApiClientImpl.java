@@ -106,7 +106,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 		return createRequest(GET, path)
 			.map(req -> req.uri(uriBuilder -> uriBuilder
-				.queryParam("external_id", externalId)
+				.queryParam("q", query)
 				.build()))
 			.flatMap(req -> doExchange(req, Argument.of(AlmaUserList.class)))
 			.map(response -> response.getBody().get())
