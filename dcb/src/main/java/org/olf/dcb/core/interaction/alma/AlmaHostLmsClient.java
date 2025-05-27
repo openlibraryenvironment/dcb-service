@@ -394,8 +394,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 
 	private String extractPrimaryId(Patron patron) {
-		if (patron.getLocalId() != null && !patron.getLocalId().isEmpty()) {
-			return patron.getLocalId().get(0);
+		if (patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()) {
+			return patron.getUniqueIds().get(0);
 		}
 		return null;
 	}
@@ -433,7 +433,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.is_researcher(Boolean.FALSE)
 			.user_identifiers(userIdentifiers)
 			.external_id(externalId) // DCB Patron ID for home library system
-			.primary_id(externalId)
+			.primary_id(primaryId)
 			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
 	}
