@@ -17,6 +17,7 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.error.AlmaException;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.*;
@@ -288,6 +289,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
+		log.info("Finding virtual patron {}", patron);
 
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 
@@ -301,7 +303,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return client.getAlmaUserByUserId(uniqueId)
 			.doOnNext(almaUser -> log.info("Found virtual patron with uniqueId: {}", uniqueId))
 			.map(this::almaUserToPatron)
-			.doOnError(e -> log.error("Unable to find virtual patron with uniqueId: {}", uniqueId, e));
+			.onErrorResume(e -> {
+				if (e instanceof AlmaException) {
+					throw VirtualPatronNotFound.builder()
+						.withDetail("0 records found")
+						.with("uniqueId", uniqueId)
+						.with("Response", e.toString())
+						.build();
+				}
+				return Mono.error(e);
+			});
 	}
 
 	// Static create patron defaults

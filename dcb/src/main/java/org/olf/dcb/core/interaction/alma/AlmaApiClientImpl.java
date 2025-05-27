@@ -215,11 +215,13 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	@Override
   public Mono<AlmaUser> createPatron(AlmaUser patron) {
+		log.info("Creating user with details {}", patron);
 		// POST /almaws/v1/users
 		// See: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
 		final String path="/almaws/v1/users";
     return createRequest(POST, path)
 			.map(request -> request.body(patron))
+
 			.flatMap(request -> doExchange(request, Argument.of(AlmaUser.class)))
 			.map(response -> response.getBody().get())
 			.doOnNext(user -> log.info("Created user {}",user.getPrimary_id()));
