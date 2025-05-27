@@ -289,8 +289,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		// find user by external_id (DCB patron uniqueId)
 		// this is assuming when a virtual patron is created the external_id is set with DCBs patron uniqueId
-//		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
-		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::getHomeLibraryCode);
+		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
+//		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::getHomeLibraryCode);
 		return client.getUsersByExternalId(uniqueId)
 			.map(almaUserList -> {
 
