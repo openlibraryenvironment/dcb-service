@@ -1882,6 +1882,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Item fixed field 71 contains the renewal count https://techdocs.iii.com/sierraapi/Content/zObjects/itemObjectDescription.htm?Highlight=renew
 		log.info("Sierra prevent renewal {}",prc);
 
+		if ( prc.getItemId() == null )
+			throw new RuntimeException("Prevent Renewal command had null itemId "+prc.toString());
+
 		final var fixedFields = Map.of(
             71, FixedField.builder().label("No. of Renewals").value(255).build());
             // 75, FixedField.builder().label("Recall date").value("&").build());

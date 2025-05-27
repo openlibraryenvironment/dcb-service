@@ -6,6 +6,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +20,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
 
 @Slf4j
 @Prototype
@@ -80,8 +82,12 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 				ctx.getWorkflowMessages().add("Local request ID: \"%s\"".formatted(localRequestId));
 			})
 			.doOnError(error -> {
-				log.error("Error occurred during placing a patron request to borrowing agency: {}", error.getMessage());
-				ctx.getWorkflowMessages().add("Error occurred during placing a patron request to borrowing agency: "+error.getMessage());
+				String msg = "Error occurred during placing a patron request to borrowing agency(%s@%s): %s".format(
+					ctx.getPatronAgencyCode() != null ? ctx.getPatronAgencyCode() : "MISSING",
+					ctx.getPatronSystemCode() != null ? ctx.getPatronSystemCode() : "MISSING",
+					error.getMessage());
+				log.error(msg);
+				ctx.getWorkflowMessages().add(msg);
 			})
 			.thenReturn(ctx);
 	}
