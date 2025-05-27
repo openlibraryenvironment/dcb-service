@@ -371,7 +371,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 				return Mono.from(client.createPatron(almaUser))
 					.flatMap(returnedUser -> {
-						log.debug("Created alma user {}", returnedUser);
+						log.info("Created alma user {}", returnedUser);
 						return Mono.just(returnedUser.getPrimary_id());
 					});
 			});
