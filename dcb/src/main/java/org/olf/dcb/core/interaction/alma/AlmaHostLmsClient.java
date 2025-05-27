@@ -363,6 +363,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		UserIdentifiers userIdentifiers = createUserIdentifiers(patron);
 		AlmaUser almaUser = buildAlmaUser(firstName, lastName, externalId, userIdentifiers);
+		log.info("Attempting to create a patron for Alma with Patron: {}, alma user: {} and user identifiers {}", patron, almaUser, userIdentifiers);
 
 		return determinePatronType(patron)
 			.flatMap(patronType -> {
@@ -439,6 +440,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.is_researcher(Boolean.FALSE)
 			.identifiers(userIdentifiers)
 			.external_id(externalId)
+			.primary_id(externalId) // Workaround: to be removed once we understand where the primary_id is being lost
 			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
 	}
