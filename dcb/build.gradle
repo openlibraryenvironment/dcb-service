@@ -356,7 +356,7 @@ graalvmNative {
             buildArgs.add('--trace-class-initialization=ch.qos.logback.classic.Logger')
             buildArgs.add('--trace-object-instantiation=ch.qos.logback.core.AsyncAppenderBase$Worker')
             buildArgs.add('--initialize-at-run-time=io.netty')
-            buildArgs.add('-H:ReflectionConfigurationFiles=/home/app/resources/META-INF/native-image/reflection-config.json')
+            buildArgs.add('-H:ReflectionConfigurationFiles=/home/app/resources/META-INF/native-image/reflect-config.json')
             // buildArgs.add('--exact-reachability-metadata')
         }
 		}

@@ -111,6 +111,14 @@
   },
 	{
 		"name": "ch.qos.logback.contrib.jackson.JacksonJsonFormatter",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true,
+    "allDeclaredClasses": true,
+    "allPublicClasses": true ,
 		"methods": [
 			{ "name": "setPrettyPrint", "parameterTypes": ["boolean"] }
 		]
