@@ -23,7 +23,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # Need to checkout everything to ensure we have the tag info we need.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          fetch-tags: true
 
       - uses: actions/cache@v3
         with:
