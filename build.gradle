@@ -57,3 +57,11 @@ task staticCopyOpenApi(type: Copy) {
 tasks.withType(ShadowJar) {
     setZip64(true)
 }
+
+afterEvaluate {
+	final rootVersion = getVersion()
+	subprojects {
+		it.version = rootVersion
+	}
+}
+

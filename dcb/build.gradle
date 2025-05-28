@@ -283,33 +283,51 @@ tasks {
                 // graalArch.set("x86-64-v2")
 	}
 
-	boolean isPre = project.hasProperty('versionPreRelease') &&
-		("${project.getProperty('versionPreRelease')}".trim() != "")
+	boolean isPre = project.hasProperty('versionPreRelease') && !project.property('versionPreRelease').equals('unspecified') &&
+		("${project.property('versionPreRelease')}".trim() != "")
 
-	// Build up a list of tags we should apply
+	// Always add the version including any specified prerelease
 	final Set<String> tags = [
-		'versionMajor',
-		'versionMajorMinor',
 		'version'
 	].findResults {
 		(project.hasProperty(it) && !project.property(it).equals('unspecified')) ? project.property(it).toString().trim() : null
 	}
 
+	// Build up a list of tags we should apply
+	tags.addAll( [
+		'versionMajor',
+		'versionMajorMinor'
+	].findResults {
+
+		final String tag = (project.hasProperty(it) && !project.property(it).equals('unspecified')) ? project.property(it).toString().trim() : null
+		if (tag == null) return null
+
+		// Append the next keyword if this is a tag.
+		if (isPre) {
+			// Trim the prerelease off and just add next for partial tags
+			final String toTrim = project.property('versionPreRelease');
+			return "${tag - toTrim}-next"
+		}
+
+		tag
+	})
+
 	// If this is a pre-release (including Snapshots) then add "next" tag. Otherwise, use latest
 	tags << (isPre ? 'next' : 'latest')
 
-	final imageAndRepo = "${System.env.DOCKER_IMAGE ?: project.name}"
+	final imageAndRepo = "${System.env.DOCKER_IMAGE ?: 'docker.libsdev.k-int.com/' + project.name.toLowerCase()}"
 
 	Set<String> imageNames = tags.collect { "${imageAndRepo}:${it}" }
-	Set<String> nativImageNames = tags.collect { "${imageAndRepo}:native-${it}" }
+	Set<String> nativeImageNames = tags.collect { "${imageAndRepo}:native-${it}" }
 
 	dockerBuild {
 		images = imageNames
 	}
 
 	dockerBuildNative {
-		images = nativImageNames
+		images = nativeImageNames
 	}
+
 
 	jacocoTestReport {
 		dependsOn test
@@ -325,6 +343,7 @@ tasks {
 			}))
 		}
 	}
+	
 	jacocoTestCoverageVerification {
 
 		afterEvaluate {
