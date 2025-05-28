@@ -15,7 +15,6 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @Builder
-@ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class AlmaUser {
 	// CONTACT, PUBLIC, STAFF
@@ -41,5 +40,5 @@ public class AlmaUser {
 	CodeValuePair status;
 	@ToString.Include
 	@JsonProperty("user_identifier")
-	UserIdentifiers identifiers;
+	List<UserIdentifier> identifiers;
 }

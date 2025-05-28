@@ -3,17 +3,20 @@ package org.olf.dcb.interops;
 import java.util.List;
 import java.util.HashMap;
 import java.util.function.Function;
+
 import java.time.Duration;
 import java.time.Instant;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.api.ImplementationToolsController;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Location;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.model.PatronIdentity;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.types.error.AlmaException;
@@ -464,4 +467,11 @@ public class InteropTestService {
 		}
 		return false;
 	}
+
+
+	public Mono<InteropTestResult> retrieveConfiguration(String systemCode, String validatedType) {
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(hostLmsClient -> Mono.just(InteropTestResult.builder().result("NOT-RUN").build())); // WIP
+	}
+
 }

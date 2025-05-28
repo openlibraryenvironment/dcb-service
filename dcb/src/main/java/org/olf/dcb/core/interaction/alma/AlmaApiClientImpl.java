@@ -151,8 +151,18 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		log.info("doExchange - Method: {}, URI: {}, argumentType: {}, body: {}, headers: {}", request.getMethod(), request.getUri(), argumentType, request.getBody(), request.getHeaders());
-		log.info("doExchange - Full Request: {}", request);
+		String bodyJson = "null";
+		if (request.getBody().isPresent()) {
+			try {
+				bodyJson = objectMapper.writeValueAsString(request.getBody().get());
+			} catch (Exception e) {
+				bodyJson = "Failed to serialize: " + e.getMessage();
+			}
+		}
+
+		log.debug("Starting exchange for - \n  Method: {}, \n  URI: {}, \n  argumentType: {}, \n  body: {}, \n  headers: {}",
+			request.getMethod(), request.getUri(), argumentType, bodyJson, request.getHeaders().asMap());
+
 		return Mono.from(client.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
 

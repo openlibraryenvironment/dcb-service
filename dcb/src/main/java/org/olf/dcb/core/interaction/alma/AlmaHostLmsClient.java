@@ -361,7 +361,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var lastName = extractLastName(patron);
 		final var externalId = extractExternalId(patron);
 
-		UserIdentifiers userIdentifiers = createUserIdentifiers(patron);
+		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
 		AlmaUser almaUser = buildAlmaUser(firstName, lastName, externalId, userIdentifiers);
 		log.info("Attempting to create a patron for Alma with Patron: {}, alma user: {} and user identifiers {}. First name is {}, last name is {}", patron, almaUser, userIdentifiers, firstName,lastName);
 
@@ -403,7 +403,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 
-	private UserIdentifiers createUserIdentifiers(Patron patron) {
+	private List<UserIdentifier> createUserIdentifiers(Patron patron) {
 		final var identifierType = USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), ID_TYPE_INST_ID);
 		final String externalId = extractExternalId(patron);
 
@@ -415,9 +415,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		List<UserIdentifier> identifiers = new ArrayList<>();
 
 		// Add barcode identifiers
+		// WARNING: adding multiple barcodes may not be supported by Alma
 		if (patron.getLocalBarcodes() != null && !patron.getLocalBarcodes().isEmpty()) {
 			patron.getLocalBarcodes().stream()
 				.filter(Objects::nonNull) // Guard against null barcodes in the list
+				.filter(barcode -> !barcode.equals(externalId)) // Request cannot contain two identifiers with the same value
 				.map(barcode -> UserIdentifier.builder()
 					.id_type(WithAttr.builder().value(ID_TYPE_BARCODE).build())
 					.value(barcode)
@@ -433,11 +435,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.build());
 		}
 		log.info("Identifiers {}", identifiers);
-		return UserIdentifiers.builder().identifiers(identifiers).build();
+		return identifiers;
 	}
 
 	private AlmaUser buildAlmaUser(String firstName, String lastName, String externalId,
-																 UserIdentifiers userIdentifiers) {
+																 List<UserIdentifier> userIdentifiers) {
 		return AlmaUser.builder()
 			.record_type(CodeValuePair.builder().value(RECORD_TYPE_PUBLIC).build())
 			.first_name(firstName)
@@ -446,7 +448,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.is_researcher(Boolean.FALSE)
 			.identifiers(userIdentifiers)
 			.external_id(externalId)
-			.primary_id(externalId) // Workaround: to be removed once we understand where the primary_id is being lost
+			//.primary_id(externalId) // Workaround: to be removed once we understand where the primary_id is being lost
 			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
 	}
