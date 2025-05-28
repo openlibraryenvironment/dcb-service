@@ -315,7 +315,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
-		log.debug("placeHoldRequestAtSupplyingAgency({})", parameters);
+		log.info("placeHoldRequestAtSupplyingAgency({})", parameters);
+		log.info("location is {}, with host system {}", parameters.getPickupLocation(), parameters.getPickupLocation().getHostSystem());
 		return placeGenericAlmaRequest(parameters.getLocalBibId(),
 			parameters.getLocalItemId(),
 			parameters.getLocalHoldingId(),
@@ -327,7 +328,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
-		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
+		log.info("placeHoldRequestAtBorrowingAgency({})", parameters);
 		return placeGenericAlmaRequest(parameters.getLocalBibId(),
 			parameters.getLocalItemId(),
 			parameters.getLocalHoldingId(),
