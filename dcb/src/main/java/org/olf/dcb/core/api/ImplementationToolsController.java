@@ -28,6 +28,8 @@ import org.olf.dcb.core.interaction.PingResponse;
 
 import jakarta.validation.constraints.NotNull;
 
+import java.util.Arrays;
+
 @Controller("/imps")
 @Validated
 @Secured({RoleNames.INTEROP_TESTER, RoleNames.ADMINISTRATOR})
@@ -60,35 +62,12 @@ public class ImplementationToolsController {
 		return interopTestService.testIls(code, forceCleanup);
 	}
 
-	// Define the enum
-	public enum ConfigType {
-		LOCATIONS("locations");
-
-		private final String value;
-
-		ConfigType(String value) {
-			this.value = value;
-		}
-
-		public String getValue() {
-			return value;
-		}
-
-		public static ConfigType fromString(String value) {
-			for (ConfigType type : ConfigType.values()) {
-				if (type.value.equalsIgnoreCase(value)) {
-					return type;
-				}
-			}
-			throw new IllegalArgumentException("Invalid config type: " + value);
-		}
-	}
 
 	@Operation(
 		summary = "Retrieve configuration for a host LMS system",
 		description = "Fetches configuration data for a specific host LMS system based on the system code and configuration type"
 	)
-	@Get(uri = "/systems/{systemCode}/config/{configType}", produces = APPLICATION_JSON)
+	@Get(uri = "/config/{systemCode}/{configType}", produces = APPLICATION_JSON)
 	public Mono<InteropTestResult> getConfiguration(
 		@Parameter(description = "Host LMS system code", required = true)
 		@PathVariable
@@ -101,7 +80,15 @@ public class ImplementationToolsController {
 
 		ConfigType validatedType = ConfigType.fromString(configType);
 
-		return interopTestService.retrieveConfiguration(systemCode, validatedType.getValue());
+		if (validatedType == null) {
+			return Mono.just(InteropTestResult.builder()
+				.result("ERROR")
+				.stage("Invalid configuration type: " + configType)
+				.note("Valid configuration types are: " + Arrays.toString(ConfigType.values()))
+				.build());
+		}
+
+		return interopTestService.retrieveConfiguration(systemCode, validatedType);
 	}
 
 	public Mono<InteropTestResult> createPatronTest() {

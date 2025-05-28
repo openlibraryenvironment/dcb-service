@@ -359,6 +359,24 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.doOnNext(returnedLoan -> log.info("retrieved loan {}", returnedLoan));
 	}
 
+	@Override
+	public Mono<AlmaLibrariesResponse> getLibraries() {
+		final String path="/almaws/v1/conf/libraries";
+		return createRequest(GET, path)
+			.flatMap(req -> doExchange(req, Argument.of(AlmaLibrariesResponse.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(libraries -> log.debug("libraries returned {}", libraries));
+	}
+
+	@Override
+	public Mono<AlmaLocationResponse> getLocationsForLibrary(String librarycode) {
+		final String path="/almaws/v1/conf/libraries/"+librarycode+"/locations";
+		return createRequest(GET, path)
+			.flatMap(req -> doExchange(req, Argument.of(AlmaLocationResponse.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(locations -> log.debug("locations returned {}", locations));
+	}
+
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
   public Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";

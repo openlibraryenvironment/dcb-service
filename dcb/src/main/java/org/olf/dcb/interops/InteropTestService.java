@@ -468,10 +468,15 @@ public class InteropTestService {
 		return false;
 	}
 
-
-	public Mono<InteropTestResult> retrieveConfiguration(String systemCode, String validatedType) {
+	public Mono<InteropTestResult> retrieveConfiguration(String systemCode, ConfigType validatedType) {
 		return hostLmsService.getClientFor(systemCode)
-			.flatMap(hostLmsClient -> Mono.just(InteropTestResult.builder().result("NOT-RUN").build())); // WIP
+			.flatMap(hostLmsClient -> hostLmsClient.fetchConfigurationFromAPI(validatedType))
+			.map(config -> InteropTestResult.builder().result("OK").response(config).build())
+			.onErrorResume(e -> Mono.just(InteropTestResult.builder()
+				.result("ERROR")
+				.stage("Fetching configuration for " + systemCode + " with type " + validatedType.getValue())
+				.notes(List.of(e.getMessage()))
+				.build()));
 	}
 
 }

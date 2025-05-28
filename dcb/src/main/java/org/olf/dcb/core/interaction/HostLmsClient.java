@@ -15,6 +15,7 @@ import org.olf.dcb.core.model.Item;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import org.olf.dcb.interops.ConfigType;
 import reactor.core.publisher.Mono;
 
 public interface HostLmsClient extends Comparable<HostLmsClient> {
@@ -43,6 +44,12 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	default Map<String, Object> getConfig() {
 		return getValue(getHostLms(), HostLms::getClientConfig, Map.of());
+	}
+
+	// Although we have config for each hostLms,
+	// we may want to check the api to get the latest to see if it matches up
+	default Mono<Map<String, Object>> fetchConfigurationFromAPI(ConfigType configType) {
+		return Mono.error(new NotImplementedException("fetchConfigurationFromAPI is not currently implemented"));
 	}
 
 	default String getDefaultAgencyCode() {

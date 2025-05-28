@@ -10,16 +10,19 @@ import java.net.URI;
 import java.util.*;
 import java.time.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.interops.ConfigType;
 import services.k_int.interaction.alma.AlmaApiClient;
+import services.k_int.interaction.alma.AlmaLocation;
+import services.k_int.interaction.alma.AlmaLocationResponse;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.error.AlmaError;
 import services.k_int.interaction.alma.types.error.AlmaException;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
+import services.k_int.interaction.alma.AlmaLibraryResponse;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.*;
 
@@ -163,6 +166,53 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				log.warn("Mapping error for item {}: {}", item, throwable.getMessage());
 			})
 			.collectList();
+	}
+
+	@Override
+	public Mono<Map<String, Object>> fetchConfigurationFromAPI(ConfigType type) {
+		return fetchLocations().map(response -> {
+			Map<String, Object> config = new HashMap<>();
+			config.put("locations", response.getLocations());
+			return config;
+		});
+	}
+
+	public Mono<AlmaGroupedLocationResponse> fetchLocations() {
+		return client.getLibraries()
+			.flatMapMany(librariesResponse -> {
+				List<AlmaLibraryResponse> libraries = librariesResponse.getLibraries();
+				if (libraries == null || libraries.isEmpty()) {
+					return Flux.empty();
+				}
+				return Flux.fromIterable(libraries)
+					.flatMap(library -> {
+						String libraryCode = getValueOrNull(library, AlmaLibraryResponse::getCode);
+						String libraryName = getValueOrNull(library, AlmaLibraryResponse::getName);
+						if (library.getNumberOfLocations().getValue() > 0 && libraryCode != null) {
+							return client.getLocationsForLibrary(libraryCode)
+								.flatMapMany(response -> {
+									List<AlmaLocation> locations = response.getLocations();
+									log.debug("locations for library {}: {}", libraryCode, locations);
+									if (locations == null || locations.isEmpty()) {
+										return Flux.empty();
+									}
+									return Flux.fromIterable(locations)
+										.doOnNext(location -> location.setLibraryCode(libraryCode))
+										.doOnNext(location -> location.setLibraryName(libraryName));
+								})
+								.onErrorResume(e -> {
+									log.warn("Failed to fetch locations for library ID {}: {}", libraryCode, e.getMessage());
+									return Flux.empty();
+								});
+						}
+						return Flux.empty();
+					});
+			})
+			.onErrorContinue((throwable, location) -> {
+				log.warn("Error for location {}: {}", location, throwable.getMessage() != null ? throwable.getMessage() : throwable.toString());
+			})
+			.collectList()
+			.map(locations -> AlmaGroupedLocationResponse.builder().locations(locations).build());
 	}
 
 	@Override
