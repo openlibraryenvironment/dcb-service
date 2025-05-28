@@ -23,7 +23,7 @@ jobs:
       # Need to checkout everything to ensure we have the tag info we need.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           fetch-tags: true
 
       - uses: actions/cache@v3
