@@ -190,6 +190,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 						.build();
 				}
 
+				if (locationCode == null || locationCode.isBlank()) {
+					throw Problem.builder()
+						.withTitle("Location code is blank or null " + locationCode)
+						.withDetail("Could not find any Alma location with the exact code.")
+						.with("locationCode", locationCode)
+						.with("hostLmsCode", getHostLmsCode())
+						.build();
+				}
+
 				List<AlmaLocation> matchingLocations = locations.stream()
 					.filter(loc -> locationCode.equals(loc.getCode()))
 					.toList();
@@ -312,6 +321,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			parameters.getLocalHoldingId(),
 			parameters.getLocalPatronId(),
 			parameters.getPickupLocation().getCode(),
+			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
 			parameters.getLocalItemBarcode());
 	}
 
@@ -323,6 +333,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			parameters.getLocalHoldingId(),
 			parameters.getLocalPatronId(),
 			parameters.getPickupLocation().getCode(),
+			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
 			parameters.getLocalItemBarcode());
 	}
 
@@ -334,6 +345,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			parameters.getLocalHoldingId(),
 			parameters.getLocalPatronId(),
 			parameters.getPickupLocation().getCode(),
+			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
 			parameters.getLocalItemBarcode());
 	}
 
@@ -343,21 +355,27 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String holdingId,
 		String patronId,
 		String pickupLocationCode,
+		String pickupLocationLMSType, // The LMS client class of the system
 		String itemBarcode) {
 
-    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupLocationCode, itemBarcode);
+    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{}, {})", mmsId, itemId, holdingId, patronId, pickupLocationCode, itemBarcode, pickupLocationLMSType);
+		// Only to be used when the pickupLocation is not an Alma pickup location.
+		final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
 
+		final var systemDependentPickupLocationCode = pickupLocationLMSType.equals("org.olf.dcb.core.interaction.alma.AlmaHostLmsClient")
+			? pickupLocationCode : pickupLocationCircuationDesk;
 		// the minimum fields required
 		final var almaRequest = AlmaRequest.builder()
 			.pId(itemId)
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
-			// the DCB pickup location code is really an Alma circ desk code
-			.pickupLocationCirculationDesk(pickupLocationCode)
+			// the DCB pickup location code is really an Alma circ desk code IF this is an Alma pickup location we are using
+			// If it is not, we must temporarily default to a known Alma circ desk code
+			.pickupLocationCirculationDesk(systemDependentPickupLocationCode )
 			.comment("DCB Request")
 			.build();
 
-    return fetchLocationByCircDeskCode(pickupLocationCode)
+    return fetchLocationByCircDeskCode(systemDependentPickupLocationCode)
 			.map(location -> {
 				almaRequest.setPickupLocationLibrary(location.getLibraryCode());
 				return almaRequest;
@@ -374,6 +392,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			parameters.getLocalHoldingId(),
 			parameters.getLocalPatronId(),
 			parameters.getPickupLocation().getCode(),
+			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
 			parameters.getLocalItemBarcode());
 	}
 
@@ -956,7 +975,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.localBarcodes(localBarcodes)
 			.uniqueIds(uniqueIds)
 			.localPatronType(almaUser.getUser_group().getValue())
-			// .localHomeLibraryCode
+//	.localHomeLibraryCode(almaUser.get)
 			// .canonicalPatronType
 			// .expiryDate
 			// .localItemId
