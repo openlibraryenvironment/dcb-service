@@ -5,6 +5,7 @@ import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
 import java.util.*;
@@ -15,9 +16,9 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.interops.ConfigType;
+import org.zalando.problem.Problem;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaLocation;
-import services.k_int.interaction.alma.AlmaLocationResponse;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.error.AlmaError;
 import services.k_int.interaction.alma.types.error.AlmaException;
@@ -177,6 +178,94 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		});
 	}
 
+	public Mono<AlmaLocation> fetchLocationByLocationCode(String locationCode) {
+		return fetchLocations()
+			.flatMap(response -> {
+				List<AlmaLocation> locations = response.getLocations();
+				if (locations == null || locations.isEmpty()) {
+					throw Problem.builder()
+						.withTitle("No locations available in Alma configuration")
+						.withDetail("No locations were returned from Alma for host LMS: " + getHostLmsCode())
+						.with("hostLmsCode", getHostLmsCode())
+						.build();
+				}
+
+				List<AlmaLocation> matchingLocations = locations.stream()
+					.filter(loc -> locationCode.equals(loc.getCode()))
+					.toList();
+
+				if (matchingLocations.isEmpty()) {
+					throw Problem.builder()
+						.withTitle("No matching location found for location code: " + locationCode)
+						.withDetail("Could not find any Alma location with the exact code.")
+						.with("locationCode", locationCode)
+						.with("hostLmsCode", getHostLmsCode())
+						.build();
+				}
+
+				if (matchingLocations.size() > 1) {
+					List<String> matchedNames = matchingLocations.stream()
+						.map(AlmaLocation::getName)
+						.toList();
+
+					throw Problem.builder()
+						.withTitle("Multiple locations found for location code: " + locationCode)
+						.withDetail("Expected a single matching location, but found multiple.")
+						.with("locationCode", locationCode)
+						.with("hostLmsCode", getHostLmsCode())
+						.with("matchingLocationNames", matchedNames)
+						.build();
+				}
+
+				return Mono.just(matchingLocations.get(0));
+			});
+	}
+
+	public Mono<AlmaLocation> fetchLocationByCircDeskCode(String circDeskCode) {
+		return fetchLocations()
+			.flatMap(response -> {
+				List<AlmaLocation> locations = response.getLocations();
+				if (locations == null || locations.isEmpty()) {
+					throw Problem.builder()
+						.withTitle("No locations available in Alma configuration")
+						.withDetail("No locations were returned from Alma for host LMS: " + getHostLmsCode())
+						.with("hostLmsCode", getHostLmsCode())
+						.build();
+				}
+
+				List<AlmaLocation> matchingLocations = locations.stream()
+					.filter(loc -> loc.getCircDesk() != null &&
+						loc.getCircDesk().stream()
+							.anyMatch(cd -> circDeskCode.equals(cd.getCircDeskCode())))
+					.toList();
+
+				if (matchingLocations.isEmpty()) {
+					throw Problem.builder()
+						.withTitle("No matching locations found for circ desk code: " + circDeskCode)
+						.withDetail("Could not find any Alma locations with a circ desk matching the given code.")
+						.with("circDeskCode", circDeskCode)
+						.with("hostLmsCode", getHostLmsCode())
+						.build();
+				}
+
+				if (matchingLocations.size() > 1) {
+					List<String> matchedLocationCodes = matchingLocations.stream()
+						.map(AlmaLocation::getCode)
+						.toList();
+
+					throw Problem.builder()
+						.withTitle("Multiple locations found for circ desk code: " + circDeskCode)
+						.withDetail("Expected a single matching location, but found multiple.")
+						.with("circDeskCode", circDeskCode)
+						.with("hostLmsCode", getHostLmsCode())
+						.with("matchingLocationCodes", matchedLocationCodes)
+						.build();
+				}
+
+				return Mono.just(matchingLocations.get(0));
+			});
+	}
+
 	public Mono<AlmaGroupedLocationResponse> fetchLocations() {
 		return client.getLibraries()
 			.flatMapMany(librariesResponse -> {
@@ -256,21 +345,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String pickupLocationCode,
 		String itemBarcode) {
 
-    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupLocationCode,itemBarcode);
+    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{})", mmsId, itemId, holdingId, patronId, pickupLocationCode, itemBarcode);
 
-		final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
-		final var pickupLocationLibrary = PICKUP_LIBRARY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN");
-
+		// the minimum fields required
 		final var almaRequest = AlmaRequest.builder()
 			.pId(itemId)
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
-			.pickupLocationLibrary(pickupLocationLibrary)
-			.pickupLocationCirculationDesk(pickupLocationCircuationDesk)
+			// the DCB pickup location code is really an Alma circ desk code
+			.pickupLocationCirculationDesk(pickupLocationCode)
 			.comment("DCB Request")
 			.build();
 
-    return client.placeHold(patronId, almaRequest)
+    return fetchLocationByCircDeskCode(pickupLocationCode)
+			.map(location -> {
+				almaRequest.setPickupLocationLibrary(location.getLibraryCode());
+				return almaRequest;
+			})
+			.flatMap(request -> client.placeHold(patronId, request))
       .map( response -> mapAlmaRequestToLocalRequest(response, itemBarcode) )
       .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
 	}
@@ -574,56 +666,109 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(almaUser -> almaUserToPatron(almaUser));
 	}
 
+	Mono<String> getMappedItemType(String itemTypeCode) {
+
+		final var hostlmsCode = getHostLmsCode();
+
+		if (hostlmsCode != null && itemTypeCode != null) {
+			return referenceValueMappingService.findMapping("ItemType", "DCB",
+					itemTypeCode, "ItemType", hostlmsCode)
+				.map(ReferenceValueMapping::getToValue)
+				.switchIfEmpty(raiseError(Problem.builder()
+					.withTitle("Unable to find item type mapping from DCB to " + hostlmsCode)
+					.withDetail("Attempt to find item type mapping returned empty")
+					.with("Source category", "ItemType")
+					.with("Source context", "DCB")
+					.with("DCB item type code", itemTypeCode)
+					.with("Target category", "ItemType")
+					.with("Target context", hostlmsCode)
+					.build())
+				);
+		}
+
+		log.error(String.format("Request to map item type was missing required parameters %s/%s", hostlmsCode, itemTypeCode));
+		return raiseError(Problem.builder()
+			.withTitle("Request to map item type was missing required parameters")
+			.withDetail(String.format("itemTypeCode=%s, hostLmsCode=%s", itemTypeCode, hostlmsCode))
+			.with("Source category", "ItemType")
+			.with("Source context", "DCB")
+			.with("DCB item type code", itemTypeCode)
+			.with("Target category", "ItemType")
+			.with("Target context", hostlmsCode)
+			.build());
+	}
+
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
-
 		String bibId = getValueOrNull(cic, CreateItemCommand::getBibId);
-
-		// default found: '/conf/code-tables/ItemPolicy'
 		String policy = ITEM_POLICY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "BOOK");
-		String shelfLocation = SHELF_LOCATION_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GENERAL");
+		String baseStatus = "1";
 		String callNumber = "DCB_VIRTUAL_COLLECTION";
 		String holdingNote = "DCB Virtual holding record";
-		String baseStatus = "1"; // available
-		String location = getValueOrNull(cic, CreateItemCommand::getLocationCode);
+		String patronLocationCode = getValueOrNull(cic, CreateItemCommand::getPatronHomeLocation);
+		AtomicReference<String> holdingId = new AtomicReference<>();
 
-		String holdingxml = AlmaXmlGenerator.generateHoldingXml(
-			location, shelfLocation, callNumber, holdingNote);
+		return Mono.zip(
+				fetchLocationByLocationCode(patronLocationCode),
+				getMappedItemType(cic.getCanonicalItemType())
+			)
+			.flatMap(tuple -> {
+				AlmaLocation location = tuple.getT1();
+				String itemType = tuple.getT2();
+				String holdingXml = buildHoldingXml(location, callNumber, holdingNote);
+				AlmaItem item = buildAlmaItem(cic, location, policy, baseStatus, itemType);
 
-		AlmaItemData almaItemData = AlmaItemData.builder()
-			.barcode(cic.getBarcode())
-			.physicalMaterialType(CodeValuePair.builder().value(cic.getCanonicalItemType()).build())
-			.policy(CodeValuePair.builder().value(policy).build())
-			.baseStatus(CodeValuePair.builder().value(baseStatus).build())
-			.description("DCB copy")
-			.statisticsNote1("DCB item")
-			.publicNote("Virtual item = created by DCB")
-			.fulfillmentNote("Virtual item = created by DCB")
-			.internalNote1("Virtual item = created by DCB")
-			.holdingData(
-				AlmaHolding.builder()
-					.library(CodeValuePair.builder().value(location).build())
-					.location(CodeValuePair.builder().value(shelfLocation).build())
+				return createHolding(bibId, holdingXml)
+					.flatMap(holding -> {
+						holdingId.set(holding.getHoldingId());
+						return client.createItem(bibId, holding.getHoldingId(), item);
+					});
+			})
+			.map(AlmaItem::getItemData)
+			.map(item -> mapToHostLmsItem(item, holdingId.get(), bibId));
+	}
+
+	private String buildHoldingXml(AlmaLocation location, String callNumber, String note) {
+		return AlmaXmlGenerator.generateHoldingXml(
+			location.getLibraryCode(),
+			location.getCode(),
+			callNumber,
+			note
+		);
+	}
+
+	private AlmaItem buildAlmaItem(CreateItemCommand cic, AlmaLocation location, String policy, String status, String itemType) {
+		return AlmaItem.builder()
+			.itemData(
+				AlmaItemData.builder()
+					.barcode(cic.getBarcode())
+					.physicalMaterialType(CodeValuePair.builder().value(itemType).build())
+					.policy(CodeValuePair.builder().value(policy).build())
+					.baseStatus(CodeValuePair.builder().value(status).build())
+					.description("DCB copy")
+					.statisticsNote1("DCB item")
+					.publicNote("Virtual item = created by DCB")
+					.fulfillmentNote("Virtual item = created by DCB")
+					.internalNote1("Virtual item = created by DCB")
+					.holdingData(
+						AlmaHolding.builder()
+							.library(CodeValuePair.builder().value(location.getLibraryCode()).build())
+							.location(CodeValuePair.builder().value(location.getCode()).build())
+							.build()
+					)
 					.build()
 			)
 			.build();
+	}
 
-		AlmaItem almaItem = AlmaItem.builder().itemData(almaItemData).build();
-
-		AtomicReference<String> holdingId = new AtomicReference<>();
-		return createHolding(bibId, holdingxml)
-			.flatMap(holding -> {
-				holdingId.set(holding.getHoldingId());
-				return client.createItem(bibId, holding.getHoldingId(), almaItem);
-			})
-			.map(AlmaItem::getItemData)
-			.map( item -> HostLmsItem.builder()
-				.localId(item.getPid())
-				.barcode(item.getBarcode())
-				.status(deriveItemStatus(item).getCode().name())
-				.holdingId(holdingId.get())
-				.bibId(bibId)
-				.build() );
+	private HostLmsItem mapToHostLmsItem(AlmaItemData itemData, String holdingId, String bibId) {
+		return HostLmsItem.builder()
+			.localId(itemData.getPid())
+			.barcode(itemData.getBarcode())
+			.status(deriveItemStatus(itemData).getCode().name())
+			.holdingId(holdingId)
+			.bibId(bibId)
+			.build();
 	}
 
 	private Mono<AlmaHolding> createHolding(String bibId, String almaHolding) {
