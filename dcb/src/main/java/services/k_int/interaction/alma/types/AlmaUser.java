@@ -1,5 +1,6 @@
 package services.k_int.interaction.alma.types;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.serde.annotation.Serdeable;
 
 import lombok.AllArgsConstructor;
@@ -39,5 +40,6 @@ public class AlmaUser {
 	// ACTIVE, INACTIVE, DELETED
 	CodeValuePair status;
 	@ToString.Include
-	List<UserIdentifier> user_identifiers;
+	@JsonProperty("user_identifier")
+	UserIdentifiers identifiers;
 }

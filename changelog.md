@@ -1,9 +1,30 @@
 # Changelog
 
+## Version 8.32.0
+
+### Additions
+* [General]
+	* Add ability to define static templates for metrics in config
+
+### Changes
+* [Chore]
+	* Extra error trapping and reporting
+
+### Fixes
+* [General]
+	* finding user by identifier / alma adaptor
+	* Nullable dependency
+	* Package private not private.
+	* allow the local id to be passed for creating patrons in alma
+	* Changed the label for Sierra Fixed Field 71 to match that at https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
+	* alma item mapping for rtac
+	* remove IllegalArgumentException for author when creating bib
+
 ## Version 8.31.5
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add primary ID to barcodes field for Alma patrons [DCB-1907]
 
 ### Fixes
