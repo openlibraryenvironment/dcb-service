@@ -15,6 +15,7 @@ import java.util.List;
 @ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class UserIdentifiers {
+	@ToString.Include
 	@JsonProperty("user_identifier")
 	private List<UserIdentifier> identifiers;
 }

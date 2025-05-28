@@ -11,7 +11,6 @@ import lombok.ToString;
 @Data
 @AllArgsConstructor
 @Builder
-@ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class WithAttr {
         String value;

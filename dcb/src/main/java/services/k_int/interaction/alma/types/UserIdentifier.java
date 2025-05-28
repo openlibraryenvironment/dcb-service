@@ -12,7 +12,6 @@ import lombok.ToString;
 @Data
 @AllArgsConstructor
 @Builder
-@ToString(onlyExplicitlyIncluded = true)
 @Serdeable
 public class UserIdentifier {
 	// BARCODE, INST_ID, ILLIAD_ID, GoogleScholarID, ORCID,...
