@@ -363,7 +363,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		UserIdentifiers userIdentifiers = createUserIdentifiers(patron);
 		AlmaUser almaUser = buildAlmaUser(firstName, lastName, externalId, userIdentifiers);
-		log.info("Attempting to create a patron for Alma with Patron: {}, alma user: {} and user identifiers {}", patron, almaUser, userIdentifiers);
+		log.info("Attempting to create a patron for Alma with Patron: {}, alma user: {} and user identifiers {}. First name is {}, last name is {}", patron, almaUser, userIdentifiers, firstName,lastName);
 
 		return determinePatronType(patron)
 			.flatMap(patronType -> {
@@ -402,32 +402,38 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return null;
 	}
 
+
 	private UserIdentifiers createUserIdentifiers(Patron patron) {
+		final var identifierType = USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), ID_TYPE_INST_ID);
+		final String externalId = extractExternalId(patron);
 
-		// We need to use an identifier that is enabled on the Alma system to store the DCB uniqueId
-		// This identifier needs to be enabled on the Alma system
-		// API documentation: https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_user.xsd/?tags=POST#user_identifiers
-		final var identifier = USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), ID_TYPE_INST_ID);
-
-		if (patron.getLocalBarcodes() != null) {
-			var userIdentifiers = patron.getLocalBarcodes().stream()
-				.map(value -> UserIdentifier.builder()
-					.id_type(WithAttr.builder().value(ID_TYPE_BARCODE).build())
-					.value(value)
-					.build())
-				.collect(Collectors.toList());
-
-			userIdentifiers.add(UserIdentifier.builder()
-				.id_type(WithAttr.builder().value(identifier).build())
-				.value(extractExternalId(patron)).build());
-
-			return UserIdentifiers.builder().identifiers(userIdentifiers).build();
-		} else if (extractExternalId(patron) != null) {
-			return UserIdentifiers.builder().identifiers(Collections.singletonList(UserIdentifier.builder()
-				.id_type(WithAttr.builder().value(identifier).build())
-				.value(extractExternalId(patron)).build())).build();
+		// Validate that we have at least one identifier source
+		if ((patron.getLocalBarcodes() == null || patron.getLocalBarcodes().isEmpty()) && externalId == null) {
+			throw new IllegalArgumentException("Cannot create user identifiers: patron has no barcodes or external ID");
 		}
-		return null;
+
+		List<UserIdentifier> identifiers = new ArrayList<>();
+
+		// Add barcode identifiers
+		if (patron.getLocalBarcodes() != null && !patron.getLocalBarcodes().isEmpty()) {
+			patron.getLocalBarcodes().stream()
+				.filter(Objects::nonNull) // Guard against null barcodes in the list
+				.map(barcode -> UserIdentifier.builder()
+					.id_type(WithAttr.builder().value(ID_TYPE_BARCODE).build())
+					.value(barcode)
+					.build())
+				.forEach(identifiers::add);
+		}
+
+		// Add external ID identifier (if available and not already added as barcode)
+		if (externalId != null) {
+			identifiers.add(UserIdentifier.builder()
+				.id_type(WithAttr.builder().value(identifierType).build())
+				.value(externalId)
+				.build());
+		}
+
+		return UserIdentifiers.builder().identifiers(identifiers).build();
 	}
 
 	private AlmaUser buildAlmaUser(String firstName, String lastName, String externalId,
