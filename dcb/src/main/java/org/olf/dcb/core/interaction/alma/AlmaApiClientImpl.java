@@ -151,7 +151,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		log.info("doExchange - Method: {}, URI: {}, argumentType: {}", request.getMethod(), request.getUri(), argumentType);
+		log.info("doExchange - Method: {}, URI: {}, argumentType: {}, body: {}, headers: {}", request.getMethod(), request.getUri(), argumentType, request.getBody(), request.getHeaders());
 		log.info("doExchange - Full Request: {}", request);
 		return Mono.from(client.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
@@ -221,7 +221,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		final String path="/almaws/v1/users";
     return createRequest(POST, path)
 			.map(request -> request.body(patron))
-
 			.flatMap(request -> doExchange(request, Argument.of(AlmaUser.class)))
 			.map(response -> response.getBody().get())
 			.doOnNext(user -> log.info("Created user {}",user.getPrimary_id()));
