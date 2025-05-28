@@ -432,7 +432,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.value(externalId)
 				.build());
 		}
-
+		log.info("Identifiers {}", identifiers);
 		return UserIdentifiers.builder().identifiers(identifiers).build();
 	}
 
