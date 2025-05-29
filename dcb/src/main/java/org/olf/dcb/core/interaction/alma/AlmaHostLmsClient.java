@@ -88,6 +88,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final HostLmsPropertyDefinition PICKUP_LIBRARY_SETTING
 		= stringPropertyDefinition("pickup-location-library", "Default pickup library for this ALMA system", FALSE);
 
+	private static final HostLmsPropertyDefinition DEFAULT_PICKUP_LOCATION_CODE
+		= stringPropertyDefinition("default-pickup-location-code", "Default pickup location code for this ALMA system", FALSE);
+
+
 	private final HostLms hostLms;
 
 	private final HttpClient httpClient;
@@ -231,6 +235,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 						.build();
 				}
 
+				if ("CLOSED".equalsIgnoreCase(matchingLocations.get(0).getType().getValue())) {
+					log.warn("The ALMA location corresponding to the item location code is unavailable. Falling back to our default location.");
+					// Use default pickup location code to fetch the default location
+					return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+				}
 				return Mono.just(matchingLocations.get(0));
 			});
 	}
@@ -263,10 +272,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				}
 
 				if (matchingLocations.size() > 1) {
-					List<String> matchedLocationCodes = matchingLocations.stream()
-						.map(AlmaLocation::getCode)
-						.toList();
-					log.info("Multiple locations have been found for this circulation desk. We will use the first one that is OPEN: failing that we will default to the first location.");
+					log.info("Multiple locations have been found for this circulation desk. We will use the first one that is OPEN: failing that we will default to the default location.");
 					// Try and find an open location in the matching location
 					Optional<AlmaLocation> openLocation = matchingLocations.stream()
 						.filter(loc -> loc.getType() != null && "OPEN".equalsIgnoreCase(loc.getType().getValue()))
@@ -277,9 +283,21 @@ public class AlmaHostLmsClient implements HostLmsClient {
 						log.info("Prioritizing and selecting 'OPEN' location: {} at library {}", selectedLocation.getCode(), selectedLocation.getLibraryName());
 						return Mono.just(selectedLocation);
 					} else {
-						AlmaLocation selectedLocation = matchingLocations.get(0);
-						log.warn("No 'OPEN' locations found among matches. Falling back to the first available location: {} at library {}", selectedLocation.getCode(), selectedLocation.getLibraryName());
-						return Mono.just(selectedLocation);
+						// Is a remote location available at this library- if so default to that
+						Optional<AlmaLocation> remoteLocation = matchingLocations.stream()
+							.filter(loc -> loc.getType() != null && "REMOTE".equalsIgnoreCase(loc.getType().getValue()))
+							.findFirst();
+						if (remoteLocation.isPresent())
+						{
+							log.info("Returning a REMOTE location because there are no OPEN locations.");
+							return Mono.just(remoteLocation.get());
+						}
+						else
+						{
+							log.warn("No 'OPEN' locations found among matches. Falling back to the default location for this system.");
+							return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+						}
+
 					}
 					// Commenting out because I think we may be able to safely handle this situation, but I could be horribly wrong
 					//					throw Problem.builder()
