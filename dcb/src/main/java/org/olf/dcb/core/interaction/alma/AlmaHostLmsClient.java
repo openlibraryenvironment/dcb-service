@@ -18,6 +18,8 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.interops.ConfigType;
 import org.zalando.problem.Problem;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaLocation;
 import services.k_int.interaction.alma.types.*;
@@ -335,85 +337,129 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
 		log.info("placeHoldRequestAtSupplyingAgency({})", parameters);
 		log.info("location is {}, with host system {}", parameters.getPickupLocation(), parameters.getPickupLocation().getHostSystem());
-		final var pickupLocation = parameters.getPickupLocation();
 
-		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
-			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
-		}
 
-		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
-		// The Data Host LMS here does not have a lmsClientClass attached, so we have to look up the full Host LMS object for that.
-		return hostLmsService.findById(pickupLocationHostLmsId)
-			.flatMap(hostLms -> {
-				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
+		// As this is a supplier side request we use the item location to find the location to make a request with
+		// This item will give the actual location code in alma as it was directly from the item
+		final var pickupLocationCode = getValueOrNull(parameters, PlaceHoldRequestParameters::getSupplyingLocalItemLocation);
 
-				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
-					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
-				}
-				return placeGenericAlmaRequest(
-					parameters.getLocalBibId(),
+		return fetchLocationByLocationCode(pickupLocationCode)
+			.flatMap(location -> {
+
+				final var libraryCode = getValueOrNull(location, AlmaLocation::getLibraryCode);
+				final var locationCode = getValueOrNull(location, AlmaLocation::getCode);
+				// we have to use this from config as a location will have multiple circ desks
+				final var circDeskCode = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+				final var note = getValueOrNull(parameters, PlaceHoldRequestParameters::getNote);
+
+				return placeGenericAlmaRequest(parameters.getLocalBibId(),
 					parameters.getLocalItemId(),
 					parameters.getLocalHoldingId(),
 					parameters.getLocalPatronId(),
-					parameters.getPickupLocation().getCode(),
-					pickupLocationLmsClientClass, // This will help us adapt our location searching depending on the Host LMS type
-					parameters.getLocalItemBarcode()
-				);
+					libraryCode,
+					locationCode,
+					circDeskCode,
+					parameters.getLocalItemBarcode(),
+					note);
 			});
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 		log.info("placeHoldRequestAtBorrowingAgency({})", parameters);
-		final var pickupLocation = parameters.getPickupLocation();
 
-		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
-			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
+		final var pickupLocation = getValueOrNull(parameters, PlaceHoldRequestParameters::getPickupLocation);
+		final var pickupLocationCode = getValueOrNull(pickupLocation, Location::getCode);
+
+		log.debug("pickupLocation is {}, with pickupLocationCode {}", pickupLocation.toString(), pickupLocationCode);
+
+		if (pickupLocationCode == null) {
+			return Mono.error(new IllegalArgumentException("Pickup location and its code must not be null."));
 		}
-		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
-		return hostLmsService.findById(pickupLocationHostLmsId)
-			.flatMap(hostLms -> {
-				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
 
-				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
-					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
-				}
+		return fetchLocationByCircDeskCode(pickupLocationCode)
+			.onErrorResume(e -> {
+				log.error("Failed to fetch location for circ desk code {}: {}", pickupLocationCode, e.getMessage());
+				log.debug("Retrying :: getSystemDependentPickupLocationCode {}", pickupLocation.toString());
+				return getSystemDependentPickupLocationCode(pickupLocation);
+			})
+			.flatMap(location -> {
+
+				final var libraryCode = getValueOrNull(location, AlmaLocation::getLibraryCode);
+				final var locationCode = getValueOrNull(location, AlmaLocation::getCode);
+				final var circDeskCode = pickupLocationCode;
+				final var note = getValueOrNull(parameters, PlaceHoldRequestParameters::getNote);
+
 				return placeGenericAlmaRequest(parameters.getLocalBibId(),
 					parameters.getLocalItemId(),
 					parameters.getLocalHoldingId(),
 					parameters.getLocalPatronId(),
-					parameters.getPickupLocation().getCode(),
-					pickupLocationLmsClientClass,
-					parameters.getLocalItemBarcode());
-					});
+					libraryCode,
+					locationCode,
+					circDeskCode,
+					parameters.getLocalItemBarcode(),
+					note
+					);
+			});
+	}
+
+	private Mono<AlmaLocation> getSystemDependentPickupLocationCode(Location pickupLocation) {
+
+		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
+			throw new IllegalArgumentException("Pickup location and its host system ID must not be null.");
+		}
+
+		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
+		return hostLmsService.findById(pickupLocationHostLmsId)
+			.map(hostLms -> {
+
+				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
+
+				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
+					throw new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId);
+				}
+
+				final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+				final var pickupLocationCode = pickupLocation.getCode();
+
+				final String systemDependentPickupLocationCode = pickupLocationLmsClientClass.equals("org.olf.dcb.core.interaction.alma.AlmaHostLmsClient")
+					? pickupLocationCode : pickupLocationCircuationDesk;
+
+				return systemDependentPickupLocationCode;
+			})
+			.flatMap(this::fetchLocationByCircDeskCode);
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
-		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
-		final var pickupLocation = parameters.getPickupLocation();
+//		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
+//		final var pickupLocation = parameters.getPickupLocation();
+//
+//		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
+//			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
+//		}
+//
+//		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
+//		return hostLmsService.findById(pickupLocationHostLmsId)
+//			.flatMap(hostLms -> {
+//				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
+//
+//				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
+//					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
+//				}
+//
+//				return placeGenericAlmaRequest(parameters.getLocalBibId(),
+//					parameters.getLocalItemId(),
+//					parameters.getLocalHoldingId(),
+//					parameters.getLocalPatronId(),
+//					parameters.getPickupLocation().getCode(),
+//					pickupLocationLmsClientClass,
+//					parameters.getLocalItemBarcode());
+//			});
 
-		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
-			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
-		}
-
-		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
-		return hostLmsService.findById(pickupLocationHostLmsId)
-			.flatMap(hostLms -> {
-				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
-
-				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
-					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
-				}
-
-				return placeGenericAlmaRequest(parameters.getLocalBibId(),
-					parameters.getLocalItemId(),
-					parameters.getLocalHoldingId(),
-					parameters.getLocalPatronId(),
-					parameters.getPickupLocation().getCode(),
-					pickupLocationLmsClientClass,
-					parameters.getLocalItemBarcode());
-			});
+		// Currently Alma only supports the happy path of RET-STD
+		// Lets be explicit about that so we avoid any potential confusion
+		return Mono.error(new NotImplementedException("Pickup anywhere is not currently supported in Alma/" + getHostLmsCode()));
 	}
 
 	private Mono<LocalRequest> placeGenericAlmaRequest(
@@ -421,46 +467,36 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String itemId,
 		String holdingId,
 		String patronId,
-		String pickupLocationCode,
-		String pickupLocationLMSType, // The LMS client class of the system
-		String itemBarcode) {
+		String libraryCode,
+		String locationCode,
+		String circDeskCode,
+		String itemBarcode,
+		String comment) {
 
-    log.debug("placeGenericAlmaRequest({},{}, {}, {},{},{}, {})", mmsId, itemId, holdingId, patronId, pickupLocationCode, itemBarcode, pickupLocationLMSType);
-		// Only to be used when the pickupLocation is not an Alma pickup location.
-		final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+		log.debug("placeGenericAlmaRequest({}, {}, {}, {}, {}, {}, {})", mmsId, itemId, holdingId, patronId, libraryCode, locationCode, circDeskCode);
 
-		final var systemDependentPickupLocationCode = pickupLocationLMSType.equals("org.olf.dcb.core.interaction.alma.AlmaHostLmsClient")
-			? pickupLocationCode : pickupLocationCircuationDesk;
 		// the minimum fields required
 		final var almaRequest = AlmaRequest.builder()
 			.pId(itemId)
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
+			.pickupLocationLibrary(libraryCode)
 			// the DCB pickup location code is really an Alma circ desk code IF this is an Alma pickup location we are using
 			// If it is not, we must temporarily default to a known Alma circ desk code
-			.pickupLocationCirculationDesk(systemDependentPickupLocationCode )
-			.comment("DCB Request")
+			.pickupLocationCirculationDesk(circDeskCode)
+			.comment(comment)
 			.build();
 
-    return fetchLocationByCircDeskCode(systemDependentPickupLocationCode)
-			.map(location -> {
-				almaRequest.setPickupLocationLibrary(location.getLibraryCode());
-				return almaRequest;
-			})
-			.flatMap(request -> client.placeHold(patronId, request))
+    return client.placeHold(patronId, almaRequest)
       .map( response -> mapAlmaRequestToLocalRequest(response, itemBarcode) )
       .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),
-			parameters.getLocalItemId(),
-			parameters.getLocalHoldingId(),
-			parameters.getLocalPatronId(),
-			parameters.getPickupLocation().getCode(),
-			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
-			parameters.getLocalItemBarcode());
+		// Currently Alma only supports the happy path of RET-STD
+		// Lets be explicit about that so we avoid any potential confusion
+		return Mono.error(new NotImplementedException("Place hold at local agency is not currently supported in Alma/" + getHostLmsCode()));
 	}
 
 	/** ToDo: This should be a default method I think */
