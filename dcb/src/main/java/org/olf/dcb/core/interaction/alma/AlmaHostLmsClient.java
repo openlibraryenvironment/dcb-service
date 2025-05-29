@@ -264,16 +264,31 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					List<String> matchedLocationCodes = matchingLocations.stream()
 						.map(AlmaLocation::getCode)
 						.toList();
+					log.info("Multiple locations have been found for this circulation desk. We will use the first one that is OPEN: failing that we will default to the first location.");
+					// Try and find an open location in the matching location
+					Optional<AlmaLocation> openLocation = matchingLocations.stream()
+						.filter(loc -> loc.getType() != null && "OPEN".equalsIgnoreCase(loc.getType().getValue()))
+						.findFirst();
 
-					throw Problem.builder()
-						.withTitle("Multiple locations found for circ desk code: " + circDeskCode)
-						.withDetail("Expected a single matching location, but found multiple.")
-						.with("circDeskCode", circDeskCode)
-						.with("hostLmsCode", getHostLmsCode())
-						.with("matchingLocationCodes", matchedLocationCodes)
-						.build();
+					if (openLocation.isPresent()) {
+						AlmaLocation selectedLocation = openLocation.get();
+						log.info("Prioritizing and selecting 'OPEN' location: {} at library {}", selectedLocation.getCode(), selectedLocation.getLibraryName());
+						return Mono.just(selectedLocation);
+					} else {
+						AlmaLocation selectedLocation = matchingLocations.get(0);
+						log.warn("No 'OPEN' locations found among matches. Falling back to the first available location: {} at library {}", selectedLocation.getCode(), selectedLocation.getLibraryName());
+						return Mono.just(selectedLocation);
+					}
+					// Commenting out because I think we may be able to safely handle this situation, but I could be horribly wrong
+					//					throw Problem.builder()
+					//						.withTitle("Multiple locations found for circ desk code: " + circDeskCode)
+					//						.withDetail("Expected a single matching location, but found multiple.")
+					//						.with("circDeskCode", circDeskCode)
+					//						.with("hostLmsCode", getHostLmsCode())
+					//						.with("matchingLocationCodes", matchedLocationCodes)
+					//						.build();
+					//				}
 				}
-
 				return Mono.just(matchingLocations.get(0));
 			});
 	}
