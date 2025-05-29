@@ -845,7 +845,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String baseStatus = "1";
 		String callNumber = "DCB_VIRTUAL_COLLECTION";
 		String holdingNote = "DCB Virtual holding record";
-		String patronLocationCode = getValueOrNull(cic, CreateItemCommand::getPatronHomeLocation);
+
+		// The patron home location appears to be null for Alma - this fallback aims to cover that while we investigate
+		log.info("Create item for Alma with {}", cic);
+		String patronLocationCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+
 		AtomicReference<String> holdingId = new AtomicReference<>();
 
 		return Mono.zip(
