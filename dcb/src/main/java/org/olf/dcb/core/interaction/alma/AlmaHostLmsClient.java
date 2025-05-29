@@ -13,6 +13,7 @@ import java.time.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.lang3.NotImplementedException;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.interops.ConfigType;
@@ -94,6 +95,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final ConversionService conversionService;
 	private final LocationService locationService;
+	private final HostLmsService hostLmsService;
 	private final AlmaApiClient client;
 
 	private final String apiKey;
@@ -104,7 +106,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 													 AlmaClientFactory almaClientFactory,
 													 ReferenceValueMappingService referenceValueMappingService, MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService, LocationToAgencyMappingService locationToAgencyMappingService,
 													 ConversionService conversionService,
-													 LocationService locationService) {
+													 LocationService locationService, HostLmsService hostLmsService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -120,6 +122,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
 		this.conversionService = conversionService;
 		this.locationService = locationService;
+		this.hostLmsService = hostLmsService;
 	}
 
 	@Override
@@ -317,37 +320,85 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
 		log.info("placeHoldRequestAtSupplyingAgency({})", parameters);
 		log.info("location is {}, with host system {}", parameters.getPickupLocation(), parameters.getPickupLocation().getHostSystem());
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),
-			parameters.getLocalItemId(),
-			parameters.getLocalHoldingId(),
-			parameters.getLocalPatronId(),
-			parameters.getPickupLocation().getCode(),
-			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
-			parameters.getLocalItemBarcode());
+		final var pickupLocation = parameters.getPickupLocation();
+
+		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
+			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
+		}
+
+		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
+		// The Data Host LMS here does not have a lmsClientClass attached, so we have to look up the full Host LMS object for that.
+		return hostLmsService.findById(pickupLocationHostLmsId)
+			.flatMap(hostLms -> {
+				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
+
+				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
+					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
+				}
+				return placeGenericAlmaRequest(
+					parameters.getLocalBibId(),
+					parameters.getLocalItemId(),
+					parameters.getLocalHoldingId(),
+					parameters.getLocalPatronId(),
+					parameters.getPickupLocation().getCode(),
+					pickupLocationLmsClientClass, // This will help us adapt our location searching depending on the Host LMS type
+					parameters.getLocalItemBarcode()
+				);
+			});
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 		log.info("placeHoldRequestAtBorrowingAgency({})", parameters);
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),
-			parameters.getLocalItemId(),
-			parameters.getLocalHoldingId(),
-			parameters.getLocalPatronId(),
-			parameters.getPickupLocation().getCode(),
-			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
-			parameters.getLocalItemBarcode());
+		final var pickupLocation = parameters.getPickupLocation();
+
+		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
+			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
+		}
+		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
+		return hostLmsService.findById(pickupLocationHostLmsId)
+			.flatMap(hostLms -> {
+				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
+
+				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
+					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
+				}
+				return placeGenericAlmaRequest(parameters.getLocalBibId(),
+					parameters.getLocalItemId(),
+					parameters.getLocalHoldingId(),
+					parameters.getLocalPatronId(),
+					parameters.getPickupLocation().getCode(),
+					pickupLocationLmsClientClass,
+					parameters.getLocalItemBarcode());
+					});
 	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),
-			parameters.getLocalItemId(),
-			parameters.getLocalHoldingId(),
-			parameters.getLocalPatronId(),
-			parameters.getPickupLocation().getCode(),
-			parameters.getPickupLocation().getHostSystem().getLmsClientClass(),
-			parameters.getLocalItemBarcode());
+		final var pickupLocation = parameters.getPickupLocation();
+
+		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
+			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
+		}
+
+		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
+		return hostLmsService.findById(pickupLocationHostLmsId)
+			.flatMap(hostLms -> {
+				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
+
+				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
+					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
+				}
+
+				return placeGenericAlmaRequest(parameters.getLocalBibId(),
+					parameters.getLocalItemId(),
+					parameters.getLocalHoldingId(),
+					parameters.getLocalPatronId(),
+					parameters.getPickupLocation().getCode(),
+					pickupLocationLmsClientClass,
+					parameters.getLocalItemBarcode());
+			});
 	}
 
 	private Mono<LocalRequest> placeGenericAlmaRequest(
