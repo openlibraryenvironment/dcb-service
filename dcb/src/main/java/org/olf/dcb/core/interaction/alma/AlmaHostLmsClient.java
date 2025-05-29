@@ -1155,7 +1155,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		  .isRequestable(isRequestable)
 		  .holdCount(null)
 		  .localBibId(almaItem.getBibData().getMmsId())
-		  .localItemType(null)
+			// this item type looks to be used for auditing
+		  .localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
+			// this item type code is used for mapping
 		  .localItemTypeCode(almaItem.getItemData().getPhysicalMaterialType().getValue())
 		  .canonicalItemType(null)
 		  .deleted(null)
