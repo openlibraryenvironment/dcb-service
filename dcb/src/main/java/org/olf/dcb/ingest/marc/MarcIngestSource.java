@@ -53,6 +53,8 @@ import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import services.k_int.integration.marc4j.Marc4jRecordUtils;
 
+import org.olf.dcb.utils.EditionNormalizer;
+
 public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordConverter {
 
 	public static final String NS_GOLDRUSH = "GOLDRUSH";
@@ -218,7 +220,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
               // 250 Is edition statement
 							List<String> qualifiers = Marc4jRecordUtils
                                            .concatSubfieldData(marcRecord, "250", "a")
-                                           .map(this::normaliseEdition)
+                                           .map(ed -> EditionNormalizer.normalizeEdition(ed) )
 			                                     .map( StringUtils::trimToNull )
                                            .toList();
 							
@@ -797,34 +799,4 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		}
 	}
 
-  // This is taken to be faster and more flexible than trying to match regexs on component parts (for now)
-  // Add cases as we find them
-  static final Map<String, String> EDITION_MAPPINGS = Map.ofEntries(
-  	Map.entry("first", "1e"),
-  	Map.entry("second", "2e"),
-  	Map.entry("third", "3e"),
-  	Map.entry("fourth", "4e"),
-  	Map.entry("fifth", "5e"),
-  	Map.entry("first edition", "1e"),
-  	Map.entry("second edition", "2e"),
-  	Map.entry("third edition", "3e"),
-  	Map.entry("fourth edition", "4e"),
-  	Map.entry("fifth edition", "5e"),
-  	Map.entry("1st", "1e"),
-  	Map.entry("2nd", "2e"),
-  	Map.entry("3rd", "3e"),
-  	Map.entry("4th", "4e"),
-  	Map.entry("5th", "5e")
-  );
-
-  private String normaliseEdition(String input) {
-    String result = input;
-    if ( input != null ) {
-      String m = EDITION_MAPPINGS.get(input.toLowerCase().trim());
-      if ( m != null ) {
-        result = m;
-      }
-    }
-    return result;
-  }
 }
