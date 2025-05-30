@@ -87,8 +87,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	// if the user doesn't have a homelibrary, this replaces it
 	// We can then use this to find the first OPEN location for their library
-	private static final HostLmsPropertyDefinition PICKUP_LIBRARY_SETTING
-		= stringPropertyDefinition("pickup-location-library", "Default pickup library for this ALMA system", FALSE);
+	private static final HostLmsPropertyDefinition DEFAULT_PATRON_LOCATION_CODE
+		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", FALSE);
 
 	private static final HostLmsPropertyDefinition DEFAULT_PICKUP_LOCATION_CODE
 		= stringPropertyDefinition("default-pickup-location-code", "Default pickup location code for this ALMA system", FALSE);
@@ -912,12 +912,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// The patron home location appears to be null for Alma - this fallback aims to cover that while we investigate
 		// As for Alma this is really the home library, so fall back to default if null
 		log.info("Create item for Alma with {}", cic);
-		String patronHomeLibraryCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (PICKUP_LIBRARY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+		String patronHomeLibraryCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (DEFAULT_PATRON_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GENERAL"));
 
 		AtomicReference<String> holdingId = new AtomicReference<>();
 
 		return Mono.zip(
-				fetchLocationByLibraryCode(patronHomeLibraryCode),
+				fetchLocationByLocationCode(patronHomeLibraryCode),
 				getMappedItemType(cic.getCanonicalItemType())
 			)
 			.flatMap(tuple -> {
