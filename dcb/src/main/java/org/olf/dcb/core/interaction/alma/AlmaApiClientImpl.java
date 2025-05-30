@@ -26,6 +26,8 @@ import org.olf.dcb.core.interaction.RelativeUriResolver;
 
 import org.reactivestreams.Publisher;
 
+import org.zalando.problem.Problem;
+import org.zalando.problem.Status;
 import reactor.core.publisher.Mono;
 
 import services.k_int.interaction.alma.*;
@@ -41,6 +43,7 @@ import static io.micronaut.http.HttpStatus.NO_CONTENT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.HttpMethod.*;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 @Slf4j
 @Secondary
@@ -163,6 +166,9 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		log.debug("Starting exchange for - \n  Method: {}, \n  URI: {}, \n  argumentType: {}, \n  body: {}, \n  headers: {}",
 			request.getMethod(), request.getUri(), argumentType, bodyJson, request.getHeaders().asMap());
 
+		// So we can use the body in error messages
+		String finalBodyJson = bodyJson;
+
 		return Mono.from(client.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
 
@@ -206,7 +212,23 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 							}
 						}
 						log.error(logMsg.toString());
-						return Mono.error(new AlmaException("Alma API error", errorResponse, status));
+//						return Mono.error(new AlmaException("Alma API error", errorResponse, status));
+
+						String requestUri = request.getUri().toString();
+
+						// lets try to bubble up as much info as possible about the request error
+						return raiseError(Problem.builder()
+							.withTitle("Alma API Error")
+							.withStatus(Status.valueOf(status.getCode()))
+							.withDetail(requestUri)
+							.with("Request Method", request.getMethod().name())
+							.with("Request path", request.getPath())
+							.with("Server name", request.getServerName() != null ? request.getServerName() : "Unknown")
+							.with("Request Headers", request.getHeaders().asMap())
+							.with("Request Body", finalBodyJson)
+							.with("Alma Error response", errorResponse)
+							.with("Raw Error Body", responseBody.get() != null ? responseBody.get() : "No body")
+							.build());
 					} else {
 						log.error("Failed to convert error body to AlmaErrorResponse for request to {}", request.getPath());
 					}
