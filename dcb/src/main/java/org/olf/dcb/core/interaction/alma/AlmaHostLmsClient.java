@@ -85,6 +85,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final HostLmsPropertyDefinition USER_IDENTIFIER
 		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
 
+	// if the user doesn't have a homelibrary, this replaces it
+	// We can then use this to find the first OPEN location for their library
 	private static final HostLmsPropertyDefinition PICKUP_LIBRARY_SETTING
 		= stringPropertyDefinition("pickup-location-library", "Default pickup library for this ALMA system", FALSE);
 
@@ -501,7 +503,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.pickupLocationLibrary(libraryCode)
 			// the DCB pickup location code is really an Alma circ desk code IF this is an Alma pickup location we are using
 			// If it is not, we must temporarily default to a known Alma circ desk code
-			.pickupLocationCirculationDesk(circDeskCode)
+			// Temporarily commenting this out to get the absolute minimum fields required. Restore it when we have it working.
+			// (as only some Alma requests will need it)
+//			.pickupLocationCirculationDesk(circDeskCode)
 			.comment(comment)
 			.build();
 
@@ -847,8 +851,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String holdingNote = "DCB Virtual holding record";
 
 		// The patron home location appears to be null for Alma - this fallback aims to cover that while we investigate
+		// As for Alma this is really the home library, so fall back to default if null
 		log.info("Create item for Alma with {}", cic);
-		String patronLocationCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+		String patronLocationCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (PICKUP_LIBRARY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
 
 		AtomicReference<String> holdingId = new AtomicReference<>();
 
