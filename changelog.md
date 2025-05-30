@@ -1,5 +1,25 @@
 # Changelog
 
+## Version 8.32.1
+
+### Changes
+* [Build]
+	* GitHub - Updated checkout action to fetch tags.
+	* Ensure correct full version number as an image tag
+* [Chore]
+	* refactor edition normalisation
+
+### Fixes
+* [General]
+	* Use our default Alma system location if the item location is closed.
+	* use correct location code for alma borrowing/supplying
+	* Add the pickup Host LMS' client class to the Alma context
+	* Stop requests involving Alma failing when a non-Alma pickup location is used
+	* use locations data from alma before creating an item and placing a hold
+	* create user requesting in alma
+	* Prevent invalid identifiers being passed to create an Alma user
+	* Restore use of primary ID when creating a patron for Alma
+
 ## Version 8.32.0
 
 ### Additions
@@ -8,6 +28,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Extra error trapping and reporting
 
 ### Fixes
