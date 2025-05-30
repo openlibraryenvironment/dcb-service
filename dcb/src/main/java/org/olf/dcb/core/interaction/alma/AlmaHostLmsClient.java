@@ -315,6 +315,65 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
+	public Mono<AlmaLocation> fetchLocationByLibraryCode(String libraryCode) {
+		return client.getLocationsForLibrary(libraryCode)
+			.flatMap(response -> {
+				List<AlmaLocation> locations = response.getLocations();
+				if (locations == null || locations.isEmpty()) {
+					throw Problem.builder()
+						.withTitle("No locations available for library: " + libraryCode)
+						.withDetail("No locations were returned from Alma for library code: " + libraryCode)
+						.with("libraryCode", libraryCode)
+						.with("hostLmsCode", getHostLmsCode())
+						.build();
+				}
+
+				if (libraryCode == null || libraryCode.isBlank()) {
+					throw Problem.builder()
+						.withTitle("Library code is blank or null")
+						.withDetail("Cannot search for locations with a blank or null library code.")
+						.with("libraryCode", libraryCode)
+						.with("hostLmsCode", getHostLmsCode())
+						.build();
+				}
+
+				// First, try to find an OPEN location
+				Optional<AlmaLocation> openLocation = locations.stream()
+					.filter(loc -> loc.getType() != null && "OPEN".equalsIgnoreCase(loc.getType().getValue()))
+					.findFirst();
+
+				if (openLocation.isPresent()) {
+					AlmaLocation selectedLocation = openLocation.get();
+					// Set the library code and name on the location for consistency
+					selectedLocation.setLibraryCode(libraryCode);
+					log.info("Found OPEN location: {} for library {}", selectedLocation.getCode(), libraryCode);
+					return Mono.just(selectedLocation);
+				}
+
+				// If no OPEN location found, try REMOTE as fallback
+				Optional<AlmaLocation> remoteLocation = locations.stream()
+					.filter(loc -> loc.getType() != null && "REMOTE".equalsIgnoreCase(loc.getType().getValue()))
+					.findFirst();
+
+				if (remoteLocation.isPresent()) {
+					AlmaLocation selectedLocation = remoteLocation.get();
+					selectedLocation.setLibraryCode(libraryCode);
+					log.info("No OPEN location found, using REMOTE location: {} for library {}",
+						selectedLocation.getCode(), libraryCode);
+					return Mono.just(selectedLocation);
+				}
+
+				// If neither OPEN nor REMOTE found, fall back to default location
+				log.warn("No OPEN or REMOTE locations found for library {}. Falling back to default location.", libraryCode);
+				return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+			})
+			.onErrorResume(e -> {
+				log.error("Failed to fetch locations for library code {}: {}", libraryCode, e.getMessage());
+				// Fall back to default location on any error
+				return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+			});
+	}
+
 	public Mono<AlmaGroupedLocationResponse> fetchLocations() {
 		return client.getLibraries()
 			.flatMapMany(librariesResponse -> {
@@ -853,12 +912,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// The patron home location appears to be null for Alma - this fallback aims to cover that while we investigate
 		// As for Alma this is really the home library, so fall back to default if null
 		log.info("Create item for Alma with {}", cic);
-		String patronLocationCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (PICKUP_LIBRARY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+		String patronHomeLibraryCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (PICKUP_LIBRARY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
 
 		AtomicReference<String> holdingId = new AtomicReference<>();
 
 		return Mono.zip(
-				fetchLocationByLocationCode(patronLocationCode),
+				fetchLocationByLibraryCode(patronHomeLibraryCode),
 				getMappedItemType(cic.getCanonicalItemType())
 			)
 			.flatMap(tuple -> {
