@@ -4,11 +4,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.RecordClusteringService;
@@ -123,6 +126,11 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			.onErrorResume(err -> {
 				log.warn("Error creating IngestRecord from source [{}]", source);
 				
+				// Add the exception IF it is a derivative of a DCB exception
+				if (DcbException.class.isAssignableFrom(err.getClass())) {
+					op.exception( (DcbException) err );
+				}
+				
 				// Just preserve the builder with no record
 				return Mono.just(op);
 			})
@@ -196,14 +204,26 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	
 	@NonNull
 	private Mono<IngestRecord> tryConvertToIngestRecord( @NonNull SourceRecord sourceRecord ) {
+		
 		try {
 			return getConverterForHostLms(sourceRecord.getHostLmsId())
 				.publishOn( Schedulers.boundedElastic() )
 				.subscribeOn( Schedulers.boundedElastic() )
-				.mapNotNull( converter -> converter.convertSourceToIngestRecord(sourceRecord));
-		} catch (Exception e) {
-			log.error("Exception converting source record with ID "+sourceRecord.getId(), e);
-			return Mono.error(e);
+				.single()
+				.onErrorMap(NoSuchElementException.class, e ->
+					new DcbException("No IngestRecord converter found for source record [%s]".formatted(sourceRecord.getId())))
+				
+				.flatMap( converter -> {
+					try {
+						return Mono.just( converter.convertSourceToIngestRecord(sourceRecord) );
+					} catch ( Exception e ) {
+						return Mono.error( new DcbError("Error converting source record [%s]"
+							.formatted(sourceRecord.getId()), e));
+					}
+				});
+		} catch ( Exception e ) {
+			log.error("Exception while converting source record with ID "+sourceRecord.getId(), e);
+			return Mono.error( new DcbException("No IngestRecord converter found for source record [%s]".formatted(sourceRecord.getId())));
 		}
 	}
 	
@@ -217,7 +237,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			.flatMap(op -> processSingleOperation(op, processedTime)
 					
 				// Do this error handling here as the mono is set to retry on exception.
-				.onErrorResume(err -> opFail(op, processedTime, "Failed to process bib: {}", err)), 100)
+				.onErrorResume(err -> opFail(op, processedTime, "Failed to process bib: %s", err)), 100)
 			
 			.then( Mono.just(chunk) );
 			
@@ -231,10 +251,16 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	protected Mono<BibRecord> processSingleOperation( IngestOperation op, Instant processedTime ) {
 		
 		IngestRecord ir = op.getIngest();
+		var error = op.getException();
+		
+		if (error != null) {
+			return opFail(op, processedTime, "Failed to create IngestRecord from source: %s", error);
+		}
+		
 		if (ir == null) {
 			// Couldn't create an ingest record.
       log.error("Failed to create Ingest Record from source record "+op.getSourceId());
-			return opFail(op, processedTime, "Failed to create IngestRecord from source ");
+			return opFail(op, processedTime, "Failed to create IngestRecord from source: Unknown error");
 		}
 
     // log.info("title {} - {}",ir.getTitle(),ir.getIdentifiers());
@@ -280,7 +306,15 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected <T> Mono<T> opFail (IngestOperation op, Instant time, String infoTemplate, Throwable error) {
-		return opFail(op, time, infoTemplate.formatted(error.getMessage()))
+		StringBuilder replacement = new StringBuilder(error.getMessage());
+		if (DcbException.class.isAssignableFrom( error.getClass() )) {
+			var cause = error.getCause();
+			if (cause != null) {
+				replacement.append(" (Cause: %s)".formatted( cause.getMessage() ));
+			}
+		}
+		
+		return opFail(op, time, infoTemplate.formatted(replacement.toString()))
 			.thenReturn( error )
 			.flatMap( Mono::error );
 	}
