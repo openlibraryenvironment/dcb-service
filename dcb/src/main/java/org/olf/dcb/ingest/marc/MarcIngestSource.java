@@ -9,12 +9,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,6 +24,8 @@ import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
+import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.conversion.SourceToIngestRecordConverter;
@@ -38,8 +39,6 @@ import org.olf.dcb.utils.DCBStringUtilities;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.olf.dcb.core.model.clustering.CoreBibliographicMetadata;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
@@ -63,7 +62,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	final static Pattern REGEX_REMOVE_PUNCTUATION = Pattern.compile("\\p{Punct}");
 
   // \b((?:\d[\-\s]?){9}[\dXx]|(?:\d[\-\s]?){13}|\d{4}-\d{3}[\dXx])\b(?:\s+(.*))?
-  final static Pattern REGEX_ISXN_VALUE=Pattern.compile("\\b((?:\\d[\\-\\s]?){9}[\\dXx]|(?:\\d[\\-\\s]?){13}|\\d{4}-\\d{3}[\\dXx])\\b(?:\\s+(.*))?");
+  final static Pattern REGEX_ISXN_VALUE = Pattern.compile("\\b((?:\\d[\\-\\s]?){9}[\\dXx]|(?:\\d[\\-\\s]?){13}|\\d{4}-\\d{3}[\\dXx])\\b(?:\\s+(.*))?");
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
@@ -201,8 +200,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			final Record marcRecord) {
 		// Initial title.
 		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
-				.filter(Objects::nonNull).flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
-				.filter(StringUtils::isNotEmpty).reduce(ingestRecord.build().getTitle(), (current, item) -> {
+				.filter(Objects::nonNull)
+				.flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
+				.filter(StringUtils::isNotEmpty)
+				.reduce(ingestRecord.build().getTitle(), (current, item) -> {
 					if (StringUtils.isEmpty(current)) {
 
 						ingestRecord.title(item);
@@ -269,7 +270,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			final Record marcRecord) {
 
     // We are seeing duplicated 035$a fields causing failure to store record identifiers. Need to remove duplicated values
-    List seen_identifiers = new ArrayList<String>();
+    List<String> seen_identifiers = new ArrayList<>();
 
 		concatSubfieldData(marcRecord, "035", "a").forEach(val -> {
 			final Matcher matcher = REGEX_NAMESPACE_ID_PAIR.matcher(val);
@@ -315,13 +316,13 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		handleControlNumber(ingestRecord, marcRecord);
 		handleSystemControlNumber(ingestRecord, marcRecord);
 
-		// It turns out that in some conventional cataloging standards, the FIRST 020 or 022 has substantially more standing
+		// It turns out that in some conventional cataloguing standards, the FIRST 020 or 022 has substantially more standing
 		// than subsequent values. Rather than using an indicator or a subfield this convention is positional. We use this list
 		// to be able to track the first occurrence of an identifier type. /sigh.
-		List seen_identifier_types = new java.util.ArrayList<String>();
+		List<String> seen_identifier_types = new ArrayList<>();
 
     // We're encountering copies of the same identifier in a record - short hand list of identifiers so we can drop duplicates
-    List seen_identifiers = new java.util.ArrayList<String>();
+    List <String>seen_identifiers = new ArrayList<>();
 
 		// Make a unique list of normalised ISBN13s (that contains converted normalised ISBN10 values) in order to
 		// determine if this record contains just 1 useful ISBN13.
@@ -377,10 +378,31 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 					
 									// Extra processing for ISBNs - 
 									if ( "ISBN".equals(idns) ) {
-										String isbn_to_consier = cleaned_isxn.length() == 13 ? cleaned_isxn : isbn10to13(cleaned_isxn);
-										unqique_normalised_isbn13_set.add(isbn_to_consier);
+										
+										int isbn_length = cleaned_isxn.length();
+										String isbn_to_consider = cleaned_isxn;
+										switch ( isbn_length ) {
+										
+											case 10:
+												// Convert to ISBN 13 and drop-through
+												isbn_to_consider = isbn10to13(isbn_to_consider);
+													
+												log.trace("Converted ISBN 10 [{}] to ISBN 13: [{}]", isbn_to_consider);
+												
+											case 13:
+												// ISBN 13.. Lets add for consideration
+												log.trace("Adding ISBN 13: [{}]", isbn_to_consider);
+												unqique_normalised_isbn13_set.add(isbn_to_consider);
+												break;
+											
+											default:
+												// Invalid length of ISBN after cleaning. DO not consider.
+												log.error("ISBN [{}] is of invalid length [{}], should be 10 or 13. Skipping ISBN for comparison", cleaned_isxn, isbn_length);
+										}
+										
+//										String isbn_to_consider = cleaned_isxn.length() == 13 ? cleaned_isxn : isbn10to13(cleaned_isxn);
+//										unqique_normalised_isbn13_set.add(isbn_to_consider);
 									}
-
                 }
               }
             }
@@ -408,11 +430,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		return ingestRecord;
 	}
 
-
-	public static String isbn10to13(String isbn10) {
+	
+	public static String isbn10to13( String isbn10 ) {
 
 		if (isbn10 == null || isbn10.length() != 10) {
-			throw new IllegalArgumentException("Input must be exactly 10 digits but value was \""+isbn10+"\"");
+			throw new DcbError("Input must be exactly 10 digits but value was \"" + isbn10 + "\"");
 		}
 
 		// Start with the "978" prefix and the first 9 digits of the ISBN-10
@@ -431,7 +453,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	}
 
 
-  default String cleanIsxn(String v) {
+  private static String cleanIsxn(String v) {
     Matcher m = REGEX_ISXN_VALUE.matcher(v);
     if ( m.matches() ) {
       return m.group(1).replaceAll("[^\\dXx]","");
@@ -486,32 +508,36 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	
 	
 	@Override
-	default IngestRecord convertSourceToIngestRecord( @NonNull SourceRecord source ) {
+	default IngestRecord convertSourceToIngestRecord( @NonNull SourceRecord source ) throws DcbException {
 		
-		// This is less than ideal. The whole flow of this needs work, and properly moving to
-		// the internal Micronaut Marshaling/Conversion suite of utilities.
-		
-		// Convert to internal source type.
-		T internalRecord = convertSourceToInternalType(source);
-		
-		// Initialize the ingestRecordBuilder from data that isn't necessarily contained
-		// in the Marc-based section of this record.
-		IngestRecordBuilder irBuilder = initIngestRecordBuilder(internalRecord);
-		
-		// Grab a standardised Marc view. This is possibly null if we have a record
-		// representing a deleted resource as the marc record portion is often not
-		// available in the remote system.
-		Record marc = resourceToMarc(internalRecord);
-		if ( marc == null ) {
-			log.debug("Couldn't get Marc portion of source [{}], default empty", source);
-		} else {
-			irBuilder = populateRecordFromMarc(irBuilder, marc);
-		}		
-		
-		// Build the record
-		IngestRecord ir = irBuilder.build();
-		
-		return ir;
+		try {
+			// This is less than ideal. The whole flow of this needs work, and properly moving to
+			// the internal Micronaut Marshaling/Conversion suite of utilities.
+			
+			// Convert to internal source type.
+			T internalRecord = convertSourceToInternalType(source);
+			
+			// Initialize the ingestRecordBuilder from data that isn't necessarily contained
+			// in the Marc-based section of this record.
+			IngestRecordBuilder irBuilder = initIngestRecordBuilder(internalRecord);
+			
+			// Grab a standardised Marc view. This is possibly null if we have a record
+			// representing a deleted resource as the marc record portion is often not
+			// available in the remote system.
+			Record marc = resourceToMarc(internalRecord);
+			if ( marc == null ) {
+				log.debug("Couldn't get Marc portion of source [{}], default empty", source);
+			} else {
+				irBuilder = populateRecordFromMarc(irBuilder, marc);
+			}		
+			
+			// Build the record
+			IngestRecord ir = irBuilder.build();
+			
+			return ir;
+		} catch (Exception e) {
+			throw new DcbError("Error converting MARC source record to IngestRecord", e);
+		}
 	}
 	
 
@@ -769,7 +795,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		if (value != null) {
 			List<Object> the_values = (List<Object>) canonical_metadata.get(property);
 			if (the_values == null) {
-				the_values = new ArrayList();
+				the_values = new ArrayList<>();
 				canonical_metadata.put(property, the_values);
 			}
 			the_values.add(value);

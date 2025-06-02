@@ -2,6 +2,7 @@ package org.olf.dcb.ingest.job;
 
 import java.util.UUID;
 
+import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.ingest.model.IngestRecord;
 
 import io.micronaut.core.annotation.NonNull;
@@ -27,5 +28,8 @@ public class IngestOperation {
 	
 	@Nullable
 	private final IngestRecord ingest;
+	
+	@Nullable
+	private final DcbException exception;
 	
 }
