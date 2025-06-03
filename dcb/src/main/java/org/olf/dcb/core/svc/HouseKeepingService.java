@@ -92,7 +92,7 @@ public class HouseKeepingService {
          bib_record as b,
          bib_identifier as id
     where b.contributes_to = c.id
-      and id.belongs_to = b.id
+      and id.owner_id = b.id
       and c.id = $1
     order by c.id, b.id, id.value
     """;
