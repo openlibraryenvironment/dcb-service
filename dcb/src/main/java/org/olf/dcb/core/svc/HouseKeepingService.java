@@ -12,6 +12,9 @@ import reactor.core.publisher.Flux;
 import java.time.Instant;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -83,6 +86,16 @@ public class HouseKeepingService {
     order by date_updated asc
     """;
 
+  private static final String CLUSTER_BIB_IDENTIFIERS = """
+    select c.id c_id, b.id b_id, id.value id_val
+    from cluster_record as c,
+         bib_record as b,
+         bib_identifier as id
+    where b.contributes_to = c.id
+      and id.belongs_to = b.id
+      and c.id = $1
+    order by c.id, b.id, id.value
+    """;
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<String> legacyDedupeMatchPoints() {
@@ -235,15 +248,38 @@ public class HouseKeepingService {
           .bind("$1", since)
           .execute())
         .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
-        .buffer(10000)
-        .concatMap(batch -> {
-          log.debug("Process cluster batch");
-          return Mono.empty();
-        })
+        .concatMap(this::validateCluster)
         .then()
       )
     );
 
+  }
+
+  private Mono<Void> validateCluster(UUID clusterId) {
+
+    Map<UUID,List<UUID>> allBibsAndTheirIdentifiers = new HashMap();
+    List<List<UUID>> uniqueClusterGroups = new ArrayList();
+
+    log.debug("Process cluster {}",clusterId);
+
+    return Mono.from(
+      dbops.withConnection(conn ->
+        Flux.from(conn
+          .createStatement(CLUSTER_BIB_IDENTIFIERS)
+          .bind("$1", clusterId)
+          .execute())
+        .flatMap(result -> {
+          return result.map((row, meta) -> {
+            Object c_id = row.get("c_id", UUID.class);
+            Object b_id = row.get("b_id", UUID.class);
+            Object id_val = row.get("id_val", UUID.class);
+            log.debug("Process {} {} {}",c_id,b_id,id_val);
+            return Mono.empty();
+          });
+        })
+        .then()
+      )
+    );
   }
 
   private Mono<Void> reprocessQuery() {
