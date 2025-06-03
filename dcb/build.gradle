@@ -94,6 +94,7 @@ dependencies {
 	// These are needed to address critical CVEs that block deployment
 	implementation("io.netty:netty-handler:4.1.118.Final")
 	implementation("org.apache.httpcomponents.client5:httpclient5:5.4.4")
+	implementation("commons-beanutils:commons-beanutils:1.11.0")
 
   runtimeOnly("ch.qos.logback.contrib:logback-json-classic:0.1.5")
   runtimeOnly("ch.qos.logback.contrib:logback-jackson:0.1.5")
