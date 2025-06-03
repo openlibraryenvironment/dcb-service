@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.time.Instant;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,6 +55,7 @@ public class HouseKeepingService {
 
 	private Mono<String> dedupe;
 	private Mono<String> reprocess;
+	private Mono<String> validateClusters;
 	private final HostLmsRepository hostLmsRepository;
   private final HostLmsService hostLmsService;
 
@@ -73,6 +75,13 @@ public class HouseKeepingService {
     """;
 
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
+
+  private static final String CLUSTER_VALIDATION_QUERY = """
+    select id, date_updated 
+    from cluster_record 
+    where date_updated > $1
+    order by date_updated asc
+    """;
 
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -187,6 +196,54 @@ public class HouseKeepingService {
     }
 
     return reprocess;
+  }
+
+  public Mono<String> validateClusters() {
+    log.info("validateClusters");
+    if (validateClusters == null) {
+      synchronized (this) {
+        if (validateClusters == null) {
+          validateClusters = Mono.<String>create(report -> {
+            log.info("Starting source record reprocess");
+            report.success("Dedupe started at [%s]".formatted(Instant.now()));
+
+            innerValidateClusters()
+              .doOnTerminate(() -> {
+                validateClusters = null;
+                log.info("Finished validate clusters");
+              })
+              .subscribe();
+          }).cache();
+        }
+      }
+    } else {
+      log.debug("Reprocess running. NOOP");
+    }
+
+    return validateClusters;
+  }
+
+
+  private Mono<Void> innerValidateClusters() {
+    log.info("innerValidateClusters");
+    AtomicInteger page = new AtomicInteger(0);
+    Timestamp since = new Timestamp(0);
+    return Mono.from(
+      dbops.withConnection(conn ->
+        Flux.from(conn
+          .createStatement(CLUSTER_VALIDATION_QUERY)
+          .bind("$1", since)
+          .execute())
+        .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
+        .buffer(10000)
+        .concatMap(batch -> {
+          log.debug("Process cluster batch");
+          return Mono.empty();
+        })
+        .then()
+      )
+    );
+
   }
 
   private Mono<Void> reprocessQuery() {

@@ -641,6 +641,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		canonical_metadata.put("author", ir.getAuthor());
 		canonical_metadata.put("otherAuthors", ir.getOtherAuthors());
 
+    // Allow ourselves a way to track which version of marc ingest source created a source record.
+    // Increment this seq number on significant changes to see if a record needs to be boosted
+		canonical_metadata.put("dcbMarcIngestSeq", "1");
+
 		DataField seriesStatement = (DataField) marcRecord.getVariableField("490");
 		if ( seriesStatement != null ) {
 			setIfSubfieldPresent(seriesStatement, 'a', canonical_metadata, "seriesStatement");

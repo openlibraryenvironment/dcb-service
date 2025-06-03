@@ -180,6 +180,13 @@ public class AdminController {
 			.map(HttpResponse.accepted()::<String>body);
 	}
 	
+	@Post(uri = "/validateClusters", produces = APPLICATION_JSON)
+	public Mono<MutableHttpResponse<String>> validateClusters() {
+		return housekeeping
+			.validateClusters()
+			.map(HttpResponse.accepted()::<String>body);
+	}
+	
 	@Get(uri = "/threads", produces = MediaType.TEXT_PLAIN)
 	public String threads() {
 	    StringBuffer threadDump = new StringBuffer(System.lineSeparator());
