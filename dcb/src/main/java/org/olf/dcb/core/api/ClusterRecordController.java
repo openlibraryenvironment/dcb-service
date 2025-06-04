@@ -26,6 +26,7 @@ import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.transaction.annotation.Transactional;
@@ -123,7 +124,7 @@ public class ClusterRecordController {
 	}
 	
 	@Secured(ADMINISTRATOR)
-	@Get("/{id}/reprocess")
+	@Post("/{id}/reprocess")
 	public Mono<HttpResponse<String>> reprocess(@NonNull final UUID id) {
 		return Mono.<String>create(report -> {
       log.info("Starting Cluster reprocess");
