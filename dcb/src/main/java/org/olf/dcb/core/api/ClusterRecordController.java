@@ -1,8 +1,14 @@
 package org.olf.dcb.core.api;
 
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.olf.dcb.core.api.serde.ClusterRecordDTO;
 import org.olf.dcb.core.model.BibRecord;
@@ -12,8 +18,12 @@ import org.olf.dcb.storage.BibRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.security.annotation.Secured;
@@ -26,24 +36,8 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
-
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.Get;
-import jakarta.inject.Inject;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.List;
-import java.util.Map;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import reactor.core.publisher.Mono;
 
 
 @Controller("/clusters")
@@ -126,5 +120,21 @@ public class ClusterRecordController {
 						.body(("Error: " + e.getMessage()).getBytes()));
 				});
 			});
+	}
+	
+	@Secured(ADMINISTRATOR)
+	@Get("/{id}/reprocess")
+	public Mono<HttpResponse<String>> reprocess(@NonNull final UUID id) {
+		return Mono.<String>create(report -> {
+      log.info("Starting Cluster reprocess");
+      report.success("Reprocess cluster [%s] started at [%s]".formatted(id, Instant.now()));
+      
+      recordClusteringService.disperseAndRecluster(id)
+	      .doOnTerminate(() -> {
+	        log.info("Finished reprocess cluster [{}]", id);
+	      })
+	      .subscribe();
+      
+		}).map(HttpResponse.accepted()::<String>body);
 	}
 }

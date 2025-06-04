@@ -30,6 +30,7 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -143,6 +144,20 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 		return Mono.from(sourceRecords.findAllByProcessingState(ProcessingStatus.PROCESSING_REQUIRED, page))
 				.transform(	withMonoLogging(log, l -> 
 					l.doOnSubscribe(Level.DEBUG, _s -> log.debug("Fetching page of SourceRecord data [{}]", page))));
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	public @NonNull Mono<UUID> requireProcessing (@NonNull UUID sourceRecordId) {
+		return Mono.from(sourceRecords.updateProcessingStateById(sourceRecordId, ProcessingStatus.PROCESSING_REQUIRED))
+				.transform(	withMonoLogging(log, l ->
+					l.doOnSubscribe(Level.DEBUG, _s -> log.debug("Flagging source record [{}] for reprocessing", sourceRecordId))))
+				.thenReturn(sourceRecordId);
+	}
+	
+	// Technically because we are using LIKE here we "could" find more than one. Handle that outside of this method if
+	// we want to fail when that is the case
+	public @NonNull Flux<SourceRecord> findByHostLmsIdAndRemoteIdLike(@NotNull UUID sourceSystemId, @NonNull String sourceRecordId) {
+		return Flux.from( sourceRecords.findByHostLmsIdAndRemoteIdLike(sourceSystemId, "%" + sourceRecordId) );
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)

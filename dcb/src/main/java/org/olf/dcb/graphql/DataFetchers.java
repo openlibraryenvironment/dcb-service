@@ -409,7 +409,9 @@ public class DataFetchers {
 						String sourceRecordId="%"+br.getSourceRecordId();
 						UUID sourceSystemUUID=br.getSourceSystemId();
 						log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
-						return Mono.from(postgresSourceRecordRepository.findByHostLmsIdAndRemoteId(sourceSystemUUID,sourceRecordId)).toFuture();
+						return Flux.from(postgresSourceRecordRepository.findByHostLmsIdAndRemoteIdLike(sourceSystemUUID,sourceRecordId))
+								.singleOrEmpty()
+								.toFuture();
 					};
 				}
 
