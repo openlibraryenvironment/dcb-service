@@ -28,7 +28,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.core.model.Alarm;
 import services.k_int.utils.UUIDUtils;
-
+import java.util.stream.Collectors;
 
 @Slf4j
 @Singleton
@@ -80,7 +80,7 @@ public class HouseKeepingService {
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
 
   private static final String CLUSTER_VALIDATION_QUERY = """
-    select id, date_updated 
+    select id, selectedBib, date_updated 
     from cluster_record 
     where date_updated > $1
     order by date_updated asc
@@ -94,7 +94,7 @@ public class HouseKeepingService {
     where b.contributes_to = c.id
       and id.owner_id = b.id
       and c.id = $1
-    order by c.id, b.id, id.value
+    order by b.dateCreated, id.value
     """;
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -247,39 +247,44 @@ public class HouseKeepingService {
           .createStatement(CLUSTER_VALIDATION_QUERY)
           .bind("$1", since)
           .execute())
-        .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
-        .concatMap(this::validateCluster)
+        .flatMap( r -> r.map((row, meta) -> {
+          UUID clusterId = row.get("id", UUID.class);
+          UUID selectedBib = row.get("selectedBib", UUID.class);
+          return validateCluster(clusterId, selectedBib);
+        }))
         .then()
       )
     );
-
   }
 
-  private Mono<Void> validateCluster(UUID clusterId) {
+  private Mono<Void> validateCluster(UUID clusterId, UUID selectedBib) {
 
-    Map<UUID,List<UUID>> allBibsAndTheirIdentifiers = new HashMap();
-    List<List<UUID>> uniqueClusterGroups = new ArrayList();
+    Map<UUID, List<UUID>> allBibsAndTheirIdentifiers = new HashMap<>();
+    List<List<UUID>> uniqueClusterGroups = new ArrayList<>();
 
-    log.debug("Process cluster {}",clusterId);
+    log.debug("Process cluster {}", clusterId);
 
     return Mono.from(
-      dbops.withConnection(conn ->
-        Flux.from(conn
-          .createStatement(CLUSTER_BIB_IDENTIFIERS)
-          .bind("$1", clusterId)
-          .execute())
-        .flatMap(result -> {
-          return result.map((row, meta) -> {
-            UUID c_id = row.get("c_id", UUID.class);
-            UUID b_id = row.get("b_id", UUID.class);
-            String id_val = row.get("id_val", String.class);
-            log.debug("Process {} {} {}",c_id,b_id,id_val);
-            return Mono.empty();
-          });
-        })
-        .then()
-      )
-    );
+        dbops.withConnection(conn ->
+            Flux.from(conn
+                    .createStatement(CLUSTER_BIB_IDENTIFIERS)
+                    .bind("$1", clusterId)
+                    .execute())
+                .flatMap(result -> result.map((row, meta) -> {
+                    UUID bibId = row.get("b_id", UUID.class);
+                    String idVal = row.get("id_val", String.class);
+                    return Map.entry(bibId, idVal);
+                }))
+                .collect(Collectors.groupingBy(
+                    Map.Entry::getKey,
+                    Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ))
+        )
+    ).flatMap(bibIdToIdentifiersList -> {
+        // bibIdToIdentifiersList is Map<UUID, List<String>>
+        log.debug("bibIdentifierMap {}", bibIdToIdentifiersList);
+        return Mono.empty(); // or whatever logic you want to do
+    });
   }
 
   private Mono<Void> reprocessQuery() {
