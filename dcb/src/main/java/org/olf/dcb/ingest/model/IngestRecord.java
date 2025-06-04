@@ -82,6 +82,9 @@ public class IngestRecord implements CoreBibliographicMetadata {
 	@Singular
 	Set<String> heldAtLocations;
 
+	@Nullable
+  UUID sourceRecordUuid;
+
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
@@ -169,6 +172,11 @@ public class IngestRecord implements CoreBibliographicMetadata {
 
 		public IngestRecordBuilder addOtherAuthor(Consumer<AuthorBuilder> consumer) {
 			otherAuthor(Author.build(consumer));
+			return this;
+		}
+
+		public IngestRecordBuilder sourceRecordUuid(UUID uuid) {
+			sourceRecordUuid(uuid);
 			return this;
 		}
 	}

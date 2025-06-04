@@ -110,6 +110,11 @@ public class BibRecord implements CoreBibliographicMetadata {
 	@Nullable
 	Integer processVersion;
 
+  // Added to allow us to point directly to the source record that gave rise to this bib, so we can 
+  // mark it needs reporocessing in some scenarios
+	@Nullable
+  UUID sourceRecordUuid;
+
 //	@Override
 //	@Nullable
 //	public String getDerivedType() {

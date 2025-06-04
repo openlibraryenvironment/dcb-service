@@ -86,6 +86,7 @@ public class BibRecordService {
 				.blockingTitle(generateBlockingString(imported.getTitle()))
 				.canonicalMetadata(imported.getCanonicalMetadata())
         .metadataScore(imported.getMetadataScore())
+        .sourceRecordUuid(imported.getSourceRecordUuid())
         .build();
 	}
 

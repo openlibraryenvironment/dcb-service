@@ -38,11 +38,12 @@ public class MatchPoint {
 	
 	@Creator
 	public MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId, @Nullable String domain) {
-		this(id, value, bibId, domain, null);
+    // id, value, bib, domain, sourceValue, valueHint
+		this(id, value, bibId, domain, null, null);
 	}
 
 	public MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId) {
-		this(id, value, bibId, null, null);
+		this(id, value, bibId, null, null, null);
 	}
 
 	private static final String PREFIX_VALUE = "MatchPoint";
@@ -54,12 +55,16 @@ public class MatchPoint {
 	public static MatchPoint buildFromString ( String input, String domain, boolean is_development ) {
 		
 		final String valueStr = PREFIX_VALUE + ":" + input;
-		
+		final String valueHint = input.length() > 15 
+      ? input.substring(0,12)+".."
+      : input;
+
 		final UUID value = UUIDUtils.nameUUIDFromNamespaceAndString(Constants.UUIDs.NAMESPACE_DCB, valueStr);
 		
 		return builder()
 			.sourceValue(valueStr)
 			.value(value)
+			.sourceValueHint(valueHint)
 			.domain(domain)
 			.build();
 	}
@@ -88,4 +93,11 @@ public class MatchPoint {
 	@Getter(onMethod_ = @Transient)
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	private final String sourceValue;
+
+  // Value hint exists to give us something to display in the admin UI that will aid librarians in diagnosing
+  // bad cluster records. Previously, we could only show the encoded UUID which left people questioning the provenance
+  // of match records. We need to be able to explain our reasoning to users with matching, and this helps us
+  // do that.
+  @Nullable
+  private final String sourceValueHint;
 }

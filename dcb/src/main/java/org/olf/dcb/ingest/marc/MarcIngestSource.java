@@ -520,6 +520,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			// Initialize the ingestRecordBuilder from data that isn't necessarily contained
 			// in the Marc-based section of this record.
 			IngestRecordBuilder irBuilder = initIngestRecordBuilder(internalRecord);
+
+      // We need this explicit hook to be able to force reprocessing when we encounter bad clusters.
+      irBuilder.sourceRecordUuid(source.getId());
 			
 			// Grab a standardised Marc view. This is possibly null if we have a record
 			// representing a deleted resource as the marc record portion is often not
