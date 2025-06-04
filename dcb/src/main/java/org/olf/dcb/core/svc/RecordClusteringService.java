@@ -19,6 +19,8 @@ import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.model.clustering.MatchPoint;
+import org.olf.dcb.dataimport.job.SourceRecordService;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.MatchPointRepository;
@@ -41,6 +43,7 @@ import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import io.micronaut.transaction.reactive.ReactiveTransactionStatus;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -52,11 +55,12 @@ import reactor.util.function.Tuples;
 public class RecordClusteringService {
 
 	private static final String MATCHPOINT_ID = "id";
-	private static final String MATCHPOINT_TITLE = "title";
+//	private static final String MATCHPOINT_TITLE = "title";
 
 	private static final Logger log = LoggerFactory.getLogger(RecordClusteringService.class);
 
 	final ClusterRecordRepository clusterRecords;
+	final Optional<SourceRecordService> sourceRecordService;
 	final BeanProvider<SharedIndexService> sharedIndexService;
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
@@ -70,9 +74,11 @@ public class RecordClusteringService {
 			BibRecordService bibRecordService,
 			Environment environment,
 			MatchPointRepository matchPointRepository, 
-			R2dbcOperations operations, 
+			R2dbcOperations operations,
+			Optional<SourceRecordService> sourceRecordService,
 			BeanProvider<SharedIndexService> sharedIndexService) {
 		this.clusterRecords = clusterRecordRepository;
+		this.sourceRecordService = sourceRecordService;
 		this.sharedIndexService = sharedIndexService;
 		this.bibRecords = bibRecordService;
 		this.environment = environment;
@@ -117,7 +123,7 @@ public class RecordClusteringService {
 
 	// private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ISBN-N", "ISSN-N", "ISBN", "ISSN", "LCCN", "OCOLC", "STRN" );
 	// ONLY-ISBN-13 is a type indicating that this ISBN was the ONLY one in the record, and therefore should be safe to use
-	private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" );
+	private static final List<String> usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" );
 
 	// Whilst a bib can have many identifiers, some are "Local" and not useful to the clustering process here
 	// we restrict the identifiers used for clustering to keep the match set as small as possible.
@@ -556,5 +562,97 @@ public class RecordClusteringService {
 			})
 			.defaultIfEmpty(cr)
 			.flatMap(this::saveOrUpdate);
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Mono<UUID> disperseAndRecluster (@NotNull @NonNull UUID clusterID) {
+		
+		// Cluster record
+		Mono<ClusterRecord> manifestClusterRecord = findById(clusterID)
+				.cache();
+		
+		// Cluster bibs
+		Mono<List<BibRecord>> theBibs = Mono.defer(() -> manifestClusterRecord)
+			.flatMapMany( bibRecords::findAllByContributesTo )
+			.collectList()
+			.cache();
+		
+		// Get the selected bib, or the first from all bibs if no selected item.
+		// This will let us keep the existing cluster.
+		Mono<String> findBibToPreserve = manifestClusterRecord
+			.flatMap( cluster -> Mono.justOrEmpty(cluster.getSelectedBib())
+				.switchIfEmpty( theBibs
+					.mapNotNull( bibs -> bibs.size() > 0 ? bibs.get(0) : null )
+					.map(BibRecord::getId)))
+			
+			.map(Objects::toString)
+			.doOnSuccess(val -> log.debug("Primary bib: [{}]", val != null ? val : "No Data"));
+		
+		// Regenerate match points for all the bibs in the cluster.
+		Flux<BibRecord> refingerprintBibs = theBibs
+			.flatMapMany( Flux::fromIterable )
+			.flatMap( bib -> {
+				log.debug("Regenerate matchpoints for bib [{}]", bib.getId());
+				return generateMatchPoints( bib )
+					.collectList()
+					.flatMap( matchPoints -> reconcileMatchPoints(matchPoints, bib) )
+					.thenReturn(bib);
+			});
+		
+		// The flow...
+		return findBibToPreserve
+			// No bibs attached to this cluster, ensure soft deleted
+			.switchIfEmpty( manifestClusterRecord
+				.flatMap( this::softDelete )
+				.then(Mono.empty()))
+			
+			// Cluster has at least one bib, refingerprint all bibs.
+			.flatMapMany( primaryBib -> refingerprintBibs
+			  .filter( currentBib -> !currentBib.getId().toString().equals(primaryBib) ))
+			
+		  // Only none primary now.
+			// Null out the contributes to, and save the bib (as an orphan).
+			.map( nonePrimaryBib -> {
+
+				log.debug("Null out cluster contribution for bib [{}]", nonePrimaryBib.getId());
+				return nonePrimaryBib.setContributesTo(null);
+			})
+		  .flatMap( bibRecords::saveOrUpdate )
+		  
+		  // Find the source ID for each none-primary bib and flag it for (re)processing
+		  .flatMap( bib -> {
+		  	// Because of the use of LIKE in this query (because of the strangely loose identifiers),
+		  	// we shouldn't assume 1 record. Here it's fairly safe to schedule all matches for "reprocessing"
+		  	if (!log.isWarnEnabled()) {
+		  	
+		  		return bibRecords.findSourceRecordForBib(bib);
+		  	}
+		  	
+		  	// Output a warning if we matched more than one source for a bib.
+		  	return bibRecords.findSourceRecordForBib(bib)
+		  		.collectList()
+		  		.map( hits -> {
+		  		  if (hits.size() != 1) {
+		  		  	log.warn("Couldn't find single source record for bib [{}], found {} matches", bib.getId(), hits.size());
+		  		  }
+		  		  
+		  		  return hits;
+		  		})
+		  		.flatMapMany(Flux::fromIterable);
+		  })
+		  
+  		.map(SourceRecord::getId)
+			.flatMap( sourceId -> Mono.justOrEmpty( sourceRecordService )
+				.flatMap(sourceRecords -> {
+					log.debug("Flag sourceRecord [{}] for reprocessing", sourceId);
+					return sourceRecords.requireProcessing(sourceId);
+				}))
+			
+			// If there were none-primary bibs then save the cluster.
+			.then(Mono.fromSupplier(() -> {
+				sharedIndexService.get().update( clusterID );
+				return clusterID;
+			}));
+						
 	}
 }
