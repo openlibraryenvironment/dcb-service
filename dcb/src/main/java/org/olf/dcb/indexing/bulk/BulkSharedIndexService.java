@@ -79,7 +79,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	
 	protected Flux<List<UUID>> collectAndDedupe(Flux<String> in) {
 		// Collect at double output rate
-		return in.distinctUntilChanged()
+		return in
 			.windowTimeout( maxSize * 2, throttleTimeout.dividedBy(2) )
 			.windowTimeout( 2, throttleTimeout )
 			.flatMap( sources -> Flux.concat( sources ).distinct().buffer(maxSize) )
@@ -87,8 +87,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 			.map( bulk -> {
 				
 				var deduped = bulk.stream().distinct().map(UUID::fromString).toList();
-				
-				if (log.isDebugEnabled()) log.debug("Got list of {} index items", deduped.size());
+				if (log.isDebugEnabled()) log.debug("Got list of {} index items ({} when deduped)", bulk.size(), deduped.size());
 				
 				return deduped;
 			});

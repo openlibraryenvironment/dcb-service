@@ -27,10 +27,6 @@ public interface SourceRecordRepository {
 	@SingleResult
 	Publisher<? extends SourceRecord> update(@Valid @NotNull @NonNull SourceRecord rawSource);
 	
-	@NonNull
-	@SingleResult
-	Publisher<SourceRecord> findOneByHostLmsIdAndRemoteId(@NonNull UUID hostLmsId, @NonNull String remoteId);
-
 	@SingleResult
 	@NonNull
 	default Publisher<SourceRecord> saveOrUpdate(@Valid @NotNull SourceRecord rawSource) {
@@ -54,15 +50,16 @@ public interface SourceRecordRepository {
 	@SingleResult
 	@NonNull
 	Publisher<Integer> updateById (@NonNull UUID id, @NonNull Instant lastProcessed, @NonNull ProcessingStatus processingState, @Nullable String processingInformation);
+
+	@SingleResult
+	@NonNull
+	Publisher<Integer> updateProcessingStateById (@NonNull UUID id, @NonNull ProcessingStatus processingState);
 	
-	@Query(value = "select processing_state as value, count(*) as count from source_record where host_lms_id = :hostLmsId group by processing_state order by processing_state", nativeQuery = true)
 	public Publisher<RecordCount> getProcessStatusForHostLms(UUID hostLmsId);
 	
 	@SingleResult
-	@Query(value = "select count(*) count from source_record where host_lms_id = :hostLmsId", nativeQuery = true)
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
 
 	@NonNull
-	@Query("SELECT * FROM source_record WHERE host_lms_id = :hostLmsId AND remote_id LIKE :remoteId")
-	Publisher<SourceRecord> findByHostLmsIdAndRemoteId(@NonNull UUID hostLmsId, @NonNull String remoteId);
+	Publisher<SourceRecord> findByHostLmsIdAndRemoteIdLike(@NonNull UUID hostLmsId, @NonNull String remoteId);
 }

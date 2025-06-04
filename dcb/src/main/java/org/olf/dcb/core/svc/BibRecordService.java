@@ -3,8 +3,6 @@ package org.olf.dcb.core.svc;
 import static org.olf.dcb.utils.DCBStringUtilities.generateBlockingString;
 import static org.olf.dcb.utils.DCBStringUtilities.uuid5ForIdentifier;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -15,6 +13,8 @@ import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.RecordClusteringService.MissingAvailabilityInfo;
+import org.olf.dcb.dataimport.job.SourceRecordService;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.processing.ProcessingStep;
@@ -50,6 +50,8 @@ public class BibRecordService {
 
 	private final BibIdentifierRepository bibIdentifierRepo;
 	private final BeanProvider<RecordClusteringService> recordClusteringServiceProvider;
+
+	private final BeanProvider<SourceRecordService> sourceRecords;
 	
 	private final StatsService statsService;
 
@@ -59,10 +61,11 @@ public class BibRecordService {
 	public BibRecordService(
 	  BibRepository bibRepo,
 	  BibIdentifierRepository bibIdentifierRepository,
-		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider, MatchPointRepository matchPointRepository) {
+		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider, MatchPointRepository matchPointRepository, BeanProvider<SourceRecordService> sourceRecordService) {
 		this.bibRepo = bibRepo;
 		this.bibIdentifierRepo = bibIdentifierRepository;
 		this.recordClusteringServiceProvider = recordClusteringServiceProvider;
+		this.sourceRecords = sourceRecordService;
 		this.statsService = statsService;
 		this.matchPointRepository = matchPointRepository;
 	}
@@ -263,6 +266,15 @@ public class BibRecordService {
 	public Mono<BibRecord> deleteAssociatedBib (final IngestRecord source) {
 		return getOrSeed(source).
 				flatMap(this::deleteBibAndUpdateCluster);
+	}
+	
+	@Transactional(propagation = Propagation.MANDATORY)
+	public @NonNull	Flux<SourceRecord> findSourceRecordForBib(@NonNull BibRecord bibRecord) {
+
+		String sourceRecordId = bibRecord.getSourceRecordId();
+		UUID sourceSystemId = bibRecord.getSourceSystemId();
+		
+		return Flux.from( sourceRecords.get().findByHostLmsIdAndRemoteIdLike(sourceSystemId, sourceRecordId) );
 	}
 	
 	
