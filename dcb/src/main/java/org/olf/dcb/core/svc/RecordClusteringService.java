@@ -55,12 +55,12 @@ import reactor.util.function.Tuples;
 public class RecordClusteringService {
 
 	private static final String MATCHPOINT_ID = "id";
-	private static final String MATCHPOINT_TITLE = "title";
+//	private static final String MATCHPOINT_TITLE = "title";
 
 	private static final Logger log = LoggerFactory.getLogger(RecordClusteringService.class);
 
 	final ClusterRecordRepository clusterRecords;
-	final SourceRecordService sourceRecords;
+	final Optional<SourceRecordService> sourceRecordService;
 	final BeanProvider<SharedIndexService> sharedIndexService;
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
@@ -75,10 +75,10 @@ public class RecordClusteringService {
 			Environment environment,
 			MatchPointRepository matchPointRepository, 
 			R2dbcOperations operations,
-			SourceRecordService sourceReocrds,
+			Optional<SourceRecordService> sourceRecordService,
 			BeanProvider<SharedIndexService> sharedIndexService) {
 		this.clusterRecords = clusterRecordRepository;
-		this.sourceRecords = sourceReocrds;
+		this.sourceRecordService = sourceRecordService;
 		this.sharedIndexService = sharedIndexService;
 		this.bibRecords = bibRecordService;
 		this.environment = environment;
@@ -123,7 +123,7 @@ public class RecordClusteringService {
 
 	// private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ISBN-N", "ISSN-N", "ISBN", "ISSN", "LCCN", "OCOLC", "STRN" );
 	// ONLY-ISBN-13 is a type indicating that this ISBN was the ONLY one in the record, and therefore should be safe to use
-	private static final List usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" );
+	private static final List<String> usefulClusteringIdentifiers = List.of("BLOCKING_TITLE","GOLDRUSH","ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" );
 
 	// Whilst a bib can have many identifiers, some are "Local" and not useful to the clustering process here
 	// we restrict the identifiers used for clustering to keep the match set as small as possible.
@@ -642,10 +642,11 @@ public class RecordClusteringService {
 		  })
 		  
   		.map(SourceRecord::getId)
-			.flatMap( sourceId -> {
-				log.debug("Flag sourceRecord [{}] for reprocessing", sourceId);
-				return sourceRecords.requireProcessing(sourceId);
-			})
+			.flatMap( sourceId -> Mono.justOrEmpty( sourceRecordService )
+				.flatMap(sourceRecords -> {
+					log.debug("Flag sourceRecord [{}] for reprocessing", sourceId);
+					return sourceRecords.requireProcessing(sourceId);
+				}))
 			
 			// If there were none-primary bibs then save the cluster.
 			.then(Mono.fromSupplier(() -> {
