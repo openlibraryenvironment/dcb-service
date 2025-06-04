@@ -36,12 +36,16 @@ public class SourceRecord {
 	@NotNull
 	@TypeDef( type = DataType.UUID )
 	private UUID id;
+
+  // Extracted to this method so we can call this method should we need to regenerate the id elsewhere
+  public static UUID generateSourceRecordId(UUID hstId, String recId) {
+    final UUID ns = UUIDUtils.nameUUIDFromNamespaceAndString(hstId, "SourceRecord");
+    return UUIDUtils.nameUUIDFromNamespaceAndString(ns, recId);
+  }
 	
 	public UUID getId() {
-		if (id == null) {
-			final UUID ns = UUIDUtils.nameUUIDFromNamespaceAndString(hostLmsId, "SourceRecord");
-			id = UUIDUtils.nameUUIDFromNamespaceAndString(ns, remoteId);
-		}
+		if (id == null)
+			id = generateSourceRecordId(hostLmsId,remoteId);
 		
 		return this.id;
 	}

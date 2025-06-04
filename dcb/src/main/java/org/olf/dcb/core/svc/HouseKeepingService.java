@@ -270,9 +270,9 @@ public class HouseKeepingService {
           .execute())
         .flatMap(result -> {
           return result.map((row, meta) -> {
-            Object c_id = row.get("c_id", UUID.class);
-            Object b_id = row.get("b_id", UUID.class);
-            Object id_val = row.get("id_val", UUID.class);
+            UUID c_id = row.get("c_id", UUID.class);
+            UUID b_id = row.get("b_id", UUID.class);
+            String id_val = row.get("id_val", String.class);
             log.debug("Process {} {} {}",c_id,b_id,id_val);
             return Mono.empty();
           });
