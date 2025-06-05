@@ -4,6 +4,7 @@ import io.micrometer.core.annotation.Timed;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.runtime.context.scope.Refreshable;
 import io.micronaut.scheduling.annotation.Scheduled;
+import io.micronaut.management.endpoint.info.InfoSource;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
 
@@ -49,8 +51,12 @@ public class TrackingServiceV3 implements TrackingService {
 	private final ReactorFederatedLockService reactorFederatedLockService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestAuditService patronRequestAuditService;
+
 	@Value("${dcb.tracking.dryRun:false}")
 	private Boolean dryRun;
+
+  private Duration lastTrackingRunDuration;
+  private Long lastTrackingRunCount;
 
 	private final int MAX_TRACKING_CONCURRENCY = 10;
 
@@ -81,12 +87,23 @@ public class TrackingServiceV3 implements TrackingService {
 	@Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
 	public void run() {
 		log.debug("DCB Tracking Service run");
+    Instant start = Instant.now(); // ⏱ Start timing
 
 		Flux.from(patronRequestRepository.findScheduledChecks())
 			.doOnNext( tracking_record -> log.debug("Scheduled check for {}",tracking_record))
 			.flatMap(this::doTracking, MAX_TRACKING_CONCURRENCY)
 			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(LOCK_NAME))
 			.count()
+      .doOnSuccess(total -> {
+        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // ⏱ Store duration
+        this.lastTrackingRunCount = total;
+        log.info("TRACKING Tracking completed for {} total Requests in {}", total, lastTrackingRunDuration);
+      })
+      .doOnError(error -> {
+        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // ⏱ Even on error
+        this.lastTrackingRunCount = Long.valueOf(0);
+        log.error("TRACKING Error {} when updating tracking information in {}", error.getMessage(), lastTrackingRunDuration, error);
+      })
 			.subscribe(
 				total -> log.info("TRACKING Tracking completed for {} total Requests", total),
 				error -> log.error("TRACKING Error when updating tracking information", error));
@@ -662,4 +679,15 @@ public class TrackingServiceV3 implements TrackingService {
 			return Mono.just(rwc);
 		}
 	}
+
+  @Override
+  public Duration getLastTrackingRunDuration() {
+    return this.lastTrackingRunDuration;
+  }
+
+  @Override
+  public Long getLastTrackingRunCount() {
+    return this.lastTrackingRunCount;
+  }
+
 }
