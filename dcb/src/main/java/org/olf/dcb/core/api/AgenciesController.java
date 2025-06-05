@@ -4,13 +4,11 @@ import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import io.micronaut.http.annotation.*;
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -27,10 +25,6 @@ import com.github.javaparser.utils.Log;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -128,71 +122,96 @@ public class AgenciesController {
 	}
 
 	@Get("/{id}/pickupLocations")
-	public Mono<List<HashMap<String, Object>>> pickupLocations(UUID id) {
-		List<HashMap<String, Object>> pickupLocations = new ArrayList<HashMap<String, Object>>();
-		return(Mono.from(functionalSettingRepository.isSettingEnabledForAgency(id, FunctionalSettingType.PICKUP_ANYWHERE.toString()))
-			.defaultIfEmpty(false)
-			.flatMap((Boolean isEnabled) -> {
-				return(isEnabled ? allPickupLocations(pickupLocations)
-								  : pickupLocationsForAgency(id, pickupLocations)
-				);
-			})
-		);
+	public Mono<List<AgencyPickupLocations>> pickupLocations(@PathVariable UUID id) {
+		return isPickupAnywhereEnabled(id)
+			.flatMap(isEnabled -> isEnabled
+				? getAllAgencyPickupLocations()
+				: getSingleAgencyPickupLocations(id));
 	}
 
-	private Mono<List<HashMap<String, Object>>> allPickupLocations(
-		List<HashMap<String, Object>> pickupLocations	
-	) {
-		return(Flux.from(agencyRepository.queryAll())
-			.collectList()
-			.flatMap((List<DataAgency> agencies) -> {
-				for (DataAgency agency : agencies) {
-			    	addAgencyPickupLocations(agency, pickupLocations).subscribe();
-				}
-		    	return(Mono.just(pickupLocations));
-			})
-		);
-		
+	private Mono<Boolean> isPickupAnywhereEnabled(UUID agencyId) {
+		return Mono.from(functionalSettingRepository
+				.isSettingEnabledForAgency(agencyId, FunctionalSettingType.PICKUP_ANYWHERE.toString()))
+			.defaultIfEmpty(false);
 	}
-	
-	private Mono<List<HashMap<String, Object>>> pickupLocationsForAgency(
-		UUID agencyId,
-		List<HashMap<String, Object>> pickupLocations	
-	) {
-		return(Mono.from(agencyRepository.findById(agencyId))
-			.flatMap((DataAgency agency) -> {
-		    	return(addAgencyPickupLocations(agency, pickupLocations));
-		    })
-		);
+
+	private Mono<List<AgencyPickupLocations>> getAllAgencyPickupLocations() {
+		return Flux.from(agencyRepository.queryAll())
+			.flatMap(agency -> buildAgencyPickupLocations(agency, PickupFilter.ANYWHERE_ENABLED))
+			.filter(Optional::isPresent)
+			.map(Optional::get)
+			.collectList();
 	}
-	
-	private Mono<List<HashMap<String, Object>>> addAgencyPickupLocations(
+
+	private Mono<List<AgencyPickupLocations>> getSingleAgencyPickupLocations(UUID agencyId) {
+		return Mono.from(agencyRepository.findById(agencyId))
+			.flatMap(agency -> buildAgencyPickupLocations(agency, PickupFilter.STANDARD))
+			.map(this::wrapInListOrEmpty);
+	}
+
+	private Mono<Optional<AgencyPickupLocations>> buildAgencyPickupLocations(
 		DataAgency agency,
-		List<HashMap<String, Object>> pickupLocations
-	) {
-		return(Flux.from(locationRepository.getPickupLocations(agency.getId()))
-	   		.collectList()
-	   		.flatMap((List<Location> locs) -> {
-	   			List<HashMap<String, Object>> locations = new ArrayList<HashMap<String, Object>>();
-	   			for (Location loc : locs) {
-	   				HashMap<String, Object> pickupLocation = new HashMap<String, Object>();
-	   				locations.add(pickupLocation);
-	   				pickupLocation.put("id", loc.getId());
-	   				pickupLocation.put("name", loc.getName());
-	   			}
-	   			
-	   			// Now if we found some pickup locations add this agency to pickup locations
-	   			if (!locations.isEmpty()) {
-	   				HashMap<String, Object> agencyPickupLocations = new HashMap<String, Object>();
-	   				pickupLocations.add(agencyPickupLocations);
-	   				agencyPickupLocations.put("id", agency.getId());
-	   				agencyPickupLocations.put("name", agency.getName());
-	   				agencyPickupLocations.put("locations", locations);
-	   			}
-	   			return(Mono.just(pickupLocations));
-	   		})
-	   	);
+		PickupFilter filterType) {
+
+		return getFilteredPickupLocations(agency.getId(), filterType)
+			.map(this::mapLocationToDto)
+			.collectList()
+			.map(locations -> createAgencyPickupLocationsIfNotEmpty(agency, locations));
 	}
+
+	private Flux<Location> getFilteredPickupLocations(UUID agencyId, PickupFilter filterType) {
+		return Flux.from(locationRepository.getPickupLocations(agencyId))
+			.filter(Location::getIsPickup)
+			.filter(location -> applyPickupFilter(location, filterType));
+	}
+
+	private boolean applyPickupFilter(Location location, PickupFilter filterType) {
+		return switch (filterType) {
+			case ANYWHERE_ENABLED -> location.getIsEnabledForPickupAnywhere();
+			case STANDARD -> true;
+		};
+	}
+
+	private Optional<AgencyPickupLocations> createAgencyPickupLocationsIfNotEmpty(
+		DataAgency agency,
+		List<PickupLocationDto> locations) {
+
+		if (locations.isEmpty()) {
+			return Optional.empty();
+		}
+
+		return Optional.of(new AgencyPickupLocations(
+			agency.getId(),
+			agency.getName(),
+			locations
+		));
+	}
+
+	private List<AgencyPickupLocations> wrapInListOrEmpty(Optional<AgencyPickupLocations> optional) {
+		return optional.map(List::of).orElse(List.of());
+	}
+
+	private PickupLocationDto mapLocationToDto(Location location) {
+		return new PickupLocationDto(location.getId(), location.getName());
+	}
+
+	// Enum to make filtering logic clearer
+	private enum PickupFilter {
+		ANYWHERE_ENABLED,  // Only locations enabled for pickup anywhere
+		STANDARD          // All pickup locations
+	}
+
+	// Data classes
+	public record AgencyPickupLocations(
+		UUID id,
+		String name,
+		List<PickupLocationDto> locations
+	) {}
+
+	public record PickupLocationDto(
+		UUID id,
+		String name
+	) {}
 	
 	private static DataAgency mapToAgency(AgencyDTO agency, DataHostLms lms) {
 		return DataAgency.builder()
