@@ -100,6 +100,9 @@ public class Location implements Auditable {
 	// List this location in the pickup location lists
 	private Boolean isPickup;
 
+	// It is possible to be a pickup location but the location can't be used in 3-legged requests
+	private Boolean isEnabledForPickupAnywhere;
+
 	// Is this location a shelving location
 	private Boolean isShelving;
 

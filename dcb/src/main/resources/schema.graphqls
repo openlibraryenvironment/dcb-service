@@ -561,6 +561,7 @@ type Location {
   printLabel: String
   localId: String
 	lastImported: String
+	isEnabledForPickupAnywhere: Boolean
 }
 
 type Library {
