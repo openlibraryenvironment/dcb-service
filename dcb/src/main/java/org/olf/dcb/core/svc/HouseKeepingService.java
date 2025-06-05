@@ -279,23 +279,43 @@ public class HouseKeepingService {
             Collectors.mapping(Map.Entry::getValue, Collectors.toSet())
           ))
       )
-    ).flatMap(bibIdToIdentifiersList -> {
-      // bibIdToIdentifiersList is Map<UUID, List<String>>
-      log.debug("bibIdentifierMap {}", bibIdToIdentifiersList);
-      Set<String> idset = new HashSet();
+    ).flatMapMany(bibIdToIdentifiersMap -> {
+      log.debug("bibIdentifierMap {}", bibIdToIdentifiersMap);
 
-      // Start with the identifiers from the selected bib
-      idset.addAll(bibIdToIdentifiersList.get(selectedBib) );
+      Set<String> idset = new HashSet<>();
+      idset.addAll(bibIdToIdentifiersMap.getOrDefault(selectedBib, Set.of()));
 
-      // Now iterate over all the bibs. If the bib in question has at least 2 identifiers in common with the root record
-      // add it's identifiers to the idset. If not, it should no longer be in this cluster, so dissociate it and mark it's
-      // source record as needs processing
-      // Set<String> intersection = new HashSet<>(bibUnderConsideration);
-      // intersection.retainAll(idset); // modifies intersection to be the intersection of A and B
+      // Emit the bibs that need cleanup
+      return Flux.fromIterable(bibIdToIdentifiersMap.entrySet())
+        .filter(entry -> {
+          UUID bibId = entry.getKey();
+          if (bibId.equals(selectedBib)) return false;
+          Set<String> identifiers = entry.getValue();
+          Set<String> intersection = new HashSet<>(identifiers);
+          intersection.retainAll(idset);
 
-
-      return Mono.empty(); // or whatever logic you want to do
-    });
+          if ( intersection.size() < 2 ) {
+            // Pass the filter - this should be removed
+            return true;
+          }
+          else {
+            // this should be clustered.. Add it's IDs to the idset to grow the cluster scope
+            idset.addAll(identifiers);
+            log.info("Retaining {} and adding ids to idset {}",bibId,idset);
+            return false;
+          }
+        })
+        .map(entry -> {
+          UUID bibToCleanup = entry.getKey();
+          log.info("Bib {} should be cleaned up", bibToCleanup);
+          return bibToCleanup;
+        });
+    })
+    .flatMap ( bibToCleanup -> {
+      log.info("Clean up bib {}", bibToCleanup);
+      return Mono.empty();
+    })
+    .then();
   }
 
   private Mono<Void> reprocessQuery() {
