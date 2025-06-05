@@ -44,6 +44,7 @@ public class CreateLocationDataFetcher implements DataFetcher<CompletableFuture<
 		String name = input_map.get("name") !=null ? input_map.get("name").toString() : null;
 		String type = input_map.get("type") !=null ? input_map.get("type").toString() : null;
 		Boolean isPickup = input_map.get("isPickup") !=null ? Boolean.valueOf(input_map.get("isPickup").toString()): null;
+		Boolean isPickupAnywhere = input_map.get("isPickupAnywhere") !=null ? Boolean.valueOf(input_map.get("isPickupAnywhere").toString()): null;
 		String localId = input_map.get("localId") !=null ? input_map.get("localId").toString() : null;
 		String agencyCode = input_map.get("agencyCode") !=null ? input_map.get("agencyCode").toString() : null;
 		String hostLmsCode = input_map.get("hostLmsCode") !=null ? input_map.get("hostLmsCode").toString() : null;
@@ -101,6 +102,7 @@ public class CreateLocationDataFetcher implements DataFetcher<CompletableFuture<
 						.code(code)
 						.type(type)
 						.isPickup(isPickup)
+						.isEnabledForPickupAnywhere(isPickupAnywhere)
 						.printLabel(printLabel.isBlank() ? name : printLabel)
 						.deliveryStops(deliveryStops.isBlank() ? agencyCode : deliveryStops)
 						.localId(localId)
