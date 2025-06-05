@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import io.micronaut.http.annotation.*;
+import io.micronaut.serde.annotation.Serdeable;
 import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -201,13 +202,14 @@ public class AgenciesController {
 		STANDARD          // All pickup locations
 	}
 
-	// Data classes
+	@Serdeable
 	public record AgencyPickupLocations(
 		UUID id,
 		String name,
 		List<PickupLocationDto> locations
 	) {}
 
+	@Serdeable
 	public record PickupLocationDto(
 		UUID id,
 		String name
