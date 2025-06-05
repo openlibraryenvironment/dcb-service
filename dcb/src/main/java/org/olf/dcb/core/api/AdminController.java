@@ -7,6 +7,8 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
 
 import org.olf.dcb.core.api.serde.ImportCommand;
 import org.olf.dcb.core.model.PatronRequest;
@@ -50,6 +52,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+import io.micronaut.context.env.Environment;
+import io.micronaut.context.env.PropertySource;
+
 @Controller("/admin")
 @Validated
 @Secured(RoleNames.ADMINISTRATOR)
@@ -66,6 +71,7 @@ public class AdminController {
 	private final DCBConfigurationService configurationService;
 	private final Optional<SharedIndexLiveUpdater> sharedIndexUpdater;
 	private final HouseKeepingService housekeeping;
+	private final Environment env;
 
 	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService,
 //			StatsService statsService,
@@ -73,7 +79,8 @@ public class AdminController {
 			ProcessStateRepository processStateRepository,
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
-			Optional<SharedIndexLiveUpdater> sharedIndexUpdater, HouseKeepingService housekeeping) {
+			Optional<SharedIndexLiveUpdater> sharedIndexUpdater, HouseKeepingService housekeeping,
+      Environment env) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
@@ -84,6 +91,7 @@ public class AdminController {
 		this.bibRepository = bibRepository;
 		this.sharedIndexUpdater = sharedIndexUpdater;
 		this.housekeeping = housekeeping;
+		this.env = env;
 	}
 
 	// ToDo: The tests seem to want to be able to call this without any auth - that
@@ -146,6 +154,23 @@ public class AdminController {
 	public Mono<ConfigImportResult> importCfg(@Body @Valid ImportCommand ic) {
 		log.info("Import configuration request {}", ic);
 		return configurationService.importConfiguration(ic.getProfile(), ic.getUrl());
+	}
+
+	@Get(uri = "/cfg", produces = APPLICATION_JSON)
+	public Mono<Map> getConfig() {
+		log.info("Get configuration");
+    Map<String,Object> result = new HashMap();
+    Map<String,Object> env_report = new HashMap();
+
+    for (PropertySource source : env.getPropertySources()) {
+      for (String key : source) {
+        env_report.put(key, source.get(key));
+      }
+    }
+
+    result.put("env_report",env_report);
+
+    return Mono.just(result);
 	}
 
 	@Post(uri = "/reindex{/operation}", produces = APPLICATION_JSON)

@@ -12,9 +12,11 @@ import reactor.core.publisher.Flux;
 import java.time.Instant;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Set;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -259,31 +261,40 @@ public class HouseKeepingService {
 
   private Mono<Void> validateCluster(UUID clusterId, UUID selectedBib) {
 
-    Map<UUID, List<UUID>> allBibsAndTheirIdentifiers = new HashMap<>();
-    List<List<UUID>> uniqueClusterGroups = new ArrayList<>();
-
     log.debug("Process cluster {}", clusterId);
 
     return Mono.from(
-        dbops.withConnection(conn ->
-            Flux.from(conn
-                    .createStatement(CLUSTER_BIB_IDENTIFIERS)
-                    .bind("$1", clusterId)
-                    .execute())
-                .flatMap(result -> result.map((row, meta) -> {
-                    UUID bibId = row.get("b_id", UUID.class);
-                    String idVal = row.get("id_val", String.class);
-                    return Map.entry(bibId, idVal);
-                }))
-                .collect(Collectors.groupingBy(
-                    Map.Entry::getKey,
-                    Collectors.mapping(Map.Entry::getValue, Collectors.toList())
-                ))
-        )
+      dbops.withConnection(conn ->
+        Flux.from(conn
+          .createStatement(CLUSTER_BIB_IDENTIFIERS)
+            .bind("$1", clusterId)
+            .execute())
+          .flatMap(result -> result.map((row, meta) -> {
+            UUID bibId = row.get("b_id", UUID.class);
+            String idVal = row.get("id_val", String.class);
+            return Map.entry(bibId, idVal);
+          }))
+          .collect(Collectors.groupingBy(
+            Map.Entry::getKey,
+            Collectors.mapping(Map.Entry::getValue, Collectors.toSet())
+          ))
+      )
     ).flatMap(bibIdToIdentifiersList -> {
-        // bibIdToIdentifiersList is Map<UUID, List<String>>
-        log.debug("bibIdentifierMap {}", bibIdToIdentifiersList);
-        return Mono.empty(); // or whatever logic you want to do
+      // bibIdToIdentifiersList is Map<UUID, List<String>>
+      log.debug("bibIdentifierMap {}", bibIdToIdentifiersList);
+      Set<String> idset = new HashSet();
+
+      // Start with the identifiers from the selected bib
+      idset.addAll(bibIdToIdentifiersList.get(selectedBib) );
+
+      // Now iterate over all the bibs. If the bib in question has at least 2 identifiers in common with the root record
+      // add it's identifiers to the idset. If not, it should no longer be in this cluster, so dissociate it and mark it's
+      // source record as needs processing
+      // Set<String> intersection = new HashSet<>(bibUnderConsideration);
+      // intersection.retainAll(idset); // modifies intersection to be the intersection of A and B
+
+
+      return Mono.empty(); // or whatever logic you want to do
     });
   }
 
