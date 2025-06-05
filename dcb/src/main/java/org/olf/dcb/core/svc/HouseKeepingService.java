@@ -82,7 +82,7 @@ public class HouseKeepingService {
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
 
   private static final String CLUSTER_VALIDATION_QUERY = """
-    select id, selectedBib, date_updated 
+    select id, selected_bib, date_updated 
     from cluster_record 
     where date_updated > $1
     order by date_updated asc
@@ -251,7 +251,7 @@ public class HouseKeepingService {
           .execute())
         .flatMap( r -> r.map((row, meta) -> {
           UUID clusterId = row.get("id", UUID.class);
-          UUID selectedBib = row.get("selectedBib", UUID.class);
+          UUID selectedBib = row.get("selected_bib", UUID.class);
           return validateCluster(clusterId, selectedBib);
         }))
         .then()
