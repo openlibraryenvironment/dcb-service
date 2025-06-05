@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import reactor.util.function.Tuples;
+import reactor.util.function.Tuple2;
 
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.core.HostLmsService;
@@ -219,14 +221,15 @@ public class HouseKeepingService {
       synchronized (this) {
         if (validateClusters == null) {
           validateClusters = Mono.<String>create(report -> {
-            log.info("Starting source record reprocess");
+            log.info("Starting validateClusters");
             report.success("Dedupe started at [%s]".formatted(Instant.now()));
-
             innerValidateClusters()
               .doOnTerminate(() -> {
                 validateClusters = null;
                 log.info("Finished validate clusters");
               })
+              .doOnNext(count -> log.info("Validated {} clusters",count))
+              .doOnError(error -> log.error("Error in innerValidateClusters:",error))
               .subscribe();
           }).cache();
         }
@@ -234,12 +237,11 @@ public class HouseKeepingService {
     } else {
       log.debug("Reprocess running. NOOP");
     }
-
     return validateClusters;
   }
 
 
-  private Mono<Void> innerValidateClusters() {
+  private Mono<Long> innerValidateClusters() {
     log.info("innerValidateClusters");
     AtomicInteger page = new AtomicInteger(0);
     Timestamp since = new Timestamp(0);
@@ -252,9 +254,10 @@ public class HouseKeepingService {
         .flatMap( r -> r.map((row, meta) -> {
           UUID clusterId = row.get("id", UUID.class);
           UUID selectedBib = row.get("selected_bib", UUID.class);
-          return validateCluster(clusterId, selectedBib);
+          return Tuples.of(clusterId, selectedBib);
         }))
-        .then()
+        .flatMap(tuple -> validateCluster(tuple.getT1(), tuple.getT2()))
+        .count()
       )
     );
   }

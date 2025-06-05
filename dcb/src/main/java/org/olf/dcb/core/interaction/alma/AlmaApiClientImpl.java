@@ -87,7 +87,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		this.objectMapper = objectMapper;
 	}
 
-	@PostConstruct
 	void logClientConfig() {
 		if (client instanceof DefaultHttpClient) {
 			DefaultHttpClient defaultClient = (DefaultHttpClient) client;
