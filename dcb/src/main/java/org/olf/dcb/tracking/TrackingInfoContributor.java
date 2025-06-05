@@ -30,8 +30,8 @@ public class TrackingInfoContributor implements InfoSource {
 
         Map<String, Object> trackingMap = Map.of(
             "tracking", Map.of(
-                "lastRunDuration", duration.toString(),
-                "lastRunCount", count
+                "lastRunDuration", duration ? duration.toString() : "UNKNOWN",
+                "lastRunCount", ( count ? count : Long.valueOf(0) )
             )
         );
 
