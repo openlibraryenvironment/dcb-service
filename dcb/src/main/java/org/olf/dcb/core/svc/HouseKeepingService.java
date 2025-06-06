@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.UUID;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import reactor.util.function.Tuples;
 import reactor.util.function.Tuple2;
@@ -263,8 +264,13 @@ public class HouseKeepingService {
         .flatMap( r -> r.map((row, meta) -> {
           UUID clusterId = row.get("id", UUID.class);
           UUID selectedBib = row.get("selected_bib", UUID.class);
+          if (clusterId == null || selectedBib == null) {
+            log.warn("Skipping null clusterId or selectedBib");
+            return null;
+          }
           return Tuples.of(clusterId, selectedBib);
         }))
+        .filter(Objects::nonNull)
         .flatMap(tuple -> validateCluster(tuple.getT1(), tuple.getT2()))
         .count()
       )
@@ -310,7 +316,7 @@ public class HouseKeepingService {
 
           if ( intersection.size() < 2 ) {
             // Pass the filter - this should be removed
-            log.info("Clenaup...");
+            log.info("Cleanup... ids={} clusterids={}",identifiers,idset);
             return true;
           }
           else {
