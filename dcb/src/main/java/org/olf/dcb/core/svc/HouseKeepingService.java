@@ -347,13 +347,17 @@ public class HouseKeepingService {
       Mono.from(status.getConnection()
         .createStatement(SET_REINDEX)
         .bind("$1", bibId)
-        .execute()
-        )
-        .then(Mono.from(status.getConnection()
-        .createStatement(BREAK_CLUSTER_ASSOCIATION)
-        .bind("$1", bibId)
-        .execute()))
-    )).then();
+        .execute())
+      .flatMap(result -> Mono.from(result.getRowsUpdated()))  // Fix here
+      .doOnNext(c -> log.info("Completed setting reindex for {} rows", c))
+      .then(Mono.from(status.getConnection()
+          .createStatement(BREAK_CLUSTER_ASSOCIATION)
+          .bind("$1", bibId)
+          .execute())
+        .flatMap(result -> Mono.from(result.getRowsUpdated())) // Fix here
+        .doOnNext(c -> log.info("Completed breaking cluster association for {} rows", c)))
+    ))
+    .then(); // Return Mono<Void>
   }
 
   private Mono<Void> reprocessQuery() {
