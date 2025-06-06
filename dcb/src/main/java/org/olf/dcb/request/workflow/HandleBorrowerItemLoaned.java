@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -259,14 +260,16 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	}
 
 	private Mono<RequestWorkflowContext> handleMissingCheckoutData(RequestWorkflowContext rwc) {
-		log.error("Missing data attempting to set home item off campus. RequestWorkflowContext: {}, PatronRequest ID: {}, PatronHomeIdentity: {}",
-			rwc, rwc.getPatronRequest().getId(), rwc.getPatronHomeIdentity());
 
-		final var auditMessage = String.format(
-			"Missing data attempting to set home item off campus. RequestWorkflowContext: %s, PatronRequest ID: %s, PatronHomeIdentity: %s",
-			rwc, rwc.getPatronRequest().getId(), rwc.getPatronHomeIdentity());
+		final var localItemId = getValueOrNull(rwc, RequestWorkflowContext::getPatronRequest, PatronRequest::getLocalItemId);
+		final var patronSystemCode = getValueOrNull(rwc, RequestWorkflowContext::getPatronSystemCode);
+		final var patronHomeIdentity = getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity);
 
-		return patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(), auditMessage)
+		final var message = String.format(
+			"Missing data for checkout. localItemId: %s, patronSystemCode ID: %s, patronHomeIdentity: %s",
+			localItemId, patronSystemCode, patronHomeIdentity);
+
+		return patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(), message)
 			.thenReturn(rwc);
 	}
 
