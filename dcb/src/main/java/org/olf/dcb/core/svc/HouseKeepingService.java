@@ -242,7 +242,7 @@ public class HouseKeepingService {
 
 
   private Mono<Long> innerValidateClusters() {
-    log.info("innerValidateClusters");
+    // log.info("innerValidateClusters");
     AtomicInteger page = new AtomicInteger(0);
     Timestamp since = new Timestamp(0);
     return Mono.from(
@@ -264,7 +264,7 @@ public class HouseKeepingService {
 
   private Mono<Void> validateCluster(UUID clusterId, UUID selectedBib) {
 
-    log.info("Process cluster {}", clusterId);
+    // log.info("Process cluster {}", clusterId);
 
     return Mono.from(
       dbops.withConnection(conn ->
@@ -283,7 +283,7 @@ public class HouseKeepingService {
           ))
       )
     ).flatMapMany(bibIdToIdentifiersMap -> {
-      log.info("bibIdentifierMap {}", bibIdToIdentifiersMap);
+      // log.info("bibIdentifierMap {}", bibIdToIdentifiersMap);
 
       Set<String> idset = new HashSet<>();
       idset.addAll(bibIdToIdentifiersMap.getOrDefault(selectedBib, Set.of()));
@@ -297,7 +297,7 @@ public class HouseKeepingService {
           Set<String> intersection = new HashSet<>(identifiers);
           intersection.retainAll(idset);
 
-          log.info("Intersection: {}",intersection.size());
+          // log.info("Intersection: {}",intersection.size());
 
           if ( intersection.size() < 2 ) {
             // Pass the filter - this should be removed
@@ -307,7 +307,7 @@ public class HouseKeepingService {
           else {
             // this should be clustered.. Add it's IDs to the idset to grow the cluster scope
             idset.addAll(identifiers);
-            log.info("Retaining {} and adding ids to idset {}",bibId,idset);
+            // log.info("Retaining {} and adding ids to idset {}",bibId,idset);
             return false;
           }
         })
@@ -318,10 +318,14 @@ public class HouseKeepingService {
         });
     })
     .flatMap ( bibToCleanup -> {
-      log.info("Clean up bib {}", bibToCleanup);
-      return Mono.empty();
+      return cleanupBib(bibToCleanup);
     })
     .then();
+  }
+
+  private Mono<Void> cleanupBib(UUID bibId) {
+    log.info("Clean up bib {}", bibId);
+    return Mono.empty();
   }
 
   private Mono<Void> reprocessQuery() {
