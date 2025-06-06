@@ -339,7 +339,7 @@ public class HouseKeepingService {
     return Mono.from(dbops.withTransaction(status ->
       Mono.from(status.getConnection()
         .createStatement(SET_REINDEX)
-        .bind("$1", bibId)
+        .bind("$1", bibId.toString())
         .execute())
       .flatMap(result -> Mono.from(result.getRowsUpdated()))  // Fix here
       .doOnNext(c -> log.info("Completed setting reindex for {} rows", c))
