@@ -100,6 +100,15 @@ public class HouseKeepingService {
       and c.id = $1
     order by b.date_created, mp.value
     """;
+
+  private static final String BREAK_CLUSTER_ASSOCIATION = """
+    update bib_record set contributes_to = null where id = $1
+  """;
+	
+  // This has to be this way for now, until the new source uuid on bib_record is fully populated
+  private static final String SET_REINDEX = """
+    update source_record set processing_state = 'PROCESSING_REQUIRED' where remote_id like '%'||$1
+  """;
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<String> legacyDedupeMatchPoints() {
@@ -325,7 +334,18 @@ public class HouseKeepingService {
 
   private Mono<Void> cleanupBib(UUID bibId) {
     log.info("Clean up bib {}", bibId);
-    return Mono.empty();
+
+    return Mono.from(dbops.withTransaction(status ->
+      Mono.from(status.getConnection()
+        .createStatement(SET_REINDEX)
+        .bind("$1", bibId)
+        .execute()
+        )
+        .then(Mono.from(status.getConnection()
+        .createStatement(BREAK_CLUSTER_ASSOCIATION)
+        .bind("$1", bibId)
+        .execute()))
+    )).then();
   }
 
   private Mono<Void> reprocessQuery() {
