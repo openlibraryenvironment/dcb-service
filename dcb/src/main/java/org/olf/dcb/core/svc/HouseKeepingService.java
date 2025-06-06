@@ -264,10 +264,12 @@ public class HouseKeepingService {
         .flatMap( r -> r.map((row, meta) -> {
           UUID clusterId = row.get("id", UUID.class);
           UUID selectedBib = row.get("selected_bib", UUID.class);
+
           if (clusterId == null || selectedBib == null) {
             log.warn("Skipping null clusterId or selectedBib");
             return null;
           }
+
           return Tuples.of(clusterId, selectedBib);
         }))
         .filter(Objects::nonNull)
