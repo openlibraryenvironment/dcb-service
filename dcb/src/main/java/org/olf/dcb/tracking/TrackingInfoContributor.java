@@ -12,7 +12,8 @@ import java.util.Map;
 import reactor.core.publisher.Mono;
 
 @Singleton
-@Requires(property = "endpoints.info.enabled", notEquals = "false")
+@Requires(beans = InfoEndpoint.class)
+@Requires(property = "endpoints.info.config.enabled", notEquals = "false")
 public class TrackingInfoContributor implements InfoSource {
 
     private final TrackingService trackingService;
@@ -29,7 +30,7 @@ public class TrackingInfoContributor implements InfoSource {
         Long count = trackingService.getLastTrackingRunCount();
 
         Map<String, Object> trackingMap = Map.of(
-            "tracking", Map.of(
+            "trackingStatus", Map.of(
                 "lastRunDuration", duration != null ? duration.toString() : "PT0S",
                 "lastRunCount", ( count != null ? count : Long.valueOf(0) )
             )
