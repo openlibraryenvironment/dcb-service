@@ -91,14 +91,14 @@ public class HouseKeepingService {
     """;
 
   private static final String CLUSTER_BIB_IDENTIFIERS = """
-    select c.id c_id, b.id b_id, id.value id_val
+    select c.id c_id, b.id b_id, mp.value id_val
     from cluster_record as c,
          bib_record as b,
-         bib_identifier as id
+         match_point as mp
     where b.contributes_to = c.id
-      and id.owner_id = b.id
+      and mp.bib_id = b.id
       and c.id = $1
-    order by b.date_created, id.value
+    order by b.date_created, mp.value
     """;
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -264,7 +264,7 @@ public class HouseKeepingService {
 
   private Mono<Void> validateCluster(UUID clusterId, UUID selectedBib) {
 
-    log.debug("Process cluster {}", clusterId);
+    log.info("Process cluster {}", clusterId);
 
     return Mono.from(
       dbops.withConnection(conn ->
@@ -283,7 +283,7 @@ public class HouseKeepingService {
           ))
       )
     ).flatMapMany(bibIdToIdentifiersMap -> {
-      log.debug("bibIdentifierMap {}", bibIdToIdentifiersMap);
+      log.info("bibIdentifierMap {}", bibIdToIdentifiersMap);
 
       Set<String> idset = new HashSet<>();
       idset.addAll(bibIdToIdentifiersMap.getOrDefault(selectedBib, Set.of()));
@@ -297,8 +297,11 @@ public class HouseKeepingService {
           Set<String> intersection = new HashSet<>(identifiers);
           intersection.retainAll(idset);
 
+          log.info("Intersection: {}",intersection.size());
+
           if ( intersection.size() < 2 ) {
             // Pass the filter - this should be removed
+            log.info("Clenaup...");
             return true;
           }
           else {
