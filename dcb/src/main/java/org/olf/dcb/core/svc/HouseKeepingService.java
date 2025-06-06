@@ -98,7 +98,7 @@ public class HouseKeepingService {
     where b.contributes_to = c.id
       and id.owner_id = b.id
       and c.id = $1
-    order by b.dateCreated, id.value
+    order by b.date_created, id.value
     """;
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
