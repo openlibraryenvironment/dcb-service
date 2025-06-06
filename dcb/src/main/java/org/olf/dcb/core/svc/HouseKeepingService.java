@@ -11,14 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.time.Instant;
 import java.sql.Timestamp;
-import java.util.List;
-import java.util.Set;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.UUID;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import reactor.util.function.Tuples;
 import reactor.util.function.Tuple2;
@@ -250,31 +243,31 @@ public class HouseKeepingService {
     return validateClusters;
   }
 
-
   private Mono<Long> innerValidateClusters() {
-    // log.info("innerValidateClusters");
-    AtomicInteger page = new AtomicInteger(0);
     Timestamp since = new Timestamp(0);
     return Mono.from(
       dbops.withConnection(conn ->
         Flux.from(conn
-          .createStatement(CLUSTER_VALIDATION_QUERY)
-          .bind("$1", since)
-          .execute())
-        .flatMap( r -> r.map((row, meta) -> {
-          UUID clusterId = row.get("id", UUID.class);
-          UUID selectedBib = row.get("selected_bib", UUID.class);
+          .createStatement(CLUSTER_VALIDATION_QUERY).bind("$1", since).execute())
+          .flatMap(result -> result.map((row, meta) -> {
+            UUID clusterId = row.get("id", UUID.class);
+            UUID selectedBib = row.get("selected_bib", UUID.class);
 
-          if (clusterId == null || selectedBib == null) {
-            log.warn("Skipping null clusterId or selectedBib");
-            return null;
-          }
+            if ( ( clusterId != null ) && ( selectedBib != null ) )
+              return Optional.of(Tuples.of(clusterId, selectedBib) );
 
-          return Tuples.of(clusterId, selectedBib);
-        }))
-        .filter(Objects::nonNull)
-        .flatMap(tuple -> validateCluster(tuple.getT1(), tuple.getT2()))
-        .count()
+            log.warn("Skipping missing clusterId {} or selectedBib {}",clusterId, selectedBib);
+            return Optional.empty();
+          }))
+          .filter(Optional::isPresent)
+          .map(Optional::get)
+          .cast(Tuple2.class) // Avoids generic inference failure
+          .flatMap(tuple -> {
+            @SuppressWarnings("unchecked")
+            Tuple2<UUID, UUID> typedTuple = (Tuple2<UUID, UUID>) tuple;
+            return validateCluster(typedTuple.getT1(), typedTuple.getT2());
+          })
+          .count()
       )
     );
   }
