@@ -1,5 +1,51 @@
 # Changelog
 
+## Version 8.33.0
+
+### Additions
+* [General]
+	* Null metadata handling, and read OAI-PMH Header status field
+	* Implement cluster detachment and source_record processing state reset when cleaning up clusters
+	* Adds a tracking section to the /info endpoint that returns the duration and count of the last tracking run
+	* Edit whether a location is enabled for pickup anywhere.
+	* GET: config in admin controller
+	* Cluster reprocessing
+	* Initial work around revalidating clusters - service and invocaion endpoint
+	* Added better error reporting to ingest
+
+### Changes
+* [Chore]
+	* Further tone down of alma logging
+	* more error trapping on cluster cleanup
+	* Stringify UUID when updating source record processing state in cleanup
+	* Adjusting validate cluster sql
+	* formatting
+	* null safe checking on check clusters
+	* Reduce volume on cluster cleanup logging
+	* Cluster cleanup should use match_point and not bib_identifier
+	* update info for tracking
+	* nullsafe handling of last tracking count
+	* Tone down alma duration logging, more logging when cluster cleanup fails
+	* More work on cluster cleanup
+	* Improvements to cluster validation
+	* Add a value hint to match_point so we can demonstrate to users why clustering has happened. Maintain a UUID for the source_record directly in bibRecord so we can reset the processingState should we discover a bad cluster record and want to selectively force reprocessing of the records that contributed to a cluster
+	* Working on cluster verification
+	* Log information about the components of a cluster ready for detecting overgrouped clusters
+
+### Fixes
+* [General]
+	* Change SQL for setting processing state on source record
+	* More defensive code around cluster cleanup
+	* Missing import
+	* datecreated to date_created in validateCluster
+	* Error in nullsafe checking
+	* Corrected selectedBib to selected_bib in bad cluster detection
+	* SourceRecord service is optional
+	* Operations should be POST
+	* Bad SQL when seeking clusters that contain more than one record set
+	* Update apache bean utils to 1.11.0 DCB-1905
+	* Make ISBN less terminal
+
 ## Version 8.32.1
 
 ### Changes
@@ -7,6 +53,7 @@
 	* GitHub - Updated checkout action to fetch tags.
 	* Ensure correct full version number as an image tag
 * [Chore]
+	* Changelog - Generate the changelog
 	* refactor edition normalisation
 
 ### Fixes
