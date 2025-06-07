@@ -148,6 +148,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	
 	protected Mono<JobChunk<IngestOperation>> getChunk() {
 		return fetchPage()
+      .doOnNext( page -> log.info("Got page....") )
 			.flatMap( this::buildChunkFromPage );
 	}
 	
