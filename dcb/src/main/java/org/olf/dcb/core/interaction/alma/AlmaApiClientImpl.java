@@ -172,11 +172,11 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.flatMap(response -> {
 
 				if (response.getBody().isPresent()) {
-					log.info("Response body: {}", response.getBody().get());
+					log.debug("Response body: {}", response.getBody().get());
 					return Mono.just(response);
 
 				} else if (response.getBody().isEmpty() && argumentType.equalsType(Argument.of(Void.class))) {
-					log.debug("Response body is empty for request to {} with expected type {}", request.getPath(), argumentType.getType().getSimpleName());
+					log.warn("Response body is empty for request to {} with expected type {}", request.getPath(), argumentType.getType().getSimpleName());
 					return Mono.just(response);
 				}
 
@@ -277,7 +277,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
     return createRequest(GET, path)
       .flatMap(req -> doExchange(req, Argument.of(AlmaUser.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(user -> log.info("User retrieved {}",user.getPrimary_id()));
+			.doOnNext(user -> log.debug("User retrieved {}",user.getPrimary_id()));
 	}
 
 	public Mono<String> deleteAlmaUser(String user_id) {
@@ -340,7 +340,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(req -> req.uri(uriBuilder -> uriBuilder.queryParam("password", password).build()))
 			.flatMap(req -> doExchange(req, Argument.of(AlmaUser.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(almaUser -> log.info("retrieved user {}", almaUser.getPrimary_id()));
+			.doOnNext(almaUser -> log.debug("retrieved user {}", almaUser.getPrimary_id()));
 	}
 
 	public Mono<String> test() {
@@ -356,7 +356,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return createRequest(GET, path)
       .flatMap(request -> doExchange(request, Argument.of(AlmaHoldings.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(almaHoldings -> log.info("retrieved {}", almaHoldings));
+			.doOnNext(almaHoldings -> log.debug("retrieved {}", almaHoldings));
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_user_request.xsd/?tags=GET
@@ -365,7 +365,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return createRequest(GET, path)
 			.flatMap(request -> doExchange(request, Argument.of(AlmaRequestResponse.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(response -> log.info("retrieved almaRequest {}", response));
+			.doOnNext(response -> log.debug("retrieved almaRequest {}", response));
 	}
 
 	public Mono<AlmaItemLoanResponse> createUserLoan(String user_id, String item_pid, AlmaItemLoan loan) {
@@ -377,7 +377,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(request -> request.body(loan))
 			.flatMap(req -> doExchange(req, Argument.of(AlmaItemLoanResponse.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(returnedLoan -> log.info("retrieved loan {}", returnedLoan));
+			.doOnNext(returnedLoan -> log.debug("retrieved loan {}", returnedLoan));
 	}
 
 	@Override

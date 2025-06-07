@@ -169,9 +169,12 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	@Override
 	public IngestRecordBuilder initIngestRecordBuilder(OaiRecord resource) {
 
+    Boolean isDeleted = Boolean.FALSE;
+
     if ( resource.header() != null ) {
       if ( "deleted".equalsIgnoreCase( resource.header().status() ) ) {
         log.warn("Detected a deleted OAI PMH Record - ADD HANDLING");
+        isDeleted = Boolean.TRUE;
       }
     }
 
@@ -179,7 +182,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			.uuid(uuid5ForOAIResult(resource))
 			.sourceSystem(lms)
 			.suppressFromDiscovery(inferSuppression(resource))
-			.sourceRecordId(extractRecordId(resource));
+			.sourceRecordId(extractRecordId(resource))
+      .deleted( isDeleted );
 	}
 
 	/**
