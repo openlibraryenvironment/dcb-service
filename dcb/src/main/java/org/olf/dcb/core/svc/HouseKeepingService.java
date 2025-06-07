@@ -280,7 +280,7 @@ public class HouseKeepingService {
             return validateCluster(typedTuple.getT1(), typedTuple.getT2());
           })
           .count()
-          .doOnError(e -> log.error("Error",e) )
+          .doOnError(e -> log.error("Error in inner validate {}",e.getMessage(), e) )
           .doOnNext(c -> log.info("Processed {}",c))
       )
     );
@@ -355,14 +355,16 @@ public class HouseKeepingService {
         .createStatement(SET_REINDEX)
         .bind("$1", bibId.toString())
         .execute())
-      .flatMap(result -> Mono.from(result.getRowsUpdated()))  // Fix here
-      .doOnNext(c -> log.info("Completed setting reindex for {} rows", c))
+      .flatMap(result -> Mono.from(result.getRowsUpdated()))
+      .doOnNext(c -> log.info("Completed setting reindex for {} {} rows", bibId, c))
+      .doOnError(e -> log.error("Problem setting reindex for bib {} - {}",bibId,e.getMessage(),e) )
       .then(Mono.from(status.getConnection()
           .createStatement(BREAK_CLUSTER_ASSOCIATION)
           .bind("$1", bibId)
           .execute())
         .flatMap(result -> Mono.from(result.getRowsUpdated())) // Fix here
-        .doOnNext(c -> log.info("Completed breaking cluster association for {} rows", c)))
+        .doOnNext(c -> log.info("Completed breaking cluster association for {} {} rows", bibId, c)))
+        .doOnError(e -> log.error("Problem breaking cluster association for bib {} - {}",bibId,e.getMessage(),e) )
     ))
     .then(); // Return Mono<Void>
   }
