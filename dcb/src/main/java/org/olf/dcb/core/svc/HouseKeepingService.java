@@ -238,7 +238,7 @@ public class HouseKeepingService {
                 validateClusters = null;
                 log.info("Finished validate clusters");
               })
-              .doOnNext(count -> log.info("Validated {} clusters",count))
+              .doOnNext(count -> log.info("### Validated {} clusters ###",count))
               .doOnError(error -> log.error("Error in innerValidateClusters:",error))
               .subscribe();
           }).cache();
@@ -348,7 +348,7 @@ public class HouseKeepingService {
   }
 
   private Mono<Void> cleanupBib(UUID bibId) {
-    log.info("Clean up bib {}", bibId);
+    log.info("### Clean up bib {} ###", bibId);
 
     return Mono.from(dbops.withTransaction(status ->
       Mono.from(status.getConnection()
