@@ -80,7 +80,7 @@ public class HouseKeepingService {
   private static final String CLUSTER_VALIDATION_QUERY = """
     select id, selected_bib, date_updated 
     from cluster_record 
-    where date_updated > $1
+    where date_updated > $1 AND ( is_deleted is null or is_deleted = false )
     order by date_updated asc
     """;
 
@@ -353,7 +353,7 @@ public class HouseKeepingService {
     return Mono.from(dbops.withTransaction(status ->
       Mono.from(status.getConnection()
         .createStatement(SET_REINDEX)
-        .bind("$1", bibId.toString())
+        .bind("$1", bibId)
         .execute())
       .flatMap(result -> Mono.from(result.getRowsUpdated()))
       .doOnNext(c -> log.info("Completed setting reindex for {} {} rows", bibId, c))
@@ -366,6 +366,10 @@ public class HouseKeepingService {
         .doOnNext(c -> log.info("Completed breaking cluster association for {} {} rows", bibId, c)))
         .doOnError(e -> log.error("Problem breaking cluster association for bib {} - {}",bibId,e.getMessage(),e) )
     ))
+    .onErrorResume(e -> {
+      log.warn("Resume after error trying to clean up bib {}",bibId);
+      return Mono.empty();
+    })
     .then(); // Return Mono<Void>
   }
 

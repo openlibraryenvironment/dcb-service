@@ -110,7 +110,8 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			.flatMap( this::createOperation )
 			.collectList()
 			.map( chunk::data )
-			.map( IngestJobChunkBuilder::build );
+			.map( IngestJobChunkBuilder::build )
+      .doOnError( e -> log.error("problem in buildChunkFromPage {}",e.getMessage(),e) );
 	}
 	
 	protected Mono<IngestOperation> createOperation( SourceRecord source ) {
@@ -141,6 +142,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	// Wrap for proper transactional boundaries.
 	@Transactional(readOnly = true)
 	protected Mono<Page<SourceRecord>> fetchPage() {
+    log.info("Collecting page of unprocessed records");
 		return Mono.from( sourceRecordService.getUnprocessedRecords( Pageable.from(0, PAGE_SIZE) ));
 	}
 	
@@ -335,7 +337,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	}
 	
 	private void errorSubscriber ( Throwable t ) {
-		log.error("Error during import job", t);
+		log.error("*** Error during import job {} ***", t.getMessage(), t);
 	}
 	
 	
@@ -365,7 +367,6 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
         }
 			})
 			.subscribe(
-					TupleUtils.consumer(this::jobSubscriber),
-					this::errorSubscriber);
+					TupleUtils.consumer(this::jobSubscriber), this::errorSubscriber);
 	}
 }

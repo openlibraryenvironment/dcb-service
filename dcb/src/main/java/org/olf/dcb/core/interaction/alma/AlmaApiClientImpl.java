@@ -99,7 +99,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return createRequest(GET, path)
 			.flatMap(req -> doExchange(req, Argument.of(AlmaUserList.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(almaUserList -> log.info("Got {} users", almaUserList));
+			.doOnNext(almaUserList -> log.debug("Got {} users", almaUserList));
 	}
 
 	public Mono<AlmaUserList> getUsersByExternalId(String externalId) {
@@ -112,7 +112,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 				.build()))
 			.flatMap(req -> doExchange(req, Argument.of(AlmaUserList.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(almaUserList -> log.info("Got {} users",almaUserList));
+			.doOnNext(almaUserList -> log.debug("Got {} users",almaUserList));
 	}
 
 	// See https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_users.xsd
@@ -413,7 +413,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return createRequest(GET, path)
 			.flatMap(req -> doExchange(req, Argument.of(AlmaItem.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(items -> log.info("Got item {}", items.getItemData().getPid()));
+			.doOnNext(items -> log.debug("Got item {}", items.getItemData().getPid()));
 	}
 
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
@@ -422,7 +422,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return createRequest(GET, path)
       .flatMap(request -> doExchange(request, Argument.of(AlmaItems.class)))
 			.map(response -> response.getBody().get())
-			.doOnNext(almaItems -> log.info("Got {} items",almaItems));
+			.doOnNext(almaItems -> log.debug("Got {} items",almaItems));
 	}
 
   public Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest) {
@@ -466,7 +466,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	public Mono<AlmaHolding> createHolding(String mms_id, String almaHolding) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings";
-		log.info(almaHolding);
+		log.debug(almaHolding);
 		return createRequest(POST, path)
 			.map(request -> request.body(almaHolding).contentType(MediaType.APPLICATION_XML))
 			.flatMap(req -> doExchange(req, Argument.of(AlmaHolding.class)))

@@ -227,6 +227,8 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	@ExecuteOn(TaskExecutors.BLOCKING)
 	@Scheduled(initialDelay = "20s", fixedDelay = "2m")
 	protected void scheduleSourceRecordJob() {
+
+    log.info("Attempting to schedule source record job");
 		
 		// Empty interrupts before we start.
 		interruption = Optional.empty();
