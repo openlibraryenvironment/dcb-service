@@ -155,7 +155,10 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 
 	@Override
 	public Record resourceToMarc(OaiRecord resource) {
-		return resource.metadata().record();
+    if ( resource.metadata() != null )
+  		return resource.metadata().record();
+
+    return null;
 	}
 	
 	public UUID uuid5ForOAIResult(@NotNull final OaiRecord result) {
@@ -165,6 +168,12 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 
 	@Override
 	public IngestRecordBuilder initIngestRecordBuilder(OaiRecord resource) {
+
+    if ( resource.header() != null ) {
+      if ( "deleted".equalsIgnoreCase( resource.header().status() ) ) {
+        log.warn("Detected a deleted OAI PMH Record - ADD HANDLING");
+      }
+    }
 
 		return IngestRecord.builder()
 			.uuid(uuid5ForOAIResult(resource))

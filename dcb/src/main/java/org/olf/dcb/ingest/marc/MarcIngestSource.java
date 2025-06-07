@@ -494,8 +494,14 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 				.publishOn(Schedulers.boundedElastic())
 				.subscribeOn(Schedulers.boundedElastic())
 				.map(this::initIngestRecordBuilder)
-				.zipWith(Mono.just( resourceToMarc(resource) ) )
-						// .map( this::createMatchKey ))
+				.zipWith(Mono.justOrEmpty( resourceToMarc(resource) ) ) // For zipWith to emit a value the zipWith value must not be Empty -  or zipWith also emits Empty
+        .switchIfEmpty(
+          Mono.defer(() -> {
+            log.warn("Received null payload; bailing out but we MAY want to return a deleted resource instead {}",resource);
+            // T fallbackResource = provideDefaultResource(); // or return Mono.empty() if you want to skip
+            return Mono.empty();
+          })
+        )
 				.map(TupleUtils.function(this::populateRecordFromMarc))
 				.map( IngestRecordBuilder::build )
 				.onErrorResume(err -> {
