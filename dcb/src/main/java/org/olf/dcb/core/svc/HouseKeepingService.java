@@ -101,8 +101,15 @@ public class HouseKeepingService {
 	
   // This has to be this way for now, until the new source uuid on bib_record is fully populated
   private static final String SET_REINDEX = """
-    update source_record set processing_state = 'PROCESSING_REQUIRED' where remote_id like '%'||$1
+    update source_record set processing_state = 'PROCESSING_REQUIRED' where id in (
+    SELECT 
+    FROM bib_record b
+    JOIN source_record s
+      ON s.remote_id LIKE '%' || b.source_record_id
+    WHERE b.id = $1 )
   """;
+
+  // select source_record_id srid from bib_record br where br.id = $1
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<String> legacyDedupeMatchPoints() {
@@ -245,10 +252,15 @@ public class HouseKeepingService {
 
   private Mono<Long> innerValidateClusters() {
     Timestamp since = new Timestamp(0);
+
+    log.info("innerValidateClusters");
+
     return Mono.from(
       dbops.withConnection(conn ->
         Flux.from(conn
           .createStatement(CLUSTER_VALIDATION_QUERY).bind("$1", since).execute())
+          .doOnNext( n -> log.info("Progressing") )
+          .doOnError(e -> log.error("Problem finding clusters to validate") )
           .flatMap(result -> result.map((row, meta) -> {
             UUID clusterId = row.get("id", UUID.class);
             UUID selectedBib = row.get("selected_bib", UUID.class);
@@ -268,6 +280,8 @@ public class HouseKeepingService {
             return validateCluster(typedTuple.getT1(), typedTuple.getT2());
           })
           .count()
+          .doOnError(e -> log.error("Error",e) )
+          .doOnNext(c -> log.info("Processed {}",c))
       )
     );
   }
