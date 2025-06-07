@@ -175,10 +175,10 @@ public class IngestRecord implements CoreBibliographicMetadata {
 			return this;
 		}
 
-		public IngestRecordBuilder sourceRecordUuid(UUID uuid) {
-			sourceRecordUuid(uuid);
-			return this;
-		}
+		// public IngestRecordBuilder sourceRecordUuid(UUID uuid) {
+	// 		sourceRecordUuid(uuid);
+		// 	return this;
+		// }
 	}
 
 	public static IngestRecord build(Consumer<IngestRecordBuilder> consumer) {

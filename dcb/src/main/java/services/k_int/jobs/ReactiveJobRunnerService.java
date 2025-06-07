@@ -107,7 +107,8 @@ public class ReactiveJobRunnerService {
 						}
 						final var checkpoint = theChunk.getCheckpoint();
 						return Mono.from( jobInstance.resume( checkpoint ) )
-								.doOnNext( cp -> log.trace("Get next chunk using checkpoint [{}]", cp));
+                .doOnError( e -> log.error(" Error in process chunk {}",e.getMessage(),e))
+								.doOnNext( cp -> log.info("Get next chunk using checkpoint [{}]", cp));
 					});
 				
 //				if (chunk.isLastChunk()) {
