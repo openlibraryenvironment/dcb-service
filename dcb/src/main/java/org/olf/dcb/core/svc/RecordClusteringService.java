@@ -507,7 +507,7 @@ public class RecordClusteringService {
 	// Look into the list of match points to see if we have a ONLY-ISBN-13 identifier ( there should be at most 1 )
 	public String findUniqueIsbn(Collection<MatchPoint> matchPoints ) {
 		return matchPoints.stream()
-			.filter(mp -> "".equals(mp.getDomain()))
+			.filter(mp -> "ONLY-ISBN-13".equals(mp.getDomain()))
 			.map(MatchPoint::getSourceValue)
 			.findFirst()
 			.orElse(null);
