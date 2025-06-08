@@ -55,8 +55,9 @@ public class MatchPoint {
 	public static MatchPoint buildFromString ( String input, String domain, boolean is_development ) {
 		
 		final String valueStr = PREFIX_VALUE + ":" + input;
-		final String valueHint = input.length() > 15 
-      ? input.substring(0,12)+".."
+    int input_length = input.length();
+		final String valueHint = input_length > 15 
+      ? ".."+input.substring(input_length-13,input_length)
       : input;
 
 		final UUID value = UUIDUtils.nameUUIDFromNamespaceAndString(Constants.UUIDs.NAMESPACE_DCB, valueStr);
