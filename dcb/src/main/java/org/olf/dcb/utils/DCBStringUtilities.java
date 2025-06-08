@@ -4,10 +4,7 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.text.Normalizer;
 import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -72,6 +69,7 @@ public class DCBStringUtilities {
 				.map(DCBStringUtilities::toNoneDiacriticAlphaNumeric),
 			Stream.of(NAMES.matcher(toNoneDiacriticAlphaNumeric(inputString)).replaceAll("$2 $1"))
 		)
+    .filter(Objects::nonNull)
 		.map(String::trim)														// Trim
 		.map(String::toLowerCase)											// Lowercase
 		.flatMap(SPLITTING_DELIMETER::splitAsStream)	// Split
