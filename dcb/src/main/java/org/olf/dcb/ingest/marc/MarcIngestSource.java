@@ -545,6 +545,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			
 			return ir;
 		} catch (Exception e) {
+      log.error("Conversion error",e);
 			throw new DcbError("Error converting MARC source record to IngestRecord", e);
 		}
 	}
