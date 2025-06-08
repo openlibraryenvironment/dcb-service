@@ -526,6 +526,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			// in the Marc-based section of this record.
 			IngestRecordBuilder irBuilder = initIngestRecordBuilder(internalRecord);
 
+      if ( source.getId() == null )
+        log.warn("convertSourceToIngest - source record has null id {} {}",source.getRemoteId(), source.getHostLmsId());
+
       // We need this explicit hook to be able to force reprocessing when we encounter bad clusters.
       irBuilder.sourceRecordUuid(source.getId());
 			
