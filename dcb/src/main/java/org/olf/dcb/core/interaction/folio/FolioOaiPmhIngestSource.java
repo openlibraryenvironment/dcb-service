@@ -150,6 +150,9 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord>, Sou
 
 	@Override
 	public Record resourceToMarc(OaiRecord resource) {
+    if ( resource.metadata() == null )
+      return null;
+
 		return resource.metadata().record();
 	}
 	
@@ -300,6 +303,7 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord>, Sou
 		Consumer<UriBuilder> uriBuilderConsumer) {
 
 		return createRequest(GET, path)
+      .doOnNext(req -> log.info("fetch using {}",req.getUri()) )
 			.map(req -> req
 					.header(HttpHeaders.AUTHORIZATION, apiKey)
 					.uri(uriBuilderConsumer))

@@ -70,25 +70,23 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 	default IngestRecordBuilder populateRecordFromMarc(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 
-		// Leader fields
-		enrichWithLeaderInformation(ingestRecord, marcRecord);
-
-		enrichWithFormOfItemInformation(ingestRecord, marcRecord);
-
-		// Title(s)
-		enrichWithTitleInformation(ingestRecord, marcRecord);
-
-		// Identifiers
-		enrichWithIdentifiers(ingestRecord, marcRecord);
-
-		// Author(s)
-		enrichWithAuthorInformation(ingestRecord, marcRecord);
-
-		enrichWithGoldrush(ingestRecord, marcRecord);
-
-		enrichWithCanonicalRecord(ingestRecord, marcRecord);
-		
-		enrichWithMetadataScore(ingestRecord, marcRecord);
+    if ( marcRecord != null ) {
+  		// Leader fields
+	  	enrichWithLeaderInformation(ingestRecord, marcRecord);
+  		enrichWithFormOfItemInformation(ingestRecord, marcRecord);
+	  	// Title(s)
+		  enrichWithTitleInformation(ingestRecord, marcRecord);
+  		// Identifiers
+	  	enrichWithIdentifiers(ingestRecord, marcRecord);
+  		// Author(s)
+	  	enrichWithAuthorInformation(ingestRecord, marcRecord);
+		  enrichWithGoldrush(ingestRecord, marcRecord);
+  		enrichWithCanonicalRecord(ingestRecord, marcRecord);
+	  	enrichWithMetadataScore(ingestRecord, marcRecord);
+    }
+    else {
+      log.warn("NULL MARC RECORD");
+    }
 
 		return ingestRecord;
 	}
@@ -227,9 +225,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 							
 							// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
 							// suffer with double spacing, so using that here as it provides cleaner matching.
-							id.namespace("BLOCKING_TITLE").value(
-								DCBStringUtilities.generateBlockingString(item, qualifiers)
-							).confidence(Integer.valueOf(0));
+              String blocking_title = DCBStringUtilities.generateBlockingString(item, qualifiers);
+              if ( blocking_title != null ) {
+							  id.namespace("BLOCKING_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
+              }
 						});
 
 						return item;
