@@ -220,8 +220,8 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 					try {
 						return Mono.just( converter.convertSourceToIngestRecord(sourceRecord) );
 					} catch ( Exception e ) {
-						return Mono.error( new DcbError("Error converting source record [%s]"
-							.formatted(sourceRecord.getId()), e));
+            log.error("Error converting source record "+sourceRecord.getId()+" : "+e.getMessage(),e);
+            return Mono.error( new DcbError("Error converting source record [%s] %s" .formatted(sourceRecord.getId(), e.getMessage()), e));
 					}
 				});
 		} catch ( Exception e ) {
