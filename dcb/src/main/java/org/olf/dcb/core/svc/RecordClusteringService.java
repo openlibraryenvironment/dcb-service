@@ -493,8 +493,10 @@ public class RecordClusteringService {
 	protected Flux<ClusterRecord> matchClusters( BibRecord bib, Collection<MatchPoint> matchPoints ) {
 
 		// In prepraration for changing the rules so that a cluster can contain only 1 ONLY-ISBN-13 value
-		String unique_isbn = findUniqueIsbn(matchPoints);
-		log.info("matchClusters working with unique ISBN {}",unique_isbn);
+    log.info("match clusters : {}",matchPoints);
+
+    if ( matchPoints.size() == 0 )
+      log.error("0 match points");
 
 		return Flux.fromIterable( matchPoints )
 		 	.map( MatchPoint::getValue )
@@ -505,9 +507,9 @@ public class RecordClusteringService {
 	}
 
 	// Look into the list of match points to see if we have a ONLY-ISBN-13 identifier ( there should be at most 1 )
-	public String findUniqueIsbn(Collection<MatchPoint> matchPoints ) {
+	public String findMP(Collection<MatchPoint> matchPoints, String v ) {
 		return matchPoints.stream()
-			.filter(mp -> "ONLY-ISBN-13".equals(mp.getDomain()))
+			.filter(mp -> v.equals(mp.getDomain()))
 			.map(MatchPoint::getSourceValue)
 			.findFirst()
 			.orElse(null);
