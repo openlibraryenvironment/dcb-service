@@ -496,7 +496,7 @@ public class RecordClusteringService {
     log.info("match clusters : {}",matchPoints);
 
     if ( matchPoints.size() == 0 )
-      log.error("0 match points");
+      log.error("0 match points from {}",bib);
 
 		return Flux.fromIterable( matchPoints )
 		 	.map( MatchPoint::getValue )

@@ -36,13 +36,12 @@ public class MaterialTypeToItemTypeMappingService {
 		final var localItemTypeCode = getValueOrNull(item, Item::getLocalItemTypeCode);
 
 		if (hostLmsCode == null) {
-			log.warn("No hostLmsCode provided - returning {}", UNKNOWN_NULL_HOSTLMSCODE);
+			log.warn("No hostLmsCode provided - returning {} for {} - {}", UNKNOWN_NULL_HOSTLMSCODE, localItemTypeCode, item);
 			return Mono.just(UNKNOWN_NULL_HOSTLMSCODE);
 		}
 
 		if (isEmpty(localItemTypeCode)) {
-			log.warn("Attempting to map null / empty local item type code for Host LMS: {}", hostLmsCode);
-
+			log.warn("Attempting to map null / empty local item type code for Host LMS: {} - {}", hostLmsCode, item);
 			return Mono.just(UNKNOWN_NULL_LOCAL_ITEM_TYPE);
 		}
 

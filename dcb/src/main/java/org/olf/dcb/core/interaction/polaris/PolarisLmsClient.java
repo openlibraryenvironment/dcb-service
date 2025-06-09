@@ -1836,4 +1836,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
     return "v1";
   }
 
+  public String getHostLmsCode() {
+    String result = lms.getCode();
+    if ( result == null ) {
+      log.warn("getCode from hostLms returned NULL : {}",lms);
+    }
+    return result;
+  }
+
 }

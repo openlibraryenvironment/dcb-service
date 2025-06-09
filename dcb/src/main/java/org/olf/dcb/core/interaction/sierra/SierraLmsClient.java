@@ -1929,4 +1929,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
     return "v1";
   }
 
+  public String getHostLmsCode() {
+    String result = lms.getCode();
+    if ( result == null ) {
+      log.warn("getCode from hostLms returned NULL : {}",lms);
+    }
+    return result;
+  }
+
 }

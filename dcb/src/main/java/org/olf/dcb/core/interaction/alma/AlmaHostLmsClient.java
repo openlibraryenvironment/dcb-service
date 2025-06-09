@@ -1211,6 +1211,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
   }
 
 	public Item mapAlmaItemToDCBItem(AlmaItem almaItem) {
+
 		ItemStatus derivedItemStatus = deriveItemStatus(almaItem.getItemData());
 		Boolean isRequestable = ( derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE ? Boolean.TRUE : Boolean.FALSE );
 
@@ -1296,5 +1297,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return HostLmsItem.builder()
 			.build();
 	}
+
+  public String getHostLmsCode() {
+    String result = hostLms.getCode();
+    if ( result == null ) {
+      log.warn("getCode from hostLms returned NULL : {}",hostLms);
+    }
+    return result;
+  }
 
 }

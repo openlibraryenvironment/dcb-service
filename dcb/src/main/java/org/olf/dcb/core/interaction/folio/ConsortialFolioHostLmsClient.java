@@ -1226,4 +1226,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			});
   }
 
+  public String getHostLmsCode() {
+    String result = hostLms.getCode();
+    if ( result == null ) {
+      log.warn("getCode from hostLms returned NULL : {}",hostLms);
+    }
+    return result;
+  }
+
 }
