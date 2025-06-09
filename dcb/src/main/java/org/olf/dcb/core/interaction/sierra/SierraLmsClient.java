@@ -1886,7 +1886,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			throw new RuntimeException("Prevent Renewal command had null itemId "+prc.toString());
 
 		final var fixedFields = Map.of(
-            71, FixedField.builder().label("No. of Renewals").value(255).build());
+            71, FixedField.builder().label("No. of Renewals").value("255").build());
             // 75, FixedField.builder().label("Recall date").value("&").build());
 
 		final var itemPatch = ItemPatch.builder()

@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 8.33.1
+
+### Changes
+* [Chore]
+	* Alerts when location mapping fails
+	* log when we can't find an ID for a source record
+	* More logging for null bib records
+	* extra logging to pin down conversion errors
+
+### Fixes
+* [General]
+	* Add a null filter when normalising identifiers
+
 ## Version 8.33.0
 
 ### Additions
@@ -15,6 +28,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Further tone down of alma logging
 	* more error trapping on cluster cleanup
 	* Stringify UUID when updating source record processing state in cleanup
