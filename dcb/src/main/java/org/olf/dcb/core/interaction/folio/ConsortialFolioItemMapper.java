@@ -32,6 +32,7 @@ public class ConsortialFolioItemMapper {
 	}
 
 	public Mono<Item> mapHoldingToItem(Holding holding, String instanceId, String hostLmsCode) {
+
 		log.debug("mapHoldingToItem({}, {}, {})", holding, instanceId, hostLmsCode);
 
 		final var itemStatus = getValueOrNull(holding, Holding::getStatus);

@@ -71,6 +71,17 @@ public class Item implements Comparable<Item> {
   @Singular("decisionLogEntry")
 	private List<String> decisionLogEntries;
 
+  /**
+   * Process information. We need to be able to attach process information - most specifically information about the 
+   * loanability of this item to THIS patron - not as a general statement about the item, but as
+   * a computation that takes into account the current states of external objects. Rather than litter the Item
+   * with fields, annotations is provided to allow processs to attach their own information to the item as it passes
+   * through flows.
+   */
+  @Transient
+  @Singular("annotation")
+	private Map<String,Object> annotations;
+
 	/** A shelving location. A classifier that is shared throughout all branches in a library and
 	 * infers a particular meaning on the item (But not a physical location) - for example all branch libraries
 	 * can have "Reference" shelving location. Shelving location is not a synonm for or alternative to "Location"

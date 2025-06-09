@@ -1,13 +1,18 @@
 package org.olf.dcb.core.svc;
 
+import java.time.Instant;
+import java.time.Duration;
+
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-
+import org.olf.dcb.core.svc.AlarmsService;
+import services.k_int.utils.UUIDUtils;
 import graphql.com.google.common.base.Predicates;
 import reactor.core.publisher.Mono;
 
@@ -27,14 +32,17 @@ public class LocationToAgencyMappingService {
 	private final AgencyService agencyService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final HostLmsService hostLmsService;
+	private final AlarmsService alarmsService;
 
 	public LocationToAgencyMappingService(AgencyService agencyService,
 		ReferenceValueMappingService referenceValueMappingService,
-		HostLmsService hostLmsService) {
+		HostLmsService hostLmsService,
+    AlarmsService alarmsService) {
 
 		this.agencyService = agencyService;
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.hostLmsService = hostLmsService;
+		this.alarmsService = alarmsService;
 	}
 
 	/**
@@ -60,10 +68,22 @@ public class LocationToAgencyMappingService {
 	}
 
 	private Mono<DataAgency> mapExternalIdentifierToAgency(String hostLmsCode, String fromCategory, String locationCode) {
+
 		return findLocationToAgencyMapping(hostLmsCode, fromCategory, locationCode)
 			.map(ReferenceValueMapping::getToValue)
 			.flatMap(agencyService::findByCode)
-			.doOnNext(agency -> log.debug("Found agency for location: {}", agency));
+			.doOnNext(agency -> log.debug("Found agency for location: {}", agency))
+      .switchIfEmpty(Mono.defer(() -> {
+        log.warn("No agency found for locationCode={} (hostLmsCode={}, category={})", locationCode, hostLmsCode, fromCategory);
+        String alarmCode = "ILS."+hostLmsCode+".LOCATION_TO_AGENCY_FAILURE."+fromCategory+"."+(locationCode.toString()).toUpperCase();
+        // Alarm can last up to 5 days
+        alarmsService.raise(Alarm.builder()
+            .id(UUIDUtils.generateAlarmId(alarmCode))
+            .code(alarmCode)
+            .expires(Instant.now().plus(Duration.ofDays(5)))
+            .build());
+        return Mono.empty();
+      }));
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {

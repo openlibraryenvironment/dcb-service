@@ -17,6 +17,7 @@ import reactor.util.function.Tuple2;
 @Builder(toBuilder = true)
 @Accessors(chain = true)
 public class AvailabilityReport {
+
 	private final List<Item> items;
 	private final List<Error> errors;
 	
