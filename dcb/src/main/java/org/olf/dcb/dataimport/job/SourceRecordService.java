@@ -95,13 +95,12 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	@Transactional(readOnly = true)
 	protected Flux<SourceRecordImportJob> getSourceRecordDataSources() {
 		return Flux.from(lmsService.getIngestSources())
-				.sort( (s1, s2) -> Optional.ofNullable(s1)
-						.map(IngestSource::getName)
-						.flatMap( name1 -> Optional.ofNullable(s2)
-								.map(IngestSource::getName)
-								.map( name2 -> name1.compareTo(name2) ))
-						.orElse( s1 != null ? 1 : -1 ))
-				
+			.sort( (s1, s2) -> Optional.ofNullable(s1)
+				.map(IngestSource::getName)
+				.flatMap( name1 -> Optional.ofNullable(s2)
+					.map(IngestSource::getName)
+					.map( name2 -> name1.compareTo(name2) ))
+				.orElse( s1 != null ? 1 : -1 ))
 				.transform(
 						concurrency.toGroupedSubscription(this::createJobInstanceForSource));
 	}

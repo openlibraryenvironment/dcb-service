@@ -36,6 +36,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Builder
 @Slf4j
 public class DataHostLms implements HostLms {
+
 	@NonNull
 	@Id
 	@TypeDef( type = DataType.UUID)

@@ -85,7 +85,7 @@ public class HostLmssController {
 				.flatMap(exists -> Mono.fromDirect(exists ? hostLMSRepository.update(hostLMS) : hostLMSRepository.save(hostLMS)));
 	}
 	
-	private Mono<MutableHttpResponse<Object>> startBackgroundDataRemoval( final @NonNull HostLms hostLms ) {
+	private Mono<MutableHttpResponse<Object>> startBackgroundDataRemoval( final @NonNull DataHostLms hostLms ) {
 		hostLmsService.deleteHostLmsData( hostLms )
 			.subscribe(
 				lms -> log.info("Successfully removed data for hostLms [{}]", lms),
@@ -100,6 +100,7 @@ public class HostLmssController {
 	@ExecuteOn(TaskExecutors.BLOCKING)
 	public Mono<MutableHttpResponse<Object>> deleteHostLMS( @NonNull final UUID id ) {
 		return Mono.from(hostLMSRepository.findById(id))
+      .cast(DataHostLms.class)
 			.doOnSuccess( lms -> {
 				
 				if (lms != null) {

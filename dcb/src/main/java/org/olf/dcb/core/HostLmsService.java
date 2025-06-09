@@ -14,6 +14,7 @@ import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.olf.dcb.storage.HostLmsRepository;
+import org.olf.dcb.storage.SourceRecordRepository;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 
@@ -36,17 +37,20 @@ public class HostLmsService implements IngestSourcesProvider {
 	private final BeanContext context;
 	private final HostLmsRepository hostLmsRepository;
 	private final RawSourceRepository rawSourceRepo;
+	private final SourceRecordRepository sourceRecordRepository;
 
 	HostLmsService(
 		BibRecordService bibRecordService,
 		BeanContext context,
 		HostLmsRepository hostLmsRepository,
-		RawSourceRepository rawSourceRepo
+		RawSourceRepository rawSourceRepo,
+		SourceRecordRepository sourceRecordRepository
 	) {
 		this.bibRecordService = bibRecordService;
 		this.context = context;
 		this.hostLmsRepository = hostLmsRepository;
 		this.rawSourceRepo = rawSourceRepo;
+		this.sourceRecordRepository = sourceRecordRepository;
 	}
 	
 	private final Map<String, String> idToCodeCache = new ConcurrentHashMap<>();
@@ -156,19 +160,35 @@ public class HostLmsService implements IngestSourcesProvider {
 			.count();
 	}
 	
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<Integer> deleteAllSourceRecords (UUID hostId) {
+		log.info("Delete all source records for host lms [{}]", hostId);
+		return Mono.from(sourceRecordRepository.deleteAllByHostLmsId(hostId))
+			.doOnSuccess( count -> log.info("Removed [{}] source records for HostLms [{}]", count, hostId) );
+	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<Integer> deleteAllRawSourceRecords (UUID hostId) {
 		log.info("Delete all raw source records for host lms [{}]", hostId);
 		return Mono.from(rawSourceRepo.deleteAllByHostLmsId(hostId))
-			.doOnSuccess( count -> log.info("Removed [{}] source records for HostLms [{}]", count, hostId) );
+			.doOnSuccess( count -> log.info("Removed [{}] RAW source records for HostLms [{}]", count, hostId) );
 	}
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	public Mono<UUID> deleteHostLmsData( @NonNull HostLms lms ) {
+	public Mono<UUID> deleteHostLmsData( @NonNull DataHostLms lms ) {
+
 		final UUID id = lms.getId();
-		return deleteAllHostLmsBibs( id )
+
+    // We should set enabled = false in the host LMS config to disable future ingests
+    Map<String,Object> cc = lms.getClientConfig();
+    if ( cc != null ) {
+      cc.put("ingest",Boolean.FALSE);
+    }
+
+		return Mono.from(hostLmsRepository.update(lms))
+      .then( Mono.defer(() -> deleteAllHostLmsBibs( id )))
 			.then( Mono.defer(() -> deleteAllRawSourceRecords(id)) )
+			.then( Mono.defer(() -> deleteAllSourceRecords(id)) )
 			.thenReturn(id);
 		
 		// Need to fetch all bibs, soft delete them and then expunge the source records from the database.

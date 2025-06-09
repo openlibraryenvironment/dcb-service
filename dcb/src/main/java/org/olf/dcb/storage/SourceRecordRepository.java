@@ -62,4 +62,9 @@ public interface SourceRecordRepository {
 
 	@NonNull
 	Publisher<SourceRecord> findByHostLmsIdAndRemoteIdLike(@NonNull UUID hostLmsId, @NonNull String remoteId);
+
+  @SingleResult
+  @NonNull
+  Publisher<Integer> deleteAllByHostLmsId( UUID hostLmsId );
+
 }
