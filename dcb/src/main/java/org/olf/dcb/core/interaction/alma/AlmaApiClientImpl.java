@@ -13,7 +13,6 @@ import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.micronaut.http.uri.UriBuilder;
 
 import io.micronaut.serde.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -21,6 +20,8 @@ import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 
@@ -369,6 +370,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	public Mono<AlmaItemLoanResponse> createUserLoan(String user_id, String item_pid, AlmaItemLoan loan) {
+		log.info("Creating the user's loan: user {}, item {}, loan {}", user_id, item_pid, loan);
 		final String path="/almaws/v1/users/"+user_id+"/loans";
 		return createRequest(POST, path)
 			.map(req -> req.uri(uriBuilder -> uriBuilder
@@ -482,4 +484,26 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.map(response -> response.getBody().get())
 			.doOnNext(almaItemData -> log.info("Created item {}",almaItemData.getItemData().getPid()));
 	}
-}
+
+	public Mono<AlmaCancellationResponse> doCancellation(CancelHoldRequestParameters cancelHoldRequestParameters) {
+		// WIP implementation of cancellation.
+		// We could support supplying a reason here but it has to be limited to Alma's valid RequestCancellationReasons
+		// The default reasons can be found here: https://knowledge.exlibrisgroup.com/Alma/Product_Documentation/010Alma_Online_Help_(English)/030Fulfillment/080Configuring_Fulfillment/080General/Configuring_Request-Cancellation_Reasons
+		// Expect 204 response "No Content" if successful
+		final String path="/almaws/v1/users/"+cancelHoldRequestParameters.getPatronId()+"/requests/"+cancelHoldRequestParameters.getLocalRequestId();
+		return createRequest(DELETE, path)
+			.flatMap(req -> doExchange(req, Argument.of(AlmaCancellationResponse.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(almaCancellationResponse -> log.info("Cancellation response {}", almaCancellationResponse));
+	}
+
+	public Mono<HostLmsRenewal> doRenewal(HostLmsRenewal renewal) {
+		log.info("Renewals are WIP for Alma. Renewal is {} ",renewal);
+		final String path="/almaws/v1/users/"+renewal.getLocalPatronId()+"/loans/"+renewal.getLocalRequestId(); // NOTE: Loan ID is different from request ID in Alma, possibly.
+		return createRequest(POST, path)
+			.flatMap(req -> doExchange(req, Argument.of(HostLmsRenewal.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(renewalResponse -> log.info("Renewal response {}", renewalResponse));
+	}
+
+	}

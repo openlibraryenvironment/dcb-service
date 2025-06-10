@@ -1,5 +1,7 @@
 package services.k_int.interaction.alma;
 
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.reactivestreams.Publisher;
 
 import reactor.core.publisher.Flux;
@@ -69,4 +71,9 @@ public interface AlmaApiClient {
 	Mono<AlmaLibrariesResponse> getLibraries();
 
 	Mono<AlmaLocationResponse> getLocationsForLibrary(String libraryCode);
+
+	Mono<AlmaCancellationResponse> doCancellation(CancelHoldRequestParameters cancelHoldRequestParameters);
+
+	Mono<HostLmsRenewal> doRenewal(HostLmsRenewal hostLmsRenewal);
+
 }

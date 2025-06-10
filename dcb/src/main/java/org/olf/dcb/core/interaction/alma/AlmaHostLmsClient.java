@@ -18,8 +18,6 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.interops.ConfigType;
 import org.zalando.problem.Problem;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaLocation;
 import services.k_int.interaction.alma.types.*;
@@ -817,14 +815,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
-		log.debug("{} cancelHoldRequest({})", getHostLms().getName(), parameters);
-		return Mono.error(new NotImplementedException("Cancel hold request is not currently implemented in " + getHostLmsCode()));
+		log.info("Alma cancellation is WIP for {} cancelHoldRequest({})", getHostLms().getName(), parameters);
+		// We may also need to set the status to CANCELLED
+		return client.doCancellation(parameters).thenReturn(parameters.getLocalRequestId());
 	}
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
 		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
-		return Mono.just(hostLmsRenewal);
+		return client.doRenewal(hostLmsRenewal);
 	}
 
 	@Override

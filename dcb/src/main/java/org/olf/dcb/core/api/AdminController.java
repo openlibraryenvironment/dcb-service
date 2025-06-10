@@ -157,20 +157,21 @@ public class AdminController {
 	}
 
 	@Get(uri = "/cfg", produces = APPLICATION_JSON)
-	public Mono<Map> getConfig() {
+	public Mono<Map<String, Object>> getConfig() {
 		log.info("Get configuration");
-    Map<String,Object> result = new HashMap();
-    Map<String,Object> env_report = new HashMap();
+		Map<String, Object> result = new HashMap<>();
+		Map<String, Object> env_report = new HashMap<>();
 
-    for (PropertySource source : env.getPropertySources()) {
-      for (String key : source) {
-        env_report.put(key, source.get(key));
-      }
-    }
+		for (PropertySource source : env.getPropertySources()) {
+			for (String key : source) {
+				Object value = source.get(key);
+				// Converting all values to string to make sure they are serializable
+				env_report.put(key, value != null ? value.toString() : null);
+			}
+		}
 
-    result.put("env_report",env_report);
-
-    return Mono.just(result);
+		result.put("env_report", env_report);
+		return Mono.just(result);
 	}
 
 	@Post(uri = "/reindex{/operation}", produces = APPLICATION_JSON)
