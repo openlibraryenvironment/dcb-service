@@ -1240,7 +1240,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		  .barcode(almaItem.getItemData().getBarcode())
 		  .callNumber(almaItem.getBibData().getCallNumber())
 		  .isRequestable(isRequestable)
-		  .holdCount(null)
+      // ToDo - This data needs to be retrieved from GET /almaws/v1/items/{mms_id}/{holding_id}/{item_pid}
+		  .holdCount(0)
 		  .localBibId(almaItem.getBibData().getMmsId())
 			// this item type looks to be used for auditing
 		  .localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
