@@ -655,15 +655,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
-	private static final int BAD_REQUEST_STATUS = 400;
 	private static final String VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE = "401861";
 
 	private boolean isVirtualPatronNotFoundError(Throwable e) {
 		if (!(e instanceof AlmaException almaException)) {
-			return false;
-		}
-
-		if (almaException.getStatus().getCode() != BAD_REQUEST_STATUS) {
 			return false;
 		}
 
