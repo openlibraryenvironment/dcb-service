@@ -1010,7 +1010,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private String checkHoldStatus(String status) {
 		log.debug("Checking hold status: {}", status);
 		return switch (status) {
-			case "REJECTED", "LOCATE_FAILED" -> HostLmsRequest.HOLD_CANCELLED;
+			case "REJECTED", "LOCATE_FAILED", "HISTORY" -> HostLmsRequest.HOLD_CANCELLED;
 			case "PENDING_APPROVAL", "READY_TO_SEND", "REQUEST_SENT",
 					 "REQUEST_CREATED_BOR", "LOCATE_IN_PROCESS", "IN_PROCESS",
 					 // Edge case that the item has been put in transit by staff
