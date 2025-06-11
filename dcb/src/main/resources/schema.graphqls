@@ -125,6 +125,7 @@ input CreateLocationInput {
 	code: String!
 	name: String!
 	isPickup: Boolean!
+	isPickupAnywhere: Boolean
 	latitude: Float!
 	longitude: Float!
 	printLabel: String!
@@ -291,6 +292,7 @@ input UpdateLocationInput {
 	latitude: Float
 	longitude: Float
 	isPickup: Boolean
+	isPickupAnywhere: Boolean
 	name: String
 	printLabel: String
 	localId: String
@@ -554,7 +556,8 @@ type Location {
   parentLocation: Location
   hostSystem: HostLms
   isPickup: Boolean
-  longitude: Float
+	isPickupAnywhere: Boolean
+	longitude: Float
   latitude: Float
   locationReference: String
   deliveryStops: String
