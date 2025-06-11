@@ -1,9 +1,29 @@
 # Changelog
 
+## Version 8.34.0
+
+### Additions
+* [General]
+	* Basic support for alma renewals [DCB-1930]
+
+### Changes
+* [Chore]
+	* Fix isEnabledForPickupAnywhere naming
+	* Add isPickupAnywhere attribute to the GraphQL schema
+	* Initial commit for Alma cancellation and renewals [DCB-1930]
+	* DCB-1929 - When cleaning up a removed HostLMS, also delete the SourceRecords AND set ingest=false in the config
+
+### Fixes
+* [Temporary]
+	* default item hold count to 0 in ALMA adapter - MId term this value needs to be retrieved from GET /almaws/v1/items/{mms_id}/{holding_id}/{item_pid}
+* [General]
+	* Fix serialisation error with config endpoint
+
 ## Version 8.33.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Alerts when location mapping fails
 	* log when we can't find an ID for a source record
 	* More logging for null bib records
