@@ -384,15 +384,14 @@ public class HouseKeepingService {
     return Mono.from(dbops.withTransaction(status ->
 
 			// Touch the cluster that owns this bib - we are removing something from it
-      log.info("Touch bib owning cluster");
       Mono.from(
         status.getConnection()
           .createStatement(TOUCH_BIB_OWNING_CLUSTER)
           .bind("$1", bibId)
           .execute())
 
-      .doOnError(e -> log.error("Problem with TOUCH_BIB_OWNING_CLUSTER",e));
-      .doOnNext( log.info("SET_REINDEX") )
+      .doOnError(e -> log.error("Problem with TOUCH_BIB_OWNING_CLUSTER",e))
+      .doOnNext(n -> log.info("SET_REINDEX") )
 
       .then(
         Mono.from(
