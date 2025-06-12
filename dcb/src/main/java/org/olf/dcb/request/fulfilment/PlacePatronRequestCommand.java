@@ -32,6 +32,10 @@ public class PlacePatronRequestCommand {
 		return getRequestor().getLocalSystemCode();
 	}
 
+	String getRequestorAgencyCode() {
+		return getRequestor().getAgencyCode();
+	}
+
 	String getRequestorLocalId() {
 		return getRequestor().getLocalId();
 	}

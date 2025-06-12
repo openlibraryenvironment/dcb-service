@@ -53,15 +53,20 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 	 * Count the number of active patron requests and reject if the patron has more than the global limit
    */
 	public Mono<CheckResult> checkGlobalActiveRequestLimit(PlacePatronRequestCommand command) {
-		log.info("Checking that patron has < global setting for max active requests {}",command);
+
+		String patronAgency = command.getRequestorAgencyCode();
+
+		log.info("Checking that patron has < global setting for max active requests {} - patronAgency:{}",command,patronAgency);
 
 		return Mono.from(patronRequestRepository.getActiveRequestCountForPatron(command.getRequestorLocalSystemCode(),command.getRequestorLocalId()))
 			.flatMap( count -> {
 				if ( globalActiveRequestLimit.intValue() == 0 )
 					return Mono.just(passed("global request limit disabled"));
 
-				if ( count.intValue() < globalActiveRequestLimit.intValue() )
-					return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
+				if ( count.intValue() < globalActiveRequestLimit.intValue() ) {
+					//	return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
+					return verifyAgencyLimit(patronAgency, count.intValue());
+				}
 
 				return Mono.just(failedUm("EXCEEDS_GLOBA_LIMIT", 
 					"Patron has more active requests than the system allows (%d)".formatted(globalActiveRequestLimit),
@@ -70,5 +75,11 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 			})
 			.doOnError(e -> log.error("Unexpected error checking global limits",e))
 			.onErrorResume( e -> Mono.just(passed("Passed with error "+e.getMessage() ) ) );
+	}
+
+	public Mono<CheckResult> verifyAgencyLimit(String agency, int count) {
+		// Return OK for now
+		log.info("Checking agency limits for {} {}",agency,count);
+		return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
 	}
 }
