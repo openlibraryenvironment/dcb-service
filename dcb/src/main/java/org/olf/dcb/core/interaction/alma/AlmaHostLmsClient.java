@@ -557,6 +557,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("placeGenericAlmaRequest({}, {}, {}, {}, {}, {}, {})", mmsId, itemId, holdingId, patronId, libraryCode, locationCode, circDeskCode);
 
+		// if we don't set the library code to GTMAIN then we will see errors;
+		// 'No items can fulfill the submitted request'
+		// known limitation for now
+		if (libraryCode == null || libraryCode.isBlank() || !"GTMAIN".equals(libraryCode)) {
+			// for now we only support GTMAIN as a pickup library
+			log.warn("Library code {} being set to GTMAIN", libraryCode);
+			libraryCode = "GTMAIN";
+		}
+
 		// the minimum fields required
 		final var almaRequest = AlmaRequest.builder()
 			.pId(itemId)
