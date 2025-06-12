@@ -659,18 +659,42 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private boolean isVirtualPatronNotFoundError(Throwable e) {
 		if (!(e instanceof AlmaException almaException)) {
+			log.info("isVirtualPatronNotFoundError: Not an AlmaException. Exception type: {}", e.getClass().getName());
 			return false;
 		}
 
-		try {
-			List<AlmaError> errors = almaException.getErrorResponse()
-				.getErrorList()
-				.getError();
+		log.info("isVirtualPatronNotFoundError: AlmaException received. Message: {}", almaException.getMessage());
 
-			return errors.stream()
+		try {
+			var errorResponse = almaException.getErrorResponse();
+			if (errorResponse == null) {
+				log.warn("AlmaException.getErrorResponse() returned null");
+				return false;
+			}
+
+			var errorList = errorResponse.getErrorList();
+			if (errorList == null) {
+				log.warn("ErrorResponse.getErrorList() returned null");
+				return false;
+			}
+
+			var errors = errorList.getError();
+			if (errors == null || errors.isEmpty()) {
+				log.warn("ErrorList.getError() returned null or empty list");
+				return false;
+			}
+
+			for (AlmaError error : errors) {
+				log.info("Checking Alma error: code={}, message={}", error.getErrorCode(), error.getErrorMessage());
+			}
+
+			boolean matchFound = errors.stream()
 				.anyMatch(error -> VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE.equals(error.getErrorCode()));
+
+			log.info("Virtual patron not found error match: {}", matchFound);
+			return matchFound;
 		} catch (Exception ex) {
-			log.error("Unable to determine if virtual patron not found error", ex);
+			log.error("Unable to determine if virtual patron not found error. Exception during processing: {}", ex.getMessage(), ex);
 			return false;
 		}
 	}
