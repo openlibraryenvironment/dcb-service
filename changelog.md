@@ -8,6 +8,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Fix isEnabledForPickupAnywhere naming
 	* Add isPickupAnywhere attribute to the GraphQL schema
 	* Initial commit for Alma cancellation and renewals [DCB-1930]

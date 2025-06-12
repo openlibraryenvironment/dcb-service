@@ -11,17 +11,22 @@ import java.net.URI;
 import java.util.*;
 import java.time.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.interops.ConfigType;
+import org.zalando.problem.DefaultProblem;
 import org.zalando.problem.Problem;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaLocation;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.error.AlmaError;
+import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
 import services.k_int.interaction.alma.types.error.AlmaException;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.AlmaLibraryResponse;
@@ -658,21 +663,60 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final String VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE = "401861";
 
 	private boolean isVirtualPatronNotFoundError(Throwable e) {
-		if (!(e instanceof AlmaException almaException)) {
+		AlmaErrorResponse errorResponse = extractAlmaErrors(e);
+
+		if (errorResponse == null || errorResponse.getErrorList() == null || errorResponse.getErrorList().getError() == null) {
+			log.info("No AlmaErrorResponse or error list present");
 			return false;
 		}
 
-		try {
-			List<AlmaError> errors = almaException.getErrorResponse()
-				.getErrorList()
-				.getError();
-
-			return errors.stream()
-				.anyMatch(error -> VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE.equals(error.getErrorCode()));
-		} catch (Exception ex) {
-			log.error("Unable to determine if virtual patron not found error", ex);
-			return false;
+		for (AlmaError error : errorResponse.getErrorList().getError()) {
+			log.info("Checking Alma error: code={}, message={}", error.getErrorCode(), error.getErrorMessage());
+			if (VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE.equals(error.getErrorCode())) {
+				return true;
+			}
 		}
+
+		return false;
+	}
+
+	public static AlmaErrorResponse extractAlmaErrors(Throwable e) {
+		if (e instanceof AlmaException almaException) {
+			try {
+				return almaException.getErrorResponse();
+			} catch (Exception ex) {
+				log.error("Failed to get AlmaErrorResponse from AlmaException", ex);
+			}
+		}
+
+		if (e instanceof DefaultProblem defaultProblem) {
+			Object rawError = defaultProblem.getParameters().get("Alma Error response");
+
+			if (rawError instanceof AlmaErrorResponse response) {
+				return response; // Already deserialized
+			}
+
+			if (rawError instanceof Map) {
+				try {
+					ObjectMapper mapper = new ObjectMapper();
+					AlmaErrorResponse response = mapper.convertValue(rawError, AlmaErrorResponse.class);
+					return response;
+				} catch (Exception ex) {
+					log.error("Failed to convert map to AlmaErrorResponse", ex);
+				}
+			}
+
+			if (rawError instanceof String json) {
+				try {
+					ObjectMapper mapper = new ObjectMapper();
+					return mapper.readValue(json, AlmaErrorResponse.class);
+				} catch (Exception ex) {
+					log.error("Failed to parse AlmaErrorResponse from JSON string", ex);
+				}
+			}
+		}
+
+		return null;
 	}
 
 	private VirtualPatronNotFound createVirtualPatronNotFoundException(String uniqueId, Throwable cause) {
