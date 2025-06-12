@@ -1,5 +1,21 @@
 # Changelog
 
+## Version 8.35.1
+
+### Changes
+* [Chore]
+	* bump commit to trigger build
+
+### Fixes
+* [General]
+	* Accidental SQL removal
+
+## Version 8.35.0
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ## Version 8.34.0
 
 ### Additions
