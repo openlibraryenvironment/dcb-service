@@ -102,7 +102,7 @@ public class HouseKeepingService {
   // This has to be this way for now, until the new source uuid on bib_record is fully populated
   private static final String SET_REINDEX = """
     update source_record set processing_state = 'PROCESSING_REQUIRED' where id in (
-    SELECT 
+    SELECT s.id
     FROM bib_record b
     JOIN source_record s
       ON s.remote_id LIKE '%' || b.source_record_id
@@ -384,11 +384,15 @@ public class HouseKeepingService {
     return Mono.from(dbops.withTransaction(status ->
 
 			// Touch the cluster that owns this bib - we are removing something from it
+      log.info("Touch bib owning cluster");
       Mono.from(
         status.getConnection()
           .createStatement(TOUCH_BIB_OWNING_CLUSTER)
           .bind("$1", bibId)
           .execute())
+
+      .doOnError(e -> log.error("Problem with TOUCH_BIB_OWNING_CLUSTER",e));
+      .doOnNext( log.info("SET_REINDEX") )
 
       .then(
         Mono.from(
