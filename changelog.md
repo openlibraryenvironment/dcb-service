@@ -1,9 +1,26 @@
 # Changelog
 
+## Version 8.36.0
+
+### Additions
+* [General]
+	* Add Agency level max cosortial loans, and skeletal preflight
+
+### Changes
+* [Chore]
+	* Remove availability from mappings-2
+	* Always restore es interval to 30s at end of ES update run
+	* Wire in per-agency tenant limit check (Not fully implemented yet, but placeholder present)
+
+### Fixes
+* [General]
+	* Use the configured default pickup library for Alma requesting [DCB-1930]
+
 ## Version 8.35.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* bump commit to trigger build
 
 ### Fixes
