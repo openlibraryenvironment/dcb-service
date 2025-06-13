@@ -68,8 +68,8 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 					return Mono.just(passed("global request limit disabled"));
 
 				if ( count.intValue() < globalActiveRequestLimit.intValue() ) {
-					return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
-					// return verifyAgencyLimit(patronAgency, count.intValue());
+					// return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
+					return verifyAgencyLimit(patronAgency, count.intValue());
 				}
 
 				return Mono.just(failedUm("EXCEEDS_GLOBAL_LIMIT", 
@@ -82,7 +82,11 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 	}
 
 	public Mono<CheckResult> verifyAgencyLimit(String agency, int count) {
-		// Return OK for now
+
+		if ( ( agency == null ) || ( agency.trim().length() == 0 ) )
+			return Mono.just(passed("Bypass agency max loans test"));
+
+	
 		log.info("Checking agency limits for {} {}",agency,count);
 		return Mono.from(agencyRepository.findOneByCode(agency))
 			.flatMap( agencyObj -> {
