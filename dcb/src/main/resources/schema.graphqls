@@ -386,6 +386,7 @@ type Agency {
     locations: [Location]
 		isSupplyingAgency: Boolean
 		isBorrowingAgency: Boolean
+		maxConsortialLoans: Int
 }
 
 """
