@@ -84,10 +84,10 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 	public Mono<CheckResult> verifyAgencyLimit(String agency, int count) {
 		// Return OK for now
 		log.info("Checking agency limits for {} {}",agency,count);
-		return Mono.from(agencyRepository.findOneByCode(code))
+		return Mono.from(agencyRepository.findOneByCode(agency))
 			.flatMap( agencyObj -> {
-				if ( ( agencyObj.maxConsortialLoans() == null ) ||
-					   ( count <= agencyObj.maxConsortialLoans().intValue() ) ) {
+				if ( ( agencyObj.getMaxConsortialLoans() == null ) ||
+					   ( count <= agencyObj.getMaxConsortialLoans().intValue() ) ) {
 					return Mono.just(passed("Global and local limits OK"));
 				}
 				else {
@@ -96,9 +96,9 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 		        intMessageService.getMessage("EXCEEDS_AGENCY_LIMIT")));
 				}
 			})
-			.onErrorResume(failedUm("EXCEEDS_AGENCY_LIMIT",
+			.onErrorResume(e -> Mono.just(failedUm("EXCEEDS_AGENCY_LIMIT",
           "Patron has more active requests than the Agency (%s) allows (%d)".formatted(agency, count),
-          intMessageService.getMessage("EXCEEDS_AGNECY_LIMIT")))
+          intMessageService.getMessage("EXCEEDS_AGNECY_LIMIT"))));
 
 	}
 }
