@@ -301,9 +301,11 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			refreshInterval = new AtomicReference<Time>(Time.of(t->t.time("30s")));
 		}
 
-		return Mono.just(refreshInterval.get())
-			.flatMap( val -> changeIndexSettings( s -> s
-			  .index(i -> i.refreshInterval(val))));
+    return changeIndexSettings( s -> s.index(i -> i.refreshInterval(Time.of(t->t.time("30s")))));
+
+		// return Mono.just(refreshInterval.get())
+		// 	.flatMap( val -> changeIndexSettings( s -> s
+		// 	  .index(i -> i.refreshInterval(val))));
 	}
 	
 	private boolean isTimeValueDisabled(Time time) {
