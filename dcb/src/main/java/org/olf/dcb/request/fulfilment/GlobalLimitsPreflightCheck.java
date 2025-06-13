@@ -68,8 +68,8 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 					return Mono.just(passed("global request limit disabled"));
 
 				if ( count.intValue() < globalActiveRequestLimit.intValue() ) {
-					//	return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
-					return verifyAgencyLimit(patronAgency, count.intValue());
+					return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
+					// return verifyAgencyLimit(patronAgency, count.intValue());
 				}
 
 				return Mono.just(failedUm("EXCEEDS_GLOBAL_LIMIT", 
