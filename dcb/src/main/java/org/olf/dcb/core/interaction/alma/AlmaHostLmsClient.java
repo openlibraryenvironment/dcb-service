@@ -94,7 +94,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", FALSE);
 
 	private static final HostLmsPropertyDefinition DEFAULT_PICKUP_LOCATION_CODE
-		= stringPropertyDefinition("default-pickup-location-code", "Default pickup location code for this ALMA system", FALSE);
+		= stringPropertyDefinition("default-pickup-location-code", "Default pickup library code for this ALMA system", FALSE);
 
 
 	private final HostLms hostLms;
@@ -557,13 +557,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("placeGenericAlmaRequest({}, {}, {}, {}, {}, {}, {})", mmsId, itemId, holdingId, patronId, libraryCode, locationCode, circDeskCode);
 
-		// if we don't set the library code to GTMAIN then we will see errors;
+		// if we don't set the library code to the default (GTMAIN for GTECH) then we will see errors;
 		// 'No items can fulfill the submitted request'
 		// known limitation for now
-		if (libraryCode == null || libraryCode.isBlank() || !"GTMAIN".equals(libraryCode)) {
-			// for now we only support GTMAIN as a pickup library
-			log.warn("Library code {} being set to GTMAIN", libraryCode);
-			libraryCode = "GTMAIN";
+		final var defaultLibraryCode = DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN");
+		if (libraryCode == null || libraryCode.isBlank() || !defaultLibraryCode.equals(libraryCode)) {
+			// for now we only support GTMAIN as a pickup library for GTECH
+			log.warn("Library code {} being set to default {}", libraryCode, defaultLibraryCode);
+			libraryCode = defaultLibraryCode;
 		}
 
 		// the minimum fields required
