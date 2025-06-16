@@ -88,7 +88,7 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 
 			org.marc4j.marc.Record r = resource.metadata().record();
       List<org.marc4j.marc.VariableField> vf = r.getVariableFields("999");
-			if ( ( vf.size() == 1 ) && ( vf instanceof org.marc4j.marc.DataField) ) {
+			if ( ( vf.size() == 1 ) && ( vf.get(0) instanceof org.marc4j.marc.DataField) ) {
 				org.marc4j.marc.DataField df = (org.marc4j.marc.DataField) vf.get(0);
 				org.marc4j.marc.Subfield sft = df.getSubfield('t');
 				if ( sft != null ) {

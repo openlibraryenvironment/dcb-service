@@ -282,16 +282,14 @@ public class BibRecordService {
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<BibRecord> process(final IngestRecord source) {
 		
-		if (log.isTraceEnabled()) {
-			log.trace("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
-	        source.getSourceSystem().getCode(),
-	        source.getSourceRecordId(),
-	        source.getClusterRecordId(),
-	        source.getTitle(),
-	        source.getSuppressFromDiscovery(),
-	        source.getDeleted()
-	        );
-		}
+		log.info("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
+	    source.getSourceSystem().getCode(),
+	    source.getSourceRecordId(),
+	    source.getClusterRecordId(),
+	    source.getTitle(),
+	    source.getSuppressFromDiscovery(),
+	    source.getDeleted()
+	    );
 		
 		final boolean suppressed = Boolean.TRUE.equals( source.getSuppressFromDiscovery() );
 		final boolean deleted = Boolean.TRUE.equals( source.getDeleted() );
