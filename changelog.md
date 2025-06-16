@@ -2,8 +2,51 @@
 
 ## Version 8.33.2
 
+## Version 8.36.0
+
+### Additions
+* [General]
+	* Add Agency level max cosortial loans, and skeletal preflight
+
 ### Changes
 * [Chore]
+	* Remove availability from mappings-2
+	* Always restore es interval to 30s at end of ES update run
+	* Wire in per-agency tenant limit check (Not fully implemented yet, but placeholder present)
+
+### Fixes
+* [General]
+	* Use the configured default pickup library for Alma requesting [DCB-1930]
+
+## Version 8.35.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* bump commit to trigger build
+
+### Fixes
+* [General]
+	* Accidental SQL removal
+
+## Version 8.35.0
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
+## Version 8.34.0
+
+### Additions
+* [General]
+	* Basic support for alma renewals [DCB-1930]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Fix isEnabledForPickupAnywhere naming
+	* Add isPickupAnywhere attribute to the GraphQL schema
+>>>>>>> b138f91c0ad22b2b8c9b250c9e0d3911651f37a6
 	* Initial commit for Alma cancellation and renewals [DCB-1930]
 	* DCB-1929 - When cleaning up a removed HostLMS, also delete the SourceRecords AND set ingest=false in the config
 

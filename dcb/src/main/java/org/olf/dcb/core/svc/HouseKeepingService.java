@@ -102,12 +102,29 @@ public class HouseKeepingService {
   // This has to be this way for now, until the new source uuid on bib_record is fully populated
   private static final String SET_REINDEX = """
     update source_record set processing_state = 'PROCESSING_REQUIRED' where id in (
-    SELECT 
+    SELECT s.id
     FROM bib_record b
     JOIN source_record s
       ON s.remote_id LIKE '%' || b.source_record_id
     WHERE b.id = $1 )
   """;
+
+  private static final String TOUCH_BIB_OWNING_CLUSTER = """
+    update cluster_record set date_updated = now() where id in ( select br.contributes_to from bib_record br where br.d = $1 )
+  """;
+
+  // First mark any clusters that no longer have bibs as deleted (All bibs directed to other clusters - DELETED bibs is another case we need to service)
+  private static final String PURGE_EMPTY_CLUSTERS = """
+    update cluster_record cr set cr.is_deleted = true, cr.date_updated=now()  where cr.id in (
+    select cr.id from cluster_record cr left outer join bib_record br on br.contributes_to = cr.id group by cr.id having count(br.id) = 0 );
+  """;
+
+  // Find any clusters where the bib was modified after the cluster and touch the cluster
+  private static final String TOUCH_UPDATED_CLUSTERS = """
+    update cluster_record cr set cr.date_updated = now() where cr.id in (
+      select br.contributes_to from bib_record br, cluster_record cr where br.date_updated > cr.date_updated and br.contributes_to = cr.id )
+  """;
+
 
   // select source_record_id srid from bib_record br where br.id = $1
 	
@@ -257,8 +274,7 @@ public class HouseKeepingService {
 
     return Mono.from(
       dbops.withConnection(conn ->
-        Flux.from(conn
-          .createStatement(CLUSTER_VALIDATION_QUERY).bind("$1", since).execute())
+        Flux.from(conn.createStatement(CLUSTER_VALIDATION_QUERY).bind("$1", since).execute())
           .doOnNext( n -> log.info("Progressing") )
           .doOnError(e -> log.error("Problem finding clusters to validate") )
           .flatMap(result -> result.map((row, meta) -> {
@@ -282,6 +298,21 @@ public class HouseKeepingService {
           .count()
           .doOnError(e -> log.error("Error in inner validate {}",e.getMessage(), e) )
           .doOnNext(c -> log.info("Processed {}",c))
+          .then(
+            // Find all the clusters that have zero bibs attached, and set their state to deleted, touch the date_updted
+            Mono.from(
+              conn
+                .createStatement(PURGE_EMPTY_CLUSTERS)
+                .execute())
+            .flatMap(result -> Mono.from(result.getRowsUpdated())))
+          .then(
+            // Find all the clusters that have a member bib with a date_updated > the cluster, and touch the cluster
+            Mono.from(
+              conn
+                .createStatement(TOUCH_UPDATED_CLUSTERS)
+                .execute())
+            .flatMap(result -> Mono.from(result.getRowsUpdated())))
+
       )
     );
   }
@@ -351,20 +382,38 @@ public class HouseKeepingService {
     log.info("### Clean up bib {} ###", bibId);
 
     return Mono.from(dbops.withTransaction(status ->
-      Mono.from(status.getConnection()
-        .createStatement(SET_REINDEX)
-        .bind("$1", bibId)
-        .execute())
-      .flatMap(result -> Mono.from(result.getRowsUpdated()))
-      .doOnNext(c -> log.info("Completed setting reindex for {} {} rows", bibId, c))
-      .doOnError(e -> log.error("Problem setting reindex for bib {} - {}",bibId,e.getMessage(),e) )
-      .then(Mono.from(status.getConnection()
-          .createStatement(BREAK_CLUSTER_ASSOCIATION)
+
+			// Touch the cluster that owns this bib - we are removing something from it
+      Mono.from(
+        status.getConnection()
+          .createStatement(TOUCH_BIB_OWNING_CLUSTER)
           .bind("$1", bibId)
           .execute())
-        .flatMap(result -> Mono.from(result.getRowsUpdated())) // Fix here
-        .doOnNext(c -> log.info("Completed breaking cluster association for {} {} rows", bibId, c)))
-        .doOnError(e -> log.error("Problem breaking cluster association for bib {} - {}",bibId,e.getMessage(),e) )
+
+      .doOnError(e -> log.error("Problem with TOUCH_BIB_OWNING_CLUSTER",e))
+      .doOnNext(n -> log.info("SET_REINDEX") )
+
+      .then(
+        Mono.from(
+          status.getConnection()
+            .createStatement(SET_REINDEX)
+            .bind("$1", bibId)
+            .execute())
+        .flatMap(result -> Mono.from(result.getRowsUpdated())))
+
+      .doOnNext(c -> log.info("Completed setting reindex for {} {} rows", bibId, c))
+      .doOnError(e -> log.error("Problem setting reindex for bib {} - {}",bibId,e.getMessage(),e) )
+
+      .then(
+        Mono.from(
+          status.getConnection()
+            .createStatement(BREAK_CLUSTER_ASSOCIATION)
+            .bind("$1", bibId)
+            .execute())
+          .flatMap(result -> Mono.from(result.getRowsUpdated()))) // Fix here
+
+      .doOnNext(c -> log.info("Completed breaking cluster association for {} {} rows", bibId, c))
+      .doOnError(e -> log.error("Problem breaking cluster association for bib {} - {}",bibId,e.getMessage(),e) )
     ))
     .onErrorResume(e -> {
       log.warn("Resume after error trying to clean up bib {}",bibId);

@@ -735,16 +735,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private Mono<Patron> validatePatronByIDAndName(String principal, String name, String principalField) {
 		log.debug("validatePatronByIDAndName({},{},{})", principal, name, principalField);
 
-		if ((name == null) || (name.length() < 4))
-			return Mono.empty();
+		// Use used to required at least 4 characters for a user auth
+		// if ((name == null) || (name.length() < 4)) return Mono.empty();
 
 		// If the provided name is present in any of the names coming back from the
 		// client
 		return patronFind(principalField, principal)
 			.doOnSuccess(patron -> log.info("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name))
 			.filter(patron -> patron.getLocalNames().stream()
-				.anyMatch(s -> s.toLowerCase()
-				.startsWith(name.toLowerCase())));
+				.anyMatch(s -> s.toLowerCase().trim().startsWith(name.toLowerCase().trim())));
 	}
 
 	@Override

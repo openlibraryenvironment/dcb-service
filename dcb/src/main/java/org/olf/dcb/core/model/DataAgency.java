@@ -105,4 +105,7 @@ public class DataAgency implements Agency, Auditable {
 
 	@Nullable
 	private String changeReferenceUrl;
+
+	@Nullable
+	private Integer maxConsortialLoans;
 }

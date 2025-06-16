@@ -11,17 +11,22 @@ import java.net.URI;
 import java.util.*;
 import java.time.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.interops.ConfigType;
+import org.zalando.problem.DefaultProblem;
 import org.zalando.problem.Problem;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaLocation;
 import services.k_int.interaction.alma.types.*;
 import services.k_int.interaction.alma.types.error.AlmaError;
+import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
 import services.k_int.interaction.alma.types.error.AlmaException;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.AlmaLibraryResponse;
@@ -89,7 +94,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", FALSE);
 
 	private static final HostLmsPropertyDefinition DEFAULT_PICKUP_LOCATION_CODE
-		= stringPropertyDefinition("default-pickup-location-code", "Default pickup location code for this ALMA system", FALSE);
+		= stringPropertyDefinition("default-pickup-location-code", "Default pickup library code for this ALMA system", FALSE);
 
 
 	private final HostLms hostLms;
@@ -552,6 +557,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("placeGenericAlmaRequest({}, {}, {}, {}, {}, {}, {})", mmsId, itemId, holdingId, patronId, libraryCode, locationCode, circDeskCode);
 
+		// if we don't set the library code to the default (GTMAIN for GTECH) then we will see errors;
+		// 'No items can fulfill the submitted request'
+		// known limitation for now
+		final var defaultLibraryCode = DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN");
+		if (libraryCode == null || libraryCode.isBlank() || !defaultLibraryCode.equals(libraryCode)) {
+			// for now we only support GTMAIN as a pickup library for GTECH
+			log.warn("Library code {} being set to default {}", libraryCode, defaultLibraryCode);
+			libraryCode = defaultLibraryCode;
+		}
+
 		// the minimum fields required
 		final var almaRequest = AlmaRequest.builder()
 			.pId(itemId)
@@ -655,29 +670,63 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
-	private static final int BAD_REQUEST_STATUS = 400;
 	private static final String VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE = "401861";
 
 	private boolean isVirtualPatronNotFoundError(Throwable e) {
-		if (!(e instanceof AlmaException almaException)) {
+		AlmaErrorResponse errorResponse = extractAlmaErrors(e);
+
+		if (errorResponse == null || errorResponse.getErrorList() == null || errorResponse.getErrorList().getError() == null) {
+			log.info("No AlmaErrorResponse or error list present");
 			return false;
 		}
 
-		if (almaException.getStatus().getCode() != BAD_REQUEST_STATUS) {
-			return false;
+		for (AlmaError error : errorResponse.getErrorList().getError()) {
+			log.info("Checking Alma error: code={}, message={}", error.getErrorCode(), error.getErrorMessage());
+			if (VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE.equals(error.getErrorCode())) {
+				return true;
+			}
 		}
 
-		try {
-			List<AlmaError> errors = almaException.getErrorResponse()
-				.getErrorList()
-				.getError();
+		return false;
+	}
 
-			return errors.stream()
-				.anyMatch(error -> VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE.equals(error.getErrorCode()));
-		} catch (Exception ex) {
-			log.error("Unable to determine if virtual patron not found error", ex);
-			return false;
+	public static AlmaErrorResponse extractAlmaErrors(Throwable e) {
+		if (e instanceof AlmaException almaException) {
+			try {
+				return almaException.getErrorResponse();
+			} catch (Exception ex) {
+				log.error("Failed to get AlmaErrorResponse from AlmaException", ex);
+			}
 		}
+
+		if (e instanceof DefaultProblem defaultProblem) {
+			Object rawError = defaultProblem.getParameters().get("Alma Error response");
+
+			if (rawError instanceof AlmaErrorResponse response) {
+				return response; // Already deserialized
+			}
+
+			if (rawError instanceof Map) {
+				try {
+					ObjectMapper mapper = new ObjectMapper();
+					AlmaErrorResponse response = mapper.convertValue(rawError, AlmaErrorResponse.class);
+					return response;
+				} catch (Exception ex) {
+					log.error("Failed to convert map to AlmaErrorResponse", ex);
+				}
+			}
+
+			if (rawError instanceof String json) {
+				try {
+					ObjectMapper mapper = new ObjectMapper();
+					return mapper.readValue(json, AlmaErrorResponse.class);
+				} catch (Exception ex) {
+					log.error("Failed to parse AlmaErrorResponse from JSON string", ex);
+				}
+			}
+		}
+
+		return null;
 	}
 
 	private VirtualPatronNotFound createVirtualPatronNotFoundException(String uniqueId, Throwable cause) {
@@ -1029,7 +1078,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.localId(item.getItemData().getPid())
 				.barcode(item.getItemData().getBarcode())
 				.rawStatus(item.getItemData().getBaseStatus().getValue())
-				.status(deriveItemStatus(item.getItemData()).getCode().name())
+				.status(deriveItemStatusFromProcessType(item.getItemData()))
 				.bibId(hostLmsItem.getBibId())
 				.holdingId(hostLmsItem.getHoldingId())
 				.build() );
@@ -1266,6 +1315,38 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			case "2" -> new ItemStatus(ItemStatusCode.CHECKED_OUT);  // "2"=Loaned
 			default -> new ItemStatus(ItemStatusCode.UNKNOWN);
 		};
+	}
+
+	private String deriveItemStatusFromProcessType(AlmaItemData almaItem) {
+		// /conf/code-tables/PROCESSTYPE
+		String extracted_process_type = almaItem.getProcess_type() != null ? almaItem.getProcess_type().getValue() : null;
+		String extracted_base_status = almaItem.getBaseStatus() != null ? almaItem.getBaseStatus().getValue() : "0";
+
+		// If the base status is 1 then we can assume the item is available
+		if ( extracted_process_type == null && Objects.equals(extracted_base_status, "1")) {
+			return HostLmsItem.ITEM_AVAILABLE;
+		}
+
+		// the base status has only two values, to get more detail we need to look at the process type
+		if ( extracted_process_type != null ) {
+			return switch ( extracted_process_type ) {
+				case "LOAN" -> HostLmsItem.ITEM_LOANED;
+				case "TRANSIT" -> HostLmsItem.ITEM_TRANSIT;
+				case "MISSING" -> HostLmsItem.ITEM_MISSING;
+				case "HOLDSHELF" -> HostLmsItem.ITEM_ON_HOLDSHELF;
+				case "REQUESTED" -> HostLmsItem.ITEM_REQUESTED;
+				default -> extracted_process_type;
+			};
+		}
+
+		// fall back to the general base status
+		if (Objects.equals(extracted_base_status, "2")) {
+			return HostLmsItem.ITEM_LOANED;
+		}
+
+		// we ran out of options
+		log.warn("Unable to derive item status from process type {} and base status {}", extracted_process_type, extracted_base_status);
+		return extracted_base_status;
 	}
 
 	// Alma talks about "libraries" for the location where an item "belongs" and

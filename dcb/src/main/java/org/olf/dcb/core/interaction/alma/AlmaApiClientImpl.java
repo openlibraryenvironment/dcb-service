@@ -418,6 +418,20 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.doOnNext(items -> log.debug("Got item {}", items.getItemData().getPid()));
 	}
 
+	/**
+	 * Fetches all loans for a specific user.
+	 * See: <a href="https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L2xvYW5z/">Alma loans</a>
+	 * @param userId The ID of the user.
+	 * @return A Mono containing the list of user loans.
+	 */
+	public Mono<AlmaItemLoans> getUserLoans(String userId) {
+		final String path = "/almaws/v1/users/" + userId + "/loans";
+		return createRequest(GET, path)
+			.flatMap(req -> doExchange(req, Argument.of(AlmaItemLoans.class)))
+			.map(response -> response.getBody().get())
+			.doOnNext(loans -> log.debug("Retrieved {} loans for user {}", loans.getRecordCount(), userId));
+	}
+
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_holdings.xsd/?tags=GET
   public Mono<AlmaItems> getAllItems(String mms_id, String holding_id) {
 		final String path="/almaws/v1/bibs/"+mms_id+"/holdings/"+holding_id+"/items";
@@ -431,7 +445,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		final String path="/almaws/v1/users/"+userId+"/requests";
 		final String itemId = getValueOrNull(almaRequest, AlmaRequest::getPId);
 
-		// Trying to understand what's in here
 		try {
 			String almaRequestJson = objectMapper.writeValueAsString(almaRequest);
 			log.info("Full AlmaRequest body to be sent: {}", almaRequestJson);
@@ -497,13 +510,41 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.doOnNext(almaCancellationResponse -> log.info("Cancellation response {}", almaCancellationResponse));
 	}
 
+	@Override
 	public Mono<HostLmsRenewal> doRenewal(HostLmsRenewal renewal) {
-		log.info("Renewals are WIP for Alma. Renewal is {} ",renewal);
-		final String path="/almaws/v1/users/"+renewal.getLocalPatronId()+"/loans/"+renewal.getLocalRequestId(); // NOTE: Loan ID is different from request ID in Alma, possibly.
-		return createRequest(POST, path)
-			.flatMap(req -> doExchange(req, Argument.of(HostLmsRenewal.class)))
-			.map(response -> response.getBody().get())
-			.doOnNext(renewalResponse -> log.info("Renewal response {}", renewalResponse));
+		log.info("Starting direct renewal for patron {} and item {}", renewal.getLocalPatronId(), renewal.getLocalItemId());
+		final String patronId = renewal.getLocalPatronId();
+		final String itemId = renewal.getLocalItemId(); // Assumes this method exists
+
+		if (itemId == null || itemId.isBlank()) {
+			return Mono.error(new IllegalArgumentException("Local Item ID is missing and required for renewal."));
+		}
+
+		// 1. Get all loans for the user.
+		return getUserLoans(patronId)
+			.flatMap(userLoans -> {
+				// 2. Find the loan that matches the provided item ID.
+				return Mono.justOrEmpty(userLoans.getLoans().stream()
+					.filter(loan -> itemId.equals(loan.getItemId()))
+					.findFirst());
+			})
+			.switchIfEmpty(Mono.error(new IllegalStateException("Could not find a matching loan for item ID " + itemId + " and patron " + patronId)))
+			.flatMap(matchedLoan -> {
+				final String loanId = matchedLoan.getLoanId();
+				log.info("Found matching loan ID: {}. Proceeding with renewal.", loanId);
+				final String path = "/almaws/v1/users/" + patronId + "/loans/" + loanId;
+				return createRequest(POST, path)
+					.map(req -> req.uri(uriBuilder -> uriBuilder.queryParam("op", "renew").build()))
+					.flatMap(req -> doExchange(req, Argument.of(AlmaItemLoan.class))) // Assuming renewal returns the updated loan object
+					.map(response -> response.getBody().get());
+			})
+			.map(renewedLoan -> {
+				log.info("Renewal successful for loan {}. New due date: {}", renewedLoan.getLoanId(), renewedLoan.getDueDate());
+				return renewal;
+			})
+			.doOnError(error -> log.error("Direct renewal process failed for item {}: {}", itemId, error.getMessage()));
 	}
+
+
 
 	}
