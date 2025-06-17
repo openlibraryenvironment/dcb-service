@@ -75,6 +75,10 @@ public class Patron {
 			.findFirst();
 	}
 
+	public boolean hasNoIdentities() {
+		return isEmpty(patronIdentities);
+	}
+
 	@Transient
 	@Nullable
 	public String determineUniqueId() {

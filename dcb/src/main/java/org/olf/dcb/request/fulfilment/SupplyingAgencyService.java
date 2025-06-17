@@ -1,5 +1,39 @@
 package org.olf.dcb.request.fulfilment;
 
+import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.StringUtils.parseList;
+
+import java.net.URI;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.storage.AgencyRepository;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
+
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Nullable;
@@ -8,30 +42,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.request.resolution.SupplierRequestService;
-import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.storage.AgencyRepository;
-import org.zalando.problem.Problem;
-import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-
-import java.net.URI;
-import java.util.*;
-import java.util.function.Function;
-
-import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.StringUtils.parseList;
 
 
 @Slf4j
@@ -643,12 +657,29 @@ public class SupplyingAgencyService {
 				.dcbPatronIdentityID(patronIdentity.getId().toString())
 				.localSystemId(patronIdentity.getLocalId());
 
-			try { // adding unique id to the audit data
-				var determineUniqueId = patronIdentity.getPatron().determineUniqueId();
-				virtualPatron.determinedUniqueId(determineUniqueId);
-			} catch (Exception e) {
-				log.error("Failed to add unique id to virtual patron audit", e);
-				virtualPatron.determinedUniqueId(e.toString());
+			final var patron = patronIdentity.getPatron();
+
+			// Sometimes the patron associated with the identity is not fully loaded
+			// Meaning there will be no identities associated with it
+			// This will cause the unique ID determination to fail
+			// This has been reported as distracting to folks interpreting the audit
+			// So instead a specific message is presented instead of an error
+			if (patron.hasNoIdentities()) {
+				final var noIdentitiesMessage = "No identities loaded for patron - cannot determine unique ID";
+
+				log.info(noIdentitiesMessage);
+				virtualPatron.determinedUniqueId(noIdentitiesMessage);
+			}
+			else {
+				try { // adding unique id to the audit data
+					var determineUniqueId = patron.determineUniqueId();
+
+					virtualPatron.determinedUniqueId(determineUniqueId);
+
+				} catch (Exception e) {
+					log.error("Failed to add unique id to virtual patron audit", e);
+					virtualPatron.determinedUniqueId(e.toString());
+				}
 			}
 
 			auditData.put("virtualPatron", virtualPatron.build());
