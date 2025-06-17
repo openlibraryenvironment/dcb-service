@@ -34,11 +34,11 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 		return Mono.from(referenceValueMappingRepository.findByFromValueAndDeletedFalseAndFromContextAndFromCategory(
 				fromValue, fromContext, fromCategory))
 			.flatMap(existingMapping -> Mono.<Void>error(new MappingCreationException(
-				"A mapping with fromValue '" + fromValue + "' already exists for the given from context and category")))
+				"A mapping with fromValue '" + fromValue + "' already exists for the given from context and category. Existing mapping ID is"+existingMapping.getId())))
 			.switchIfEmpty(Mono.from(referenceValueMappingRepository.findByFromValueAndDeletedFalseAndToContextAndToCategory(
 					fromValue, toContext, toCategory))
 				.flatMap(existingMapping -> Mono.<Void>error(new MappingCreationException(
-					"A mapping with fromValue '" + fromValue + "' already exists for the given to context and category")))
+					"A mapping with fromValue '" + fromValue + "' already exists for the given to context and category. Existing mapping ID is"+existingMapping.getId())))
 				.switchIfEmpty(Mono.empty().then()));
 	}
 
