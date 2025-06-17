@@ -462,6 +462,18 @@ public class DCBConfigurationService {
 				)
 			));
 		}
+
+		if ((category.equals("Location") && !toCategory.equals("AGENCY")))
+		{
+			return Mono.just(new ValidationResult(
+				null,
+				new IgnoredConfigItem(
+					"Mapping could not be imported: Location mapping must have a toCategory value of 'AGENCY'.",
+					lineNumber
+				)
+			));
+		}
+
 		if ((category.equals("ItemType")  && (fromContext.equals("DCB") || toContext.equals("DCB"))))
 		{
 			if (fromContext.equals("DCB") && !validItemTypes.contains(fromValue))

@@ -112,6 +112,10 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 		{
 			throw new MappingCreationException("Mapping creation failed: Location mapping must have a toContext value of 'DCB'.");
 		}
+		if ((fromCategory.equals("Location") && !toCategory.equals("AGENCY")))
+		{
+			throw new MappingCreationException("Mapping creation failed: Location mapping must have a toCategory value of 'AGENCY'.");
+		}
 		// Item type validation
 		if ((fromCategory.equals("ItemType") || toCategory.equals("ItemType")) && (fromContext.equals("DCB") || toContext.equals("DCB")))
 		{
