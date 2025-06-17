@@ -1,6 +1,18 @@
 # Changelog
 
-## Version 8.33.2
+## Version 8.36.1
+
+### Changes
+* [Chore]
+	* Improve error handling for mapping creation [DCB-1937]
+	* Better diagnostic method for when no patron identities are loaded for patron
+	* Re-wire per-agency request limits
+	* Changelog - Generate the changelog
+
+### Fixes
+* [General]
+	* Improve validation of location mappings [DCB-1938]
+	* Delete detection for folio
 
 ## Version 8.36.0
 
@@ -10,6 +22,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Remove availability from mappings-2
 	* Always restore es interval to 30s at end of ES update run
 	* Wire in per-agency tenant limit check (Not fully implemented yet, but placeholder present)
@@ -46,7 +59,6 @@
 	* Changelog - Generate the changelog
 	* Fix isEnabledForPickupAnywhere naming
 	* Add isPickupAnywhere attribute to the GraphQL schema
->>>>>>> b138f91c0ad22b2b8c9b250c9e0d3911651f37a6
 	* Initial commit for Alma cancellation and renewals [DCB-1930]
 	* DCB-1929 - When cleaning up a removed HostLMS, also delete the SourceRecords AND set ingest=false in the config
 
