@@ -493,7 +493,7 @@ public class RecordClusteringService {
 	protected Flux<ClusterRecord> matchClusters( BibRecord bib, Collection<MatchPoint> matchPoints ) {
 
 		// In prepraration for changing the rules so that a cluster can contain only 1 ONLY-ISBN-13 value
-    log.info("match clusters : {}",matchPoints);
+    log.trace("match clusters : {}",matchPoints);
 
     if ( matchPoints.size() == 0 )
       log.error("0 match points from {}",bib);
