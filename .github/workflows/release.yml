@@ -80,6 +80,15 @@ jobs:
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew dockerPushNative --no-daemon
 
+      # Workaround: Remove <testcase> elements from large test result XMLs
+      # to prevent GitHub's test reporter from crashing due to memory limits.
+      - name: Prune oversized test result XMLs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xmlstarlet
+          find dcb/build/test-results/test -name "TEST-*.xml" \
+            -exec xmlstarlet ed -L -d "/testsuite/testcase" {} \;
+
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
