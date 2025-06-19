@@ -29,10 +29,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
@@ -1083,10 +1086,23 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkout) {
 
-		final var itemId = checkout.getItemId();
-		final var localRequestId = checkout.getLocalRequestId();
-		final var patronBarcode = checkout.getPatronBarcode();
-		final var patronId = checkout.getPatronId();
+		final var itemId = getValueOrNull(checkout, CheckoutItemCommand::getItemId);
+		final var localRequestId = getValueOrNull(checkout, CheckoutItemCommand::getLocalRequestId);
+		final var patronId = getValueOrNull(checkout, CheckoutItemCommand::getPatronId);
+
+		if (itemId == null) {
+			return Mono.error(new MissingParameterException("itemId"));
+		}
+
+		if (localRequestId == null) {
+			log.warn("checkOutItemToPatron: localRequestId is null");
+		}
+
+		if (patronId == null) {
+			return Mono.error(new MissingParameterException("patronId"));
+		}
+
+		final var patronBarcode = getValueOrNull(checkout, CheckoutItemCommand::getPatronBarcode);
 
 		return updateItemStatus(itemId, CanonicalItemState.AVAILABLE, localRequestId)
 			.doOnNext(__ -> log.info("checkOutItemToPatron({}, {}, {})", itemId, patronBarcode, localRequestId))

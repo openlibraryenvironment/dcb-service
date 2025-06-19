@@ -994,9 +994,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkout) {
 
-		final var itemId = checkout.getItemId();
-		final var localRequestId = checkout.getLocalRequestId();
-		final var patronBarcode = checkout.getPatronBarcode();
+		final var localRequestId = getValueOrNull(checkout, CheckoutItemCommand::getLocalRequestId);
+
+		if (localRequestId == null) {
+			return Mono.error(
+				new NullPointerException("cannot use null localRequestId to update transaction status"));
+		}
+
+		final var itemId = getValueOrNull(checkout, CheckoutItemCommand::getItemId);
+		final var patronBarcode = getValueOrNull(checkout, CheckoutItemCommand::getPatronBarcode);
 
 		// HandleBorrowerItemLoaned
 		return updateTransactionStatus(localRequestId, TransactionStatus.ITEM_CHECKED_OUT)

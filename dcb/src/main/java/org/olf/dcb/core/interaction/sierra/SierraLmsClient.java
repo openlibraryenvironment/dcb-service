@@ -15,6 +15,7 @@ import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.*;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
@@ -1741,9 +1742,26 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkout) {
 
-		final var itemId = checkout.getItemId();
-		final var localRequestId = checkout.getLocalRequestId();
-		final var patronBarcode = checkout.getPatronBarcode();
+		final var itemId = getValueOrNull(checkout, CheckoutItemCommand::getItemId);
+		final var localRequestId = getValueOrNull(checkout, CheckoutItemCommand::getLocalRequestId);
+		final var patronBarcode = getValueOrNull(checkout, CheckoutItemCommand::getPatronBarcode);
+		final var virtualPatronPin = getVirtualPatronPin(getConfig());
+
+		if (itemId == null) {
+			return Mono.error(new MissingParameterException("itemId"));
+		}
+
+		if (localRequestId == null) {
+			log.warn("checkOutItemToPatron: localRequestId is null");
+		}
+
+		if (patronBarcode == null || patronBarcode.isEmpty()) {
+			return Mono.error(new MissingParameterException("patronBarcode"));
+		}
+
+		if (virtualPatronPin == null) {
+			log.warn("Virtual patron pin not configured for HostLMS {}", lms.getCode());
+		}
 
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
 
@@ -1763,7 +1781,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 			})
 			// Sierra checkout operation uses patron barcode and item barcode
-			.flatMap(itemBarcode -> Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode, getVirtualPatronPin(getConfig()))))
+			.flatMap(itemBarcode -> Mono.from(client.checkOutItemToPatron(itemBarcode, patronBarcode, virtualPatronPin)))
 			.thenReturn("OK")
 			.switchIfEmpty(Mono.error(() ->
 				new RuntimeException("Check out of " + itemId + " to " + patronBarcode + " at " + lms.getCode() + " failed")));

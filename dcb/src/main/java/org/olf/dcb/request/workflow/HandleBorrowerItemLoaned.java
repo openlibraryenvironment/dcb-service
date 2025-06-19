@@ -5,6 +5,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import reactor.core.publisher.Mono;
@@ -63,7 +64,9 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 		log.info("Execute action: HandleBorrowerItemLoaned...");
 		ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
 
+		// attempt a supplier side checkout to keep requests in both systems in sync
 		return checkHomeItemOutToVirtualPatron(ctx)
+			// we also need to handle the borrowing side when the real checkout was done at the pickup location
 			.flatMap(this::handlePUAWorkflow)
 			.flatMap(this::updatePatronRequest);
 	}
@@ -196,40 +199,29 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	public Mono<RequestWorkflowContext> checkHomeItemOutToLocalPatron(RequestWorkflowContext rwc) {
 		log.debug("checkHomeItemOutToLocalPatron");
 
-		final var patronRequest = rwc.getPatronRequest();
-
-		if (!hasRequiredCheckoutData(rwc)) {
-			return handleMissingCheckoutData(rwc);
-		}
-
-		final String[] patronBarcodes = extractPatronBarcodes(rwc.getPatronHomeIdentity().getLocalBarcode());
-
-		if (patronBarcodes == null || patronBarcodes.length == 0) {
-			return handleMissingPatronBarcode(rwc);
-		}
-
-		final var localItemId = patronRequest.getLocalItemId();
-		final var command = buildCheckoutCommand(rwc, patronBarcodes[0], localItemId);
+		final var command = buildCheckoutCommand(rwc);
 
 		return hostLmsService.getClientFor(rwc.getPatronSystemCode())
 			.flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(command))
-			.map(ok -> logSuccessfulCheckout(rwc, localItemId, patronBarcodes[0]))
-			.onErrorResume(error -> handleCheckoutError(error, rwc, localItemId, patronBarcodes));
+			.map(ok -> logSuccessfulCheckout(rwc, command.getItemId(), command.getPatronBarcode()))
+			.onErrorResume(error -> handleCheckoutError(error, rwc, command.getItemId(), command.getPatronBarcode()));
 	}
 
-	private boolean hasRequiredCheckoutData(RequestWorkflowContext rwc) {
-		return rwc.getPatronRequest().getLocalItemId() != null
-			&& rwc.getPatronSystemCode() != null
-			&& rwc.getPatronHomeIdentity() != null;
-	}
+	private CheckoutItemCommand buildCheckoutCommand(RequestWorkflowContext rwc) {
 
-	private CheckoutItemCommand buildCheckoutCommand(RequestWorkflowContext rwc, String patronBarcode, String localItemId) {
+		final var patronRequest = getValueOrNull(rwc, RequestWorkflowContext::getPatronRequest);
+		final var localItemId = getValueOrNull(patronRequest, PatronRequest::getLocalItemId);
+		final String[] patronBarcodes = extractPatronBarcodes(rwc.getPatronHomeIdentity().getLocalBarcode());
+		final var homeIdentityLocalId = getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity, PatronIdentity::getLocalId);
+		final var localRequestId = getValueOrNull(rwc, RequestWorkflowContext::getPatronRequest, PatronRequest::getLocalRequestId);
+		final var libraryCode = getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity, PatronIdentity::getLocalHomeLibraryCode);
+
 		return CheckoutItemCommand.builder()
 			.itemId(localItemId)
-			.patronId(rwc.getPatronHomeIdentity().getLocalId())
-			.patronBarcode(patronBarcode)
-			.localRequestId(rwc.getPatronRequest().getLocalRequestId())
-			.libraryCode(rwc.getPatronHomeIdentity().getLocalHomeLibraryCode())
+			.patronId(homeIdentityLocalId)
+			.patronBarcode(patronBarcodes[0])
+			.localRequestId(localRequestId)
+			.libraryCode(libraryCode)
 			.build();
 	}
 
@@ -243,11 +235,11 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	}
 
 	private Mono<RequestWorkflowContext> handleCheckoutError(Throwable error, RequestWorkflowContext rwc,
-		String localItemId, String[] patronBarcodes) {
-		log.error("Problem checking out item {} to home patron {}", localItemId, patronBarcodes, error);
+		String localItemId, String patronBarcode) {
+		log.error("Problem checking out item {} to home patron {}", localItemId, patronBarcode, error);
 
 		var auditData = new HashMap<String, Object>();
-		auditData.put("patron-barcode", Arrays.toString(patronBarcodes));
+		auditData.put("patron-barcode", patronBarcode);
 		auditData.put("home-item-id", localItemId);
 		auditData.put("patron-system-code", rwc.getPatronSystemCode());
 		auditThrowable(auditData, "Throwable", error);
@@ -256,20 +248,6 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 		// A virtual checkout is deemed as more of a notification than a critical action
 		return patronRequestAuditService
 			.addAuditEntry(rwc.getPatronRequest(), "Patron checkout failed : " + error.getMessage(), auditData)
-			.thenReturn(rwc);
-	}
-
-	private Mono<RequestWorkflowContext> handleMissingCheckoutData(RequestWorkflowContext rwc) {
-
-		final var localItemId = getValueOrNull(rwc, RequestWorkflowContext::getPatronRequest, PatronRequest::getLocalItemId);
-		final var patronSystemCode = getValueOrNull(rwc, RequestWorkflowContext::getPatronSystemCode);
-		final var patronHomeIdentity = getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity);
-
-		final var message = String.format(
-			"Missing data for checkout. localItemId: %s, patronSystemCode ID: %s, patronHomeIdentity: %s",
-			localItemId, patronSystemCode, patronHomeIdentity);
-
-		return patronRequestAuditService.addErrorAuditEntry(rwc.getPatronRequest(), message)
 			.thenReturn(rwc);
 	}
 
