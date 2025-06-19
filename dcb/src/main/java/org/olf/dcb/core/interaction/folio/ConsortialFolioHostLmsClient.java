@@ -394,7 +394,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by hostlms: " + getHostLmsCode()));
+		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by FOLIO Host LMS: " + getHostLmsCode()));
 	}
 
 	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406021/DCB+Borrowing_PickUp+Flow+Details

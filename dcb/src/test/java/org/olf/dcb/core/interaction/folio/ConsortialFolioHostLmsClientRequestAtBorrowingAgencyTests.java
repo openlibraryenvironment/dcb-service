@@ -239,7 +239,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 					.build())));
 
 		// Assert
-		assertThat(exception, hasMessage("placeHoldRequestAtLocalAgency not supported by hostlms: " + HOST_LMS_CODE));
+		assertThat(exception, hasMessage("placeHoldRequestAtLocalAgency not supported by FOLIO Host LMS: " + HOST_LMS_CODE));
 	}
 
 	private DataAgency definePickupAgency() {

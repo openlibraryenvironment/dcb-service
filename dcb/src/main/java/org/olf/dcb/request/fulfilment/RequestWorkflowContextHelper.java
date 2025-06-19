@@ -450,11 +450,27 @@ public class RequestWorkflowContextHelper {
 		// Grab a reference to the patron request.
 		final PatronRequest pr = rwc.getPatronRequest();
 
-		if ( lenderAc.equals(pickupAc) ) {
-			// We now do not consider the Patron agency when determining "LOCAL". If they are the same we should return early.
-			return Mono.just("RET-LOCAL")
-				.map(pr::setActiveWorkflow)
-				.map(rwc::setPatronRequest);
+		if ( lenderAc.equals(pickupAc)) {
+			// LEGACY: We now do not consider the Patron agency when determining "LOCAL". If they are the same we should return early.
+			// Casey: Expedited checkout requests will always have the same lender and pickup agency.
+			// However, they will usually have a different patron agency, so we should not let them fall into RET-LOCAL
+			// As placing a hold at a local agency is currently unsupported for FOLIO
+			if (Boolean.TRUE.equals(pr.getIsExpeditedCheckout()) && !lenderAc.equals(patronAc))
+			{
+				// Expedited checkout requests with a different patron agency should go to RET-STD instead so they can progress.
+				return Mono.just("RET-STD")
+					.map(pr::setActiveWorkflow)
+					.map(rwc::setPatronRequest);
+			}
+			else
+			{
+				// Casey: Non-expedited checkout requests OR expedited checkout requests where all agencies are the same proceed as before.
+				// Note: until we support placeHoldAtLocalAgency for FOLIO, we can't support expedited checkout requests for patrons of the lending library if it's a FOLIO institution
+				// And expedited checkout requests will thus only work for visiting patrons for FOLIO
+				return Mono.just("RET-LOCAL")
+					.map(pr::setActiveWorkflow)
+					.map(rwc::setPatronRequest);
+			}
 		}
 
 		// Different lender and Pickup agencies...

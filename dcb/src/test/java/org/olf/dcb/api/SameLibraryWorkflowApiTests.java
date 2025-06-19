@@ -121,6 +121,8 @@ class SameLibraryWorkflowApiTests {
 		// Mocks that rely upon the patron request id
 		// The borrowing and supplying side are the same here
 		mockBorrowingSide(localSupplyingItemId, localSupplyingHoldId, placedRequestResponseUUID, localSupplyingHoldUrl);
+			log.debug("PPR {}", placedPatronRequest);
+			log.debug("PPRrrr {}", placedRequestResponse);
 
 		assertRequestWasHandedOffAsLocal(placedRequestResponseUUID);
 		assertPatronRequestWorkflow(placedRequestResponseUUID);
