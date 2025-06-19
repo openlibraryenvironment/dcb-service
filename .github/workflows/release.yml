@@ -80,15 +80,12 @@ jobs:
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew dockerPushNative --no-daemon
 
-      # Workaround: Remove <testcase> elements from large test result XMLs
-      # to prevent GitHub's test reporter from crashing due to memory limits.
-      - name: Strip <testcase> entries with sed
+      # Workaround: Delete test result XMLs >512KB to avoid GitHub test reporter crashes
+      # caused by memory limits.
+      - name: Delete large test result XMLs to avoid GitHub parser crashes
         run: |
-          find dcb/build/test-results/test -name "TEST-*.xml" \
-            -exec sh -c '
-              echo "Stripping testcases in: $1"
-              sed -i "/<testcase /,/<\/testcase>/d" "$1"
-            ' sh {} \;
+          echo "Deleting test result XMLs larger than 512KB..."
+          find dcb/build/test-results/test -name "TEST-*.xml" -size +512k -print -delete
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
