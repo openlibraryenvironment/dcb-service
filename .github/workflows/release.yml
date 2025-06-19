@@ -82,12 +82,13 @@ jobs:
 
       # Workaround: Remove <testcase> elements from large test result XMLs
       # to prevent GitHub's test reporter from crashing due to memory limits.
-      - name: Prune oversized test result XMLs
+      - name: Strip <testcase> entries with sed
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xmlstarlet
           find dcb/build/test-results/test -name "TEST-*.xml" \
-            -exec xmlstarlet ed -L -d "/testsuite/testcase" {} \;
+            -exec sh -c '
+              echo "Stripping testcases in: $1"
+              sed -i "/<testcase /,/<\/testcase>/d" "$1"
+            ' sh {} \;
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
