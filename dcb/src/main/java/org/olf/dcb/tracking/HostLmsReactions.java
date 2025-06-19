@@ -17,6 +17,8 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
 /**
  * This class gathers together the code which detects that an object in a remote system has
  * changed state, and attempts to trigger the appropriate local workflow for dealing with that
@@ -149,6 +151,15 @@ public class HostLmsReactions {
 			if ( "SupplierItem".equals(sc.getResourceType()) ) {
 				auditData.put("fromLocalHoldCount", sc.getFromHoldCount());
 				auditData.put("toLocalHoldCount", sc.getToHoldCount());
+			}
+			
+			final var additionalProperties = getValueOrNull(sc, StateChange::getAdditionalProperties);
+			if (additionalProperties != null) {
+				try {
+					auditData.putAll(additionalProperties);
+				} catch (Exception e) {
+					log.error("Unable to add additional properties to audit data");
+				}
 			}
 
 			return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)

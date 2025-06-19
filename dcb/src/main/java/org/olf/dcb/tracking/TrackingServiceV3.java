@@ -553,6 +553,9 @@ public class TrackingServiceV3 implements TrackingService {
 			.onErrorResume( error -> Mono.defer(() -> {
 				log.error("TRACKING Error occurred: " + error.getMessage(), error);
 
+				final var additionalProperties = new HashMap<String, Object>();
+				auditThrowable(additionalProperties, "Throwable", error);
+
 				if ( ! "ERROR".equals(sr.getLocalStatus()) ) {
 					StateChange sc = StateChange.builder()
 						.patronRequestId(sr.getPatronRequest().getId())
@@ -561,6 +564,7 @@ public class TrackingServiceV3 implements TrackingService {
 						.fromState(sr.getLocalStatus())
 						.toState("ERROR")
 						.resource(sr)
+						.additionalProperties(additionalProperties)
 						.build();
 
 					return hostLmsReactions.onTrackingEvent(sc)
