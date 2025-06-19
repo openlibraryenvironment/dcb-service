@@ -80,12 +80,33 @@ jobs:
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew dockerPushNative --no-daemon
 
-      # Workaround: Delete test result XMLs >512KB to avoid GitHub test reporter crashes
-      # caused by memory limits.
       - name: Delete large test result XMLs to avoid GitHub parser crashes
         run: |
-          echo "Deleting test result XMLs larger than 512KB..."
-          find dcb/build/test-results/test -name "TEST-*.xml" -size +512k -print -delete
+          echo "Deleting test result XMLs larger than 1MB..."
+          find dcb/build/test-results/test -name "TEST-*.xml" -size +1024k -print -delete > removed-test-results.txt || true
+
+      - name: Summarise removed test files
+        if: always()
+        run: |
+          echo "### Skipped Large Test Files (>1MB)" >> $GITHUB_STEP_SUMMARY
+          if [ -s removed-test-results.txt ]; then
+            sed 's/^/- /' removed-test-results.txt >> $GITHUB_STEP_SUMMARY
+          else
+            echo "None skipped." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Save full test result XMLs as artifacts
+        if: always()
+        run: |
+          mkdir -p retained-test-results
+          [ -s removed-test-results.txt ] && xargs -a removed-test-results.txt -I{} cp {} retained-test-results/ || true
+
+      - name: Upload retained large test result XMLs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: large-test-results
+          path: retained-test-results/
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
