@@ -80,10 +80,17 @@ jobs:
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
           ./gradlew dockerPushNative --no-daemon
 
-      - name: Delete large test result XMLs to avoid GitHub parser crashes
+      - name: Identify and delete large test result XMLs (>1MB)
         run: |
-          echo "Deleting test result XMLs larger than 1MB..."
-          find dcb/build/test-results/test -name "TEST-*.xml" -size +1024k -print -delete > removed-test-results.txt || true
+          echo "Finding large test result XMLs..."
+          find dcb/build/test-results/test -name "TEST-*.xml" -size +1024k -print > removed-test-results.txt || true
+          
+          echo "Deleting them..."
+          if [ -s removed-test-results.txt ]; then
+            xargs -a removed-test-results.txt rm -f
+          else
+            echo "No large test result files found."
+          fi
 
       - name: Summarise removed test files
         if: always()
