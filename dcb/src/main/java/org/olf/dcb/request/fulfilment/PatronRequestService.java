@@ -68,8 +68,39 @@ public class PatronRequestService {
 			.map(function(this::mapToPatronRequest))
 			.map(mapManualItemSelectionIfPresent(command))
 			.flatMap(this::savePatronRequest)
+			.flatMap(savedPatronRequest -> recordRequestPayloadAudit(savedPatronRequest, command))
 			.doOnSuccess(requestWorkflow::initiate)
 			.doOnError(e -> log.error("Placing request {} failed", command, e));
+	}
+
+	/**
+	 * Records an audit entry capturing the original request payload sent to DCB.
+	 * This provides a source of truth for data validation and debugging purposes.
+	 * This method is fail-safe and will not propagate errors to the main workflow.
+	 *
+	 * @param patronRequest The saved patron request
+	 * @param command The original command containing the payload
+	 * @return original patronRequest, even if audit fails
+	 */
+	private Mono<PatronRequest> recordRequestPayloadAudit(PatronRequest patronRequest, PlacePatronRequestCommand command) {
+		return Mono.fromCallable(() -> {
+				final var auditEntry = PatronRequestAudit.builder()
+					.id(UUID.randomUUID())
+					.patronRequest(patronRequest)
+					.auditDate(Instant.now())
+					.fromStatus(patronRequest.getStatus())
+					.toStatus(patronRequest.getStatus())
+					.briefDescription("DCB request payload captured")
+					.auditData(Map.of("originalPayload", command))
+					.build();
+				return auditEntry;
+			})
+			.flatMap(audit -> Mono.from(patronRequestAuditRepository.save(audit)))
+			.doOnError(error -> log.warn("Failed to record request payload audit for patron request {}: {}",
+				patronRequest.getId(), error.getMessage()))
+			.onErrorComplete()
+			.thenReturn(patronRequest)
+			.onErrorReturn(patronRequest);
 	}
 
 	public Mono<? extends PatronRequest> placePatronRequestExpeditedCheckout(
@@ -89,6 +120,7 @@ public class PatronRequestService {
 				return patronRequest;
 			})
 			.flatMap(this::savePatronRequest)
+			.flatMap(savedPatronRequest -> recordRequestPayloadAudit(savedPatronRequest, command))
 			.doOnSuccess(requestWorkflow::initiate)
 			.doOnError(e -> log.error("Placing expedited request {} failed", command, e));
 	}
