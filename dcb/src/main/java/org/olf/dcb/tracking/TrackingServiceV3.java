@@ -34,6 +34,7 @@ import java.util.function.Function;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.tracking.StateChangeFactory.*;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -296,14 +297,7 @@ public class TrackingServiceV3 implements TrackingService {
 				}
 				else {
 					// The hold status has changed - do something different
-					StateChange sc = StateChange.builder()
-						.patronRequestId(pr.getId())
-						.resourceType("PatronRequest")
-						.resourceId(pr.getId().toString())
-						.fromState(pr.getLocalRequestStatus())
-						.toState(hold.getStatus())
-						.resource(pr)
-						.build();
+					StateChange sc = patronRequestStatusChanged(pr, hold);
 
 					log.info("TRACKING-EVENT PR state change event {}",sc);
 					return hostLmsReactions.onTrackingEvent(sc)
@@ -352,16 +346,7 @@ public class TrackingServiceV3 implements TrackingService {
 						// Item status has changed - so issue an update
 
 						log.debug("TRACKING Detected borrowing system - virtual item status change {} to {}", pr.getLocalItemStatus(), item.getStatus());
-						StateChange sc = StateChange.builder()
-							.patronRequestId(pr.getId())
-							.resourceType("BorrowerVirtualItem")
-							.resourceId(pr.getId().toString())
-							.fromState(pr.getLocalItemStatus())
-							.toState(item.getStatus())
-							.fromRenewalCount(pr.getLocalRenewalCount())
-							.toRenewalCount(item.getRenewalCount())
-							.resource(pr)
-							.build();
+						StateChange sc = virtualItemStatusChanged(pr, item);
 
 						log.info("TRACKING-EVENT vitem change event {}", sc);
 
@@ -373,16 +358,7 @@ public class TrackingServiceV3 implements TrackingService {
 					{
 						// Item renewal count has changed - so issue an update
 						log.debug("TRACKING Detected borrowing system - virtual item renewal count change {} to {}", pr.getLocalRenewalCount(), item.getRenewalCount());
-						StateChange sc = StateChange.builder()
-							.patronRequestId(pr.getId())
-							.resourceType("BorrowerVirtualItem")
-							.resourceId(pr.getId().toString())
-							.fromState(pr.getLocalItemStatus())
-							.toState(item.getStatus())
-							.fromRenewalCount(pr.getLocalRenewalCount())
-							.toRenewalCount(item.getRenewalCount())
-							.resource(pr)
-							.build();
+						StateChange sc = virtualItemRenewalCountChanged(pr, item);
 						log.info("TRACKING-EVENT vitem change event {}", sc);
 						return hostLmsReactions.onTrackingEvent(sc)
 							.thenReturn(pr);
@@ -437,18 +413,8 @@ public class TrackingServiceV3 implements TrackingService {
 						(!item.getStatus().equals(sr.getLocalItemStatus()))) {	                    // remote != local
 
 						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
-						StateChange sc = StateChange.builder()
-							.patronRequestId(sr.getPatronRequest().getId())
-							.resourceType("SupplierItem")
-							.resourceId(sr.getId().toString())
-							.fromState(sr.getLocalItemStatus())
-							.toState(item.getStatus())
-							.fromRenewalCount(sr.getLocalRenewalCount())
-							.toRenewalCount(item.getRenewalCount())
-							.fromHoldCount(sr.getLocalHoldCount())
-							.toHoldCount(item.getHoldCount())
-							.resource(sr)
-							.build();
+						StateChange sc = supplierItemStatusChanged(sr, item);
+
 
 						log.info("TRACKING-EVENT supplier-item state change {}", sc);
 						return hostLmsReactions.onTrackingEvent(sc)
@@ -459,18 +425,7 @@ public class TrackingServiceV3 implements TrackingService {
 					{
 						// Item renewal count has changed - so issue an update
 						log.debug("TRACKING Detected supplying system - supplier item renewal count change {} to {}", sr.getLocalRenewalCount(), item.getRenewalCount());
-						StateChange sc = StateChange.builder()
-							.patronRequestId(sr.getPatronRequest().getId())
-							.resourceType("SupplierItem")
-							.resourceId(sr.getId().toString())
-							.fromState(sr.getLocalItemStatus())
-							.toState(item.getStatus())
-							.fromRenewalCount(sr.getLocalRenewalCount())
-							.toRenewalCount(item.getRenewalCount())
-							.fromHoldCount(sr.getLocalHoldCount())
-							.toHoldCount(item.getHoldCount())
-							.resource(sr)
-							.build();
+						StateChange sc = supplierItemRenewalCountChanged(sr, item);
 
 						log.info("TRACKING-EVENT supplier-item state change {}", sc);
 						return hostLmsReactions.onTrackingEvent(sc)
@@ -521,20 +476,7 @@ public class TrackingServiceV3 implements TrackingService {
 				if ( !hold.getStatus().equals(sr.getLocalStatus()) ) {
 					log.debug("TRACKING current request status: {}", hold);
 
-					// If the hold has an item and/or a barcode attached, pass it along
-					Map<String,Object> additionalProperties = new HashMap<String,Object>();
-				  if ( hold.getRequestedItemId() != null )
-						additionalProperties.put("RequestedItemId", hold.getRequestedItemId());
-
-					StateChange sc = StateChange.builder()
-						.patronRequestId(sr.getPatronRequest().getId())
-						.resourceType("SupplierRequest")
-						.resourceId(sr.getId().toString())
-						.fromState(sr.getLocalStatus())
-						.toState(hold.getStatus())
-						.resource(sr)
-						.additionalProperties(additionalProperties)
-						.build();
+					StateChange sc = supplierRequestStatusChanged(sr, hold);
 
 					log.info("TRACKING Publishing state change event for supplier request {}", sc);
 
@@ -553,19 +495,9 @@ public class TrackingServiceV3 implements TrackingService {
 			.onErrorResume( error -> Mono.defer(() -> {
 				log.error("TRACKING Error occurred: " + error.getMessage(), error);
 
-				final var additionalProperties = new HashMap<String, Object>();
-				auditThrowable(additionalProperties, "Throwable", error);
+				if ( ! SUPPLIER_REQUEST_ERROR.equals(sr.getLocalStatus()) ) {
 
-				if ( ! "ERROR".equals(sr.getLocalStatus()) ) {
-					StateChange sc = StateChange.builder()
-						.patronRequestId(sr.getPatronRequest().getId())
-						.resourceType("SupplierRequest")
-						.resourceId(sr.getId().toString())
-						.fromState(sr.getLocalStatus())
-						.toState("ERROR")
-						.resource(sr)
-						.additionalProperties(additionalProperties)
-						.build();
+					StateChange sc = supplierRequestErrored(sr, error);
 
 					return hostLmsReactions.onTrackingEvent(sc)
 						.thenReturn(sr);
@@ -607,15 +539,7 @@ public class TrackingServiceV3 implements TrackingService {
 				}
 				else {
 					// The hold status has changed - do something different
-					StateChange sc = StateChange.builder()
-						.patronRequestId(pr.getId())
-						.resourceType("PickupRequest")
-						// because the pickup request is on the patron request we use the patron request id here
-						.resourceId(pr.getId().toString())
-						.fromState(pr.getPickupRequestStatus())
-						.toState(hold.getStatus())
-						.resource(pr)
-						.build();
+					StateChange sc = pickupRequestStatusChanged(pr, hold);
 
 					log.info("TRACKING-EVENT PickupReq state change event {}",sc);
 					return hostLmsReactions.onTrackingEvent(sc)
@@ -653,14 +577,8 @@ public class TrackingServiceV3 implements TrackingService {
 						// Item status has changed - so issue an update
 
 						log.debug("TRACKING Detected pickup system - pickup item status change {} to {}", pr.getPickupItemStatus(), item.getStatus());
-						StateChange sc = StateChange.builder()
-							.patronRequestId(pr.getId())
-							.resourceType("PickupItem")
-							.resourceId(pr.getId().toString())
-							.fromState(pr.getPickupItemStatus())
-							.toState(item.getStatus())
-							.resource(pr)
-							.build();
+
+						StateChange sc = pickupItemStatusChanged(pr, item);
 
 						log.info("TRACKING-EVENT pickup item change event {}", sc);
 
