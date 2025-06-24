@@ -1,13 +1,23 @@
 # Changelog
 
+## Version 8.36.2
+
+### Changes
+* [Chore]
+	* tone down cluster matching logging
+
+### Fixes
+* [General]
+	* move PUA checkout validation to hostlms clients [DCB-1941]
+
 ## Version 8.36.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Improve error handling for mapping creation [DCB-1937]
 	* Better diagnostic method for when no patron identities are loaded for patron
 	* Re-wire per-agency request limits
-	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
