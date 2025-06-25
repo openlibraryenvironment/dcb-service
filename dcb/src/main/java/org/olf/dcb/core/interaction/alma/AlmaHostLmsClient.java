@@ -588,10 +588,22 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		// Currently Alma only supports the happy path of RET-STD
-		// Lets be explicit about that so we avoid any potential confusion
-		return Mono.error(new NotImplementedException("Place hold at local agency is not currently supported in Alma/" + getHostLmsCode()));
-	}
+
+		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
+
+		final var defaultLibraryCode = DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN");
+
+		return placeGenericAlmaRequest(parameters.getLocalBibId(),
+			parameters.getLocalItemId(),
+			parameters.getLocalHoldingId(),
+			parameters.getLocalPatronId(),
+			defaultLibraryCode,
+			null,
+			// alma decide their own circ desk for pickup by using the default code
+			"DEFAULT_CIRC_DESK",
+			parameters.getLocalItemBarcode(),
+			parameters.getNote()
+		);	}
 
 	/** ToDo: This should be a default method I think */
 	@Override
