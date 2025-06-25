@@ -1,9 +1,21 @@
 # Changelog
 
+## Version 8.37.0
+
+### Additions
+* [General]
+	* support placing hold at local agency in alma
+
+### Fixes
+* [General]
+	* align alma raw item status
+	* add request body for posting blocking note in polaris
+
 ## Version 8.36.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* tone down cluster matching logging
 
 ### Fixes
