@@ -1093,8 +1093,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				var returnHostLmsItem = HostLmsItem.builder()
 					.localId(almaItemData.getPid())
 					.barcode(almaItemData.getBarcode())
-//					.rawStatus(item.getItemData().getBaseStatus().getValue())
-//					.status(deriveItemStatusFromProcessType(item.getItemData()))
 					.bibId(hostLmsItem.getBibId())
 					.holdingId(hostLmsItem.getHoldingId())
 					.build();
@@ -1340,8 +1338,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private HostLmsItem deriveItemStatusFromProcessType(HostLmsItem hostLmsItem, AlmaItemData almaItem) {
 		// /conf/code-tables/PROCESSTYPE
-		String extracted_process_type = almaItem.getProcess_type() != null ? almaItem.getProcess_type().getValue() : null;
-		String extracted_base_status = almaItem.getBaseStatus() != null ? almaItem.getBaseStatus().getValue() : "0";
+		String extracted_process_type = Optional.ofNullable(almaItem.getProcess_type())
+		.map(CodeValuePair::getValue)
+		.filter(value -> !value.isEmpty())
+		.orElse(null);
+
+		String extracted_base_status = Optional.ofNullable(almaItem.getBaseStatus())
+			.map(CodeValuePair::getValue)
+			.filter(value -> !value.isEmpty())
+			.orElse(null);
 
 		// If the base status is 1 then we can assume the item is available
 		if ( extracted_process_type == null && Objects.equals(extracted_base_status, "1")) {
