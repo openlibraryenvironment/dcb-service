@@ -266,7 +266,12 @@ public class InteropTestService {
 				"Missing required hold identifiers. Unable to test hold delete", hostLms));
 		}
 
-		return hostLms.deleteHold(patronId, holdId)
+		final var deleteCommand = DeleteCommand.builder()
+			.patronId(patronId)
+			.requestId(holdId)
+			.build();
+
+		return hostLms.deleteHold(deleteCommand)
 			.map(result -> createSuccessResult("cleanup", "hold",
 				"delete hold returned " + result, hostLms));
 	}

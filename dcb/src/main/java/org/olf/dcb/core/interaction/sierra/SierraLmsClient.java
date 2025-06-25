@@ -875,7 +875,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
 		log.debug("{}", getHostLms().getName() + " attempting to cancel local hold " + parameters.getLocalRequestId());
 
-		return deleteHold(parameters.getLocalRequestId()).thenReturn(parameters.getLocalRequestId());
+		final var localRequestId = getValueOrNull(parameters, CancelHoldRequestParameters::getLocalRequestId);
+		final var deleteCommand = DeleteCommand.builder().requestId(localRequestId).build();
+
+		return deleteHold(deleteCommand).thenReturn(localRequestId);
 	}
 
 	@Override
@@ -1804,7 +1807,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-  public Mono<String> deleteHold(String id) {
+  public Mono<String> deleteHold(DeleteCommand deleteCommand) {
+
+		final var id = getValueOrNull(deleteCommand, DeleteCommand::getRequestId);
+
 		log.debug("deleteHold({})", id);
 
 		return Mono.from(client.deleteHold(id)).thenReturn("OK").defaultIfEmpty("ERROR");

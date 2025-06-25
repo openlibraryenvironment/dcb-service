@@ -16,14 +16,7 @@ import java.util.Objects;
 import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -150,6 +143,7 @@ public class SupplyingAgencyService {
 		final var supplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
 		final var hostLmsCode = getValueOrNull(supplierRequest, SupplierRequest::getHostLmsCode);
 		final var localRequestId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
+		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
 
 		String operationDescription = operation.getDescription();
 		log.info("WORKFLOW attempting to {} local supplier hold :: {}", operationDescription, supplierRequest);
@@ -176,7 +170,10 @@ public class SupplyingAgencyService {
 			.flatMap(client -> {
 				switch (operation) {
 					case DELETE:
-						return client.deleteHold(localRequestId);
+						return client.deleteHold(DeleteCommand.builder()
+							.requestId(localRequestId)
+							.patronId(supplierPatronId)
+							.build());
 					case CANCEL:
 						// For cancel operation, we need additional parameters
 						final var localItemId = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemId);

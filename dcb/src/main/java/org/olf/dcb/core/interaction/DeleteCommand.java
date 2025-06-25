@@ -20,4 +20,6 @@ public class DeleteCommand {
 	private String itemBarcode;
 	private String bibId;
 	private String holdingsId;
+	private String patronId;
+	private String requestId;
 }

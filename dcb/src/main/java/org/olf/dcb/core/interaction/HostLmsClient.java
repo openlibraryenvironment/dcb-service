@@ -116,13 +116,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<String> deleteBib(String id);
 
-	Mono<String> deleteHold(String id);
-
-	// Work around for adding extra params to delete item
-	// Alma expects more than just the item id
-	default Mono<String> deleteHold(String userId, String requestId) {
-		return Mono.error(new NotImplementedException("Delete hold is not currently implemented"));
-	}
+	Mono<String> deleteHold(DeleteCommand deleteCommand);
 
 	Mono<String> deletePatron(String id);
 

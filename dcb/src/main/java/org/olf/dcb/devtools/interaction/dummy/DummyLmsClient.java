@@ -629,7 +629,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
   }
 
   @Override
-  public Mono<String> deleteHold(String id) {
+  public Mono<String> deleteHold(DeleteCommand deleteCommand) {
     log.info("Delete hold is not currently implemented for Dummy");
     return Mono.just("OK");
   }

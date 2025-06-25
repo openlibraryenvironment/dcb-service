@@ -1137,13 +1137,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(result -> client.deleteHolding(holdingsId, mms_id));
 	}
 
-  @Override
-  public Mono<String> deleteHold(String id) {
-		return Mono.error(new NotImplementedException("Delete hold is not currently implemented in " + getHostLmsCode()));
-  }
-
 	@Override
-	public Mono<String> deleteHold(String userId, String requestId) {
+	public Mono<String> deleteHold(DeleteCommand deleteCommand) {
+		final var userId = getValueOrNull(deleteCommand, DeleteCommand::getPatronId);
+		final var requestId = getValueOrNull(deleteCommand, DeleteCommand::getRequestId);
+
+		log.debug("deleteHold({},{})", userId, requestId);
+
 		return client.deleteUserRequest(userId, requestId);
 	}
 

@@ -49,8 +49,16 @@ public class PickupAgencyService {
 
 	private Mono<String> deleteHoldIfPresent(HostLmsClient client, PatronRequest patronRequest) {
 
+		final var pickupHoldId = patronRequest.getPickupRequestId();
+		final var pickupPatronId = patronRequest.getPickupPatronId();
+
+		final var deleteCommand = DeleteCommand.builder()
+			.requestId(pickupHoldId)
+			.patronId(pickupPatronId)
+			.build();
+
 		return checkHoldExists(client, patronRequest, "Delete")
-			.flatMap(client::deleteHold)
+			.flatMap(id -> client.deleteHold(deleteCommand))
 			// Catch any skipped deletions
 			.switchIfEmpty(Mono.defer(() -> Mono.just("OK")));
 	}
