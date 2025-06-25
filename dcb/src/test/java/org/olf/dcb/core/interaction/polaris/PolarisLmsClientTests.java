@@ -1174,7 +1174,11 @@ class PolarisLmsClientTests {
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var response = singleValueFrom(client.deleteItem(localItemId));
+		final var deleteItemCommand = DeleteCommand.builder()
+			.itemId(localItemId)
+			.build();
+
+		final var response = singleValueFrom(client.deleteItem(deleteItemCommand));
 
 		// Assert
 		assertThat(response, is(notNullValue()));

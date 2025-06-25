@@ -62,8 +62,16 @@ public class PickupAgencyService {
 
 		if (pickupItemId != null && !"MISSING".equals(pickupItemStatus)) {
 
+			final var bibId = getValueOrNull(patronRequest, PatronRequest::getPickupBibId);
+			final var holdingsId = getValueOrNull(patronRequest, PatronRequest::getPickupHoldingId);
+			final var deleteCommand = DeleteCommand.builder()
+				.itemId(pickupItemId)
+				.bibId(bibId)
+				.holdingsId(holdingsId)
+				.build();
+
 			return checkItemExists(client, pickupItemId, patronRequest)
-				.flatMap(_client -> _client.deleteItem(pickupItemId))
+				.flatMap(_client -> _client.deleteItem(deleteCommand))
 
 				// Catch any skipped deletions
 				.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))

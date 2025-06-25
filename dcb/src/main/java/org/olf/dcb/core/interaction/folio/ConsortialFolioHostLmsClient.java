@@ -38,27 +38,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
-import org.olf.dcb.core.interaction.CheckoutItemCommand;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.FailedToGetItemsException;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRenewal;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PingResponse;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.PreventRenewalCommand;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -1012,7 +992,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<String> deleteItem(String id) {
+	public Mono<String> deleteItem(DeleteCommand deleteCommand) {
 		log.info("Delete virtual item is not currently implemented for FOLIO");
 		return Mono.just("OK");
 	}

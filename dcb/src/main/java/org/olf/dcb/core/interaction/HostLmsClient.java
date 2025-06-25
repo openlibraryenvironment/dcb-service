@@ -112,13 +112,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	// systems might take different ways to identify the patron
 	Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand);
 
-	Mono<String> deleteItem(String id);
-
-	// Work around for adding extra params to delete item
-	// Alma expects more than just the item id
-	default Mono<String> deleteItem(String id, String holdingsId, String bibId) {
-		return Mono.error(new NotImplementedException("Delete item is not currently implemented"));
-	}
+	Mono<String> deleteItem(DeleteCommand deleteCommand);
 
 	Mono<String> deleteBib(String id);
 

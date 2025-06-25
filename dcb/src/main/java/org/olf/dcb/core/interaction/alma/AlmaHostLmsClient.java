@@ -1128,12 +1128,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<String> deleteItem(String id) {
-		return Mono.error(new NotImplementedException("Delete item is not currently implemented in " + getHostLmsCode()));
-	}
+	public Mono<String> deleteItem(DeleteCommand deleteCommand) {
+		final var id = getValueOrNull(deleteCommand, DeleteCommand::getItemId);
+		final var holdingsId = getValueOrNull(deleteCommand, DeleteCommand::getHoldingsId);
+		final var mms_id = getValueOrNull(deleteCommand, DeleteCommand::getBibId);
 
-	@Override
-	public Mono<String> deleteItem(String id, String holdingsId, String mms_id) {
 		return client.deleteItem(id, holdingsId, mms_id)
 			.flatMap(result -> client.deleteHolding(holdingsId, mms_id));
 	}

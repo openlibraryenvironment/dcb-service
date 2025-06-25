@@ -128,8 +128,16 @@ public class BorrowingAgencyService {
 
 		if (localItemId != null && !"MISSING".equals(localItemStatus)) {
 
+			final var bibId = getValueOrNull(patronRequest, PatronRequest::getLocalBibId);
+			final var holdingsId = getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId);
+			final var deleteCommand = DeleteCommand.builder()
+				.itemId(localItemId)
+				.bibId(bibId)
+				.holdingsId(holdingsId)
+				.build();
+
 			return checkItemExists(client, localItemId, patronRequest)
-				.flatMap(_client -> _client.deleteItem(localItemId))
+				.flatMap(_client -> _client.deleteItem(deleteCommand))
 
 				// Catch any skipped deletions
 				.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))

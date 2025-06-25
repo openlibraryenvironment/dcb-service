@@ -1788,7 +1788,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
-	public Mono<String> deleteItem(String id) {
+	public Mono<String> deleteItem(DeleteCommand deleteCommand) {
+		final var id = getValueOrNull(deleteCommand, DeleteCommand::getItemId);
+
 		log.debug("deleteItem({})", id);
 
 		return Mono.from(client.deleteItem(id)).thenReturn("OK").defaultIfEmpty("ERROR");

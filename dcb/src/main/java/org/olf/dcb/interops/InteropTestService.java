@@ -301,7 +301,13 @@ public class InteropTestService {
 				"Missing required item identifiers. Unable to test item delete", hostLms));
 		}
 
-		return hostLms.deleteItem(itemId, holdingId, bibId)
+		final var deleteCommand = DeleteCommand.builder()
+			.itemId(itemId)
+			.holdingsId(holdingId)
+			.bibId(bibId)
+			.build();
+
+		return hostLms.deleteItem(deleteCommand)
 			.map(result -> createSuccessResult("cleanup", "item",
 				"delete item returned " + result, hostLms));
 	}
