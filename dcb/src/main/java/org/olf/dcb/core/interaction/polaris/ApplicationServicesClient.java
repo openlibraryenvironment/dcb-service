@@ -1011,19 +1011,19 @@ class ApplicationServicesClient {
 	}
 
 	public Mono<Void> placeItemBlock(String itemId, Integer noteId, String text) {
-  
-    final var path = createPath("itemrecords",itemId,"blockingnote");
+
+		final var path = createPath("itemrecords", itemId, "blockingnote");
 
 		final DtoItemRecordBlockingNote blockingNote = DtoItemRecordBlockingNote.builder()
 			.noteId(noteId)
 			.text(text)
 			.build();
-    
 
-    return createRequest(POST, path, uri -> {})
-      .flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
-      .doOnSuccess(bool -> {
-				log.info("Placed item block {}",bool);
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(blockingNote))
+			.flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
+			.doOnSuccess(bool -> {
+				log.info("Placed item block {}", bool);
 			})
 			.then();
 	}
