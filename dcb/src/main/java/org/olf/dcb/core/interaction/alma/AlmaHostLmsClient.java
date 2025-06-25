@@ -1086,14 +1086,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
 		return client.getItemForPID(hostLmsItem.getBibId(), hostLmsItem.getHoldingId(), hostLmsItem.getLocalId())
-			.map( item -> HostLmsItem.builder()
-				.localId(item.getItemData().getPid())
-				.barcode(item.getItemData().getBarcode())
-				.rawStatus(item.getItemData().getBaseStatus().getValue())
-				.status(deriveItemStatusFromProcessType(item.getItemData()))
-				.bibId(hostLmsItem.getBibId())
-				.holdingId(hostLmsItem.getHoldingId())
-				.build() );
+			.map( item -> {
+
+				final var almaItemData = getValueOrNull(item, AlmaItem::getItemData);
+
+				var returnHostLmsItem = HostLmsItem.builder()
+					.localId(almaItemData.getPid())
+					.barcode(almaItemData.getBarcode())
+//					.rawStatus(item.getItemData().getBaseStatus().getValue())
+//					.status(deriveItemStatusFromProcessType(item.getItemData()))
+					.bibId(hostLmsItem.getBibId())
+					.holdingId(hostLmsItem.getHoldingId())
+					.build();
+
+					returnHostLmsItem = deriveItemStatusFromProcessType(returnHostLmsItem, almaItemData);
+
+				return returnHostLmsItem;
+			}
+			);
 	}
 
 	@Override
@@ -1328,19 +1338,21 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		};
 	}
 
-	private String deriveItemStatusFromProcessType(AlmaItemData almaItem) {
+	private HostLmsItem deriveItemStatusFromProcessType(HostLmsItem hostLmsItem, AlmaItemData almaItem) {
 		// /conf/code-tables/PROCESSTYPE
 		String extracted_process_type = almaItem.getProcess_type() != null ? almaItem.getProcess_type().getValue() : null;
 		String extracted_base_status = almaItem.getBaseStatus() != null ? almaItem.getBaseStatus().getValue() : "0";
 
 		// If the base status is 1 then we can assume the item is available
 		if ( extracted_process_type == null && Objects.equals(extracted_base_status, "1")) {
-			return HostLmsItem.ITEM_AVAILABLE;
+			hostLmsItem.setStatus(HostLmsItem.ITEM_AVAILABLE);
+			hostLmsItem.setRawStatus(extracted_base_status);
+			return hostLmsItem;
 		}
 
 		// the base status has only two values, to get more detail we need to look at the process type
 		if ( extracted_process_type != null ) {
-			return switch ( extracted_process_type ) {
+			final var mappedStatus = switch ( extracted_process_type ) {
 				case "LOAN" -> HostLmsItem.ITEM_LOANED;
 				case "TRANSIT" -> HostLmsItem.ITEM_TRANSIT;
 				case "MISSING" -> HostLmsItem.ITEM_MISSING;
@@ -1348,16 +1360,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				case "REQUESTED" -> HostLmsItem.ITEM_REQUESTED;
 				default -> extracted_process_type;
 			};
+
+			hostLmsItem.setStatus(mappedStatus);
+			hostLmsItem.setRawStatus(extracted_process_type);
+			return hostLmsItem;
 		}
 
 		// fall back to the general base status
 		if (Objects.equals(extracted_base_status, "2")) {
-			return HostLmsItem.ITEM_LOANED;
+			hostLmsItem.setStatus(HostLmsItem.ITEM_LOANED);
+			hostLmsItem.setRawStatus(extracted_base_status);
+			return hostLmsItem;
 		}
 
 		// we ran out of options
 		log.warn("Unable to derive item status from process type {} and base status {}", extracted_process_type, extracted_base_status);
-		return extracted_base_status;
+		hostLmsItem.setStatus(extracted_base_status);
+		hostLmsItem.setRawStatus(extracted_base_status);
+		return hostLmsItem;
 	}
 
 	// Alma talks about "libraries" for the location where an item "belongs" and
