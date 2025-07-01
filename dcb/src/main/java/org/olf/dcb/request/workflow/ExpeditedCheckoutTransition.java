@@ -3,6 +3,9 @@ package org.olf.dcb.request.workflow;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -10,25 +13,30 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.PatronRequestRepository;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 
 @Slf4j
 @Singleton
 @Named("ExpeditedCheckoutTransition")
+// Can only occur when the supplying agency and the pickup agency are the same
+
 public class ExpeditedCheckoutTransition implements PatronRequestStateTransition {
 
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAuditService patronRequestAuditService;
+	private final HostLmsService hostLmsService;
 
 	private static final List<PatronRequest.Status> possibleSourceStatus = List.of(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY, PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY);
 
 	public ExpeditedCheckoutTransition(PatronRequestRepository patronRequestRepository,
-																		 PatronRequestAuditService patronRequestAuditService)
+																		 PatronRequestAuditService patronRequestAuditService,
+																		 HostLmsService hostLmsService)
 	{
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.hostLmsService = hostLmsService;
 	}
 
 	private String[] extractPatronBarcodes(String inputstr) {
@@ -45,17 +53,11 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		// Should be applicable if it is a request of any workflow in REQUEST_PLACED_AT_BORROWING_AGENCY OR a RET_LOCAL workflow request at REQUEST_PLACED_AT_SUPPLYING_AGENCY
-// Restore this if it causes issues removing it, check PICKUP_AGENCY as well
-		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus()) || ctx.getPatronRequest().getStatus() == PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY  && ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL") ;
-//		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus()) ;
-
-		log.debug("Status applicable? {}", isStatusApplicable);
-		log.debug("Expedited checkout? {}", ctx.getPatronRequest().getIsExpeditedCheckout());
-
+		// Expedited checkout requests will always have the same supplier and pickup system, so will always be in the RET-EXP workflow
+		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus());
 		final boolean isExpeditedCheckout = ctx.getPatronRequest().getIsExpeditedCheckout() != null && ctx.getPatronRequest().getIsExpeditedCheckout();
-
-		return isStatusApplicable && isExpeditedCheckout;
+		final boolean isWorkflow =   ctx.getPatronRequest().getIsExpeditedCheckout() != null &&  ctx.getPatronRequest().getActiveWorkflow().equals("RET-EXP");
+		return isStatusApplicable && (isExpeditedCheckout || isWorkflow);
 	}
 
 	@Override
@@ -75,44 +77,15 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 			auditBarcodeMessage = "Patron Barcodes: " + String.join(", ", patronBarcodes);
 			log.debug("Extracted patron barcodes: {}", auditBarcodeMessage);
 		} else {
-			auditBarcodeMessage = "No patron identity or local barcodes available";
+			auditBarcodeMessage = "Expedited checkout: No patron identity or local barcodes available";
 			log.debug("{} for request {}", auditBarcodeMessage, ctx.getPatronRequest().getId());
 		}
 		auditData.put("patronBarcodes", auditBarcodeMessage);
 
-		// If any RET-LOCAL requests do accidentally end up here, send them on their way
-		// We might not need this handling - investigate and restore patron_barcodes also so the patron barcode is logged in audit
-		if (ctx.getPatronRequest().getActiveWorkflow() != null && ctx.getPatronRequest().getActiveWorkflow().equals("RET-LOCAL")) {
-			ctx.getPatronRequest().setStatus(PatronRequest.Status.CONFIRMED);
-			ctx.getWorkflowMessages().add("Expedited checkout completed for RET-LOCAL: re-routing");
-			// Create audit entry with workflow messages
-			auditData.put("workflowMessages", ctx.getWorkflowMessages());
-			auditData.put("expeditedCheckout", true);
-			auditData.put("sourceStatus", ctx.getPatronRequestStateOnEntry());
-			// Back on track to be HANDED_OFF_AS_LOCAL
-			return patronRequestAuditService.addAuditEntry(
-					ctx.getPatronRequest(),
-					"Expedited checkout completed for RET-LOCAL: setting to CONFIRMED to trigger standard RET-LOCAL workflow",
-					auditData)
-				.then(updatePatronRequest(ctx));
-		}
-		else
-		{
-			// Standard workflow. Progress to LOANED.
-			ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
-			ctx.getWorkflowMessages().add("Expedited checkout completed - item status changed to LOANED");
-			// Create audit entry with workflow messages
-			auditData.put("workflowMessages", ctx.getWorkflowMessages());
-			auditData.put("expeditedCheckout", true);
-			auditData.put("sourceStatus", ctx.getPatronRequestStateOnEntry());
-			return patronRequestAuditService.addAuditEntry(
-					ctx.getPatronRequest(),
-					"ExpeditedCheckoutTransition has completed",
-					auditData)
-				.then(updatePatronRequest(ctx));
-		}
+		// Checkout at supplier
+		return checkoutToVisitingPatron(ctx)
+			.flatMap(this::updatePatronRequest);
 	}
-
 
 	@Override
 	public Optional<PatronRequest.Status> getTargetStatus() {
@@ -137,5 +110,102 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 	private Mono<RequestWorkflowContext> updatePatronRequest(RequestWorkflowContext requestWorkflowContext) {
 		return Mono.from(patronRequestRepository.saveOrUpdate(requestWorkflowContext.getPatronRequest()))
 			.thenReturn(requestWorkflowContext);
+	}
+
+	public Mono<RequestWorkflowContext> checkoutToVisitingPatron(
+		RequestWorkflowContext rwc) {
+
+		if ((rwc.getSupplierRequest() != null) &&
+			(rwc.getSupplierRequest().getLocalItemId() != null) &&
+			(rwc.getLenderSystemCode() != null) &&
+			(rwc.getPatronVirtualIdentity() != null)) {
+
+			// In some systems a patron can have multiple barcodes. In those systems getLocalBarcode will be encoded as [value, value, value]
+			// So we trim the opening and closing [] and split on the ", " Otherwise just split on ", " just in case
+			final String[] patron_barcodes = extractPatronBarcodes(rwc.getPatronVirtualIdentity().getLocalBarcode());
+
+			if ((patron_barcodes != null) && (patron_barcodes.length > 0)) {
+
+				String home_item_barcode = rwc.getSupplierRequest().getLocalItemBarcode();
+
+				log.info("Update check home item out for expedited checkout : {} to {} at {}",
+					home_item_barcode, patron_barcodes[0], rwc.getLenderSystemCode());
+
+				return hostLmsService.getClientFor(rwc.getLenderSystemCode())
+					.flatMap(hostLmsClient -> checkoutItemToPatronIfEnabled(rwc, hostLmsClient, patron_barcodes))
+					.doOnNext(srwc -> {
+						String homeItemBarcode = Objects.toString(home_item_barcode, "unknown");
+						String lenderSystemCode = Objects.toString(rwc.getLenderSystemCode(), "unknown");
+						String patronBarcode =  Objects.toString(patron_barcodes[0], "unknown");
+						String message = String.format("Home item (b=%s@%s) checked out to visiting patron in expedited checkout (b=%s)",
+							homeItemBarcode, lenderSystemCode, patronBarcode
+						);
+						rwc.getWorkflowMessages().add(message);
+					})
+					.onErrorResume(error -> {
+						log.error("Problem: Expedited checkout failed for item {} to vpatron {}", home_item_barcode, patron_barcodes, error);
+
+						var auditData = new HashMap<String, Object>();
+						auditData.put("virtual-patron-barcode", Arrays.toString(patron_barcodes));
+						auditData.put("home-item-barcode", home_item_barcode);
+						auditData.put("lender-system-code", rwc.getLenderSystemCode());
+						auditThrowable(auditData, "Throwable", error);
+
+						// Intentionally transform Error
+						// Consider whether this transformation is necessary in expedited checkout.
+						// As if a virtual checkout fails here the whole thing could fall down.
+						return patronRequestAuditService
+							.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout failed : " + error.getMessage(), auditData)
+							.thenReturn(rwc);
+					})
+					.thenReturn(rwc);
+			} else {
+
+				log.error(
+					"EXPEDITED CHECKOUT: NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",
+					rwc.getPatronVirtualIdentity().getLocalBarcode());
+
+				return patronRequestAuditService.addErrorAuditEntry(
+						rwc.getPatronRequest(),
+						"Expedited Checkout: NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT")
+					.thenReturn(rwc);
+			}
+		} else {
+			log.error("EXPEDITED CHECKOUT: Missing data attempting to set home item off campus {} {} {}",
+				rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());
+			return patronRequestAuditService.addErrorAuditEntry(
+					rwc.getPatronRequest(),
+					String.format(
+						"Expedited Checkout: Missing data attempting to set home item off campus %s %s %s",
+						rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
+				.thenReturn(rwc);
+		}
+	}
+
+
+	private Mono<RequestWorkflowContext> checkoutItemToPatronIfEnabled(
+		RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
+
+		final var supplierRequest = rwc.getSupplierRequest();
+
+		if ( hostLmsClient.reflectPatronLoanAtSupplier() ) {
+
+			final var command = CheckoutItemCommand.builder()
+				.itemId(supplierRequest.getLocalItemId())
+				.itemBarcode(supplierRequest.getLocalItemBarcode())
+				.patronId(rwc.getPatronVirtualIdentity().getLocalId())
+				.patronBarcode(patronBarcode[0])
+				.localRequestId(supplierRequest.getLocalId())
+				.libraryCode(supplierRequest.getLocalItemLocationCode())
+				.build();
+
+			return hostLmsClient.checkOutItemToPatron(command)
+				.doOnNext(resp -> log.debug("Expedited checkout: checkOutItemToPatron returned {}", resp))
+				.thenReturn(rwc);
+		}
+		else {
+			rwc.getWorkflowMessages().add("Expedited checkout: reflectPatronLoanAtSupplier disabled for this client");
+			return Mono.just(rwc);
+		}
 	}
 }

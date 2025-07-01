@@ -362,6 +362,7 @@ public class PatronRequest {
 	 * RET-LOCAL - We're placing a request in a single system - the patron, pickup and lending roles are all within a single system (1 Party)
 	 * RET-STD - We're placing a request at a remote system, but the patron will pick the item up from their local library (2 parties)
 	 * RET-PUA - The Borrower, Patron and Pickup systems are all different (3 parties)
+	 * RET-EXP - We're placing a request where the supplier and the pickup systems are the same, but the patron may be external. This results in an expedited checkout. (2 parties).
 	 */
 	@Nullable
 	private String activeWorkflow;
