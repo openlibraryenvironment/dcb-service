@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static graphql.com.google.common.base.Strings.isNullOrEmpty;
 import static io.micronaut.core.type.Argument.VOID;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isEmpty;
@@ -10,6 +11,7 @@ import static io.micronaut.http.HttpMethod.PUT;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
+import static java.util.function.Function.identity;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
@@ -38,7 +40,28 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.FailedToGetItemsException;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PingResponse;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -374,7 +397,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-		return raiseError(new UnsupportedOperationException("placeHoldRequestAtLocalAgency not supported by FOLIO Host LMS: " + getHostLmsCode()));
+		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
+
+		final var transactionId = UUID.randomUUID().toString();
+
+		return constructSelfBorrowingTransactionRequest(parameters, transactionId)
+			.flatMap(this::createTransaction)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.rawLocalStatus(getValueOrNull(response, CreateTransactionResponse::getStatus))
+				.build());
 	}
 
 	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406021/DCB+Borrowing_PickUp+Flow+Details
@@ -410,6 +443,45 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(pickupLocation)
+						.build())
+					.build()));
+	}
+
+	// https://folio-org.atlassian.net/browse/UXPROD-5114
+	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructSelfBorrowingTransactionRequest(
+		PlaceHoldRequestParameters parameters, String transactionId) {
+
+		final var patronId = getRequiredParameter("localPatronId",
+			parameters, PlaceHoldRequestParameters::getLocalPatronId);
+
+		final var patronBarcodes = getRequiredParameter("localPatronBarcode",
+			parameters, PlaceHoldRequestParameters::getLocalPatronBarcode);
+
+		final var firstPatronBarcode = parseList(patronBarcodes).get(0);
+
+		final var pickupLocationLocalId = getRequiredParameter("pickupLocation.localId",
+			parameters, PlaceHoldRequestParameters::getPickupLocation, Location::getLocalId);
+
+		final var itemId = getRequiredParameter("localItemId",
+			parameters, PlaceHoldRequestParameters::getLocalItemId);
+
+		final var itemBarcode = getRequiredParameter("localItemBarcode",
+			parameters, PlaceHoldRequestParameters::getLocalItemBarcode);
+
+		return Mono.just(authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+				.body(CreateTransactionRequest.builder()
+					.role("BORROWING-PICKUP")
+					.selfBorrowing(true)
+					.item(CreateTransactionRequest.Item.builder()
+						.id(itemId)
+						.barcode(itemBarcode)
+						.build())
+					.patron(CreateTransactionRequest.Patron.builder()
+						.id(patronId)
+						.barcode(firstPatronBarcode)
+						.build())
+					.pickup(CreateTransactionRequest.Pickup.builder()
+						.servicePointId(pickupLocationLocalId)
 						.build())
 					.build()));
 	}
@@ -505,8 +577,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		requiredParameter(parameters.getSupplyingLocalItemBarcode(), "Supplying local item barcode");
 	}
 
+	private <T> String getRequiredParameter(String parameterName, T parameters, Function<T, String> accessor) {
+		return getRequiredParameter(parameterName, parameters, accessor, identity());
+	}
+
+	private <T, S> String getRequiredParameter(String parameterName, T parameters,
+		Function<T, S> accessor, Function<S, String> mapping) {
+
+		final var value = getValueOrNull(parameters, accessor, mapping);
+
+		requiredParameter(value, parameterName);
+
+		return value;
+	}
+
 	private void requiredParameter(String value, String parameterName) {
-		if (value == null || value.isEmpty()) {
+		if (isNullOrEmpty(value)) {
 			throw new MissingParameterException(parameterName);
 		}
 	}
@@ -1084,7 +1170,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	 * @param <T> Type of response being handled
 	 */
 	private static <T> Function<Mono<T>, Mono<T>> noExtraErrorHandling() {
-		return Function.identity();
+		return identity();
 	}
 
 	private MutableHttpRequest<Object> authorisedRequest(HttpMethod method, String path) {

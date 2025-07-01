@@ -9,6 +9,7 @@ import lombok.Data;
 @Serdeable
 class CreateTransactionRequest {
 	String role;
+	Boolean selfBorrowing;
 	Item item;
 	Patron patron;
 	Pickup pickup;

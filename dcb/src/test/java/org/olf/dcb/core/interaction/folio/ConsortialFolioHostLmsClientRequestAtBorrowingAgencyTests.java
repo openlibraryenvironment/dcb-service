@@ -1,8 +1,23 @@
 package org.olf.dcb.core.interaction.folio;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
+import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRawLocalStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static services.k_int.utils.UUIDUtils.dnsUUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
@@ -12,20 +27,9 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+
+import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
-import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
@@ -60,10 +64,10 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 	@Test
 	void shouldPlaceBorrowingPickupRequestSuccessfully() {
 		// Arrange
-		final var patronId = UUID.randomUUID().toString();
+		final var patronId = randomUUID().toString();
 		// we expect the barcode to be a toString list
 		final var patronBarcode =  "[67129553]";
-		final var pickupLocation = Location.builder().localId(UUID.randomUUID().toString()).build();
+		final var pickupLocation = Location.builder().localId(randomUUID().toString()).build();
 		final var supplyingAgencyCode = "supplying-agency";
 		final var supplyingLocalItemId = "supplying-item-id";
 		final var itemId = dnsUUID(supplyingAgencyCode + ":" + supplyingLocalItemId).toString();
@@ -120,7 +124,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 	@Test
 	void shouldPlaceBorrowingRequestSuccessfully() {
 		// Arrange
-		final var patronId = UUID.randomUUID().toString();
+		final var patronId = randomUUID().toString();
 		// we expect the barcode to be a toString list
 		final var patronBarcode =  "[67129553]";
 		final var supplyingAgencyCode = "supplying-agency";
@@ -185,11 +189,67 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 	}
 
 	@Test
-	void shouldFailWhenAnyOfTheExtendedPlaceHoldRequestParametersAreNull() {
+	void shouldPlaceLocalAgencyRequestSuccessfully() {
 		// Arrange
-		final var patronId = UUID.randomUUID().toString();
+		final var patronId = randomUUID().toString();
+
+		final var patronBarcode =  "83726524";
+		final var pickupLocation = Location.builder().localId(randomUUID().toString()).build();
+		final var itemId = randomUUID().toString();
+		final var itemBarcode = "72646456";
+
+		mockFolioFixture.mockCreateTransaction(CreateTransactionResponse.builder()
+			.status("CREATED")
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var placedRequest = singleValueFrom(client.placeHoldRequestAtLocalAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId(patronId)
+				// we expect the barcode to be a toString list
+				.localPatronBarcode("[%s]".formatted(patronBarcode))
+				.localItemId(itemId)
+				.localItemBarcode(itemBarcode)
+				.pickupLocation(pickupLocation)
+				.build()));
+
+		// Assert
+		assertThat("Placed request is not null", placedRequest, is(notNullValue()));
+
+		assertThat("Should be transaction ID but cannot check as generated internally",
+			placedRequest, hasLocalId());
+
+		assertThat(placedRequest, allOf(
+			hasLocalStatus(HOLD_PLACED),
+			hasRawLocalStatus("CREATED")
+		));
+
+		mockFolioFixture.verifyCreateTransaction(CreateTransactionRequest.builder()
+			.role("BORROWING-PICKUP")
+			.selfBorrowing(true)
+			.item(CreateTransactionRequest.Item.builder()
+				.id(itemId)
+				.barcode(itemBarcode)
+				.build())
+			.patron(CreateTransactionRequest.Patron.builder()
+				.id(patronId)
+				.barcode(patronBarcode)
+				.build())
+			.pickup(CreateTransactionRequest.Pickup.builder()
+				.servicePointId(pickupLocation.getLocalId())
+				.build())
+			.build());
+	}
+
+	@ParameterizedTest
+	@NullAndEmptySource
+	void shouldFailWhenAnyOfTheExtendedPlaceHoldRequestParametersAreNullOrEmpty(String parameterValue) {
+		// Arrange
+		final var patronId = randomUUID().toString();
 		final var patronBarcode = "67129553";
-		final var pickupLocationCode = UUID.randomUUID().toString();
+		final var pickupLocationCode = randomUUID().toString();
 		final var supplyingAgencyCode = "supplying-agency";
 		final var supplyingLocalItemId = "supplying-item-id";
 
@@ -202,7 +262,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 					.title("title")
 					.canonicalItemType("canonical")
 					.supplyingLocalItemId(supplyingLocalItemId)
-					.supplyingLocalItemBarcode(null)
+					.supplyingLocalItemBarcode(parameterValue)
 					.supplyingAgencyCode(supplyingAgencyCode)
 					.localPatronId(patronId)
 					.localPatronBarcode(patronBarcode)
@@ -211,35 +271,6 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 
 		// Assert
 		assertThat(exception, hasMessage("Supplying local item barcode is missing."));
-	}
-
-	@Test
-	void shouldFailToPlaceOwnLibraryRequest() {
-		// Arrange
-		final var patronId = UUID.randomUUID().toString();
-		final var patronBarcode = "67129553";
-		final var pickupLocationCode = UUID.randomUUID().toString();
-		final var supplyingAgencyCode = "supplying-agency";
-		final var supplyingLocalItemId = "supplying-item-id";
-
-		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var exception = assertThrows(UnsupportedOperationException.class,
-			() -> singleValueFrom(client.placeHoldRequestAtLocalAgency(
-				PlaceHoldRequestParameters.builder()
-					.title("title")
-					.canonicalItemType("canonical")
-					.supplyingLocalItemId(supplyingLocalItemId)
-					.supplyingLocalItemBarcode(null)
-					.supplyingAgencyCode(supplyingAgencyCode)
-					.localPatronId(patronId)
-					.localPatronBarcode(patronBarcode)
-					.pickupLocationCode(pickupLocationCode)
-					.build())));
-
-		// Assert
-		assertThat(exception, hasMessage("placeHoldRequestAtLocalAgency not supported by FOLIO Host LMS: " + HOST_LMS_CODE));
 	}
 
 	private DataAgency definePickupAgency() {
