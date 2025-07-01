@@ -68,24 +68,24 @@ public class RequestWorkflowContextHelper {
 		log.info("fromPatronRequest {}", pr.getId());
 
 		return  Mono.just(rwc.setPatronRequest(pr))
-		.flatMap(this::decorateWithPatronRequestStateOnEntry)
-		.flatMap(this::decorateWithPatron)
-		.flatMap(this::findSupplierRequest)
-		.flatMap(this::decorateWithPatronVirtualIdentity)
-		.flatMap(this::decorateContextWithPatronDetails)
-		.flatMap(this::decorateContextWithLenderDetails)
-		.flatMap(this::resolvePickupLocationAgency)
-		.flatMap(this::decorateWithPickupLibrary)
-		.flatMap(this::decorateWithPickupPatronIdentity)
-		.onErrorResume(error -> {
-			log.error("Error in RequestWorkflowContextHelper fromPatronRequest: {}",
-				getValue(error, Throwable::getMessage, "No error message available"), error);
-			return patronRequestAuditService
-				.addAuditEntry(rwc.getPatronRequest(), "RWC : " +
-					getValue(error, Throwable::getMessage, "No error message available"))
-				.thenReturn(rwc);
-		})
-		.flatMap(this::report);
+			.flatMap(this::decorateWithPatronRequestStateOnEntry)
+			.flatMap(this::decorateWithPatron)
+			.flatMap(this::findSupplierRequest)
+			.flatMap(this::decorateWithPatronVirtualIdentity)
+			.flatMap(this::decorateContextWithPatronDetails)
+			.flatMap(this::decorateContextWithLenderDetails)
+			.flatMap(this::resolvePickupLocationAgency)
+			.flatMap(this::decorateWithPickupLibrary)
+			.flatMap(this::decorateWithPickupPatronIdentity)
+			.onErrorResume(error -> {
+				log.error("Error in RequestWorkflowContextHelper fromPatronRequest: {}",
+					getValue(error, Throwable::getMessage, "No error message available"), error);
+				return patronRequestAuditService
+					.addAuditEntry(rwc.getPatronRequest(), "RWC : " +
+						getValue(error, Throwable::getMessage, "No error message available"))
+					.thenReturn(rwc);
+			})
+			.flatMap(this::report);
 	}
 
 	private Mono<RequestWorkflowContext> decorateWithPickupPatronIdentity(RequestWorkflowContext requestWorkflowContext) {
@@ -266,8 +266,8 @@ public class RequestWorkflowContextHelper {
 			return Mono.from(supplierRequestRepository.findVirtualIdentityById(sr.getId()))
 				.flatMap(vi -> {
 					log.debug("found virtual identity {}",vi);
-						return Mono.just(ctx.setPatronVirtualIdentity(vi));
-					})
+					return Mono.just(ctx.setPatronVirtualIdentity(vi));
+				})
 				.switchIfEmpty(Mono.defer(() -> {
 					log.warn("Unable lookup patron virtual identity for supplier request {}",sr.getId());
 					return Mono.just(ctx);
@@ -298,12 +298,12 @@ public class RequestWorkflowContextHelper {
 
 		// Pickup location code is the correct field for the UUID of the pickup location
 		String pickupSymbol = ctx.getPatronRequest().getPickupLocationCode();
-    ctx.getWorkflowMessages().add("Resolve PickupSymbol \""+pickupSymbol+"\"");
+		ctx.getWorkflowMessages().add("Resolve PickupSymbol \""+pickupSymbol+"\"");
 
 		if ( pickupSymbol == null ) {
 			// Should not happen in normal operation but can happen in tests :(
 			log.error("pickupSymbol is null");
-      ctx.getWorkflowMessages().add("PickupSymbol is null");
+			ctx.getWorkflowMessages().add("PickupSymbol is null");
 			return Mono.just(ctx);
 		}
 
@@ -328,11 +328,11 @@ public class RequestWorkflowContextHelper {
 				.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
 		}
 		else {
-      ctx.getWorkflowMessages().add("PickupSymbol is not 36 characters");
+			ctx.getWorkflowMessages().add("PickupSymbol is not 36 characters");
 		}
 
 		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
-			.switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\""))) 
+			.switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\"")))
 			.flatMap(rvm -> Mono.from(getDataAgencyWithHostLms(rvm.getToValue())))
 			.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
@@ -360,13 +360,13 @@ public class RequestWorkflowContextHelper {
 	// Attempt to look up a data agency using the pickup location mappings instead of a direct reference
 	private Mono<DataAgency> getAgencyFromPickupLocationMappingTable(String pickupSymbolContext, String pickupSymbol) {
 		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
-      .switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\"")))
-      .flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } );
+			.switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\"")))
+			.flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } );
 	}
 
 	private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {
 		if ( ( pickupSymbolNamespace != null ) && ( symbol != null ) ) {
-      return locationToAgencyMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
+			return locationToAgencyMappingService.findLocationToAgencyMapping(pickupSymbolNamespace,symbol);
 		}
 		else if ( symbol != null ) {
 			return agencyForPickupLocationSymbol(symbol);
@@ -374,20 +374,20 @@ public class RequestWorkflowContextHelper {
 		return Mono.error(new RuntimeException("No pickup location code present"));
 	}
 
-        private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String symbol) {
-                String[] symbol_components = symbol.split(":");
-                if ( symbol_components.length == 1 ) {
-                        // We have an unscoped pickup location - see if we can hit a uniqie value
-                        log.debug("Attempting unscoped location lookup for {}",symbol);
-                        return locationToAgencyMappingService.findLocationToAgencyMapping(symbol_components[0]);
-                }
-                else if ( symbol_components.length == 2 ) {
-                        log.debug("Attempting scoped location lookup for {}",symbol);
-                        return locationToAgencyMappingService.findLocationToAgencyMapping(symbol_components[0], symbol_components[1]);
-                }
+	private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String symbol) {
+		String[] symbol_components = symbol.split(":");
+		if ( symbol_components.length == 1 ) {
+			// We have an unscoped pickup location - see if we can hit a uniqie value
+			log.debug("Attempting unscoped location lookup for {}",symbol);
+			return locationToAgencyMappingService.findLocationToAgencyMapping(symbol_components[0]);
+		}
+		else if ( symbol_components.length == 2 ) {
+			log.debug("Attempting scoped location lookup for {}",symbol);
+			return locationToAgencyMappingService.findLocationToAgencyMapping(symbol_components[0], symbol_components[1]);
+		}
 
-                return Mono.error(new RuntimeException("Unable to resolve agency for pickup location code"+symbol));
-        }
+		return Mono.error(new RuntimeException("Unable to resolve agency for pickup location code"+symbol));
+	}
 
 	// Get the agency and get the related HostLMS
 	// I know this looks a little macabre. It seems that mn-data can't process the DataHostLms because of the transient getType method
@@ -398,11 +398,11 @@ public class RequestWorkflowContextHelper {
 
 		return Mono.from(agencyRepository.findOneByCode(code))
 			.flatMap(agency -> Mono.from(agencyRepository.findHostLmsIdById(agency.getId()))
-			.flatMap(hostLmsService::findById)
-			.flatMap(hostLms -> {
-				agency.setHostLms(hostLms);
-				return Mono.just(agency);
-			}));
+				.flatMap(hostLmsService::findById)
+				.flatMap(hostLms -> {
+					agency.setHostLms(hostLms);
+					return Mono.just(agency);
+				}));
 	}
 
 	private Mono<RequestWorkflowContext> report(RequestWorkflowContext ctx) {
@@ -442,32 +442,24 @@ public class RequestWorkflowContextHelper {
 		log.debug("lenderAc: [{}]", lenderAc);
 		var pickupAc = rwc.getPickupAgencyCode();
 		log.debug("pickupAc: [{}]", pickupAc);
-
 		// For DCB-1555 troubleshooting only, will be removed afterwards.
 		log.info("pickupAc {}, lenderAc {}, patronAc {}", pickupAc, lenderAc, patronAc);
-
 
 		// Grab a reference to the patron request.
 		final PatronRequest pr = rwc.getPatronRequest();
 
-		if ( lenderAc.equals(pickupAc)) {
-			// LEGACY: We now do not consider the Patron agency when determining "LOCAL". If they are the same we should return early.
-			// Casey: Expedited checkout requests will always have the same lender and pickup agency.
-			// However, they will usually have a different patron agency, so we should not let them fall into RET-LOCAL
-			// As placing a hold at a local agency is currently unsupported for FOLIO
-			if (Boolean.TRUE.equals(pr.getIsExpeditedCheckout()) && !lenderAc.equals(patronAc))
+		if ( lenderAc.equals(pickupAc) ) {
+			if (lenderAc.equals(patronAc))
 			{
-				// Expedited checkout requests with a different patron agency should go to RET-STD instead so they can progress.
-				return Mono.just("RET-STD")
+				// Make sure that true RET-LOCAL requests where everything is the same still go the RET-LOCAL route
+				return Mono.just("RET-LOCAL")
 					.map(pr::setActiveWorkflow)
 					.map(rwc::setPatronRequest);
 			}
-			else
-			{
-				// Casey: Non-expedited checkout requests OR expedited checkout requests where all agencies are the same proceed as before.
-				// Note: until we support placeHoldAtLocalAgency for FOLIO, we can't support expedited checkout requests for patrons of the lending library if it's a FOLIO institution
-				// And expedited checkout requests will thus only work for visiting patrons for FOLIO
-				return Mono.just("RET-LOCAL")
+			else {
+				// But if they're not RET-LOCAL, they belong in our new RET-EXP workflow
+				// Where they can be processed as expedited checkout requests.
+				return Mono.just("RET-EXP")
 					.map(pr::setActiveWorkflow)
 					.map(rwc::setPatronRequest);
 			}
