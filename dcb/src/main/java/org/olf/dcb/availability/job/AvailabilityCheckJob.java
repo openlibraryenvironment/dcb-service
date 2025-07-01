@@ -136,6 +136,10 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			}
 			
 			// Add the data.
+			// Ensure the location code is not more than 128 characters
+			if (locationCode.length() > 128) {
+				locationCode = locationCode.substring(0, 127);
+			}
 			int count = locationCounts.getOrDefault(locationCode, 0);
 			locationCounts.put(locationCode, (count+1));
 		}
