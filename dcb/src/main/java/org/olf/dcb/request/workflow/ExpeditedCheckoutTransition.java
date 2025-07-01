@@ -56,8 +56,9 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		// Expedited checkout requests will always have the same supplier and pickup system, so will always be in the RET-EXP workflow
 		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus());
 		final boolean isExpeditedCheckout = ctx.getPatronRequest().getIsExpeditedCheckout() != null && ctx.getPatronRequest().getIsExpeditedCheckout();
-//		final boolean isWorkflow =   ctx.getPatronRequest().getActiveWorkflow() != null &&  ctx.getPatronRequest().getActiveWorkflow().equals("RET-EXP");
-		return isStatusApplicable && isExpeditedCheckout;
+		final boolean isWorkflow =   ctx.getPatronRequest().getActiveWorkflow() != null &&  ctx.getPatronRequest().getActiveWorkflow().equals("RET-EXP");
+		return isStatusApplicable && (isExpeditedCheckout || isWorkflow);
+//		return isStatusApplicable && isExpeditedCheckout;
 	}
 
 	@Override
