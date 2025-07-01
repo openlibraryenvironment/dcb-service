@@ -125,7 +125,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		// Collate location codes from the items as counts
 		final Map<String, Integer> locationCounts = new HashMap<>();
 		for ( Item item : data ) {
-			final var locationCode = item.getLocationCode();
+			var locationCode = item.getLocationCode();
 			if ( locationCode == null ) {
 				// Null location. Log and skip.
 				if ( log.isWarnEnabled() ) {
