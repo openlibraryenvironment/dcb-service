@@ -10,8 +10,8 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
-import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
@@ -55,8 +55,10 @@ public interface SourceRecordRepository {
 	@NonNull
 	Publisher<Integer> updateProcessingStateById (@NonNull UUID id, @NonNull ProcessingStatus processingState);
 	
+	@Vetoed
 	public Publisher<RecordCount> getProcessStatusForHostLms(UUID hostLmsId);
 	
+	@Vetoed
 	@SingleResult
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
 
