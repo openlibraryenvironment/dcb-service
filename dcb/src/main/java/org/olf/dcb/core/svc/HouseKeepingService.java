@@ -72,7 +72,11 @@ public class HouseKeepingService {
       """;
 
 	private static final String QUERY_SOURCE_RECORD_IDS = """
-		SELECT id from source_record where processing_state != 'PROCESSING_REQUIRED'
+    SELECT id
+    FROM source_record
+    WHERE processing_state != 'PROCESSING_REQUIRED' AND last_processed < $1
+    FOR SHARE SKIP LOCKED
+    LIMIT 10000
     """;
 
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
@@ -224,7 +228,7 @@ public class HouseKeepingService {
         if (reprocess == null) {
           reprocess = Mono.<String>create(report -> {
             log.info("Starting source record reprocess");
-            report.success("Dedupe started at [%s]".formatted(Instant.now()));
+            report.success("Reprocessing started at [%s]".formatted(Instant.now()));
 
             reprocessQuery()
               .doOnTerminate(() -> {
@@ -425,14 +429,28 @@ public class HouseKeepingService {
   private Mono<Void> reprocessQuery() {
     log.info("Running reprocessQuery");
 		AtomicInteger page = new AtomicInteger(0);
-    return Mono.from(
-      dbops.withConnection(conn ->
-        Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS).execute())
-        .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
-				.buffer(10000)
-				.concatMap(batch -> updateSourceRecordBatch(batch, page.incrementAndGet()))
+    // Grab the start time
+    Instant startts = Instant.now();
+
+		return Flux.defer(() -> Mono.just(0)) // dummy trigger
+			.expandDeep(ignore -> 
+        dbops.withConnection(conn ->
+          Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS)
+            .bind(0, startts)
+            .execute()
+          )
+          .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
+          .collectList()
+          .flatMap(batch -> {
+            if (batch.isEmpty()) return Mono.empty(); // done
+            page.incrementAndGet();
+            return updateSourceRecordBatch(batch, page.get()).thenReturn(0); // dummy value to trigger next iteration
+          })
+          .doOnError(e -> log.error("Problem processing batch",e) )
+        )
       )
-    );
+      .then()
+      .doFinally(signalType -> log.info("reprocessQuery terminated with signal: {}", signalType));
   }
 
 	public Mono<Void> updateSourceRecordBatch(List<UUID> batch, long pageno) {
@@ -444,7 +462,9 @@ public class HouseKeepingService {
         	.bind("$1", batch.toArray(new UUID[0]))
         	.execute()
     	)
+      .doOnNext( r -> log.info("completed pageno {}",pageno) )
     	.flatMap(result -> Mono.from(result.getRowsUpdated()))
+      .doOnError(e -> log.error("Problem updating batch",e) )
     	.then()
   	));
 	}

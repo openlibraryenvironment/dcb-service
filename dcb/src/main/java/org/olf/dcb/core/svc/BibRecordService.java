@@ -116,6 +116,14 @@ public class BibRecordService {
 	@Transactional
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
 		return Mono.fromDirect(bibRepo.findById(source.getUuid()))
+      .map( r -> {
+        // Here we can apply any changes to the source record schema - for example adding the source record UUID
+        if ( r.getSourceRecordUuid() == null ) {
+          r.setSourceRecordUuid(source.getSourceRecordUuid());
+          return r;
+        }
+        return r;
+      })
 			.defaultIfEmpty(minimalRecord(source));
 	}
 

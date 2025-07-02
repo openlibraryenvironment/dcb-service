@@ -23,6 +23,7 @@ public class ExtendedBibsPagedGetParams {
   private Integer recordsInLastPage;
 	private Instant highestDateUpdatedSeen;
   private final String cpType="POLARIS";
+  private String hostCode;
 
 	public BibsPagedGetParams toBibsPagedGetParams() {
 		return BibsPagedGetParams
