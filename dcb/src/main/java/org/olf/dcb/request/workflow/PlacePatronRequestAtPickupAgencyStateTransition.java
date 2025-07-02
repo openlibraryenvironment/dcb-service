@@ -192,16 +192,11 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 			.map(PatronIdentity::getLocalHomeLibraryCode)
 			.orElse(null));
 
-		final var pickupPatronHomeLocation = getValueOrNull(requestWorkflowContext,
-			RequestWorkflowContext::getPickupPatronIdentity, PatronIdentity::getLocalHomeLibraryCode);
+		// avoiding circular dependency for polaris -
+		// location records are the source of truth
+		final var pickupLocationLocalId = getValueOrNull(requestWorkflowContext,
+			RequestWorkflowContext::getPickupLocation, Location::getLocalId);
 
-		// So far, when creating items, we have used the supplying library code as the location for the item. This is so that
-		// the borrowing library knows where to return the item. We pass this as locationCode in the CreateItemCommand.
-		// POLARIS however needs the location code to be a real location in the local POLARIS System and expects the location
-		// of the item to be the patrons home library (Because there is no PUA currently). A note is used for routing details
-		// so the borrowing library knows where to return the item. We don't want to switch system type here - instead we should
-		// be passing enough detail at this point for any implementation to have the information it needs to populate the request.
-		// patronIdentity.getLocalHomeLibraryCode is added to CreateItemCommand as patronHomeLocation
 		return hostLmsClient.createItem(
 				new CreateItemCommand(
 					patronRequest.getId(),
@@ -213,7 +208,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					supplierRequest.getLocalItemBarcode(),
 					supplierRequest.getCanonicalItemType(),
 
-					pickupPatronHomeLocation))
+					pickupLocationLocalId))
 			.doOnSuccess(hostLmsItem -> log.info("Created pickup item: {}", hostLmsItem))
 			.map(patronRequest::addPickupItemDetails)
 			.map(requestWorkflowContext::setPatronRequest)
