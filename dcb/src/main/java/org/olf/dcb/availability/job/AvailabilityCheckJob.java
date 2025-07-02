@@ -62,7 +62,6 @@ import services.k_int.utils.UUIDUtils;
 @ApplicableChunkTypes( AvailabilityCheckChunk.class )
 public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobChunkProcessor {
 	
-	private static final int CLUSTER_MAX_DEFAULT = 25;
 	// II Adding CLUSTER_CHECK_CONCURRENCY Because I'm concerned that we are creating a large queue of
 	// clusters to check and then limiting the concurrency of the lookups for bibs in that cluster
 	// So although we never check more than 100 bibs at a time, we can have many more than 100 of those flows in play
@@ -70,13 +69,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	// SO: I have removed that particular throttle as it's a bug if we are generating the next chunk before we have finished processing this one.
 	// I have fixed that in the runner. 
 	
-	private static final int EXTERNAL_FETCH_TOTAL_CONCURRENCY = 5;	
-	private static final int EXTERNAL_FETCH_PER_SYSTEM = 2;
 	
 	private static final Duration TIMEOUT = Duration.of(30, ChronoUnit.SECONDS);
-	private static final String filters = "none";
+	private static final String FILTERS = "none";
 	
 	final static UUID NS = UUIDUtils.nameUUIDFromNamespaceAndString(UUIDUtils.NAMESPACE_DNS, "org.olf.dcb.availability");
+	
+	private final AvailabilityCheckJobConfig jobConfig;
 	
 	private static BibAvailabilityCount withId( BibAvailabilityCount count ) {
 		
@@ -125,7 +124,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		// Collate location codes from the items as counts
 		final Map<String, Integer> locationCounts = new HashMap<>();
 		for ( Item item : data ) {
-			final var locationCode = item.getLocationCode();
+			var locationCode = item.getLocationCode();
 			if ( locationCode == null ) {
 				// Null location. Log and skip.
 				if ( log.isWarnEnabled() ) {
@@ -136,6 +135,10 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			}
 			
 			// Add the data.
+			// Ensure the location code is not more than 128 characters
+			if (locationCode.length() > 128) {
+				locationCode = locationCode.substring(0, 127);
+			}
 			int count = locationCounts.getOrDefault(locationCode, 0);
 			locationCounts.put(locationCode, (count+1));
 		}
@@ -159,7 +162,12 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
   private final ReactorFederatedLockService lockService;
   private final OperationsService operations;
 
-	public AvailabilityCheckJob( LiveAvailabilityService liveAvailabilityService, SharedIndexService sharedIndexService, BibRecordService bibRecordService, LocationToAgencyMappingService locationToAgencyMappingService, HostLmsService hostLmsService, BibAvailabilityCountRepository bibCounts, ReactiveJobRunnerService jobRunnerService, ReactorFederatedLockService lockService, OperationsService operations ) {
+	public AvailabilityCheckJob(LiveAvailabilityService liveAvailabilityService, SharedIndexService sharedIndexService,
+			BibRecordService bibRecordService, LocationToAgencyMappingService locationToAgencyMappingService,
+			HostLmsService hostLmsService, BibAvailabilityCountRepository bibCounts,
+			ReactiveJobRunnerService jobRunnerService, ReactorFederatedLockService lockService, OperationsService operations,
+			AvailabilityCheckJobConfig jobConfig) {
+		
 		this.liveAvailabilityService = liveAvailabilityService;
 		this.sharedIndexService = sharedIndexService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
@@ -169,6 +177,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		this.jobRunnerService = jobRunnerService;
 		this.lockService = lockService;
 		this.operations = operations;
+		this.jobConfig = jobConfig;
 	}
 
 	private static BibAvailabilityCountBuilder getAvailabilityCountDefaults( BibRecord bib ) {
@@ -223,18 +232,24 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	}
 	
 	public Flux<BibAvailabilityCount> throttleFetchBySourceSystem( Collection<UUID> ids ) {
+		
+		final int totalConcurrency = jobConfig.getConcurrency().getInstanceWide()
+				.orElseGet(() -> Math.max( Runtime.getRuntime().availableProcessors() / 4, 5));
+		
+		final int externalPerSystem = jobConfig.getConcurrency().getPerSource();
+		
 		return bibRecordService.getAllByIdIn( ids )
 			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
 			.flatMapIterable(Map::values)
 			.flatMap( sameSourceBibs -> {
 				return Flux.fromIterable(sameSourceBibs)
-					.buffer(EXTERNAL_FETCH_PER_SYSTEM)
+					.buffer(externalPerSystem)
 					.delayElements(Duration.of(1, ChronoUnit.SECONDS))
 					.concatMap( items -> {
 						return Flux.fromIterable(items)
 							.flatMap( this::checkSingleBib );
 					}, 0); // No prefetching
-			}, EXTERNAL_FETCH_TOTAL_CONCURRENCY);
+			}, totalConcurrency);
 	}
 	
 	@Transactional
@@ -250,7 +265,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	}
 	
 	private Flux<BibAvailabilityCount> checkSingleBib ( BibRecord bib ) {
-		return liveAvailabilityService.checkBibAvailability(bib, TIMEOUT, filters)
+		return liveAvailabilityService.checkBibAvailability(bib, TIMEOUT, FILTERS)
 				.onErrorResume(e -> Mono.just(AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
 						.message("Error when fetching bib availability for [%s] %s".formatted(bib.getId().toString(), e))
 						.build())))
@@ -324,8 +339,10 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	private Mono<JobChunk<MissingAvailabilityInfo>> getChunk( Optional<JsonNode> resumption ) {
 
 		log.info("Creating next chunk subscription");
+
+		final int totalConcurrency = jobConfig.getPageSize();
 		
-		return Mono.just( CLUSTER_MAX_DEFAULT )
+		return Mono.just( totalConcurrency )
 			.doOnNext( _v -> log.debug ("Producing next set of availability lookup") )
 			.flatMapMany( bibRecordService::findMissingAvailability )
 			

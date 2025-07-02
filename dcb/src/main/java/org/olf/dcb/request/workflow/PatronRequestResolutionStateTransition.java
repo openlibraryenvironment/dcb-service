@@ -1,28 +1,5 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.Builder;
-import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.request.fulfilment.PatronRequestService;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.request.resolution.PatronRequestResolutionService;
-import org.olf.dcb.request.resolution.Resolution;
-import org.olf.dcb.request.resolution.SupplierRequestService;
-import reactor.core.publisher.Mono;
-
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
@@ -30,6 +7,30 @@ import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.MapUtils.putNonNullValue;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.PatronRequestService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.request.resolution.PatronRequestResolutionService;
+import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.SupplierRequestService;
+
+import io.micronaut.context.BeanProvider;
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Prototype
@@ -235,19 +236,4 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
   public boolean attemptAutomatically() {
     return true;
   }
-
-	@Serdeable
-	@Value
-	@Builder
-	public static class PresentableItem {
-		String barcode;
-		String statusCode;
-		Boolean requestable;
-		String localItemType;
-		String canonicalItemType;
-		Integer holdCount;
-		String agencyCode;
-		String availableDate;
-		String dueDate;
-	}
 }

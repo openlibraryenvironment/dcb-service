@@ -6,9 +6,10 @@ import jakarta.validation.constraints.NotEmpty;
 import lombok.Builder;
 import services.k_int.interaction.sierra.SierraCodeTuple;
 
+
 @Builder
 @Serdeable
-public record SierraPatronHold (
+public record SierraPatronHold(
 	@NotEmpty String id,
 	@Nullable String record,
 	@Nullable String patron,
@@ -19,4 +20,5 @@ public record SierraPatronHold (
 	@Nullable SierraCodeTuple status,
 	@Nullable String recordType,
 	@Nullable String note
-) { }
+) {
+}

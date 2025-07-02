@@ -532,6 +532,7 @@ class ApplicationServicesClient {
 	private Integer getPatronHomeBranch(CreateItemCommand createItemCommand) {
 		final var patronHomeLocation = createItemCommand.getPatronHomeLocation();
 		if (patronHomeLocation == null) {
+			// note: this will likely imply the locations local id is missing
 			throw new IllegalArgumentException(
 				"Missing patron home location for polaris user - createItemCommand=" + createItemCommand);
 		}

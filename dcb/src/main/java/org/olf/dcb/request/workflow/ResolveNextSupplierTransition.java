@@ -221,8 +221,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.then(Mono.just(resolution));
 	}
 
-	private PatronRequestResolutionStateTransition.PresentableItem buildPresentableItem(Item item) {
-		return PatronRequestResolutionStateTransition.PresentableItem.builder()
+	private PresentableItem buildPresentableItem(Item item) {
+		return PresentableItem.builder()
 			.barcode(getValue(item, Item::getBarcode, "Unknown"))
 			.statusCode(getStatusCode(item))
 			.requestable(getValue(item, Item::getIsRequestable, false))
