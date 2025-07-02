@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -107,7 +108,9 @@ public class BorrowingAgencyService {
 		log.info("WORKFLOW cleanUp {}", patronRequest);
 
 		if (hostLmsCode != null && patronRequest != null) {
-			return Mono.from(hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode()))
+			return Mono.from(hostLmsService.getClientFor(hostLmsCode))
+				// note: order of requests are important
+				.flatMap(client -> deleteRequestIfPresent(client, patronRequest) )
 				.flatMap(client -> deleteItemIfPresent(client, patronRequest) )
 				.flatMap(client -> deleteBibIfPresent(client, patronRequest) )
 				.thenReturn(requestWorkflowContext);
@@ -119,6 +122,71 @@ public class BorrowingAgencyService {
 		auditData.put("patronRequest", patronRequest != null ? "Exists" : "No value present");
 		return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
 			.flatMap(audit -> Mono.just(requestWorkflowContext));
+	}
+
+	private Mono<HostLmsClient> deleteRequestIfPresent(HostLmsClient client, PatronRequest patronRequest) {
+
+		final var localRequestId = getValueOrNull(patronRequest, PatronRequest::getLocalRequestId);
+		final var localRequestStatus = getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus);
+
+		if (localRequestStatus != null && !HOLD_MISSING.equals(localRequestStatus)) {
+
+			final var patronId = getValueOrNull(patronRequest, PatronRequest::getRequestingIdentity, PatronIdentity::getLocalId);
+
+			final var deleteCommand = DeleteCommand.builder()
+				.requestId(localRequestId)
+				.patronId(patronId)
+				.build();
+
+			return checkHoldExists(client, localRequestId, patronRequest)
+				.flatMap(_client -> _client.deleteHold(deleteCommand))
+
+				// Catch any skipped deletions
+				.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
+
+				// Genuine error we didn't account for
+				.onErrorResume(logAndReturnErrorString("Delete borrower request : Failed", patronRequest))
+				.thenReturn(client);
+		}
+		else {
+			final var message = "Delete borrower request : Skipped";
+			final var auditData = new HashMap<String, Object>();
+			auditData.put("localRequestId", patronRequest.getLocalRequestId() != null ? patronRequest.getLocalRequestId() : "No value present");
+			auditData.put("localRequestStatus", getValue(localRequestStatus, "No value present"));
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just(client));
+		}
+	}
+
+	private Mono<HostLmsClient> checkHoldExists(HostLmsClient client, String localRequestId, PatronRequest patronRequest) {
+
+		final var localPatronId = getValueOrNull(patronRequest, PatronRequest::getRequestingIdentity, PatronIdentity::getLocalId);
+		final var hostlmsRequest = HostLmsRequest.builder().localId(localRequestId).localPatronId(localPatronId).build();
+
+		return client.getRequest(hostlmsRequest)
+			.flatMap(hostLmsRequest -> {
+
+				// if the hold exists a local id will be present
+				if (hostLmsRequest != null && hostLmsRequest.getLocalId() != null) {
+
+					// return the client to proceed with deletion
+					return Mono.just(client);
+				}
+
+				// no local id to delete, skip delete by passing back an empty
+				final var message = "Delete borrower hold : Skipped";
+				final var auditData = new HashMap<String, Object>();
+				auditData.put("hold", hostLmsRequest);
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+			})
+			.onErrorResume(error -> {
+
+				// we encountered an error when confirming the hold exists
+				final var message = "Delete borrower hold : Skipped";
+				final var auditData = new HashMap<String, Object>();
+				auditThrowable(auditData, "Throwable", error);
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+			});
 	}
 
 	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
