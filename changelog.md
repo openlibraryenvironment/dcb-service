@@ -1,10 +1,29 @@
 # Changelog
 
+## Version 8.38.0
+
+### Additions
+* [General]
+	* Change the way we pull data for the availability job
+	* New RET-EXP workflow for expedited checkout [DCB-1555]
+	* Support same libary borrowing for FOLIO DCB-1917
+
+### Fixes
+* [General]
+	* remove circular location dependency when creating a polaris item (pua) [DCB-1950]
+	* removed fnial from locationCode
+	* Extended the remote_location_code field on bib_availability_count to be 128 characters, truncated the remote_location_code to ensure it is not greater than 128 characters
+	* Removed an errant comma that was left in the mappings
+
 ## Version 8.37.0
 
 ### Additions
 * [General]
 	* support placing hold at local agency in alma
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
