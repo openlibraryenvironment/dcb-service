@@ -54,7 +54,7 @@ public class GeoDistanceResolutionSortOrder implements ResolutionSortOrder {
 							.pickupLocation(pickupLocation)
 							.build())
 					.map(this::calculateDistanceFromPickupLocation))
-			.sort(Comparator.comparingDouble(SupplyCandidateItem::getDistance))
+			.sort(new SupplyCandidateItemComparator())
 			.map(SupplyCandidateItem::getItem)
 			.collectList();
 	}
