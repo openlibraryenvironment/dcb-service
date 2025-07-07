@@ -1189,8 +1189,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private void logErrorResponse(HttpClientResponseException error) {
-		log.trace("Received error response: {} from Host LMS: {}",
-			toLogOutput(error.getResponse()), getHostLmsCode());
+		log.error("Received error response: {} from Host LMS: {}", toLogOutput(error.getResponse()), getHostLmsCode());
 	}
 
 	private <T> void logResponse(T response) {

@@ -74,7 +74,7 @@ public interface PatronRequestRepository {
 	@Introspected
 	public record ScheduledTrackingRecord(UUID id, @Nullable String status_code, @Nullable Instant next_scheduled_poll) {	};
 
-	@Query(value = "SELECT pr.id, pr.status_code, pr.next_scheduled_poll from patron_request pr where pr.next_scheduled_poll < now() order by pr.next_scheduled_poll", nativeQuery = true)
+	@Query(value = "SELECT pr.id, pr.status_code, pr.next_scheduled_poll from patron_request pr where pr.next_scheduled_poll < now() and pr.is_too_long = false order by pr.next_scheduled_poll", nativeQuery = true)
 	Publisher<ScheduledTrackingRecord> findScheduledChecks();
 
 	@SingleResult
@@ -88,11 +88,14 @@ public interface PatronRequestRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
-
 	
 	@NonNull
 	@SingleResult
 	Publisher<Void> updateStatusAndErrorMessage(@Id UUID id, PatronRequest.Status status, String errorMessage);
+	
+	@NonNull
+	@SingleResult
+	Publisher<Void> updateIsTooLongAndNeedsAttention(@Id UUID id, Boolean isTooLong, Boolean needsAttention);
 	
 	@NonNull
 	@SingleResult

@@ -60,6 +60,9 @@ public class TrackingServiceV3 implements TrackingService {
   private Long lastTrackingRunCount;
 
 	private final int MAX_TRACKING_CONCURRENCY = 10;
+  // If a request in a trackable state gets stuck in a non-termina state for > this number of days.
+  // mark it "TooLong" which will stop it being visited by the tracking code.
+	private final int TOO_LONG_THRESHOLD = 56;
 
 	TrackingServiceV3(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -113,7 +116,7 @@ public class TrackingServiceV3 implements TrackingService {
 	private <T> Function<Flux<T>, Flux<T>> enrichWithLogging( String successMsg, String errorMsg ) {
 		return (source) -> source
 			.doOnComplete(() -> log.info(successMsg))
-			.doOnError(error -> log.error(errorMsg, error));
+			.doOnError(error -> log.error("TrackingEnrichedError: "+errorMsg, error));
 	}
 
 	private Mono<RequestWorkflowContext> auditTrackingError(
@@ -170,6 +173,15 @@ public class TrackingServiceV3 implements TrackingService {
 
 	private Mono<RequestWorkflowContext> failSafeTracking(RequestWorkflowContext ctx, boolean isAutoTracking) {
 		final var pr_id = ctx.getPatronRequest().getId();
+
+    Instant lastStateChange = ctx.getPatronRequest().getCurrentStatusTimestamp();
+    if ( lastStateChange != null ) {
+      Instant tooLongThreshold = Instant.now().minus(Duration.ofDays(TOO_LONG_THRESHOLD));
+      if ( lastStateChange.isBefore(tooLongThreshold) ) {
+        return tooLongHandling(ctx);
+      }
+    }
+
 		return Mono.just(isAutoTracking ? incrementAutoPollCounter(ctx) : incrementManualPollCounter(ctx))
 			.flatMap(context -> isAutoTracking ? trackSystems(context) : manuallyTrack(context))
 			.doOnError(error -> log.error("TRACKING Error occurred tracking patron request in local systems {}", pr_id, error))
@@ -183,6 +195,13 @@ public class TrackingServiceV3 implements TrackingService {
 			.doOnError(error -> log.error("TRACKING Error occurred progressing patron request {}", pr_id, error))
 			.onErrorResume(error -> Mono.just(ctx));
 	}
+
+	private Mono<RequestWorkflowContext> tooLongHandling(RequestWorkflowContext ctx) {
+    log.warn("Patron request selected for too long handling {}",ctx.getPatronRequest().getId());
+    
+    return Mono.from(patronRequestRepository.updateIsTooLongAndNeedsAttention(ctx.getPatronRequest().getId(), Boolean.TRUE, Boolean.TRUE))
+      .thenReturn(ctx);
+  }
 
 	private Mono<RequestWorkflowContext> fetchWorkflowContext(UUID pr_id) {
 		return Mono.from(patronRequestRepository.findById(pr_id))
@@ -284,7 +303,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 		return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
 			.flatMap(client -> client.getRequest(hostlmsRequest))
-			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(), e))
+			.onErrorContinue((e, o) -> log.error("Tracking Error occurred: " + e.getMessage(), e))
 			.doOnNext(hold -> log.info("TRACKING Compare patron request {} states: {} and {}", pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()))
 			.flatMap( hold -> {
 				if ( hold.getStatus().equals(pr.getLocalRequestStatus()) ) {
