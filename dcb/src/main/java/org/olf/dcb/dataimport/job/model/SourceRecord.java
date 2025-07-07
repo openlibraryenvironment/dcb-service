@@ -3,6 +3,8 @@ package org.olf.dcb.dataimport.job.model;
 import java.time.Instant;
 import java.util.UUID;
 
+import io.micronaut.data.annotation.DateCreated;
+import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.annotation.Id;
@@ -36,6 +38,17 @@ public class SourceRecord {
 	@NotNull
 	@TypeDef( type = DataType.UUID )
 	private UUID id;
+
+
+  @Nullable
+  @DateCreated
+  private Instant dateCreated;
+
+  // Apparently, using both will cause this to be set on creation and update, which is useful for us
+  @Nullable
+  @DateCreated
+  @DateUpdated
+  private Instant dateUpdated;
 
   // Extracted to this method so we can call this method should we need to regenerate the id elsewhere
   public static UUID generateSourceRecordId(UUID hstId, String recId) {

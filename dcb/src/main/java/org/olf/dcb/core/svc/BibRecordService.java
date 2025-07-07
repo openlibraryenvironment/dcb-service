@@ -42,7 +42,7 @@ import reactor.function.TupleUtils;
 @Singleton
 public class BibRecordService {
 	
-	public static final int PROCESS_VERSION = 1;
+	public static final int PROCESS_VERSION = 2;
 
 	private static final Logger log = LoggerFactory.getLogger(BibRecordService.class);
 
@@ -116,6 +116,13 @@ public class BibRecordService {
 	@Transactional
 	public Mono<BibRecord> getOrSeed(final IngestRecord source) {
 		return Mono.fromDirect(bibRepo.findById(source.getUuid()))
+      .map( r -> {
+        // Here we can apply any changes to the source record schema - for example adding the source record UUID
+        if ( ( r != null ) && ( r.getSourceRecordUuid() == null ) ) {
+          r.setSourceRecordUuid(source.getSourceRecordUuid());
+        }
+        return r;
+      })
 			.defaultIfEmpty(minimalRecord(source));
 	}
 
@@ -153,8 +160,8 @@ public class BibRecordService {
 	protected Mono<BibRecord> purgeDeletedIdentifiers(BibRecord savedBib, List<UUID> validIdentifierIdList) {
     return Mono.from(bibIdentifierRepo.deleteAllByOwnerIdAndIdNotIn(savedBib.getId(), validIdentifierIdList))
       .doOnNext( del -> {
-        if (del > 0) 
-          log.info("Purged {} existing identifiers that are no longer valid from {}", del, savedBib.getId());
+        // if (del > 0) 
+        //   log.info("Purged {} existing identifiers that are no longer valid from {}", del, savedBib.getId());
         // else
         //   log.info("No removals for {}", savedBib.getId());
       })
@@ -230,7 +237,7 @@ public class BibRecordService {
 		
 		return Mono.zip( deleteBibIdentifers( bib ), deleteBibMatchPoints( bib ) )
 			.map(TupleUtils.function( ( idCount, matchPointCount ) -> {
-				log.debug("Removed {} identifiers and {} match-points for bib", idCount, matchPointCount );
+				// log.debug("Removed {} identifiers and {} match-points for bib", idCount, matchPointCount );
 				return idCount + matchPointCount;
 			}))
 			.thenReturn(bib);
@@ -246,10 +253,10 @@ public class BibRecordService {
 							.electSelectedBib(cr, Optional.ofNullable(bib))
 							.then(Mono.empty()) : Mono.just( cr ) )
 				)
-				.doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
+				// .doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
 				.flatMap( recordClusteringServiceProvider.get()::softDelete )
 				.then( Mono.defer(() -> {
-					log.debug("Deleteing bib [{}]", bib.getId());
+					// log.debug("Deleteing bib [{}]", bib.getId());
 					return deleteBibAndRelations(bib).thenReturn(bib); 
 				}))
 			;
@@ -282,21 +289,21 @@ public class BibRecordService {
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<BibRecord> process(final IngestRecord source) {
 		
-		log.info("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
-	    source.getSourceSystem().getCode(),
-	    source.getSourceRecordId(),
-	    source.getClusterRecordId(),
-	    source.getTitle(),
-	    source.getSuppressFromDiscovery(),
-	    source.getDeleted()
-	    );
+		// log.info("BibRecordService::process(source={}, sourceRecordId={}, clusterid={}, title={}, suppress:{}, deleted:{})",
+	  //   source.getSourceSystem().getCode(),
+	  //   source.getSourceRecordId(),
+	  //   source.getClusterRecordId(),
+	  //   source.getTitle(),
+	  //   source.getSuppressFromDiscovery(),
+	  //   source.getDeleted()
+	  //   );
 		
 		final boolean suppressed = Boolean.TRUE.equals( source.getSuppressFromDiscovery() );
 		final boolean deleted = Boolean.TRUE.equals( source.getDeleted() );
 		
 		if ( suppressed || deleted ) {
 
-      log.info("Processing a delete");
+      // log.info("Processing a delete");
 			
 			// Suppress...			
 			return deleteAssociatedBib(source)
@@ -305,7 +312,7 @@ public class BibRecordService {
 					
 					if (log.isDebugEnabled()) {
 						final String removalReason = deleted ? "deleted" : "suppressed";
-						log.debug("removal -- Record {} flagged as {}, redact accordingly", source, removalReason);
+						log.info("removal -- Record {} flagged as {}, redact accordingly", source, removalReason);
 					}
 					
 					return Mono.empty();
@@ -313,7 +320,7 @@ public class BibRecordService {
 		}
 		
 		if ( StringUtils.trimToNull(source.getTitle()) == null ) {
-      log.info("Processing an empty title");
+      // log.info("Processing an empty title");
 			return Mono.just(source)
 				.flatMap( s -> {
 					statsService.notifyEvent("DroppedNullTitle",s.getSourceSystem().getCode());

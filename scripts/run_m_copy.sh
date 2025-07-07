@@ -13,6 +13,7 @@ export DCB_INGEST_INTERVAL="1m"
 export DCB_SCHEDULED_TASKS_ENABLED="true"
 # export LOGGER_LEVELS_ORG_OLF_DCB="DEBUG"
 export LOGGER_LEVELS_ORG_OLF_DCB_INGEST_MARC_MARCINGESTSOURCE="INFO"
+export LOGGER_LEVELS_ORG_OLF_DCB_CORE_INTERACTION_POLARIS="DEBUG"
 export DCB_SHUTDOWN_MAXWAIT=60000
 export FEATURES_INGEST_V2_ENABLED="true"
 
@@ -56,4 +57,4 @@ export ELASTICSEARCH_INDEXES_INSTANCES="mobius"
 
 export JAVA_OPTIONS="-server -Xmx12G -XX:+UseContainerSupport -XX:MinRAMPercentage=50.0 -XX:MaxRAMPercentage=80.0 -XX:InitialRAMPercentage=50.0 -XX:+PrintFlagsFinal -Dcom.sun.net.ssl.checkRevocation=false --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.management/sun.management=ALL-UNNAMED --add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED -XX:+CrashOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=~/dumps"
 
-java $JAVA_OPTIONS -jar ./dcb/build/libs/dcb-all.jar
+java $JAVA_OPTIONS -jar ./dcb/build/libs/dcb-*-all.jar

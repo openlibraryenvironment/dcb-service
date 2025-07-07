@@ -1403,9 +1403,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
 
 		Integer pageSize = polarisConfig.getPageSize();
-		if (pageSize > 100) {
+		if (pageSize > 90) {
 			log.info("Limiting POLARIS page size to 100");
-			pageSize = 100;
+			pageSize = 90;
 		}
 
 		return Flux.from( ingestHelper.pageAllResults(pageSize, terminator) )
@@ -1614,7 +1614,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	
 	public BibsPagedGetParams mergeApiParameters(Optional<BibsPagedGetParams> parameters) {
 		
-		final int maxPageSize = 100;
+		final int maxPageSize = 90;
 		
 		return parameters
 			// Create builder from the existing params.
@@ -1666,8 +1666,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 				return Mono.just( apiParams )
 					.flatMap( params -> Mono.from( PAPIService.synch_BibsPagedGetRaw(params) ))
+
+          .doOnNext ( bibsPaged -> log.info("bibsPaged {}",bibsPaged) )
 					
 					.flatMap( bibsPaged -> {
+
+            if ( bibsPaged.get("PAPIErrorCode") != null )
+              log.info("PAPIErrorCode: {}",bibsPaged.get("PAPIErrorCode").getValue());
+
+            if ( bibsPaged.get("ErrorMessage") != null )
+              log.info("ErrorMessage: {}",bibsPaged.get("ErrorMessage").getValue());
 
 						 int lastId = bibsPaged.get("LastID").getIntValue();
 
@@ -1745,6 +1753,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
                   extParams.setPagesInCurrentCheckpoint(Integer.valueOf(0));
                   extParams.setCheckpointDate(Instant.now());
                   extParams.setRecordsInLastPage(jsonArr.size());
+                  extParams.setHostCode(lms.getCode());
 								}
 								else {
                   extParams.setPagesInCurrentCheckpoint(extParams.getPagesInCurrentCheckpoint() == null ? 1 : extParams.getPagesInCurrentCheckpoint().intValue() + 1 );

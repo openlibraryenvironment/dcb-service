@@ -16,6 +16,10 @@ import org.olf.dcb.core.model.HostLms;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
@@ -259,15 +263,28 @@ public class PAPIClient {
 	public Publisher<BibsPagedResult> synch_BibsPagedGet(String startdatemodified, Integer lastId, Integer nrecs) {
 		
 		return Mono.from( synch_BibsPagedGetRaw (startdatemodified, lastId, nrecs) )
-			.map( node -> conversionService.convertRequired(node, BibsPagedResult.class));
+      .doOnNext( jsonNode -> log.info("SYNC BIB PAGED GET RESPONSE: {}",jsonNode.toString()) )
+			.map( node -> conversionService.convertRequired(node, BibsPagedResult.class))
+      .doOnNext( bpr -> log.info("BPR: {}",bpr ))
+      .doOnError( e -> log.error("Problem in  synch_BibsPagedGet {}",e) );
 	}
 
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsPagedGetRaw( BibsPagedGetParams params ) {
+
 		
 		String dateStr = Optional.ofNullable(params.getStartdatemodified())
 					.map( inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString() )
+					// .map( inst -> {
+          //    // Convert the instant to a string without the timezone
+          //    // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+          //    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+          //    LocalDateTime localDateTime = LocalDateTime.ofInstant(inst, ZoneOffset.UTC);
+          //    return(formatter.format(localDateTime));
+          // })
 					.orElse(null);
+
+    log.info("get page : {} {} {}",lms.getCode(),params, dateStr);
 		
 		return synch_BibsPagedGetRaw( dateStr, params.getLastId(), params.getNrecs() );
 	}
