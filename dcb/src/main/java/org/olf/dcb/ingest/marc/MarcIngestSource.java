@@ -423,7 +423,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
       });
 		}
 		else {
-			log.info("No unqiue ISBN13 in record: "+unqique_normalised_isbn13_set+" ISBN matching skipped seen="+seen_identifiers);
+			log.trace("No unqiue ISBN13 in record: "+unqique_normalised_isbn13_set+" ISBN matching skipped seen="+seen_identifiers);
 		}
 		
 		return ingestRecord;
@@ -537,7 +537,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			// available in the remote system.
 			Record marc = resourceToMarc(internalRecord);
 			if ( marc == null ) {
-				log.debug("Couldn't get Marc portion of source [{}], default empty", source);
+				log.warn("Couldn't get Marc portion of source [{}], default empty", source);
 			} else {
 				irBuilder = populateRecordFromMarc(irBuilder, marc);
 			}		
@@ -556,7 +556,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	@Override
 	public default Publisher<IngestRecord> apply(Instant since, Publisher<String> terminator) {
 
-		log.info("Read from the marc source and publish a stream of IngestRecords");
+		// log.info("Read from the marc source and publish a stream of IngestRecords");
 		
 		return Flux.defer(() -> getResources(since, terminator))
 			.publishOn(Schedulers.boundedElastic())
@@ -569,11 +569,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	public default Mono<T> saveRawAndContinue(final T resource) {
-		log.debug("Save raw {}", resource);
+		// log.debug("Save raw {}", resource);
 		
 		return Mono.from( getRawSourceRepository().saveOrUpdate(
 				resourceToRawSource(resource)))
-				.doOnError( t -> log.debug("Error saving Raw", t) )
+				.doOnError( t -> log.error("Error saving Raw", t) )
 				.then(Mono.just(resource));
 	}
 

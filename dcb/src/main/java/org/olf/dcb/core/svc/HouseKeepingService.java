@@ -5,16 +5,20 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import io.micronaut.scheduling.annotation.Scheduled;
+import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.Result;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import reactor.util.function.Tuples;
 import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple3;
 
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.core.HostLmsService;
@@ -59,6 +63,7 @@ public class HouseKeepingService {
 	private Mono<String> validateClusters;
 	private final HostLmsRepository hostLmsRepository;
   private final HostLmsService hostLmsService;
+  private Map<String,Object> reprocessStatusReport = new HashMap<String,Object>();
 
   private static final int BATCH_SIZE = 10_000;
 
@@ -72,7 +77,19 @@ public class HouseKeepingService {
       """;
 
 	private static final String QUERY_SOURCE_RECORD_IDS = """
-		SELECT id from source_record where processing_state != 'PROCESSING_REQUIRED'
+    SELECT id
+    FROM source_record
+    WHERE ( processing_state = 'SUCCESS' AND last_processed < $1 )
+    OR ( processing_state = 'FAILURE' )
+    FOR SHARE SKIP LOCKED
+    LIMIT 25000
+    """;
+
+	private static final String COUNT_QUERY_SOURCE_RECORD_IDS = """
+    SELECT count(id) srcount
+    FROM source_record
+    WHERE ( processing_state = 'SUCCESS' AND last_processed < $1 )
+    OR ( processing_state = 'FAILURE' )
     """;
 
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
@@ -82,18 +99,23 @@ public class HouseKeepingService {
     from cluster_record 
     where date_updated > $1 AND ( is_deleted is null or is_deleted = false )
     order by date_updated asc
+    limit 5000
     """;
 
   private static final String CLUSTER_BIB_IDENTIFIERS = """
-    select c.id c_id, b.id b_id, mp.value id_val
-    from cluster_record as c,
-         bib_record as b,
-         match_point as mp
-    where b.contributes_to = c.id
-      and mp.bib_id = b.id
-      and c.id = $1
-    order by b.date_created, mp.value
+    SELECT b.contributes_to AS c_id, b.id AS b_id, mp.value AS id_val
+    FROM bib_record b
+    JOIN match_point mp ON mp.bib_id = b.id
+    WHERE b.contributes_to = $1
     """;
+  //   select c.id c_id, b.id b_id, mp.value id_val
+  //   from cluster_record as c,
+  //        bib_record as b,
+  //        match_point as mp
+  //   where b.contributes_to = c.id
+  //     and mp.bib_id = b.id
+  //     and c.id = $1
+  //   order by b.date_created, mp.value
 
   private static final String BREAK_CLUSTER_ASSOCIATION = """
     update bib_record set contributes_to = null where id = $1
@@ -222,13 +244,22 @@ public class HouseKeepingService {
     if (reprocess == null) {
       synchronized (this) {
         if (reprocess == null) {
+
+          reprocessStatusReport.put("status","Running");
+          reprocessStatusReport.put("startTime",Instant.now().toString());
+
           reprocess = Mono.<String>create(report -> {
             log.info("Starting source record reprocess");
-            report.success("Dedupe started at [%s]".formatted(Instant.now()));
+            report.success("Reprocessing started at [%s]".formatted(Instant.now()));
 
-            reprocessQuery()
+            Instant startts = Instant.now().minus(5, ChronoUnit.DAYS);
+
+            estimateReprocessRunTime(startts)
+              .then(reprocessQuery(startts))
               .doOnTerminate(() -> {
                 reprocess = null;
+                reprocessStatusReport.clear();
+                reprocessStatusReport.put("status","Not Active");
                 log.info("Finished reprocess update");
               })
               .subscribe();
@@ -249,7 +280,7 @@ public class HouseKeepingService {
         if (validateClusters == null) {
           validateClusters = Mono.<String>create(report -> {
             log.info("Starting validateClusters");
-            report.success("Dedupe started at [%s]".formatted(Instant.now()));
+            report.success("Validate Clusters started at [%s]".formatted(Instant.now()));
             innerValidateClusters()
               .doOnTerminate(() -> {
                 validateClusters = null;
@@ -268,58 +299,105 @@ public class HouseKeepingService {
   }
 
   private Mono<Long> innerValidateClusters() {
-    Timestamp since = new Timestamp(0);
-
     log.info("innerValidateClusters");
 
-    return Mono.from(
-      dbops.withConnection(conn ->
-        Flux.from(conn.createStatement(CLUSTER_VALIDATION_QUERY).bind("$1", since).execute())
-          .doOnNext( n -> log.info("Progressing") )
-          .doOnError(e -> log.error("Problem finding clusters to validate") )
-          .flatMap(result -> result.map((row, meta) -> {
-            UUID clusterId = row.get("id", UUID.class);
-            UUID selectedBib = row.get("selected_bib", UUID.class);
+    AtomicInteger changedClusterCount = new AtomicInteger(0);
+    AtomicInteger recordCounter = new AtomicInteger(0);
+    long startTime = System.currentTimeMillis();
 
-            if ( ( clusterId != null ) && ( selectedBib != null ) )
-              return Optional.of(Tuples.of(clusterId, selectedBib) );
-
-            log.warn("Skipping missing clusterId {} or selectedBib {}",clusterId, selectedBib);
-            return Optional.empty();
-          }))
-          .filter(Optional::isPresent)
-          .map(Optional::get)
-          .cast(Tuple2.class) // Avoids generic inference failure
-          .flatMap(tuple -> {
-            @SuppressWarnings("unchecked")
-            Tuple2<UUID, UUID> typedTuple = (Tuple2<UUID, UUID>) tuple;
-            return validateCluster(typedTuple.getT1(), typedTuple.getT2());
-          })
-          .count()
-          .doOnError(e -> log.error("Error in inner validate {}",e.getMessage(), e) )
-          .doOnNext(c -> log.info("Processed {}",c))
-          .then(
-            // Find all the clusters that have zero bibs attached, and set their state to deleted, touch the date_updted
-            Mono.from(
-              conn
-                .createStatement(PURGE_EMPTY_CLUSTERS)
-                .execute())
-            .flatMap(result -> Mono.from(result.getRowsUpdated())))
-          .then(
-            // Find all the clusters that have a member bib with a date_updated > the cluster, and touch the cluster
-            Mono.from(
-              conn
-                .createStatement(TOUCH_UPDATED_CLUSTERS)
-                .execute())
-            .flatMap(result -> Mono.from(result.getRowsUpdated())))
-
-      )
-    );
+    return processClusterBatches(Instant.ofEpochSecond(0), recordCounter, changedClusterCount, startTime)
+        .doOnNext(c -> log.info("Total clusters validated: {} changed:{}", c, changedClusterCount.get()))
+        .flatMap(count -> purgeEmptyClusters()
+            .then(touchUpdatedClusters())
+            .thenReturn(count)
+        );
   }
 
-  private Mono<Void> validateCluster(UUID clusterId, UUID selectedBib) {
+	private Mono<Long> processClusterBatches(Instant since, AtomicInteger counter, AtomicInteger changedClusterCounter, long startTime) {
+		log.info("Executing processClusterBatches with since={}, counter={}, startTime={}", since, counter, startTime);
 
-    // log.info("Process cluster {}", clusterId);
+		return getClusterBatch(since)
+			.flatMapMany(Flux::fromIterable)
+			.flatMap(tuple -> processSingleCluster(tuple, counter, changedClusterCounter, startTime), 5)
+			.collectList()
+			.flatMap(processed -> {
+				if (processed.isEmpty()) {
+					log.info("No more clusters to process. Returning count: {}", counter.get());
+					return Mono.just((long) counter.get());
+				} else {
+					Instant last = processed.get(processed.size() - 1).getT3();
+					log.info("Batch processed, continuing with next batch since={}", last);
+					return processClusterBatches(last, counter, changedClusterCounter, startTime);
+				}
+			});
+	}
+
+	private Mono<List<Tuple3<UUID, UUID, Instant>>> getClusterBatch(Instant since) {
+		log.info("Executing getClusterBatch with since={}", since);
+
+		// Use defer to avoid eager evaluation and make type inference happy
+		return Flux.defer(() ->
+			dbops.withConnection(conn ->
+				Flux.from(conn.createStatement(CLUSTER_VALIDATION_QUERY)
+					.bind("$1", since)
+					.execute())
+					.flatMap(result -> result.map((row, meta) -> {
+						UUID clusterId = row.get("id", UUID.class);
+						UUID selectedBib = row.get("selected_bib", UUID.class);
+						Instant updated = row.get("date_updated", Instant.class);
+	
+						if (clusterId != null && selectedBib != null) {
+							return Optional.of(Tuples.of(clusterId, selectedBib, updated));
+						} else {
+							log.warn("Skipping invalid row with clusterId {} or selectedBib {}", clusterId, selectedBib);
+							return Optional.empty();
+						}
+					}))
+					.filter(Optional::isPresent)
+					.map(Optional::get)
+          .map(obj -> (Tuple3<UUID, UUID, Instant>) obj)
+			)
+		).collectList(); // Moved outside the withConnection to satisfy Mono<List<...>>
+	}
+
+	private Mono<Tuple3<UUID, UUID, Instant>> processSingleCluster(
+		Tuple3<UUID, UUID, Instant> tuple, 
+		AtomicInteger counter, 
+    AtomicInteger changedClusterCounter,
+		long startTime) {
+
+		UUID clusterId = tuple.getT1();
+		UUID selectedBib = tuple.getT2();
+		log.info("Executing processSingleCluster with clusterId={}, selectedBib={} ", clusterId, selectedBib);
+
+		return validateCluster(clusterId, selectedBib, changedClusterCounter)
+			.doOnSuccess(ignored -> {
+				int rc = counter.incrementAndGet();
+				if (rc % 1000 == 0) {
+					long elapsed = System.currentTimeMillis() - startTime;
+					log.info("Validated {} clusters in {} ms (avg = {} ms) changed:{}", rc, elapsed, (elapsed / rc), changedClusterCounter.get());
+				}
+			})
+			.thenReturn(tuple);
+	}	
+
+  private Mono<Void> purgeEmptyClusters() {
+    return Mono.from(dbops.withConnection(conn ->
+        Mono.from(conn.createStatement(PURGE_EMPTY_CLUSTERS).execute())
+            .flatMap(result -> Mono.from(result.getRowsUpdated()))
+    )).then();
+  }
+
+  private Mono<Void> touchUpdatedClusters() {
+    return Mono.from(dbops.withConnection(conn ->
+        Mono.from(conn.createStatement(TOUCH_UPDATED_CLUSTERS).execute())
+            .flatMap(result -> Mono.from(result.getRowsUpdated()))
+    )).then();
+  }
+
+  private Mono<Void> validateCluster(UUID clusterId, UUID selectedBib, AtomicInteger changedClusterCounter) {
+
+    log.info("Process cluster {}", clusterId);
 
     return Mono.from(
       dbops.withConnection(conn ->
@@ -338,7 +416,7 @@ public class HouseKeepingService {
           ))
       )
     ).flatMapMany(bibIdToIdentifiersMap -> {
-      // log.info("bibIdentifierMap {}", bibIdToIdentifiersMap);
+      log.info("bibIdentifierMap {}", bibIdToIdentifiersMap);
 
       Set<String> idset = new HashSet<>();
       idset.addAll(bibIdToIdentifiersMap.getOrDefault(selectedBib, Set.of()));
@@ -373,6 +451,7 @@ public class HouseKeepingService {
         });
     })
     .flatMap ( bibToCleanup -> {
+      changedClusterCounter.getAndIncrement();
       return cleanupBib(bibToCleanup);
     })
     .then();
@@ -422,17 +501,49 @@ public class HouseKeepingService {
     .then(); // Return Mono<Void>
   }
 
-  private Mono<Void> reprocessQuery() {
+  private Mono<Void> estimateReprocessRunTime(Instant startts) {
+		return Mono.from(dbops.withTransaction(tx -> 
+      dbops.withConnection(conn ->
+				tx.getConnection()
+        	.createStatement(COUNT_QUERY_SOURCE_RECORD_IDS)
+          .bind(0, startts)
+        	.execute()
+    	)))
+    	.flatMap(result ->  Mono.from(result.map((row, meta) -> row.get("srcount", String.class))))
+      .flatMap(reccount -> {
+        reprocessStatusReport.put("estimatedRecordCount",reccount);
+        return Mono.empty();
+      })
+      .then();
+  }
+
+  private Mono<Void> reprocessQuery(Instant startts) {
     log.info("Running reprocessQuery");
 		AtomicInteger page = new AtomicInteger(0);
-    return Mono.from(
-      dbops.withConnection(conn ->
-        Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS).execute())
-        .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
-				.buffer(10000)
-				.concatMap(batch -> updateSourceRecordBatch(batch, page.incrementAndGet()))
+		AtomicInteger recordCount = new AtomicInteger(0);
+    // Grab the start time
+    // Lets not process anything less than three days old
+
+		return Flux.defer(() -> Mono.just(0)) // dummy trigger
+			.expandDeep(ignore -> 
+        dbops.withConnection(conn ->
+          getNextBatch(conn, startts)
+          .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
+          .collectList()
+          .flatMap(batch -> {
+
+            reprocessStatusReport.put("page",page.toString());
+            reprocessStatusReport.put("fetchedRecordCount",""+recordCount.addAndGet(batch.size()));
+
+            if (batch.isEmpty()) return Mono.empty(); // done
+            page.incrementAndGet();
+            return updateSourceRecordBatch(batch, page.get()).thenReturn(0); // dummy value to trigger next iteration
+          })
+          .doOnError(e -> log.error("Problem processing batch",e) )
+        )
       )
-    );
+      .then()
+      .doFinally(signalType -> log.info("reprocessQuery terminated with signal: {}", signalType));
   }
 
 	public Mono<Void> updateSourceRecordBatch(List<UUID> batch, long pageno) {
@@ -440,14 +551,23 @@ public class HouseKeepingService {
 		return Mono.from(dbops.withTransaction(tx -> 
 			Mono.from(
 				tx.getConnection()
-        	.createStatement("update source_record set processing_state = 'PROCESSING_REQUIRED' where id = ANY($1)")
+        	.createStatement("update source_record set processing_state = 'PROCESSING_REQUIRED', date_updated=now() where id = ANY($1)")
         	.bind("$1", batch.toArray(new UUID[0]))
         	.execute()
     	)
     	.flatMap(result -> Mono.from(result.getRowsUpdated()))
+      .doOnNext( r -> log.info("completed pageno {} - count={}",pageno,r) )
+      .doOnError(e -> log.error("Problem updating batch",e) )
     	.then()
   	));
 	}
+
+  private Flux<? extends Result> getNextBatch(Connection conn, Instant startts) {
+    log.info("Get next Batch");
+    return Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS)
+      .bind(0, startts)
+      .execute());
+  }
 
 
   @Timed("tracking.run")
@@ -556,5 +676,8 @@ public class HouseKeepingService {
       .thenReturn("OK");
   }
 
+  public Map getReprocessStatus() {
+    return reprocessStatusReport;
+  }
 	
 }
