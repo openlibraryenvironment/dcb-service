@@ -410,7 +410,7 @@ public class DataFetchers {
 						UUID sourceSystemUUID=br.getSourceSystemId();
 						log.debug("Find raw source with ID {} from {}",sourceRecordId,sourceSystemUUID);
 						return Flux.from(postgresSourceRecordRepository.findByHostLmsIdAndRemoteIdLike(sourceSystemUUID,sourceRecordId))
-								.singleOrEmpty()
+								.next()
 								.toFuture();
 					};
 				}
