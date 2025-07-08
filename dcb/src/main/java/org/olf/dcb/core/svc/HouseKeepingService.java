@@ -94,6 +94,12 @@ public class HouseKeepingService {
 
   private static final String DELETE_BY_IDS = "DELETE FROM match_point WHERE id = ANY($1)";
 
+  private static final String SINGLE_CLUSTER_VALIDATION_QUERY = """
+    select id, selected_bib, date_updated 
+    from cluster_record 
+    where id  = $1
+    """;
+
   private static final String CLUSTER_VALIDATION_QUERY = """
     select id, selected_bib, date_updated 
     from cluster_record 
@@ -289,13 +295,35 @@ public class HouseKeepingService {
           .map( batch -> updateSourceRecordBatch(batch, page.get()))
           .thenReturn("Completed")
       )
+
     );
   }
 
-  // Utility to allow us to selectively and fully re-process a cluster.
   public Mono<String> validateSingleCluster(UUID clusterId) {
-    return Mono.just("Reprocess "+clusterId);
+    AtomicInteger counter = new AtomicInteger(0);
+    AtomicInteger changedClusterCounter = new AtomicInteger(0);
+
+    return Mono.from(
+      dbops.withConnection(conn ->
+        Mono.from(conn.createStatement(SINGLE_CLUSTER_VALIDATION_QUERY) .bind("$1", clusterId) .execute())
+          .flatMap(result -> Mono.from( result.map((row, meta) -> {
+            UUID selectedBib = row.get("selected_bib", UUID.class);
+            Instant updated = row.get("date_updated", Instant.class);
+  
+            if (clusterId != null && selectedBib != null) {
+              return Tuples.of(clusterId, selectedBib, updated);
+            } else {
+              log.warn("Skipping invalid row with clusterId {} or selectedBib {}", clusterId, selectedBib);
+              return null; // temporarily allow null, will filter below
+            }
+          })))
+         .filter(Objects::nonNull)
+         .flatMap(tuple -> processSingleCluster(tuple, counter, changedClusterCounter, System.currentTimeMillis()))
+         .thenReturn("OK")
+       )
+    );
   }
+
 
   public Mono<String> validateClusters() {
     log.info("validateClusters");
