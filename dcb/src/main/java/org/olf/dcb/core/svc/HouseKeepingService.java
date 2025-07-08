@@ -102,6 +102,11 @@ public class HouseKeepingService {
     limit 5000
     """;
 
+  private static final String CLUSTER_BIBS = """
+    SELECT b.id AS b_id
+    FROM bib_record b
+    WHERE b.contributes_to = $1
+  """;
   private static final String CLUSTER_BIB_IDENTIFIERS = """
     SELECT b.contributes_to AS c_id, b.id AS b_id, mp.value AS id_val
     FROM bib_record b
@@ -271,6 +276,25 @@ public class HouseKeepingService {
     }
 
     return reprocess;
+  }
+
+  public Mono<String> reprocessClusterBibs(UUID clusterId) {
+    log.info("reprocessClusterBibs "+clusterId);
+		AtomicInteger page = new AtomicInteger(0);
+    return Mono.from(
+      dbops.withConnection(conn ->
+        Flux.from(conn.createStatement(CLUSTER_BIBS).bind("$1", clusterId).execute())
+          .flatMap(result -> result.map((row, meta) -> { return row.get("b_id", UUID.class); }))
+          .collectList()
+          .map( batch -> updateSourceRecordBatch(batch, page.get()))
+          .thenReturn("Completed")
+      )
+    );
+  }
+
+  // Utility to allow us to selectively and fully re-process a cluster.
+  public Mono<String> validateSingleCluster(UUID clusterId) {
+    return Mono.just("Reprocess "+clusterId);
   }
 
   public Mono<String> validateClusters() {
@@ -511,7 +535,6 @@ public class HouseKeepingService {
     	)))
     	.flatMap(result ->  Mono.from(result.map((row, meta) -> row.get("srcount", String.class))))
       .flatMap(reccount -> {
-        reprocessStatusReport.put("estimatedRecordCount",reccount);
         return Mono.empty();
       })
       .then();
