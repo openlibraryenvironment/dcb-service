@@ -236,11 +236,14 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		Instant processedTime = Instant.now();
 		IngestJobChunk ijc = (IngestJobChunk)chunk;
 		
+    int MAX_CONCURRENCY=32;
 		return Flux.fromIterable( ijc.getData() )
 			.flatMap(op -> processSingleOperation(op, processedTime)
+
+        .subscribeOn(Schedulers.boundedElastic())
 					
 				// Do this error handling here as the mono is set to retry on exception.
-				.onErrorResume(err -> opFail(op, processedTime, "Failed to process bib: %s", err)), 100)
+				.onErrorResume(err -> opFail(op, processedTime, "Failed to process bib: %s", err)), MAX_CONCURRENCY)
 			
 			.then( Mono.just(chunk) );
 			

@@ -196,6 +196,8 @@ dependencies {
 
 	runtimeOnly("org.yaml:snakeyaml")
 
+  implementation("io.projectreactor.tools:blockhound:1.0.13.RELEASE")
+
 	//aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
 	//aotPlugins ("io.micronaut.security:micronaut-security-aot")
 

@@ -9,13 +9,14 @@ import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.Result;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
-import reactor.core.publisher.Flux;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuples;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
@@ -132,6 +133,7 @@ public class HouseKeepingService {
     update bib_record set contributes_to = null where id = $1
   """;
 	
+  // ToDo: This is killing performance - we need to get source_uuid on bib_record populated asap
   // This has to be this way for now, until the new source uuid on bib_record is fully populated
   private static final String SET_REINDEX = """
     update source_record set processing_state = 'PROCESSING_REQUIRED' where id in (
@@ -140,6 +142,11 @@ public class HouseKeepingService {
     JOIN source_record s
       ON s.remote_id LIKE '%' || b.source_record_id
     WHERE b.id = $1 )
+  """;
+
+  private static final String SET_REINDEX_WITH_SOURCE_RECORD_UUID = """
+    update source_record set processing_state = 'PROCESSING_REQUIRED' 
+    where id in ( select b.source_record_uuid from bib_record b where b.id = $1 )
   """;
 
   private static final String TOUCH_BIB_OWNING_CLUSTER = """
@@ -370,7 +377,7 @@ public class HouseKeepingService {
 
 		return getClusterBatch(since)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(tuple -> processSingleCluster(tuple, counter, changedClusterCounter, startTime), 5)
+			.flatMap(tuple -> Mono.defer(() -> processSingleCluster(tuple, counter, changedClusterCounter, startTime)).publishOn(Schedulers.boundedElastic()), 10)
 			.collectList()
 			.flatMap(processed -> {
 				if (processed.isEmpty()) {
@@ -385,7 +392,7 @@ public class HouseKeepingService {
 	}
 
 	private Mono<List<Tuple3<UUID, UUID, Instant>>> getClusterBatch(Instant since) {
-		log.info("Executing getClusterBatch with since={}", since);
+		log.info("Executing getClusterBatch with since={} for Validate clusters", since);
 
 		// Use defer to avoid eager evaluation and make type inference happy
 		return Flux.defer(() ->
@@ -588,8 +595,12 @@ public class HouseKeepingService {
 
             if (batch.isEmpty()) return Mono.empty(); // done
             page.incrementAndGet();
-            return updateSourceRecordBatch(batch, page.get()).thenReturn(0); // dummy value to trigger next iteration
-          })
+
+            // We don't want this long running update to block other work - so publish it on bounded elastic scheduler
+            return Mono.defer(() -> updateSourceRecordBatch(batch, page.get()))
+              .subscribeOn(Schedulers.boundedElastic())
+              .thenReturn(0); // dummy value to trigger next iteration
+          })  // Set concurrency of update to 3
           .doOnError(e -> log.error("Problem processing batch",e) )
         )
       )
