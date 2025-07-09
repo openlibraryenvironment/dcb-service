@@ -1,5 +1,27 @@
 # Changelog
 
+## Version 8.39.0
+
+### Additions
+* [General]
+	* Add bibs without source record UUID alarm
+	* alternative way to fetch updated bibs in polaris
+
+### Changes
+* [Chore]
+	* Adjust handling of row in alarm task for bibs without source record ids
+	* Add admin endpoint to validate a specific cluster
+	* Add function to reproces a single clusters bib records
+	* Performance improvements to cluster validation and new Boolean TooLong  field on PatronRequest which is included in tracking query
+	* Change logging to log.error - Folio
+* [Wip]
+	* performance improvements for reclustering
+
+### Fixes
+* [General]
+	* use next in graphql source record fetcher in case left truncated wildcard results in more than one record
+	* Ensure available items are prioritised for holds [DCB-1957]
+
 ## Version 8.38.0
 
 ### Additions
@@ -7,6 +29,10 @@
 	* Change the way we pull data for the availability job
 	* New RET-EXP workflow for expedited checkout [DCB-1555]
 	* Support same libary borrowing for FOLIO DCB-1917
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
