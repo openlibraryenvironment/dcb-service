@@ -56,13 +56,26 @@ public class PolarisConfig {
 	private ServicesConfig services;
 	@JsonProperty("item")
 	private ItemConfig item;
-	
+
 	/**
 	 * if present, this list is used to provide inferences from shelving location to requestability.
 	 * Some shelves are "Reference only" some can be "Local Patron Only" etc.
 	 */
 	@JsonProperty("shelfLocationPolicyMap")
 	private Map<String,String> shelfLocationPolicyMap;
+
+	/**
+	 * Optional - to provide flexibility to enable/disable a new way of fetching bib chunks
+	 * importantly empty will signal false upstream
+	 * only by specifying true will we use this 'new way'
+	 */
+	@JsonProperty("use-new-bib-chunk-ingest")
+	private boolean useNewBibChunkIngest;
+
+	public boolean isUseNewBibChunkIngest() {
+
+		return valueWithDefault(useNewBibChunkIngest, boolean.class, false);
+	}
 
 	public String getBaseUrl() {
 

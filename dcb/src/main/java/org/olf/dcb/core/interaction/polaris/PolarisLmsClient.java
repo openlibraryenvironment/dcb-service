@@ -2,6 +2,9 @@ package org.olf.dcb.core.interaction.polaris;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Creator;
@@ -29,12 +32,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
-import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
@@ -66,12 +67,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.FALSE;
@@ -1665,7 +1668,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				log.info("Polaris get bibs page from {} with params {}",lms.getName(),apiParams);
 
 				return Mono.just( apiParams )
-					.flatMap( params -> Mono.from( PAPIService.synch_BibsPagedGetRaw(params) ))
+
+					// functioned out for different implementations
+					.flatMap(this::fetchBibs)
 
           .doOnNext ( bibsPaged -> log.info("bibsPaged {}",bibsPaged) )
 					
@@ -1778,6 +1783,55 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		} catch (Exception e) {
 			return Mono.error( e );
 		}
+	}
+
+	private Mono<JsonNode> fetchBibs(BibsPagedGetParams params) {
+		if (polarisConfig.isUseNewBibChunkIngest()) {
+			return synch_GetUpdatedBibsThenFetchBibs(params); // new logic
+		} else {
+			return Mono.from(PAPIService.synch_BibsPagedGetRaw(params)); // existing logic
+		}
+	}
+
+	public Mono<JsonNode> synch_GetUpdatedBibsThenFetchBibs(BibsPagedGetParams params) {
+		String dateStr = Optional.ofNullable(params.getStartdatemodified())
+			.map(inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString())
+			.orElse(null);
+
+		log.info("get page : {} {} {}", lms.getCode(), params, dateStr);
+
+		/*
+    RESTRICTION:
+    No more than 50 bibliographic records may be requested at a time. Bibliographic record IDs must be numeric.
+    If a bibliographic record requested does not exist, a row will not be returned.
+    https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378
+    */
+		int nrecs = params.getNrecs();
+
+		if (nrecs > 50) {
+			log.warn("synch_GetUpdatedBibsThenFetchBibs : nrecs > 50, setting to 50");
+			nrecs = 50;
+		}
+
+		return Mono.from(PAPIService.synch_GetUpdatedBibsPaged(dateStr, nrecs))
+			.flatMapMany(response -> Flux.fromIterable(response.getBibIDListRows()))
+			.map(PAPIClient.BibIDListRow::getBibliographicRecordID)
+			.filter(Objects::nonNull)
+			.take(50) // Only take the first 50 valid IDs
+			.collectList()
+			.flatMap(batch -> {
+				if (batch.isEmpty()) {
+					return Mono.just(JsonNode.nullNode()); // Nothing to fetch
+				}
+
+				String idParam = batch.stream()
+					.map(String::valueOf)
+					.collect(Collectors.joining(","));
+
+				// we may need to add logic for collecting the last id here
+				// subtle difference between synch_BibsByIDGetRaw and synch_BibsPagedGetRaw
+				return Mono.from(PAPIService.synch_BibsByIDGetRaw(idParam));
+			});
 	}
 
 	private Instant convertMSJsonDate(String msDate) {
