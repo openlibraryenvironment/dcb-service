@@ -19,7 +19,7 @@ import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
 
-import jakarta.persistence.Column;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -41,15 +41,25 @@ import static io.micronaut.data.model.DataType.JSON;
 @AllArgsConstructor
 public class Syslog {
 
+	@Nullable
   @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   @TypeDef(type = DataType.LONG)
 	Long id;
 
+	@Nullable
 	@DateCreated
 	Instant ts;
 
+	@Nullable
 	String category;
+
+	@Nullable
 	String message;
+
+  @Singular("detail")
+  @TypeDef(type = DataType.JSON)
+	@Nullable
 	Map<String,Object> details;
 }
 

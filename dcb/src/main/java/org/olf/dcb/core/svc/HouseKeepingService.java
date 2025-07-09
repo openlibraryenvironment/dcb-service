@@ -30,6 +30,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 
 import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.core.model.Alarm;
+import org.olf.dcb.core.model.Syslog;
 import services.k_int.utils.UUIDUtils;
 import java.util.stream.Collectors;
 
@@ -39,17 +40,20 @@ public class HouseKeepingService {
 	
 	private final R2dbcOperations dbops;
   private final AlarmsService alarmsService;
+  private final SyslogService syslogService;
 
 	public HouseKeepingService(
 		R2dbcOperations dbops,
 		HostLmsService hostLmsService,
 		HostLmsRepository hostLmsRepository,
-		AlarmsService alarmsService) {
+		AlarmsService alarmsService,
+		SyslogService syslogService) {
 
 		this.dbops = dbops;
 		this.hostLmsService = hostLmsService;
 		this.hostLmsRepository = hostLmsRepository;
     this.alarmsService = alarmsService;
+    this.syslogService = syslogService;
 	}
 	
 	private static final String QUERY_POSTGRES_DEDUPE_MATCHPOINTS = "DELETE FROM match_point m WHERE EXISTS (\n"
@@ -266,6 +270,11 @@ public class HouseKeepingService {
   }
 
   public Mono<String> reprocessAll() {
+    // Instant startts = Instant.now().minus(5, ChronoUnit.DAYS);
+		return reprocessAll(Instant.now());
+	}
+
+  public Mono<String> reprocessAll(Instant startts) {
     log.info("reprocessAll");
     if (reprocess == null) {
       synchronized (this) {
@@ -278,9 +287,15 @@ public class HouseKeepingService {
             log.info("Starting source record reprocess");
             report.success("Reprocessing started at [%s]".formatted(Instant.now()));
 
-            Instant startts = Instant.now().minus(5, ChronoUnit.DAYS);
 
             estimateReprocessRunTime(startts)
+							.then(syslogService.log(
+								Syslog.builder()
+									.category("reindex")
+									.message("Started")
+									.detail("instance", syslogService.getSystemInstanceId())
+									.build()
+							))
               .then(reprocessQuery(startts))
               .doOnTerminate(() -> {
                 reprocess = null;
@@ -612,8 +627,32 @@ public class HouseKeepingService {
           .doOnError(e -> log.error("Problem processing batch",e) )
         )
       )
-      .then()
-      .doFinally(signalType -> log.info("reprocessQuery terminated with signal: {}", signalType));
+			.then(
+				syslogService.log(
+					Syslog.builder()
+						.category("reindex")
+						.message("Completed")
+						.detail("instance", syslogService.getSystemInstanceId())
+						.detail("pageCount", page.get())
+						.detail("recordCount", recordCount.get())
+						.build()
+				)
+			)
+			.onErrorResume( e -> {
+				return syslogService.log(
+	        Syslog.builder()
+		        .category("reindex")
+			      .message("ERROR "+e.getMessage())
+				    .detail("instance", syslogService.getSystemInstanceId())
+					  .detail("pageCount", page.get())
+						.detail("recordCount", recordCount.get())
+						.detail("error", e.toString())
+	          .build()
+				)
+				.then(Mono.error(e instanceof RuntimeException ? e : new RuntimeException(e)));
+			})
+      .doFinally(signalType -> log.info("reprocessQuery terminated with signal: {}", signalType))
+			.then();
   }
 
 	public Mono<Void> updateSourceRecordBatch(List<UUID> batch, long pageno) {
