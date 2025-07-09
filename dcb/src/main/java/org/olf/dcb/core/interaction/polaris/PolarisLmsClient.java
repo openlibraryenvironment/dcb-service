@@ -1796,7 +1796,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<JsonNode> synch_GetUpdatedBibsThenFetchBibs(BibsPagedGetParams params) {
 		String dateStr = Optional.ofNullable(params.getStartdatemodified())
 			.map(inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString())
-			.orElse(null);
+			//    "ErrorMessage" : "SqlDateTime overflow. Must be between 1/1/1753 12:00:00 AM and 12/31/9999 11:59:59 PM.",
+			.orElse(Instant.parse("1753-01-01T00:00:00Z").toString());
 
 		log.info("get page : {} {} {}", lms.getCode(), params, dateStr);
 

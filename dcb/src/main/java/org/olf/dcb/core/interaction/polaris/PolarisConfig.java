@@ -70,11 +70,9 @@ public class PolarisConfig {
 	 * only by specifying true will we use this 'new way'
 	 */
 	@JsonProperty("use-new-bib-chunk-ingest")
-	private boolean useNewBibChunkIngest;
-
-	public boolean isUseNewBibChunkIngest() {
-
-		return valueWithDefault(useNewBibChunkIngest, boolean.class, false);
+	private Boolean useNewBibChunkIngest;
+	public Boolean isUseNewBibChunkIngest() {
+		return valueWithDefault(useNewBibChunkIngest, Boolean.class, false);
 	}
 
 	public String getBaseUrl() {
