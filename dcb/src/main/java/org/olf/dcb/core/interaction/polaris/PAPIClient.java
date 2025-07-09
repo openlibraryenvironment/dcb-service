@@ -288,7 +288,7 @@ public class PAPIClient {
 		
 		return synch_BibsPagedGetRaw( dateStr, params.getLastId(), params.getNrecs() );
 	}
-	
+
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, Integer lastId, Integer nrecs) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
@@ -296,6 +296,27 @@ public class PAPIClient {
 				.queryParam("startdatemodified", startdatemodified)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
+			.flatMap(authFilter::ensureStaffAuth)
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(JsonNode.class))));
+	}
+
+	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsPagedGet.htm
+	@SingleResult
+	public Publisher<GetBibsPagedResult> synch_GetUpdatedBibsPaged(String startdatemodified, Integer nrecs) {
+		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "updated", "paged");
+		return createRequest(GET, path, uri -> uri
+			.queryParam("updatedate", startdatemodified)
+			.queryParam("nrecs", nrecs))
+			.flatMap(authFilter::ensureStaffAuth)
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))));
+	}
+
+	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378
+	@SingleResult
+	public Publisher<JsonNode> synch_BibsByIDGetRaw(String bibids) {
+		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML");
+		return createRequest(GET, path, uri -> uri
+			.queryParam("bibids", bibids))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(JsonNode.class))));
 	}
@@ -425,6 +446,28 @@ public class PAPIClient {
 
 	private static PatronCredentials emptyCredentials() {
 		return PatronCredentials.builder().build();
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class GetBibsPagedResult {
+		@JsonProperty("BibIDListRows")
+		private List<BibIDListRow> BibIDListRows;
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class BibIDListRow {
+		@JsonProperty("BibliographicRecordID")
+		private Integer BibliographicRecordID;
 	}
 
 	@Builder
