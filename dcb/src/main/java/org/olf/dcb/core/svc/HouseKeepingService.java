@@ -689,32 +689,38 @@ public class HouseKeepingService {
 	}
 
 	private Mono<String> bibsWithoutSourceRecordUUID() {
-  	return Mono.from( dbops.withConnection(conn ->
-    	Mono.from(conn.createStatement(ALARM_BIB_SOURCE_IDS).execute())
-	      .flatMap(result -> Mono.from(result.map((row, meta) -> row)))
-  	    .flatMap(row -> {
-    	    Long nulls = row.get("null_rows", Long.class);
-      	  Long total = row.get("total_rows", Long.class);
-        	Long populated = row.get("populated_rows", Long.class);
-	        String code = "SYSTEM.BIBS_WITHOUT_SOURCE_ID";
+	  return Mono.from(dbops.withConnection(conn ->
+  	  Mono.from(conn.createStatement(ALARM_BIB_SOURCE_IDS).execute())
+    	  .flatMap(result -> Mono.from(result.map((row, meta) -> {
+      	  Long nulls = row.get("null_rows", Long.class);
+        	Long total = row.get("total_rows", Long.class);
+	        Long populated = row.get("populated_rows", Long.class);
+  	      return Tuples.of(nulls, total, populated);
+    	  })))
+	      .flatMap(tuple -> {
+  	      Long nulls = tuple.getT1();
+    	    Long total = tuple.getT2();
+      	  Long populated = tuple.getT3();
+        	String code = "SYSTEM.BIBS_WITHOUT_SOURCE_ID";
 
-  	      if (nulls != null && nulls > 0) {
-    	      return alarmsService.raise(
-      	        Alarm.builder()
-        	        .id(UUIDUtils.generateAlarmId(code))
-          	      .code(code)
-            	    .alarmDetail("Count", Map.of(
-              	    "total", total,
-                	  "with source record uuid", populated,
-                  	"without source record uuid", nulls))
+	        if (nulls != null && nulls > 0) {
+  	        return alarmsService.raise(
+    	          Alarm.builder()
+      	          .id(UUIDUtils.generateAlarmId(code))
+        	        .code(code)
+          	      .alarmDetail("Count", Map.of(
+            	      "total", total,
+              	    "with source record uuid", populated,
+                	  "without source record uuid", nulls))
 	                .build())
   	          .thenReturn("Bib records without source record UUID: " + nulls);
     	    } else {
       	    return alarmsService.cancel(code).thenReturn("OK");
         	}
 	      })
-  	));
-	}
+  ));
+}
+
 
 	private Mono<String> pingTests() {
     return Flux.from(hostLmsRepository.queryAll())
