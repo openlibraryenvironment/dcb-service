@@ -165,6 +165,14 @@ public class HouseKeepingService {
       select br.contributes_to from bib_record br, cluster_record cr where br.date_updated > cr.date_updated and br.contributes_to = cr.id )
   """;
 
+  // Used for an alarm which is set if there are bib records where source_record_uuid is null
+  private static final String ALARM_BIB_SOURCE_IDS = """
+    SELECT total_rows, populated_rows, total_rows - populated_rows AS null_rows
+    FROM (
+      SELECT COUNT(*) AS total_rows, COUNT(source_record_uuid) AS populated_rows
+      FROM bib_record
+    ) AS counts
+  """;
 
   // select source_record_id srid from bib_record br where br.id = $1
 	
@@ -651,7 +659,8 @@ public class HouseKeepingService {
 
 		List<AuditTask> checks = List.of( 
 			() -> pingTests(),
-			() -> systemsLibrarianContactableTests()
+			() -> systemsLibrarianContactableTests(),
+      () -> bibsWithoutSourceRecordUUID()
 		);
 
 		log.info("Audit....");
@@ -677,6 +686,34 @@ public class HouseKeepingService {
 				// Code - Agency.{code}.NoMapping.Patron.{type} ( Lasts until cleared )
 			// Any Agencies that are missinig core item type mappings for ...
 				// Code - Agency.{code}.NoMapping.Item.{type}
+	}
+
+	private Mono<String> bibsWithoutSourceRecordUUID() {
+  	return Mono.from( dbops.withConnection(conn ->
+    	Mono.from(conn.createStatement(ALARM_BIB_SOURCE_IDS).execute())
+	      .flatMap(result -> Mono.from(result.map((row, meta) -> row)))
+  	    .flatMap(row -> {
+    	    Long nulls = row.get("null_rows", Long.class);
+      	  Long total = row.get("total_rows", Long.class);
+        	Long populated = row.get("populated_rows", Long.class);
+	        String code = "SYSTEM.BIBS_WITHOUT_SOURCE_ID";
+
+  	      if (nulls != null && nulls > 0) {
+    	      return alarmsService.raise(
+      	        Alarm.builder()
+        	        .id(UUIDUtils.generateAlarmId(code))
+          	      .code(code)
+            	    .alarmDetail("Count", Map.of(
+              	    "total", total,
+                	  "with source record uuid", populated,
+                  	"without source record uuid", nulls))
+	                .build())
+  	          .thenReturn("Bib records without source record UUID: " + nulls);
+    	    } else {
+      	    return alarmsService.cancel(code).thenReturn("OK");
+        	}
+	      })
+  	));
 	}
 
 	private Mono<String> pingTests() {

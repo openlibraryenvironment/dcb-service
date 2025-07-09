@@ -61,10 +61,11 @@ public class AlarmsService {
 		return Mono.from(alarmRepository.findById(alarm.getId()))
 			.cast(Alarm.class)
 			.flatMap(existingAlarm -> {
-				// Update last seen on existing alarm
+				// Update last seen on existing alarm and set most recent alarmDetails
 				existingAlarm.setLastSeen(Instant.now());
 				existingAlarm.setExpires(alarm.getExpires());
 				existingAlarm.incrementRepeatCount();
+				existingAlarm.setAlarmDetails(alarm.getAlarmDetails());
 				return Mono.from(alarmRepository.update(existingAlarm)).cast(Alarm.class);
 			})
 			.switchIfEmpty( 
