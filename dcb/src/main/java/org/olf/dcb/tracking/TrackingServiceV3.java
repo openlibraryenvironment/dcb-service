@@ -1,13 +1,30 @@
 package org.olf.dcb.tracking;
 
-import io.micrometer.core.annotation.Timed;
-import io.micronaut.context.annotation.Value;
-import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.scheduling.annotation.Scheduled;
-import io.micronaut.management.endpoint.info.InfoSource;
-import jakarta.inject.Singleton;
-import jakarta.transaction.Transactional;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.tracking.StateChangeFactory.SUPPLIER_REQUEST_ERROR;
+import static org.olf.dcb.tracking.StateChangeFactory.patronRequestStatusChanged;
+import static org.olf.dcb.tracking.StateChangeFactory.pickupItemStatusChanged;
+import static org.olf.dcb.tracking.StateChangeFactory.pickupRequestStatusChanged;
+import static org.olf.dcb.tracking.StateChangeFactory.supplierItemRenewalCountChanged;
+import static org.olf.dcb.tracking.StateChangeFactory.supplierItemStatusChanged;
+import static org.olf.dcb.tracking.StateChangeFactory.supplierRequestErrored;
+import static org.olf.dcb.tracking.StateChangeFactory.supplierRequestStatusChanged;
+import static org.olf.dcb.tracking.StateChangeFactory.virtualItemRenewalCountChanged;
+import static org.olf.dcb.tracking.StateChangeFactory.virtualItemStatusChanged;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.function.Function;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRequest;
@@ -22,21 +39,18 @@ import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
+
+import io.micrometer.core.annotation.Timed;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.runtime.context.scope.Refreshable;
+import io.micronaut.scheduling.annotation.Scheduled;
+import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
-
-import java.time.Instant;
-import java.time.Duration;
-import java.util.*;
-import java.util.function.Function;
-
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.tracking.StateChangeFactory.*;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Refreshable
@@ -358,6 +372,8 @@ public class TrackingServiceV3 implements TrackingService {
 
 			return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
 				.flatMap(client -> Mono.from(client.getItem(hostLmsItem)))
+				.doOnSuccess(
+					item1 -> log.debug("TRACKING retrieved virtual item {}", item1))
 				.flatMap( item -> {
 					if ( ((item.getStatus() == null) && (pr.getLocalItemStatus() != null)) ||
 						((item.getStatus() != null) && (pr.getLocalItemStatus() == null)) ||
@@ -630,5 +646,4 @@ public class TrackingServiceV3 implements TrackingService {
   public Long getLastTrackingRunCount() {
     return this.lastTrackingRunCount;
   }
-
 }
