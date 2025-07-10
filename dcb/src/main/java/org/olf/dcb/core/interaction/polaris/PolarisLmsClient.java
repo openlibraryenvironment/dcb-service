@@ -1682,14 +1682,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
             if ( bibsPaged.get("ErrorMessage") != null )
               log.info("ErrorMessage: {}",bibsPaged.get("ErrorMessage").getValue());
 
-						 int lastId = bibsPaged.get("LastID").getIntValue();
+						 int lastId = bibsPaged.get("LastID") != null ? bibsPaged.get("LastID").getIntValue() : 0;
 
 						 return Mono.just( bibsPaged )
 							.mapNotNull( itemPage -> {
 								var entries = itemPage.get("GetBibsPagedRows");
 								if (entries == null) {
-									log.debug("[.GetBibsPagedRows] property received from polaris is null");
+									log.warn("[.GetBibsPagedRows] property received from polaris is null");
+
+									// Try the other property
+									entries = itemPage.get("GetBibsByIDRows");
+
+									if (entries == null) {
+										log.warn("[.GetBibsByIDRows] property received from polaris is null");
+									}
 								}
+
 								return entries;
 							})
 							.filter( entries -> {
@@ -1697,7 +1705,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									return true;
 								}
 								
-								log.debug("[.GetBibsPagedRows] property received from polaris is not an array");
+								log.warn("[.GetBibsPagedRows] property received from polaris is not an array");
 								return false;
 							})
 							.cast( JsonArray.class )
@@ -1715,7 +1723,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									// and the next page of data is 1,2,3,4,5,6.... 2,3,4,2,6 then the ingest will pick up at record 6 and skip
 									// the edits for 2,3,4,4.. which will cause problems. 
 
-									final boolean isLastChunk = jsonArr.size() != apiParams.getNrecs();
+									boolean isLastChunk = jsonArr.size() != apiParams.getNrecs();
+
+									// if the last chunk had already seen the highest date modified, we've transitioned to fetching updated records
+									if ( extParams.getStartdatemodified() != null && polarisConfig.isUseNewBibChunkIngest()) {
+										isLastChunk = true;
+									}
 
 									log.info("Got page of size {} from polaris, requested {}, therefore isLastChunk={}",jsonArr.size(), apiParams.getNrecs(), isLastChunk);
 									
@@ -1764,7 +1777,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
                   extParams.setPagesInCurrentCheckpoint(extParams.getPagesInCurrentCheckpoint() == null ? 1 : extParams.getPagesInCurrentCheckpoint().intValue() + 1 );
                   extParams.setCheckpointDate(Instant.now());
                   extParams.setRecordsInLastPage(jsonArr.size());
-				  extParams.setLastId(Integer.valueOf(lastId));
+									extParams.setLastId(Integer.valueOf(lastId));
 								}
 
 								// We return the current data with the Checkpoint that will return the next chunk.
@@ -1786,15 +1799,34 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<JsonNode> fetchBibs(BibsPagedGetParams params) {
+
 		if (polarisConfig.isUseNewBibChunkIngest()) {
 			return synch_GetUpdatedBibsThenFetchBibs(params); // new logic
-		} else {
-			return Mono.from(PAPIService.synch_BibsPagedGetRaw(params)); // existing logic
 		}
+
+		return Mono.from(PAPIService.synch_BibsPagedGetRaw(params)); // existing logic
 	}
 
+
 	public Mono<JsonNode> synch_GetUpdatedBibsThenFetchBibs(BibsPagedGetParams params) {
-		String dateStr = Optional.ofNullable(params.getStartdatemodified())
+
+		// assume this is a full harvest on face value
+		var isFullHarvest = true;
+
+		// if the last chunk appeared we see this value..
+		final var startDateModifiedPresent = params.getStartdatemodified() != null;
+
+		// now make our assumption
+		isFullHarvest = !startDateModifiedPresent;
+
+		if (isFullHarvest) {
+			// carry on as normal
+			return Mono.from(PAPIService.synch_BibsPagedGetRaw(params));
+		}
+
+		// We've transitioned to fetching updated bibs
+
+		String dateStr = Optional.of(params.getStartdatemodified())
 			.map(inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString())
 			//    "ErrorMessage" : "SqlDateTime overflow. Must be between 1/1/1753 12:00:00 AM and 12/31/9999 11:59:59 PM.",
 			.orElse(Instant.parse("1753-01-01T00:00:00Z").toString());
@@ -1802,11 +1834,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.info("get page : {} {} {}", lms.getCode(), params, dateStr);
 
 		/*
-    RESTRICTION:
-    No more than 50 bibliographic records may be requested at a time. Bibliographic record IDs must be numeric.
-    If a bibliographic record requested does not exist, a row will not be returned.
-    https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378
-    */
+			RESTRICTION:
+			No more than 50 bibliographic records may be requested at a time. Bibliographic record IDs must be numeric.
+			If a bibliographic record requested does not exist, a row will not be returned.
+			https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378
+		*/
 		int nrecs = params.getNrecs();
 
 		if (nrecs > 50) {
@@ -1814,6 +1846,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			nrecs = 50;
 		}
 
+		// importantly we are passing the date here so that even if there are more than 50 bibs to fetch
+		// we will pick up from the last modified date next time
 		return Mono.from(PAPIService.synch_GetUpdatedBibsPaged(dateStr, nrecs))
 			.flatMapMany(response -> Flux.fromIterable(response.getBibIDListRows()))
 			.map(PAPIClient.BibIDListRow::getBibliographicRecordID)
@@ -1829,8 +1863,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.map(String::valueOf)
 					.collect(Collectors.joining(","));
 
-				// we may need to add logic for collecting the last id here
-				// subtle difference between synch_BibsByIDGetRaw and synch_BibsPagedGetRaw
 				return Mono.from(PAPIService.synch_BibsByIDGetRaw(idParam));
 			});
 	}
