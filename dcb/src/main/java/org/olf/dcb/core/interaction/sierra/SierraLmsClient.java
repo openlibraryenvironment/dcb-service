@@ -1767,9 +1767,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		if (fixedFields != null) {
 			final var fixedField71 = fixedFields.get(FIXED_FIELD_71);
-
-			if (fixedField71 != null && fixedField71.getValue() instanceof Integer value) {
-				localRenewalCount = value;
+			if (fixedField71 != null) {
+				Object fieldValue = fixedField71.getValue();
+				if ( fieldValue instanceof Integer value) {
+					log.info("Found renewal counter : {} assigned to {}",fixedField71.getValue(),value);
+					localRenewalCount = value;
+				}
+				else {
+					log.warn("fixedField71 did not contain an Integer: {}",fieldValue.getClass().getName());
+				}
+			}
+			else {
+				log.warn("GET fixedField71 returned null");
 			}
 		}
 
