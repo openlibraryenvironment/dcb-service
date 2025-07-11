@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 8.40.0
+
+### Additions
+* [General]
+	* Add Syslog service and application event listenet
+	* Add syslog domain class and repository
+
+### Fixes
+* [General]
+	* DCB-1786 renewal count not propagating
+	* allow polaris to transition to fetching updated bibs after full harvest in new fetch bibs approach
+
 ## Version 8.39.0
 
 ### Additions
@@ -9,6 +21,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Adjust handling of row in alarm task for bibs without source record ids
 	* Add admin endpoint to validate a specific cluster
 	* Add function to reproces a single clusters bib records
