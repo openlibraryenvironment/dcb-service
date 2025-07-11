@@ -1773,6 +1773,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					log.info("Found renewal counter : {} assigned to {}",fixedField71.getValue(),value);
 					localRenewalCount = value;
 				}
+				else if ( fieldValue instanceof Long value) {
+					log.info("Found renewal counter : {} assigned to {}",fixedField71.getValue(),value);
+					localRenewalCount = value.intValue();
+				}
+				else if ( fieldValue instanceof String value) {
+					log.info("Found renewal counter : {} assigned to {}",fixedField71.getValue(),value);
+					localRenewalCount = Integer.parseInt(value);
+				}
 				else {
 					log.warn("fixedField71 did not contain an Integer: {}",fieldValue.getClass().getName());
 				}
