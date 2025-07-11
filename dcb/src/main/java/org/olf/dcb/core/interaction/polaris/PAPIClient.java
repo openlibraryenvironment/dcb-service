@@ -272,7 +272,6 @@ public class PAPIClient {
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsPagedGetRaw( BibsPagedGetParams params ) {
 
-		
 		String dateStr = Optional.ofNullable(params.getStartdatemodified())
 					.map( inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString() )
 					// .map( inst -> {
@@ -285,7 +284,8 @@ public class PAPIClient {
 					.orElse(null);
 
     log.info("get page : {} {} {}",lms.getCode(),params, dateStr);
-		
+
+		// we are relying on last id here
 		return synch_BibsPagedGetRaw( dateStr, params.getLastId(), params.getNrecs() );
 	}
 
@@ -308,7 +308,8 @@ public class PAPIClient {
 			.queryParam("updatedate", startdatemodified)
 			.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))));
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))))
+			.doOnNext(result -> log.info("Result of synch_GetUpdatedBibsPaged {}",result));
 	}
 
 	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378

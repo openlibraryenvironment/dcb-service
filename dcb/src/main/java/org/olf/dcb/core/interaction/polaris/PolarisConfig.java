@@ -66,7 +66,7 @@ public class PolarisConfig {
 
 	/**
 	 * Optional - to provide flexibility to enable/disable a new way of fetching bib chunks
-	 * importantly empty will signal false upstream
+	 * importantly anything other than 'true' will signal false upstream
 	 * only by specifying true will we use this 'new way'
 	 */
 	@JsonProperty("use-new-bib-chunk-ingest")
