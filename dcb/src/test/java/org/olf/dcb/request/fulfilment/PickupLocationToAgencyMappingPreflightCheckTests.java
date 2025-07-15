@@ -15,9 +15,11 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.context.annotation.Property;
 import jakarta.inject.Inject;
 
 @DcbTest
+@Property(name = "dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled", value = "true")
 class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Inject
 	private PickupLocationToAgencyMappingPreflightCheck check;
