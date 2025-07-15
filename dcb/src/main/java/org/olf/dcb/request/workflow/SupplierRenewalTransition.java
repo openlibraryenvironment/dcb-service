@@ -4,6 +4,7 @@ import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENE
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.StringUtils.parseList;
 
 import java.util.HashMap;
 import java.util.List;
@@ -159,12 +160,15 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	}
 
 	private HostLmsRenewal createHostLmsRenewal(SupplierRequest supplierRequest, PatronIdentity virtualPatron) {
+
+		final var parsedPatronBarcode = getValueOrNull(virtualPatron, PatronIdentity::getFirstBarcode);
+
 		return HostLmsRenewal.builder()
 			.localRequestId(getValueOrNull(supplierRequest, SupplierRequest::getLocalId))
 			.localItemId(supplierRequest.getLocalItemId())
 			.localItemBarcode(supplierRequest.getLocalItemBarcode())
 			.localPatronId(virtualPatron.getLocalId())
-			.localPatronBarcode(virtualPatron.getLocalBarcode())
+			.localPatronBarcode(parsedPatronBarcode)
 			.build();
 	}
 
