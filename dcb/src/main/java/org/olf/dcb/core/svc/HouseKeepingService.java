@@ -496,7 +496,7 @@ public class HouseKeepingService {
 				if (rc % 1000 == 0) {
 					log.info("Validated {} clusters in {} ms (avg = {} ms) changed:{}", rc, elapsed, (elapsed / rc), changedClusterCounter.get());
 				}
-				if (rc % 10000 == 0) {
+				if (rc % 100000 == 0) {
 	        syslogService.log(
 				    Syslog.builder()
        				 .category("validateClusters")
