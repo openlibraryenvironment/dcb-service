@@ -21,7 +21,7 @@ import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Singleton
-@Requires(property = "dcb.requests.preflight-checks.duplicate-requests.enabled", defaultValue = "true", notEquals = "false")
+@Requires(property = "dcb.requests.preflight-checks.duplicate-requests.enabled", defaultValue = "false", notEquals = "false")
 public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	public static final String DUPLICATE_REQUEST_ATTEMPT = "DUPLICATE_REQUEST_ATTEMPT";
 	private final PatronRequestRepository patronRequestRepository;

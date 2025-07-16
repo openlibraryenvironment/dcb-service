@@ -269,12 +269,12 @@ public class HouseKeepingService {
     );
   }
 
-  public Mono<String> reprocessAll() {
+  public Mono<String> reprocess(String criteria) {
     // Instant startts = Instant.now().minus(5, ChronoUnit.DAYS);
-		return reprocessAll(Instant.now());
+		return reprocess(Instant.now(), criteria != null ? criteria : "ALL" );
 	}
 
-  public Mono<String> reprocessAll(Instant startts) {
+  public Mono<String> reprocess(Instant startts, String criteria) {
     log.info("reprocessAll");
     if (reprocess == null) {
       synchronized (this) {
@@ -288,7 +288,7 @@ public class HouseKeepingService {
             report.success("Reprocessing started at [%s]".formatted(Instant.now()));
 
 
-            estimateReprocessRunTime(startts)
+            estimateReprocessRunTime(startts, criteria)
 							.then(syslogService.log(
 								Syslog.builder()
 									.category("reindex")
@@ -296,7 +296,7 @@ public class HouseKeepingService {
 									.detail("instance", syslogService.getSystemInstanceId())
 									.build()
 							))
-              .then(reprocessQuery(startts))
+              .then(reprocessQuery(startts, criteria))
               .doOnTerminate(() -> {
                 reprocess = null;
                 reprocessStatusReport.clear();
@@ -380,11 +380,8 @@ public class HouseKeepingService {
 								.build()
 						)
               .then(innerValidateClusters())
-              .doOnTerminate(() -> {
-                validateClusters = null;
-                log.info("Finished validate clusters");
-              })
-   						.doOnNext(count->
+   						.doOnNext(count-> {
+                log.info("### Validated {} clusters ###",count);
 				        syslogService.log(
 				          Syslog.builder()
        				     .category("validateClusters")
@@ -392,9 +389,14 @@ public class HouseKeepingService {
        				     .detail("instance", syslogService.getSystemInstanceId())
 				           .detail("count", count)
 				           .build()
-				        )
-				      )
+				        ).subscribe();
+              })
+              .doOnTerminate(() -> {
+                validateClusters = null;
+                log.info("Finished validate clusters");
+              })
 				      .onErrorResume( e -> {
+                log.error("Problem in validate",e);
 				        return syslogService.log(
        				   Syslog.builder()
 				           .category("validateClusters")
@@ -403,8 +405,8 @@ public class HouseKeepingService {
        				     .detail("error", e.toString())
 				           .build()
        				  )
+                .then(Mono.error(e instanceof RuntimeException ? e : new RuntimeException(e)));
 							})
-              .doOnNext(count -> log.info("### Validated {} clusters ###",count))
               .subscribe();
           }).cache();
         }
@@ -498,7 +500,7 @@ public class HouseKeepingService {
 	        syslogService.log(
 				    Syslog.builder()
        				 .category("validateClusters")
-				       .message("status update: Validated %d clusters in %d ms (avg = %d ms) changed:%d", rc, elapsed, (elapsed / rc), changedClusterCounter.get()")
+				       .message(String.format("status update: Validated %d clusters in %d ms (avg = %d ms) changed:%d",rc, elapsed, (elapsed / rc), changedClusterCounter.get()))
        				 .detail("instance", syslogService.getSystemInstanceId())
 				       .build()
 				  ).subscribe();
@@ -627,11 +629,17 @@ public class HouseKeepingService {
     .then(); // Return Mono<Void>
   }
 
-  private Mono<Void> estimateReprocessRunTime(Instant startts) {
+  private Mono<Void> estimateReprocessRunTime(Instant startts, String criteria) {
+
+    String reprocess_count_query = switch(criteria) {
+      case "ALL" -> COUNT_QUERY_SOURCE_RECORD_IDS;
+      default -> COUNT_QUERY_SOURCE_RECORD_IDS;
+    };
+
 		return Mono.from(dbops.withTransaction(tx -> 
       dbops.withConnection(conn ->
 				tx.getConnection()
-        	.createStatement(COUNT_QUERY_SOURCE_RECORD_IDS)
+        	.createStatement(reprocess_count_query)
           .bind(0, startts)
         	.execute()
     	)))
@@ -642,8 +650,8 @@ public class HouseKeepingService {
       .then();
   }
 
-  private Mono<Void> reprocessQuery(Instant startts) {
-    log.info("Running reprocessQuery startts={}",startts);
+  private Mono<Void> reprocessQuery(Instant startts, String criteria) {
+    log.info("Running reprocessQuery startts={},criteria={}",startts,criteria);
 		AtomicInteger page = new AtomicInteger(0);
 		AtomicInteger recordCount = new AtomicInteger(0);
     // Grab the start time
@@ -652,7 +660,7 @@ public class HouseKeepingService {
 		return Flux.defer(() -> Mono.just(0)) // dummy trigger
 			.expandDeep(ignore -> 
         dbops.withConnection(conn ->
-          getNextBatch(conn, startts)
+          getNextBatch(conn, startts, criteria)
           .flatMap(result -> result.map((row, meta) -> row.get("id", UUID.class)))
           .collectList()
           .flatMap(batch -> {
@@ -715,9 +723,15 @@ public class HouseKeepingService {
   	));
 	}
 
-  private Flux<? extends Result> getNextBatch(Connection conn, Instant startts) {
-    log.info("Get next Batch - startts={}",startts);
-    return Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS)
+  private Flux<? extends Result> getNextBatch(Connection conn, Instant startts, String criteria) {
+    log.info("Get next Batch - startts={},criteria={}",startts,criteria);
+
+    String reprocess_query = switch(criteria) {
+      case "ALL" -> QUERY_SOURCE_RECORD_IDS;
+      default -> QUERY_SOURCE_RECORD_IDS;
+    };
+
+    return Flux.from(conn.createStatement(reprocess_query)
       .bind(0, startts)
       .execute());
   }

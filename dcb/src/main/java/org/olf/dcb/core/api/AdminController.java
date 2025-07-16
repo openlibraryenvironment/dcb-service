@@ -35,11 +35,7 @@ import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,6 +43,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -200,9 +197,9 @@ public class AdminController {
 	}
 
 	@Post(uri = "/reprocess", produces = APPLICATION_JSON)
-	public Mono<MutableHttpResponse<String>> reprocess() {
+	public Mono<MutableHttpResponse<String>> reprocess( @QueryValue("criteria") @Nullable String criteria) {
 		return housekeeping
-			.reprocessAll()
+			.reprocess(criteria)
 			.map(HttpResponse.accepted()::<String>body);
 	}
 	

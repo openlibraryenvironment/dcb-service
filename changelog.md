@@ -1,11 +1,25 @@
 # Changelog
 
+## Version 8.40.1
+
+### Changes
+* [Chore]
+	* Extra type safety for chas
+
+### Fixes
+* [General]
+	* handle tracking errors to ensure virtual item updates happen [DCB-1959]
+
 ## Version 8.40.0
 
 ### Additions
 * [General]
 	* Add Syslog service and application event listenet
 	* Add syslog domain class and repository
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]

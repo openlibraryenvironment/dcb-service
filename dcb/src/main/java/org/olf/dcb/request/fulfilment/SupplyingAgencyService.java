@@ -566,7 +566,7 @@ public class SupplyingAgencyService {
 
 		// Patrons can have multiple barcodes. To keep the domain model sane(ish) we store [b1, b2, b3] (As the result of Objects.toString()
 		// in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
-		final List<String> patron_barcodes = parseList( requestingPatronIdentity.getLocalBarcode() );
+		final List<String> patron_barcodes = requestingPatronIdentity.getParsedBarcodes();
 
 		if ((patron_barcodes == null) || (patron_barcodes.size() == 0)) {
 			log.warn("Virtual patron has no barcodes. Source identity {}. Will be unable to check out to this patron",

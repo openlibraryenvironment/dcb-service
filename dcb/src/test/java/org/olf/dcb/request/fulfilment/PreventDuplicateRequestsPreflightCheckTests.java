@@ -1,22 +1,27 @@
 package org.olf.dcb.request.fulfilment;
 
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.test.*;
-
-import java.util.List;
-import java.util.UUID;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.List;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+
+import io.micronaut.context.annotation.Property;
+import jakarta.inject.Inject;
+
+@Property(name = "dcb.requests.preflight-checks.duplicate-requests.enabled", value = "true")
 @DcbTest
 class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheckTests {
-
 	@Inject
 	private PreventDuplicateRequestsPreFlightCheck check;
 

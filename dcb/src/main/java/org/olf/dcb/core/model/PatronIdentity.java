@@ -1,6 +1,8 @@
 package org.olf.dcb.core.model;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.constraints.NotNull;
@@ -23,6 +25,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+
+import static services.k_int.utils.StringUtils.parseList;
 
 
 /**
@@ -99,4 +103,44 @@ public class PatronIdentity {
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
 	private DataAgency resolvedAgency;
 
+	/**
+	 * Parses the localBarcode field which can contain multiple barcodes stored as a string representation
+	 * of a list (e.g., "[b1, b2, b3]") and returns them as a List<String>.
+	 *
+	 * @return List of patron barcodes, or empty list if no barcodes are available
+	 */
+	@io.micronaut.data.annotation.Transient
+	@com.fasterxml.jackson.annotation.JsonIgnore
+	public List<String> getParsedBarcodes() {
+		if (localBarcode == null || localBarcode.trim().isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<String> barcodes = parseList(localBarcode);
+		return barcodes != null ? barcodes : Collections.emptyList();
+	}
+
+	/**
+	 * Checks if the patron has any valid barcodes.
+	 *
+	 * @return true if patron has at least one barcode, false otherwise
+	 */
+	@io.micronaut.data.annotation.Transient
+	@com.fasterxml.jackson.annotation.JsonIgnore
+	public boolean hasBarcodes() {
+		List<String> barcodes = getParsedBarcodes();
+		return !barcodes.isEmpty();
+	}
+
+	/**
+	 * Gets the first barcode from the list of parsed barcodes.
+	 *
+	 * @return the first barcode, or null if no barcodes are available
+	 */
+	@io.micronaut.data.annotation.Transient
+	@com.fasterxml.jackson.annotation.JsonIgnore
+	public String getFirstBarcode() {
+		List<String> barcodes = getParsedBarcodes();
+		return barcodes.isEmpty() ? null : barcodes.get(0);
+	}
 }

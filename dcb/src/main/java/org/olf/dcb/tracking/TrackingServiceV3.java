@@ -141,6 +141,30 @@ public class TrackingServiceV3 implements TrackingService {
 			.flatMap(audit -> Mono.just(ctx)); // Resume tracking after auditing
 	}
 
+	private Mono<PatronRequest> auditPatronRequestTrackingError(
+		String message, PatronRequest patronRequest, Throwable error) {
+
+		final var auditData = new HashMap<String, Object>();
+		auditThrowable(auditData, "Throwable", error);
+
+		log.error("TRACKING Error occurred tracking patron request in local system {}", patronRequest.getId());
+
+		return patronRequestAuditService.auditTrackingError(message, patronRequest, auditData)
+			.flatMap(audit -> Mono.just(patronRequest)); // Resume tracking after auditing
+	}
+
+	private Mono<PatronRequest> auditVirtualItemTrackingError(
+		String message, PatronRequest patronRequest, Throwable error) {
+
+		final var auditData = new HashMap<String, Object>();
+		auditThrowable(auditData, "Throwable", error);
+
+		log.error("TRACKING Error occurred tracking virtual item in local system {}", patronRequest.getId());
+
+		return patronRequestAuditService.auditTrackingError(message, patronRequest, auditData)
+			.flatMap(audit -> Mono.just(patronRequest)); // Resume tracking after auditing
+	}
+
 	public RequestWorkflowContext incrementManualPollCounter(RequestWorkflowContext ctx) {
 		ctx.getPatronRequest().incrementManualPollCountForCurrentStatus();
 		return ctx;
@@ -251,9 +275,14 @@ public class TrackingServiceV3 implements TrackingService {
 
 			log.debug("trackBorrowingSystem");
 
-			return Mono.just(rwc.getPatronRequest())
+			final var patronRequest = rwc.getPatronRequest();
+
+			return Mono.just(patronRequest)
 				.flatMap(this::checkPatronRequest)
+				// handle any errors here so we don't skip getting the virtual item updates
+				.onErrorResume(error -> auditPatronRequestTrackingError("Tracking failed : Patron Request", patronRequest, error))
 				.flatMap(this::checkVirtualItem)
+				.onErrorResume(error -> auditVirtualItemTrackingError("Tracking failed : Virtual Item", patronRequest, error))
 				.thenReturn(rwc);
 		}
 	}
