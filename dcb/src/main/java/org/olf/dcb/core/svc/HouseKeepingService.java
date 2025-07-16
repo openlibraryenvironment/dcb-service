@@ -303,7 +303,15 @@ public class HouseKeepingService {
                 reprocessStatusReport.put("status","Not Active");
                 log.info("Finished reprocess update");
               })
+
+
+
+
               .subscribe();
+
+
+
+
           }).cache();
         }
       }
@@ -363,13 +371,40 @@ public class HouseKeepingService {
           validateClusters = Mono.<String>create(report -> {
             log.info("Starting validateClusters");
             report.success("Validate Clusters started at [%s]".formatted(Instant.now()));
-            innerValidateClusters()
+
+						syslogService.log(
+							Syslog.builder()
+								.category("validateClusters")
+								.message("Started")
+								.detail("instance", syslogService.getSystemInstanceId())
+								.build()
+						)
+              .then(innerValidateClusters())
               .doOnTerminate(() -> {
                 validateClusters = null;
                 log.info("Finished validate clusters");
               })
+   						.doOnNext(count->
+				        syslogService.log(
+				          Syslog.builder()
+       				     .category("validateClusters")
+				           .message("Completed")
+       				     .detail("instance", syslogService.getSystemInstanceId())
+				           .detail("count", count)
+				           .build()
+				        )
+				      )
+				      .onErrorResume( e -> {
+				        return syslogService.log(
+       				   Syslog.builder()
+				           .category("validateClusters")
+       				     .message("ERROR "+e.getMessage())
+				           .detail("instance", syslogService.getSystemInstanceId())
+       				     .detail("error", e.toString())
+				           .build()
+       				  )
+							})
               .doOnNext(count -> log.info("### Validated {} clusters ###",count))
-              .doOnError(error -> log.error("Error in innerValidateClusters:",error))
               .subscribe();
           }).cache();
         }
@@ -455,9 +490,18 @@ public class HouseKeepingService {
 		return validateCluster(clusterId, selectedBib, changedClusterCounter)
 			.doOnSuccess(ignored -> {
 				int rc = counter.incrementAndGet();
+				long elapsed = System.currentTimeMillis() - startTime;
 				if (rc % 1000 == 0) {
-					long elapsed = System.currentTimeMillis() - startTime;
 					log.info("Validated {} clusters in {} ms (avg = {} ms) changed:{}", rc, elapsed, (elapsed / rc), changedClusterCounter.get());
+				}
+				if (rc % 10000 == 0) {
+	        syslogService.log(
+				    Syslog.builder()
+       				 .category("validateClusters")
+				       .message("status update: Validated %d clusters in %d ms (avg = %d ms) changed:%d", rc, elapsed, (elapsed / rc), changedClusterCounter.get()")
+       				 .detail("instance", syslogService.getSystemInstanceId())
+				       .build()
+				  ).subscribe();
 				}
 			})
 			.thenReturn(tuple);
@@ -557,7 +601,7 @@ public class HouseKeepingService {
       .then(
         Mono.from(
           status.getConnection()
-            .createStatement(SET_REINDEX)
+            .createStatement(SET_REINDEX_WITH_SOURCE_RECORD_UUID)
             .bind("$1", bibId)
             .execute())
         .flatMap(result -> Mono.from(result.getRowsUpdated())))
@@ -599,7 +643,7 @@ public class HouseKeepingService {
   }
 
   private Mono<Void> reprocessQuery(Instant startts) {
-    log.info("Running reprocessQuery");
+    log.info("Running reprocessQuery startts={}",startts);
 		AtomicInteger page = new AtomicInteger(0);
 		AtomicInteger recordCount = new AtomicInteger(0);
     // Grab the start time
@@ -672,7 +716,7 @@ public class HouseKeepingService {
 	}
 
   private Flux<? extends Result> getNextBatch(Connection conn, Instant startts) {
-    log.info("Get next Batch");
+    log.info("Get next Batch - startts={}",startts);
     return Flux.from(conn.createStatement(QUERY_SOURCE_RECORD_IDS)
       .bind(0, startts)
       .execute());

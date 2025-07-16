@@ -256,8 +256,10 @@ public class BibRecordService {
 				// .doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
 				.flatMap( recordClusteringServiceProvider.get()::softDelete )
 				.then( Mono.defer(() -> {
-					// log.debug("Deleteing bib [{}]", bib.getId());
-					return deleteBibAndRelations(bib).thenReturn(bib); 
+					log.info("Deleteing bib [{}]", bib.getId());
+					return deleteBibAndRelations(bib)
+            .doOnError(err -> log.error("Problem in delete bib",err) )
+            .thenReturn(bib); 
 				}))
 			;
 	}
@@ -265,15 +267,18 @@ public class BibRecordService {
 	@Transactional
 	protected Mono<Void> deleteBibAndRelations(@NonNull BibRecord bib) {
 		return deleteRelatedItems( bib )
+      .doOnNext(b -> log.info("Deleted related records {}",b.getId() ) )
 			.map(BibRecord::getId)
+      .doOnNext(bi -> log.info("Calling bib repo delete with {}",bi))
 			.map(bibRepo::delete)
 			.flatMap(Mono::from);
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<BibRecord> deleteAssociatedBib (final IngestRecord source) {
-		return getOrSeed(source).
-				flatMap(this::deleteBibAndUpdateCluster);
+		return getOrSeed(source)
+      .doOnNext(r -> log.info("Got source for deletion {}",r.getId()))
+			.flatMap(this::deleteBibAndUpdateCluster);
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -303,31 +308,37 @@ public class BibRecordService {
 		
 		if ( suppressed || deleted ) {
 
-      // log.info("Processing a delete");
+      log.info("Processing a delete/suppress");
 			
 			// Suppress...			
 			return deleteAssociatedBib(source)
+        .doOnNext( deletedBib -> log.info("Deleted bib") )
+        .doOnError(err -> log.error("Problem deleting bib2",err))
 				.flatMap( deletedBib -> {
 					statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
 					
-					if (log.isDebugEnabled()) {
-						final String removalReason = deleted ? "deleted" : "suppressed";
-						log.info("removal -- Record {} flagged as {}, redact accordingly", source, removalReason);
-					}
+					final String removalReason = deleted ? "deleted" : "suppressed";
+					log.info("removal -- Record {} flagged as {}, redact accordingly", source, removalReason);
 					
 					return Mono.empty();
-				});
+				})
+        ;
 		}
 		
 		if ( StringUtils.trimToNull(source.getTitle()) == null ) {
-      // log.info("Processing an empty title");
-			return Mono.just(source)
+
+      log.info("Deleting bib - no title");
+
+			// return Mono.just(source)
+			return deleteAssociatedBib(source)
+        .doOnNext( deletedBib -> log.info("Deleted bib (No Title)") )
+        .doOnError(err -> log.error("Problem deleting bib2",err))
 				.flatMap( s -> {
-					statsService.notifyEvent("DroppedNullTitle",s.getSourceSystem().getCode());
+					statsService.notifyEvent("DroppedNullTitle",source.getSourceSystem().getCode());
 					if (log.isTraceEnabled()) {
-						log.warn("None deleted record {} with empty title - bailing", s);
+						log.warn("None deleted record {} from {} with empty title - bailing", source, source.getSourceSystem() != null ? source.getSourceSystem().getCode() : "" );
 					} else {
-						log.warn("None deleted record {} with empty title - bailing", s.getUuid());
+						log.warn("None deleted record {} from {} with empty title - bailing", source.getUuid(), source.getSourceSystem() != null ? source.getSourceSystem().getCode() : "" );
 					}
 					return Mono.empty();
 				});
@@ -335,7 +346,6 @@ public class BibRecordService {
 		
 		// None deleted or suppressed items...
 		
-    //  log.info("Progress to get or seed");
 		return getOrSeed(source)
 			.map( bib -> {
 				statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
@@ -349,7 +359,8 @@ public class BibRecordService {
 			})
 		 .flatMap(this::saveOrUpdate)
 		 .flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
-		 .flatMap(finalBib -> this.updateStatistics(finalBib, source) );
+		 .flatMap(finalBib -> this.updateStatistics(finalBib, source) )
+     ;
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)

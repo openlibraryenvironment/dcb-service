@@ -260,6 +260,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		var error = op.getException();
 		
 		if (error != null) {
+      log.error("Error getting ingest record "+error);
 			return opFail(op, processedTime, "Failed to create IngestRecord from source: %s", error);
 		}
 		
@@ -269,18 +270,21 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			return opFail(op, processedTime, "Failed to create IngestRecord from source: Unknown error");
 		}
 
-    // log.info("title {} - {}",ir.getTitle(),ir.getIdentifiers());
+    log.info("processSingleOperation: title {} - {}",ir.getTitle(),ir.getIdentifiers());
 		
 		return bibRecordService.process( ir )
 			// Returned bib (Not delete operation), try cluster.
 			.switchIfEmpty( opSuccess(op, processedTime, "No returned Bib. Assumed redacted or without sufficient title info") )
-			.flatMap( bib -> processNoneDelete( op, bib, processedTime ));
+			.flatMap( bib -> processNoneDelete( op, bib, processedTime ))
+      .doOnError( err -> log.error("Problem processing bib",err));
 	}
 	
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<BibRecord> processNoneDelete (IngestOperation op, BibRecord theBib, Instant processedTime) {
 		// Returned bib, try cluster.
+    //
+
 		return recordClusteringService.clusterBib(theBib)
 				
 			// Successfully clustered the bib.
