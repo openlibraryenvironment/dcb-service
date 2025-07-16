@@ -1,9 +1,22 @@
 # Changelog
 
+## Version 8.41.0
+
+### Additions
+* [General]
+	* extract barcode parsing logic to PatronIdentity [DCB-1786]
+
+### Changes
+* [Chore]
+	* Lower frequency of log reports to syslog for validate cluster progress
+	* add validateClusters syslog entries
+	* Switch off repeat request checks by default. Rever DCB-1090 default, leave capability in place
+
 ## Version 8.40.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Extra type safety for chas
 
 ### Fixes
