@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpResponse;
@@ -8,6 +9,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.json.tree.JsonNode;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -191,15 +193,22 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.exchange(request, LibraryHold.class, FALSE))
 			.map(HttpResponse::body)
 			.onErrorResume(error -> {
-				log.error(client.getHostLmsCode() + " " + path, error);
-
 				if ((error instanceof HttpClientResponseException) &&
 					(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+					try {
+						HttpClientResponseException httpClientError = (HttpClientResponseException) error;
+						Optional<String> maybeBody = httpClientError.getResponse().getBody(String.class);
+						String errorResponse = maybeBody.orElse("No response body");
 
+						log.error("Hold request {} not found in LMS {}. Error response: \n{}", id, client.getHostLmsCode(), errorResponse);
+					} catch (Exception e) {
+						log.debug("Hold request {} not found in lms {}", id, client.getHostLmsCode());
+					}
 					// Note: When a patron checks out the item polaris will delete the hold
 					return Mono.just(LibraryHold.builder().sysHoldStatus("Missing").build());
 
 				} else {
+					log.error("Failed to get hold request {} from lms {}", id, client.getHostLmsCode());
 
 					return raiseError(error);
 				}

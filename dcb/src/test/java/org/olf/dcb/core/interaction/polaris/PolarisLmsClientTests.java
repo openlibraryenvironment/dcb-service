@@ -703,6 +703,31 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldHandleHoldRequestNotFound() {
+		// Arrange
+		final var localHoldId = "2977175";
+
+		mockPolarisFixture.mockGetHoldNotFound(localHoldId, PolarisError.builder()
+			.errorCode(60028)
+			.message("Hold Request with ID 6348612 not found.")
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var hostLmsRequest = HostLmsRequest.builder().localId(localHoldId).build();
+
+		final var request = singleValueFrom(client.getRequest(hostLmsRequest));
+
+		// Assert
+		assertThat(request, allOf(
+			notNullValue(),
+			HostLmsRequestMatchers.hasLocalId(localHoldId),
+			hasStatus(HOLD_MISSING)
+		));
+	}
+
+	@Test
 	void shouldDetectRequestIsReadyForPickup() {
 		// Arrange
 		final var localHoldId = "2977175";

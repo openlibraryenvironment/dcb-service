@@ -217,6 +217,14 @@ public class MockPolarisFixture {
 		));
 	}
 
+	public void mockGetHoldNotFound(String holdId, PolarisError response) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/holds/" + holdId,
+			response()
+				.withStatusCode(404)
+				.withBody(json(response)
+				));
+	}
+
 	void mockCreateBib() {
 		mock("POST", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords*",
 			"create-bib-resp.json");
