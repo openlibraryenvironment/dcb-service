@@ -22,6 +22,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.context.annotation.Property;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
@@ -30,6 +31,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
+@Property(name = "dcb.requests.preflight-checks.resolve-patron.enabled", value = "true")
 class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String BORROWING_HOST_LMS_CODE = "borrowing-host-lms";
 

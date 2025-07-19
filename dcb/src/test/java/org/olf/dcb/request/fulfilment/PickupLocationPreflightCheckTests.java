@@ -11,9 +11,11 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
 
+import io.micronaut.context.annotation.Property;
 import jakarta.inject.Inject;
 
 @DcbTest
+@Property(name = "dcb.requests.preflight-checks.pickup-location.enabled", value = "true")
 public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Inject
 	private PickupLocationPreflightCheck check;
