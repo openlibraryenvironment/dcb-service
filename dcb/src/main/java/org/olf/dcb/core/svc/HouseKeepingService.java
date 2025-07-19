@@ -159,13 +159,13 @@ public class HouseKeepingService {
 
   // First mark any clusters that no longer have bibs as deleted (All bibs directed to other clusters - DELETED bibs is another case we need to service)
   private static final String PURGE_EMPTY_CLUSTERS = """
-    update cluster_record cr set cr.is_deleted = true, cr.date_updated=now()  where cr.id in (
+    update cluster_record set is_deleted = true, date_updated=now()  where id in (
     select cr.id from cluster_record cr left outer join bib_record br on br.contributes_to = cr.id group by cr.id having count(br.id) = 0 );
   """;
 
   // Find any clusters where the bib was modified after the cluster and touch the cluster
   private static final String TOUCH_UPDATED_CLUSTERS = """
-    update cluster_record cr set cr.date_updated = now() where cr.id in (
+    update cluster_record set date_updated = now() where id in (
       select br.contributes_to from bib_record br, cluster_record cr where br.date_updated > cr.date_updated and br.contributes_to = cr.id )
   """;
 
