@@ -8,6 +8,7 @@ import lombok.Value;
 @Value
 @Builder
 public class PresentableItem {
+	String localId;
 	String barcode;
 	String statusCode;
 	Boolean requestable;

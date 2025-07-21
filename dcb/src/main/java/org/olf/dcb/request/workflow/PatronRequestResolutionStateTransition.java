@@ -134,6 +134,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 	private PresentableItem buildPresentableItem(Item item) {
 		return PresentableItem.builder()
+			.localId(getValue(item, Item::getLocalId, "Unknown"))
 			.barcode(getValue(item, Item::getBarcode, "Unknown"))
 			.statusCode(getStatusCode(item))
 			.requestable(getValue(item, Item::getIsRequestable, false))
