@@ -22,8 +22,6 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 
 public class AvailabilityDateCalculatorTests {
-	private final Long DEFAULT_LOAN_PERIOD = 28L;
-
 	private final Instant now = now();
 
 	private final AvailabilityDateCalculator calculator =
@@ -51,7 +49,8 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(now.plus(DEFAULT_LOAN_PERIOD * holdCount, DAYS)));
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, holdCount
+		)));
 	}
 
 	@Test
@@ -90,7 +89,8 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(dueDate.plus(DEFAULT_LOAN_PERIOD * holdCount, DAYS)));
+		assertThat(availabilityDate, is(
+			extendDateByDefaultLoanPeriod(dueDate, holdCount)));
 	}
 
 	@Test
@@ -115,7 +115,7 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(now.plus(DEFAULT_LOAN_PERIOD, DAYS)));
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, 1)));
 	}
 
 	@Test
@@ -168,5 +168,11 @@ public class AvailabilityDateCalculatorTests {
 			.dueDate(dueDate)
 			.holdCount(holdCount)
 			.build();
+	}
+
+	private Instant extendDateByDefaultLoanPeriod(Instant start, int times) {
+		final var defaultLoanPeriodInDays = 28L;
+
+		return start.plus(defaultLoanPeriodInDays * times, DAYS);
 	}
 }
