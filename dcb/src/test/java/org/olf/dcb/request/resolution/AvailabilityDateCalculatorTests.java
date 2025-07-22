@@ -29,7 +29,32 @@ public class AvailabilityDateCalculatorTests {
 		new AvailabilityDateCalculator(Clock.fixed(now, systemDefault()));
 
 	@Test
-	void availabilityDateShouldBeNowForAvailableItems() {
+	void availabilityDateShouldBeNowForAvailableItemsWithNoHolds() {
+		// Arrange
+		final var item = createItem(AVAILABLE, null, 0);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(now));
+	}
+
+	@ParameterizedTest
+	@ValueSource(ints = {1, 2})
+	void availabilityDateShouldBeNowForAvailableItemsWithHolds(int holdCount) {
+		// Arrange
+		final var item = createItem(AVAILABLE, null, holdCount);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(now));
+	}
+
+	@Test
+	void availabilityDateShouldBeNowForAvailableItemsWithNullHoldCount() {
 		// Arrange
 		final var item = createItem(AVAILABLE, null, null);
 
@@ -81,7 +106,7 @@ public class AvailabilityDateCalculatorTests {
 	}
 
 	@Test
-	void availabilityDateShouldBeNowForCheckedOutItemsWithNoDueDate() {
+	void availabilityDateShouldBeArtificiallyExtendedForCheckedOutItemsWithNoDueDate() {
 		// Arrange
 		final var item = createItem(CHECKED_OUT, null, 0);
 
