@@ -36,10 +36,16 @@ public class AvailabilityDateCalculator {
 			"due date: \"{}\", hold count: \"{}\"", statusCode, dueDate, holdCount);
 
 		return switch (statusCode) {
-			case AVAILABLE -> now;
+			case AVAILABLE -> calculateForAvailableItem(item);
 			case CHECKED_OUT -> calculateForCheckedOutItem(item);
 			case UNKNOWN, UNAVAILABLE -> null;
 		};
+	}
+
+	private Instant calculateForAvailableItem(Item item) {
+		final var holdCount = getValue(item, Item::getHoldCount, 0);
+
+		return incrementByDefaultLoanPeriod(now, holdCount);
 	}
 
 	private Instant calculateForCheckedOutItem(Item item) {

@@ -25,6 +25,7 @@ public class AvailabilityDateCalculatorTests {
 	private final Long DEFAULT_LOAN_PERIOD = 28L;
 
 	private final Instant now = now();
+
 	private final AvailabilityDateCalculator calculator =
 		new AvailabilityDateCalculator(Clock.fixed(now, systemDefault()));
 
@@ -42,7 +43,7 @@ public class AvailabilityDateCalculatorTests {
 
 	@ParameterizedTest
 	@ValueSource(ints = {1, 2})
-	void availabilityDateShouldBeNowForAvailableItemsWithHolds(int holdCount) {
+	void availabilityDateShouldBeExtendedForAvailableItemsWithHolds(int holdCount) {
 		// Arrange
 		final var item = createItem(AVAILABLE, null, holdCount);
 
@@ -50,7 +51,7 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(now));
+		assertThat(availabilityDate, is(now.plus(DEFAULT_LOAN_PERIOD * holdCount, DAYS)));
 	}
 
 	@Test
