@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 8.42.0
+
+### Additions
+* [Locks]
+	* More defensive code
+* [General]
+	* Extend availability date for available items with holds DCB-1960
+
+### Changes
+* [Chore]
+	* sql fix works
+
 ## Version 8.41.0
 
 ### Additions
@@ -8,6 +20,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Lower frequency of log reports to syslog for validate cluster progress
 	* add validateClusters syslog entries
 	* Switch off repeat request checks by default. Rever DCB-1090 default, leave capability in place
