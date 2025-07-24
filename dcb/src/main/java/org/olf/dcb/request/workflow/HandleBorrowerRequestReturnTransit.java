@@ -46,9 +46,16 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 
 		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
 		//final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		// Handles expedited checkout situations where the local item ID can be null and isn't needed, but we still need to progress
+		if (isPatronRequestStatusApplicable(patronRequest) && patronRequest.getIsExpeditedCheckout() !=null && patronRequest.getIsExpeditedCheckout()) {
+			return true;
+		}
+		else
+		{
+			return isPatronRequestStatusApplicable(patronRequest) &&
+				( isLocalItemStatusApplicable(patronRequest) || isPickupItemStatusApplicable(patronRequest) );
+		}
 
-		return isPatronRequestStatusApplicable(patronRequest) &&
-			( isLocalItemStatusApplicable(patronRequest) || isPickupItemStatusApplicable(patronRequest) );
 	}
 
 	private boolean isPatronRequestStatusApplicable(PatronRequest patronRequest) {
