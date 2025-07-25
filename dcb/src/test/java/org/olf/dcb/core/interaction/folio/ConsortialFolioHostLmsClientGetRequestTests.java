@@ -14,22 +14,27 @@ import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedIte
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.*;
 
 import java.util.List;
 import java.util.UUID;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.ValidationError;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+@Slf4j
 @MockServerMicronautTest
 class ConsortialFolioHostLmsClientGetRequestTests {
 	private static final String HOST_LMS_CODE = "folio-get-request-tests";
@@ -213,5 +218,45 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		assertThat(exception, hasMessage(
 			"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
 				.formatted("UNEXPECTED_STATUS", localRequestId)));
+	}
+
+	@Test
+	void shouldThrowUnexpectedHttpResponseProblemWhenTransactionStatusReturns500() {
+		// Arrange
+		final var transactionId = UUID.randomUUID().toString();
+		final var hostLmsRequest = HostLmsRequest.builder()
+			.localId(transactionId)
+			.build();
+
+		final var expectedResponseBody = """
+    HTTP 500 Internal Server Error.
+    If the issue persists, please report it to EBSCO Connect.
+    """;
+
+		mockFolioFixture.mockGetTransactionStatus(transactionId,
+			response()
+				.withStatusCode(500)
+				.withBody(expectedResponseBody)
+		);
+
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		// Act
+		final var thrown = assertThrows(UnexpectedHttpResponseProblem.class,
+			() -> singleValueFrom(client.getRequest(hostLmsRequest)));
+
+		// Assert
+		final var expectedUrl = "https://fake-folio/dcbService/transactions/" + transactionId + "/status";
+
+		assertThat("Should indicate GET method was used in the request",
+			thrown, hasRequestMethod("GET"));
+		assertThat("Should contain the exact URL used for the failed request",
+			thrown, hasRequestUrl(expectedUrl));
+		assertThat("Should indicate that the response status was 500 (Internal Server Error)",
+			thrown, hasResponseStatusCode(500));
+		assertThat("Should associate the error with the correct host LMS code",
+			thrown, hasMessageForHostLms(HOST_LMS_CODE));
+		assertThat("Should include the raw text response body for diagnostic purposes",
+			thrown, hasTextResponseBody(expectedResponseBody));
 	}
 }
