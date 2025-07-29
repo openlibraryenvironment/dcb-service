@@ -473,11 +473,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var pickupLocationLocalId = getRequiredParameter("pickupLocation.localId",
 			parameters, PlaceHoldRequestParameters::getPickupLocation, Location::getLocalId);
 
-		final var itemId = getRequiredParameter("localItemId",
-			parameters, PlaceHoldRequestParameters::getLocalItemId);
+		final var itemId = getRequiredParameter("supplyingLocalItemId",
+			parameters, PlaceHoldRequestParameters::getSupplyingLocalItemId);
 
-		final var itemBarcode = getRequiredParameter("localItemBarcode",
-			parameters, PlaceHoldRequestParameters::getLocalItemBarcode);
+		final var itemBarcode = getRequiredParameter("supplyingLocalItemBarcode",
+			parameters, PlaceHoldRequestParameters::getSupplyingLocalItemBarcode);
 
 		return Mono.just(authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 				.body(CreateTransactionRequest.builder()
