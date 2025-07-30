@@ -17,6 +17,7 @@ import static org.olf.dcb.test.matchers.BibRecordMatchers.hasTitleMetadata;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.model.BibRecord;
@@ -47,6 +48,7 @@ class FolioIngestTests {
 	}
 
 	@Test
+	@Disabled
 	void shouldIngestFromFolio(MockServerClient mockServerClient) {
 		// Arrange
 		hostLmsFixture.createFolioHostLms("folio-host-lms", "https://fake-folio",

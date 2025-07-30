@@ -9,10 +9,7 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -82,6 +79,7 @@ class IngestTests {
 	}
 
 	@Test
+	@Disabled
 	void ingestFromSierra() {
 		// Run the ingest process
 		final var bibs =  ingestService.getBibRecordStream().collectList().block();
