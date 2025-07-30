@@ -552,7 +552,22 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord>, Sou
 		}
 	}
 	
-	private ListRecordsParams buildNextParams(Optional<ListRecordsParams> currentParams, JsonArray currentResults, ListRecordsResponse fullResponse, Instant fetchTime) {
+	private ListRecordsParams buildNextParams(Optional<ListRecordsParams> currentParams, 
+		JsonArray currentResults, 
+		ListRecordsResponse fullResponse, 
+		Instant fetchTime) {
+
+		Instant highestRecordTimestampSeen = currentParams.isPresent() ? currentParams.get().getHighestRecordTimestampSeen() : Instant.ofEpochSecond(0);
+
+		// Record the highest record timestamp seen, as a better way to resume next time.
+		if ( fullResponse != null ) {
+			if ( ( fullResponse.records() != null ) && ( !fullResponse.records().isEmpty() ) ) {
+				OaiRecord or = fullResponse.records().get(fullResponse.records().size()-1);
+				if ( ( or != null ) && ( or.header().datestamp().isAfter(highestRecordTimestampSeen) ) )
+					highestRecordTimestampSeen = or.header().datestamp();
+			}
+		}
+
 	  // Always preserve the "start" params even if we have a resumption. This allows for better handling
 		// if the token expires during a harvest.
 		ListRecordsParamsBuilder lrp = currentParams
@@ -567,11 +582,16 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord>, Sou
 				.orElse(null);
 		
 		if (resToken == null) {
+			// II: I really don't like this - it's subject to clock skew and all sorts of crap - much better to keep the highest
+			// timestamp seen from this source and use that as a from date.
 			lrp = lrp.from(fetchTime); // Set from to "now" to perform delta.
 		}
 		
 		// Add the token to the builder (possibly nulling out)
 		return lrp.resumptionToken(resToken)
+			.cpType("FOLIO")
+			.hostCode(lms.getCode())
+			.highestRecordTimestampSeen(highestRecordTimestampSeen)
 			.build();
 	}
 	
