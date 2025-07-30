@@ -79,7 +79,6 @@ class IngestTests {
 	}
 
 	@Test
-	@Disabled
 	void ingestFromSierra() {
 		// Run the ingest process
 		final var bibs =  ingestService.getBibRecordStream().collectList().block();

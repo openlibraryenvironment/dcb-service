@@ -61,7 +61,6 @@ class PolarisIngestTests {
 	}
 
 	@Test
-	@Disabled
 	void ingestFromPolaris() {
 		// Arrange
 		mockPolarisFixture.mockPapiStaffAuthentication();

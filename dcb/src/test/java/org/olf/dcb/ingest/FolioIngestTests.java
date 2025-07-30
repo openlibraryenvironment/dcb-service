@@ -48,7 +48,6 @@ class FolioIngestTests {
 	}
 
 	@Test
-	@Disabled
 	void shouldIngestFromFolio(MockServerClient mockServerClient) {
 		// Arrange
 		hostLmsFixture.createFolioHostLms("folio-host-lms", "https://fake-folio",
