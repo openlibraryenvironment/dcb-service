@@ -744,8 +744,6 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		addToCanonicalMetadata("agents", "710", "other-corporate", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("agents", "711", "other-meeting", marcRecord, canonical_metadata);
 		
-		addToCanonicalMetadata("language", "041", null, marcRecord, canonical_metadata);
-
 		// addToCanonicalMetadata("agents", "130", "uniform-title", marcRecord,
 		// canonical_metadata);
 
