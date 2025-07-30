@@ -559,11 +559,17 @@ public class FolioOaiPmhIngestSource implements MarcIngestSource<OaiRecord>, Sou
 
 		Instant highestRecordTimestampSeen = currentParams.isPresent() ? currentParams.get().getHighestRecordTimestampSeen() : Instant.ofEpochSecond(0);
 
+		if ( highestRecordTimestampSeen == null )
+			highestRecordTimestampSeen = Instant.ofEpochSecond(0);
+
 		// Record the highest record timestamp seen, as a better way to resume next time.
 		if ( fullResponse != null ) {
 			if ( ( fullResponse.records() != null ) && ( !fullResponse.records().isEmpty() ) ) {
 				OaiRecord or = fullResponse.records().get(fullResponse.records().size()-1);
-				if ( ( or != null ) && ( or.header().datestamp().isAfter(highestRecordTimestampSeen) ) )
+				if ( ( or != null ) && 
+						( or.header() != null ) &&
+						( or.header().datestamp() != null ) &&
+						( or.header().datestamp().isAfter(highestRecordTimestampSeen) ) )
 					highestRecordTimestampSeen = or.header().datestamp();
 			}
 		}
