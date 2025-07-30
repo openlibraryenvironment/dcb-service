@@ -397,7 +397,6 @@ public class BorrowingAgencyService {
 			.flatMap(tuple -> {
 				final var pr = tuple.getT1();
 				final var bibRecordTitle = tuple.getT2();
-
 				return createVirtualItem(pr, borrowingIdentity, hostLmsClient, supplierRequest, bibRecordTitle);
 			})
 			.flatMap(tuple -> {

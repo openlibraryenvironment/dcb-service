@@ -109,16 +109,19 @@ public class ReactorFederatedLockService {
 					log.debug("Obtained lock[{}]", lockName);
 					return lockWrapper.isObtained() ? lockWrapper : null;
 				})
-				.flatMapMany(_lock ->   // Play the original publisher.
-					// II: Added this where we used to just do  _lock -> source in order to more defensively trap 
-					// unchecked exception errors inside the source stream so we don't mis them and skip lock release
-					Flux.from(source)
-						.onErrorResume(ex -> {
-						log.error("Error during locked operation for [{}]: {}", lockName, ex.toString(), ex);
-	            return Flux.error(ex); // propagate while ensuring logging
-		       })
-					.map(value -> (T) value)
-				)
+				.flatMapMany(_lock -> {
+					// Defensively trap unchecked exception errors inside the source stream so we don't miss them and skip lock release.
+					// SO: Also wrap in catch in case creation of subscription itself throws (Unlikely).
+					try {
+						return Flux.from(source)
+							.onErrorResume(ex -> {
+								log.error("Error during locked operation for [{}]: {}", lockName, ex.toString(), ex);
+		            return Flux.error(ex); // propagate while ensuring logging
+			       });
+					} catch (Exception e) {
+						return Flux.error(e);
+					}
+				})
 				.publishOn(lockScheduler) // Ensure the publisher uses the owning thread to relinquish the lock.
 				.doOnCancel(() -> log.warn("Flow cancelled during locked operation for [{}]", lockName))
 	      .doOnError(e -> log.error("Unhandled error for lock [{}]: {}", lockName, e.toString(), e))
@@ -126,14 +129,15 @@ public class ReactorFederatedLockService {
 					if (lockContext.isObtained()) {
 						try {
 							relinquish(lockContext.getLock());
-							log.debug("Relinquished lock[{}] on signal [{}]", lockName,_signal);
+							log.debug("Relinquished lock[{}] on signal [{}]", lockName, _signal);
 						}
 						catch ( Exception e ) {
 							log.error("Failed to relinquish lock [{}]: {}", lockName, e.toString(), e);
 						}
-						lockScheduler.dispose();
 					}
-				});
+				})
+				// Move this here, in a second do finally, to allow the previous finally to publish on the scheduler.
+				.doFinally(_signal -> lockScheduler.dispose() );
 		};
 	}
 	

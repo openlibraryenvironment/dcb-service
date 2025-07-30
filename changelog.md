@@ -1,5 +1,39 @@
 # Changelog
 
+## Version 8.43.0
+
+### Additions
+* [General]
+	* Implement full expedited checkout [DCB-1555]
+
+### Changes
+* [Chore]
+	* re-enable disabled ingest tests
+	* Check supplier item status before moving expedited checkout request to RETURN_TRANSIT [DCB-1555]
+* [Refactor]
+	* replace onErrorContinue with doOnError in checkPatronRequest
+
+### Fixes
+* [Build]
+	* disable invalid tests for ingest
+* [General]
+	* DCB-1794 Languages were being interpreted in another class, so have removed what I added to do with languages
+	* We also extract 041, 700, 710 and 711 marc fields into the metadata
+	* Use correct parameters when placing a same library request in FOLIO DCB-1917
+
+## Version 8.42.0
+
+### Additions
+* [Locks]
+	* More defensive code
+* [General]
+	* Extend availability date for available items with holds DCB-1960
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* sql fix works
+
 ## Version 8.41.0
 
 ### Additions
@@ -8,6 +42,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Lower frequency of log reports to syslog for validate cluster progress
 	* add validateClusters syslog entries
 	* Switch off repeat request checks by default. Rever DCB-1090 default, leave capability in place

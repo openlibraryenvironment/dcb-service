@@ -361,6 +361,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var isPickupAnywhereRequest = Optional.ofNullable(parameters.getActiveWorkflow())
 			.map("RET-PUA"::equals)
 			.orElse(false);
+		final var isExpeditedCheckoutRequest = Optional.ofNullable(parameters.getActiveWorkflow())
+			.map("RET-EXP"::equals)
+			.orElse(false);
+
 
 		if (isPickupAnywhereRequest) {
 			log.debug("RET-PUA detected, constructing borrowing transaction request for pickup anywhere workflow");
@@ -372,8 +376,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					.localStatus(HOLD_PLACED)
 					.build());
 		}
+		else if (isExpeditedCheckoutRequest) {
+			log.debug("Expedited checkout detected, constructing transaction with role BORROWER");
+			return constructBorrowingTransactionRequest(parameters, transactionId)
+			.flatMap(this::createTransaction)
+			.map(response -> LocalRequest.builder()
+				.localId(transactionId)
+				.localStatus(HOLD_PLACED)
+				.build());
 
-		return constructBorrowing_PickupTransactionRequest(parameters, transactionId)
+		}
+		else return constructBorrowing_PickupTransactionRequest(parameters, transactionId)
 			.flatMap(this::createTransaction)
 			.map(response -> LocalRequest.builder()
 				.localId(transactionId)
@@ -413,7 +426,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	// https://folio-org.atlassian.net/wiki/spaces/FOLIJET/pages/1406021/DCB+Borrowing_PickUp+Flow+Details
 	private Mono<MutableHttpRequest<CreateTransactionRequest>> constructBorrowing_PickupTransactionRequest(
 		PlaceHoldRequestParameters parameters, String transactionId) {
-
 		log.debug("constructBorrowing_PickupTransactionRequest({})", parameters);
 
 		assertExtendedBorrowingRequestParameters(parameters);
@@ -425,7 +437,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var firstPatronBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
 
 		final var pickupLocation = resolvePickupLocation(parameters);
-
 		return findLocalItemType(parameters.getCanonicalItemType())
 			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 				.body(CreateTransactionRequest.builder()
@@ -462,11 +473,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var pickupLocationLocalId = getRequiredParameter("pickupLocation.localId",
 			parameters, PlaceHoldRequestParameters::getPickupLocation, Location::getLocalId);
 
-		final var itemId = getRequiredParameter("localItemId",
-			parameters, PlaceHoldRequestParameters::getLocalItemId);
+		final var itemId = getRequiredParameter("supplyingLocalItemId",
+			parameters, PlaceHoldRequestParameters::getSupplyingLocalItemId);
 
-		final var itemBarcode = getRequiredParameter("localItemBarcode",
-			parameters, PlaceHoldRequestParameters::getLocalItemBarcode);
+		final var itemBarcode = getRequiredParameter("supplyingLocalItemBarcode",
+			parameters, PlaceHoldRequestParameters::getSupplyingLocalItemBarcode);
 
 		return Mono.just(authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 				.body(CreateTransactionRequest.builder()

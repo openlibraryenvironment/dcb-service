@@ -713,10 +713,6 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 		canonical_metadata.put("language", interpretLanguages(marcRecord));
 
-		// Commented - 700s need to be added as author objects
-		// addToCanonicalMetadata("author", "700", "other", marcRecord,
-		// canonical_metadata);
-
 		// Extract some subject metadata
 		addToCanonicalMetadata("subjects", "600", "personal-name", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "610", "corporate-name", marcRecord, canonical_metadata);
@@ -744,6 +740,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		addToCanonicalMetadata("agents", "110", "name-corporate", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("agents", "111", "name-meeting", marcRecord, canonical_metadata);
 
+		addToCanonicalMetadata("agents", "700", "other-personal", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("agents", "710", "other-corporate", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("agents", "711", "other-meeting", marcRecord, canonical_metadata);
+		
 		// addToCanonicalMetadata("agents", "130", "uniform-title", marcRecord,
 		// canonical_metadata);
 

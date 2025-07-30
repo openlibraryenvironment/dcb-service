@@ -56,9 +56,7 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		// Expedited checkout requests will always have the same supplier and pickup system, so will always be in the RET-EXP workflow
 		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus());
 		final boolean isExpeditedCheckout = ctx.getPatronRequest().getIsExpeditedCheckout() != null && ctx.getPatronRequest().getIsExpeditedCheckout();
-		final boolean isWorkflow =   ctx.getPatronRequest().getActiveWorkflow() != null &&  ctx.getPatronRequest().getActiveWorkflow().equals("RET-EXP");
-		return isStatusApplicable && (isExpeditedCheckout || isWorkflow);
-//		return isStatusApplicable && isExpeditedCheckout;
+		return isStatusApplicable && isExpeditedCheckout;
 	}
 
 	@Override
@@ -83,11 +81,12 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		}
 		auditData.put("patronBarcodes", auditBarcodeMessage);
 
-		// Checkout at supplier
-		return checkoutToVisitingPatron(ctx)
-			.flatMap(this::updatePatronRequest);
-		// Explicityl set loaned on success
-		//		ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
+		return checkoutAtBorrower(ctx)
+			.then(checkoutAtSupplier(ctx))
+			.flatMap(this::updatePatronRequest)
+			// Explicitly set loaned on success to try and break out of the expedited checkout loop
+			.doOnSuccess(patronRequest -> ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED))
+			.doOnError(error -> log.error("Expedited checkout failed.", error));
 	}
 
 	@Override
@@ -115,100 +114,82 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 			.thenReturn(requestWorkflowContext);
 	}
 
-	public Mono<RequestWorkflowContext> checkoutToVisitingPatron(
-		RequestWorkflowContext rwc) {
+	/**
+	 * Performs the expedited checkout at the borrower LMS.
+	 */
 
-		if ((rwc.getSupplierRequest() != null) &&
-			(rwc.getSupplierRequest().getLocalItemId() != null) &&
-			(rwc.getLenderSystemCode() != null) &&
-			(rwc.getPatronVirtualIdentity() != null)) {
-
-			// In some systems a patron can have multiple barcodes. In those systems getLocalBarcode will be encoded as [value, value, value]
-			// So we trim the opening and closing [] and split on the ", " Otherwise just split on ", " just in case
-			final String[] patron_barcodes = extractPatronBarcodes(rwc.getPatronVirtualIdentity().getLocalBarcode());
-
-			if ((patron_barcodes != null) && (patron_barcodes.length > 0)) {
-
-				String home_item_barcode = rwc.getSupplierRequest().getLocalItemBarcode();
-
-				log.info("Update check home item out for expedited checkout : {} to {} at {}",
-					home_item_barcode, patron_barcodes[0], rwc.getLenderSystemCode());
-
-				return hostLmsService.getClientFor(rwc.getLenderSystemCode())
-					.flatMap(hostLmsClient -> checkoutItemToPatronIfEnabled(rwc, hostLmsClient, patron_barcodes))
-					.doOnNext(srwc -> {
-						String homeItemBarcode = Objects.toString(home_item_barcode, "unknown");
-						String lenderSystemCode = Objects.toString(rwc.getLenderSystemCode(), "unknown");
-						String patronBarcode =  Objects.toString(patron_barcodes[0], "unknown");
-						String message = String.format("Home item (b=%s@%s) checked out to visiting patron in expedited checkout (b=%s)",
-							homeItemBarcode, lenderSystemCode, patronBarcode
-						);
-						rwc.getWorkflowMessages().add(message);
-					})
-					.onErrorResume(error -> {
-						log.error("Problem: Expedited checkout failed for item {} to vpatron {}", home_item_barcode, patron_barcodes, error);
-
-						var auditData = new HashMap<String, Object>();
-						auditData.put("virtual-patron-barcode", Arrays.toString(patron_barcodes));
-						auditData.put("home-item-barcode", home_item_barcode);
-						auditData.put("lender-system-code", rwc.getLenderSystemCode());
-						auditThrowable(auditData, "Throwable", error);
-
-						// Intentionally transform Error
-						// Consider whether this transformation is necessary in expedited checkout.
-						// As if a virtual checkout fails here the whole thing could fall down.
-						return patronRequestAuditService
-							.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout failed : " + error.getMessage(), auditData)
-							.thenReturn(rwc);
-					})
-					.thenReturn(rwc);
-			} else {
-
-				log.error(
-					"EXPEDITED CHECKOUT: NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT {}",
-					rwc.getPatronVirtualIdentity().getLocalBarcode());
-
-				return patronRequestAuditService.addErrorAuditEntry(
-						rwc.getPatronRequest(),
-						"Expedited Checkout: NO BARCODE FOR PATRON VIRTUAL IDENTITY. UNABLE TO CHECK OUT")
-					.thenReturn(rwc);
-			}
-		} else {
-			log.error("EXPEDITED CHECKOUT: Missing data attempting to set home item off campus {} {} {}",
-				rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity());
-			return patronRequestAuditService.addErrorAuditEntry(
-					rwc.getPatronRequest(),
-					String.format(
-						"Expedited Checkout: Missing data attempting to set home item off campus %s %s %s",
-						rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
-				.thenReturn(rwc);
+	private Mono<RequestWorkflowContext> checkoutAtBorrower(RequestWorkflowContext rwc) {
+		final var patronRequest = rwc.getPatronRequest();
+		final String borrowerSystemCode = patronRequest.getPatronHostlmsCode();
+		final String localRequestId = patronRequest.getLocalRequestId(); // The BORROWER's request ID
+		if (borrowerSystemCode == null || localRequestId == null) {
+			log.error("Missing borrower system code or local request ID for expedited checkout.");
+			return Mono.error(new IllegalStateException("Cannot perform checkout at borrower: missing system code or request ID."));
 		}
+
+		log.info("Attempting expedited checkout at BORROWER system: {}", borrowerSystemCode);
+
+		final var command = CheckoutItemCommand.builder()
+			.localRequestId(localRequestId) // Crucially, this is the borrower's transaction ID
+			.patronId(rwc.getPatronVirtualIdentity().getLocalId())
+			.build();
+
+		return hostLmsService.getClientFor(borrowerSystemCode)
+			.flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(command))
+			.doOnSuccess(response -> log.debug("Successfully performed expedited checkout at borrower LMS."))
+			.thenReturn(rwc)
+			.onErrorResume(error -> {
+			log.error("An error has occurred with the borrower-side expedited checkout", error);
+			return patronRequestAuditService
+				.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout at borrower failed: " + error.getMessage())
+				.thenReturn(rwc);
+		});
 	}
 
+	/**
+	 * Performs the expedited checkout at the supplier LMS.
+	 * Takes into account the 'reflectLoanAtSupplier' status: won't complete without this being true.
+	 */
 
-	private Mono<RequestWorkflowContext> checkoutItemToPatronIfEnabled(
-		RequestWorkflowContext rwc, HostLmsClient hostLmsClient, String[] patronBarcode) {
+	private Mono<RequestWorkflowContext> checkoutAtSupplier(RequestWorkflowContext rwc) {
+		if (rwc.getSupplierRequest() == null || rwc.getLenderSystemCode() == null || rwc.getPatronVirtualIdentity() == null) {
+			log.error("Missing supplier request, lender system code, or virtual patron identity for expedited checkout.");
+			return Mono.error(new IllegalStateException("Cannot perform checkout at supplier: missing critical data."));
+		}
 
 		final var supplierRequest = rwc.getSupplierRequest();
+		final String[] patronBarcodes = extractPatronBarcodes(rwc.getPatronVirtualIdentity().getLocalBarcode());
 
-		if ( hostLmsClient.reflectPatronLoanAtSupplier() ) {
-
-			final var command = CheckoutItemCommand.builder()
-				.itemId(supplierRequest.getLocalItemId())
-				.itemBarcode(supplierRequest.getLocalItemBarcode())
-				.patronId(rwc.getPatronVirtualIdentity().getLocalId())
-				.patronBarcode(patronBarcode[0])
-				.localRequestId(supplierRequest.getLocalId())
-				.libraryCode(supplierRequest.getLocalItemLocationCode())
-				.build();
-
-			return hostLmsClient.checkOutItemToPatron(command)
-				.doOnNext(resp -> log.debug("Expedited checkout: checkOutItemToPatron returned {}", resp))
-				.thenReturn(rwc);
+		if (patronBarcodes == null || patronBarcodes.length == 0) {
+			log.error("No patron barcode available for virtual identity.");
+			return Mono.error(new IllegalStateException("No patron barcode found for expedited checkout at supplier."));
 		}
-		else {
-			rwc.getWorkflowMessages().add("Expedited checkout: reflectPatronLoanAtSupplier disabled for this client");
-			return Mono.just(rwc);
-		}
+
+		return hostLmsService.getClientFor(rwc.getLenderSystemCode())
+			.flatMap(hostLmsClient -> {
+				if (hostLmsClient.reflectPatronLoanAtSupplier()) {
+					final var command = CheckoutItemCommand.builder()
+						.localRequestId(supplierRequest.getLocalId()) // The SUPPLIER's transaction ID
+						.itemId(supplierRequest.getLocalItemId())
+						.itemBarcode(supplierRequest.getLocalItemBarcode())
+						.patronId(rwc.getPatronVirtualIdentity().getLocalId())
+						.patronBarcode(patronBarcodes[0])
+						.build();
+
+					return hostLmsClient.checkOutItemToPatron(command);
+				} else {
+					log.warn("Reflecting loan at supplier is disabled for {}.", rwc.getLenderSystemCode());
+					return Mono.error(new IllegalStateException("Cannot perform checkout at supplier: reflecting the loan at the supplier is disabled."));
+				}
+			})
+			.doOnSuccess(response -> log.debug("Successfully checked out item at supplier LMS."))
+			.thenReturn(rwc)
+			.onErrorResume(error -> {
+				log.error("An error has occurred with the supplier-side expedited checkout", error);
+				return patronRequestAuditService
+					.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout at supplier failed: " + error.getMessage())
+					.thenReturn(rwc);
+			});
 	}
 }
+

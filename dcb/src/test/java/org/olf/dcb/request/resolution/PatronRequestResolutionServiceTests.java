@@ -9,6 +9,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -995,8 +996,8 @@ class PatronRequestResolutionServiceTests {
 		assertThat(resolution, allOf(
 			notNullValue(),
 			hasChosenItem(
-				hasLocalId(itemWithHoldsId),
-				hasBarcode(itemWithHoldsBarcode)
+				hasLocalId(availableItemId),
+				hasBarcode(availableItemBarcode)
 			),
 			hasFilteredItemsSize(3),
 			hasFilteredItems(
@@ -1333,7 +1334,7 @@ class PatronRequestResolutionServiceTests {
 
 	@SafeVarargs
 	private static Matcher<Resolution> hasFilteredItems(Matcher<Item>... matchers) {
-		return hasProperty("filteredItems", contains(matchers));
+		return hasProperty("filteredItems", containsInAnyOrder(matchers));
 	}
 
 	private static Matcher<Resolution> hasFilteredItemsSize(int size) {

@@ -210,8 +210,8 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 				.localPatronId(patronId)
 				// we expect the barcode to be a toString list
 				.localPatronBarcode("[%s]".formatted(patronBarcode))
-				.localItemId(itemId)
-				.localItemBarcode(itemBarcode)
+				.supplyingLocalItemId(itemId)
+				.supplyingLocalItemBarcode(itemBarcode)
 				.pickupLocation(pickupLocation)
 				.build()));
 

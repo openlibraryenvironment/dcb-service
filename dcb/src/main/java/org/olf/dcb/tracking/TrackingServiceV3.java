@@ -346,7 +346,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 		return hostLmsService.getClientFor(pr.getPatronHostlmsCode())
 			.flatMap(client -> client.getRequest(hostlmsRequest))
-			.onErrorContinue((e, o) -> log.error("Tracking Error occurred: " + e.getMessage(), e))
+			.doOnError(e -> log.error("Tracking Error occurred: {}", e.getMessage(), e))
 			.doOnNext(hold -> log.info("TRACKING Compare patron request {} states: {} and {}", pr.getId(), hold.getStatus(), pr.getLocalRequestStatus()))
 			.flatMap( hold -> {
 				if ( hold.getStatus().equals(pr.getLocalRequestStatus()) ) {

@@ -45,10 +45,17 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 
 		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
-		//final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
-
-		return isPatronRequestStatusApplicable(patronRequest) &&
-			( isLocalItemStatusApplicable(patronRequest) || isPickupItemStatusApplicable(patronRequest) );
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		// Handles expedited checkout situations where we need to be careful not to get stuck in LOANED.
+		// If the supplier item status is available, it's time to move on.
+		if (isPatronRequestStatusApplicable(patronRequest) && patronRequest.getIsExpeditedCheckout() !=null && patronRequest.getIsExpeditedCheckout() && isSupplierLocalItemStatusApplicable(supplierRequest)) {
+			return true;
+		}
+		else
+		{
+			return isPatronRequestStatusApplicable(patronRequest) &&
+				( isLocalItemStatusApplicable(patronRequest) || isPickupItemStatusApplicable(patronRequest) );
+		}
 	}
 
 	private boolean isPatronRequestStatusApplicable(PatronRequest patronRequest) {

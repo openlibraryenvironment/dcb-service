@@ -22,14 +22,39 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 
 public class AvailabilityDateCalculatorTests {
-	private final Long DEFAULT_LOAN_PERIOD = 28L;
-
 	private final Instant now = now();
+
 	private final AvailabilityDateCalculator calculator =
 		new AvailabilityDateCalculator(Clock.fixed(now, systemDefault()));
 
 	@Test
-	void availabilityDateShouldBeNowForAvailableItems() {
+	void availabilityDateShouldBeNowForAvailableItemsWithNoHolds() {
+		// Arrange
+		final var item = createItem(AVAILABLE, null, 0);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(now));
+	}
+
+	@ParameterizedTest
+	@ValueSource(ints = {1, 2})
+	void availabilityDateShouldBeExtendedForAvailableItemsWithHolds(int holdCount) {
+		// Arrange
+		final var item = createItem(AVAILABLE, null, holdCount);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, holdCount
+		)));
+	}
+
+	@Test
+	void availabilityDateShouldBeNowForAvailableItemsWithNullHoldCount() {
 		// Arrange
 		final var item = createItem(AVAILABLE, null, null);
 
@@ -64,7 +89,8 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(dueDate.plus(DEFAULT_LOAN_PERIOD * holdCount, DAYS)));
+		assertThat(availabilityDate, is(
+			extendDateByDefaultLoanPeriod(dueDate, holdCount)));
 	}
 
 	@Test
@@ -81,7 +107,7 @@ public class AvailabilityDateCalculatorTests {
 	}
 
 	@Test
-	void availabilityDateShouldBeNowForCheckedOutItemsWithNoDueDate() {
+	void availabilityDateShouldBeArtificiallyExtendedForCheckedOutItemsWithNoDueDate() {
 		// Arrange
 		final var item = createItem(CHECKED_OUT, null, 0);
 
@@ -89,7 +115,7 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(now.plus(DEFAULT_LOAN_PERIOD, DAYS)));
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, 1)));
 	}
 
 	@Test
@@ -142,5 +168,11 @@ public class AvailabilityDateCalculatorTests {
 			.dueDate(dueDate)
 			.holdCount(holdCount)
 			.build();
+	}
+
+	private Instant extendDateByDefaultLoanPeriod(Instant start, int times) {
+		final var defaultLoanPeriodInDays = 28L;
+
+		return start.plus(defaultLoanPeriodInDays * times, DAYS);
 	}
 }
