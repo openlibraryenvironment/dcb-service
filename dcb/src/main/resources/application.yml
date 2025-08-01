@@ -165,7 +165,7 @@ datasources:
     schema-generate: NONE
     db-type: postgresql
     minimumIdle: 0
-    maximumPoolSize: 2
+    maximumPoolSize: 20
     reconnect: true
     #username: "${db.username:}"
     #password: "${db.password:}"
