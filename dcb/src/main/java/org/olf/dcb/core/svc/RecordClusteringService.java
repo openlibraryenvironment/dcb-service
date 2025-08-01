@@ -427,7 +427,7 @@ public class RecordClusteringService {
 			.flatMapMany( matchPointRepository::saveAll )
 			.count()
 			.map( added -> {
-				if (added > 0) log.info("Added {} new matchpoints for {}", added, bib.getId());
+				// if (added > 0) log.trace("Added {} new matchpoints for {}", added, bib.getId());
 				return currentMatchPoints;
 			});
 	}

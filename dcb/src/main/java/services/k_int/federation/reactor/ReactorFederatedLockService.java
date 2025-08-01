@@ -67,6 +67,9 @@ public class ReactorFederatedLockService {
 				.map(this::lockOrFail) // Mono emitting on next can be assumed as the start of the subscription.
 				.flatMapMany(_lock -> source) // Play the original publisher.
 				.publishOn(lockScheduler) // Ensure the publisher uses the owning thread to relinquish the lock.
+				// For doFinally to work in a transactional context, it needs to be within the transactional boundary - which is not ideal.
+				// It is important that any scheduled task has it's own doFinally or onErrorResume that cleanly traps imperative errors thrown
+				// By the micronaut transaction handler
 				.doFinally(_signal -> {
 					relinquish(lock);
 					log.debug("Relinquished lock[{}]", lockName);

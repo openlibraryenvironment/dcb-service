@@ -68,6 +68,20 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	
 	// SO: I have removed that particular throttle as it's a bug if we are generating the next chunk before we have finished processing this one.
 	// I have fixed that in the runner. 
+
+	// We're now back to seeing this error
+  // ^[[36m11:20:14.275^[[0;39m ^[[37m[reactor-tcp-epoll-2]^[[0;39m ^[[39mDEBUG^[[0;39m ^[[35mo.o.d.i.a.LiveAvailabilityService^[[0;39m - getAvailableItems got items, progress to availability check
+	// ^[[36m11:20:14.278^[[0;39m ^[[37m[reactor-tcp-epoll-2]^[[0;39m ^[[1;31mERROR^[[0;39m ^[[35mo.o.d.a.job.AvailabilityCheckJob^[[0;39m - Error saving/updating bibcount
+	// io.r2dbc.postgresql.client.ReactorNettyClient$RequestQueueException: Cannot exchange messages because the request queue limit is exceeded
+	//   at io.r2dbc.postgresql.client.ReactorNettyClient$BackendMessageSubscriber.lambda$addConversation$1(ReactorNettyClient.java:752)
+	//   Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException:
+	// Assembly trace from producer [reactor.core.publisher.FluxCreate] :
+	//   reactor.core.publisher.Flux.create(Flux.java:650)
+	//   io.r2dbc.postgresql.client.ReactorNettyClient$BackendMessageSubscriber.addConversation(ReactorNettyClient.java:735)
+  //
+  // It looks to me like throttleFetchBySourceSystem is still capable of generating more pending updates than we are able to process
+	// 
+
 	
 	
 	private static final Duration TIMEOUT = Duration.of(30, ChronoUnit.SECONDS);
@@ -235,8 +249,11 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		
 		final int totalConcurrency = jobConfig.getConcurrency().getInstanceWide()
 				.orElseGet(() -> Math.max( Runtime.getRuntime().availableProcessors() / 4, 5));
+
 		
 		final int externalPerSystem = jobConfig.getConcurrency().getPerSource();
+
+		log.info("Setting totalConcurrency={}, externalPerSystem={}",totalConcurrency,externalPerSystem);
 		
 		return bibRecordService.getAllByIdIn( ids )
 			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
@@ -254,13 +271,14 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	
 	@Transactional
 	public Mono<Map<String, Collection<BibAvailabilityCount>>> checkClusterAvailability( Collection<UUID> bibs ) {
-		
 		// Manifest the bibs that need updating.
 		return throttleFetchBySourceSystem( bibs )
-			
-			// Convert to and store the Location Entry
-			.flatMap( this::updateMappingIfRequired )
-
+			// Trying to control the rate at which DB updates are generated - in response to the exception
+			// described in comments at the top of the class
+			.buffer(15) // process n at a time
+			.concatMap(batch -> Flux.fromIterable(batch)
+				.flatMap(this::updateMappingIfRequired, 3) // 3 concurrent per batch
+			)
 			.collectMultimap(count -> count.getBibId().toString());
 	}
 	

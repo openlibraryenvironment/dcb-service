@@ -16,4 +16,7 @@ public class ListRecordsParams {
 	private final String resumptionToken;
 	private final String metadataPrefix;
 	private final String set;
+	private final String cpType;
+	private final String hostCode;
+	private final Instant highestRecordTimestampSeen;
 }
