@@ -243,7 +243,11 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
         .subscribeOn(Schedulers.boundedElastic())
 					
 				// Do this error handling here as the mono is set to retry on exception.
-				.onErrorResume(err -> opFail(op, processedTime, "Failed to process bib: %s", err)), MAX_CONCURRENCY)
+				.onErrorResume(err -> {
+					if ( err instanceof IllegalStateException && err.getMessage().contains("connection is closed"))
+						return Mono.error(err);
+					return opFail(op, processedTime, "Failed to process bib: %s", err);
+				}), MAX_CONCURRENCY)
 			
 			.then( Mono.just(chunk) );
 			
@@ -270,13 +274,18 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			return opFail(op, processedTime, "Failed to create IngestRecord from source: Unknown error");
 		}
 
-    log.info("processSingleOperation: title {} - {}",ir.getTitle(),ir.getIdentifiers());
+    // log.trace("processSingleOperation: title {} - {}",ir.getTitle(),ir.getIdentifiers());
 		
 		return bibRecordService.process( ir )
 			// Returned bib (Not delete operation), try cluster.
 			.switchIfEmpty( opSuccess(op, processedTime, "No returned Bib. Assumed redacted or without sufficient title info") )
 			.flatMap( bib -> processNoneDelete( op, bib, processedTime ))
-      .doOnError( err -> log.error("Problem processing bib",err));
+			.onErrorResume(err -> {
+				if ( err instanceof IllegalStateException && err.getMessage().contains("connection is closed"))
+					return Mono.error(err);
+
+				return opFail(op, processedTime, "Failed to process bib: %s", err);
+			});
 	}
 	
 

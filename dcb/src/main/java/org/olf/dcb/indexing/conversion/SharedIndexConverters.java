@@ -51,7 +51,7 @@ public class SharedIndexConverters {
 				.collectMultimap(count -> count.getBibId().toString())
 				.block();
 		
-		log.debug("returning availability [{}]", availability);
+		// log.trace("returning availability [{}]", availability);
 		
 		return availability;
 	}
