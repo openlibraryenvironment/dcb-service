@@ -1005,6 +1005,7 @@ class PolarisLmsClientTests {
 		final var bib = singleValueFrom(client.createBib(
 			Bib.builder()
 				.title("title")
+				.canonicalItemType("CIRCAV")
 				.build()));
 
 		// Assert

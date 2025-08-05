@@ -47,6 +47,8 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Pro
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_AV_LEADER;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_BOOKS_LEADER;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.getNoteForStaff;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -401,19 +403,33 @@ class ApplicationServicesClient {
 	public Mono<Integer> createBibliographicRecord(Bib bib) {
 		final var path = createPath("bibliographicrecords");
 
+		final var canonicalItemType = getValueOrNull(bib, Bib::getCanonicalItemType);
+		final String leader = decideLeaderValue(canonicalItemType);
+		log.debug("Creating bibliographic record with leader: {}", leader);
+
 		return createRequest(POST, path, uri -> uri.queryParam("type", "create"))
 			.map(request -> request.body(DtoBibliographicCreationData.builder()
 				.recordOwnerID(1)
 				.displayInPAC(FALSE)
 				.doNotOverlay(TRUE)
 				.record(DtoMARC21Record.builder()
-					.leader(randomAlphanumeric(24))
+					.leader(leader)
 					.controlfields(List.of(DtoMARC21ControlField.builder().tag("008").data(randomAlphanumeric(24)).build()))
 					.datafields( List.of( DtoMARC21DataField.builder()
 						.tag("245").ind1("0").ind2("0")
 						.subfields( List.of(DtoMARC21Subfield.builder().code("a").data(bib.getTitle()).build()) )
 						.build())).build()).build()))
 			.flatMap(request -> client.retrieve(request, Argument.of(Integer.class)));
+	}
+
+	private static String decideLeaderValue(String canonicalItemType) {
+		String leader;
+		if ("CIRCAV".equals(canonicalItemType)) {
+			leader = VIRTUAL_BIB_AV_LEADER;
+		} else {
+			leader = VIRTUAL_BIB_BOOKS_LEADER;
+		}
+		return leader;
 	}
 
 	public Mono<WorkflowResponse> deleteBibliographicRecord(String id) {

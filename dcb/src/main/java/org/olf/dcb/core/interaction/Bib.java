@@ -17,4 +17,5 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 public class Bib {
 	private String title;
 	private String author;
+	private String canonicalItemType;
 }
