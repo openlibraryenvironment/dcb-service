@@ -1,5 +1,19 @@
 # Changelog
 
+## Version 8.43.1
+
+### Changes
+* [Chore]
+	* increased the maximum pool size to 20 from 2
+	* Experimental change to availability job - backpressure aware DB updates
+	* add state to foilo oai checkpoint
+* [Refactor]
+	* leader value when creating temp bibs in polaris [DCB-1969]
+
+### Fixes
+* [General]
+	* When ingest encounters a DB error, just throw an error, don't try and set the record state in the DB. Reduce some logging verbosity
+
 ## Version 8.43.0
 
 ### Additions
@@ -8,6 +22,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* re-enable disabled ingest tests
 	* Check supplier item status before moving expedited checkout request to RETURN_TRANSIT [DCB-1555]
 * [Refactor]
