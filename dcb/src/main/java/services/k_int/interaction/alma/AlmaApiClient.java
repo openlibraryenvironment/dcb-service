@@ -1,79 +1,305 @@
 package services.k_int.interaction.alma;
 
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.HostLmsRenewal;
-import org.reactivestreams.Publisher;
-
-import reactor.core.publisher.Flux;
+import io.micronaut.http.MediaType;
 import reactor.core.publisher.Mono;
-
-import java.net.URI;
-
-import services.k_int.interaction.alma.types.*;
+import services.k_int.interaction.alma.types.AlmaBib;
+import services.k_int.interaction.alma.types.AlmaUser;
+import services.k_int.interaction.alma.types.AlmaUserList;
+import services.k_int.interaction.alma.types.holdings.AlmaHolding;
+import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
 import services.k_int.interaction.alma.types.items.*;
-import services.k_int.interaction.alma.types.holdings.*;
-import services.k_int.interaction.alma.types.userRequest.*;
+import services.k_int.interaction.alma.types.userRequest.AlmaRequest;
+import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
 
+import java.util.Collections;
+import java.util.Map;
+
+/**
+ * Provides core HTTP operations and strongly-typed endpoint methods with manual path definitions.
+ */
 public interface AlmaApiClient {
-	String CONFIG_ROOT = "alma.client";
-	URI getRootUri();
 
-	// https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
+	// --- Core HTTP methods ---
+	<T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams);
+	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
+	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType);
+	<T> Mono<T> put(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
+	Mono<Void> delete(String path, Map<String, Object> queryParams);
 
-	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
-	Mono<AlmaUser> createPatron(AlmaUser patron);
+	// --- Overloads (no queryParams) ---
+	default <T> Mono<T> get(String path, Class<T> responseType) {
+		return get(path, responseType, Collections.emptyMap());
+	}
+	default <T> Mono<T> post(String path, Object body, Class<T> responseType) {
+		return post(path, body, responseType, Collections.emptyMap());
+	}
+	default <T> Mono<T> postXml(String path, Object body, Class<T> responseType) {
+		return post(path, body, responseType, Collections.emptyMap(), MediaType.APPLICATION_XML);
+	}
+	default <T> Mono<T> put(String path, Object body, Class<T> responseType) {
+		return put(path, body, responseType, Collections.emptyMap());
+	}
+	default Mono<Void> delete(String path) {
+		return delete(path, Collections.emptyMap());
+	}
 
-	// https://developers.exlibrisgroup.com/alma/apis/docs/users/UFVUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
-	Mono<AlmaUser> updateUserDetails(String user_id, AlmaUser patron);
+	/**
+	 * List all users.
+	 * <p>
+	 * API: GET /almaws/v1/users
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
+	 */
+	default Mono<AlmaUserList> retrieveUsers() {
+		return get("/almaws/v1/users", AlmaUserList.class);
+	}
 
-	// https://developers.exlibrisgroup.com/alma/apis/users/
-  Mono<AlmaUser> getAlmaUserByUserId(String user_id);
+	/**
+	 * Authenticate or refresh a user.
+	 * <p>
+	 * API: GET /almaws/v1/users/{user_id}?password={password}
+	 * Docs: <a href="https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfQ==/">Alma API Doc</a>
+	 */
+	default Mono<AlmaUser> authenticateOrRefreshUser(String user_id, String password) {
+		return get("/almaws/v1/users/"  + user_id, AlmaUser.class, Map.of("password", password));
+	}
 
-	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
-	Mono<AlmaRequestResponse> retrieveUserRequest(String user_id, String request_id);
+	/**
+	 * Search users by external ID.
+	 * <p>
+	 * API: GET /almaws/v1/users?q=external_id~{externalId}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
+	 */
+	default Mono<AlmaUserList> getUsersByExternalId(String externalId) {
+		return get("/almaws/v1/users", AlmaUserList.class, Map.of("q", "external_id~" + externalId));
+	}
 
-	// https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnM=/
-	Mono<AlmaUserList> getUsersByExternalId(String external_id);
+	/**
+	 * Get user details.
+	 * <p>
+	 * API: GET /almaws/v1/users/{user_id}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
+	 */
+	default Mono<AlmaUser> getUserDetails(String user_id) {
+		return get("/almaws/v1/users/" + user_id, AlmaUser.class);
+	}
 
-  Mono<String> deleteAlmaUser(String user_id);
+	/**
+	 * Create a new user.
+	 * <p>
+	 * API: POST /almaws/v1/users
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
+	 */
+	default Mono<AlmaUser> createUser(AlmaUser user) {
+		return post("/almaws/v1/users", user, AlmaUser.class);
+	}
 
-	Mono<AlmaHoldings> getHoldings(String mms_id);
+	/**
+	 * Update existing user details.
+	 * <p>
+	 * API: PUT /almaws/v1/users/{userId}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
+	 */
+	default Mono<AlmaUser> updateUserDetails(String userId, AlmaUser patron) {
+		return put("/almaws/v1/users/" + userId, patron, AlmaUser.class);
+	}
 
-	Mono<AlmaItems> getItemsForHolding(String mms_id, String holding_id);
+	/**
+	 * Delete a user.
+	 * <p>
+	 * API: DELETE /almaws/v1/users/{user_id}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/REVMRVRFIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
+	 */
+	default Mono<String> deleteUser(String user_id) {
+		return delete("/almaws/v1/users/" + user_id)
+			.thenReturn("User deleted");
+	}
 
-	// This one is a gamble.. may need to be implemented with the above + a filter
-  Mono<AlmaItem> getItemForPID(String mms_id, String holdingId, String pid);
+	/**
+	 * Delete a bib record.
+	 * <p>
+	 * API: DELETE /almaws/v1/bibs/{mms_id}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/REVMRVRFIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfQ==/
+	 */
+	default Mono<String> deleteBibRecord(String mms_id) {
+		return delete("/almaws/v1/bibs/" + mms_id, Map.of("override", true))
+			.thenReturn("Bib deleted");
+	}
 
-	Mono<AlmaItems> getAllItems(String mms_id, String holding_id);
+	/**
+	 * Delete an item within a holding.
+	 * <p>
+	 * API: DELETE /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/REVMRVRFIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1fcGlkfQ==/
+	 */
+	default Mono<String> withdrawItem(String mms_id, String holding_id, String item_pid) {
+		final String path = "/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items/" + item_pid;
+		return delete(path, Map.of("override", true))
+			.thenReturn("Item deleted");
+	}
 
-	Mono<String> test();
+	/**
+	 * Delete Holdings Record.
+	 * <p>
+	 * API: DELETE /almaws/v1/bibs/{mms_id}/holdings/{holding_id}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/REVMRVRFIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0=/
+	 */
+	default Mono<String> deleteHoldingsRecord(String mms_id, String holding_id) {
+		return delete("/almaws/v1/bibs/" + mms_id + "/holding_id/" + holding_id, Map.of("override", true))
+			.thenReturn("Holding deleted");
+	}
 
-  Mono<AlmaRequestResponse> placeHold(String userId, AlmaRequest almaRequest);
+	/**
+	 * Retrieve all holdings for a bib.
+	 * <p>
+	 * API: GET /almaws/v1/bibs/{mms_id}/holdings
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncw==/
+	 */
+	default Mono<AlmaHoldings> retrieveHoldingsList(String mms_id) {
+		return get("/almaws/v1/bibs/" + mms_id + "/holdings", AlmaHoldings.class);
+	}
 
-	Mono<AlmaBib> createBib(String bib);
+	/**
+	 * Retrieve items for a specific holding.
+	 * <p>
+	 * API: GET /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXM=/
+	 */
+	default Mono<AlmaItems> retrieveItemsList(String mms_id, String holding_id) {
+		return get("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items", AlmaItems.class);
+	}
 
-	Mono<AlmaItem> createItem(String mmsId, String holdingId, AlmaItem aid);
+	/**
+	 * Retrieve Item and label printing information.
+	 * <p>
+	 * API: GET /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1fcGlkfQ==/
+	 */
+	default Mono<AlmaItem> retrieveItem(String mms_id, String holding_id, String item_pid) {
+		return get("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items/" + item_pid, AlmaItem.class);
+	}
 
-	Publisher<String> deleteBib(String id);
+	/**
+	 * Place a hold request for a user.
+	 * <p>
+	 * API: POST /almaws/v1/users/{user_id}/requests?item_pid={item_pid}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfS9yZXF1ZXN0cw==/
+	 */
+	default Mono<AlmaRequestResponse> createUserRequest(String user_id, String item_pid, AlmaRequest almaRequest) {
+		return post("/almaws/v1/users/" + user_id + "/requests", almaRequest,
+			AlmaRequestResponse.class, Map.of("item_pid", item_pid));
+	}
 
-	Mono<AlmaHolding> createHolding(String bibId, String almaHolding);
+	/**
+	 * Retrieve a specific user request.
+	 * <p>
+	 * API: GET /almaws/v1/users/{user_id}/requests/{request_id}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
+	 */
+	default Mono<AlmaRequestResponse> retrieveUserRequest(String user_id, String request_id) {
+		return get("/almaws/v1/users/" + user_id + "/requests/" + request_id, AlmaRequestResponse.class);
+	}
 
-	Mono<String> deleteItem(String id, String holdingsId, String mmsId);
+	/**
+	 * Delete user request.
+	 * <p>
+	 * API: DELETE /almaws/v1/users/{user_id}/requests/{request_id}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/REVMRVRFIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
+	 */
+	default Mono<String> cancelUserRequest(String user_id, String request_id) {
+		final String path = "/almaws/v1/users/" + user_id + "/requests/" + request_id;
+		return delete(path, Map.of("override", true))
+			.thenReturn("Request deleted");
+	}
 
-	Mono<String> deleteHolding(String holdingsId, String mmsId);
+	/**
+	 * Fetches all loans for a specific user.
+	 * <p>
+	 * API: GET /almaws/v1/users/{user_id}/loans
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L2xvYW5z/
+	 */
+	default Mono<AlmaItemLoans> retrieveUserLoans(String user_id) {
+		return get("/almaws/v1/users/" + user_id + "/loans", AlmaItemLoans.class);
+	}
 
-	Mono<AlmaUser> authenticateOrRefreshUser(String barcode, String secret);
+	/**
+	 * Create a loan for a user.
+	 * <p>
+	 * API: POST /almaws/v1/users/{user_id}/loans?item_pid={item_pid}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfS9sb2Fucw==/
+	 */
+	default Mono<AlmaItemLoanResponse> createUserLoan(String user_id, String item_pid, AlmaItemLoan loan) {
+		return post("/almaws/v1/users/" + user_id + "/loans", loan,
+			AlmaItemLoanResponse.class, Map.of("item_pid", item_pid));
+	}
 
-	Mono<String> deleteUserRequest(String userId, String requestId);
+	/**
+	 * Renew a loan.
+	 * <p>
+	 * API: POST /almaws/v1/users/{user_id}/loans/{loan_id}?op=renew
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfS9sb2Fucy97bG9hbl9pZH0=/
+	 */
+	default Mono<AlmaItemLoan> renewLoan(String user_id, String loan_id) {
+		return post("/almaws/v1/users/" + user_id + "/loans/" + loan_id,
+			null, AlmaItemLoan.class, Map.of("op", "renew"));
+	}
 
-	Mono<AlmaItemLoanResponse> createUserLoan(String patronId, String itemId, AlmaItemLoan almaItemLoan);
+	/**
+	 * List all libraries.
+	 * <p>
+	 * API: GET /almaws/v1/conf/libraries
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/conf/R0VUIC9hbG1hd3MvdjEvY29uZi9saWJyYXJpZXM=/
+	 */
+	default Mono<AlmaLibrariesResponse> retrieveLibraries() {
+		return get("/almaws/v1/conf/libraries", AlmaLibrariesResponse.class);
+	}
 
-	Mono<AlmaLibrariesResponse> getLibraries();
+	/**
+	 * List locations for a library.
+	 * <p>
+	 * API: GET /almaws/v1/conf/libraries/{libraryCode}/locations
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/libraries/
+	 */
+	default Mono<AlmaLocationResponse> retrieveLocations(String libraryCode) {
+		return get("/almaws/v1/conf/libraries/" + libraryCode + "/locations", AlmaLocationResponse.class);
+	}
 
-	Mono<AlmaLocationResponse> getLocationsForLibrary(String libraryCode);
+	/**
+	 * Create a new bib record.
+	 * <p>
+	 * API: POST /almaws/v1/bibs
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UE9TVCAvYWxtYXdzL3YxL2JpYnM=/
+	 */
+	default Mono<AlmaBib> createBibRecord(String bibXml) {
+		return postXml("/almaws/v1/bibs", bibXml, AlmaBib.class);
+	}
 
-	Mono<AlmaCancellationResponse> doCancellation(CancelHoldRequestParameters cancelHoldRequestParameters);
+	/**
+	 * Create a new holding under a bib.
+	 * <p>
+	 * API: POST /almaws/v1/bibs/{mms_id}/holdings
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UE9TVCAvYWxtYXdzL3YxL2JpYnMve21tc19pZH0vaG9sZGluZ3M=/
+	 */
+	default Mono<AlmaHolding> createHoldingRecord(String mms_id, String holdingXml) {
+		return postXml("/almaws/v1/bibs/" + mms_id + "/holdings", holdingXml, AlmaHolding.class);
+	}
 
-	Mono<HostLmsRenewal> doRenewal(HostLmsRenewal hostLmsRenewal);
+	/**
+	 * Create a new item under a holding.
+	 * <p>
+	 * API: POST /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UE9TVCAvYWxtYXdzL3YxL2JpYnMve21tc19pZH0vaG9sZGluZ3Mve2hvbGRpbmdfaWR9L2l0ZW1z/
+	 */
+	default Mono<AlmaItem> createItem(String mms_id, String holding_id, AlmaItem item) {
+		return post("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items", item, AlmaItem.class);
+	}
 
+	/**
+	 * Test connectivity.
+	 * <p>
+	 * API: GET /almaws/v1/conf/test
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/conf/R0VUIC9hbG1hd3MvdjEvY29uZi90ZXN0/
+	 */
+	default Mono<String> test() {
+		return get("/almaws/v1/conf/test", String.class);
+	}
 }

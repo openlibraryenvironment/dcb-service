@@ -1,19 +1,12 @@
 package org.olf.dcb.core.interaction.alma;
 
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
-import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
-import java.net.URI;
 import java.util.*;
 import java.time.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.HostLmsService;
@@ -55,7 +48,6 @@ import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.uri.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
@@ -64,43 +56,10 @@ import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Prototype
+// @See https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
 public class AlmaHostLmsClient implements HostLmsClient {
-
-	// @See https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
-
-	// These are the same config keys as from FolioOaiPmhIngestSource
-	// which was implemented prior to this client
-	private static final HostLmsPropertyDefinition BASE_URL_SETTING
-		= urlPropertyDefinition("alma-url", "Base request URL of the ALMA system", TRUE);
-	private static final HostLmsPropertyDefinition API_KEY_SETTING
-		= stringPropertyDefinition("apikey", "API key for this ALMA system", TRUE);
-
-//	The item's override policy for loan rules.
-//	Defines the conditions under which a request for this item can be fulfilled.
-//	Possible codes are listed in 'ItemPolicy' code table.
-	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd/?tags=POST
-	private static final HostLmsPropertyDefinition ITEM_POLICY_SETTING
-		= stringPropertyDefinition("item-policy", "Item policy for this ALMA system", FALSE);
-	private static final HostLmsPropertyDefinition SHELF_LOCATION_SETTING
-		= stringPropertyDefinition("shelf-location", "Shelf location for this ALMA system", FALSE);
-	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
-		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
-	private static final HostLmsPropertyDefinition USER_IDENTIFIER
-		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
-
-	// if the user doesn't have a homelibrary, this replaces it
-	// We can then use this to find the first OPEN location for their library
-	private static final HostLmsPropertyDefinition DEFAULT_PATRON_LOCATION_CODE
-		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", FALSE);
-
-	private static final HostLmsPropertyDefinition DEFAULT_PICKUP_LOCATION_CODE
-		= stringPropertyDefinition("default-pickup-location-code", "Default pickup library code for this ALMA system", FALSE);
-
-
 	private final HostLms hostLms;
-
 	private final HttpClient httpClient;
-
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
@@ -108,29 +67,26 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private final LocationService locationService;
 	private final HostLmsService hostLmsService;
 	private final AlmaApiClient client;
-
-	private final String apiKey;
-	private final URI rootUri;
+	private final AlmaClientConfig config;
 
 	public AlmaHostLmsClient(@Parameter HostLms hostLms,
-													 @Parameter("client") HttpClient httpClient,
-													 AlmaClientFactory almaClientFactory,
-													 ReferenceValueMappingService referenceValueMappingService, MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService, LocationToAgencyMappingService locationToAgencyMappingService,
-													 ConversionService conversionService,
-													 LocationService locationService, HostLmsService hostLmsService) {
+		@Parameter("client") HttpClient httpClient,
+		AlmaClientFactory almaClientFactory,
+		ReferenceValueMappingService referenceValueMappingService,
+		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		ConversionService conversionService,
+		LocationService locationService,
+		HostLmsService hostLmsService,
+		AlmaClientConfig config) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-
-		// this.consortialFolioItemMapper = consortialFolioItemMapper;
+		this.config = config;
 		this.client = almaClientFactory.createClientFor(hostLms);
-
 		this.referenceValueMappingService = referenceValueMappingService;
-
-		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
-		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
 		this.conversionService = conversionService;
 		this.locationService = locationService;
 		this.hostLmsService = hostLmsService;
@@ -143,25 +99,20 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(
-			BASE_URL_SETTING,
-			API_KEY_SETTING,
-			ITEM_POLICY_SETTING,
-			SHELF_LOCATION_SETTING
-		);
+		return config.getSettings();
 	}
 	
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		// /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/
-		return client.getHoldings(bib.getSourceRecordId())
+		return client.retrieveHoldingsList(bib.getSourceRecordId())
 			.flatMapMany(holdingResponse -> {
 				List<AlmaHolding> holdings = holdingResponse.getHoldings();
 				if (holdings == null || holdings.isEmpty()) {
 					return Flux.empty();
 				}
 				return Flux.fromIterable(holdings)
-					.flatMap(holding -> client.getAllItems(bib.getSourceRecordId(), holding.getHoldingId())
+					.flatMap(holding -> client.retrieveItemsList(bib.getSourceRecordId(), holding.getHoldingId())
 						.onErrorResume(e -> {
 							log.warn("Failed to fetch items for holding ID {}: {}", holding.getHoldingId(), e.getMessage());
 							return Mono.empty(); // Skip this holding on error
@@ -243,7 +194,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				if ("CLOSED".equalsIgnoreCase(matchingLocations.get(0).getType().getValue())) {
 					log.warn("The ALMA location corresponding to the item location code is unavailable. Falling back to our default location.");
 					// Use default pickup location code to fetch the default location
-					return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+					return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
 				}
 				return Mono.just(matchingLocations.get(0));
 			});
@@ -300,7 +251,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 						else
 						{
 							log.warn("No 'OPEN' locations found among matches. Falling back to the default location for this system.");
-							return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+							return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
 						}
 
 					}
@@ -319,7 +270,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	public Mono<AlmaLocation> fetchLocationByLibraryCode(String libraryCode) {
-		return client.getLocationsForLibrary(libraryCode)
+		return client.retrieveLocations(libraryCode)
 			.flatMap(response -> {
 				List<AlmaLocation> locations = response.getLocations();
 				if (locations == null || locations.isEmpty()) {
@@ -368,17 +319,17 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 				// If neither OPEN nor REMOTE found, fall back to default location
 				log.warn("No OPEN or REMOTE locations found for library {}. Falling back to default location.", libraryCode);
-				return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+				return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
 			})
 			.onErrorResume(e -> {
 				log.error("Failed to fetch locations for library code {}: {}", libraryCode, e.getMessage());
 				// Fall back to default location on any error
-				return fetchLocationByLocationCode(DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN"));
+				return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
 			});
 	}
 
 	public Mono<AlmaGroupedLocationResponse> fetchLocations() {
-		return client.getLibraries()
+		return client.retrieveLibraries()
 			.flatMapMany(librariesResponse -> {
 				List<AlmaLibraryResponse> libraries = librariesResponse.getLibraries();
 				if (libraries == null || libraries.isEmpty()) {
@@ -389,7 +340,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 						String libraryCode = getValueOrNull(library, AlmaLibraryResponse::getCode);
 						String libraryName = getValueOrNull(library, AlmaLibraryResponse::getName);
 						if (library.getNumberOfLocations().getValue() > 0 && libraryCode != null) {
-							return client.getLocationsForLibrary(libraryCode)
+							return client.retrieveLocations(libraryCode)
 								.flatMapMany(response -> {
 									List<AlmaLocation> locations = response.getLocations();
 									log.debug("locations for library {}: {}", libraryCode, locations);
@@ -431,7 +382,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				final var libraryCode = getValueOrNull(location, AlmaLocation::getLibraryCode);
 				final var locationCode = getValueOrNull(location, AlmaLocation::getCode);
 				// we have to use this from config as a location will have multiple circ desks
-				final var circDeskCode = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+				final var circDeskCode = config.getPickupCircDesk("DEFAULT_CIRC_DESK");
 				final var note = getValueOrNull(parameters, PlaceHoldRequestParameters::getNote);
 
 				return placeGenericAlmaRequest(parameters.getLocalBibId(),
@@ -501,7 +452,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					throw new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId);
 				}
 
-				final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+				final var pickupLocationCircuationDesk = config.getPickupCircDesk("DEFAULT_CIRC_DESK");
 				final var pickupLocationCode = pickupLocation.getCode();
 
 				final String systemDependentPickupLocationCode = pickupLocationLmsClientClass.equals("org.olf.dcb.core.interaction.alma.AlmaHostLmsClient")
@@ -560,7 +511,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// if we don't set the library code to the default (GTMAIN for GTECH) then we will see errors;
 		// 'No items can fulfill the submitted request'
 		// known limitation for now
-		final var defaultLibraryCode = DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN");
+		final var defaultLibraryCode = config.getDefaultPickupLocationCode("GTMAIN");
 		if (libraryCode == null || libraryCode.isBlank() || !defaultLibraryCode.equals(libraryCode)) {
 			// for now we only support GTMAIN as a pickup library for GTECH
 			log.warn("Library code {} being set to default {}", libraryCode, defaultLibraryCode);
@@ -569,7 +520,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		// the minimum fields required
 		final var almaRequest = AlmaRequest.builder()
-			.pId(itemId)
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
 			.pickupLocationLibrary(libraryCode)
@@ -581,7 +531,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.comment(comment)
 			.build();
 
-    return client.placeHold(patronId, almaRequest)
+    return client.createUserRequest(patronId, itemId, almaRequest)
       .map( response -> mapAlmaRequestToLocalRequest(response, itemBarcode) )
       .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
 	}
@@ -591,7 +541,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
 
-		final var defaultLibraryCode = DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GTMAIN");
+		final var defaultLibraryCode = config.getDefaultPickupLocationCode("GTMAIN");
 
 		return placeGenericAlmaRequest(parameters.getLocalBibId(),
 			parameters.getLocalItemId(),
@@ -638,23 +588,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
-		// Almas API has a nice feature whereby the {userid} part of the GET /almaws/v1/users/{userid} can be any of the
-		// identifiers from the AlmaUser user_identifiers list
-		return client.getAlmaUserByUserId(localPatronId)
+		return client.getUserDetails(localPatronId)
 			.map(this::almaUserToPatron);
 	}
 
 	@Override
 	public Mono<Patron> getPatronByIdentifier(String id) {
-		// Almas API has a nice feature whereby the {userid} part of the GET /almaws/v1/users/{userid} can be any of the
-		// identifiers from the AlmaUser user_identifiers list
-		return client.getAlmaUserByUserId(id)
+		return client.getUserDetails(id)
 			.map(this::almaUserToPatron);
 	}
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
-		return client.getAlmaUserByUserId(localUsername)
+		return client.getUserDetails(localUsername)
 			.map(this::almaUserToPatron);
 	}
 
@@ -671,7 +617,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// this relies on implementation relies on alma finding the user by our uniqueId
 		// if we have created a user with a user identifier correctly we should be good
 		// the user will need to have the user identifier enabled
-		return client.getAlmaUserByUserId(uniqueId)
+		return client.getUserDetails(uniqueId)
 			.doOnNext(almaUser -> log.info("Found virtual patron with uniqueId: {}", uniqueId))
 			.map(this::almaUserToPatron)
 			.onErrorResume(e -> {
@@ -773,7 +719,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(patronType -> {
 				almaUser.setUser_group(CodeValuePair.builder().value(patronType).build());
 
-				return Mono.from(client.createPatron(almaUser))
+				return Mono.from(client.createUser(almaUser))
 					.flatMap(returnedUser -> {
 						log.info("Created alma user {}", returnedUser);
 						return Mono.just(returnedUser.getPrimary_id());
@@ -808,7 +754,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 
 	private List<UserIdentifier> createUserIdentifiers(Patron patron) {
-		final var identifierType = USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), ID_TYPE_INST_ID);
+		final var identifierType = config.getUserIdentifier(ID_TYPE_INST_ID);
 		final String externalId = extractExternalId(patron);
 
 		// Validate that we have at least one identifier source
@@ -870,21 +816,54 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		final var alma_bib = AlmaXmlGenerator.createBibXml(title, author);
 
-		return client.createBib(alma_bib)
-			.map ( bibresult -> bibresult.getMmsId() );
+		return client.createBibRecord(alma_bib)
+			.map(AlmaBib::getMmsId);
 	}
 
 	@Override
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
 		log.info("Alma cancellation is WIP for {} cancelHoldRequest({})", getHostLms().getName(), parameters);
 		// We may also need to set the status to CANCELLED
-		return client.doCancellation(parameters).thenReturn(parameters.getLocalRequestId());
+
+		final var userId = getValueOrNull(parameters, CancelHoldRequestParameters::getPatronId);
+		final var localRequestId = getValueOrNull(parameters, CancelHoldRequestParameters::getLocalRequestId);
+
+		// WIP implementation of cancellation.
+		// We could support supplying a reason here but it has to be limited to Alma's valid RequestCancellationReasons
+		return client.cancelUserRequest(userId, localRequestId)
+			.thenReturn(parameters.getLocalRequestId());
 	}
 
+
 	@Override
-	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		log.warn("Renewal is not currently implemented for {}", getHostLms().getName());
-		return client.doRenewal(hostLmsRenewal);
+	public Mono<HostLmsRenewal> renew(HostLmsRenewal renewal) {
+		log.info("Starting direct renewal for patron {} and item {}", renewal.getLocalPatronId(), renewal.getLocalItemId());
+		final String patronId = renewal.getLocalPatronId();
+		final String itemId = renewal.getLocalItemId(); // Assumes this method exists
+
+		if (itemId == null || itemId.isBlank()) {
+			return Mono.error(new IllegalArgumentException("Local Item ID is missing and required for renewal."));
+		}
+
+		// 1. Get all loans for the user.
+		return client.retrieveUserLoans(patronId)
+			.flatMap(userLoans -> {
+				// 2. Find the loan that matches the provided item ID.
+				return Mono.justOrEmpty(userLoans.getLoans().stream()
+					.filter(loan -> itemId.equals(loan.getItemId()))
+					.findFirst());
+			})
+			.switchIfEmpty(Mono.error(new IllegalStateException("Could not find a matching loan for item ID " + itemId + " and patron " + patronId)))
+			.flatMap(matchedLoan -> {
+				final String loanId = matchedLoan.getLoanId();
+				log.info("Found matching loan ID: {}. Proceeding with renewal.", loanId);
+				return client.renewLoan(patronId, loanId);
+			})
+			.map(renewedLoan -> {
+				log.info("Renewal successful for loan {}. New due date: {}", renewedLoan.getLoanId(), renewedLoan.getDueDate());
+				return renewal;
+			})
+			.doOnError(error -> log.error("Direct renewal process failed for item {}: {}", itemId, error.getMessage()));
 	}
 
 	@Override
@@ -900,7 +879,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// Ref: https://developers.exlibrisgroup.com/alma/apis/docs/users/UFVUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
 
 		// to avoid overwriting we fetch the user first
-		return client.getAlmaUserByUserId(localId)
+		return client.getUserDetails(localId)
 			.flatMap(returnedUser -> {
 				final var almaUser = AlmaUser.builder()
 					.record_type(returnedUser.getRecord_type())
@@ -924,9 +903,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
-
 		return client.authenticateOrRefreshUser(barcode, secret)
-			.map(almaUser -> almaUserToPatron(almaUser));
+			.map(this::almaUserToPatron);
 	}
 
 	Mono<String> getMappedItemType(String itemTypeCode) {
@@ -964,7 +942,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 		String bibId = getValueOrNull(cic, CreateItemCommand::getBibId);
-		String policy = ITEM_POLICY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "BOOK");
+		String policy = config.getItemPolicy("BOOK");
 		String baseStatus = "1";
 		String callNumber = "DCB_VIRTUAL_COLLECTION";
 		String holdingNote = "DCB Virtual holding record";
@@ -972,7 +950,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// The patron home location appears to be null for Alma - this fallback aims to cover that while we investigate
 		// As for Alma this is really the home library, so fall back to default if null
 		log.info("Create item for Alma with {}", cic);
-		String patronHomeLibraryCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (DEFAULT_PATRON_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), "GENERAL"));
+		String patronHomeLibraryCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (config.getDefaultPatronLocationCode("GENERAL"));
 
 		AtomicReference<String> holdingId = new AtomicReference<>();
 
@@ -1040,7 +1018,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<AlmaHolding> createHolding(String bibId, String almaHolding) {
-		return client.createHolding(bibId, almaHolding);
+		return client.createHoldingRecord(bibId, almaHolding);
 	}
 
 	@Override
@@ -1085,8 +1063,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
-		return client.getItemForPID(hostLmsItem.getBibId(), hostLmsItem.getHoldingId(), hostLmsItem.getLocalId())
-			.map( item -> {
+		return client.retrieveItem(hostLmsItem.getBibId(), hostLmsItem.getHoldingId(), hostLmsItem.getLocalId())
+			.map(item -> {
 
 				final var almaItemData = getValueOrNull(item, AlmaItem::getItemData);
 
@@ -1118,7 +1096,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
 		final var patronId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getPatronId);
 		final var requestId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLocalRequestId);
-		final var pickupLocationCircuationDesk = PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), "DEFAULT_CIRC_DESK");
+		final var pickupLocationCircuationDesk = config.getPickupCircDesk("DEFAULT_CIRC_DESK");
 		final var libraryCode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLibraryCode);
 		final var itemId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemId);
 
@@ -1141,8 +1119,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var holdingsId = getValueOrNull(deleteCommand, DeleteCommand::getHoldingsId);
 		final var mms_id = getValueOrNull(deleteCommand, DeleteCommand::getBibId);
 
-		return client.deleteItem(id, holdingsId, mms_id)
-			.flatMap(result -> client.deleteHolding(holdingsId, mms_id));
+		return client.withdrawItem(mms_id, holdingsId, id)
+			.flatMap(result -> client.deleteHoldingsRecord(mms_id, holdingsId));
 	}
 
 	@Override
@@ -1152,17 +1130,17 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("deleteHold({},{})", userId, requestId);
 
-		return client.deleteUserRequest(userId, requestId);
+		return client.cancelUserRequest(userId, requestId);
 	}
 
   public Mono<String> deletePatron(String id) {
-		return Mono.from(client.deleteAlmaUser(id))
+		return Mono.from(client.deleteUser(id))
 			.then(Mono.just("OK"));
 	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		return Mono.from(client.deleteBib(id))
+		return Mono.from(client.deleteBibRecord(id))
 			.then(Mono.just("OK"));
 	}
 
