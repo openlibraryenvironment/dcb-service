@@ -7,23 +7,21 @@ import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
+import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItem;
+import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItems;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.MapUtils.putNonNullValue;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.FunctionalSetting;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -204,42 +202,15 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 		final var auditData = new HashMap<String, Object>();
 
-		// For values that could be "unknown", "null" is used as a differentiating default
-		final var presentableItem = buildPresentableItem(chosenItem);
-
-		putNonNullValue(auditData, "selectedItem", presentableItem);
+		putNonNullValue(auditData, "selectedItem", toPresentableItem(chosenItem));
 
 		// adding the list the item was chosen from, helps us debug the resolution
-		final var sortedItems = resolution.getSortedItems().stream()
-			.map(this::buildPresentableItem).collect(Collectors.toList());
-
-		putNonNullValue(auditData, "sortedItems", sortedItems);
+		putNonNullValue(auditData, "sortedItems", toPresentableItems(resolution.getSortedItems()));
 
 		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
 				"Re-resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
 					chosenItem.getLocalId(), chosenItem.getHostLmsCode()), auditData)
 			.then(Mono.just(resolution));
-	}
-
-	private PresentableItem buildPresentableItem(Item item) {
-		return PresentableItem.builder()
-			.barcode(getValue(item, Item::getBarcode, "Unknown"))
-			.statusCode(getStatusCode(item))
-			.requestable(getValue(item, Item::getIsRequestable, false))
-			.localItemType(getValue(item, Item::getLocalItemType, "null"))
-			.canonicalItemType(getValue(item, Item::getCanonicalItemType, "null"))
-			.holdCount(getValue(item, Item::getHoldCount, 0))
-			.agencyCode(getValue(item, Item::getAgencyCode, "Unknown"))
-			.availableDate(Optional.ofNullable(getValue(item, Item::getAvailableDate, null))
-				.map(Instant::toString).orElse("null"))
-			.dueDate(Optional.ofNullable(getValue(item, Item::getDueDate, null))
-				.map(Instant::toString).orElse("null"))
-			.build();
-	}
-
-	private String getStatusCode(Item chosenItem) {
-		final var itemStatusCode = getValueOrNull(chosenItem, Item::getStatus, ItemStatus::getCode);
-		return getValue(itemStatusCode, Enum::name, "null");
 	}
 
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
