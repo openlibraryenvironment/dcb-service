@@ -144,8 +144,8 @@ public class Resolution implements ItemFilterParameters {
 		final var auditData = new HashMap<String, Object>();
 
 		putNonNullValue(auditData, "selectedItem", toPresentableItem(chosenItem));
-
-		// adding the list the item was chosen from, helps us debug the resolution
+		
+		putNonNullValue(auditData, "filteredItems", toPresentableItems(filteredItems));
 		putNonNullValue(auditData, "sortedItems", toPresentableItems(sortedItems));
 
 		return auditService.addAuditEntry(getPatronRequest(),
