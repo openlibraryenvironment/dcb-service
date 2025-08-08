@@ -30,13 +30,13 @@ public class PresentableItem {
 	String availableDate;
 	String dueDate;
 
-	static List<PresentableItem> toPresentableItems(List<Item> items) {
+	public static List<PresentableItem> toPresentableItems(List<Item> items) {
 		return items.stream()
 			.map(PresentableItem::toPresentableItem)
 			.collect(Collectors.toList());
 	}
 
-	static PresentableItem toPresentableItem(Item item) {
+	public static PresentableItem toPresentableItem(Item item) {
 		// For values that could be "unknown", "null" is used as a differentiating default
 		return builder()
 			.localId(getValue(item, Item::getLocalId, "Unknown"))

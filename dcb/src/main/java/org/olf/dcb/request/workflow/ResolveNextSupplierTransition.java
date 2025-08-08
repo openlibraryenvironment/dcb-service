@@ -7,13 +7,9 @@ import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
-import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItem;
-import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItems;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.MapUtils.putNonNullValue;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -193,24 +189,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<Resolution> auditResolution(Resolution resolution) {
-		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
-
-		// Do not audit a resolution when an item hasn't been chosen
-		if (chosenItem == null) {
-			return Mono.just(resolution);
-		}
-
-		final var auditData = new HashMap<String, Object>();
-
-		putNonNullValue(auditData, "selectedItem", toPresentableItem(chosenItem));
-
-		// adding the list the item was chosen from, helps us debug the resolution
-		putNonNullValue(auditData, "sortedItems", toPresentableItems(resolution.getSortedItems()));
-
-		return patronRequestAuditService.addAuditEntry(resolution.getPatronRequest(),
-				"Re-resolved to item with local ID \"%s\" from Host LMS \"%s\"".formatted(
-					chosenItem.getLocalId(), chosenItem.getHostLmsCode()), auditData)
-			.then(Mono.just(resolution));
+		return resolution.auditResolution(patronRequestAuditService, "Re-resolved");
 	}
 
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
