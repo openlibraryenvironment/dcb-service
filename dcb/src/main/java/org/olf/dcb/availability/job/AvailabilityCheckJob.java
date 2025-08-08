@@ -68,6 +68,10 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	
 	// SO: I have removed that particular throttle as it's a bug if we are generating the next chunk before we have finished processing this one.
 	// I have fixed that in the runner. 
+		// The problem I think may be that inside a chunk (checkClusterAvailability) the number of bibs attached to a cluster 
+    // can be large and this can generate an unbounded (in theory, in practice tho, large enough to exhaust the DB pool) set 
+    // of events that causes the exception that CLUSTER_CHECK_CONCURRENCY avoided. This is obviously a worse problem on old style
+    // bad clusters - but we're definitely still seeing it on GIL - see DCB-1976 for details tho.
 
 	// We're now back to seeing this error
   // ^[[36m11:20:14.275^[[0;39m ^[[37m[reactor-tcp-epoll-2]^[[0;39m ^[[39mDEBUG^[[0;39m ^[[35mo.o.d.i.a.LiveAvailabilityService^[[0;39m - getAvailableItems got items, progress to availability check
