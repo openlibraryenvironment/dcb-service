@@ -40,6 +40,10 @@ import reactor.core.publisher.Mono;
 import reactor.util.context.Context;
 import reactor.util.context.ContextView;
 
+/**
+ * TODO: This is not ideal. We should look at moving to the delegate pattern for this override or, remove it altogether when possible.  
+ * @author Steve Osguthorpe
+ */
 @Slf4j
 @EachBean(ConnectionFactory.class)
 @Replaces(DefaultR2dbcReactorTransactionOperations.class)
@@ -321,10 +325,18 @@ public class ReplacementR2dbcReactorTransactionOperations
 	@NonNull
 	private Publisher<Void> doCommit(@NonNull DefaultReactiveTransactionStatus<Connection> status) {
 		Flux<Void> op;
-		if (status.isRollbackOnly()) {
-			op = Flux.from(rollbackTransaction(status.getConnectionStatus(), status.getTransactionDefinition()));
-		} else {
-			op = Flux.from(commitTransaction(status.getConnectionStatus(), status.getTransactionDefinition()));
+		try {
+			if (status.isRollbackOnly()) {
+				op = Flux.from(rollbackTransaction(status.getConnectionStatus(), status.getTransactionDefinition()));
+			} else {
+				op = Flux.from(commitTransaction(status.getConnectionStatus(), status.getTransactionDefinition()));
+			}
+		} catch (Exception e) {
+			// Sometimes an exception can be thrown creating the publishers for rollback or commit.
+			// An example of this, is if the connection has been closed prematurely by the DBMS.
+			// We should ensure we always return a Publisher to allow downstream consumers to properly
+			// detect and handle these type of errors.
+			op = Flux.error(e);
 		}
 		return op.as(flux -> doFinish(flux, status));
 	}
@@ -336,12 +348,21 @@ public class ReplacementR2dbcReactorTransactionOperations
 			log.warn("Rolling back transaction on error: " + throwable.getMessage(), throwable);
 		}
 		Flux<Void> abort;
-		TransactionDefinition definition = status.getTransactionDefinition();
-		if (definition.rollbackOn(throwable)) {
-			abort = Flux.from(rollbackTransaction(status.getConnectionStatus(), definition));
-		} else {
-			abort = Flux.error(throwable);
+		try {
+			TransactionDefinition definition = status.getTransactionDefinition();
+			if (definition.rollbackOn(throwable)) {
+				abort = Flux.from(rollbackTransaction(status.getConnectionStatus(), definition));
+			} else {
+				abort = Flux.error(throwable);
+			}
+		} catch (Exception e) {
+			// Sometimes an exception can be thrown creating the publishers for rollback or commit.
+			// An example of this, is if the connection has been closed prematurely by the DBMS.
+			// We should ensure we always return a Publisher to allow downstream consumers to properly
+			// detect and handle these type of errors.
+			abort = Flux.error(e);
 		}
+		
 		return abort.onErrorResume((rollbackError) -> {
 			if (rollbackError != throwable && log.isWarnEnabled()) {
 				log.warn("Error occurred during transaction rollback: " + rollbackError.getMessage(), rollbackError);
