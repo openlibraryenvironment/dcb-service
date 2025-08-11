@@ -132,7 +132,7 @@ public class ReactorFederatedLockService {
 					if (lockContext.isObtained()) {
 						try {
 							relinquish(lockContext.getLock());
-							log.debug("Relinquished lock[{}] on signal [{}]", lockName, _signal);
+							log.info("Relinquished lock[{}] on signal [{}]", lockName, _signal);
 						}
 						catch ( Exception e ) {
 							log.error("Failed to relinquish lock [{}]: {}", lockName, e.toString(), e);
