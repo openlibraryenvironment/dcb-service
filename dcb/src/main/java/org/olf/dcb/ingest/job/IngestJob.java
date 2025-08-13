@@ -26,6 +26,7 @@ import org.olf.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Replaces;
+import io.micronaut.context.event.ApplicationEventPublisher;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
@@ -45,6 +46,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.jobs.Job;
 import services.k_int.jobs.JobChunk;
@@ -71,8 +73,10 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	private final BibRecordService bibRecordService;
 	private final RecordClusteringService recordClusteringService;
   private final ReactorFederatedLockService lockService;
+	private final ApplicationEventPublisher<IngestEvent> ingestEventPublisher;
 	
-	public IngestJob(SourceRecordService sourceRecordService, ConversionService conversionService, ReactiveJobRunnerService jobRunnerService, HostLmsService hostLmsService, RecordClusteringService recordClusteringService, BibRecordService bibRecordService, ReactorFederatedLockService lockService) {
+	public IngestJob(SourceRecordService sourceRecordService, ConversionService conversionService, ReactiveJobRunnerService jobRunnerService, HostLmsService hostLmsService, RecordClusteringService recordClusteringService, BibRecordService bibRecordService, ReactorFederatedLockService lockService,
+		ApplicationEventPublisher<IngestEvent> ingestEventPublisher) {
 		this.conversionService = conversionService;
 		this.sourceRecordService = sourceRecordService;
 		this.jobRunnerService = jobRunnerService;
@@ -80,6 +84,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		this.bibRecordService = bibRecordService;
 		this.recordClusteringService = recordClusteringService;
 		this.lockService = lockService;
+		this.ingestEventPublisher = ingestEventPublisher;
 		
 		log.info("Ingest job construction complete");
 	}
@@ -358,23 +363,33 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	}
 	
 	
+	public Mono<Tuple2<Long, Long>> buildIngestJobStream() {
+    return Mono.just(this)
+      .publishOn(Schedulers.boundedElastic())
+      .subscribeOn(Schedulers.boundedElastic())
+      .flatMapMany(jobRunnerService::processJobInstance)
+      .map(chunk -> Optional.ofNullable(chunk.getData())
+                            .map(Collection::size)
+                            .map(Integer::longValue)
+                            .orElse(0L))
+      .reduce(Long::sum)              // Mono<Long> totalCount
+      .elapsed()                      // Mono<Tuple2<Long elapsedMillis, Long totalCount>>
+			.doOnSuccess( result -> {
+				ingestEventPublisher.publishEvent(IngestEvent.builder().eventType("success").build());
+			})
+			.doOnError( err -> {
+				ingestEventPublisher.publishEvent(IngestEvent.builder().eventType("error").build());
+			})
+      // Lock operator returns empty if not acquired; keep EMPTY semantics for callers
+      .transformDeferred(lockService.withLockOrEmpty("ingest-job"));
+  }
 	
 	@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
 	@Scheduled(initialDelay = "40s", fixedDelay = "2m")
 	public void scheduleJob() {
 		
-		Mono.just( this )
-			.publishOn( Schedulers.boundedElastic() )
-			.subscribeOn( Schedulers.boundedElastic() )
-			.flatMapMany( jobRunnerService::processJobInstance )
-			.map(chunk -> Optional.ofNullable(chunk.getData()) // Extract resource count.
-					.map( Collection::size )
-					.map( Integer::longValue )
-					.orElse(0L))
-			.reduce( Long::sum )
-			.elapsed()
-			.transformDeferred(lockService.withLockOrEmpty("ingest-job"))
+		buildIngestJobStream()
 			.doOnSuccess( res -> {
 				if (res == null) {
 					log.info(JOB_NAME + "allready running (NOOP)");
