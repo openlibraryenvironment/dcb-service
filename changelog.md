@@ -1,9 +1,25 @@
 # Changelog
 
+## Version 8.44.0
+
+### Additions
+* [General]
+	* Include filtered items in the resolution audit entry DCB-1975
+
+### Changes
+* [Chore]
+	* refactor IngestJob so reactive stream can be called directly from tests, add mn event on success
+	* add batch delete script as an example of how to
+
+### Fixes
+* [General]
+	* updating virtual item barcode in polaris adaptor [DCB-1990]
+
 ## Version 8.43.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* increased the maximum pool size to 20 from 2
 	* Experimental change to availability job - backpressure aware DB updates
 	* add state to foilo oai checkpoint
