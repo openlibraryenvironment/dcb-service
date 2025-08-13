@@ -698,6 +698,8 @@ class ApplicationServicesClient {
 			.doOnError(e -> log.info("Error response for save item {}", workflowRequest, e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, NoDisplayInPAC, Continue))
+			// confirm the barcode changed on update (only applies to update requests)
+			.flatMap(response -> replyIfPromptMatches(response, ConfirmItemBarcodeChanged, Continue))
 			// saving an item with a duplicate barcode causes the hold request to fail
 			.map(resp -> {
 				if (resp.getPrompt() != null &&
@@ -1358,6 +1360,7 @@ class ApplicationServicesClient {
 		// Prompt Identifiers
 		public static final Integer FillsRequestTransferPrompt = 30;
 		public static final Integer BriefItemEntry = 55;
+		public static final Integer ConfirmItemBarcodeChanged = 62; // found as part of DCB-1990
 		public static final Integer NoDisplayInPAC = 66;
 		public static final Integer ExceededTotalRequestLimit = 68; // found as part of DCB-1353
 		public static final Integer DuplicateRecords = 72;
