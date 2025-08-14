@@ -65,7 +65,7 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
 			( ctx.getSupplierRequest() != null ) &&
 			( 
-				( checkSupplierHoldCount(ctx) ) &&
+				( shouldPreventRenewal(ctx) ) &&
 				(
 					(ctx.getPatronRequest().getRenewalStatus() == null) || 
 					(PatronRequest.RenewalStatus.ALLOWED == ctx.getPatronRequest().getRenewalStatus())
@@ -73,11 +73,17 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 			);
 	}
 
-	private static boolean checkSupplierHoldCount(RequestWorkflowContext ctx) {
-		return Optional.ofNullable(ctx.getSupplierRequest())
-			.map(SupplierRequest::getLocalHoldCount)
-			.filter(count -> count > 0)
-			.isPresent();
+  /** Return true if the supplier item is NOT renewaable */
+	private static boolean shouldPreventRenewal(RequestWorkflowContext ctx) {
+    if ( ctx.getSupplierRequest() != null ) {
+      int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
+      if ( hold_count > 0 )
+        return true;
+      if ( Boolean.FALSE.equals(ctx.getSupplierRequest().getLocalRenewable() ) )
+        return true;
+    }
+
+    return false;
 	}
 
 	@Override
