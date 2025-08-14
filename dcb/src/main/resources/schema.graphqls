@@ -516,6 +516,8 @@ type SupplierRequest {
   rawLocalStatus: String
   localRenewalCount: Int
   localHoldingId: String
+	localRenewable: Boolean
+	localHoldCount: Int
 }
 
 type InactiveSupplierRequest {
