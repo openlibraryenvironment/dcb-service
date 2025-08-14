@@ -81,6 +81,14 @@ enum ProcessingStatus {
 	FAILURE
 }
 
+enum RenewalStatus {
+	ALLOWED,
+	DISALLOWED,
+	UNKNOWN,
+	UNSUPPORTED
+}
+
+
 """
 Graphql does not allow types to be reused as input types as the semantics are different. We create the input types here.
 AgencyGroupInput : fields that define a new agency group.
@@ -471,6 +479,9 @@ type PatronRequest {
 	isExpeditedCheckout: Boolean
 	localHoldingId: String
 	pickupHoldingId: String
+	isTooLong: Boolean
+	protocol: String
+	renewalStatus: RenewalStatus
 }
 
 type PatronRequestAudit {

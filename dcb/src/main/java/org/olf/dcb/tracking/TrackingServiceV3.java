@@ -234,11 +234,23 @@ public class TrackingServiceV3 implements TrackingService {
 	}
 
 	private Mono<RequestWorkflowContext> tooLongHandling(RequestWorkflowContext ctx) {
-    log.warn("Patron request selected for too long handling {}",ctx.getPatronRequest().getId());
-    
-    return Mono.from(patronRequestRepository.updateIsTooLongAndNeedsAttention(ctx.getPatronRequest().getId(), Boolean.TRUE, Boolean.TRUE))
-      .thenReturn(ctx);
-  }
+		log.warn("Patron request selected for too long handling {}", ctx.getPatronRequest().getId());
+
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("Reason", "Request stuck in non-terminal state for more than " + TOO_LONG_THRESHOLD + " days");
+		auditData.put("LastStateChangeTimestamp", ctx.getPatronRequest().getCurrentStatusTimestamp());
+
+		return Mono.from(patronRequestRepository.updateIsTooLongAndNeedsAttention(
+				ctx.getPatronRequest().getId(),
+				Boolean.TRUE, Boolean.TRUE))
+			.flatMap(updateResult ->
+				patronRequestAuditService.addAuditEntry(
+					ctx.getPatronRequest(),
+					"Request no longer being tracked - has spent more than "+TOO_LONG_THRESHOLD+" in non-terminal state",
+					auditData)
+			)
+			.thenReturn(ctx);
+	}
 
 	private Mono<RequestWorkflowContext> fetchWorkflowContext(UUID pr_id) {
 		return Mono.from(patronRequestRepository.findById(pr_id))
