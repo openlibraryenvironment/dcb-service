@@ -8,7 +8,6 @@ import static org.olf.dcb.tracking.StateChangeFactory.SUPPLIER_REQUEST_ERROR;
 import static org.olf.dcb.tracking.StateChangeFactory.patronRequestStatusChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.pickupItemStatusChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.pickupRequestStatusChanged;
-import static org.olf.dcb.tracking.StateChangeFactory.supplierItemRenewalCountChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.supplierItemStatusChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.supplierRequestErrored;
 import static org.olf.dcb.tracking.StateChangeFactory.supplierRequestStatusChanged;
@@ -444,6 +443,23 @@ public class TrackingServiceV3 implements TrackingService {
 		}
 	}
 
+  private boolean hasValueChanged(Object o1, Object o2) {
+    return (
+      ((o1 == null) && ( o2 != null)) ||
+      ((o1 != null) && ( o2 == null)) ||
+      (! o1.equals(o2) )
+    );
+  }
+
+  private boolean hasSupplierItemChanged(SupplierRequest sr, HostLmsItem item) {
+    return ( 
+      hasValueChanged(item.getStatus(), sr.getLocalItemStatus() ) ||
+      hasValueChanged(item.getRenewable(), sr.getLocalRenewable() ) ||
+      hasValueChanged(item.getRenewalCount(), sr.getLocalRenewalCount() )
+    );
+  }
+
+
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
 
@@ -472,25 +488,10 @@ public class TrackingServiceV3 implements TrackingService {
 				.flatMap( item -> {
 					// *Ian: Surely the next else block here is better dealt with by a new || condition here?
 					// I can't see any behaviour different if the condition matches?*
-					if ( ((item.getStatus() == null) && (sr.getLocalItemStatus() != null)) ||     // remote item status is null, local is not
-						((item.getStatus() != null) && (sr.getLocalItemStatus() == null)) ||			  // remote status is null local is null
-						(!item.getStatus().equals(sr.getLocalItemStatus()))) {	                    // remote != local
-
+          //
+					if ( hasSupplierItemChanged(sr, item) ) {
 						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
 						StateChange sc = supplierItemStatusChanged(sr, item);
-
-
-						log.info("TRACKING-EVENT supplier-item state change {}", sc);
-						return hostLmsReactions.onTrackingEvent(sc)
-							.thenReturn(sr);
-					}
-					else if (item.getRenewalCount() != null && 														// tracked item has a non-null renewal count
-						!Objects.equals(item.getRenewalCount(), sr.getLocalRenewalCount())) // and the renewal count has changed
-					{
-						// Item renewal count has changed - so issue an update
-						log.debug("TRACKING Detected supplying system - supplier item renewal count change {} to {}", sr.getLocalRenewalCount(), item.getRenewalCount());
-						StateChange sc = supplierItemRenewalCountChanged(sr, item);
-
 						log.info("TRACKING-EVENT supplier-item state change {}", sc);
 						return hostLmsReactions.onTrackingEvent(sc)
 							.thenReturn(sr);

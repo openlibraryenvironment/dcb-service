@@ -94,6 +94,7 @@ public class HostLmsReactions {
 					sr2.setLocalItemStatusRepeat(Long.valueOf(0));
 					sr2.setLocalRenewalCount(sc.getToRenewalCount());
 					sr2.setLocalHoldCount(sc.getToHoldCount());
+					sr2.setLocalRenewable(sc.getRenewable());
 					return Mono.from(supplierRequestRepository.update(sr2)).flatMap(ssr -> auditEventIndication( context, trackingRecord));
 				case "PickupRequest":
 					PatronRequest pickupRequest = (PatronRequest) sc.getResource();

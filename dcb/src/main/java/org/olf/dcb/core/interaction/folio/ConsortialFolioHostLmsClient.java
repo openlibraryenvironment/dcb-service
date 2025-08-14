@@ -967,8 +967,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.status(mapLocalStatus(rawLocalStatus, transactionId))
 			.rawStatus(rawLocalStatus)
 			.renewalCount(getValue(transactionStatus, TransactionStatus::getRenewalCount, 0))
-			// Guessing that hold count is also not currently supported by edge-dcb
-			.holdCount(null)
+			.holdCount(transactionStatus.getHoldCount())
+			.renewable(transactionStatus.getRenewable())
 			.build();
 	}
 

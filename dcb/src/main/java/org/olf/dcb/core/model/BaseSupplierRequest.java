@@ -135,6 +135,9 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 	private Integer localRenewalCount = 0;
 
   @Builder.Default
+	private Boolean localRenewable = Boolean.TRUE;
+
+  @Builder.Default
 	private Integer localHoldCount = 0;
 
 	public T setDateCreated(@Nullable Instant dateCreated) {

@@ -175,6 +175,7 @@ public class StateChangeFactory {
 		final var toRenewalCount = getValueOrNull(item, HostLmsItem::getRenewalCount);
 		final var fromHoldCount = getValueOrNull(sr, SupplierRequest::getLocalHoldCount);
 		final var toHoldCount = getValueOrNull(item, HostLmsItem::getHoldCount);
+		final var renewable = getValueOrNull(item, HostLmsItem::getRenewable);
 
 		final var fromRawStatus = getValueOrNull(sr, SupplierRequest::getRawLocalItemStatus);
 		final var toRawStatus = getValueOrNull(item, HostLmsItem::getRawStatus);
@@ -194,39 +195,7 @@ public class StateChangeFactory {
 			.toRenewalCount(toRenewalCount)
 			.fromHoldCount(fromHoldCount)
 			.toHoldCount(toHoldCount)
-			.resource(sr)
-			.additionalProperties(props)
-			.build();
-	}
-
-	public static StateChange supplierItemRenewalCountChanged(SupplierRequest sr, HostLmsItem item) {
-		final var prId = getValueOrNull(sr.getPatronRequest(), PatronRequest::getId);
-		final var srId = getValueOrNull(sr, SupplierRequest::getId);
-		final var fromState = getValueOrNull(sr, SupplierRequest::getLocalItemStatus);
-		final var toState = getValueOrNull(item, HostLmsItem::getStatus);
-		final var fromRenewalCount = getValueOrNull(sr, SupplierRequest::getLocalRenewalCount);
-		final var toRenewalCount = getValueOrNull(item, HostLmsItem::getRenewalCount);
-		final var fromHoldCount = getValueOrNull(sr, SupplierRequest::getLocalHoldCount);
-		final var toHoldCount = getValueOrNull(item, HostLmsItem::getHoldCount);
-
-		final var fromRawStatus = getValueOrNull(sr, SupplierRequest::getRawLocalItemStatus);
-		final var toRawStatus = getValueOrNull(item, HostLmsItem::getRawStatus);
-
-		final Map<String, Object> props = new HashMap<>();
-
-		props.put("fromRawStatus", fromRawStatus);
-		props.put("toRawStatus", toRawStatus);
-
-		return StateChange.builder()
-			.patronRequestId(prId)
-			.resourceType(SUPPLIER_ITEM_RESOURCE_TYPE)
-			.resourceId(srId.toString())
-			.fromState(fromState)
-			.toState(toState)
-			.fromRenewalCount(fromRenewalCount)
-			.toRenewalCount(toRenewalCount)
-			.fromHoldCount(fromHoldCount)
-			.toHoldCount(toHoldCount)
+      .renewable(renewable)
 			.resource(sr)
 			.additionalProperties(props)
 			.build();

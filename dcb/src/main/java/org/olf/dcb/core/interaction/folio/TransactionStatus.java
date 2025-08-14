@@ -24,9 +24,21 @@ class TransactionStatus {
 	Item item;
 
 	@Transient
+	Integer getHoldCount() {
+		return null;
+	}
+
+	@Transient
 	Integer getRenewalCount() {
 		return getValue(item, Item::getRenewalInfo, RenewalInformation::getRenewalCount, 0);
 	}
+
+	@Transient
+	Boolean getRenewable() {
+		return getValue(item, Item::getRenewalInfo, RenewalInformation::getRenewable, Boolean.FALSE);
+	}
+
+  // https://github.com/folio-org/edge-dcb/blob/master/src/main/resources/swagger.api/schemas/dcbItem.yaml
 
 	@Data
 	@Builder
@@ -40,5 +52,7 @@ class TransactionStatus {
 	@Serdeable
 	static class RenewalInformation {
 		Integer renewalCount;
+		Integer renewalMaxCount;
+		Boolean renewable;
 	}
 }

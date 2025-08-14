@@ -32,6 +32,7 @@ public class StateChange implements TrackingRecord {
 	private Integer toRenewalCount;
 	private Integer fromHoldCount;
 	private Integer toHoldCount;
+  private Boolean renewable;
 
 	@ToString.Exclude
 	private Object resource;
