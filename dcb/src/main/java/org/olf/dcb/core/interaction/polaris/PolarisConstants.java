@@ -30,6 +30,6 @@ class PolarisConstants {
 	public static final String E_CONTENT_EXTERNAL_LOAN = "EContent External Loan";
 
 	// virtual bib values
-	public static final String VIRTUAL_BIB_BOOKS_LEADER = "LDR     cam  22      a 4500";
-	public static final String VIRTUAL_BIB_AV_LEADER = "LDR     cgm  22      a 4500";
+	public static final String VIRTUAL_BIB_BOOKS_LEADER = "LDR    cam 22     a 4500";
+	public static final String VIRTUAL_BIB_AV_LEADER = "LDR    cgm 22     a 4500";
 }
