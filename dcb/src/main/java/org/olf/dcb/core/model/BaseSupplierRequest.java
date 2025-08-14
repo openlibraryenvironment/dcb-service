@@ -132,13 +132,13 @@ public abstract class BaseSupplierRequest<T extends BaseSupplierRequest<T>> {
 	private String protocol;
 
   @Builder.Default
-	private Integer localRenewalCount = 0;
+	private Integer localRenewalCount = Integer.valueOf(0);
 
   @Builder.Default
 	private Boolean localRenewable = Boolean.TRUE;
 
   @Builder.Default
-	private Integer localHoldCount = 0;
+	private Integer localHoldCount = Integer.valueOf(0);
 
 	public T setDateCreated(@Nullable Instant dateCreated) {
 		this.dateCreated = dateCreated;
