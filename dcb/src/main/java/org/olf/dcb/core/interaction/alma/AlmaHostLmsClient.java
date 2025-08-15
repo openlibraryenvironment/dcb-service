@@ -1282,7 +1282,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			// alma library = library of the item, location = shelving location
 	  	.location(derivedLocation)
 		  .barcode(almaItem.getItemData().getBarcode())
-		  .callNumber(almaItem.getBibData().getCallNumber())
+		  .callNumber(almaItem.getHoldingData().getCallNumber())
 		  .isRequestable(isRequestable)
       // ToDo - This data needs to be retrieved from GET /almaws/v1/items/{mms_id}/{holding_id}/{item_pid}
 		  .holdCount(0)
