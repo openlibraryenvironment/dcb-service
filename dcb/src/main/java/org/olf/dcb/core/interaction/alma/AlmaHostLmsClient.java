@@ -77,14 +77,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		ConversionService conversionService,
 		LocationService locationService,
-		HostLmsService hostLmsService,
-		AlmaClientConfig config) {
+		HostLmsService hostLmsService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.config = config;
+		this.config = new AlmaClientConfig(hostLms);
 		this.client = almaClientFactory.createClientFor(hostLms);
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.conversionService = conversionService;
