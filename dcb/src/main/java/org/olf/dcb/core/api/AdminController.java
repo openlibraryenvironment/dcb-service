@@ -5,11 +5,14 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
+import io.micronaut.context.annotation.Value;
 import org.olf.dcb.core.api.serde.ImportCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ProcessState;
@@ -24,6 +27,7 @@ import org.olf.dcb.storage.BibRepository;
 //import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.ProcessStateRepository;
+import org.olf.dcb.tracking.TrackingHelpers;
 import org.olf.dcb.utils.DCBConfigurationService;
 import org.olf.dcb.utils.DCBConfigurationService.ConfigImportResult;
 import org.slf4j.Logger;
@@ -69,6 +73,10 @@ public class AdminController {
 	private final Optional<SharedIndexLiveUpdater> sharedIndexUpdater;
 	private final HouseKeepingService housekeeping;
 	private final Environment env;
+	private final TrackingHelpers trackingHelpers;
+	private final Long globalActiveRequestLimit;
+
+
 
 	public AdminController(PatronRequestService patronRequestService, SupplierRequestService supplierRequestService,
 //			StatsService statsService,
@@ -77,7 +85,7 @@ public class AdminController {
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
 			Optional<SharedIndexLiveUpdater> sharedIndexUpdater, HouseKeepingService housekeeping,
-      Environment env) {
+      Environment env, TrackingHelpers trackingHelpers, @Value("${dcb.globals.activeRequestLimit:25}") Long globalActiveRequestLimit) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
@@ -89,6 +97,8 @@ public class AdminController {
 		this.sharedIndexUpdater = sharedIndexUpdater;
 		this.housekeeping = housekeeping;
 		this.env = env;
+		this.trackingHelpers = trackingHelpers;
+		this.globalActiveRequestLimit = globalActiveRequestLimit;
 	}
 
 	// ToDo: The tests seem to want to be able to call this without any auth - that
@@ -240,5 +250,35 @@ public class AdminController {
 
 	    // Return the info about the threads
 	    return(threadDump.toString());
+	}
+
+	@Get(uri = "/trackingConfiguration", produces = APPLICATION_JSON)
+	public Mono<Map<String, Object>> getTrackingConfiguration() {
+		Map<PatronRequest.Status, Duration> durations = trackingHelpers.getDurations();
+
+		Map<PatronRequest.Status, String> formattedDurations = durations.entrySet().stream()
+			.collect(Collectors.toMap(
+				Map.Entry::getKey,
+				entry -> {
+					Duration duration = entry.getValue();
+					if (duration == null) {
+						return "Not set";
+					}
+					// Put the tracking durations into human-readable format (HH:mm:ss)
+					long totalSeconds = duration.getSeconds();
+					long hours = totalSeconds / 3600;
+					long minutes = (totalSeconds % 3600) / 60;
+					long seconds = totalSeconds % 60;
+
+					return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+				}
+			));
+
+		// Add in global active request limit for useful context
+		Map<String, Object> apiResponse = new HashMap<>();
+		apiResponse.put("trackingIntervals", formattedDurations);
+		apiResponse.put("globalActiveRequestLimit", this.globalActiveRequestLimit);
+
+		return Mono.just(apiResponse);
 	}
 }
