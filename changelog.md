@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 8.45.0
+
+### Additions
+* [General]
+	* Expose tracking intervals [DCB-2001]
+	* Store and react to edge-dcb renewable boolean in item data
+
+### Fixes
+* [General]
+	* remove AlmaClientConfig dependency injection
+	* spaces in polaris bib leader fields [DCB-1969]
+
 ## Version 8.44.0
 
 ### Additions
@@ -8,6 +20,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* refactor IngestJob so reactive stream can be called directly from tests, add mn event on success
 	* add batch delete script as an example of how to
 

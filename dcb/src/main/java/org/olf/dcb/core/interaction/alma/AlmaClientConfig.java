@@ -1,7 +1,5 @@
 package org.olf.dcb.core.interaction.alma;
 
-import io.micronaut.context.annotation.EachBean;
-import io.micronaut.context.annotation.Parameter;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.model.HostLms;
 
@@ -13,7 +11,6 @@ import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 
-@EachBean(HostLms.class)
 public class AlmaClientConfig {
 
 	// These are the same config keys as from FolioOaiPmhIngestSource
@@ -46,7 +43,7 @@ public class AlmaClientConfig {
 
 	private final HostLms hostLms;
 
-	public AlmaClientConfig(@Parameter HostLms hostLms) {
+	public AlmaClientConfig(HostLms hostLms) {
 		this.hostLms = hostLms;
 	}
 

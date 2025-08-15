@@ -38,6 +38,8 @@ public class AlmaHoldingData {
 	WithAttr tempCallNumberType;
 	@JsonProperty("temp_call_number")
 	String tempCallNumber;
+	@JsonProperty("call_number")
+	String callNumber;
 	@JsonProperty("temp_call_number_source")
 	String tempCallNumberSource;
 	@JsonProperty("temp_policy")

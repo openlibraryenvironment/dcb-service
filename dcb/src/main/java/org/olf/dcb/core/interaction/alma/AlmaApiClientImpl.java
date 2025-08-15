@@ -48,12 +48,11 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	@Creator
 	public AlmaApiClientImpl(@Parameter("hostLms") HostLms hostLms,
 		@Parameter("client") HttpClient httpClient,
-		ObjectMapper objectMapper,
-		AlmaClientConfig config) {
+		ObjectMapper objectMapper) {
 
 		this.httpClient = httpClient;
 		this.objectMapper = objectMapper;
-		this.config = config;
+		this.config = new AlmaClientConfig(hostLms);
 	}
 
 	@Override
