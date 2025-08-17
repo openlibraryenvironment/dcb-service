@@ -42,7 +42,7 @@ import reactor.function.TupleUtils;
 @Singleton
 public class BibRecordService {
 	
-	public static final int PROCESS_VERSION = 2;
+	public static final int PROCESS_VERSION = 3;
 
 	private static final Logger log = LoggerFactory.getLogger(BibRecordService.class);
 
@@ -74,6 +74,13 @@ public class BibRecordService {
 		// log.info("Executing step 1");
 
 		bib.setProcessVersion(PROCESS_VERSION);
+
+    // We need to pull forward any important changed properties from the ingest record here
+    // Once created, fields will not be automatically updated when records are reprocessed unless
+    // we manually set them here - title, canonical metadata, etc. It would be nice to avoid
+    // updates unless really necessary
+    bib.setCanonicalMetadata(imported.getCanonicalMetadata());
+    bib.setTitle(imported.getTitle());
 
 		return bib;
 	}

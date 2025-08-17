@@ -76,6 +76,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
   		enrichWithFormOfItemInformation(ingestRecord, marcRecord);
 	  	// Title(s)
 		  enrichWithTitleInformation(ingestRecord, marcRecord);
+			enrichWithBlockingWorkTitle(ingestRecord, marcRecord);
   		// Identifiers
 	  	enrichWithIdentifiers(ingestRecord, marcRecord);
   		// Author(s)
@@ -199,7 +200,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		// Initial title.
 		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
 				.filter(Objects::nonNull)
-				.flatMap(tag -> concatSubfieldData(marcRecord, tag, "abc"))
+				.flatMap(tag -> concatSubfieldData(marcRecord, tag, "abcdefghijklmnopqrstuvwxyz"))
 				.filter(StringUtils::isNotEmpty)
 				.reduce(ingestRecord.build().getTitle(), (current, item) -> {
 					if (StringUtils.isEmpty(current)) {
@@ -245,6 +246,41 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 		return ingestRecord;
 	}
+
+
+  default IngestRecordBuilder enrichWithBlockingWorkTitle(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
+    // Initial title.
+    final String title = Stream.of("240", "130", "245", "243", "246", "222", "210", "240", "247")
+        .filter(Objects::nonNull)
+        .flatMap(tag -> concatSubfieldData(marcRecord, tag, "abcdefghijklmnopqrstuvwxyz"))
+        .filter(StringUtils::isNotEmpty)
+        .reduce(ingestRecord.build().getIdentifier("BLOCKING_WORK_TITLE"), (current_blocking_title, item) -> {
+          if (StringUtils.isEmpty(current_blocking_title)) {
+
+            String blocking_title = DCBStringUtilities.generateBlockingString(item);
+            if ( blocking_title != null ) {
+              ingestRecord.addIdentifier(id -> {
+                // This allows us to add in important discriminators into the blocking title - edition being
+                // the most obvious one for now. Ideally we would normalised this tho into a canonical string
+  
+                // The old style blocking titles arranged words alphabetically, removed duplicates and didn't
+                // suffer with double spacing, so using that here as it provides cleaner matching.
+                id.namespace("BLOCKING_WORK_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
+              });
+            }
+
+            // Exit the lambda returning the selected title
+            return blocking_title;
+          }
+
+          // Keep returning the first title that was set.
+          return current_blocking_title;
+        });
+
+    // log.trace("Title used: {}", title);
+
+    return ingestRecord;
+  }
 
 	default IngestRecordBuilder handleControlNumber(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 		// Grab the pair of 001 and 003. These contain the identifier value and

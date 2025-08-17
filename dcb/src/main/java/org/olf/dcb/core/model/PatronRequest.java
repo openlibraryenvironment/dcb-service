@@ -309,7 +309,8 @@ public class PatronRequest {
 	@Nullable
 	private RenewalStatus renewalStatus = RenewalStatus.ALLOWED;
 
-	private Boolean isTooLong = false;
+	@Builder.Default
+	private Boolean isTooLong = Boolean.FALSE;
 
 
 	@JsonProperty("status")

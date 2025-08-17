@@ -88,6 +88,18 @@ public class IngestRecord implements CoreBibliographicMetadata {
 //  @Nullable String edition();
 //  List<PublicationInformation> publicationInformation();
 //  List<Description> descriptions();
+//
+
+	public String getIdentifier(String namespace) {
+    if (identifiers == null) {
+        return null;
+    }
+    return identifiers.stream()
+            .filter(id -> namespace.equals(id.getNamespace()))
+            .map(Identifier::getValue)
+            .findFirst()
+            .orElse(null);
+	}  
 
 	public static class IngestRecordBuilder {
 		
