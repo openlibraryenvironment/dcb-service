@@ -2,21 +2,24 @@ package org.olf.dcb.interops;
 
 import java.util.List;
 import java.util.HashMap;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import java.time.Duration;
 import java.time.Instant;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import io.micronaut.data.model.Pageable;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.api.ImplementationToolsController;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.svc.BibRecordService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.types.error.AlmaException;
@@ -36,9 +39,12 @@ public class InteropTestService {
 	private static final Duration SYNC_DELAY = Duration.ofSeconds(10);
 
 	private final HostLmsService hostLmsService;
+	private final BibRecordService bibRecordService;
 
-	public InteropTestService(HostLmsService hostLmsService) {
+	public InteropTestService(HostLmsService hostLmsService,
+			BibRecordService bibRecordService) {
 		this.hostLmsService = hostLmsService;
+		this.bibRecordService = bibRecordService;
 	}
 
 	/**
@@ -50,6 +56,71 @@ public class InteropTestService {
 	public Mono<PingResponse> ping(String code) {
 		return hostLmsService.getClientFor(code)
 			.flatMap(HostLmsClient::ping);
+	}
+
+	public Mono<List<Item>> findFirstMatchingItemList(String systemCode,
+		ImplementationToolsController.ItemQuery q,
+		int pageSize,
+		Duration timeout) {
+
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(client ->
+				bibRecordService.getPageOfBibs(Pageable.from(0, pageSize))
+					.flatMap(first -> {
+						long total = first.getTotalSize();
+						if (total == 0) return Mono.error(new IllegalStateException("No bib records available"));
+						long totalPages = (total + pageSize - 1) / pageSize;
+						int start = ThreadLocalRandom.current().nextInt(Math.toIntExact(totalPages));
+
+						Flux<Integer> pageOrder = Flux.concat(
+							Flux.range(start, (int) (totalPages - start)),
+							Flux.range(0, start)
+						);
+
+						return pageOrder
+							// iterate bibs once, sequentially
+							.concatMap(pageIdx ->
+									bibRecordService.getPageOfBibs(Pageable.from(pageIdx, pageSize))
+										.flatMapMany(p -> Flux.fromIterable(p.getContent())),
+								1)
+							// for each bib, fetch its items and KEEP the whole list if any item matches
+							.concatMap(bib ->
+								client.getItems(bib)	// Mono<List<Item>>
+										.onErrorResume(e -> {
+											log.warn("getItems failed for bib {}: {}", bib.getId(), e.toString());
+											return Mono.just(List.<Item>of());
+										})
+										.filter(items -> items.stream().anyMatch(item -> matches(item, q))), // emit list only if a match exists
+								1)
+							.next(); // take the first list whose bib had a matching item
+					})
+			)
+			.timeout(timeout, Mono.error(new TimeoutException("Timed out after " + timeout.toSeconds() + "s")));
+	}
+
+	private boolean matches(Item it, ImplementationToolsController.ItemQuery q) {
+		if (q.available()      != null && it.isAvailable() != q.available()) return false;
+		if (q.requestable()    != null && !q.requestable().equals(Boolean.TRUE.equals(it.getIsRequestable()))) return false;
+		if (q.locationCode()   != null && !q.locationCode().equalsIgnoreCase(it.getLocationCode())) return false;
+		if (q.canonicalItemType()!= null && !q.canonicalItemType().equalsIgnoreCase(it.getCanonicalItemType())) return false;
+		if (q.itemTypeCode()   != null && !q.itemTypeCode().equalsIgnoreCase(it.getLocalItemTypeCode())) return false;
+		if (q.minHoldCount()   != null && (it.getHoldCount() == null || it.getHoldCount() < q.minHoldCount())) return false;
+		if (q.maxHoldCount()   != null && (it.getHoldCount() != null && it.getHoldCount() > q.maxHoldCount())) return false;
+		if (q.notSuppressed()  != null && (q.notSuppressed() ? !it.notSuppressed() : it.notSuppressed())) return false;
+		if (q.notDeleted()     != null && (q.notDeleted() ? !it.notDeleted() : it.notDeleted())) return false;
+		if (q.agencyCode()     != null && (it.getAgencyCode() == null || !q.agencyCode().equalsIgnoreCase(it.getAgencyCode()))) return false;
+
+		// DCB-2005 - to confirm that we are mapping call numbers correctly
+		if (q.callNumberExists() != null) {
+			boolean present = !isBlank(it.getCallNumber());
+			if (q.callNumberExists() != present) return false;
+		}
+
+		return true;
+	}
+
+	private static boolean isBlank(String s) {
+		return s == null || s.trim().isEmpty();
 	}
 
 	/**

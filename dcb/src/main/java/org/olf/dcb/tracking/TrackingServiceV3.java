@@ -603,7 +603,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 		return hostLmsService.getClientFor(rwc.getPickupSystemCode())
 			.flatMap(client -> client.getRequest(hostlmsRequest))
-			.onErrorContinue((e, o) -> log.error("Error occurred: " + e.getMessage(), e))
+			.doOnError(e -> log.error("Error occurred: {}", e.getMessage(), e))
 			.doOnNext(hold -> log.info("TRACKING Compare pickup request {} states: {} and {}", pr.getPickupRequestId(), hold.getStatus(), pr.getPickupRequestStatus()))
 			.flatMap( hold -> {
 				if ( hold.getStatus().equals(pr.getPickupRequestStatus()) ) {

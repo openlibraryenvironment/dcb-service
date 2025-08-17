@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -94,8 +95,9 @@ public class RequestWorkflowContextHelper {
 		final var patronRequest = requestWorkflowContext.getPatronRequest();
 		final var patron = patronRequest.getPatron();
 		final var pickupPatronId = patronRequest.getPickupPatronId();
+		final var activeWorkflow = getValueOrNull(patronRequest, PatronRequest::getActiveWorkflow);
 
-		if (pickupPatronId != null) {
+		if (pickupPatronId != null && activeWorkflow != null && activeWorkflow.equals("RET-PUA")) {
 			// Look up the pickup patron identity and attach to the context
 			log.debug("Do we know about a pickup patron identity for the patron at the pickup system");
 			return Mono.just(patronService.findIdentityByLocalId(patron, pickupPatronId))
@@ -109,7 +111,7 @@ public class RequestWorkflowContextHelper {
 				}));
 		}
 		else {
-			log.error("No pickupPatronId to augment");
+			log.debug("No pickupPatronId to augment");
 		}
 
 		return Mono.just(requestWorkflowContext);

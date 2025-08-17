@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
+import java.time.Instant;
 
 import org.olf.dcb.core.model.Item;
 
@@ -20,6 +21,9 @@ public class AvailabilityReport {
 
 	private final List<Item> items;
 	private final List<Error> errors;
+
+	// This tells us when the report was created so that cached reports can indicate their age
+	private final Instant reportCreateTime = Instant.now();
 	
 	@Singular
 	private final List<Tuple2<String, Long>> timings;
