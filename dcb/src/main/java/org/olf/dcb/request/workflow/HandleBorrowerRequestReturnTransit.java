@@ -63,7 +63,7 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	}
 
 	private boolean isLocalItemStatusApplicable(PatronRequest patronRequest) {
-		return getPossibleLocalItemStatus().contains(patronRequest.getLocalItemStatus());
+		return patronRequest.getLocalItemStatus() != null && getPossibleLocalItemStatus().contains(patronRequest.getLocalItemStatus());
 	}
 
 	private boolean isPickupItemStatusApplicable(PatronRequest patronRequest) {
@@ -72,7 +72,7 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	}
 
 	private boolean isSupplierLocalItemStatusApplicable(SupplierRequest supplierRequest) {
-		return possibleSupplierLocalItemStatus.contains(supplierRequest.getLocalItemStatus());
+		return supplierRequest.getLocalItemStatus() != null && possibleSupplierLocalItemStatus.contains(supplierRequest.getLocalItemStatus());
 	}
 
 	@Override
