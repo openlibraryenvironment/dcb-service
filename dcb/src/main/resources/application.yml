@@ -253,7 +253,7 @@ dcb:
       FINALISED: null
       ERROR: null
   globals:
-    activeRequestLimit: 25
+    active-request-limit: 25
 
 concurrency:
   groups:

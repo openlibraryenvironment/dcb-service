@@ -34,7 +34,7 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 	private final AgencyRepository agencyRepository;
 
 	public GlobalLimitsPreflightCheck(
-		@Value("${dcb.globals.activeRequestLimit:25}") Long globalActiveRequestLimit,
+		@Value("${dcb.globals.active-request-limit:25}") Long globalActiveRequestLimit,
 		PatronRequestRepository patronRequestRepository,
     IntMessageService intMessageService,
 		AgencyRepository agencyRepository) {

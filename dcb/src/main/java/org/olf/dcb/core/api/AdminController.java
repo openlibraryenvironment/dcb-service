@@ -85,7 +85,7 @@ public class AdminController {
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
 			Optional<SharedIndexLiveUpdater> sharedIndexUpdater, HouseKeepingService housekeeping,
-      Environment env, TrackingHelpers trackingHelpers, @Value("${dcb.globals.activeRequestLimit:25}") Long globalActiveRequestLimit) {
+      Environment env, TrackingHelpers trackingHelpers, @Value("${dcb.globals.active-request-limit:25}") Long globalActiveRequestLimit) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
