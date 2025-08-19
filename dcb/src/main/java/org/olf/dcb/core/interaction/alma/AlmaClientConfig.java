@@ -44,7 +44,7 @@ public class AlmaClientConfig {
 	// indicate that a check in goes in transit
 	// if we don't use a different library a check in will transition the item to hold shelf
 	private static final HostLmsPropertyDefinition DCB_SHARING_LIBRARY_CODE
-		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", TRUE);
+		= stringPropertyDefinition("sharing-library-code", "Library used to ship resources outside of Alma", TRUE);
 
 	private final HostLms hostLms;
 
