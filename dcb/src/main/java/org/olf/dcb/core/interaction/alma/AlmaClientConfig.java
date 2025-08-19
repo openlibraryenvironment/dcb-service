@@ -5,6 +5,7 @@ import org.olf.dcb.core.model.HostLms;
 
 import java.net.URI;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
@@ -38,8 +39,12 @@ public class AlmaClientConfig {
 	private static final HostLmsPropertyDefinition DEFAULT_PATRON_LOCATION_CODE
 		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", FALSE);
 
-	private static final HostLmsPropertyDefinition DEFAULT_PICKUP_LOCATION_CODE
-		= stringPropertyDefinition("default-pickup-location-code", "Default pickup library code for this ALMA system", FALSE);
+	// Alma needs to define libraries that are outside the system. The way we do this is by having a DCB library/location
+	// that acts as all locations outside the system. This needs to be set up in Alma first but is the only way we can
+	// indicate that a check in goes in transit
+	// if we don't use a different library a check in will transition the item to hold shelf
+	private static final HostLmsPropertyDefinition DCB_SHARING_LIBRARY_CODE
+		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", TRUE);
 
 	private final HostLms hostLms;
 
@@ -71,12 +76,13 @@ public class AlmaClientConfig {
 		return USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
-	String getDefaultPatronLocationCode(String defaultValue) {
-		return DEFAULT_PATRON_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
+	String getDcbSharingLibraryCode() {
+		return DCB_SHARING_LIBRARY_CODE.getRequiredConfigValue(hostLms);
 	}
 
-	String getDefaultPickupLocationCode(String defaultValue) {
-		return DEFAULT_PICKUP_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
+	// We should move away from using this
+	String getDefaultPatronLocationCode(String defaultValue) {
+		return DEFAULT_PATRON_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
 	List<HostLmsPropertyDefinition> getSettings() {
@@ -87,4 +93,6 @@ public class AlmaClientConfig {
 			SHELF_LOCATION_SETTING
 		);
 	}
+
+
 }

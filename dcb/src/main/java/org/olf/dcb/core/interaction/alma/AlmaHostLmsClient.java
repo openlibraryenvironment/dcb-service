@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.alma;
 
+import static io.micrometer.common.util.StringUtils.isBlank;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
@@ -131,6 +132,115 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				log.warn("Mapping error for item {}: {}", item, throwable.getMessage());
 			})
 			.collectList();
+	}
+
+	// The minimum DCB should give Alma
+	private record DCBHold(String localPatronId, String localItemId, Location pickupLocation, String note, String supplyingLocalItemLocation) {}
+
+	// This is the minimum we should know to place a hold in Alma (V1)
+	private record MinimumAlmaHold(String localPatronId, String localItemId, String pickupLibraryCode, String comment) {}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters p) {
+		return validate(p)
+			.map(h -> getDcbSharingLibraryCode()) // config-driven
+			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+			.doOnSubscribe(s -> log.info("placeHoldRequestAtSupplyingAgency patron={} item={}",
+				p.getLocalPatronId(), p.getLocalItemId()));
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters p) {
+		return validate(p)
+			.map(this::resolveLibraryFromLocationRecord)
+			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+			.doOnSubscribe(s -> log.info("placeHoldRequestAtBorrowingAgency patron={} item={}",
+				p.getLocalPatronId(), p.getLocalItemId()));
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters p) {
+		return validate(p)
+			.map(h -> getDcbSharingLibraryCode()) // config-driven
+			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+			.doOnSubscribe(s -> log.info("placeHoldRequestAtPickupAgency patron={} item={}",
+				p.getLocalPatronId(), p.getLocalItemId()));
+	}
+
+	@Override
+	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters p) {
+		return validate(p)
+			.map(this::resolveLibraryFromLocationRecord)
+			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+			.doOnSubscribe(s -> log.info("placeHoldRequestAtLocalAgency patron={} item={}",
+				p.getLocalPatronId(), p.getLocalItemId()));
+	}
+
+// === Library-code resolvers ===
+
+	// Supplier / Pickup: always use the configured "DCB library"
+	// This is used to define a library outside the system
+	// Note:we may want to use the location service to drive this
+	// however we are following a pattern used in other hostlms
+	private String getDcbSharingLibraryCode() {
+		final var lib = config.getDcbSharingLibraryCode();
+		if (isBlank(lib)) throw new IllegalStateException("Missing DCB sharing library code in config");
+		return lib;
+	}
+
+	// Borrowing / Local: try to derive the Alma library code from pickupLocation.localId
+	// expectation here is that all location records will have the localId value set
+	private String resolveLibraryFromLocationRecord(DCBHold h) {
+		final var loc = h.pickupLocation();
+		if (loc == null) throw new IllegalArgumentException("PickupLocation is required");
+
+		// IMPORTANT: localId is your Alma library code.
+		final String candidate = getValueOrNull(loc, Location::getLocalId);
+		log.debug("resolveLibraryFromPickup: localId={}", candidate);
+		if (!isBlank(candidate)) return candidate;
+
+		throw new IllegalArgumentException("PickupLocation.LocalId is required");
+	}
+
+// === Submission ===
+
+	private Mono<LocalRequest> submitLibraryHold(MinimumAlmaHold hold) {
+		final var payload = AlmaRequest.builder()
+			.requestType("HOLD")
+			.pickupLocationType("LIBRARY")
+			.pickupLocationLibrary(hold.pickupLibraryCode())
+			.comment(hold.comment())
+			.build();
+
+		return client.createUserRequest(hold.localPatronId(), hold.localItemId(), payload)
+			.doOnSubscribe(s -> log.info("Submitting HOLD patron={} item={} pickupLibrary={}",
+				hold.localPatronId(), hold.localItemId(), hold.pickupLibraryCode()))
+			.doOnError(this::logAlmaProblemDetails)
+			.map(this::mapAlmaRequestToLocalRequest)
+			.switchIfEmpty(raiseError(new AlmaHostLmsClientException(
+				"Empty Alma response creating hold for patron "+hold.localPatronId()+" / item "+hold.localItemId())));
+	}
+
+	private void logAlmaProblemDetails(Throwable e) {
+		final var errs = extractAlmaErrors(e);
+		if (errs != null && errs.getErrorList() != null && errs.getErrorList().getError() != null) {
+			errs.getErrorList().getError().forEach(err ->
+				log.error("Alma error code={} message={}", err.getErrorCode(), err.getErrorMessage()));
+		} else {
+			log.error("Hold request failed: {}", e.toString());
+		}
+	}
+
+	private Mono<DCBHold> validate(PlaceHoldRequestParameters p) {
+		if (p == null) return Mono.error(new IllegalArgumentException("PlaceHoldRequestParameters is required"));
+		if (isBlank(p.getLocalPatronId())) return Mono.error(new IllegalArgumentException("localPatronId is required"));
+		if (isBlank(p.getLocalItemId())) return Mono.error(new IllegalArgumentException("localItemId (item_pid) is required"));
+		if (p.getPickupLocation() == null) return Mono.error(new IllegalArgumentException("pickupLocation is required"));
+		return Mono.just(new DCBHold(p.getLocalPatronId(), p.getLocalItemId(), p.getPickupLocation(), p.getNote(), p.getSupplyingLocalItemLocation()));
 	}
 
 	@Override
@@ -365,76 +475,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(locations -> AlmaGroupedLocationResponse.builder().locations(locations).build());
 	}
 
-	@Override
-	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters) {
-		log.info("placeHoldRequestAtSupplyingAgency({})", parameters);
-		log.info("location is {}, with host system {}", parameters.getPickupLocation(), parameters.getPickupLocation().getHostSystem());
-
-
-		// As this is a supplier side request we use the item location to find the location to make a request with
-		// This item will give the actual location code in alma as it was directly from the item
-		final var pickupLocationCode = getValueOrNull(parameters, PlaceHoldRequestParameters::getSupplyingLocalItemLocation);
-
-		return fetchLocationByLocationCode(pickupLocationCode)
-			.flatMap(location -> {
-
-				final var libraryCode = getValueOrNull(location, AlmaLocation::getLibraryCode);
-				final var locationCode = getValueOrNull(location, AlmaLocation::getCode);
-				// we have to use this from config as a location will have multiple circ desks
-				final var circDeskCode = config.getPickupCircDesk("DEFAULT_CIRC_DESK");
-				final var note = getValueOrNull(parameters, PlaceHoldRequestParameters::getNote);
-
-				return placeGenericAlmaRequest(parameters.getLocalBibId(),
-					parameters.getLocalItemId(),
-					parameters.getLocalHoldingId(),
-					parameters.getLocalPatronId(),
-					libraryCode,
-					locationCode,
-					circDeskCode,
-					parameters.getLocalItemBarcode(),
-					note);
-			});
-	}
-
-	@Override
-	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
-		log.info("placeHoldRequestAtBorrowingAgency({})", parameters);
-
-		final var pickupLocation = getValueOrNull(parameters, PlaceHoldRequestParameters::getPickupLocation);
-		final var pickupLocationCode = getValueOrNull(pickupLocation, Location::getCode);
-
-		log.debug("pickupLocation is {}, with pickupLocationCode {}", pickupLocation.toString(), pickupLocationCode);
-
-		if (pickupLocationCode == null) {
-			return Mono.error(new IllegalArgumentException("Pickup location and its code must not be null."));
-		}
-
-		return fetchLocationByCircDeskCode(pickupLocationCode)
-			.onErrorResume(e -> {
-				log.error("Failed to fetch location for circ desk code {}: {}", pickupLocationCode, e.getMessage());
-				log.debug("Retrying :: getSystemDependentPickupLocationCode {}", pickupLocation.toString());
-				return getSystemDependentPickupLocationCode(pickupLocation);
-			})
-			.flatMap(location -> {
-
-				final var libraryCode = getValueOrNull(location, AlmaLocation::getLibraryCode);
-				final var locationCode = getValueOrNull(location, AlmaLocation::getCode);
-				final var circDeskCode = pickupLocationCode;
-				final var note = getValueOrNull(parameters, PlaceHoldRequestParameters::getNote);
-
-				return placeGenericAlmaRequest(parameters.getLocalBibId(),
-					parameters.getLocalItemId(),
-					parameters.getLocalHoldingId(),
-					parameters.getLocalPatronId(),
-					libraryCode,
-					locationCode,
-					circDeskCode,
-					parameters.getLocalItemBarcode(),
-					note
-					);
-			});
-	}
-
 	private Mono<AlmaLocation> getSystemDependentPickupLocationCode(Location pickupLocation) {
 
 		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
@@ -461,98 +501,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			})
 			.flatMap(this::fetchLocationByCircDeskCode);
 	}
-
-	@Override
-	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
-//		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
-//		final var pickupLocation = parameters.getPickupLocation();
-//
-//		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
-//			return Mono.error(new IllegalArgumentException("Pickup location and its host system ID must not be null."));
-//		}
-//
-//		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
-//		return hostLmsService.findById(pickupLocationHostLmsId)
-//			.flatMap(hostLms -> {
-//				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
-//
-//				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
-//					return Mono.error(new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId));
-//				}
-//
-//				return placeGenericAlmaRequest(parameters.getLocalBibId(),
-//					parameters.getLocalItemId(),
-//					parameters.getLocalHoldingId(),
-//					parameters.getLocalPatronId(),
-//					parameters.getPickupLocation().getCode(),
-//					pickupLocationLmsClientClass,
-//					parameters.getLocalItemBarcode());
-//			});
-
-		// Currently Alma only supports the happy path of RET-STD
-		// Lets be explicit about that so we avoid any potential confusion
-		return Mono.error(new NotImplementedException("Pickup anywhere is not currently supported in Alma/" + getHostLmsCode()));
-	}
-
-	private Mono<LocalRequest> placeGenericAlmaRequest(
-		String mmsId,
-		String itemId,
-		String holdingId,
-		String patronId,
-		String libraryCode,
-		String locationCode,
-		String circDeskCode,
-		String itemBarcode,
-		String comment) {
-
-		log.debug("placeGenericAlmaRequest({}, {}, {}, {}, {}, {}, {})", mmsId, itemId, holdingId, patronId, libraryCode, locationCode, circDeskCode);
-
-		// if we don't set the library code to the default (GTMAIN for GTECH) then we will see errors;
-		// 'No items can fulfill the submitted request'
-		// known limitation for now
-		final var defaultLibraryCode = config.getDefaultPickupLocationCode("GTMAIN");
-		if (libraryCode == null || libraryCode.isBlank() || !defaultLibraryCode.equals(libraryCode)) {
-			// for now we only support GTMAIN as a pickup library for GTECH
-			log.warn("Library code {} being set to default {}", libraryCode, defaultLibraryCode);
-			libraryCode = defaultLibraryCode;
-		}
-
-		// the minimum fields required
-		final var almaRequest = AlmaRequest.builder()
-			.requestType("HOLD")
-			.pickupLocationType("LIBRARY")
-			.pickupLocationLibrary(libraryCode)
-			// the DCB pickup location code is really an Alma circ desk code IF this is an Alma pickup location we are using
-			// If it is not, we must temporarily default to a known Alma circ desk code
-			// Temporarily commenting this out to get the absolute minimum fields required. Restore it when we have it working.
-			// (as only some Alma requests will need it)
-//			.pickupLocationCirculationDesk(circDeskCode)
-			.comment(comment)
-			.build();
-
-    return client.createUserRequest(patronId, itemId, almaRequest)
-      .map( response -> mapAlmaRequestToLocalRequest(response, itemBarcode) )
-      .switchIfEmpty(Mono.error(new AlmaHostLmsClientException("Failed to place generic hold at "+getHostLmsCode()+" for bib "+mmsId+" item "+itemId+" patron "+patronId)));
-	}
-
-	@Override
-	public Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters) {
-
-		log.debug("placeHoldRequestAtLocalAgency({})", parameters);
-
-		final var defaultLibraryCode = config.getDefaultPickupLocationCode("GTMAIN");
-
-		return placeGenericAlmaRequest(parameters.getLocalBibId(),
-			parameters.getLocalItemId(),
-			parameters.getLocalHoldingId(),
-			parameters.getLocalPatronId(),
-			defaultLibraryCode,
-			null,
-			// alma decide their own circ desk for pickup by using the default code
-			"DEFAULT_CIRC_DESK",
-			parameters.getLocalItemBarcode(),
-			parameters.getNote()
-		);	}
 
 	/** ToDo: This should be a default method I think */
 	@Override
@@ -1377,7 +1325,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
-	public LocalRequest mapAlmaRequestToLocalRequest(AlmaRequestResponse response, String itemBarcode) {
+	public LocalRequest mapAlmaRequestToLocalRequest(AlmaRequestResponse response) {
 		return LocalRequest.builder()
 			.localId(response.getRequestId())
 			.localStatus(checkHoldStatus(response.getRequestStatus()))
