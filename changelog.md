@@ -1,11 +1,37 @@
 # Changelog
 
+## Version 8.46.0
+
+### Additions
+* [General]
+	* enable Alma supplier holds [DCB-1930]
+	* Include all alpha subfields in title, add new BLOCKING_WORK_TITLE identifier which takes uniform title variants as primary source. Update title and canonical record when updating a bib, use default for patron_request is_too_long
+	* Add a datestamp to AvailabilityReport
+
+### Changes
+* [Chore]
+	* Prevent library staff editing mappings if DENY_LIBRARY_MAPPING_EDIT is set [DCB-1995]
+	* Second migration to catch nulls from 8.45 [DCB-2001]
+	* tone down logging for no pickupPatronId when active workflow is not RET-PUA
+
+### Fixes
+* [General]
+	* Prevent renewal prevention from trying to cancel the original loan [DCB-2006]
+	* Use kebab-case so active-request-limit is configurable [DCB-2007]
+	* Prevent expedited checkout request-related NPEs [DCB-2001]
+	* try to unmask errors when polling patron request via TrackingServiceV3
+	* map call number from holdings data not bib data in Alma adapter [DCB-2005]
+
 ## Version 8.45.0
 
 ### Additions
 * [General]
 	* Expose tracking intervals [DCB-2001]
 	* Store and react to edge-dcb renewable boolean in item data
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
