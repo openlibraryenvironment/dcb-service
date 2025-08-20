@@ -15,7 +15,8 @@ public enum FunctionalSettingType {
   PICKUP_ANYWHERE,
 	RE_RESOLUTION,
 	SELECT_UNAVAILABLE_ITEMS,
-  TRIGGER_SUPPLIER_RENEWAL;
+  TRIGGER_SUPPLIER_RENEWAL,
+	DENY_LIBRARY_MAPPING_EDIT; // If enabled, stops library users from being able to edit mappings
 
 	public static boolean isValid(String name) {
 		for (FunctionalSettingType type : values()) {

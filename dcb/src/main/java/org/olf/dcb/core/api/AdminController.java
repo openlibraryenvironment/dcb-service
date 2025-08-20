@@ -75,6 +75,7 @@ public class AdminController {
 	private final Environment env;
 	private final TrackingHelpers trackingHelpers;
 	private final Long globalActiveRequestLimit;
+	private final String globalTrackingInterval;
 
 
 
@@ -85,7 +86,7 @@ public class AdminController {
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
 			Optional<SharedIndexLiveUpdater> sharedIndexUpdater, HouseKeepingService housekeeping,
-      Environment env, TrackingHelpers trackingHelpers, @Value("${dcb.globals.active-request-limit:25}") Long globalActiveRequestLimit) {
+      Environment env, TrackingHelpers trackingHelpers, @Value("${dcb.globals.active-request-limit:25}") Long globalActiveRequestLimit, @Value("${dcb.tracking.interval:5m}") String globalTrackingInterval) {
 
 		this.patronRequestService = patronRequestService;
 		this.supplierRequestService = supplierRequestService;
@@ -99,6 +100,7 @@ public class AdminController {
 		this.env = env;
 		this.trackingHelpers = trackingHelpers;
 		this.globalActiveRequestLimit = globalActiveRequestLimit;
+		this.globalTrackingInterval = globalTrackingInterval;
 	}
 
 	// ToDo: The tests seem to want to be able to call this without any auth - that
@@ -277,6 +279,7 @@ public class AdminController {
 		// Add in global active request limit for useful context
 		Map<String, Object> apiResponse = new HashMap<>();
 		apiResponse.put("trackingIntervals", formattedDurations);
+		apiResponse.put("globalTrackingInterval", globalTrackingInterval);
 		apiResponse.put("globalActiveRequestLimit", this.globalActiveRequestLimit);
 
 		return Mono.just(apiResponse);
