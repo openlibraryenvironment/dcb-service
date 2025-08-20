@@ -73,16 +73,22 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 			);
 	}
 
-  /** Return true if the supplier item is NOT renewaable */
+		/** Return true if the supplier item is NOT renewable - but allow the initial loan.
+		 * We detect the initial loan when the local renewal count and the renewal count are zero: this indicates that DCB is not aware of any external renewal, and has not triggered one.*/
 	private static boolean shouldPreventRenewal(RequestWorkflowContext ctx) {
-    if ( ctx.getSupplierRequest() != null ) {
-      int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
-      if ( hold_count > 0 )
+		log.info("The context is {}", ctx);
+		if ( ctx.getSupplierRequest() != null ) {
+			int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
+      int renewal_count = ctx.getPatronRequest().getRenewalCount() != null ? ctx.getPatronRequest().getRenewalCount(): 0;
+			int local_renewal_count = ctx.getPatronRequest().getLocalRenewalCount() != null ? ctx.getPatronRequest().getLocalRenewalCount() : 0;
+			if ( hold_count > 0 )
         return true;
-      if ( Boolean.FALSE.equals(ctx.getSupplierRequest().getLocalRenewable() ) )
-        return true;
+			// A guard to stop the initial loan from being prevented - see DCB-2006
+			if (renewal_count == 0 && local_renewal_count == 0)
+				return false;
+			// If renewable is false, and also the local renewal count is greater than zero (i.e. not the initial loan)
+			return Boolean.FALSE.equals(ctx.getSupplierRequest().getLocalRenewable());
     }
-
     return false;
 	}
 
