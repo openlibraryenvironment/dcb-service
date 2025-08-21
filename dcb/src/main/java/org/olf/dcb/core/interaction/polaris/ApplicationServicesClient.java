@@ -706,6 +706,8 @@ class ApplicationServicesClient {
 					resp.getPrompt().getWorkflowPromptID() != null &&
 					resp.getPrompt().getWorkflowPromptID().equals(DuplicateRecords)) {
 
+					validateWorkflowResponse(resp);
+
 					throw new SaveVirtualItemException(
 						"Item with barcode: " + itemBarcode + " already exists in host LMS: " + client.getName());
 				}
