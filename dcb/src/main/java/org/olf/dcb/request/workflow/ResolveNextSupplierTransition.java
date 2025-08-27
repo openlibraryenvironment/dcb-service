@@ -151,7 +151,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		RequestWorkflowContext context) {
 		
 		return makeSupplierRequestInactive(resolution, context)
-			.flatMap(this::auditResolution)
+			.flatMap(r -> auditResolution(r, context.getPatronRequest()))
 			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
 			.flatMap(this::saveSupplierRequest)
 			.flatMap(this::updatePatronRequest)
@@ -168,13 +168,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			});
 	}
 
-	private Mono<PatronRequest> checkAndIncludeCurrentSupplierRequestsFor(PatronRequest patronRequest) {
-		return supplierRequestService.findAllActiveSupplierRequestsFor(patronRequest)
-			.map(patronRequest::setSupplierRequests)
-			.doOnSuccess(pr -> log.info("Supplier request and data agency successfully included for patron request {}", pr.getId()))
-			.doOnError(error -> log.error("Error including supplier request and data agency for patron request {}", patronRequest.getId(), error));
-	}
-
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
 		log.debug("updatePatronRequest({})", resolution);
 
@@ -188,8 +181,9 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.thenReturn(resolution);
 	}
 
-	private Mono<Resolution> auditResolution(Resolution resolution) {
-		return resolution.auditResolution(patronRequestAuditService, "Re-resolved");
+	private Mono<Resolution> auditResolution(Resolution resolution, PatronRequest patronRequest) {
+		return patronRequestResolutionService.auditResolution(resolution,
+			patronRequest, "Re-resolved", patronRequestAuditService);
 	}
 
 	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {

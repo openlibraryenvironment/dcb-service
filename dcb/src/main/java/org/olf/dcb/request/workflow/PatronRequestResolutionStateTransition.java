@@ -66,7 +66,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			// Trail switching these so we can set current supplier request on patron request
-			.flatMap(this::auditResolution)
+			.flatMap(resolution -> auditResolution(resolution, patronRequest))
 			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
 			.flatMap(this::saveSupplierRequest)
 			.flatMap(this::setPatronRequestWorkflow)
@@ -99,8 +99,9 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.map(resolution::withPatronRequest);
 	}
 
-	private Mono<Resolution> auditResolution(Resolution resolution) {
-		return resolution.auditResolution(patronRequestAuditService, "Resolved");
+	private Mono<Resolution> auditResolution(Resolution resolution, PatronRequest patronRequest) {
+		return patronRequestResolutionService.auditResolution(resolution,
+			patronRequest, "Resolved", patronRequestAuditService);
 	}
 
 	private Mono<Resolution> updatePatronRequest(Resolution resolution) {

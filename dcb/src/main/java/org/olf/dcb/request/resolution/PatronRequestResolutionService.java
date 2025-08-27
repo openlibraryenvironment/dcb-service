@@ -8,11 +8,15 @@ import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
 import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
+import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItem;
+import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItems;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.core.publisher.Flux.fromIterable;
+import static services.k_int.utils.MapUtils.putNonNullValue;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -24,6 +28,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.zalando.problem.Problem;
 
 import io.micronaut.context.annotation.Value;
@@ -84,6 +89,31 @@ public class PatronRequestResolutionService {
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
 			.defaultIfEmpty(initialResolution);
+	}
+
+	public Mono<Resolution> auditResolution(Resolution resolution,
+		PatronRequest patronRequest, String startingText,
+		PatronRequestAuditService auditService) {
+
+		// Do not audit a resolution when an item hasn't been chosen
+		if (!getValue(resolution, Resolution::successful, false)) {
+			return Mono.just(resolution);
+		}
+
+		final var auditData = new HashMap<String, Object>();
+
+		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
+
+		putNonNullValue(auditData, "selectedItem", toPresentableItem(chosenItem));
+
+		putNonNullValue(auditData, "filteredItems", toPresentableItems(resolution.getFilteredItems()));
+		putNonNullValue(auditData, "sortedItems", toPresentableItems(resolution.getSortedItems()));
+
+		return auditService.addAuditEntry(patronRequest,
+				("%s to item with local ID \"%s\" from Host LMS \"%s\"").formatted(
+					startingText, getValue(chosenItem, Item::getLocalId, "null"),
+					getValue(chosenItem, Item::getHostLmsCode, "null")), auditData)
+			.then(Mono.just(resolution));
 	}
 
 	private List<ResolutionStep> manualResolutionSteps() {

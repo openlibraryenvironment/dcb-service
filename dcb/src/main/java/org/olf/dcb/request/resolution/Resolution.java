@@ -2,25 +2,19 @@ package org.olf.dcb.request.resolution;
 
 import static java.util.Collections.emptyList;
 import static lombok.AccessLevel.PRIVATE;
-import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItem;
-import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItems;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.MapUtils.putNonNullValue;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Builder(access = PRIVATE)
@@ -137,22 +131,4 @@ public class Resolution implements ItemFilterParameters {
 		return getValueOrNull(parameters, ResolutionParameters::getPatronHostLmsCode);
 	}
 
-	public Mono<Resolution> auditResolution(PatronRequestAuditService auditService, String startingText) {
-		// Do not audit a resolution when an item hasn't been chosen
-		if (chosenItem == null) {
-			return Mono.just(this);
-		}
-
-		final var auditData = new HashMap<String, Object>();
-
-		putNonNullValue(auditData, "selectedItem", toPresentableItem(chosenItem));
-
-		putNonNullValue(auditData, "filteredItems", toPresentableItems(filteredItems));
-		putNonNullValue(auditData, "sortedItems", toPresentableItems(sortedItems));
-
-		return auditService.addAuditEntry(patronRequest,
-				("%s to item with local ID \"%s\" from Host LMS \"%s\"").formatted(
-					startingText, chosenItem.getLocalId(), chosenItem.getHostLmsCode()), auditData)
-			.then(Mono.just(this));
-	}
 }
