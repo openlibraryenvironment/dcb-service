@@ -147,6 +147,7 @@ public class LocationController {
       .map( agency -> {
     	  l.setAgency(agency);
     	  l.setHostSystem(agency.getHostLms());
+    	  return(agency);
       } )
       .switchIfEmpty(Mono.defer(() -> {
         log.error("Unable to locate agency using supplied UUID {}", agencyId);
