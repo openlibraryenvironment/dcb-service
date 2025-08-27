@@ -138,32 +138,20 @@ public class LocationController {
 			.build();
 
 		return enrichAgency(l, agencyId)
-      .flatMap(loc -> enrichHostLms(l, location.hostLms()))
       .flatMap(loc -> Mono.from(locationRepository.existsById(l.getId())))
 			.flatMap(exists -> Mono.fromDirect(exists ? locationRepository.update(l) : locationRepository.save(l)));
 	}
 
   private Mono<Location> enrichAgency(Location l, UUID agencyId) {
     return Mono.from(agencyRepository.findById(agencyId))
-      .map( agency -> l.setAgency(agency) )
+      .map( agency -> {
+    	  l.setAgency(agency);
+    	  l.setHostSystem(agency.getHostLms());
+      } )
       .switchIfEmpty(Mono.defer(() -> {
         log.error("Unable to locate agency using supplied UUID {}", agencyId);
         return Mono.empty();
       }))
       .thenReturn(l);
   }
-
-  private Mono<Location> enrichHostLms(Location l, UUID hostLmsId) {
-    if ( hostLmsId != null ) {
-      return Mono.from(hostLmsRepository.findById(hostLmsId))
-        .map(hostSystem -> l.setHostSystem(hostSystem) )
-        .thenReturn(l);
-    }
-    else {
-      log.error("No Host LMS supplied for location");
-    }
-
-    return Mono.just(l);
-  }
-
 }
