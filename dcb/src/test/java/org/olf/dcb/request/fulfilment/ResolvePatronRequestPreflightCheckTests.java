@@ -278,6 +278,63 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	}
 
 	@Test
+	void shouldFailWhenOnlyItemIsNotManuallySelected() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var clusterRecordId = clusterRecord.getId();
+
+		final var sourceRecordId = "625252";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onlyAvailableItemId = "274625";
+		final var onlyAvailableItemBarcode = "92565476";
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			"resolution-cataloguing", 1, 1, "loanable-item");
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var localPatronId = "547265";
+
+		definePatron(localPatronId);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId("4322424")
+				.agencyCode(SUPPLYING_AGENCY_CODE)
+				.localSystemCode(CIRCULATING_HOST_LMS_CODE)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(PICKUP_LOCATION_CODE)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Patron request for cluster record \"%s\" could not be resolved to an item"
+					.formatted(clusterRecordId))
+		));
+	}
+
+	@Test
 	void shouldFailWhenClusterRecordCannotBeFound() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
