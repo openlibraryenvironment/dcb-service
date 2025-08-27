@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 8.46.1
+
+### Fixes
+* [General]
+	* Missed a return
+	* The location controller will not always received the host lms id, so we populate the host lms from the agency
+
 ## Version 8.46.0
 
 ### Additions
@@ -10,6 +17,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Prevent library staff editing mappings if DENY_LIBRARY_MAPPING_EDIT is set [DCB-1995]
 	* Second migration to catch nulls from 8.45 [DCB-2001]
 	* tone down logging for no pickupPatronId when active workflow is not RET-PUA
