@@ -76,6 +76,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
   		enrichWithFormOfItemInformation(ingestRecord, marcRecord);
 	  	// Title(s)
 		  enrichWithTitleInformation(ingestRecord, marcRecord);
+			enrichWithBlockingTitle(ingestRecord, marcRecord);
 			enrichWithBlockingWorkTitle(ingestRecord, marcRecord);
   		// Identifiers
 	  	enrichWithIdentifiers(ingestRecord, marcRecord);
@@ -204,39 +205,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 				.filter(StringUtils::isNotEmpty)
 				.reduce(ingestRecord.build().getTitle(), (current, item) -> {
 					if (StringUtils.isEmpty(current)) {
-
 						ingestRecord.title(item);
-
-						ingestRecord.addIdentifier(id -> {
-							// This allows us to add in important discriminators into the blocking title - edition being
-							// the most obvious one for now. Ideally we would normalised this tho into a canonical string
-//							List<String> qualifiers = new ArrayList();
-//							String edition = null;
-//							DataField edition_field = (DataField) marcRecord.getVariableField("250");
-//							if ( edition_field != null ) {
-//								qualifiers.add(edition_field.getSubfieldsAsString("a"));
-//							}
-							
-              // 250 Is edition statement
-							List<String> qualifiers = Marc4jRecordUtils
-                                           .concatSubfieldData(marcRecord, "250", "a")
-                                           .map(ed -> EditionNormalizer.normalizeEdition(ed) )
-			                                     .map( StringUtils::trimToNull )
-                                           .toList();
-							
-							// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
-							// suffer with double spacing, so using that here as it provides cleaner matching.
-              String blocking_title = DCBStringUtilities.generateBlockingString(item, qualifiers);
-              if ( blocking_title != null ) {
-							  id.namespace("BLOCKING_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
-              }
-						});
-
 						return item;
 					}
-
 					ingestRecord.otherTitle(item);
-
 
 					// Keep returning the first title that was set.
 					return current;
@@ -247,12 +219,47 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		return ingestRecord;
 	}
 
+  default IngestRecordBuilder enrichWithBlockingTitle(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
+    // Initial title.
+		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
+        .filter(Objects::nonNull)
+        .flatMap(tag -> concatSubfieldData(marcRecord, tag, "abhknp"))
+        .filter(StringUtils::isNotEmpty)
+        .reduce(ingestRecord.build().getIdentifier("BLOCKING_TITLE"), (current_blocking_title, item) -> {
+          if (StringUtils.isEmpty(current_blocking_title)) {
+
+            // 250 Is edition statement
+						List<String> qualifiers = Marc4jRecordUtils
+                                           .concatSubfieldData(marcRecord, "250", "a")
+                                           .map(ed -> EditionNormalizer.normalizeEdition(ed) )
+			                                     .map( StringUtils::trimToNull )
+                                           .toList();
+							
+						// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
+						// suffer with double spacing, so using that here as it provides cleaner matching.
+            String blocking_title = DCBStringUtilities.generateBlockingString(item, qualifiers);
+            if ( blocking_title != null ) {
+              ingestRecord.addIdentifier(id -> {
+						    id.namespace("BLOCKING_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
+					    });
+              // Exit the lambda returning the selected title
+              return blocking_title;
+            }
+          }
+
+          // Keep returning the first title that was set.
+          return current_blocking_title;
+        });
+
+    return ingestRecord;
+  }
+
 
   default IngestRecordBuilder enrichWithBlockingWorkTitle(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
     // Initial title.
     final String title = Stream.of("240", "130", "245", "243", "246", "222", "210", "240", "247")
         .filter(Objects::nonNull)
-        .flatMap(tag -> concatSubfieldData(marcRecord, tag, "abcdefghijklmnopqrstuvwxyz"))
+        .flatMap(tag -> concatSubfieldData(marcRecord, tag, "abhknp"))
         .filter(StringUtils::isNotEmpty)
         .reduce(ingestRecord.build().getIdentifier("BLOCKING_WORK_TITLE"), (current_blocking_title, item) -> {
           if (StringUtils.isEmpty(current_blocking_title)) {
@@ -267,10 +274,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
                 // suffer with double spacing, so using that here as it provides cleaner matching.
                 id.namespace("BLOCKING_WORK_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
               });
-            }
 
-            // Exit the lambda returning the selected title
-            return blocking_title;
+              // Exit the lambda returning the selected title
+              return blocking_title;
+            }
           }
 
           // Keep returning the first title that was set.

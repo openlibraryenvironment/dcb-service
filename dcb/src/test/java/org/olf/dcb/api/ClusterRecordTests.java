@@ -111,8 +111,10 @@ class ClusterRecordTests {
 			hasIdentifier("ISSN", "1234-5678 online"),
 			hasIdentifier("LCCN", "68009551"),
 			hasIdentifier("GOLDRUSH", "basiccircuittheorybycharlesadesoerandernestskuh                  1969876    mca                              "),
-			hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh"),
-			hasIdentifier("BLOCKING_WORK_TITLE", "basic circuit theory charles desoer ernest kuh"),
+			// hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh"),
+			hasIdentifier("BLOCKING_TITLE", "basic circuit theory"),
+			// hasIdentifier("BLOCKING_WORK_TITLE", "basic circuit theory charles desoer ernest kuh"),
+			hasIdentifier("BLOCKING_WORK_TITLE", "basic circuit theory"),
 			hasIdentifier("ISBN-n", "9781234567890"),
 			hasIdentifier("ISSN-n", "12345678"),  // This is the ISBN-10 variant of the 13 above - so this record has a unique ISBN
       hasIdentifier("ONLY-ISBN-13", "9781234567890")
