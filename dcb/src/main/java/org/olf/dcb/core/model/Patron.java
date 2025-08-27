@@ -1,6 +1,7 @@
 package org.olf.dcb.core.model;
 
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -113,5 +114,14 @@ public class Patron {
 		return getHomeIdentity()
 			.map(PatronIdentity::getLocalBarcode)
 			.orElseThrow(() -> new NoHomeBarcodeException(id));
+	}
+
+	@Transient
+	public String determineBorrowingAgencyCode() {
+		final var homeIdentity = determineHomeIdentity();
+
+		final var borrowingAgency = getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);
+
+		return getValueOrNull(borrowingAgency, DataAgency::getCode);
 	}
 }

@@ -1,15 +1,15 @@
 package org.olf.dcb.request.resolution;
 
+import static java.util.Collections.emptyList;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.storage.LocationRepository;
 
 import jakarta.inject.Singleton;
@@ -32,21 +32,25 @@ public class GeoDistanceResolutionSortOrder implements ResolutionSortOrder {
 	}
 
 	@Override
-	public Mono<List<Item>> sortItems(List<Item> items, UUID clusterRecordId, PatronRequest patronRequest) {
-		log.debug("sortItems(array of size {},{},{})", items.size(), clusterRecordId, patronRequest);
+	public Mono<List<Item>> sortItems(Parameters parameters) {
+		log.debug("sortItems({})", parameters);
 
-		if (patronRequest.getPickupLocationCode() == null) {
-			log.error("The patron request has no pickup location code");
-			return Mono.error(new RuntimeException("No pickup location code"));
+		final var pickupLocationCode = getValueOrNull(parameters, Parameters::getPickupLocationCode);
+
+		if (pickupLocationCode == null) {
+			final var message = "No pickup location code was provided for geo distance sorting";
+
+			log.error(message);
+			return Mono.error(new RuntimeException(message));
 		}
 
-		final var pickupLocationId = UUID.fromString(patronRequest.getPickupLocationCode());
+		final var pickupLocationId = UUID.fromString(pickupLocationCode);
 
 		// Look up location by code
 		return Mono.from(locationRepository.findById(pickupLocationId))
 			// Create an SupplyCandidateItem for each item that calculates the distance to pickupLocation
 			.flatMapMany(pickupLocation ->
-				Flux.fromIterable(items)
+				Flux.fromIterable(getValue(parameters, Parameters::getItems, emptyList()))
 					.filter(Item::hasAgency)
 					.map (item ->
 						SupplyCandidateItem.builder()

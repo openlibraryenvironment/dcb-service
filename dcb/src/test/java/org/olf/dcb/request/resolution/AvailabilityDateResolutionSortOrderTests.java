@@ -8,11 +8,9 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.PatronRequest;
 
 public class AvailabilityDateResolutionSortOrderTests {
 	private final AvailabilityDateResolutionSortOrder sortOrder = new AvailabilityDateResolutionSortOrder();
@@ -49,8 +47,11 @@ public class AvailabilityDateResolutionSortOrderTests {
 	}
 
 	private List<Item> sort(List<Item> items) {
-		return singleValueFrom(sortOrder.sortItems(items, UUID.randomUUID(),
-				PatronRequest.builder().build()));
+		return singleValueFrom(sortOrder.sortItems(
+			ResolutionSortOrder.Parameters.builder()
+				.items(items)
+				.pickupLocationCode("some-pickup-location")
+				.build()));
 	}
 
 	private static Item createItem(Instant availabilityDate) {

@@ -8,7 +8,6 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.PatronRequest;
 import org.zalando.problem.Problem;
 
 import io.micronaut.context.annotation.Primary;
@@ -36,15 +35,15 @@ class AllItemFilters implements ItemFilter {
 
 	@Override
 	public Flux<Item> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
-		final var patronRequest = getValueOrNull(parameters, ItemFilterParameters::getPatronRequest);
 		final var borrowingAgencyCode = getValueOrNull(parameters, ItemFilterParameters::getBorrowingAgencyCode);
+		final var borrowingHostLmsCode = getValueOrNull(parameters, ItemFilterParameters::getBorrowingHostLmsCode);
 
 		return items
 			.filterWhen(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
 			.filter(item -> agencyExclusionItemFilter.filterItem(item, parameters))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
-			.filterWhen(item -> fromSameServer(item, patronRequest));
+			.filterWhen(item -> fromSameServer(item, borrowingHostLmsCode));
 	}
 
 	private Mono<Boolean> excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
@@ -85,27 +84,25 @@ class AllItemFilters implements ItemFilter {
 	 * Determines if an item should be excluded based on server configuration comparison.
 	 * Returns true if the item should be kept, false if it should be excluded.
 	 *
-	 * @param item            the item to check
-	 * @param patronRequest   the property to compare against
+	 * @param item the item to check
+	 * @param borrowingHostLmsCode code of the Host LMS the borrowing library is using
 	 * @return Mono<Boolean> indicating if the item should be kept
 	 */
-
-	private Mono<Boolean> fromSameServer(Item item, PatronRequest patronRequest) {
+	private Mono<Boolean> fromSameServer(Item item, String borrowingHostLmsCode) {
 		final var itemLmsCode = getValueOrNull(item, Item::getHostLmsCode);
-		final var borrowingLmsCode = getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode);
 
-		if (itemLmsCode == null || borrowingLmsCode == null) {
+		if (itemLmsCode == null || borrowingHostLmsCode == null) {
 			return raiseError(Problem.builder()
 				.withTitle("Missing required value to evaluate item fromSameServer")
 				.withDetail("Could not compare LMS codes")
 				.with("itemLmsCode", itemLmsCode)
-				.with("borrowingLmsCode", borrowingLmsCode)
+				.with("borrowingHostLmsCode", borrowingHostLmsCode)
 				.build());
 		}
 
 		return Mono.zip(
 			hostLmsService.getHostLmsBaseUrl(itemLmsCode),
-			hostLmsService.getHostLmsBaseUrl(borrowingLmsCode)
+			hostLmsService.getHostLmsBaseUrl(borrowingHostLmsCode)
 		).map(tuple -> {
 			final var itemBaseUrl = getValueOrNull(tuple, Tuple2::getT1);
 			final var borrowingBaseUrl = getValueOrNull(tuple, Tuple2::getT2);
@@ -120,12 +117,12 @@ class AllItemFilters implements ItemFilter {
 			}
 
 			boolean isSameServer = itemBaseUrl.equals(borrowingBaseUrl);
-			boolean isDifferentLms = !itemLmsCode.equals(borrowingLmsCode);
+			boolean isDifferentLms = !itemLmsCode.equals(borrowingHostLmsCode);
 			boolean shouldExclude = isSameServer && isDifferentLms;
 
 			if (shouldExclude) {
 				log.warn("Excluding item from same server: itemLms={}, borrowingLms={}, baseUrl={}",
-					itemLmsCode, borrowingLmsCode, itemBaseUrl);
+					itemLmsCode, borrowingHostLmsCode, itemBaseUrl);
 			}
 
 			return !shouldExclude;

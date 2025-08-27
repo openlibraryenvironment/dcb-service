@@ -2,8 +2,11 @@ package org.olf.dcb.request.resolution;
 
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -18,7 +21,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.LocationFixture;
@@ -156,8 +158,7 @@ class GeoDistanceResolutionSortOrderTests {
 		final var sortedItems = sortItems(emptyList(), pickupLocationId.toString());
 
 		// Assert
-		assertThat(sortedItems, notNullValue());
-		assertThat(sortedItems.size(), is(0));
+		assertThat(sortedItems, is(empty()));
 	}
 
 	@Test
@@ -170,34 +171,34 @@ class GeoDistanceResolutionSortOrderTests {
 		final var sortedItems = sortItems(items, pickupLocationId.toString());
 
 		// Assert
-		assertThat(sortedItems, notNullValue());
-		assertThat(sortedItems.size(), is(0));
+		assertThat(sortedItems, is(empty()));
 	}
 
 	@Test
-	void shouldChooseNoItemWhenNoPickupLocationDoesNotExist() {
+	void shouldChooseNoItemWhenPickupLocationDoesNotExist() {
 		// Act
 		final var sortedItems = sortItems(emptyList(), randomUUID().toString());
 
 		// Assert
-		assertThat(sortedItems, notNullValue());
-		assertThat(sortedItems.size(), is(0));
+		assertThat(sortedItems, is(empty()));
 	}
 
 	@Test
-	void shouldFailWhenPatronRequestHasNoPickupLocation() {
+	void shouldFailWhenNoPickupLocationCodeIsProvided() {
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> sortItems(emptyList(), null));
 
 		// Assert
-		assertThat(exception, hasMessage("No pickup location code"));
+		assertThat(exception,
+			hasMessage("No pickup location code was provided for geo distance sorting"));
 	}
 
-	private List<Item> sortItems(List<Item> items, String pickupLocationId) {
-		return singleValueFrom(resolutionStrategy.sortItems(items, randomUUID(),
-			PatronRequest.builder()
-				.pickupLocationCode(pickupLocationId)
+	private List<Item> sortItems(List<Item> items, String pickupLocationCode) {
+		return singleValueFrom(resolutionStrategy.sortItems(
+			ResolutionSortOrder.Parameters.builder()
+				.items(items)
+				.pickupLocationCode(pickupLocationCode)
 				.build()));
 	}
 

@@ -1,34 +1,49 @@
 package org.olf.dcb.core.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import io.micronaut.core.annotation.Creator;
-import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.data.annotation.*;
-import io.micronaut.data.model.DataType;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.Column;
-import jakarta.persistence.OneToMany;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.*;
-import lombok.experimental.Accessors;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
-import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
-import static java.util.Collections.emptyList;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.dcb.request.resolution.Resolution;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.DateCreated;
+import io.micronaut.data.annotation.DateUpdated;
+import io.micronaut.data.annotation.Id;
+import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.Relation;
+import io.micronaut.data.annotation.TypeDef;
+import io.micronaut.data.model.DataType;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.persistence.Column;
+import jakarta.persistence.OneToMany;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+import lombok.experimental.Accessors;
+import lombok.extern.slf4j.Slf4j;
+import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 
 @Slf4j
@@ -444,18 +459,6 @@ public class PatronRequest {
 	@ToString.Include
 	@Nullable
 	private String pickupHoldingId;
-
-	@Transient
-	@Nullable
-	public String determineSupplyingAgencyCode() {
-		final List<SupplierRequest> supplierRequests = getValue(getSupplierRequests(), emptyList());
-
-		return supplierRequests.stream()
-			.findFirst()
-			.map(SupplierRequest::getResolvedAgency)
-			.map(agency -> getValueOrNull(agency, DataAgency::getCode))
-			.orElse(null);
-	}
 
 	public PatronRequest resolve() {
 		return setStatus(RESOLVED)

@@ -6,7 +6,6 @@ import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
-import static org.olf.dcb.request.resolution.Resolution.noItemsSelectable;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
 import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -21,9 +20,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
@@ -80,29 +77,13 @@ public class PatronRequestResolutionService {
 			? manualResolutionSteps()
 			: specifiedResolutionSteps();
 
-		return Mono.just(Resolution.forPatronRequest(patronRequest))
-			.map(this::borrowingAgency)
-			.map(resolution -> resolution.excludeAgencies(excludedAgencyCodes))
-			.flatMap(initialResolution -> executeSteps(initialResolution, resolutionSteps))
+		final var initialResolution = Resolution.forParameters(patronRequest, excludedAgencyCodes);
+
+		return Mono.just(initialResolution)
+			.flatMap(resolution -> executeSteps(resolution, resolutionSteps))
 			.doOnError(error -> log.warn(
 				"There was an error in the liveAvailabilityService.getAvailableItems stream : {}", error.getMessage()))
-			.switchIfEmpty(Mono.defer(() -> Mono.just(noItemsSelectable(patronRequest))));
-	}
-
-	private Resolution borrowingAgency(Resolution resolution) {
-		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
-		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
-		final var homeIdentity = patron.determineHomeIdentity();
-
-		final var borrowingAgency = getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);
-
-		final var borrowingAgencyCode = getValueOrNull(borrowingAgency, DataAgency::getCode);
-
-		if (borrowingAgencyCode == null) {
-			log.warn("Borrowing agency code during resolution is null");
-		}
-
-		return resolution.borrowingAgency(borrowingAgencyCode);
+			.defaultIfEmpty(initialResolution);
 	}
 
 	private List<ResolutionStep> manualResolutionSteps() {
@@ -153,7 +134,10 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Resolution> handleManualSelection(Resolution resolution) {
-		return Mono.justOrEmpty(manualSelection.chooseItem(resolution))
+		final var itemSelection = getValueOrNull(resolution, Resolution::getParameters,
+			ResolutionParameters::getManualItemSelection);
+
+		return Mono.justOrEmpty(manualSelection.chooseItem(resolution.getAllItems(), itemSelection))
 			.map(resolution::selectItem);
 	}
 
@@ -197,10 +181,12 @@ public class PatronRequestResolutionService {
 
 		log.debug("Selecting first requestable item from item list size {}", itemList.size());
 
-		return Mono.justOrEmpty(
-			itemList.stream()
-				.findFirst())
-			.map(resolution::selectItem);
+		// If there are no items to select from, return the resolution as is (so no chosen item)
+		if (itemList.isEmpty()) {
+			return Mono.just(resolution);
+		}
+
+		return Mono.just(resolution.selectItem(itemList.stream().findFirst().orElseThrow()));
 	}
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
@@ -216,13 +202,14 @@ public class PatronRequestResolutionService {
 		return liveAvailabilityService.checkAvailability(clusteredBibId, Optional.of(timeout));
 	}
 
-	private Mono<Resolution> sortItems(ResolutionSortOrder resolutionSortOrder,
-		Resolution resolution) {
+	private Mono<Resolution> sortItems(ResolutionSortOrder sortOrder, Resolution resolution) {
+		final var sortParameters = ResolutionSortOrder.Parameters.builder()
+			.items(getItemList(resolution))
+			.pickupLocationCode(getValueOrNull(resolution, Resolution::getParameters,
+				ResolutionParameters::getPickupLocationCode))
+			.build();
 
-		final var listToSort = getItemList(resolution);
-
-		return resolutionSortOrder.sortItems(listToSort,
-			resolution.getBibClusterId(), resolution.getPatronRequest())
+		return sortOrder.sortItems(sortParameters)
 			.doOnNext(items -> {
 				if (items != null && !items.isEmpty()) {
 					log.debug("First item in sorted list is: {}", items.get(0));

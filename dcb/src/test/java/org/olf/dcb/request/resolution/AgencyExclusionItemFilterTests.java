@@ -8,7 +8,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.PatronRequest;
 
 import lombok.Builder;
 import lombok.Value;
@@ -92,8 +91,8 @@ class AgencyExclusionItemFilterTests {
 	@Builder
 	@Value
 	static class Parameters implements ItemFilterParameters {
-		PatronRequest patronRequest;
 		List<String> excludedAgencyCodes;
 		String borrowingAgencyCode;
+		String borrowingHostLmsCode;
 	}
 }
