@@ -6,9 +6,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
-import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,7 +30,6 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.Patron;
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
@@ -160,15 +159,14 @@ public class GeoDistanceTieBreakerTests {
 		final var sourceRecordId = "465675";
 		final var clusterRecord = createClusterAndBibRecord(bibRecordId, sourceRecordId);
 		final var pickupLocation = definePickupLocationAtRoyalAlbertDock();
-		final var patron = definePatron("872321", "home-library");
-		final var patronRequest = createPatronRequest(patron, clusterRecord, pickupLocation);
+		final var patron = definePatron("872321");
 
 		// Enable consortium setting for unavailable items
 		consortiumFixture.createConsortiumWithFunctionalSetting(SELECT_UNAVAILABLE_ITEMS, true);
 
 		// Chatsworth is closer to the borrowing agency than Marble Arch
-		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch("marble-arch");
-		final var chatsworthAgency = defineAgencyLocatedAtChatsworth("chatsworth");
+		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch();
+		final var chatsworthAgency = defineAgencyLocatedAtChatsworth();
 
 		// Create test items with different locations
 		final var furthestAwayItemId = "651463";
@@ -195,7 +193,7 @@ public class GeoDistanceTieBreakerTests {
 		));
 
 		// Act
-		final var resolution = resolve(patronRequest);
+		final var resolution = resolve(patron, clusterRecord, pickupLocation);
 
 		// Assert
 		assertThat(resolution, allOf(
@@ -211,15 +209,14 @@ public class GeoDistanceTieBreakerTests {
 		final var sourceRecordId = "465675";
 		final var clusterRecord = createClusterAndBibRecord(bibRecordId, sourceRecordId);
 		final var pickupLocation = definePickupLocationAtRoyalAlbertDock();
-		final var patron = definePatron("872321", "home-library");
-		final var patronRequest = createPatronRequest(patron, clusterRecord, pickupLocation);
+		final var patron = definePatron("264525");
 
 		// Enable consortium setting for unavailable items
 		consortiumFixture.createConsortiumWithFunctionalSetting(SELECT_UNAVAILABLE_ITEMS, true);
 
 		// Chatsworth is closer to the borrowing agency than Marble Arch
-		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch("marble-arch");
-		final var chatsworthAgency = defineAgencyLocatedAtChatsworth("chatsworth");
+		final var marbleArchAgency = defineAgencyLocatedAtMarbleArch();
+		final var chatsworthAgency = defineAgencyLocatedAtChatsworth();
 
 		// Create test items with different locations
 		final var furthestAwayItemId = "651463";
@@ -248,7 +245,7 @@ public class GeoDistanceTieBreakerTests {
 		));
 
 		// Act
-		final var resolution = resolve(patronRequest);
+		final var resolution = resolve(patron, clusterRecord, pickupLocation);
 
 		// Assert
 		assertThat(resolution, allOf(
@@ -264,20 +261,6 @@ public class GeoDistanceTieBreakerTests {
 		return clusterRecord;
 	}
 
-	private PatronRequest createPatronRequest(Patron patron, ClusterRecord clusterRecord, Location pickupLocation) {
-		PatronRequest patronRequest = PatronRequest.builder()
-			.id(UUID.randomUUID())
-			.patron(patron)
-			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(String.valueOf(pickupLocation.getId()))
-			.status(PATRON_VERIFIED)
-			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
-			.build();
-
-		return patronRequestsFixture.savePatronRequest(patronRequest);
-	}
-
 	private SierraItem createCheckedOutItem(String id, String barcode, String locationCode, Instant dueDate) {
 		return SierraItem.builder()
 				.id(id)
@@ -290,27 +273,35 @@ public class GeoDistanceTieBreakerTests {
 				.build();
 	}
 
-	private Resolution resolve(PatronRequest patronRequest) {
-		return singleValueFrom(patronRequestResolutionService.resolvePatronRequest(patronRequest));
+	private Resolution resolve(Patron patron, ClusterRecord clusterRecord, Location pickupLocation) {
+		return singleValueFrom(patronRequestResolutionService.resolve(
+			ResolutionParameters.builder()
+				.patron(patron)
+				.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+				.bibClusterId(clusterRecord.getId())
+				// This is due to geo-proximity interpreting the location code parameter as the ID
+				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.build()));
 	}
 
-	private Patron definePatron(String localId, String homeLibraryCode) {
-		return patronFixture.definePatron(localId, homeLibraryCode,
+	private Patron definePatron(String localId) {
+		return patronFixture.definePatron(localId, "home-library",
 			cataloguingHostLms, agencyFixture.findByCode(BORROWING_AGENCY_CODE));
 	}
 
+	@SafeVarargs
 	private Matcher<Resolution> hasChosenItem(Matcher<Item>... matchers) {
 		return hasProperty("chosenItem", allOf(matchers));
 	}
 
-	private DataAgency defineAgencyLocatedAtChatsworth(String code) {
-		return agencyFixture.defineAgency(code, "Test Agency 1",
+	private DataAgency defineAgencyLocatedAtChatsworth() {
+		return agencyFixture.defineAgency("chatsworth", "Test Agency 1",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE),
 			53.227558, -1.611566);
 	}
 
-	private DataAgency defineAgencyLocatedAtMarbleArch(String code) {
-		return agencyFixture.defineAgency(code, "Test Agency 1",
+	private DataAgency defineAgencyLocatedAtMarbleArch() {
+		return agencyFixture.defineAgency("marble-arch", "Test Agency 1",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE),
 			51.513222, -0.159015);
 	}

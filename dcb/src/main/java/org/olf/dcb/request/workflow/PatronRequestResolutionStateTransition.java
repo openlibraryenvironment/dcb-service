@@ -1,10 +1,13 @@
 package org.olf.dcb.request.workflow;
 
+import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+import static org.olf.dcb.request.resolution.ResolutionParameters.parametersFor;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +28,8 @@ import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 @Slf4j
 @Prototype
@@ -62,27 +67,37 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 		log.info("PatronRequestResolutionStateTransition attempt for {}", patronRequest);
 
-		return patronRequestResolutionService.resolvePatronRequest(patronRequest)
-			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))
-			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
+		return resolve(patronRequest)
 			// Trail switching these so we can set current supplier request on patron request
-			.flatMap(resolution -> auditResolution(resolution, patronRequest))
-			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
-			.flatMap(this::saveSupplierRequest)
-			.flatMap(this::setPatronRequestWorkflow)
-			.flatMap(this::updatePatronRequest)
-			.map(Resolution::getPatronRequest)
+			.flatMap(function(this::auditResolution))
+			.flatMap(function(this::checkMappedCanonicalItemType))
+			.flatMap(function(this::saveSupplierRequest))
+			.flatMap(function(this::setPatronRequestWorkflow))
+			.flatMap(function(this::updatePatronRequest))
+			// This is the original context, rather than the context created in setPatronRequestWorkflow
+			// That could mean the information returned here is incorrect
 			.thenReturn(ctx);
 	}
 
-	private Mono<Resolution> setPatronRequestWorkflow(Resolution resolution) {
-		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
+	private Mono<Tuple2<Resolution, PatronRequest>> resolve(PatronRequest patronRequest) {
+		return patronRequestResolutionService.resolve(parametersFor(patronRequest, emptyList()))
+			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))
+			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
+			.zipWith(Mono.just(patronRequest));
+	}
+
+	private Mono<Tuple2<Resolution, PatronRequest>> setPatronRequestWorkflow(
+		Resolution resolution, PatronRequest patronRequest) {
+
 		final var borrowingAgencyCode = getValueOrNull(resolution, Resolution::getBorrowingAgencyCode);
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 		final var itemAgencyCode = getValueOrNull(chosenItem, Item::getAgencyCode);
 
 		// NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
-		if (chosenItem == null) return Mono.just(resolution);
+		if (chosenItem == null) {
+			return Mono.just(resolution)
+				.zipWith(Mono.just(patronRequest));
+		}
 
 		log.debug("Setting PatronRequestWorkflow BorrowingAgencyCode: {}, ItemAgencyCode: {}",
 			borrowingAgencyCode, itemAgencyCode);
@@ -96,18 +111,26 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		return requestWorkflowContextHelper.resolvePickupLocationAgency(rwc)
 			.flatMap(requestWorkflowContextHelper::setPatronRequestWorkflow)
 			.map(RequestWorkflowContext::getPatronRequest)
-			.map(resolution::withPatronRequest);
+			.map(p -> Tuples.of(resolution, p));
 	}
 
-	private Mono<Resolution> auditResolution(Resolution resolution, PatronRequest patronRequest) {
+	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(
+		Resolution resolution, PatronRequest patronRequest) {
+
 		return patronRequestResolutionService.auditResolution(resolution,
-			patronRequest, "Resolved", patronRequestAuditService);
+			patronRequest, "Resolved", patronRequestAuditService)
+			.zipWith(Mono.just(patronRequest));
 	}
 
-	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
-		log.debug("updatePatronRequest({})", resolution);
+	private Mono<Tuple2<Resolution, PatronRequest>> checkMappedCanonicalItemType(Resolution resolution,
+		PatronRequest patronRequest) {
 
-		final var patronRequest = resolution.getPatronRequest();
+		return Mono.just(PatronRequestResolutionService.checkMappedCanonicalItemType(resolution))
+			.zipWith(Mono.just(patronRequest));
+	}
+
+	private Mono<Void> updatePatronRequest(Resolution resolution, PatronRequest patronRequest) {
+		log.debug("updatePatronRequest({}, {})", resolution, patronRequest);
 
 		if (resolution.getChosenItem() != null) {
 			patronRequest.resolve();
@@ -118,21 +141,25 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		final var patronRequestService = patronRequestServiceProvider.get();
 
 		return patronRequestService.updatePatronRequest(patronRequest)
-			.thenReturn(resolution);
+			.then();
 	}
 
-	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
-		log.debug("saveSupplierRequest({})", resolution);
+	private Mono<Tuple2<Resolution, PatronRequest>> saveSupplierRequest(Resolution resolution,
+		PatronRequest patronRequest) {
+
+		log.debug("saveSupplierRequest({}, {})", resolution, patronRequest);
 
 		final var chosenItem = resolution.getChosenItem();
 
 		if (chosenItem == null) {
-			return Mono.just(resolution);
+			return Mono.just(resolution)
+				.zipWith(Mono.just(patronRequest));
 		}
 
 		return supplierRequestService.saveSupplierRequest(
-				mapToSupplierRequest(chosenItem, resolution.getPatronRequest()))
-			.thenReturn(resolution);
+				mapToSupplierRequest(chosenItem, patronRequest))
+			.thenReturn(resolution)
+			.zipWith(Mono.just(patronRequest));
 	}
 
 	private static SupplierRequest mapToSupplierRequest(Item item, PatronRequest patronRequest) {

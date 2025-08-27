@@ -14,6 +14,7 @@ import lombok.Value;
 @Value
 @ToString
 public class ManualItemSelection {
+	Boolean isManuallySelected;
 	String localItemId;
 	String agencyCode;
 	String hostLmsCode;

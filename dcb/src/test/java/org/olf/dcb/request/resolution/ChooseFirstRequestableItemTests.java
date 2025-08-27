@@ -1,7 +1,6 @@
 package org.olf.dcb.request.resolution;
 
 import static java.util.Collections.emptyList;
-import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
@@ -91,10 +89,8 @@ class ChooseFirstRequestableItemTests {
 	}
 
 	private static Resolution buildResolution(List<Item> items) {
-		final var patronRequest = PatronRequest.builder().id(randomUUID()).build();
-
 		// Sorted items are required for selection to choose from
-		return Resolution.forParameters(patronRequest, emptyList())
+		return Resolution.forParameters(ResolutionParameters.builder().build())
 			.trackSortedItems(items);
 	}
 

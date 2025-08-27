@@ -18,12 +18,13 @@ import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeExcepti
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
+import org.olf.dcb.request.resolution.ManualItemSelection;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.ResolutionParameters;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
-import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -35,18 +36,14 @@ import reactor.core.publisher.Mono;
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron-request.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	private final PatronRequestResolutionService patronRequestResolutionService;
-	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 	private final LocalPatronService localPatronService;
 	private final IntMessageService intMessageService;
 
 	public ResolvePatronRequestPreflightCheck(
 		PatronRequestResolutionService patronRequestResolutionService,
-		BeanProvider<PatronRequestService> patronRequestServiceProvider,
-		LocalPatronService localPatronService,
-		IntMessageService intMessageService) {
+		LocalPatronService localPatronService, IntMessageService intMessageService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
-		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.localPatronService = localPatronService;
 		this.intMessageService = intMessageService;
 	}
@@ -55,12 +52,11 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {
 		// This is a workaround due to the current resolution process
 		// being too coupled to a patron request
-		return Mono.just(patronRequestServiceProvider.get())
-			.zipWith(mapToPatron(command))
-			.map(function((patronRequestService, patron) -> patronRequestService.mapToPatronRequest(command, patron)))
-			.map(PatronRequestService.mapManualItemSelectionIfPresent(command))
+		return Mono.just(command)
+			.zipWhen(this::mapToPatron)
+			.map(function(ResolvePatronRequestPreflightCheck::mapToParameters))
 			.doOnSuccess(patronRequest -> log.debug("Completed mapping to patron request: {}", patronRequest))
-			.flatMap(patronRequestResolutionService::resolvePatronRequest)
+			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Completed resolution: {}", resolution))
 			.map(this::checkResolution)
 			// Many of these errors are duplicated from the resolve patron preflight check
@@ -100,6 +96,42 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 					.patronIdentities(List.of(homeIdentity))
 					.build();
 			}));
+	}
+
+	private static ResolutionParameters mapToParameters(PlacePatronRequestCommand command, Patron patron) {
+		log.debug("mapToParameters({}, {})", command, patron);
+
+		return ResolutionParameters.builder()
+			.patron(patron)
+			.patronHostLmsCode(getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
+			.bibClusterId(getValueOrNull(command, PlacePatronRequestCommand::getCitation,
+				PlacePatronRequestCommand.Citation::getBibClusterId))
+			.pickupLocationCode(getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode))
+			.manualItemSelection(mapManualItemSelection(getValueOrNull(command, PlacePatronRequestCommand::getItem)))
+			.build();
+	}
+
+	private static ManualItemSelection mapManualItemSelection(PlacePatronRequestCommand.Item item) {
+		if (item == null) {
+			return null;
+		}
+
+		final var id = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalId);
+		final var hostLmsCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalSystemCode);
+		final var agencyCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getAgencyCode);
+
+		if (id == null || hostLmsCode == null || agencyCode == null) {
+			log.warn("Possibly incomplete manually selected item: {}", item);
+
+			return null;
+		}
+
+		return ManualItemSelection.builder()
+			.isManuallySelected(true)
+			.localItemId(id)
+			.hostLmsCode(hostLmsCode)
+			.agencyCode(agencyCode)
+			.build();
 	}
 
 	private List<CheckResult> checkResolution(Resolution resolution) {

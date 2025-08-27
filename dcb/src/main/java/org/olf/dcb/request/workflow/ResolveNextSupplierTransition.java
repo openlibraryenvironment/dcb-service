@@ -6,9 +6,11 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.request.resolution.ResolutionParameters.parametersFor;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +36,7 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
 /**
  * ResolveNextSupplierTransition - Called in response to a request in state NOT_SUPPLIED_CURRENT_SUPPLIER
@@ -127,7 +130,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<Resolution> resolve(PatronRequest patronRequest, List<String> excludedAgencyCodes) {
-		return patronRequestResolutionService.resolvePatronRequest(patronRequest, excludedAgencyCodes);
+		return patronRequestResolutionService.resolve(parametersFor(patronRequest, excludedAgencyCodes));
 	}
 
 	private Mono<List<String>> findExcludedAgencyCodes(PatronRequest patronRequest) {
@@ -149,29 +152,32 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	private Mono<Void> applySuccessfulResolution(Resolution resolution,
 		RequestWorkflowContext context) {
-		
+
 		return makeSupplierRequestInactive(resolution, context)
-			.flatMap(r -> auditResolution(r, context.getPatronRequest()))
-			.map(PatronRequestResolutionService::checkMappedCanonicalItemType)
-			.flatMap(this::saveSupplierRequest)
-			.flatMap(this::updatePatronRequest)
+			.flatMap(function(this::auditResolution))
+			.flatMap(function(this::checkMappedCanonicalItemType))
+			.flatMap(function(this::saveSupplierRequest))
+			.flatMap(function(this::updatePatronRequest))
 			.then();
 	}
 
-	private Mono<Resolution> makeSupplierRequestInactive(Resolution resolution, RequestWorkflowContext context) {
+	private Mono<Tuple2<Resolution, PatronRequest>> makeSupplierRequestInactive(
+		Resolution resolution, RequestWorkflowContext context) {
+
 		final var previousSupplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
 
 		return supplierRequestService.saveInactiveSupplierRequest(previousSupplierRequest)
 			.flatMap(inactiveSupplierRequest -> {
 				log.info("Supplier request {} saved as inactive supplier request", inactiveSupplierRequest.getId());
 				return Mono.just(resolution);
-			});
+			})
+			.zipWith(Mono.just(getValueOrNull(context, RequestWorkflowContext::getPatronRequest)));
 	}
 
-	private Mono<Resolution> updatePatronRequest(Resolution resolution) {
-		log.debug("updatePatronRequest({})", resolution);
+	private Mono<Resolution> updatePatronRequest(Resolution resolution,
+		PatronRequest patronRequest) {
 
-		final var patronRequest = resolution.getPatronRequest();
+		log.debug("updatePatronRequest({}, {})", resolution, patronRequest);
 
 		patronRequest.resolve();
 
@@ -181,17 +187,30 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.thenReturn(resolution);
 	}
 
-	private Mono<Resolution> auditResolution(Resolution resolution, PatronRequest patronRequest) {
+	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(
+		Resolution resolution, PatronRequest patronRequest) {
+
 		return patronRequestResolutionService.auditResolution(resolution,
-			patronRequest, "Re-resolved", patronRequestAuditService);
+			patronRequest, "Re-resolved", patronRequestAuditService)
+			.zipWith(Mono.just(patronRequest));
 	}
 
-	private Mono<Resolution> saveSupplierRequest(Resolution resolution) {
-		log.debug("saveSupplierRequest({})", resolution);
+	private Mono<Tuple2<Resolution, PatronRequest>> checkMappedCanonicalItemType(Resolution resolution,
+		PatronRequest patronRequest) {
+
+		return Mono.just(PatronRequestResolutionService.checkMappedCanonicalItemType(resolution))
+			.zipWith(Mono.just(patronRequest));
+	}
+
+	private Mono<Tuple2<Resolution, PatronRequest>> saveSupplierRequest(Resolution resolution,
+		PatronRequest patronRequest) {
+
+		log.debug("saveSupplierRequest({}, {})", resolution, patronRequest);
 
 		return supplierRequestService.saveSupplierRequest(
-				mapToSupplierRequest(resolution.getChosenItem(), resolution.getPatronRequest()))
-			.thenReturn(resolution);
+				mapToSupplierRequest(resolution.getChosenItem(), patronRequest))
+			.thenReturn(resolution)
+			.zipWith(Mono.just(patronRequest));
 	}
 
 	private Mono<RequestWorkflowContext> cancelLocalBorrowingRequest(

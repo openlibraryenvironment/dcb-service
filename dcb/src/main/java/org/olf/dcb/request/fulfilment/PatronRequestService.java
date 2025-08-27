@@ -2,7 +2,6 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static reactor.function.TupleUtils.function;
 
 import java.time.Instant;
@@ -13,8 +12,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import io.micronaut.context.BeanProvider;
-import jakarta.validation.constraints.NotNull;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
@@ -24,7 +21,9 @@ import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -125,7 +124,7 @@ public class PatronRequestService {
 			.doOnError(e -> log.error("Placing expedited request {} failed", command, e));
 	}
 
-	public static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(
+	private static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(
 		PlacePatronRequestCommand command) {
 
 		if (command.getItem() == null) {
@@ -151,7 +150,7 @@ public class PatronRequestService {
 			requestor.getLocalId(), requestor.getHomeLibraryCode());
 	}
 
-	public PatronRequest mapToPatronRequest(PlacePatronRequestCommand command, Patron patron) {
+	private PatronRequest mapToPatronRequest(PlacePatronRequestCommand command, Patron patron) {
 		final var id = UUID.randomUUID();
 
 		log.debug("mapToPatronRequest({}, {})", command, patron);

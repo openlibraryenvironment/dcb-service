@@ -10,7 +10,6 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Patron;
-import org.olf.dcb.core.model.PatronRequest;
 
 import lombok.Builder;
 import lombok.Value;
@@ -20,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 @Builder(access = PRIVATE)
 @Value
 public class Resolution implements ItemFilterParameters {
-	PatronRequest patronRequest;
 	ResolutionParameters parameters;
 
 	Item chosenItem;
@@ -29,39 +27,14 @@ public class Resolution implements ItemFilterParameters {
 	@Builder.Default List<Item> filteredItems = emptyList();
 	@Builder.Default List<Item> sortedItems = emptyList();
 
-	public static Resolution forParameters(PatronRequest patronRequest,
-		List<String> excludedAgencyCodes) {
+	public static Resolution forParameters(ResolutionParameters parameters) {
 		return Resolution.builder()
-			.patronRequest(patronRequest)
-			.parameters(ResolutionParameters.builder()
-				.patron(getValueOrNull(patronRequest, PatronRequest::getPatron))
-				.bibClusterId(getValueOrNull(patronRequest, PatronRequest::getBibClusterId))
-				.pickupLocationCode(getValueOrNull(patronRequest, PatronRequest::getPickupLocationCode))
-				.excludedAgencyCodes(excludedAgencyCodes)
-				.patronHostLmsCode(getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode))
-				.manualItemSelection(ManualItemSelection.builder()
-					.localItemId(getValueOrNull(patronRequest, PatronRequest::getLocalItemId))
-					.hostLmsCode(getValueOrNull(patronRequest, PatronRequest::getLocalItemHostlmsCode))
-					.agencyCode(getValueOrNull(patronRequest, PatronRequest::getLocalItemAgencyCode))
-					.build())
-				.build())
+			.parameters(parameters)
 			.build();
 	}
 
 	public boolean successful() {
 		return getChosenItem() != null;
-	}
-
-	public Resolution withPatronRequest(PatronRequest newPatronRequest) {
-		return builder()
-			.patronRequest(newPatronRequest)
-			.parameters(parameters)
-			.chosenItem(chosenItem)
-			.allItems(allItems)
-			.filteredItems(filteredItems)
-			.sortedItems(sortedItems)
-			.chosenItem(chosenItem)
-			.build();
 	}
 
 	public UUID getBibClusterId() {
@@ -70,7 +43,6 @@ public class Resolution implements ItemFilterParameters {
 
 	public Resolution trackAllItems(List<Item> allItems) {
 		return builder()
-			.patronRequest(patronRequest)
 			.parameters(parameters)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
@@ -81,7 +53,6 @@ public class Resolution implements ItemFilterParameters {
 
 	public Resolution trackFilteredItems(List<Item> filteredItems) {
 		return Resolution.builder()
-			.patronRequest(patronRequest)
 			.parameters(parameters)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
@@ -92,7 +63,6 @@ public class Resolution implements ItemFilterParameters {
 
 	public Resolution trackSortedItems(List<Item> sortedItems) {
 		return Resolution.builder()
-			.patronRequest(patronRequest)
 			.parameters(parameters)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
@@ -103,7 +73,6 @@ public class Resolution implements ItemFilterParameters {
 
 	public Resolution selectItem(Item item) {
 		return Resolution.builder()
-			.patronRequest(patronRequest)
 			.parameters(parameters)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
@@ -130,5 +99,4 @@ public class Resolution implements ItemFilterParameters {
 	public String getBorrowingHostLmsCode() {
 		return getValueOrNull(parameters, ResolutionParameters::getPatronHostLmsCode);
 	}
-
 }

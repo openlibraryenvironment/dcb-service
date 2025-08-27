@@ -68,21 +68,17 @@ public class PatronRequestResolutionService {
 		}
 	}
 
-	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest) {
-		return resolvePatronRequest(patronRequest, emptyList());
-	}
+	public Mono<Resolution> resolve(ResolutionParameters parameters) {
+		log.debug("resolve(parameters={}) resolver={}", parameters, itemResolver);
 
-	public Mono<Resolution> resolvePatronRequest(PatronRequest patronRequest,
-		List<String> excludedAgencyCodes) {
+		final var isManuallySelected = getValue(parameters, ResolutionParameters::getManualItemSelection,
+			ManualItemSelection::getIsManuallySelected, false);
 
-		log.debug("resolvePatronRequest(id={}, excludedAgencyCodes={}) current status ={} resolver={}",
-			patronRequest.getId(), excludedAgencyCodes, patronRequest.getStatus(), itemResolver);
-
-		final var resolutionSteps = patronRequest.getIsManuallySelectedItem()
+		final var resolutionSteps = isManuallySelected
 			? manualResolutionSteps()
 			: specifiedResolutionSteps();
 
-		final var initialResolution = Resolution.forParameters(patronRequest, excludedAgencyCodes);
+		final var initialResolution = Resolution.forParameters(parameters);
 
 		return Mono.just(initialResolution)
 			.flatMap(resolution -> executeSteps(resolution, resolutionSteps))
