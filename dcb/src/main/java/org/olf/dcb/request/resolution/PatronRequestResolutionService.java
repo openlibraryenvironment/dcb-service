@@ -23,8 +23,6 @@ import java.util.stream.Collectors;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.NoHomeIdentityException;
-import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
@@ -94,14 +92,7 @@ public class PatronRequestResolutionService {
 	private Resolution borrowingAgency(Resolution resolution) {
 		final var patronRequest = getValueOrNull(resolution, Resolution::getPatronRequest);
 		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
-		final var optionalHomeIdentity = getValueOrNull(patron, Patron::getHomeIdentity);
-
-		if (optionalHomeIdentity.isEmpty()) {
-			throw new NoHomeIdentityException(getValueOrNull(patron, Patron::getId),
-				getValueOrNull(patron, Patron::getPatronIdentities));
-		}
-
-		final var homeIdentity = optionalHomeIdentity.get();
+		final var homeIdentity = patron.determineHomeIdentity();
 
 		final var borrowingAgency = getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);
 

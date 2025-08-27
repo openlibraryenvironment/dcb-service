@@ -98,6 +98,14 @@ public class Patron {
 	}
 
 	@Transient
+	public PatronIdentity determineHomeIdentity() {
+		// This property is called determine instead of get to avoid the exceptions
+		// causing a Jakarta validation exception
+		return getHomeIdentity()
+			.orElseThrow(() -> new NoHomeIdentityException(id, patronIdentities));
+	}
+
+	@Transient
 	@Nullable
 	public String determineHomeIdentityBarcode() {
 		// This property is called determine instead of get to avoid the exceptions
