@@ -26,6 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+import java.util.UUID;
+
 @Slf4j
 @Singleton
 public class RequestWorkflowContextHelper {
@@ -61,6 +63,11 @@ public class RequestWorkflowContextHelper {
 		this.hostLmsService = hostLmsService;
 		this.patronService = patronService;
 		this.patronRequestAuditService = patronRequestAuditService;
+	}
+
+	public Mono<RequestWorkflowContext> fetchWorkflowContext(UUID patronRequestUUID) {
+		return Mono.from(patronRequestRepository.findById(patronRequestUUID))
+			.flatMap(this::fromPatronRequest);
 	}
 
 	// Given a patron request, construct the patron request context containing all related objects for a workflow
