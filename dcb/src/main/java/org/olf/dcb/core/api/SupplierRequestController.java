@@ -17,6 +17,7 @@ import reactor.core.publisher.Mono;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
+import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
@@ -139,23 +140,31 @@ public class SupplierRequestController {
 
 		return Mono.from(supplierRequestRepository.findById(supplierRequestId))
 			.flatMap(sr -> {
-				// 1) Pause re-resolution
-				sr.setIsActive(Boolean.FALSE); // null-safe write
-				return supplierRequestService.updateSupplierRequest(sr)
-					// 2) Build context from the linked PatronRequest, then ensure SR is present in context
-					.then(ctxHelper.fetchWorkflowContext(sr.getPatronRequest().getId()))
-					// 3) Cancel hold at supplier
+				// 1) Build context from the linked PatronRequest, then ensure SR is present in context
+				return ctxHelper.fetchWorkflowContext(sr.getPatronRequest().getId())
+					// 2) Cancel hold at supplier
 					.flatMap(supplyingAgencyService::cancelHold)
-					// 4) Check supplier status in local system
+					// 3) Check supplier status in local system
 					.flatMap(ctx -> checkSupplierStatus(ctx.getSupplierRequest()))
-					.map(check -> ok(CancelSupplierHoldResponse.builder()
-						.supplierRequestId(sr.getId())
-						.patronRequestId(sr.getPatronRequest() != null ? sr.getPatronRequest().getId() : null)
-						.paused(true)
-						.supplierStatus(check.getSupplierStatus())
-						.cancelled(check.getCancelled())
-						.message(check.getMessage())
-						.build()))
+					// 4) Confirm cancel, then pause re-resolution
+					.flatMap(check -> {
+						final boolean cancelled = Boolean.TRUE.equals(check.getCancelled());
+
+						// If not cancelled, do not pause; just report back.
+						if (!cancelled) {
+							return Mono.just(ok(buildCancelResponse(sr, false, check)));
+						}
+
+						// Cancelled: only write if we actually need to flip the flag.
+						if (!Boolean.FALSE.equals(sr.getIsActive())) {
+							sr.setIsActive(Boolean.FALSE);
+							return supplierRequestService.updateSupplierRequest(sr)
+								.thenReturn(ok(buildCancelResponse(sr, true, check)));
+						}
+
+						// Already paused; report consistent outcome.
+						return Mono.just(ok(buildCancelResponse(sr, true, check)));
+					})
 					// We keep isActive=false even if cancel/verify fails; pausing the flow intentionally.
 					.onErrorResume(e -> {
 						log.error("Cancel supplier hold failed for SR {}: {}", supplierRequestId, e.toString(), e);
@@ -198,7 +207,7 @@ public class SupplierRequestController {
 				return supplierRequestService.updateSupplierRequest(sr)
 					.map(updated -> ok(ActiveToggleResponse.builder()
 						.supplierRequestId(updated.getId())
-						.activeNow(Boolean.TRUE.equals(updated.getIsActive()))
+						.activeNow(TRUE.equals(updated.getIsActive()))
 						.build()))
 					.onErrorResume(e -> Mono.just(
 						error(HttpStatus.BAD_REQUEST, request, "ACTIVE_TOGGLE_FAILED",
@@ -266,4 +275,17 @@ public class SupplierRequestController {
 	private MutableHttpResponse<Object> ok(Object body) {
 		return HttpResponse.ok(body);
 	}
+
+	private CancelSupplierHoldResponse buildCancelResponse(
+		SupplierRequest sr, boolean paused, StatusCheck check) {
+		return CancelSupplierHoldResponse.builder()
+			.supplierRequestId(sr.getId())
+			.patronRequestId(sr.getPatronRequest() != null ? sr.getPatronRequest().getId() : null)
+			.paused(paused)
+			.supplierStatus(check.getSupplierStatus())
+			.cancelled(check.getCancelled())
+			.message(check.getMessage())
+			.build();
+	}
+
 }
