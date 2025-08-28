@@ -2,9 +2,6 @@ package org.olf.dcb.core.interaction.polaris;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Creator;
@@ -179,6 +176,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
+
+		final var activeWorkflow = getValueOrNull(parameters, PlaceHoldRequestParameters::getActiveWorkflow);
+
+		// PUA - the borrower pickup location is outside the system so use the ILL location
+		// this is how we place supplier holds. Following the same pattern here
+		if ("RET-PUA".equals(activeWorkflow)) {
+			return placeHoldRequest(parameters, false);
+		}
 
 		final var borrowerlendingFlow = borrowerlendingFlow();
 		if (borrowerlendingFlow == null) {
