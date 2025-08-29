@@ -76,16 +76,33 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		/** Return true if the supplier item is NOT renewable - but allow the initial loan.
 		 * We detect the initial loan when the local renewal count and the renewal count are zero: this indicates that DCB is not aware of any external renewal, and has not triggered one.*/
 	private static boolean shouldPreventRenewal(RequestWorkflowContext ctx) {
-		log.info("The context is {}", ctx);
+		log.debug("The context is {}", ctx);
 		if ( ctx.getSupplierRequest() != null ) {
 			int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
-      int renewal_count = ctx.getPatronRequest().getRenewalCount() != null ? ctx.getPatronRequest().getRenewalCount(): 0;
+			int renewal_count = ctx.getPatronRequest().getRenewalCount() != null ? ctx.getPatronRequest().getRenewalCount() : 0;
 			int local_renewal_count = ctx.getPatronRequest().getLocalRenewalCount() != null ? ctx.getPatronRequest().getLocalRenewalCount() : 0;
-			if ( hold_count > 0 )
-        return true;
+			boolean renewable = ctx.getPatronRequest().getRenewalStatus() != null && ctx.getPatronRequest().getRenewalStatus().equals(PatronRequest.RenewalStatus.ALLOWED);
+			boolean supplierRenewable = ctx.getSupplierRequest().getLocalRenewable() != null && ctx.getSupplierRequest().getLocalRenewable();
+
+			// In the unlikely event renewal status is null, we should prevent renewal
+			if (ctx.getPatronRequest().getRenewalStatus() == null)
+			{
+				return true;
+			}
 			// A guard to stop the initial loan from being prevented - see DCB-2006
 			if (renewal_count == 0 && local_renewal_count == 0)
 				return false;
+			// I have deliberately kept this extremely basic for readability purposes - CH
+			// If the supplier request OR the main request are renewable, we must not prevent renewal.
+			// This is what was causing the regression failure for 8.46.1
+			if (renewable || supplierRenewable)
+			{
+				return false;
+			}
+			// Now, we will only prevent renewal on requests with a hold count of greater than zero that have not been flagged as renewable
+			if ( hold_count > 0 )
+        return true;
+
 			// If renewable is false, and also the local renewal count is greater than zero (i.e. not the initial loan)
 			return Boolean.FALSE.equals(ctx.getSupplierRequest().getLocalRenewable());
     }
