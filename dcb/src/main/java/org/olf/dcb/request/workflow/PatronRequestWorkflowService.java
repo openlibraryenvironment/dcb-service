@@ -119,7 +119,8 @@ public class PatronRequestWorkflowService {
 		// We don't schedule the next check until we have exhausted all our possible expansions/progressions
 		// apply Transition will call recursively until we run out of possible actions, then we pass through this leg
 		// and set the next check.
-		if (action.isEmpty()) {
+		// II: Dsabled this for now far too verbose
+		if ( false && (action.isEmpty())) {
 			log.debug("WORKFLOW Unable to progress {} - no transformations available from state {}",
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 
