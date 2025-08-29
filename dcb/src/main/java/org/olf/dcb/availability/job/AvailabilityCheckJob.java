@@ -57,6 +57,14 @@ import services.k_int.serde.JsonBuilder;
 import services.k_int.utils.ReactorUtils;
 import services.k_int.utils.UUIDUtils;
 
+/**
+ *
+ * the run method here is an @AppTask. AppTasks can be skipped by adding the class name to the DCB_SCHEDULED_TASKS_SKIPPED
+ * environment variable. So DCB_SCHEDULED_TASKS_SKIPPED="....,AvailabilityCheckJob,..." should skip this task in a given
+ * installation
+ * @See AppTaskAwareScheduledMethodProcessor
+ */
+
 @Slf4j
 @Singleton
 @ApplicableChunkTypes( AvailabilityCheckChunk.class )
