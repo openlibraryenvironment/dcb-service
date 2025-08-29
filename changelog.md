@@ -1,6 +1,26 @@
 # Changelog
 
+## Version 8.47.0
+
+### Additions
+* [General]
+	* Edit consortial max loans [DCB-1936]
+	* supplier request API [DCB-2009]
+
+### Changes
+* [Chore]
+	* Commenting how to disable specific Jobs
+
+### Fixes
+* [General]
+	* Stop DCB preventing renewal on renewable items [DCB-2006]
+	* polaris borrowing holds on RET-PUA [DCB-2013]
+
 ## Version 8.46.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
