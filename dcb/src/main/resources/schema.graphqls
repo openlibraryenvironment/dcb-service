@@ -55,6 +55,7 @@ type Mutation {
 		deleteReferenceValueMapping(input: DeleteEntityInput): DeleteEntityPayload!
 		createRole(input: CreateRoleInput): Role!
 		updateRole(input: UpdateRoleInput): Role!
+		updateConsortialMaxLoans(input: UpdateConsortialMaxLoansInput): Agency!
 }
 
 input AddAgencyToGroupCommand {
@@ -273,6 +274,13 @@ input UpdateAgencyParticipationInput {
 	code: String!
 	isSupplyingAgency: Boolean
 	isBorrowingAgency: Boolean
+	reason: String
+	changeReferenceUrl: String
+	changeCategory: String
+}
+input UpdateConsortialMaxLoansInput {
+	code: String!
+	maxLoans: Int!
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String

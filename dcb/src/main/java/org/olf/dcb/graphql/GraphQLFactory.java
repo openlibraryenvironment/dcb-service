@@ -58,7 +58,9 @@ public class GraphQLFactory {
 			CreateReferenceValueMappingDataFetcher createReferenceValueMappingDataFetcher,
 			CreateLocationDataFetcher createLocationDataFetcher, CreateLibraryContactDataFetcher createLibraryContactDataFetcher,
 			DeleteLibraryContactDataFetcher deleteLibraryContactDataFetcher,
-			DeleteConsortiumContactDataFetcher deleteConsortiumContactDataFetcher, DataFetchers dataFetchers) {
+			DeleteConsortiumContactDataFetcher deleteConsortiumContactDataFetcher,
+			UpdateConsortialMaxLoansDataFetcher updateConsortialMaxLoansDataFetcher,
+			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
 
@@ -130,7 +132,8 @@ public class GraphQLFactory {
 						.dataFetcher("createReferenceValueMapping", createReferenceValueMappingDataFetcher)
 						.dataFetcher("createLocation", createLocationDataFetcher)
 						.dataFetcher("createLibraryContact", createLibraryContactDataFetcher)
-						.dataFetcher("deleteLibraryContact", deleteLibraryContactDataFetcher))
+						.dataFetcher("deleteLibraryContact", deleteLibraryContactDataFetcher)
+						.dataFetcher("updateConsortialMaxLoans", updateConsortialMaxLoansDataFetcher))
 			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())
