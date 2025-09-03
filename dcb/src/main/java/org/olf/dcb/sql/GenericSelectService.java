@@ -23,6 +23,7 @@ public class GenericSelectService {
 	
 	private static final Logger log = LoggerFactory.getLogger(GenericSelectService.class);
 
+	private static final String EXPLAIN_PREFIX = "explain ";
 	private static final String SELECT_PREFIX = "select ";
 	
 	private final DefaultDataSourceConnectionOperations transactionManager;
@@ -78,7 +79,8 @@ public class GenericSelectService {
     	// Ensure we have been supplied some sql
     	if (sql != null) {
     		result.put("sqlStatement", sql);
-	    	if (sql.regionMatches(true, 0, SELECT_PREFIX, 0, SELECT_PREFIX.length())) {
+	    	if (sql.regionMatches(true, 0, SELECT_PREFIX, 0, SELECT_PREFIX.length()) ||
+		    	sql.regionMatches(true, 0, EXPLAIN_PREFIX, 0, EXPLAIN_PREFIX.length())) {
             	transactionManager.executeRead( status -> {
     	            try {
 		            	// Prepare the sql
