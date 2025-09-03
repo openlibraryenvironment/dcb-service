@@ -76,7 +76,7 @@ class AgencyExclusionItemFilterTests {
 
 	private static Parameters excludedAgencyParameters(List<String> excludedAgencyCodes) {
 		return Parameters.builder()
-			.excludedAgencyCodes(excludedAgencyCodes)
+			.excludedSupplyingAgencyCodes(excludedAgencyCodes)
 			.build();
 	}
 
@@ -91,7 +91,7 @@ class AgencyExclusionItemFilterTests {
 	@Builder
 	@Value
 	static class Parameters implements ItemFilterParameters {
-		List<String> excludedAgencyCodes;
+		List<String> excludedSupplyingAgencyCodes;
 		String borrowingAgencyCode;
 		String borrowingHostLmsCode;
 	}

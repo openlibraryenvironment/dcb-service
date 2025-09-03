@@ -102,8 +102,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		log.debug("mapToParameters({}, {})", command, patron);
 
 		return ResolutionParameters.builder()
-			.patron(patron)
-			.patronHostLmsCode(getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
+			.borrowingAgencyCode(getValueOrNull(patron, Patron::determineAgencyCode))
+			.borrowingHostLmsCode(getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
 			.bibClusterId(getValueOrNull(command, PlacePatronRequestCommand::getCitation,
 				PlacePatronRequestCommand.Citation::getBibClusterId))
 			.pickupLocationCode(getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode))

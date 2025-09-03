@@ -29,7 +29,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
@@ -37,10 +36,7 @@ import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
 
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
@@ -74,9 +70,6 @@ public class GeoDistanceTieBreakerTests {
 	@Inject private ClusterRecordFixture clusterRecordFixture;
 	@Inject private BibRecordFixture bibRecordFixture;
 	@Inject private HostLmsFixture hostLmsFixture;
-	@Inject private SupplierRequestsFixture supplierRequestsFixture;
-	@Inject private PatronRequestsFixture patronRequestsFixture;
-	@Inject private PatronFixture patronFixture;
 	@Inject private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject private AgencyFixture agencyFixture;
 	@Inject private ConsortiumFixture consortiumFixture;
@@ -98,9 +91,6 @@ public class GeoDistanceTieBreakerTests {
 	}
 
 	private void cleanupExistingData() {
-		supplierRequestsFixture.deleteAll();
-		patronRequestsFixture.deleteAll();
-		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
 		consortiumFixture.deleteAll();
 	}
@@ -159,7 +149,6 @@ public class GeoDistanceTieBreakerTests {
 		final var sourceRecordId = "465675";
 		final var clusterRecord = createClusterAndBibRecord(bibRecordId, sourceRecordId);
 		final var pickupLocation = definePickupLocationAtRoyalAlbertDock();
-		final var patron = definePatron("872321");
 
 		// Enable consortium setting for unavailable items
 		consortiumFixture.createConsortiumWithFunctionalSetting(SELECT_UNAVAILABLE_ITEMS, true);
@@ -193,7 +182,7 @@ public class GeoDistanceTieBreakerTests {
 		));
 
 		// Act
-		final var resolution = resolve(patron, clusterRecord, pickupLocation);
+		final var resolution = resolve(clusterRecord, pickupLocation);
 
 		// Assert
 		assertThat(resolution, allOf(
@@ -209,7 +198,6 @@ public class GeoDistanceTieBreakerTests {
 		final var sourceRecordId = "465675";
 		final var clusterRecord = createClusterAndBibRecord(bibRecordId, sourceRecordId);
 		final var pickupLocation = definePickupLocationAtRoyalAlbertDock();
-		final var patron = definePatron("264525");
 
 		// Enable consortium setting for unavailable items
 		consortiumFixture.createConsortiumWithFunctionalSetting(SELECT_UNAVAILABLE_ITEMS, true);
@@ -245,7 +233,8 @@ public class GeoDistanceTieBreakerTests {
 		));
 
 		// Act
-		final var resolution = resolve(patron, clusterRecord, pickupLocation);
+		final var resolution = resolve(clusterRecord, pickupLocation
+		);
 
 		// Assert
 		assertThat(resolution, allOf(
@@ -273,20 +262,15 @@ public class GeoDistanceTieBreakerTests {
 				.build();
 	}
 
-	private Resolution resolve(Patron patron, ClusterRecord clusterRecord, Location pickupLocation) {
+	private Resolution resolve(ClusterRecord clusterRecord, Location pickupLocation) {
 		return singleValueFrom(patronRequestResolutionService.resolve(
 			ResolutionParameters.builder()
-				.patron(patron)
-				.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+				.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
 				// This is due to geo-proximity interpreting the location code parameter as the ID
 				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build()));
-	}
-
-	private Patron definePatron(String localId) {
-		return patronFixture.definePatron(localId, "home-library",
-			cataloguingHostLms, agencyFixture.findByCode(BORROWING_AGENCY_CODE));
 	}
 
 	@SafeVarargs

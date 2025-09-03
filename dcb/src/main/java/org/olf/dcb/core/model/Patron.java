@@ -117,7 +117,7 @@ public class Patron {
 	}
 
 	@Transient
-	public String determineBorrowingAgencyCode() {
+	public String determineAgencyCode() {
 		final var homeIdentity = determineHomeIdentity();
 
 		final var borrowingAgency = getValueOrNull(homeIdentity, PatronIdentity::getResolvedAgency);

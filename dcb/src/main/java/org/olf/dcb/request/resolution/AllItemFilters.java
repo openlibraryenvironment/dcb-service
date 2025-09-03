@@ -35,8 +35,11 @@ class AllItemFilters implements ItemFilter {
 
 	@Override
 	public Flux<Item> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
-		final var borrowingAgencyCode = getValueOrNull(parameters, ItemFilterParameters::getBorrowingAgencyCode);
-		final var borrowingHostLmsCode = getValueOrNull(parameters, ItemFilterParameters::getBorrowingHostLmsCode);
+		final var borrowingAgencyCode = getValueOrNull(parameters,
+			ItemFilterParameters::getBorrowingAgencyCode);
+
+		final var borrowingHostLmsCode = getValueOrNull(parameters,
+			ItemFilterParameters::getBorrowingHostLmsCode);
 
 		return items
 			.filterWhen(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))

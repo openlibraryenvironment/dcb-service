@@ -16,20 +16,24 @@ import lombok.Value;
 @Builder
 @Value
 public class ResolutionParameters {
+	String borrowingAgencyCode;
+	String borrowingHostLmsCode;
 	UUID bibClusterId;
-	Patron patron;
 	String pickupLocationCode;
-	@Builder.Default List<String> excludedAgencyCodes = emptyList();
-	String patronHostLmsCode;
+	@Builder.Default List<String> excludedSupplyingAgencyCodes = emptyList();
 	ManualItemSelection manualItemSelection;
 
-	public static ResolutionParameters parametersFor(PatronRequest patronRequest, List<String> excludedAgencyCodes) {
+	public static ResolutionParameters parametersFor(PatronRequest patronRequest,
+		List<String> excludedSupplyingAgencyCodes) {
+
+		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
+
 		return builder()
-			.patron(getValueOrNull(patronRequest, PatronRequest::getPatron))
+			.borrowingAgencyCode(getValueOrNull(patron, Patron::determineAgencyCode))
+			.borrowingHostLmsCode(getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode))
 			.bibClusterId(getValueOrNull(patronRequest, PatronRequest::getBibClusterId))
 			.pickupLocationCode(getValueOrNull(patronRequest, PatronRequest::getPickupLocationCode))
-			.excludedAgencyCodes(excludedAgencyCodes)
-			.patronHostLmsCode(getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode))
+			.excludedSupplyingAgencyCodes(excludedSupplyingAgencyCodes)
 			.manualItemSelection(ManualItemSelection.builder()
 				.isManuallySelected(getValue(patronRequest, PatronRequest::getIsManuallySelectedItem, false))
 				.localItemId(getValueOrNull(patronRequest, PatronRequest::getLocalItemId))

@@ -27,10 +27,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
-import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
-import org.olf.dcb.test.SupplierRequestsFixture;
 
 import io.micronaut.context.annotation.Property;
 import jakarta.inject.Inject;
@@ -68,12 +65,6 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
-	private SupplierRequestsFixture supplierRequestsFixture;
-	@Inject
-	private PatronRequestsFixture patronRequestsFixture;
-	@Inject
-	private PatronFixture patronFixture;
-	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
@@ -96,10 +87,6 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-
-		supplierRequestsFixture.deleteAll();
-		patronRequestsFixture.deleteAll();
-		patronFixture.deleteAllPatrons();
 
 		hostLmsFixture.deleteAll();
 

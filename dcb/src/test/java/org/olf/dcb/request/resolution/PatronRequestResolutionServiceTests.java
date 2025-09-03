@@ -39,14 +39,12 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
@@ -84,8 +82,6 @@ class PatronRequestResolutionServiceTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
-	private PatronFixture patronFixture;
-	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
@@ -109,7 +105,6 @@ class PatronRequestResolutionServiceTests {
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 
-		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
@@ -177,15 +172,13 @@ class PatronRequestResolutionServiceTests {
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var patron = definePatron("872321");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -240,15 +233,13 @@ class PatronRequestResolutionServiceTests {
 				ITEM_LOCATION_CODE)
 		));
 
-		final var patron = definePatron("872321");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.manualItemSelection(ManualItemSelection.builder()
 				.isManuallySelected(true)
 				.localItemId(onlyAvailableItemId)
@@ -292,15 +283,13 @@ class PatronRequestResolutionServiceTests {
 			CheckedOutItem(unavailableItemId, unavailableItemBarcode)
 		));
 
-		final var patron = definePatron("872321");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -337,15 +326,13 @@ class PatronRequestResolutionServiceTests {
 				.build()
 		));
 
-		final var patron = definePatron("274563");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -380,15 +367,13 @@ class PatronRequestResolutionServiceTests {
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		), 2000);
 
-		final var patron = definePatron("298485");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -428,15 +413,13 @@ class PatronRequestResolutionServiceTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
 			itemLocationCode, BORROWING_AGENCY_CODE);
 
-		final var patron = definePatron("356425");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -475,15 +458,13 @@ class PatronRequestResolutionServiceTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
 			itemLocationCode, BORROWING_AGENCY_CODE);
 
-		final var patron = definePatron("254255");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -528,15 +509,13 @@ class PatronRequestResolutionServiceTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(SAME_SERVER_SUPPLYING_HOST_LMS_CODE,
 			itemLocationCode, sameServerAgencyCode);
 
-		final var patron = definePatron("356425");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -567,15 +546,13 @@ class PatronRequestResolutionServiceTests {
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var patron = definePatron("872321");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(List.of(SUPPLYING_AGENCY_CODE))
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(List.of(SUPPLYING_AGENCY_CODE))
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -588,7 +565,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldTolerateUnknownPatronAgency() {
+	void shouldTolerateUnknownBorrowingAgency() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -606,16 +583,13 @@ class PatronRequestResolutionServiceTests {
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var patron = patronFixture.definePatron("872321", "home-library",
-			cataloguingHostLms, null);
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(null)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -664,15 +638,13 @@ class PatronRequestResolutionServiceTests {
 			availableItem(thirdAvailableItemId, thirdAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var patron = definePatron("872321");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -746,17 +718,15 @@ class PatronRequestResolutionServiceTests {
 			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var patron = definePatron("872321");
-
 		enableFunctionalSetting();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -798,17 +768,15 @@ class PatronRequestResolutionServiceTests {
 			CheckedOutItem(itemBId, itemBBarcode, Instant.parse("2024-12-01T00:00:00Z"))
 		));
 
-		final var patron = definePatron("872321");
-
 		enableFunctionalSetting();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -841,17 +809,15 @@ class PatronRequestResolutionServiceTests {
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of());
 
-		final var patron = definePatron("872321");
-
 		enableFunctionalSetting();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -890,17 +856,15 @@ class PatronRequestResolutionServiceTests {
 			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
 		));
 
-		final var patron = definePatron("872321");
-
 		enableFunctionalSetting();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -957,15 +921,13 @@ class PatronRequestResolutionServiceTests {
 			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
 		));
 
-		final var patron = definePatron("872321");
-
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -1014,17 +976,15 @@ class PatronRequestResolutionServiceTests {
 			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
 		));
 
-		final var patron = definePatron("872321");
-
 		disableFunctionalSetting();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -1062,17 +1022,15 @@ class PatronRequestResolutionServiceTests {
 			unavailableItemWithHolds(unavailableItemWithHoldsId, unavailableItemWithHoldsBarcode)
 		));
 
-		final var patron = definePatron("872321");
-
 		enableFunctionalSetting();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -1104,17 +1062,15 @@ class PatronRequestResolutionServiceTests {
 			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var patron = definePatron("872321");
-
 		enableFunctionalSetting();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
-			.patron(patron)
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(PICKUP_LOCATION_CODE)
-			.excludedAgencyCodes(emptyList())
-			.patronHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
 		final var resolution = resolve(parameters);
@@ -1132,11 +1088,6 @@ class PatronRequestResolutionServiceTests {
 
 	private Resolution resolve(ResolutionParameters parameters) {
 		return singleValueFrom(patronRequestResolutionService.resolve(parameters));
-	}
-
-	private Patron definePatron(String localId) {
-		return patronFixture.definePatron(localId, "home-library",
-			cataloguingHostLms, agencyFixture.findByCode(BORROWING_AGENCY_CODE));
 	}
 
 	private SierraItem availableItem(String id, String barcode,

@@ -20,7 +20,8 @@ class AgencyExclusionItemFilter {
 	 * @return true if the item should be included in the resolution process, false otherwise
 	 */
 	public boolean filterItem(Item item, ItemFilterParameters parameters) {
-		final List<String> excludedAgencyCodes = getValue(parameters, ItemFilterParameters::getExcludedAgencyCodes, emptyList());
+		final List<String> excludedAgencyCodes = getValue(parameters,
+			ItemFilterParameters::getExcludedSupplyingAgencyCodes, emptyList());
 
 		// if the item is present
 		return Optional.ofNullable(item)
