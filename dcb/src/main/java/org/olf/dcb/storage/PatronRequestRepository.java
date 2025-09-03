@@ -74,6 +74,7 @@ public interface PatronRequestRepository {
 	@Introspected
 	public record ScheduledTrackingRecord(UUID id, @Nullable String status_code, @Nullable Instant next_scheduled_poll) {	};
 
+	// If you change the where clause, make sure you keep the index aligned otherwise it will probably do a full table scan 
 	@Query(value = "SELECT pr.id, pr.status_code, pr.next_scheduled_poll from patron_request pr where pr.next_scheduled_poll < now() and pr.is_too_long = false order by pr.next_scheduled_poll", nativeQuery = true)
 	Publisher<ScheduledTrackingRecord> findScheduledChecks();
 
