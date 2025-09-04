@@ -1,16 +1,18 @@
 package org.olf.dcb.request.workflow;
 
+import static java.util.stream.Collectors.toList;
+import static org.olf.dcb.utils.CollectionUtils.emptyWhenNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Value;
@@ -31,12 +33,16 @@ public class PresentableItem {
 	String dueDate;
 
 	public static List<PresentableItem> toPresentableItems(List<Item> items) {
-		return items.stream()
+		return emptyWhenNull(items)
 			.map(PresentableItem::toPresentableItem)
-			.collect(Collectors.toList());
+			.collect(toList());
 	}
 
 	public static PresentableItem toPresentableItem(Item item) {
+		if (item == null) {
+			return null;
+		}
+
 		// For values that could be "unknown", "null" is used as a differentiating default
 		return builder()
 			.localId(getValue(item, Item::getLocalId, "Unknown"))
@@ -47,16 +53,18 @@ public class PresentableItem {
 			.canonicalItemType(getValue(item, Item::getCanonicalItemType, "null"))
 			.holdCount(getValue(item, Item::getHoldCount, 0))
 			.agencyCode(getValue(item, Item::getAgencyCode, "Unknown"))
-			.availableDate(
-				Optional.ofNullable(getValue(item, Item::getAvailableDate, null))
-				.map(Instant::toString).orElse("null"))
-			.dueDate(Optional.ofNullable(getValue(item, Item::getDueDate, null))
-				.map(Instant::toString).orElse("null"))
+			.availableDate(dateTimeToString(item, Item::getAvailableDate))
+			.dueDate(dateTimeToString(item, Item::getDueDate))
 			.build();
 	}
 
 	private static String getStatusCode(Item item) {
 		final var itemStatusCode = getValueOrNull(item, Item::getStatus, ItemStatus::getCode);
+
 		return getValue(itemStatusCode, Enum::name, "null");
+	}
+
+	private static String dateTimeToString(Item item, Function<Item, @Nullable Instant> getDateTime) {
+		return getValue(item, getDateTime, Instant::toString, "null");
 	}
 }

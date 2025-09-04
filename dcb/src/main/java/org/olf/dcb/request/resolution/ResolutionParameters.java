@@ -10,11 +10,13 @@ import java.util.UUID;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 
+import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Value;
 
 @Builder
 @Value
+@Serdeable
 public class ResolutionParameters {
 	String borrowingAgencyCode;
 	String borrowingHostLmsCode;

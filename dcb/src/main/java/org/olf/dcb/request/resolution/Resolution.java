@@ -89,7 +89,7 @@ public class Resolution implements ItemFilterParameters {
 			ResolutionParameters::getBorrowingAgencyCode);
 
 		if (borrowingAgencyCode == null) {
-			log.warn("Patron agency code during resolution is null");
+			log.warn("Borrowing agency code during resolution is null");
 		}
 
 		return borrowingAgencyCode;

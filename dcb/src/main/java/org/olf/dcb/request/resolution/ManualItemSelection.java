@@ -6,6 +6,7 @@ import java.util.Objects;
 
 import org.olf.dcb.core.model.Item;
 
+import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.ToString;
 import lombok.Value;
@@ -13,6 +14,7 @@ import lombok.Value;
 @Builder
 @Value
 @ToString
+@Serdeable
 public class ManualItemSelection {
 	Boolean isManuallySelected;
 	String localItemId;

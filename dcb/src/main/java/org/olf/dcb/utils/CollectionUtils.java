@@ -43,7 +43,7 @@ public class CollectionUtils {
 		return Streams.concat(emptyWhenNull(firstCollection), emptyWhenNull(secondCollection)).toList();
 	}
 
-	private static <T> Stream<T> emptyWhenNull(Collection<T> collection) {
+	public static <T> Stream<T> emptyWhenNull(Collection<T> collection) {
 		if (collection == null) {
 			return Stream.empty();
 		}
