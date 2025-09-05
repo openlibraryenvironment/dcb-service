@@ -61,6 +61,7 @@ import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
@@ -76,6 +77,7 @@ import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.reactivestreams.Publisher;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -1147,12 +1149,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.doOnSuccess(this::logResponse)
 			.doOnError(HttpClientResponseException.class, this::logErrorResponse)
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
+			.doOnError(InvalidApiKeyException.class, error -> log.error("Invalid API key", error))
 			// Additional request specific error handling
 			.transform(errorHandlingTransformer)
 			// This has to go after more specific error handling
 			// as will convert any client response exception to a problem
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, getHostLmsCode()));
+			.onErrorMap(HttpClientResponseException.class,
+				responseException -> toUnexpectedResponseProblem(request, responseException))
+			.doOnError(UnexpectedHttpResponseProblem.class, ConsortialFolioHostLmsClient::logErrorResponse);
 	}
 
 	/**
@@ -1163,14 +1167,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	 * @param <TRequest> Type of the request body
 	 */
 	@Retryable(attempts="1", includes = ResponseClosedException.class)
-	public <TRequest> Mono<Void> makeRequest(
-		@NonNull MutableHttpRequest<TRequest> request) {
+	public <TRequest> Mono<Void> makeRequest(@NonNull MutableHttpRequest<TRequest> request) {
 		return Mono.from(httpClient.exchange(request))
 			.doOnSuccess(this::logResponse)
 			.doOnError(HttpClientResponseException.class, this::logErrorResponse)
 			.onErrorMap(HttpResponsePredicates::isUnauthorised, InvalidApiKeyException::new)
+			.doOnError(InvalidApiKeyException.class, this::logInvalidApiKeyError)
 			.onErrorMap(HttpClientResponseException.class, responseException ->
 				unexpectedResponseProblem(responseException, request, getHostLmsCode()))
+			.doOnError(UnexpectedHttpResponseProblem.class, ConsortialFolioHostLmsClient::logErrorResponse)
 			.then();
 	}
 
@@ -1200,11 +1205,25 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private void logErrorResponse(HttpClientResponseException error) {
-		log.error("Received error response: {} from Host LMS: {}", toLogOutput(error.getResponse()), getHostLmsCode());
+		log.debug("Received error response: {} from Host LMS: {}", toLogOutput(error.getResponse()), getHostLmsCode());
+	}
+
+	private static void logErrorResponse(UnexpectedHttpResponseProblem error) {
+		log.error(error.toString(), error);
 	}
 
 	private <T> void logResponse(T response) {
-		log.trace("Received response: {} from Host LMS: {}", response, getHostLmsCode());
+		log.debug("Received response: {} from Host LMS: {}", response, getHostLmsCode());
+	}
+
+	private void logInvalidApiKeyError(InvalidApiKeyException error) {
+		log.error("Invalid API key for host LMS: {}", getHostLmsCode());
+	}
+
+	private <TRequest> ThrowableProblem toUnexpectedResponseProblem(
+		MutableHttpRequest<TRequest> request, HttpClientResponseException responseException) {
+
+		return unexpectedResponseProblem(responseException, request, getHostLmsCode());
 	}
 
 	public Mono<Boolean> supplierPreflight(String borrowingAgencyCode,

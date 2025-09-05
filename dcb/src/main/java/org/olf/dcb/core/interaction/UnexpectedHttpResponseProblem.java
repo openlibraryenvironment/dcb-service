@@ -1,12 +1,13 @@
 package org.olf.dcb.core.interaction;
 
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import org.zalando.problem.ThrowableProblem;
-
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import org.zalando.problem.ThrowableProblem;
+
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 
 public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 	public static <T> ThrowableProblem unexpectedResponseProblem(
@@ -45,5 +46,10 @@ public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 				getValueOrNull(request, HttpRequest::getMethodName),
 				getValueOrNull(request, HttpRequest::getPath));
 		}
+	}
+
+	@Override
+	public String toString() {
+		return String.format("%s\nParameters:%s ", getTitle(), getParameters());
 	}
 }
