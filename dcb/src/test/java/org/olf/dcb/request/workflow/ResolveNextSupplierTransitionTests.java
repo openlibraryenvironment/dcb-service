@@ -526,7 +526,7 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void shouldTerminateBorrowingRequestWhenNoItemSelectableDuringReResolution() {
+	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution() {
 		enableFunctionalSetting();
 
 		final var sourceRecordId = "798475";
@@ -559,6 +559,70 @@ class ResolveNextSupplierTransitionTests {
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			supplyingHostLms.code, 999, 999, "BKM");
+
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasResolutionCount(1)
+		));
+
+		assertThat("Previous supplier request should still exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
+
+		assertThat("There should be no inactive supplier requests",
+			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
+
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
+	}
+
+	@Test
+	void shouldCancelRequestWhenItemWasManuallySelected() {
+		enableFunctionalSetting();
+
+		final var sourceRecordId = "798475";
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
+
+		final var borrowingLocalRequestId = "3635625";
+
+		final var patron = patronFixture.definePatron("365636", "home-library",
+			borrowingHostLms, borrowingAgency);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.patronHostlmsCode(borrowingHostLms.getCode())
+			.bibClusterId(clusterRecordId)
+			.resolutionCount(1)
+			.isManuallySelectedItem(true)
+			// By the time re-resolution is triggered, the manual selection information
+			// has been replaced by the local borrowing request information
+			.localRequestId(borrowingLocalRequestId)
+			// This is artificial for a Sierra borrowing system
+			// However, it is possible for a FOLIO borrowing system,
+			// because DCB does not find out the virtual item information from mod-dcb
+			// Which would trigger a validation failure for the manual selection info
+			// If we progressed resolution during this transition
+			.localItemId(null)
+			.localItemHostlmsCode(borrowingAgency.getCode())
+			.localItemAgencyCode(borrowingAgency.getCode())
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode(),
+			previouslySupplyingAgency);
+
+		sierraItemsAPIFixture.zeroItemsResponseForBibId(sourceRecordId);
 
 		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
 

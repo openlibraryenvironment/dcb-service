@@ -82,7 +82,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
-		return isReResolutionRequired()
+		return isReResolutionRequired(getValueOrNull(context, RequestWorkflowContext::getPatronRequest))
 			.flatMap(isRequired -> {
 				log.info("Re-resolution required: {}", isRequired);
 
@@ -92,25 +92,45 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 				}
 				else {
           context.getWorkflowMessages().add("ReResolution is NOT required - terminating");
-					return terminateSupplierCancellation(context);
+					return cancelRequest(context);
 				}
 			});
 	}
 
-	private Mono<RequestWorkflowContext> terminateSupplierCancellation(RequestWorkflowContext context) {
-		log.warn("terminateSupplierCancellation");
+	private Mono<RequestWorkflowContext> cancelRequest(RequestWorkflowContext context) {
+		log.debug("cancelRequest({})", context);
 
 		return cancelLocalBorrowingRequest(context)
 			.flatMap(this::cancelLocalPickupRequest)
 			.flatMap(this::markNoItemsAvailableAtAnyAgency);
 	}
 
-	// Method to check if re-resolution conditions are met
-	private Mono<Boolean> isReResolutionRequired() {
+	private Mono<Boolean> isReResolutionRequired(PatronRequest patronRequest) {
+		return isEnabled()
+			.zipWith(Mono.just(isItemManuallySelected(patronRequest)))
+			.map(function(ResolveNextSupplierTransition::isEnabledAndNotManuallySelectedItem));
+	}
+
+	private Mono<Boolean> isEnabled() {
 		return consortiumService.findOneConsortiumFunctionalSetting(RE_RESOLUTION)
 			.map(FunctionalSetting::isEnabled)
 			.defaultIfEmpty(false)
 			.doOnSuccess(enabled -> log.debug("Re-resolution consortium policy enabled: {}", enabled));
+	}
+
+	private static Boolean isItemManuallySelected(PatronRequest patronRequest) {
+		return getValue(patronRequest, PatronRequest::getIsManuallySelectedItem,
+			false);
+	}
+
+	private static Boolean isEnabledAndNotManuallySelectedItem(Boolean enabled,
+		Boolean itemManuallySelected) {
+
+		// Do not attempt to re-resolve a request for a manually selected item
+		// When a patron chooses a specific item, they also effectively choose a supplying library
+		// If that library refuses to supply the item, then there are no viable alternatives
+		// that re-resolution can select that would match that criteria
+		return enabled && !itemManuallySelected;
 	}
 
 	// Main handler for re-resolution logic
@@ -118,9 +138,11 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		log.debug("resolveNextSupplier({})", context);
 
 		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
+
 		supplierRequestService = supplierRequestServiceProvider.get();
 
 		log.info("Resolving Patron Request {}", getValue(patronRequest, PatronRequest::getId, "Unknown"));
+
 		return findExcludedAgencyCodes(patronRequest)
 			.flatMap(excludedAgencyCodes -> resolve(patronRequest, excludedAgencyCodes))
 			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
@@ -145,7 +167,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			return applySuccessfulResolution(resolution, context);
 		}
 		else {
-			return terminateSupplierCancellation(context)
+			return cancelRequest(context)
 				.then();
 		}
 	}
