@@ -56,6 +56,7 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.api.PatronRequestView;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -77,10 +78,7 @@ import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
@@ -967,27 +965,15 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
 		log.debug("placeHoldRequestAtPickupAgency({})", parameters);
 
-		// When placing the hold at a pickup system we want to use the pickup location code as selected by
-		// the patron
+		final var pickupLocationCode = getValueOrNull(parameters,
+			PlaceHoldRequestParameters::getPickupLocation,
+			Location::getCode);
 
-		// Start with the default - a fallback - but unlikely to be correct
-		/*
-		String pickup_location_code = parameters.getPickupLocationCode();
-
-		// Now, look to see if we have attached the location record corresponding to a user selection. If so,
-		// Sierra expects us to use the right code for the local pickup location - extract that from the code field
-		// of the location record. N.B. This is different to polaris and FOLIO which use local-id because in those
-		// systems, a location can have BOTH a code(e.g. "DB") and an ID(e.g. 24).
-		if ( parameters.getPickupLocation() != null ) {
-			if ( parameters.getPickupLocation().getCode() != null ) {
-				log.debug("Overriding pickup location code with code from location record");
-				pickup_location_code = parameters.getPickupLocation().getCode();
-			}
+		if (pickupLocationCode == null) {
+			throw new IllegalArgumentException("Pickup location cannot be null when placing pickup hold");
 		}
-		*/
-		String pickup_location_code = parameters.getPickupNote();
 
-		return placeHoldRequest(parameters, pickup_location_code, "pickup");
+		return placeHoldRequest(parameters, pickupLocationCode, "pickup");
 	}
 
 
