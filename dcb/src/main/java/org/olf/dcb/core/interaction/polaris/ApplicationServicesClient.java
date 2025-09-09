@@ -889,6 +889,7 @@ class ApplicationServicesClient {
 			return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class))
 				// Fills another request, transfer?
 				.flatMap(response -> handlePolarisWorkflow(response, FillsRequestTransferPrompt, Yes))
+				.flatMap(response -> replyIfPromptMatches(response, UpdateItemRecord, Yes))
 				.map(this::validateWorkflowResponse);
 	}
 
@@ -1360,6 +1361,7 @@ class ApplicationServicesClient {
 	@Serdeable
 	static class Prompt {
 		// Prompt Identifiers
+		public static final Integer UpdateItemRecord = 8; // found as part of DCB-2024
 		public static final Integer FillsRequestTransferPrompt = 30;
 		public static final Integer BriefItemEntry = 55;
 		public static final Integer ConfirmItemBarcodeChanged = 62; // found as part of DCB-1990

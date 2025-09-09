@@ -896,9 +896,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<Void> updateItemToPickupTransit(String itemId) {
-
 		return ApplicationServices.checkIn(itemId, polarisConfig.getIllLocationId()).then();
 	}
+
 	private Mono<Void> updateItem(String itemId, Integer toStatus) {
 
 		return ApplicationServices.itemrecords(itemId,FALSE)
