@@ -56,7 +56,6 @@ import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
 import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.api.PatronRequestView;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -78,7 +77,11 @@ import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
@@ -717,9 +720,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.deleted(false)
 				.bibIds(List.of(localBibId))
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "suppressed", "bibIds", "location",
-          "status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
-          "fixedFields", "varFields"))))
-			.map(ResultSet::getEntries)
+					"status", "volumes", "barcode", "callNumber", "itemType", "transitInfo", "copyNo", "holdCount",
+					"fixedFields", "varFields"))))
+			.map(ResultSet::getItems)
 			.flatMapMany(Flux::fromIterable)
 			.flatMap(result -> mapItemWithRuleset(result, localBibId))
 			.collectList();
