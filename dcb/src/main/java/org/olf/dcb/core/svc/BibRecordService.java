@@ -3,6 +3,7 @@ package org.olf.dcb.core.svc;
 import static org.olf.dcb.utils.DCBStringUtilities.generateBlockingString;
 import static org.olf.dcb.utils.DCBStringUtilities.uuid5ForIdentifier;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -391,8 +392,8 @@ public class BibRecordService {
 		return Mono.from( bibRepo.queryAll(page) );
 	}
 
-	public Flux<MissingAvailabilityInfo> findMissingAvailability ( int limit ) {
-		return Flux.from( bibRepo.findMissingAvailability( limit ));
+	public Flux<MissingAvailabilityInfo> findMissingAvailability ( int limit, Instant graceCutoff ) {
+		return Flux.from( bibRepo.findMissingAvailability( limit, graceCutoff ));
 	}
 
 	public Publisher<Void> cleanup() {

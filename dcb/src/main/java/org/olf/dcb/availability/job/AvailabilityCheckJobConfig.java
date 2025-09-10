@@ -1,5 +1,6 @@
 package org.olf.dcb.availability.job;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
@@ -28,4 +29,9 @@ public interface AvailabilityCheckJobConfig {
   	// Leaving this here for info, but will mimic this in the job class, and make this optional.
   	Optional<Integer> getInstanceWide();
   }
+
+	@NonNull
+	@NotNull
+	@Bindable(defaultValue = "P7D")
+  Duration getRecheckGracePeriod();
 }

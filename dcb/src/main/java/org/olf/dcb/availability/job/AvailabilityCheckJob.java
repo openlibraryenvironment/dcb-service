@@ -46,6 +46,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
+import reactor.util.function.Tuples;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.jobs.Job;
 import services.k_int.jobs.JobChunk;
@@ -214,12 +215,43 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			.status( Status.UNMAPPED );
 	}
 	
+	private Mono<BibAvailabilityCount> doSave( BibAvailabilityCount bac ) {
+		
+		final BibAvailabilityCount theCount = withId(bac);
+		
+		return Mono.from(bibCounts.saveOrUpdate(theCount))
+			.thenReturn(theCount)
+			.onErrorComplete(t -> {
+				log.error("Error saving/updating bibcount", t);
+				
+				// Return true always to ensure we complete and suppress the error signal.
+				return true;
+			});
+	}
+	
 	private Mono<BibAvailabilityCount> updateMappingIfRequired( BibAvailabilityCount count ) {
 		if (count.getStatus() == Status.MAPPED) {
-			// Nothing to do.
-			return Mono.just(count);
+			// Nothing to do, just tag the last updated.
+			return Mono.just(
+					count.toBuilder()
+						.lastUpdated(Instant.now())
+						.build())
+				.flatMap(this::doSave);
 		}
 		
+		if (count.getRemoteLocationCode() == null) {
+			// No point looking up a "null" code
+			return Mono.just(
+					count.toBuilder()
+						.status(Status.UNMAPPED)
+						.internalLocationCode(null)
+						.mappingResult( "No remote location code" )
+						.lastUpdated(Instant.now())
+						.build())
+				.flatMap(this::doSave);
+		}
+		
+		// Attempt to map and save the results
 		return hostLmsService.idToCode(count.getHostLms())
 			.flatMap(code -> locationToAgencyMappingService.findLocationToAgencyMapping(code, count.getRemoteLocationCode()))
 			.mapNotNull( ReferenceValueMapping::getToValue )
@@ -242,16 +274,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					.lastUpdated(Instant.now())
 					.build()))
 
-			// Set the ID.
-			.map(AvailabilityCheckJob::withId)
-			.flatMap(bib -> Mono.from(bibCounts.saveOrUpdate(bib))
-				.thenReturn(bib))
-			.onErrorComplete(t -> {
-				log.error("Error saving/updating bibcount", t);
-				
-				// Return true always to ensure we complete and suppress the error signal.
-				return true;
-			});
+			.flatMap(this::doSave);
 		
 		
 //		locationToAgencyMappingService.findLocationToAgencyMapping(filters, filters);
@@ -312,11 +335,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			var availabilityMap = clusterCount.getValue();
 			var clusterId = clusterCount.getKey();
 			
-			final String deets = availabilityMap.entrySet().stream()
-				.map(e -> "%s=%s".formatted(e.getKey(), e.getValue()))
-				.collect(Collectors.joining(","));
+			if (log.isDebugEnabled()) {
+				final String deets = availabilityMap.entrySet().stream()
+					.map(e -> "%s=%s".formatted(e.getKey(), e.getValue()))
+					.collect(Collectors.joining(","));
+				log.debug("Avaiability for [{}]: {}", clusterId, deets);
+			}
 			
-			log.debug("Avaiability for [{}]: {}", clusterId, deets);
 			sharedIndexService.update( UUID.fromString( clusterId ));
 		}
 		
@@ -372,9 +397,18 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 
 		final int totalConcurrency = jobConfig.getPageSize();
 		
-		return Mono.just( totalConcurrency )
+		final Duration grace = jobConfig.getRecheckGracePeriod();
+		
+		final long graceNanos = grace.isNegative() ? grace.toNanos() * -1 : grace.toNanos();
+		
+		final Instant updatedBefore = Instant.now()
+			.minusNanos(graceNanos);
+		
+		log.info("Using configured values totalConcurrency:[{}], updatedBefore[{}]", totalConcurrency, updatedBefore);
+		
+		return Mono.just( Tuples.of(totalConcurrency, updatedBefore) )
 			.doOnNext( _v -> log.debug ("Producing next set of availability lookup") )
-			.flatMapMany( bibRecordService::findMissingAvailability )
+			.flatMapMany( TupleUtils.function( bibRecordService::findMissingAvailability ))
 			
 			// Temporarily adding a 50ms delay - steve to review
 			.delayElements(Duration.ofMillis(50))

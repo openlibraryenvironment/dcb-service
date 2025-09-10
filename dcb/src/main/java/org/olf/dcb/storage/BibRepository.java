@@ -1,5 +1,6 @@
 package org.olf.dcb.storage;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
@@ -125,7 +126,7 @@ public interface BibRepository {
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
 	
 	@Vetoed
-	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit );
+	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit, Instant graceCutoff );
 	
 	@Introspected
 	public static record MemberBib(UUID bibid, @Nullable String title, String sourcerecordid, @Nullable String metadatascore,

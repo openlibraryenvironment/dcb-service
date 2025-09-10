@@ -14,12 +14,9 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.ObjectMapper;
-import services.k_int.utils.MapUtils;
-
-import services.k_int.interaction.oaipmh.OaiRecord;
-import services.k_int.interaction.oaipmh.OaiRecord.Metadata;
-
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.oaipmh.OaiRecord;
+import services.k_int.utils.MapUtils;
 
 @Slf4j
 @Prototype
