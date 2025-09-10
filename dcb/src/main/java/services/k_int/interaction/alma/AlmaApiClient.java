@@ -144,7 +144,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/REVMRVRFIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0=/
 	 */
 	default Mono<String> deleteHoldingsRecord(String mms_id, String holding_id) {
-		return delete("/almaws/v1/bibs/" + mms_id + "/holding_id/" + holding_id, Map.of("override", true))
+		return delete("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id, Map.of("override", true))
 			.thenReturn("Holding deleted");
 	}
 
