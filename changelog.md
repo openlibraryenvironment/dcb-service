@@ -1,5 +1,25 @@
 # Changelog
 
+## Version 8.48.0
+
+### Additions
+* [General]
+	* Do not perform re-resolution for manually selected item
+	* early version of Resolution preview API
+
+### Changes
+* [Chore]
+	* Added a comment to the tracking sql to remind you to keep the index aligned with the where clause
+
+### Fixes
+* [General]
+	* correct the delete holding path in AlmaApiClient
+	* reply to prompt causing error for Polaris PUA request [DCB-2024]
+	* correct pickup location when creating sierra pickup hold [DCB-2023]
+	* rename the migration file
+	* Extended the sql endpoint to also explain queries
+	* Updated the index for patron request on next poll time, so it only include items we are interested in
+
 ## Version 8.47.0
 
 ### Additions
@@ -9,6 +29,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Commenting how to disable specific Jobs
 
 ### Fixes
