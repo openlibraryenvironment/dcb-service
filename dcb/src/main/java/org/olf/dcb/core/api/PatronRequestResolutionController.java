@@ -1,5 +1,6 @@
 package org.olf.dcb.core.api;
 
+import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItem;
@@ -12,8 +13,10 @@ import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.resolution.ResolutionParameters;
 
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
@@ -52,6 +55,10 @@ public class PatronRequestResolutionController {
 				.filteredItems(toPresentableItems(getValueOrNull(resolution, Resolution::getFilteredItems)))
 				.sortedItems(toPresentableItems(getValueOrNull(resolution, Resolution::getSortedItems)))
 				.build());
+	}
 
+	@Error
+	public HttpResponse<String> onError(Exception exception) {
+		return badRequest(getValueOrNull(exception, Exception::getMessage));
 	}
 }

@@ -1,5 +1,6 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.anyOf;
@@ -11,6 +12,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import java.time.Instant;
@@ -36,6 +38,7 @@ import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -219,6 +222,36 @@ class ResolutionPreviewApiTests {
 			hasNoFilteredItems(),
 			hasNoSortedItems()
 		));
+	}
+
+	@Test
+	void shouldFailWhenClusterRecordCannotBeFound() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		// Act
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> resolutionApiClient.previewResolution(
+				ResolutionParameters.builder()
+					.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+					.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
+					.bibClusterId(clusterRecordId)
+					.pickupLocationCode(PICKUP_LOCATION_CODE)
+					.build()));
+
+		// Assert
+		assertThat(exception, is(notNullValue()));
+
+		final var response = exception.getResponse();
+
+		assertThat("Should respond with a bad request status",
+			response.getStatus(), is(BAD_REQUEST));
+
+		final var optionalBody = response.getBody(String.class);
+
+		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
+
+		assertThat(optionalBody.get(), is("Cannot find cluster record for: " + clusterRecordId));
 	}
 
 	private static Matcher<ResolutionPreview> itemWasSelected() {
