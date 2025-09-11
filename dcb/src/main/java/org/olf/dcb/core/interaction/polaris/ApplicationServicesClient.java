@@ -888,7 +888,7 @@ class ApplicationServicesClient {
 	private Mono<WorkflowResponse> createCheckInRequest(MutableHttpRequest<WorkflowRequest> workflowRequest) {
 			return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class))
 				// Fills another request, transfer?
-				.flatMap(response -> handlePolarisWorkflow(response, FillsRequestTransferPrompt, Yes))
+				.flatMap(response -> replyIfPromptMatches(response, FillsRequestTransferPrompt, Yes))
 				.flatMap(response -> replyIfPromptMatches(response, UpdateItemRecord, Yes))
 				.map(this::validateWorkflowResponse);
 	}
