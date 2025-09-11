@@ -23,6 +23,7 @@ public interface ClusterRecordRepository {
 	@SingleResult
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
 
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<ClusterRecord> findById(@NotNull UUID id);
