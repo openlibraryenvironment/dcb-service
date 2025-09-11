@@ -89,6 +89,12 @@ public class LiveAvailabilityService {
 	}
 	
 	private Mono<AvailabilityReport> tryAndUpdateCounts( @NonNull BibRecord bib, @NonNull AvailabilityReport report ) {
+		
+		if (!availability.isPresent() ) {
+			// Not present. i.e. During tests
+			return Mono.just(report);
+		}
+		
 		log.info("Try update counts for bib [{}] from live lookup data");
 		return availability.get()
 			.updateCountsFromAvailabilityReport(bib, report).then()

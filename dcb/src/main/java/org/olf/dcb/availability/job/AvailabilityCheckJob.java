@@ -32,6 +32,8 @@ import org.olf.dcb.storage.BibAvailabilityCountRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.event.Level;
 
+import io.micronaut.context.annotation.Requires;
+import io.micronaut.context.env.Environment;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.json.tree.JsonNode;
@@ -68,6 +70,7 @@ import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Singleton
+@Requires(notEnv = Environment.TEST)
 @ApplicableChunkTypes( AvailabilityCheckChunk.class )
 public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobChunkProcessor {
 	
