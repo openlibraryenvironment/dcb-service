@@ -116,5 +116,9 @@ public interface PostgresClusterRecordRepository extends
 	default Publisher<ClusterRecord> findByIdInListWithBibs(@NonNull Collection<UUID> id) {
 		return getAllByIdInList(id);
 	}
+	
+	@NonNull
+	@SingleResult
+	Publisher<ClusterRecord> findById(@NotNull UUID id);
 }
 
