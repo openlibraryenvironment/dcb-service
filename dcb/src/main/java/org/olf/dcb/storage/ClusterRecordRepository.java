@@ -17,6 +17,8 @@ import jakarta.validation.constraints.NotNull;
 
 
 public interface ClusterRecordRepository {
+	
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);

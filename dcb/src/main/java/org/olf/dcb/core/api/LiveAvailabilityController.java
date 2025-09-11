@@ -16,6 +16,7 @@ import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 
 import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
@@ -29,7 +30,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import io.micronaut.core.annotation.Nullable;
 
 @Slf4j
 @Controller
@@ -55,7 +55,6 @@ public class LiveAvailabilityController {
 	public Mono<AvailabilityResponseView> getLiveAvailability(
 		@NotNull @QueryValue("clusteredBibId") final UUID clusteredBibId,
 		@Nullable @QueryValue("filters") final String filters) {
-
 		log.info("REST, getLiveAvailability: {} {}", clusteredBibId, filters);
 
 		return liveAvailabilityService.checkAvailability(clusteredBibId, timeout, ( filters != null ) ? filters : "all")

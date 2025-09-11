@@ -108,10 +108,6 @@ public interface PostgresClusterRecordRepository extends
 	Publisher<? extends ClusterRecord> findOneById(@NonNull UUID id);
 
 	@NonNull
-	@SingleResult
-	Publisher<ClusterRecord> findById(@NotNull UUID id);
-
-	@NonNull
 	@Join(value = "bibs", type = Type.LEFT_FETCH)
 	Publisher<ClusterRecord> getAllByIdInList(@NonNull Collection<UUID> id);
 

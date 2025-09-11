@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.olf.dcb.availability.job.AvailabilityCheckJob;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
@@ -33,6 +34,7 @@ import io.micrometer.common.lang.NonNull;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
+import io.micronaut.context.BeanProvider;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -48,6 +50,7 @@ public class LiveAvailabilityService {
 	private final SharedIndexService sharedIndexService;
 	private final LocationService locationService;
 	private final MeterRegistry meterRegistry; 
+	private final BeanProvider<AvailabilityCheckJob> availability;
 	
 	private static final String METRIC_NAME = "dcb.availability";
 	
@@ -60,13 +63,14 @@ public class LiveAvailabilityService {
 		RequestableItemService requestableItemService,
 		SharedIndexService sharedIndexService, 
 		MeterRegistry meterRegistry,
-		LocationService locationService) {
+		LocationService locationService, BeanProvider<AvailabilityCheckJob> availability) {
 
 		this.hostLmsService = hostLmsService;
 		this.requestableItemService = requestableItemService;
 		this.sharedIndexService = sharedIndexService;
 		this.meterRegistry = meterRegistry;
 		this.locationService = locationService;
+		this.availability = availability;
 	}
 	
 	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId) {
@@ -74,7 +78,7 @@ public class LiveAvailabilityService {
 			.flatMap(sharedIndexService::findClusteredBib)
 			.flatMapIterable(ClusteredBib::getBibs)
 			.doOnNext(b -> log.trace( "Cluster has bib members"))
-			.switchIfEmpty(Mono.defer(() -> Mono.error(new NoBibsForClusterRecordException(clusteredBibId))));
+			.switchIfEmpty(Mono.error(() -> new NoBibsForClusterRecordException(clusteredBibId)));
 	}
 	
 	private boolean shouldCache(AvailabilityReport report) {
@@ -84,8 +88,20 @@ public class LiveAvailabilityService {
 		return report.getErrors().size() < 1;
 	}
 	
-	private AvailabilityReport addValueToCache(@NonNull BibRecord bib, AvailabilityReport report) {
-		return Optional.ofNullable(report)
+	private Mono<AvailabilityReport> tryAndUpdateCounts( @NonNull BibRecord bib, @NonNull AvailabilityReport report ) {
+		log.info("Try update counts for bib [{}] from live lookup data");
+		return availability.get()
+			.updateCountsFromAvailabilityReport(bib, report).then()
+			.thenReturn(report)
+			.onErrorReturn(report)
+			.doOnError( e -> log.warn("Error updating counts from returned data in live lookup"));
+	}
+	
+	private Mono<AvailabilityReport> addValueToCache(@NonNull BibRecord bib, AvailabilityReport report) {
+		
+		return Mono.justOrEmpty(report)
+			// Attempt to update the counts from the data here.
+			.flatMap( ar -> tryAndUpdateCounts(bib, ar) )
 			.filter(this::shouldCache)
 			.map( ar -> {
 				String bibIdStr = bib.getId().toString();
@@ -95,7 +111,7 @@ public class LiveAvailabilityService {
 			})
 			
 			// Always return the original for chaining.
-			.orElse(report);
+			.defaultIfEmpty(report);
 	}
 
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
@@ -213,7 +229,7 @@ public class LiveAvailabilityService {
 					.filter(conditionallyFilter(filters, Item::AgencyIsSupplying))
 					.collectList()
 					.map(AvailabilityReport::ofItems)
-					.map(Functions.curry(bib, this::addValueToCache))
+					.flatMap(Functions.curry(bib, this::addValueToCache))
 					.map( report -> {
 						final long elapsed = System.nanoTime() - start;
 						var tags = new ArrayList<>(List.of( Tag.of("status", "success") ));

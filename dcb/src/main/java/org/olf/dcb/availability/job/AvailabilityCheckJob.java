@@ -322,12 +322,19 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				.onErrorResume(e -> Mono.just(AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
 						.message("Error when fetching bib availability for [%s] %s".formatted(bib.getId().toString(), e))
 						.build())))
-				.flatMapMany( rep -> availabilityReportToCountEntries(bib, rep) )
-				.onErrorResume(e -> {
-					log.error("Error building map from availability reports", e);
-					return Flux.empty();
-				});
-		
+				.flatMapMany( rep -> updateCountsFromAvailabilityReport(bib, rep) );
+	}
+	
+	/**
+	 * Ideally this would be moved and centralized. For Brevity we are adding here to try and benefit from the
+	 * live lookups that happen as part of user interaction.
+	 */
+	public Flux<BibAvailabilityCount> updateCountsFromAvailabilityReport( BibRecord bib, AvailabilityReport rep ) {
+		return availabilityReportToCountEntries(bib, rep)
+			.onErrorResume(e -> {
+				log.error("Error building map from availability reports", e);
+				return Flux.empty();
+			});
 	}
 	
 	private Map<String, Map<String, Collection<BibAvailabilityCount>>> reindexAffectedClusters (Map<String, Map<String, Collection<BibAvailabilityCount>>> vals) {
