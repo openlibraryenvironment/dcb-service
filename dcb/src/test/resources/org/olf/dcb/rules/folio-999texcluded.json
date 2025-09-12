@@ -1,0 +1,791 @@
+{
+	"excluded-explicitly": {
+	  "header": {
+	    "datestamp": "2025-07-28T14:09:54Z",
+	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	  },
+	  "metadata": {
+	    "record": {
+	      "fields": [
+	        {
+	          "001": "gdahin00000114565"
+	        },
+	        {
+	          "005": "20250715175414.2"
+	        },
+	        {
+	          "008": "091229s2009    gau      i    001 0 eng d"
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "(OCoLC)495348347"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "(GDZ)21778"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "(G-Ar)21778-gdahdb"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "99217783902963"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "040": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "FBA"
+	              },
+	              {
+	                "c": "FBA"
+	              },
+	              {
+	                "d": "FBA"
+	              },
+	              {
+	                "d": "TNS"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "043": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "n-us-ga"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "049": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "GDZZ"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "090": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "F292.E4"
+	              },
+	              {
+	                "b": "M18"
+	              },
+	              {
+	                "9": "LOCAL"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "090": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "F292.E4"
+	              },
+	              {
+	                "b": "M18 2009"
+	              },
+	              {
+	                "9": "LOCAL"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "092": {
+	            "ind1": "0",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "929.3"
+	              },
+	              {
+	                "b": "GEORGIA"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "100": {
+	            "ind1": "1",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "McRee, Fred Warren,"
+	              },
+	              {
+	                "d": "1928-"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "245": {
+	            "ind1": "1",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Elbert County, Georgia deaths, 1873-1918 /"
+	              },
+	              {
+	                "c": "by Fred W. McRee, Jr."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "260": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "Dahlonega, Ga. :"
+	              },
+	              {
+	                "b": "Fred W. MyRee, Jr.,"
+	              },
+	              {
+	                "c": "c2009."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "300": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "391 p. ;"
+	              },
+	              {
+	                "c": "28 cm."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "536": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "Publication made possible through a grant from the R.J. Taylor, Jr. Foundation."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "650": {
+	            "ind1": " ",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Obituaries"
+	              },
+	              {
+	                "z": "Georgia"
+	              },
+	              {
+	                "z": "Elbert County."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "650": {
+	            "ind1": " ",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Registers of births, etc."
+	              },
+	              {
+	                "z": "Georgia"
+	              },
+	              {
+	                "z": "Elbert County."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "651": {
+	            "ind1": " ",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Elbert County (Ga.)"
+	              },
+	              {
+	                "v": "Genealogy."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "999": {
+	            "ind1": "f",
+	            "ind2": "f",
+	            "subfields": [
+	              {
+	                "i": "058b473c-2439-520b-8688-6d9f01655cda"
+	              },
+	              {
+	                "s": "fd104dff-092a-4fb7-b252-48c4aadfd4a6"
+	              },
+	              {
+	                "t": "1"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "952": {
+	            "ind1": "f",
+	            "ind2": "f",
+	            "subfields": [
+	              {
+	                "p": "book"
+	              },
+	              {
+	                "a": "Georgia Archives"
+	              },
+	              {
+	                "b": "Archives"
+	              },
+	              {
+	                "c": "Reference Library"
+	              },
+	              {
+	                "s": "SearchRoom"
+	              },
+	              {
+	                "d": "Search Room"
+	              },
+	              {
+	                "t": "0"
+	              },
+	              {
+	                "e": "F292.E4 M18 2009"
+	              },
+	              {
+	                "h": "Library of Congress classification"
+	              },
+	              {
+	                "i": "Book"
+	              },
+	              {
+	                "n": "1"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "952": {
+	            "ind1": "f",
+	            "ind2": "f",
+	            "subfields": [
+	              {
+	                "p": "book"
+	              },
+	              {
+	                "a": "Georgia Archives"
+	              },
+	              {
+	                "b": "Archives"
+	              },
+	              {
+	                "c": "Reference Library"
+	              },
+	              {
+	                "s": "Director's Office"
+	              },
+	              {
+	                "d": "Director's Office"
+	              },
+	              {
+	                "t": "0"
+	              },
+	              {
+	                "e": "F292.E4 M18 2009"
+	              },
+	              {
+	                "h": "Library of Congress classification"
+	              },
+	              {
+	                "i": "Book"
+	              },
+	              {
+	                "n": "2"
+	              }
+	            ]
+	          }
+	        }
+	      ],
+	      "leader": "01026cam a2200289Ia 4500"
+	    }
+	  }
+	},
+	"included-explicitly": {
+	  "header": {
+	    "datestamp": "2025-07-28T14:09:54Z",
+	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	  },
+	  "metadata": {
+	    "record": {
+	      "fields": [
+	        {
+	          "001": "gdahin00000114565"
+	        },
+	        {
+	          "005": "20250715175414.2"
+	        },
+	        {
+	          "008": "091229s2009    gau      i    001 0 eng d"
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "(OCoLC)495348347"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "(GDZ)21778"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "(G-Ar)21778-gdahdb"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "035": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "99217783902963"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "040": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "FBA"
+	              },
+	              {
+	                "c": "FBA"
+	              },
+	              {
+	                "d": "FBA"
+	              },
+	              {
+	                "d": "TNS"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "043": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "n-us-ga"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "049": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "GDZZ"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "090": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "F292.E4"
+	              },
+	              {
+	                "b": "M18"
+	              },
+	              {
+	                "9": "LOCAL"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "090": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "F292.E4"
+	              },
+	              {
+	                "b": "M18 2009"
+	              },
+	              {
+	                "9": "LOCAL"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "092": {
+	            "ind1": "0",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "929.3"
+	              },
+	              {
+	                "b": "GEORGIA"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "100": {
+	            "ind1": "1",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "McRee, Fred Warren,"
+	              },
+	              {
+	                "d": "1928-"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "245": {
+	            "ind1": "1",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Elbert County, Georgia deaths, 1873-1918 /"
+	              },
+	              {
+	                "c": "by Fred W. McRee, Jr."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "260": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "Dahlonega, Ga. :"
+	              },
+	              {
+	                "b": "Fred W. MyRee, Jr.,"
+	              },
+	              {
+	                "c": "c2009."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "300": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "391 p. ;"
+	              },
+	              {
+	                "c": "28 cm."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "536": {
+	            "ind1": " ",
+	            "ind2": " ",
+	            "subfields": [
+	              {
+	                "a": "Publication made possible through a grant from the R.J. Taylor, Jr. Foundation."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "650": {
+	            "ind1": " ",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Obituaries"
+	              },
+	              {
+	                "z": "Georgia"
+	              },
+	              {
+	                "z": "Elbert County."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "650": {
+	            "ind1": " ",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Registers of births, etc."
+	              },
+	              {
+	                "z": "Georgia"
+	              },
+	              {
+	                "z": "Elbert County."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "651": {
+	            "ind1": " ",
+	            "ind2": "0",
+	            "subfields": [
+	              {
+	                "a": "Elbert County (Ga.)"
+	              },
+	              {
+	                "v": "Genealogy."
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "999": {
+	            "ind1": "f",
+	            "ind2": "f",
+	            "subfields": [
+	              {
+	                "i": "058b473c-2439-520b-8688-6d9f01655cda"
+	              },
+	              {
+	                "s": "fd104dff-092a-4fb7-b252-48c4aadfd4a6"
+	              },
+	              {
+	                "t": "0"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "952": {
+	            "ind1": "f",
+	            "ind2": "f",
+	            "subfields": [
+	              {
+	                "p": "book"
+	              },
+	              {
+	                "a": "Georgia Archives"
+	              },
+	              {
+	                "b": "Archives"
+	              },
+	              {
+	                "c": "Reference Library"
+	              },
+	              {
+	                "s": "SearchRoom"
+	              },
+	              {
+	                "d": "Search Room"
+	              },
+	              {
+	                "t": "0"
+	              },
+	              {
+	                "e": "F292.E4 M18 2009"
+	              },
+	              {
+	                "h": "Library of Congress classification"
+	              },
+	              {
+	                "i": "Book"
+	              },
+	              {
+	                "n": "1"
+	              }
+	            ]
+	          }
+	        },
+	        {
+	          "952": {
+	            "ind1": "f",
+	            "ind2": "f",
+	            "subfields": [
+	              {
+	                "p": "book"
+	              },
+	              {
+	                "a": "Georgia Archives"
+	              },
+	              {
+	                "b": "Archives"
+	              },
+	              {
+	                "c": "Reference Library"
+	              },
+	              {
+	                "s": "Director's Office"
+	              },
+	              {
+	                "d": "Director's Office"
+	              },
+	              {
+	                "t": "0"
+	              },
+	              {
+	                "e": "F292.E4 M18 2009"
+	              },
+	              {
+	                "h": "Library of Congress classification"
+	              },
+	              {
+	                "i": "Book"
+	              },
+	              {
+	                "n": "2"
+	              }
+	            ]
+	          }
+	        }
+	      ],
+	      "leader": "01026cam a2200289Ia 4500"
+	    }
+	  }
+	},
+	"included-missing-field": {
+	  "header": {
+	    "datestamp": "2025-07-28T14:09:54Z",
+	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	  },
+	  "metadata": {
+	    "record": {
+	      "fields": [{
+	          "001": "gdahin00000114565"
+	        }
+	      ]
+      }
+    }
+  },
+	"excluded-explicitly-true": {
+	  "header": {
+	    "datestamp": "2025-07-28T14:09:54Z",
+	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	  },
+	  "metadata": {
+	    "record": {
+	      "fields": [{
+	          "001": "gdahin00000114565"
+	        },
+	        {
+	          "999": {
+	            "ind1": "f",
+	            "ind2": "f",
+	            "subfields": [
+	              {
+	                "t": true
+	              }
+	            ]
+	          }
+	        }
+	      ]
+      }
+    }
+  },
+ 	"included-missing-field-2": {
+ 		"header": {
+		}
+  }
+}

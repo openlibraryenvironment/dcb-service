@@ -1,13 +1,13 @@
 ### Development config
 
 hosts:
-  SANDBOX:
-    name: SANDBOX
-    type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
-    client:
-      base-url: "https://sandbox.iii.com"
-      ingest: false
-      page-size: 100
+#  SANDBOX:
+#    name: SANDBOX
+#    type: org.olf.dcb.core.interaction.sierra.SierraLmsClient
+#    client:
+#      base-url: "https://sandbox.iii.com"
+#      ingest: false
+#      page-size: 100
 
 
 #  FOLIO-TEST-INGEST:

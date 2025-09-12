@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction;
 
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
 import static java.lang.Integer.parseInt;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
@@ -9,18 +10,20 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.folio.OaiResumptionTokenError;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.HostLms;
@@ -31,6 +34,9 @@ import org.olf.dcb.ingest.marc.MarcIngestSource;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.ingest.model.IngestRecord.IngestRecordBuilder;
 import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.rules.AnnotatedObject;
+import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -61,6 +67,7 @@ import services.k_int.interaction.oaipmh.ListRecordsParams;
 import services.k_int.interaction.oaipmh.ListRecordsParams.ListRecordsParamsBuilder;
 import services.k_int.interaction.oaipmh.ListRecordsResponse;
 import services.k_int.interaction.oaipmh.OaiRecord;
+import services.k_int.interaction.oaipmh.OaiRecord.Header;
 import services.k_int.interaction.oaipmh.OaiRecord.Metadata;
 import services.k_int.interaction.oaipmh.Response;
 import services.k_int.utils.MapUtils;
@@ -99,6 +106,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	private final R2dbcOperations r2dbcOperations;
 	
 	private final ObjectMapper objectMapper;
+	private final ObjectRulesService objectRulesService;
+	
 	
 	private String identifierSeparator = "/"; 
 	private String uuid5Prefix = ""; 
@@ -107,7 +116,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		RawSourceRepository rawSourceRepository, 
 		HttpClient client, 
 		ConversionService conversionService, 
-		ProcessStateService processStateService, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper) {
+		ProcessStateService processStateService, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper, ObjectRulesService objectRuleService) {
 
 		this.lms = hostLms;
 		this.rawSourceRepository = rawSourceRepository;
@@ -133,6 +142,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		oaiSet = configuredSet.orElse(null);
 
 		this.r2dbcOperations = r2dbcOperations;
+		this.objectRulesService = objectRuleService;
 	}
 
 	protected void setUuid5Prefix(String uuid5Prefix) {
@@ -155,10 +165,11 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 
 	@Override
 	public Record resourceToMarc(OaiRecord resource) {
-    if ( resource.metadata() != null )
-  		return resource.metadata().record();
-
-    return null;
+		
+		return Optional.ofNullable(resource)
+			.map( OaiRecord::metadata )
+			.map( Metadata::record )
+			.orElse(null);
 	}
 	
 	public UUID uuid5ForOAIResult(@NotNull final OaiRecord result) {
@@ -177,20 +188,29 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
         isDeleted = Boolean.TRUE;
       }
     }
+    
+    // Previous behaviour was to return a "null" builder if the ID was null.
+    // Reinstating that behaviour here.
+    final var recordId = extractRecordId(resource);
+    if ( recordId == null) return null;
 
 		return IngestRecord.builder()
 			.uuid(uuid5ForOAIResult(resource))
 			.sourceSystem(lms)
-			.suppressFromDiscovery(inferSuppression(resource))
-			.sourceRecordId(extractRecordId(resource))
+//			.suppressFromDiscovery(inferSuppression(resource))
+			.sourceRecordId(recordId)
       .deleted( isDeleted );
 	}
-
-	/**
-	 * Override with source specific rules if the source system uses implicit values (eg FOLIO 999$t=1) to imply suppression
-	 */
-	public Boolean inferSuppression(OaiRecord resource) {
-		return Boolean.FALSE;
+	
+	@Override
+	public Mono<IngestRecordBuilder> reactiveIngestRecordBuilderChanges(@NonNull OaiRecord resource,
+			@NonNull IngestRecordBuilder ingestRecordBuilder) {
+		
+		return Mono.just(ingestRecordBuilder)
+			.zipWith( inferSuppression(resource) )
+			.map( TupleUtils.function((builder, suppress) -> {
+				return builder.suppressFromDiscovery(suppress);
+			}));
 	}
 
 	// The intent is to let implementation specific behaviour control how we extract record ID from an OAI response
@@ -338,6 +358,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		Consumer<UriBuilder> uriBuilderConsumer) {
 
 		return createRequest(GET, path)
+      .doOnNext(req -> log.info("fetch using {}",req.getUri()) )
 			.map((req) -> {
 				// Obtain the authorization content
 				String authorizationContent = getAuthorizationContent();
@@ -629,26 +650,46 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	}
 	
 	private ListRecordsParams buildNextParams(Optional<ListRecordsParams> currentParams, JsonArray currentResults, ListRecordsResponse fullResponse, Instant fetchTime) {
-	  // Always preserve the "start" params even if we have a resumption. This allows for better handling
+		final Instant highestTimestamFromParams = currentParams
+				.map( ListRecordsParams::getHighestRecordTimestampSeen )
+				.orElseGet( () -> Instant.ofEpochSecond(0) );
+
+		final Instant highestRecordTimestampSeen = Optional.ofNullable( fullResponse )
+				.map( ListRecordsResponse::records )
+				.filter( Predicate.not(List::isEmpty) )
+				.map( list -> list.get(list.size() - 1) )
+				.map( OaiRecord::header )
+				.map( Header::datestamp )
+				.filter( ds -> ds.isAfter(highestTimestamFromParams) )
+				.orElse(highestTimestamFromParams);
+		;
+
+
+		// Always preserve the "start" params even if we have a resumption. This allows for better handling
 		// if the token expires during a harvest.
 		ListRecordsParamsBuilder lrp = currentParams
 				.map(ListRecordsParams::toBuilder)
 				.orElseGet(ListRecordsParams::builder);
-		
+
 		final boolean emptyResultSet = currentResults.size() < 1;
-		
+
 		// Derive resumption token taking into account empty string and empty result sets. 
 		final String resToken = emptyResultSet ? null : Optional.ofNullable( fullResponse.resumptionToken() )
 				.filter(StringUtils::hasText)
 				.orElse(null);
-		
+
 		if (resToken == null) {
+			// II: I really don't like this - it's subject to clock skew and all sorts of crap - much better to keep the highest
+			// timestamp seen from this source and use that as a from date.
 			lrp = lrp.from(fetchTime); // Set from to "now" to perform delta.
 		}
-		
+
 		// Add the token to the builder (possibly nulling out)
 		return lrp.resumptionToken(resToken)
-			.build();
+				.cpType("FOLIO")
+				.hostCode(lms.getCode())
+				.highestRecordTimestampSeen(highestRecordTimestampSeen)
+				.build();
 	}
 	
 	@Override
@@ -727,6 +768,46 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		}
 	}
 
+	/**
+	 * Override with source specific rules if the source system uses implicit values (eg FOLIO 999$t=1) to imply suppression
+	 */
+	protected Mono<Boolean> inferSuppression(OaiRecord resource)  {
+		
+		List<String> decisionLog = new ArrayList<String>();
+		
+		// Grab the suppression rules set against the Host Lms
+		// False is the default value for suppression if we can't find the named ruleset
+		// or if there isn't one.
+		return getLmsBibSuppressionRuleset()
+		  .map( rules -> rules.negate().test(new AnnotatedObject(resource, decisionLog)) ) // Negate as the rules evaluate "true" for inclusion
+		  .defaultIfEmpty(FALSE); // Default to not suppressing
+	}
+	
+	protected String getSuppressionRulesetName() {
+		return lms.getSuppressionRulesetName();
+	}
+	
+	private Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
+	private synchronized Mono<ObjectRuleset> getLmsBibSuppressionRuleset() {
+		
+		if (_lmsBibSuppressionRuleset == null) {
+			var supSetName = getSuppressionRulesetName();
+			
+			_lmsBibSuppressionRuleset = Mono.justOrEmpty( supSetName )
+				.flatMap( name -> objectRulesService.findByName(name)
+						.doOnSuccess(val -> {
+							if (val == null) {
+								log.warn("Host LMS [{}] specified using ruleset [{}] for bib suppression, but no ruleset with that name could be found", lms.getCode(), name);
+								return;
+							}
+							
+							log.debug("Found bib suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
+						}))
+				.cache();
+		}
+		return  _lmsBibSuppressionRuleset;
+	}
+
 	@Override
 	public OaiRecord convertSourceToInternalType(SourceRecord source) {
 		
@@ -738,4 +819,11 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		
 		return conversionService.convertRequired(oaiSrc, OaiRecord.class);
 	}
+	
+//	/**
+//	 * Override with source specific rules if the source system uses implicit values (eg FOLIO 999$t=1) to imply suppression
+//	 */
+//	public Boolean inferSuppression(OaiRecord resource) {
+//		return Boolean.FALSE;
+//	}
 }

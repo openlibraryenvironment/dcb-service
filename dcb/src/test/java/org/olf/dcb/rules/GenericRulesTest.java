@@ -1,4 +1,4 @@
-package org.olf.dcb.core;
+package org.olf.dcb.rules;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -73,6 +73,7 @@ public class GenericRulesTest {
 	void checkFiltersOnStream() throws IOException {
 		
 		ObjectRuleset parsedRuleset = mapper.readValue(json, ObjectRuleset.class);
+//		parsedRuleset.setObjectMapper(mapper);
 		
 		log.info("Parsed (JSON) filterSet: {}", parsedRuleset);
 		

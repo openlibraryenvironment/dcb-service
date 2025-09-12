@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.alma;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.interaction.OaiPmhIngestSource;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,9 +34,10 @@ public class AlmaOaiPmhIngestSource extends OaiPmhIngestSource {
 		ConversionService conversionService, 
 		ProcessStateService processStateService,
 		R2dbcOperations r2dbcOperations,
-		ObjectMapper objectMapper
+		ObjectMapper objectMapper,
+		ObjectRulesService objectRulesService
 	) {
-		super(hostLms, rawSourceRepository, client, conversionService, processStateService, r2dbcOperations, objectMapper);
+		super(hostLms, rawSourceRepository, client, conversionService, processStateService, r2dbcOperations, objectMapper, objectRulesService);
 		
 		String institutionCode = MapUtils.getAsOptionalString(
 			hostLms.getClientConfig(), CONFIG_INSTITUTION_CODE

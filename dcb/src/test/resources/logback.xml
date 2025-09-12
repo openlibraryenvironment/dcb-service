@@ -20,6 +20,7 @@
 	<logger name="org.flyway" level="DEBUG"/>
 	<logger name="io.micronaut.flyway" level="DEBUG"/>
 	<logger name="org.olf.dcb" level="DEBUG"/>
+	<logger name="org.olf.dcb.rules" level="TRACE"/>
 	<logger name="services.k_int" level="DEBUG"/>
 	<logger name="io.micronaut.security" level="DEBUG"/>
 	<logger name="com.zaxxer.hikari.HikariDataSource" level="WARN"/>

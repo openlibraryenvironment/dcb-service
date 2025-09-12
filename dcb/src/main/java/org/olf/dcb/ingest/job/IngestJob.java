@@ -172,7 +172,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 						.flatMap( hostLmsService::getIngestSourceFor )
 						.filter( SourceToIngestRecordConverter.class::isInstance )
 						.cast( SourceToIngestRecordConverter.class )
-						.doOnNext( val -> log.info("Cacheing SourceToIngestRecordConverter for [{}]", hostLmsIdStr))
+						.doOnNext( val -> log.info("Cacheing [{}] as SourceToIngestRecordConverter for [{}]", val.getClass().getName(), hostLmsIdStr))
 						.cache();
 					
 					sourceRecConverterCache.put(hostLmsIdStr, conv);
@@ -223,7 +223,11 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 				
 				.flatMap( converter -> {
 					try {
-						return Mono.just( converter.convertSourceToIngestRecord(sourceRecord) );
+						return converter.convertSourceToIngestRecord(sourceRecord)
+							.onErrorMap( e -> {
+								log.error("Error converting source record "+sourceRecord.getId()+" : "+e.getMessage(),e);
+		            return new DcbError("Error converting source record [%s] %s" .formatted(sourceRecord.getId(), e.getMessage()), e);
+							});
 					} catch ( Exception e ) {
             log.error("Error converting source record "+sourceRecord.getId()+" : "+e.getMessage(),e);
             return Mono.error( new DcbError("Error converting source record [%s] %s" .formatted(sourceRecord.getId(), e.getMessage()), e));

@@ -1,0 +1,2958 @@
+{
+	"exclude-z": {
+	  "id": "1",
+	  "marc": {
+	    "fields": [
+	      {
+	        "710": {
+	          "ind1": "2",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Missouri Bar."
+	            },
+	            {
+	              "b": "Meeting."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "710": {
+	          "ind1": "2",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "St. Louis University."
+	            },
+	            {
+	              "b": "School of Law."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Law"
+	            },
+	            {
+	              "z": "Missouri"
+	            },
+	            {
+	              "v": "Periodicals."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "010": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "sn 96049135"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "500": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Description based on: 1982."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "500": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Prepared for the annual meeting of the Missouri Bar."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "500": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Imprint rotates between four Missouri Law Schools: Saint Louis University. School of Law; University of Missouri--Kansas City. School of Law; Washington University (Saint Louis, Mo.). School of Law; University of Missouri--Columbia. School of Law."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "001": "10316493"
+	      },
+	      {
+	        "260": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "[Jefferson City, Mo.] :"
+	            },
+	            {
+	              "b": "Missouri Bar,"
+	            },
+	            {
+	              "c": "-2000."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "300": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "v. ;"
+	            },
+	            {
+	              "c": "28 cm."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "310": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Annual."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "362": {
+	          "ind1": "0",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "-2000."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "245": {
+	          "ind1": "0",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Annual survey of the law."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "246": {
+	          "ind1": "3",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Survey of the law."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "935": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": ".b15713714"
+	            },
+	            {
+	              "b": "03-28-06"
+	            },
+	            {
+	              "c": "02-02-96"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "003": "OCoLC"
+	      },
+	      {
+	        "005": "20060113153723.0"
+	      },
+	      {
+	        "008": "840119d19uu2000mouar         0    0eng dnam a "
+	      },
+	      {
+	        "040": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "LMU"
+	            },
+	            {
+	              "c": "LMU"
+	            },
+	            {
+	              "d": "SLU"
+	            },
+	            {
+	              "d": "OCLCQ"
+	            },
+	            {
+	              "d": "SLU"
+	            },
+	            {
+	              "d": "UtOrBLW"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "042": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "lcd"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "043": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "n-us-mo"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "049": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "SLUL"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "050": {
+	          "ind1": "1",
+	          "ind2": "4",
+	          "subfields": [
+	            {
+	              "a": "KFM7870"
+	            },
+	            {
+	              "b": ".A66"
+	            }
+	          ]
+	        }
+	      }
+	    ],
+	    "leader": "00000nam  2200000 a 4500"
+	  },
+	  "deleted": false,
+	  "varFields": [
+	    {
+	      "ind1": "2",
+	      "ind2": " ",
+	      "marcTag": "710",
+	      "fieldTag": "b",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Missouri Bar."
+	        },
+	        {
+	          "tag": "b",
+	          "content": "Meeting."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "2",
+	      "ind2": " ",
+	      "marcTag": "710",
+	      "fieldTag": "b",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "St. Louis University."
+	        },
+	        {
+	          "tag": "b",
+	          "content": "School of Law."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "650",
+	      "fieldTag": "d",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Law"
+	        },
+	        {
+	          "tag": "z",
+	          "content": "Missouri"
+	        },
+	        {
+	          "tag": "v",
+	          "content": "Periodicals."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "010",
+	      "fieldTag": "l",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "sn 96049135"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "500",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Description based on: 1982."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "500",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Prepared for the annual meeting of the Missouri Bar."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "500",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Imprint rotates between four Missouri Law Schools: Saint Louis University. School of Law; University of Missouri--Kansas City. School of Law; Washington University (Saint Louis, Mo.). School of Law; University of Missouri--Columbia. School of Law."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "10316493",
+	      "marcTag": "001",
+	      "fieldTag": "o"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "260",
+	      "fieldTag": "p",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "[Jefferson City, Mo.] :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "Missouri Bar,"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "-2000."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "300",
+	      "fieldTag": "r",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "v. ;"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "28 cm."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "310",
+	      "fieldTag": "r",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Annual."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "0",
+	      "ind2": " ",
+	      "marcTag": "362",
+	      "fieldTag": "r",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "-2000."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "0",
+	      "ind2": "0",
+	      "marcTag": "245",
+	      "fieldTag": "t",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Annual survey of the law."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "3",
+	      "ind2": "0",
+	      "marcTag": "246",
+	      "fieldTag": "u",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Survey of the law."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "935",
+	      "fieldTag": "v",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": ".b15713714"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "03-28-06"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "02-02-96"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "OCoLC",
+	      "marcTag": "003",
+	      "fieldTag": "y"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "20060113153723.0",
+	      "marcTag": "005",
+	      "fieldTag": "y"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "840119d19uu2000mouar         0    0eng dnam a ",
+	      "marcTag": "008",
+	      "fieldTag": "y"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "040",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "LMU"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "LMU"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "SLU"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "OCLCQ"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "SLU"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "UtOrBLW"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "042",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "lcd"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "043",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "n-us-mo"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "049",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "SLUL"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "1",
+	      "ind2": "4",
+	      "marcTag": "050",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "KFM7870"
+	        },
+	        {
+	          "tag": "b",
+	          "content": ".A66"
+	        }
+	      ]
+	    },
+	    {
+	      "content": "00000nam  2200000 a 4500",
+	      "fieldTag": "_"
+	    }
+	  ],
+	  "suppressed": false,
+	  "createdDate": "2006-04-04T22:46:00Z",
+	  "fixedFields": {
+	    "24": {
+	      "label": "Language",
+	      "value": "eng",
+	      "display": "English"
+	    },
+	    "25": {
+	      "label": "Skip",
+	      "value": "0"
+	    },
+	    "26": {
+	      "label": "Location",
+	      "value": "law  ",
+	      "display": "Law"
+	    },
+	    "27": {
+	      "label": "COPIES",
+	      "value": "17"
+	    },
+	    "28": {
+	      "label": "Cat. Date",
+	      "value": "2005-11-16"
+	    },
+	    "29": {
+	      "label": "Bib Level",
+	      "value": "s",
+	      "display": "SERIAL"
+	    },
+	    "30": {
+	      "label": "Material Type",
+	      "value": "a  ",
+	      "display": "Book/Journal"
+	    },
+	    "31": {
+	      "label": "Bib Code 3",
+	      "value": "z"
+	    },
+	    "80": {
+	      "label": "Record Type",
+	      "value": "b"
+	    },
+	    "81": {
+	      "label": "Record Number",
+	      "value": "1004273"
+	    },
+	    "83": {
+	      "label": "Created Date",
+	      "value": "2006-04-04T22:46:00Z"
+	    },
+	    "84": {
+	      "label": "Updated Date",
+	      "value": "2025-03-05T18:07:22Z"
+	    },
+	    "85": {
+	      "label": "No. of Revisions",
+	      "value": "12"
+	    },
+	    "86": {
+	      "label": "Agency",
+	      "value": "1"
+	    },
+	    "89": {
+	      "label": "Country",
+	      "value": "mou",
+	      "display": "Missouri"
+	    },
+	    "98": {
+	      "label": "PDATE",
+	      "value": "2017-01-10T06:00:08Z"
+	    },
+	    "107": {
+	      "label": "MARC Type",
+	      "value": " "
+	    }
+	  },
+	  "updatedDate": "2025-03-05T18:07:22Z"
+	},
+	"exclude-s": {
+	  "id": "2",
+	  "marc": {
+	    "fields": [
+	      {
+	        "700": {
+	          "ind1": "1",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Palmore, Erdman B."
+	            },
+	            {
+	              "q": "(Erdman Ballagh),"
+	            },
+	            {
+	              "d": "1930-"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Older people"
+	            },
+	            {
+	              "z": "United States"
+	            },
+	            {
+	              "x": "Handbooks, manuals, etc."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "020": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "0313237212 (lib. bdg.)"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "010": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "84004463"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "504": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Includes bibliographies and indexes."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "001": "10506061"
+	      },
+	      {
+	        "260": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Westport, Conn. :"
+	            },
+	            {
+	              "b": "Greenwood Press,"
+	            },
+	            {
+	              "c": "1984."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "300": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "xxix, 458 p. :"
+	            },
+	            {
+	              "b": "ill. ;"
+	            },
+	            {
+	              "c": "25 cm."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "245": {
+	          "ind1": "0",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Handbook on the aged in the United States /"
+	            },
+	            {
+	              "c": "edited by Erdman B. Palmore."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "935": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": ".b16405146"
+	            },
+	            {
+	              "b": "05-18-04"
+	            },
+	            {
+	              "c": "02-05-96"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "008": "840217s1984    ctua     b    001 0 eng  nam a "
+	      },
+	      {
+	        "040": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "DLC"
+	            },
+	            {
+	              "c": "DLC"
+	            },
+	            {
+	              "d": "CUX"
+	            },
+	            {
+	              "d": "UMS"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "043": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "n-us---"
+	            }
+	          ]
+	        }
+	      }
+	    ],
+	    "leader": "00000nam  2200000 a 4500"
+	  },
+	  "deleted": false,
+	  "varFields": [
+	    {
+	      "ind1": "1",
+	      "ind2": " ",
+	      "marcTag": "700",
+	      "fieldTag": "b",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Palmore, Erdman B."
+	        },
+	        {
+	          "tag": "q",
+	          "content": "(Erdman Ballagh),"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "1930-"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "650",
+	      "fieldTag": "d",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Older people"
+	        },
+	        {
+	          "tag": "z",
+	          "content": "United States"
+	        },
+	        {
+	          "tag": "x",
+	          "content": "Handbooks, manuals, etc."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "020",
+	      "fieldTag": "i",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "0313237212 (lib. bdg.)"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "010",
+	      "fieldTag": "l",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "84004463"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "504",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Includes bibliographies and indexes."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "10506061",
+	      "marcTag": "001",
+	      "fieldTag": "o"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "260",
+	      "fieldTag": "p",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Westport, Conn. :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "Greenwood Press,"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "1984."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "300",
+	      "fieldTag": "r",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "xxix, 458 p. :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "ill. ;"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "25 cm."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "0",
+	      "ind2": "0",
+	      "marcTag": "245",
+	      "fieldTag": "t",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Handbook on the aged in the United States /"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "edited by Erdman B. Palmore."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "935",
+	      "fieldTag": "v",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": ".b16405146"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "05-18-04"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "02-05-96"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "840217s1984    ctua     b    001 0 eng  nam a ",
+	      "marcTag": "008",
+	      "fieldTag": "y"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "040",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "DLC"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "DLC"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "CUX"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "UMS"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "043",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "n-us---"
+	        }
+	      ]
+	    },
+	    {
+	      "content": "00000nam  2200000 a 4500",
+	      "fieldTag": "_"
+	    }
+	  ],
+	  "suppressed": true,
+	  "createdDate": "2006-04-04T22:53:52Z",
+	  "fixedFields": {
+	    "24": {
+	      "label": "Language",
+	      "value": "eng",
+	      "display": "English"
+	    },
+	    "25": {
+	      "label": "Skip",
+	      "value": "0"
+	    },
+	    "26": {
+	      "label": "Location",
+	      "value": "ywp  ",
+	      "display": "Pius withdrawn"
+	    },
+	    "27": {
+	      "label": "COPIES",
+	      "value": "1"
+	    },
+	    "28": {
+	      "label": "Cat. Date",
+	      "value": "1995-01-01"
+	    },
+	    "29": {
+	      "label": "Bib Level",
+	      "value": "m",
+	      "display": "MONOGRAPH"
+	    },
+	    "30": {
+	      "label": "Material Type",
+	      "value": "a  ",
+	      "display": "Book/Journal"
+	    },
+	    "31": {
+	      "label": "Bib Code 3",
+	      "value": "s"
+	    },
+	    "80": {
+	      "label": "Record Type",
+	      "value": "b"
+	    },
+	    "81": {
+	      "label": "Record Number",
+	      "value": "1008935"
+	    },
+	    "83": {
+	      "label": "Created Date",
+	      "value": "2006-04-04T22:53:52Z"
+	    },
+	    "84": {
+	      "label": "Updated Date",
+	      "value": "2023-03-18T09:01:15Z"
+	    },
+	    "85": {
+	      "label": "No. of Revisions",
+	      "value": "5"
+	    },
+	    "86": {
+	      "label": "Agency",
+	      "value": "1"
+	    },
+	    "89": {
+	      "label": "Country",
+	      "value": "ctu",
+	      "display": "Connecticut"
+	    },
+	    "98": {
+	      "label": "PDATE",
+	      "value": "2017-08-23T05:00:08Z"
+	    },
+	    "107": {
+	      "label": "MARC Type",
+	      "value": " "
+	    }
+	  },
+	  "updatedDate": "2023-03-18T09:01:15Z"
+	},
+	"exclude-f": {
+	  "id": "3",
+	  "marc": {
+	    "fields": [
+	      {
+	        "020": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "0313237212 (lib. bdg.)"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "010": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "84004463"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "504": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Includes bibliographies and indexes."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "001": "10506061"
+	      }
+     	]
+    },
+	  "suppressed": true,
+	  "createdDate": "2006-04-04T22:53:52Z",
+	  "fixedFields": {
+	    "24": {
+	      "label": "Language",
+	      "value": "eng",
+	      "display": "English"
+	    },
+	    "25": {
+	      "label": "Skip",
+	      "value": "0"
+	    },
+	    "26": {
+	      "label": "Location",
+	      "value": "ywp  ",
+	      "display": "Pius withdrawn"
+	    },
+	    "27": {
+	      "label": "COPIES",
+	      "value": "1"
+	    },
+	    "28": {
+	      "label": "Cat. Date",
+	      "value": "1995-01-01"
+	    },
+	    "29": {
+	      "label": "Bib Level",
+	      "value": "m",
+	      "display": "MONOGRAPH"
+	    },
+	    "30": {
+	      "label": "Material Type",
+	      "value": "a  ",
+	      "display": "Book/Journal"
+	    },
+	    "31": {
+	      "label": "Bib Code 3",
+	      "value": "f"
+	    },
+	    "80": {
+	      "label": "Record Type",
+	      "value": "b"
+	    },
+	    "81": {
+	      "label": "Record Number",
+	      "value": "1008935"
+	    },
+	    "83": {
+	      "label": "Created Date",
+	      "value": "2006-04-04T22:53:52Z"
+	    },
+	    "84": {
+	      "label": "Updated Date",
+	      "value": "2023-03-18T09:01:15Z"
+	    },
+	    "85": {
+	      "label": "No. of Revisions",
+	      "value": "5"
+	    },
+	    "86": {
+	      "label": "Agency",
+	      "value": "1"
+	    },
+	    "89": {
+	      "label": "Country",
+	      "value": "ctu",
+	      "display": "Connecticut"
+	    },
+	    "98": {
+	      "label": "PDATE",
+	      "value": "2017-08-23T05:00:08Z"
+	    },
+	    "107": {
+	      "label": "MARC Type",
+	      "value": " "
+	    }
+	  },
+	  "updatedDate": "2023-03-18T09:01:15Z"
+	},
+	"exclude-n": {
+	  "id": "4",
+	  "marc": {
+	    "fields": [
+	      {
+	        "100": {
+	          "ind1": "1",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Picard, Robert G."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Press"
+	            },
+	            {
+	              "z": "Scandinavia"
+	            },
+	            {
+	              "x": "History."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Scandinavian newspapers"
+	            },
+	            {
+	              "x": "History."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Journalism"
+	            },
+	            {
+	              "x": "Political aspects"
+	            },
+	            {
+	              "z": "Scandinavia."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "250": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "1st ed."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "020": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "0813815185"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "010": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "87022750"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "500": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Includes index."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "504": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Bibliography: p. 141-148."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "001": "16647788"
+	      },
+	      {
+	        "260": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Ames :"
+	            },
+	            {
+	              "b": "Iowa State University Press,"
+	            },
+	            {
+	              "c": "1988."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "300": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "xvii, 153 p. :"
+	            },
+	            {
+	              "b": "ill. ;"
+	            },
+	            {
+	              "c": "24 cm."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "245": {
+	          "ind1": "1",
+	          "ind2": "4",
+	          "subfields": [
+	            {
+	              "a": "The ravens of Odin :"
+	            },
+	            {
+	              "b": "the press in the Nordic nations /"
+	            },
+	            {
+	              "c": "Robert G. Picard."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "935": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": ".b10154565"
+	            },
+	            {
+	              "b": "07-15-99"
+	            },
+	            {
+	              "c": "01-11-96"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "008": "870803s1988    iaua     b   s001 0 eng  nam a "
+	      },
+	      {
+	        "040": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "DLC"
+	            },
+	            {
+	              "c": "DLC"
+	            },
+	            {
+	              "d": "UMK"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "043": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "ev-----"
+	            }
+	          ]
+	        }
+	      }
+	    ],
+	    "leader": "00000nam  2200000 a 4500"
+	  },
+	  "deleted": false,
+	  "varFields": [
+	    {
+	      "ind1": "1",
+	      "ind2": " ",
+	      "marcTag": "100",
+	      "fieldTag": "a",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Picard, Robert G."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "650",
+	      "fieldTag": "d",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Press"
+	        },
+	        {
+	          "tag": "z",
+	          "content": "Scandinavia"
+	        },
+	        {
+	          "tag": "x",
+	          "content": "History."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "650",
+	      "fieldTag": "d",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Scandinavian newspapers"
+	        },
+	        {
+	          "tag": "x",
+	          "content": "History."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "650",
+	      "fieldTag": "d",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Journalism"
+	        },
+	        {
+	          "tag": "x",
+	          "content": "Political aspects"
+	        },
+	        {
+	          "tag": "z",
+	          "content": "Scandinavia."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "250",
+	      "fieldTag": "e",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "1st ed."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "020",
+	      "fieldTag": "i",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "0813815185"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "010",
+	      "fieldTag": "l",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "87022750"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "500",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Includes index."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "504",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Bibliography: p. 141-148."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "16647788",
+	      "marcTag": "001",
+	      "fieldTag": "o"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "260",
+	      "fieldTag": "p",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Ames :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "Iowa State University Press,"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "1988."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "300",
+	      "fieldTag": "r",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "xvii, 153 p. :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "ill. ;"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "24 cm."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "1",
+	      "ind2": "4",
+	      "marcTag": "245",
+	      "fieldTag": "t",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "The ravens of Odin :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "the press in the Nordic nations /"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "Robert G. Picard."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "935",
+	      "fieldTag": "v",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": ".b10154565"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "07-15-99"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "01-11-96"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "870803s1988    iaua     b   s001 0 eng  nam a ",
+	      "marcTag": "008",
+	      "fieldTag": "y"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "040",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "DLC"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "DLC"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "UMK"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "043",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "ev-----"
+	        }
+	      ]
+	    },
+	    {
+	      "content": "00000nam  2200000 a 4500",
+	      "fieldTag": "_"
+	    }
+	  ],
+	  "suppressed": true,
+	  "createdDate": "2006-04-04T22:39:37Z",
+	  "fixedFields": {
+	    "24": {
+	      "label": "Language",
+	      "value": "eng",
+	      "display": "English"
+	    },
+	    "25": {
+	      "label": "Skip",
+	      "value": "4"
+	    },
+	    "26": {
+	      "label": "Location",
+	      "value": "ywp  ",
+	      "display": "Pius withdrawn"
+	    },
+	    "27": {
+	      "label": "COPIES",
+	      "value": "1"
+	    },
+	    "28": {
+	      "label": "Cat. Date",
+	      "value": "1995-01-01"
+	    },
+	    "29": {
+	      "label": "Bib Level",
+	      "value": "m",
+	      "display": "MONOGRAPH"
+	    },
+	    "30": {
+	      "label": "Material Type",
+	      "value": "a  ",
+	      "display": "Book/Journal"
+	    },
+	    "31": {
+	      "label": "Bib Code 3",
+	      "value": "n"
+	    },
+	    "80": {
+	      "label": "Record Type",
+	      "value": "b"
+	    },
+	    "81": {
+	      "label": "Record Number",
+	      "value": "1000281"
+	    },
+	    "83": {
+	      "label": "Created Date",
+	      "value": "2006-04-04T22:39:37Z"
+	    },
+	    "84": {
+	      "label": "Updated Date",
+	      "value": "2025-07-21T15:05:54Z"
+	    },
+	    "85": {
+	      "label": "No. of Revisions",
+	      "value": "5"
+	    },
+	    "86": {
+	      "label": "Agency",
+	      "value": "1"
+	    },
+	    "89": {
+	      "label": "Country",
+	      "value": "iau",
+	      "display": "Iowa"
+	    },
+	    "98": {
+	      "label": "PDATE",
+	      "value": "2025-06-13T21:36:00Z"
+	    },
+	    "107": {
+	      "label": "MARC Type",
+	      "value": " "
+	    }
+	  },
+	  "updatedDate": "2025-07-21T15:05:54Z"
+	},
+	"include-present": {
+	  "id": "5",
+	  "marc": {
+	    "fields": [
+	      {
+	        "100": {
+	          "ind1": "1",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Anson, Barry J."
+	            },
+	            {
+	              "q": "(Barry Joseph),"
+	            },
+	            {
+	              "d": "1894-1974"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "700": {
+	          "ind1": "1",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "McVay, Chester B."
+	            },
+	            {
+	              "q": "(Chester Bidwell),"
+	            },
+	            {
+	              "d": "1911-1987"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "250": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "6th ed. /"
+	            },
+	            {
+	              "b": "Chester B. McVay."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "020": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "0721612989 (v. 2)"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "020": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "0721612997 (set)"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "020": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "0721612970 (v. 1)"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "2",
+	          "subfields": [
+	            {
+	              "a": "Anatomy, Regional."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "2",
+	          "subfields": [
+	            {
+	              "a": "General Surgery."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "010": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "82025064"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "504": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Includes bibliographical references and index."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "001": "10950399"
+	      },
+	      {
+	        "019": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "9111176"
+	            },
+	            {
+	              "a": "9154628"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "260": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Philadelphia :"
+	            },
+	            {
+	              "b": "Saunders,"
+	            },
+	            {
+	              "c": "1984."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "300": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "2 v. (xvii, 1314, xli p.) :"
+	            },
+	            {
+	              "b": "ill., port. ;"
+	            },
+	            {
+	              "c": "27 cm."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "240": {
+	          "ind1": "1",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Surgical anatomy."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "245": {
+	          "ind1": "1",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Anson & McVay Surgical anatomy."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "740": {
+	          "ind1": "0",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Surgical anatomy."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "935": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": ".b15116372"
+	            },
+	            {
+	              "b": "11-19-03"
+	            },
+	            {
+	              "c": "02-01-96"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "008": "830104s1984    pauac    b    001 0 eng dnam a "
+	      },
+	      {
+	        "040": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "NLM"
+	            },
+	            {
+	              "c": "NLM"
+	            },
+	            {
+	              "d": "UMK"
+	            }
+	          ]
+	        }
+	      }
+	    ],
+	    "leader": "00000nam  2200000 a 4500"
+	  },
+	  "deleted": false,
+	  "varFields": [
+	    {
+	      "ind1": "1",
+	      "ind2": " ",
+	      "marcTag": "100",
+	      "fieldTag": "a",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Anson, Barry J."
+	        },
+	        {
+	          "tag": "q",
+	          "content": "(Barry Joseph),"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "1894-1974"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "1",
+	      "ind2": " ",
+	      "marcTag": "700",
+	      "fieldTag": "b",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "McVay, Chester B."
+	        },
+	        {
+	          "tag": "q",
+	          "content": "(Chester Bidwell),"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "1911-1987"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "250",
+	      "fieldTag": "e",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "6th ed. /"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "Chester B. McVay."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "020",
+	      "fieldTag": "i",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "0721612989 (v. 2)"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "020",
+	      "fieldTag": "i",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "0721612997 (set)"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "020",
+	      "fieldTag": "i",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "0721612970 (v. 1)"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "2",
+	      "marcTag": "650",
+	      "fieldTag": "j",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Anatomy, Regional."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "2",
+	      "marcTag": "650",
+	      "fieldTag": "j",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "General Surgery."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "010",
+	      "fieldTag": "l",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "82025064"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "504",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Includes bibliographical references and index."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "10950399",
+	      "marcTag": "001",
+	      "fieldTag": "o"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "019",
+	      "fieldTag": "o",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "9111176"
+	        },
+	        {
+	          "tag": "a",
+	          "content": "9154628"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "260",
+	      "fieldTag": "p",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Philadelphia :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "Saunders,"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "1984."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "300",
+	      "fieldTag": "r",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "2 v. (xvii, 1314, xli p.) :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "ill., port. ;"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "27 cm."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "1",
+	      "ind2": "0",
+	      "marcTag": "240",
+	      "fieldTag": "t",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Surgical anatomy."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "1",
+	      "ind2": "0",
+	      "marcTag": "245",
+	      "fieldTag": "t",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Anson & McVay Surgical anatomy."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "0",
+	      "ind2": " ",
+	      "marcTag": "740",
+	      "fieldTag": "u",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Surgical anatomy."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "935",
+	      "fieldTag": "v",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": ".b15116372"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "11-19-03"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "02-01-96"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "830104s1984    pauac    b    001 0 eng dnam a ",
+	      "marcTag": "008",
+	      "fieldTag": "y"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "040",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "NLM"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "NLM"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "UMK"
+	        }
+	      ]
+	    },
+	    {
+	      "content": "00000nam  2200000 a 4500",
+	      "fieldTag": "_"
+	    }
+	  ],
+	  "suppressed": false,
+	  "createdDate": "2006-04-04T22:46:18Z",
+	  "fixedFields": {
+	    "24": {
+	      "label": "Language",
+	      "value": "eng",
+	      "display": "English"
+	    },
+	    "25": {
+	      "label": "Skip",
+	      "value": "0"
+	    },
+	    "26": {
+	      "label": "Location",
+	      "value": "hsc  ",
+	      "display": "MCL"
+	    },
+	    "27": {
+	      "label": "COPIES",
+	      "value": "2"
+	    },
+	    "28": {
+	      "label": "Cat. Date",
+	      "value": "1995-01-01"
+	    },
+	    "29": {
+	      "label": "Bib Level",
+	      "value": "m",
+	      "display": "MONOGRAPH"
+	    },
+	    "30": {
+	      "label": "Material Type",
+	      "value": "a  ",
+	      "display": "Book/Journal"
+	    },
+	    "31": {
+	      "label": "Bib Code 3",
+	      "value": "-"
+	    },
+	    "80": {
+	      "label": "Record Type",
+	      "value": "b"
+	    },
+	    "81": {
+	      "label": "Record Number",
+	      "value": "1003991"
+	    },
+	    "83": {
+	      "label": "Created Date",
+	      "value": "2006-04-04T22:46:18Z"
+	    },
+	    "84": {
+	      "label": "Updated Date",
+	      "value": "2012-07-20T09:05:02Z"
+	    },
+	    "85": {
+	      "label": "No. of Revisions",
+	      "value": "4"
+	    },
+	    "86": {
+	      "label": "Agency",
+	      "value": "1"
+	    },
+	    "89": {
+	      "label": "Country",
+	      "value": "pau",
+	      "display": "Pennsylvania"
+	    },
+	    "98": {
+	      "label": "PDATE",
+	      "value": "2012-07-20T09:04:58Z"
+	    },
+	    "107": {
+	      "label": "MARC Type",
+	      "value": " "
+	    }
+	  },
+	  "updatedDate": "2012-07-20T09:05:02Z"
+	},
+	"include-missing": {
+	  "id": "1000677",
+	  "marc": {
+	    "fields": [
+	      {
+	        "100": {
+	          "ind1": "1",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Athens, Lonnie H."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Criminal psychology"
+	            },
+	            {
+	              "x": "Case studies."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "650": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Violence"
+	            },
+	            {
+	              "x": "Case studies."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "020": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "0710003420"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "010": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "79041011"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "500": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Includes index."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "504": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Bibliography: p. 97-101."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "001": "5982944"
+	      },
+	      {
+	        "260": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "Boston :"
+	            },
+	            {
+	              "b": "Routledge & Kegan Paul,"
+	            },
+	            {
+	              "c": "1980."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "300": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "xiii, 104 p. ;"
+	            },
+	            {
+	              "c": "22 cm."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "830": {
+	          "ind1": " ",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "International library of sociology."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "490": {
+	          "ind1": "1",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "International library of sociology."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "245": {
+	          "ind1": "1",
+	          "ind2": "0",
+	          "subfields": [
+	            {
+	              "a": "Violent criminal acts and actors :"
+	            },
+	            {
+	              "b": "a symbolic interactionist study /"
+	            },
+	            {
+	              "c": "Lonnie H. Athens."
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "935": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": ".b10491260"
+	            },
+	            {
+	              "b": "04-30-03"
+	            },
+	            {
+	              "c": "01-19-96"
+	            }
+	          ]
+	        }
+	      },
+	      {
+	        "008": "800721s1980    mau      b    001 0 eng  nam a "
+	      },
+	      {
+	        "040": {
+	          "ind1": " ",
+	          "ind2": " ",
+	          "subfields": [
+	            {
+	              "a": "DLC"
+	            },
+	            {
+	              "c": "DLC"
+	            },
+	            {
+	              "d": "UMK"
+	            }
+	          ]
+	        }
+	      }
+	    ],
+	    "leader": "00000nam  2200000 a 4500"
+	  },
+	  "deleted": false,
+	  "varFields": [
+	    {
+	      "ind1": "1",
+	      "ind2": " ",
+	      "marcTag": "100",
+	      "fieldTag": "a",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Athens, Lonnie H."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "650",
+	      "fieldTag": "d",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Criminal psychology"
+	        },
+	        {
+	          "tag": "x",
+	          "content": "Case studies."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "650",
+	      "fieldTag": "d",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Violence"
+	        },
+	        {
+	          "tag": "x",
+	          "content": "Case studies."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "020",
+	      "fieldTag": "i",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "0710003420"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "010",
+	      "fieldTag": "l",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "79041011"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "500",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Includes index."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "504",
+	      "fieldTag": "n",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Bibliography: p. 97-101."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "5982944",
+	      "marcTag": "001",
+	      "fieldTag": "o"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "260",
+	      "fieldTag": "p",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Boston :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "Routledge & Kegan Paul,"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "1980."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "300",
+	      "fieldTag": "r",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "xiii, 104 p. ;"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "22 cm."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": "0",
+	      "marcTag": "830",
+	      "fieldTag": "s",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "International library of sociology."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "1",
+	      "ind2": " ",
+	      "marcTag": "490",
+	      "fieldTag": "s",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "International library of sociology."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": "1",
+	      "ind2": "0",
+	      "marcTag": "245",
+	      "fieldTag": "t",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "Violent criminal acts and actors :"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "a symbolic interactionist study /"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "Lonnie H. Athens."
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "935",
+	      "fieldTag": "v",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": ".b10491260"
+	        },
+	        {
+	          "tag": "b",
+	          "content": "04-30-03"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "01-19-96"
+	        }
+	      ]
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "content": "800721s1980    mau      b    001 0 eng  nam a ",
+	      "marcTag": "008",
+	      "fieldTag": "y"
+	    },
+	    {
+	      "ind1": " ",
+	      "ind2": " ",
+	      "marcTag": "040",
+	      "fieldTag": "y",
+	      "subfields": [
+	        {
+	          "tag": "a",
+	          "content": "DLC"
+	        },
+	        {
+	          "tag": "c",
+	          "content": "DLC"
+	        },
+	        {
+	          "tag": "d",
+	          "content": "UMK"
+	        }
+	      ]
+	    },
+	    {
+	      "content": "00000nam  2200000 a 4500",
+	      "fieldTag": "_"
+	    }
+	  ],
+	  "suppressed": false,
+	  "createdDate": "2006-04-04T22:40:15Z",
+	  "fixedFields": {
+	    "24": {
+	      "label": "Language",
+	      "value": "eng",
+	      "display": "English"
+	    },
+	    "25": {
+	      "label": "Skip",
+	      "value": "0"
+	    },
+	    "26": {
+	      "label": "Location",
+	      "value": "law  ",
+	      "display": "Law"
+	    },
+	    "27": {
+	      "label": "COPIES",
+	      "value": "1"
+	    },
+	    "28": {
+	      "label": "Cat. Date",
+	      "value": "1996-03-12"
+	    },
+	    "29": {
+	      "label": "Bib Level",
+	      "value": "m",
+	      "display": "MONOGRAPH"
+	    },
+	    "30": {
+	      "label": "Material Type",
+	      "value": "a  ",
+	      "display": "Book/Journal"
+	    },
+	    "80": {
+	      "label": "Record Type",
+	      "value": "b"
+	    },
+	    "81": {
+	      "label": "Record Number",
+	      "value": "1000677"
+	    },
+	    "83": {
+	      "label": "Created Date",
+	      "value": "2006-04-04T22:40:15Z"
+	    },
+	    "84": {
+	      "label": "Updated Date",
+	      "value": "2009-11-10T22:16:07Z"
+	    },
+	    "85": {
+	      "label": "No. of Revisions",
+	      "value": "3"
+	    },
+	    "86": {
+	      "label": "Agency",
+	      "value": "1"
+	    },
+	    "89": {
+	      "label": "Country",
+	      "value": "mau",
+	      "display": "Massachusetts"
+	    },
+	    "98": {
+	      "label": "PDATE",
+	      "value": "2006-05-13T22:16:47Z"
+	    },
+	    "107": {
+	      "label": "MARC Type",
+	      "value": " "
+	    }
+	  },
+	  "updatedDate": "2009-11-10T22:16:07Z"
+	}
+}

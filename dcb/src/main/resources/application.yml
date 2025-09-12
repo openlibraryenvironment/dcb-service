@@ -255,6 +255,20 @@ dcb:
   globals:
     active-request-limit: 25
 
+  # Add any proper config-based rulesets here, for defaults.
+  rulesets:
+    folio999t:
+      type: "DISJUNCTIVE"
+      conditions:
+        - operation: propertyPresent
+          property: "metadata.record.fields.999.subfields.t"
+          negated: true
+
+        - operation: propertyValueAnyOf
+          property: "metadata.record.fields.999.subfields.t"
+          values: [ "1", "true" ]
+          negated: true
+
 concurrency:
   groups:
     default: 

@@ -25,7 +25,6 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.conversion.SourceToIngestRecordConverter;
@@ -36,6 +35,7 @@ import org.olf.dcb.ingest.model.RawSource;
 import org.olf.dcb.processing.matching.goldrush.GoldrushKey;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.olf.dcb.utils.DCBStringUtilities;
+import org.olf.dcb.utils.EditionNormalizer;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,8 +51,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import services.k_int.integration.marc4j.Marc4jRecordUtils;
-
-import org.olf.dcb.utils.EditionNormalizer;
 
 public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordConverter {
 
@@ -523,6 +521,24 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	Publisher<T> getResources(Instant since, Publisher<String> terminator);
 
 	IngestRecordBuilder initIngestRecordBuilder(T resource);
+	
+	private Mono<IngestRecordBuilder> reactiveInitIngestRecordBuilder(T resource) {
+		return Mono.justOrEmpty(resource)
+			.zipWhen(res -> Mono.just( initIngestRecordBuilder(res) ))
+			.flatMap(TupleUtils.function(this::reactiveIngestRecordBuilderChanges));
+	}
+	
+	/**
+	 * Called after initIngestRecordBuilder to allow reactive style (none-blocking) changes to the
+	 * builder.
+	 * 
+	 * @param resource
+	 * @param ingestRecordBuilder
+	 * @return IngestRecordBuilder
+	 */
+	default Mono<IngestRecordBuilder> reactiveIngestRecordBuilderChanges(@NonNull T resource, @NonNull IngestRecordBuilder ingestRecordBuilder) {
+		return Mono.just( ingestRecordBuilder );
+	}
 
 	Record resourceToMarc(T resource);
 	
@@ -535,7 +551,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 				.publishOn(Schedulers.boundedElastic())
 				.subscribeOn(Schedulers.boundedElastic())
-				.map(this::initIngestRecordBuilder)
+				.flatMap( this::reactiveInitIngestRecordBuilder )
 				.zipWith(Mono.justOrEmpty( resourceToMarc(resource) ) ) // For zipWith to emit a value the zipWith value must not be Empty -  or zipWith also emits Empty
         .switchIfEmpty(
           Mono.defer(() -> {
@@ -556,42 +572,32 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	
 	
 	@Override
-	default IngestRecord convertSourceToIngestRecord( @NonNull SourceRecord source ) throws DcbException {
+	default Mono<IngestRecord> convertSourceToIngestRecord( @NonNull SourceRecord source ) {
 		
 		try {
-			// This is less than ideal. The whole flow of this needs work, and properly moving to
-			// the internal Micronaut Marshaling/Conversion suite of utilities.
+			final T internalRecord = convertSourceToInternalType(source);
+			final Record marc = resourceToMarc(internalRecord);
 			
-			// Convert to internal source type.
-			T internalRecord = convertSourceToInternalType(source);
-			
-			// Initialize the ingestRecordBuilder from data that isn't necessarily contained
-			// in the Marc-based section of this record.
-			IngestRecordBuilder irBuilder = initIngestRecordBuilder(internalRecord);
-
-      if ( source.getId() == null )
-        log.warn("convertSourceToIngest - source record has null id {} {}",source.getRemoteId(), source.getHostLmsId());
-
-      // We need this explicit hook to be able to force reprocessing when we encounter bad clusters.
-      irBuilder.sourceRecordUuid(source.getId());
-			
-			// Grab a standardised Marc view. This is possibly null if we have a record
-			// representing a deleted resource as the marc record portion is often not
-			// available in the remote system.
-			Record marc = resourceToMarc(internalRecord);
-			if ( marc == null ) {
-				log.warn("Couldn't get Marc portion of source [{}], default empty", source);
-			} else {
-				irBuilder = populateRecordFromMarc(irBuilder, marc);
-			}		
-			
-			// Build the record
-			IngestRecord ir = irBuilder.build();
-			
-			return ir;
+			return reactiveInitIngestRecordBuilder(internalRecord)
+				.map( irBuilder -> {
+					final var sid = source.getId();
+					if ( sid == null )
+			      log.warn("convertSourceToIngest - source record has null id {} {}",source.getRemoteId(), source.getHostLmsId());
+					
+					// Set the ID
+					irBuilder.sourceRecordUuid(sid);
+					
+					// Add the marc detail if there is any
+					if ( marc == null ) {
+						log.warn("Couldn't get Marc portion of source [{}], default empty", source);
+						return irBuilder;
+					}
+					return populateRecordFromMarc(irBuilder, marc);
+				})
+				.map( IngestRecordBuilder::build );
 		} catch (Exception e) {
       log.error("Conversion error",e);
-			throw new DcbError("Error converting MARC source record to IngestRecord", e);
+			return Mono.error(new DcbError("Error converting MARC source record to IngestRecord", e));
 		}
 	}
 	

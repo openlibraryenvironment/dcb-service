@@ -1,0 +1,36 @@
+dcb:
+  rulesets:
+    folio999t:
+      type: "DISJUNCTIVE"
+      conditions:
+        - operation: propertyPresent
+          property: "metadata.record.fields.999.subfields.t"
+          negated: true
+
+        - operation: propertyValueAnyOf
+          property: "metadata.record.fields.999.subfields.t"
+          values: [ "1", "true" ]
+          negated: true
+      
+    sierraff31:
+      type: DISJUNCTIVE
+      conditions:
+        - operation: propertyPresent
+          property: "fixedFields.31.value"
+          negated: true
+ 
+        - operation: propertyValueAnyOf
+          property: "fixedFields.31.value"
+          values: ["z", "s", "f", "n"]
+          negated: true
+#    - name: SOME_FILTERSET_NAME,
+#      type: "DISJUNCTIVE"
+#      conditions:
+#        - operation: propertyPresent
+#          property: "fixedFields.3.value"
+#          negated: true
+#
+#        - operation: propertyValueAnyOf
+#          property: fixedFields.3.value
+#          values: ["l", "d", "c"]
+#          negated: true
