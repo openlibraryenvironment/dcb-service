@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 8.49.0
+
+### Additions
+* [General]
+	* Update counts from ad-hock live availability check also
+	* Add back-off for availability check and default to 7 days
+
+### Fixes
+* [General]
+	* the setting of the next scheduled check / remove alarm
+	* reply to the correct prompt on modification of barcode in polaris
+	* ensure polaris prompt matches correct [DCB-2024]
+
 ## Version 8.48.0
 
 ### Additions
@@ -9,6 +22,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Added a comment to the tracking sql to remind you to keep the index aligned with the where clause
 
 ### Fixes
