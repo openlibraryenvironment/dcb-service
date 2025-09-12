@@ -697,7 +697,7 @@ class ApplicationServicesClient {
 		return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class))
 			.doOnError(e -> log.info("Error response for save item {}", workflowRequest, e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
-			.flatMap(response -> handlePolarisWorkflow(response, NoDisplayInPAC, Continue))
+			.flatMap(response -> replyIfPromptMatches(response, NoDisplayInPAC, Continue))
 			// confirm the barcode changed on update (only applies to update requests)
 			.flatMap(response -> replyIfPromptMatches(response, ConfirmItemBarcodeChanged, Continue))
 			// saving an item with a duplicate barcode causes the hold request to fail
