@@ -120,7 +120,7 @@ public class PatronRequestWorkflowService {
 		// apply Transition will call recursively until we run out of possible actions, then we pass through this leg
 		// and set the next check.
 		// II: Dsabled this for now far too verbose
-		if ( false && (action.isEmpty())) {
+		if ((action.isEmpty())) {
 			log.debug("WORKFLOW Unable to progress {} - no transformations available from state {}",
 				ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 
@@ -132,8 +132,7 @@ public class PatronRequestWorkflowService {
 					// .alarmDetail()
 					.build();
 
-			return alarmsService.raise(alarm)
-				.then( incrementStateTransitionMetrics(ctx, Boolean.FALSE) )
+			return incrementStateTransitionMetrics(ctx, Boolean.FALSE)
 				// note: increments will only be saved by scheduleNextCheck
 				.flatMap(this::scheduleNextCheck)
 				.flatMap(ctx2 -> Mono.empty());
