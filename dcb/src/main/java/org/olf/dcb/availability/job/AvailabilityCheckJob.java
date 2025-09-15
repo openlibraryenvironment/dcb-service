@@ -20,6 +20,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.RecordClusteringService.MissingAvailabilityInfo;
@@ -332,7 +333,25 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	 * Ideally this would be moved and centralized. For Brevity we are adding here to try and benefit from the
 	 * live lookups that happen as part of user interaction.
 	 */
-	public Flux<BibAvailabilityCount> updateCountsFromAvailabilityReport( BibRecord bib, AvailabilityReport rep ) {
+	@Transactional
+	public Mono<UUID> updateCountsForSingleBibAvailability( BibRecord bib, AvailabilityReport rep ) {
+		final var updateIndex = Mono.fromSupplier( bib::getContributesTo )
+			.map( ClusterRecord::getId )
+			.map( crId -> {
+				sharedIndexService.add(crId);
+				return crId;
+			});
+		
+		return availabilityReportToCountEntries(bib, rep)
+			.onErrorResume(e -> {
+				log.error("Error building map from availability reports", e);
+				return Flux.empty();
+			})
+			.flatMap( this::updateMappingIfRequired )
+			.then( updateIndex );
+	}
+	
+	private Flux<BibAvailabilityCount> updateCountsFromAvailabilityReport( BibRecord bib, AvailabilityReport rep ) {
 		return availabilityReportToCountEntries(bib, rep)
 			.onErrorResume(e -> {
 				log.error("Error building map from availability reports", e);
@@ -342,17 +361,17 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	
 	private Map<String, Map<String, Collection<BibAvailabilityCount>>> reindexAffectedClusters (Map<String, Map<String, Collection<BibAvailabilityCount>>> vals) {
 		for (var clusterCount : vals.entrySet()) {
-			var availabilityMap = clusterCount.getValue();
 			var clusterId = clusterCount.getKey();
 			
 			if (log.isDebugEnabled()) {
+				var availabilityMap = clusterCount.getValue();
 				final String deets = availabilityMap.entrySet().stream()
 					.map(e -> "%s=%s".formatted(e.getKey(), e.getValue()))
 					.collect(Collectors.joining(","));
 				log.debug("Avaiability for [{}]: {}", clusterId, deets);
 			}
 			
-			sharedIndexService.update( UUID.fromString( clusterId ));
+			sharedIndexService.update( UUID.fromString( clusterId ) );
 		}
 		
 		return vals;

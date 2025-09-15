@@ -95,9 +95,9 @@ public class LiveAvailabilityService {
 			return Mono.just(report);
 		}
 		
-		log.info("Try update counts for bib [{}] from live lookup data");
+		log.info("Try update counts for bib [{}] from live lookup data", bib.getId());
 		return availability.get()
-			.updateCountsFromAvailabilityReport(bib, report).then()
+			.updateCountsForSingleBibAvailability(bib, report)
 			.thenReturn(report)
 			.onErrorReturn(report)
 			.doOnError( e -> log.warn("Error updating counts from returned data in live lookup"));
