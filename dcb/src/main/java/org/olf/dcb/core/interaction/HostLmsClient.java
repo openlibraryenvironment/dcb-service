@@ -106,7 +106,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 
 	Mono<HostLmsItem> getItem(HostLmsItem item);
 
-	Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId);
+	Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs);
 
 	// WARNING We might need to make this accept a patronIdentity - as different
 	// systems might take different ways to identify the patron

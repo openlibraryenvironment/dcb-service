@@ -1662,7 +1662,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	// II: We need to talk about this in a review session
 	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
+	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
+
+		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
+
 		log.debug("updateItemStatus({},{})", itemId, crs);
 
 		// Guard clause for NullPointerException DCB-1398
@@ -1832,8 +1835,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		}
 
 		log.debug("checkOutItemToPatron({},{})", itemId, patronBarcode);
+		
+		final var hostLmsItem = HostLmsItem.builder().localId(itemId).build();
 
-		return updateItemStatus(itemId, AVAILABLE, localRequestId)
+		return updateItemStatus(hostLmsItem, AVAILABLE)
 			.flatMap(ok -> {
 
 				final var itemBarcode = getValueOrNull(checkout, CheckoutItemCommand::getItemBarcode);

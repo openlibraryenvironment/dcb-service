@@ -8,6 +8,7 @@ import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -17,6 +18,8 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Singleton
@@ -115,12 +118,20 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 		if ((rwc.getSupplierRequest() != null) && (rwc.getLenderSystemCode() != null)) {
 
 			final var supplierRequest = rwc.getSupplierRequest();
+			final var localRequestId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
+			final var localItemId = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemId);
+			final var localBibId = getValueOrNull(supplierRequest, SupplierRequest::getLocalBibId);
+			final var localHoldingsId = getValueOrNull(supplierRequest, SupplierRequest::getLocalHoldingId);
+			final var hostLmsItem = HostLmsItem.builder()
+				.localId(localItemId)
+				.bibId(localBibId)
+				.holdingId(localHoldingsId)
+				.localRequestId(localRequestId)
+				.build();
 
 			return hostLmsService.getClientFor(rwc.getLenderSystemCode())
 				// updateItemStatus here should be clearing the m-flag (Message)
-				.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(
-					supplierRequest.getLocalItemId(),
-					CanonicalItemState.RECEIVED, supplierRequest.getLocalId()))
+				.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(hostLmsItem, CanonicalItemState.RECEIVED))
 				.thenReturn(rwc);
 		}
 
@@ -142,12 +153,19 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 		final var patronSystemCode = requestWorkflowContext.getPatronSystemCode();
 		final var patronRequest = requestWorkflowContext.getPatronRequest();
 		final var localItemId = patronRequest.getLocalItemId();
-		final var localRequestId = patronRequest.getLocalRequestId();
+		final var localBibId = getValueOrNull(patronRequest, PatronRequest::getLocalBibId);
+		final var localHoldingsId = getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId);
+		final var localRequestId = getValueOrNull(patronRequest, PatronRequest::getLocalRequestId);
+		final var hostLmsItem = HostLmsItem.builder()
+			.localId(localItemId)
+			.bibId(localBibId)
+			.holdingId(localHoldingsId)
+			.localRequestId(localRequestId)
+			.build();
 
 		return hostLmsService.getClientFor(patronSystemCode)
 			// updateItemStatus here should be clearing the m-flag (Message)
-			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(localItemId,
-				CanonicalItemState.RECEIVED, localRequestId))
+			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(hostLmsItem, CanonicalItemState.RECEIVED))
 			.thenReturn(requestWorkflowContext);
 	}
 

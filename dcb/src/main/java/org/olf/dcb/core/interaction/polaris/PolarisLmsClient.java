@@ -878,8 +878,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
+	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
 		log.warn("Attempting to update an item status.");
+
+		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
 		
 		return switch (crs) {
 			case AVAILABLE -> updateItemToAvailable(itemId).thenReturn("OK");
@@ -1111,8 +1113,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 
 		final var patronBarcode = getValueOrNull(checkout, CheckoutItemCommand::getPatronBarcode);
+		final var hostLmsItem = HostLmsItem.builder().localId(itemId).build();
 
-		return updateItemStatus(itemId, CanonicalItemState.AVAILABLE, localRequestId)
+		return updateItemStatus(hostLmsItem, CanonicalItemState.AVAILABLE)
 			.doOnNext(__ -> log.info("checkOutItemToPatron({}, {}, {})", itemId, patronBarcode, localRequestId))
 			.then(Mono.zip(
 				ApplicationServices.getItemBarcode(itemId),

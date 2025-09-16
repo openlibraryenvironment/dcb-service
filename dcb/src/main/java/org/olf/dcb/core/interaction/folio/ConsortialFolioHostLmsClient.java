@@ -1026,9 +1026,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<String> updateItemStatus(
-		String itemId, CanonicalItemState crs, String localRequestId) {
+	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
 
+		final var localRequestId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalRequestId);
 		final var toStatus = mapToTransactionStatus(crs);
 
 		// Don't send a request if we don't have a crs translation

@@ -4,9 +4,11 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 
 /** TODO: Convert this into a PatronRequestStateTransition */
@@ -83,10 +86,19 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 			log.debug("Update patron system item: {}", rwc.getPatronRequest().getLocalItemId());
 
 			final var patronRequest = rwc.getPatronRequest();
+			final var localItemId = getValueOrNull(patronRequest, PatronRequest::getLocalItemId);
+			final var localBibId = getValueOrNull(patronRequest, PatronRequest::getLocalBibId);
+			final var localHoldingsId = getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId);
+			final var localRequestId = getValueOrNull(patronRequest, PatronRequest::getLocalRequestId);
+			final var hostLmsItem = HostLmsItem.builder()
+				.localId(localItemId)
+				.bibId(localBibId)
+				.holdingId(localHoldingsId)
+				.localRequestId(localRequestId)
+				.build();
 
 			return hostLmsService.getClientFor(rwc.getPatronSystemCode())
-		 		.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(
-					patronRequest.getLocalItemId(), TRANSIT, patronRequest.getLocalRequestId()))
+		 		.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(hostLmsItem, TRANSIT))
 				.thenReturn(rwc);
 		}
 		else {
@@ -104,8 +116,18 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 			log.debug("Update PUA item: {}", pickupItemId);
 
 			final var pickupSystem = rwc.getPickupSystem();
+			final var localItemId = getValueOrNull(patronRequest, PatronRequest::getPickupItemId);
+			final var localBibId = getValueOrNull(patronRequest, PatronRequest::getPickupBibId);
+			final var localHoldingsId = getValueOrNull(patronRequest, PatronRequest::getPickupHoldingId);
+			final var localRequestId = getValueOrNull(patronRequest, PatronRequest::getPickupRequestId);
+			final var hostLmsItem = HostLmsItem.builder()
+				.localId(localItemId)
+				.bibId(localBibId)
+				.holdingId(localHoldingsId)
+				.localRequestId(localRequestId)
+				.build();
 
-			return pickupSystem.updateItemStatus(pickupItemId, TRANSIT, patronRequest.getPickupRequestId())
+			return pickupSystem.updateItemStatus(hostLmsItem, TRANSIT)
 				.doOnSuccess(item -> log.debug("Updated PUA item: {}", item))
 				.thenReturn(rwc);
 		}

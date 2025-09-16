@@ -1,7 +1,6 @@
 package org.olf.dcb.request.workflow;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
@@ -22,6 +21,8 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Singleton
@@ -54,11 +55,20 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 	private Mono<String> updateBorrowerThatItemHasBeenReceivedBack(PatronRequest patronRequest) {
 
-		final var localId = patronRequest.getLocalRequestId();
-		final var localItemId = patronRequest.getLocalItemId();
+		final var localRequestId = getValueOrNull(patronRequest, PatronRequest::getLocalRequestId);
+		final var localItemId = getValueOrNull(patronRequest, PatronRequest::getLocalItemId);
+		final var localBibId = getValueOrNull(patronRequest, PatronRequest::getLocalBibId);
+		final var localHoldingsId = getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId);
+		final var hostLmsItem = HostLmsItem.builder()
+			.localId(localItemId)
+			.bibId(localBibId)
+			.holdingId(localHoldingsId)
+			.localRequestId(localRequestId)
+			.build();
 
 		return hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())
-			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(localItemId, HostLmsClient.CanonicalItemState.COMPLETED, localId));
+			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(hostLmsItem,
+				HostLmsClient.CanonicalItemState.COMPLETED));
 	}
 
 

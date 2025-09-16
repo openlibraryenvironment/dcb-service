@@ -376,7 +376,10 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.empty();
 	}
 
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
+	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
+
+		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
+
 		log.info("updateItemStatus({},{})", itemId, crs);
 		return Mono.just("Dummy");
 	}

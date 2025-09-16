@@ -1226,7 +1226,8 @@ class PolarisLmsClientTests {
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
-		final var string = singleValueFrom(client.updateItemStatus(localItemId, AVAILABLE, null));
+		final var hostLmsItem = HostLmsItem.builder().localId(localItemId).build();
+		final var string = singleValueFrom(client.updateItemStatus(hostLmsItem, AVAILABLE));
 
 		// Assert
 		assertThat(string, is(notNullValue()));

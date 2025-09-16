@@ -1030,7 +1030,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<String> updateItemStatus(String itemId, CanonicalItemState crs, String localRequestId) {
+	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
+
+		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
+		final var bibId = getValueOrNull(hostLmsItem, HostLmsItem::getBibId);
+		final var holdingsId = getValueOrNull(hostLmsItem, HostLmsItem::getHoldingId);
+
+		log.debug("Updating item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
+
 		// We need a way to let an alma system know that a supplier has put the item in transit
 		// updating an item status isn't going to work here so we need to do something else
 
