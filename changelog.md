@@ -1,11 +1,27 @@
 # Changelog
 
+## Version 8.50.0
+
+### Additions
+* [General]
+	* Allow supplier cancellation / re-resolution for PUA requests [DCB-1534]
+	* support excluded lms from re-resolution - until Alma impl [DCB-1542]
+	* Alma Pickup Anywhere [DCB-1542]
+
+### Fixes
+* [General]
+	* Save counts from live availability lookup controller
+
 ## Version 8.49.0
 
 ### Additions
 * [General]
 	* Update counts from ad-hock live availability check also
 	* Add back-off for availability check and default to 7 days
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
