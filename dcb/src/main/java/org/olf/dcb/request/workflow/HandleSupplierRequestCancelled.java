@@ -2,10 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.*;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -40,7 +37,7 @@ public class HandleSupplierRequestCancelled extends AbstractPatronRequestStateTr
 		PatronRequestAuditService patronRequestAuditService) {
 
 		super(List.of(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED,
-			REQUEST_PLACED_AT_BORROWING_AGENCY));
+			REQUEST_PLACED_AT_BORROWING_AGENCY, REQUEST_PLACED_AT_PICKUP_AGENCY));
 
 		this.supplierRequestService = supplierRequestService;
 		this.patronRequestAuditService = patronRequestAuditService;
