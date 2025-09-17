@@ -182,7 +182,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 // === Library-code resolvers ===
 
-	// Supplier / Pickup: always use the configured "DCB library"
+	// Supplier: always use the configured "DCB library"
 	// This is used to define a library outside the system
 	// Note:we may want to use the location service to drive this
 	// however we are following a pattern used in other hostlms
@@ -192,7 +192,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return lib;
 	}
 
-	// Borrowing / Local: try to derive the Alma library code from pickupLocation.localId
+	// Borrowing / Local / pickup: try to derive the Alma library code from pickupLocation.localId
 	// expectation here is that all location records will have the localId value set
 	private String resolveLibraryFromLocationRecord(DCBHold h) {
 		final var loc = h.pickupLocation();
@@ -699,7 +699,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return null;
 	}
 
-
 	private List<UserIdentifier> createUserIdentifiers(Patron patron) {
 		final var identifierType = config.getUserIdentifier(ID_TYPE_INST_ID);
 		final String externalId = extractExternalId(patron);
@@ -780,7 +779,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return client.cancelUserRequest(userId, localRequestId)
 			.thenReturn(parameters.getLocalRequestId());
 	}
-
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal renewal) {
@@ -1025,26 +1023,40 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					returnHostLmsItem = deriveItemStatusFromProcessType(returnHostLmsItem, almaItemData);
 
 				return returnHostLmsItem;
-			}
-			);
+			});
 	}
 
 	@Override
 	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
-
-		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
 		final var bibId = getValueOrNull(hostLmsItem, HostLmsItem::getBibId);
 		final var holdingsId = getValueOrNull(hostLmsItem, HostLmsItem::getHoldingId);
-
+		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
 		log.debug("Updating item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
 
-		// We need a way to let an alma system know that a supplier has put the item in transit
-		// updating an item status isn't going to work here so we need to do something else
+		return client.retrieveItem(bibId, holdingsId, itemId)
+			.map(data -> {
+				final var almaItemData = getValueOrNull(data, AlmaItem::getItemData);
+				// working theory as of 17/09/2025
+				// that the item possesses the location we want to scan in at
+				final var libraryCode = getValueOrNull(almaItemData, AlmaItemData::getLibrary, CodeValuePair::getValue);
+				// each location should have its default circ desk set
+				// the intention to override this is to handle the default code changing for a system
+				final var defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
 
-		// until we understand alma better we pass through here so we can progress the DCB workflow
+				return new ScanInQuery(bibId, holdingsId, itemId, libraryCode, defaultCircDesk);
+			})
+			.flatMap(client::scanIn)
+			.map(data -> {
+				final var almaItemData = getValueOrNull(data, AlmaItem::getItemData);
+				final var baseStatus = getValueOrNull(almaItemData, AlmaItemData::getBaseStatus, CodeValuePair::getValue);
+				final var processType = getValueOrNull(almaItemData, AlmaItemData::getProcess_type, CodeValuePair::getValue);
+				log.debug("Updated item {} with baseStatus {} and processType {}", itemId, baseStatus, processType);
 
-		return Mono.just("OK");
+				return "OK";
+			});
 	}
+
+	public record ScanInQuery(String mms_id, String holding_id, String item_pid, String library, String circ_desk) {}
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
@@ -1177,37 +1189,37 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
-  public Mono<PingResponse> ping() {
-    Instant start = Instant.now();
-    return Mono.from(client.test())
-      .flatMap( tokenInfo -> {
-        return Mono.just(PingResponse.builder()
-          .target(getHostLmsCode())
+	public Mono<PingResponse> ping() {
+		Instant start = Instant.now();
+		return Mono.from(client.test())
+			.flatMap( tokenInfo -> {
+				return Mono.just(PingResponse.builder()
+					.target(getHostLmsCode())
 					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-          .status("OK")
-          .pingTime(Duration.between(start, Instant.now()))
-          .build());
-      })
-      .onErrorResume( e -> {
-        return Mono.just(PingResponse.builder()
-          .target(getHostLmsCode())
-          .status("ERROR")
+					.status("OK")
+					.pingTime(Duration.between(start, Instant.now()))
+					.build());
+			})
+			.onErrorResume( e -> {
+				return Mono.just(PingResponse.builder()
+					.target(getHostLmsCode())
+					.status("ERROR")
 					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-          .additional(e.getMessage())
-          .pingTime(Duration.ofMillis(0))
-          .build());
-      })
+					.additional(e.getMessage())
+					.pingTime(Duration.ofMillis(0))
+					.build());
+			})
 
-    ;
-  }
+		;
+	}
 
-  public String getHostSystemType() {
-    return "ALMA";
-  }
-  
-  public String getHostSystemVersion() {
-    return "v1";
-  }
+	public String getHostSystemType() {
+		return "ALMA";
+	}
+
+	public String getHostSystemVersion() {
+		return "v1";
+	}
 
 	public Item mapAlmaItemToDCBItem(AlmaItem almaItem) {
 
@@ -1230,30 +1242,30 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			: Boolean.FALSE;
 
 		return Item.builder()
-		  .localId(almaItem.getItemData().getPid())
-		  .status(derivedItemStatus)
+			.localId(almaItem.getItemData().getPid())
+			.status(derivedItemStatus)
 			// In alma we need to query the Loans API to get the due date
-		  .dueDate(due_back_instant)
+			.dueDate(due_back_instant)
 			// alma library = library of the item, location = shelving location
-	  	.location(derivedLocation)
-		  .barcode(almaItem.getItemData().getBarcode())
-		  .callNumber(almaItem.getHoldingData().getCallNumber())
-		  .isRequestable(isRequestable)
-      // ToDo - This data needs to be retrieved from GET /almaws/v1/items/{mms_id}/{holding_id}/{item_pid}
-		  .holdCount(0)
-		  .localBibId(almaItem.getBibData().getMmsId())
+			.location(derivedLocation)
+			.barcode(almaItem.getItemData().getBarcode())
+			.callNumber(almaItem.getHoldingData().getCallNumber())
+			.isRequestable(isRequestable)
+			// ToDo - This data needs to be retrieved from GET /almaws/v1/items/{mms_id}/{holding_id}/{item_pid}
+			.holdCount(0)
+			.localBibId(almaItem.getBibData().getMmsId())
 			// this item type looks to be used for auditing
-		  .localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
+			.localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
 			// this item type code is used for mapping
-		  .localItemTypeCode(almaItem.getItemData().getPhysicalMaterialType().getValue())
-		  .canonicalItemType(null)
-		  .deleted(null)
-		  .suppressed( derivedSuppression )
-		  .owningContext(getHostLms().getCode())
+			.localItemTypeCode(almaItem.getItemData().getPhysicalMaterialType().getValue())
+			.canonicalItemType(null)
+			.deleted(null)
+			.suppressed( derivedSuppression )
+			.owningContext(getHostLms().getCode())
 			// Need to query loans API for this
-		  .availableDate(null)
-  		.rawVolumeStatement(null)
- 			.parsedVolumeStatement(null)
+			.availableDate(null)
+			.rawVolumeStatement(null)
+			.parsedVolumeStatement(null)
 			.build();
 	}
 
@@ -1347,12 +1359,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
-  public String getHostLmsCode() {
-    String result = hostLms.getCode();
-    if ( result == null ) {
-      log.warn("getCode from hostLms returned NULL : {}",hostLms);
-    }
-    return result;
-  }
-
+	public String getHostLmsCode() {
+		String result = hostLms.getCode();
+		if ( result == null ) {
+			log.warn("getCode from hostLms returned NULL : {}",hostLms);
+		}
+		return result;
+	}
 }

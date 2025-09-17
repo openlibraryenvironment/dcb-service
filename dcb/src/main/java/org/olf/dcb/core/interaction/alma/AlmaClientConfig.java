@@ -31,6 +31,8 @@ public class AlmaClientConfig {
 		= stringPropertyDefinition("shelf-location", "Shelf location for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
 		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
+	private static final HostLmsPropertyDefinition DEFAULT_CIRC_DESK_CODE
+		= stringPropertyDefinition("default-circ-desk-code", "Default circ desk code used for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition USER_IDENTIFIER
 		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
 
@@ -70,6 +72,10 @@ public class AlmaClientConfig {
 
 	String getPickupCircDesk(String defaultValue) {
 		return PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
+	}
+
+	String getDefaultCircDeskCode(String defaultValue) {
+		return DEFAULT_CIRC_DESK_CODE.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
 	String getUserIdentifier(String defaultValue) {

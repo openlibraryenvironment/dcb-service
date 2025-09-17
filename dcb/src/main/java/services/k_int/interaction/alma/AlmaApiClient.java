@@ -1,6 +1,7 @@
 package services.k_int.interaction.alma;
 
 import io.micronaut.http.MediaType;
+import org.olf.dcb.core.interaction.alma.AlmaHostLmsClient;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.AlmaUser;
@@ -301,5 +302,19 @@ public interface AlmaApiClient {
 	 */
 	default Mono<String> test() {
 		return get("/almaws/v1/conf/test", String.class);
+	}
+
+	/**
+	 * Scan-in operation on item.
+	 * <p>
+	 * API: POST /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UE9TVCAvYWxtYXdzL3YxL2JpYnMve21tc19pZH0vaG9sZGluZ3Mve2hvbGRpbmdfaWR9L2l0ZW1zL3tpdGVtX3BpZH0=/
+	 */
+	default Mono<AlmaItem> scanIn(AlmaHostLmsClient.ScanInQuery query) {
+		return post(
+			"/almaws/v1/bibs/" + query.mms_id() + "/holdings/" + query.holding_id() + "/items/" + query.item_pid(),
+			null,
+			AlmaItem.class,
+			Map.of("op", "scan", "library", query.library(), "circ_desk", query.circ_desk()));
 	}
 }
