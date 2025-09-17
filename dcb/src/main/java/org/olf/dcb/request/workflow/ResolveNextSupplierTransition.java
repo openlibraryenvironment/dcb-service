@@ -15,6 +15,8 @@ import static reactor.function.TupleUtils.function;
 import java.util.List;
 import java.util.Optional;
 
+import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
@@ -57,13 +59,15 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private final BeanProvider<SupplierRequestService> supplierRequestServiceProvider;
 	private SupplierRequestService supplierRequestService;
 	private final ConsortiumService consortiumService;
+	private final List<String> excludedLmsCodes;
 
-	ResolveNextSupplierTransition(HostLmsService hostLmsService,
+	public ResolveNextSupplierTransition(HostLmsService hostLmsService,
 		PatronRequestAuditService patronRequestAuditService,
 		PatronRequestResolutionService patronRequestResolutionService,
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
 		BeanProvider<SupplierRequestService> supplierRequestServiceProvider,
-		ConsortiumService consortiumService) {
+		ConsortiumService consortiumService,
+		@Value("${dcb.reresolution.excluded.lms.codes:}") @Nullable List<String> excludedLmsCodes) {
 
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
@@ -73,6 +77,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.supplierRequestServiceProvider = supplierRequestServiceProvider;
 		this.consortiumService = consortiumService;
+		this.excludedLmsCodes = excludedLmsCodes;
 	}
 
 	@Override
@@ -82,9 +87,9 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
-		return isReResolutionRequired(getValueOrNull(context, RequestWorkflowContext::getPatronRequest))
+		return isReResolutionRequired(context)
 			.flatMap(isRequired -> {
-				log.info("Re-resolution required: {}", isRequired);
+				log.info(" required: {}", isRequired);
 
 				if (isRequired) {
           context.getWorkflowMessages().add("ReResolution is required");
@@ -105,7 +110,15 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.flatMap(this::markNoItemsAvailableAtAnyAgency);
 	}
 
-	private Mono<Boolean> isReResolutionRequired(PatronRequest patronRequest) {
+	private Mono<Boolean> isReResolutionRequired(RequestWorkflowContext context) {
+
+		final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
+		final var borrowingHostLmsCode = getValue(context, RequestWorkflowContext::getPatronSystemCode, null);
+
+		if (excludedLmsCodes.contains(borrowingHostLmsCode)) {
+			return Mono.just(false);
+		}
+
 		return isEnabled()
 			.zipWith(Mono.just(isItemManuallySelected(patronRequest)))
 			.map(function(ResolveNextSupplierTransition::isEnabledAndNotManuallySelectedItem));
