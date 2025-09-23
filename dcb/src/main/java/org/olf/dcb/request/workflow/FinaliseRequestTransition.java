@@ -1,7 +1,18 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
+import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
+import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowableMonoWrap;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.putAuditData;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.Patron;
@@ -9,19 +20,17 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.request.fulfilment.*;
+import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.PickupAgencyService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
+
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowableMonoWrap;
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.putAuditData;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Prototype
@@ -31,7 +40,8 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	private final BorrowingAgencyService borrowingAgencyService;
 	private final PickupAgencyService pickupAgencyService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.COMPLETED, Status. CANCELLED);
+	private static final List<Status> possibleSourceStatus = List.of(COMPLETED,
+		CANCELLED, NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 
 	public FinaliseRequestTransition(PatronRequestAuditService patronRequestAuditService,
 		SupplyingAgencyService supplyingAgencyService, BorrowingAgencyService borrowingAgencyService,
@@ -60,7 +70,7 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
 			.flatMap(this::cleanUpPickupSystemBasedOnWorkflow)
-			.then(Mono.just(patronRequest.setStatus(Status.FINALISED)))
+			.then(Mono.just(patronRequest.setStatus(FINALISED)))
 			.flatMap(auditStateOfRecordsAfterCleanUp(ctx));
 	}
 
@@ -157,7 +167,7 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	
 	@Override
 	public Optional<Status> getTargetStatus() {
-		return Optional.of(Status.FINALISED);
+		return Optional.of(FINALISED);
 	}
 
   @Override
@@ -172,7 +182,7 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 
 	@Override
 	public List<DCBTransitionResult> getOutcomes() {
-		return List.of(new DCBTransitionResult("FINALISED", Status.FINALISED.toString()));
+		return List.of(new DCBTransitionResult("FINALISED", FINALISED.toString()));
 	}
 
 	@Override
