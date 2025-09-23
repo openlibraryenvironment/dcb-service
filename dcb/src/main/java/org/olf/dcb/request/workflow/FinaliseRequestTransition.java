@@ -39,18 +39,20 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final BorrowingAgencyService borrowingAgencyService;
 	private final PickupAgencyService pickupAgencyService;
+	private final CleanupService cleanupService;
 
 	private static final List<Status> possibleSourceStatus = List.of(COMPLETED,
 		CANCELLED, NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 
 	public FinaliseRequestTransition(PatronRequestAuditService patronRequestAuditService,
 		SupplyingAgencyService supplyingAgencyService, BorrowingAgencyService borrowingAgencyService,
-		PickupAgencyService pickupAgencyService) {
+		PickupAgencyService pickupAgencyService, CleanupService cleanupService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.borrowingAgencyService = borrowingAgencyService;
 		this.pickupAgencyService = pickupAgencyService;
+		this.cleanupService = cleanupService;
 	}
 
 	/**
@@ -62,29 +64,12 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	 */
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-
 		PatronRequest patronRequest = ctx.getPatronRequest();
 		log.debug("WORKFLOW FinaliseRequestTransition firing for {}", patronRequest);
 
-		return Mono.just(ctx)
-			.flatMap(supplyingAgencyService::cleanUp)
-			.flatMap(borrowingAgencyService::cleanUp)
-			.flatMap(this::cleanUpPickupSystemBasedOnWorkflow)
+		return cleanupService.cleanup(ctx)
 			.then(Mono.just(patronRequest.setStatus(FINALISED)))
 			.flatMap(auditStateOfRecordsAfterCleanUp(ctx));
-	}
-
-	private Mono<RequestWorkflowContext> cleanUpPickupSystemBasedOnWorkflow(RequestWorkflowContext requestWorkflowContext) {
-		final var activeWorkflow = requestWorkflowContext.getPatronRequest().getActiveWorkflow();
-
-		if ("RET-PUA".equals(activeWorkflow)) {
-			log.debug("PUA workflow, cleaning up pickup system");
-
-			return pickupAgencyService.cleanUp(requestWorkflowContext);
-		}
-
-		log.debug("Not a PUA workflow, skipping cleanup of pickup system");
-		return Mono.just(requestWorkflowContext);
 	}
 
 	private Function<PatronRequest, Mono<RequestWorkflowContext>> auditStateOfRecordsAfterCleanUp(
