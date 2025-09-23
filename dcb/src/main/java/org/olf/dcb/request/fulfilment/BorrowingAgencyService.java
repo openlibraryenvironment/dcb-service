@@ -81,11 +81,13 @@ public class BorrowingAgencyService {
 			.map(patronRequest::placedAtBorrowingAgency);
 	}
 
-	private Mono<LocalRequest> updateExistingRequestFlow(
-		RequestWorkflowContext ctx,
+	private Mono<LocalRequest> updateExistingRequestFlow(RequestWorkflowContext ctx,
 		PatronRequest patronRequest, PatronIdentity borrowingIdentity,
 		HostLmsClient hostLmsClient, SupplierRequest supplierRequest)
 	{
+		final var bibId = getValueOrNull(patronRequest, PatronRequest::getLocalBibId);
+		final var holdingId = getValueOrNull(patronRequest, PatronRequest::getLocalHoldingId);
+
 		return getSupplyingAgencyCode(supplierRequest)
 			.map(supplyingAgencyCode -> LocalRequest.builder()
 				.localId(patronRequest.getLocalRequestId())
@@ -94,6 +96,8 @@ public class BorrowingAgencyService {
 				.supplyingAgencyCode(supplyingAgencyCode)
 				.supplyingHostLmsCode(supplierRequest.getHostLmsCode())
 				.canonicalItemType(supplierRequest.getCanonicalItemType())
+				.bibId(bibId)
+				.holdingId(holdingId)
 				.build())
 			.doOnSuccess(localRequest -> log.info("updateExistingRequestFlow({})", localRequest))
 			.flatMap(hostLmsClient::updateHoldRequest)

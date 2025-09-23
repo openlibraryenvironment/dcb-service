@@ -31,4 +31,6 @@ public class LocalRequest {
 	/** Once known, the suppliers host lms code */
 	@Nullable String supplyingHostLmsCode;
 
+	@Nullable String bibId;
+	@Nullable String holdingId;
 }

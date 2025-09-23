@@ -812,9 +812,35 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
-		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
-		return Mono.error(new NotImplementedException("Update patron request is not currently implemented in " + getHostLmsCode()));
+	public Mono<LocalRequest> updateHoldRequest(LocalRequest req) {
+		return Mono.defer(() -> {
+			final String bibId = require(req.getBibId(), "Bib ID");
+			final String holdingId = require(req.getHoldingId(), "Holding ID");
+			final String itemId = require(req.getRequestedItemId(), "Item ID");
+			final String barcode = require(req.getRequestedItemBarcode(), "Item Barcode");
+			final String canonicalItemType = require(req.getCanonicalItemType(), "Canonical Item Type");
+
+			Mono<String> mappedType = getMappedItemType(canonicalItemType)
+				.switchIfEmpty(Mono.error(new IllegalArgumentException("Unknown canonical item type: " + canonicalItemType)));
+
+			return Mono.zip(client.retrieveItem(bibId, holdingId, itemId), mappedType)
+				.map(t -> applyUpdates(t.getT1(), barcode, t.getT2()))
+				.flatMap(updated -> client.updateItem(bibId, holdingId, itemId, updated))
+				.thenReturn(req);
+		});
+	}
+
+	private static <T> T require(T value, String name) {
+		if (value == null) throw new IllegalArgumentException(name + " is required for updating a hold request.");
+		return value;
+	}
+
+	private static AlmaItem applyUpdates(AlmaItem item, String newBarcode, String newType) {
+		var data = item.getItemData();
+		data.setBarcode(newBarcode);
+		data.setPhysicalMaterialType(CodeValuePair.builder().value(newType).build());
+		item.setItemData(data);
+		return item;
 	}
 
 	@Override

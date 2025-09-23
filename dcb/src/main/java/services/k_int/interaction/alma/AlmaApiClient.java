@@ -295,6 +295,16 @@ public interface AlmaApiClient {
 	}
 
 	/**
+	 * Update Item information.
+	 * <p>
+	 * API: PUT /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UFVUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1fcGlkfQ==/
+	 */
+	default Mono<AlmaItem> updateItem(String mms_id, String holding_id, String item_pid, AlmaItem item) {
+		return put("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items/" + item_pid, item, AlmaItem.class);
+	}
+
+	/**
 	 * Test connectivity.
 	 * <p>
 	 * API: GET /almaws/v1/conf/test

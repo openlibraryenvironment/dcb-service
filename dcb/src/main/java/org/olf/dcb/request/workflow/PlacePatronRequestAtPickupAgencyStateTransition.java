@@ -97,6 +97,8 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 		final var patronRequest = ctx.getPatronRequest();
 		final var supplierRequest = ctx.getSupplierRequest();
 		final var hostLmsClient = ctx.getPickupSystem();
+		final var bibId = getValueOrNull(patronRequest, PatronRequest::getPickupBibId);
+		final var holdingId = getValueOrNull(patronRequest, PatronRequest::getPickupHoldingId);
 
 		return getSupplyingAgencyCode(supplierRequest)
 			.map(supplyingAgencyCode -> LocalRequest.builder()
@@ -108,6 +110,8 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 				.supplyingAgencyCode(supplyingAgencyCode)
 				.supplyingHostLmsCode(supplierRequest.getHostLmsCode())
 				.canonicalItemType(supplierRequest.getCanonicalItemType())
+				.bibId(bibId)
+				.holdingId(holdingId)
 				.build())
 			.doOnSuccess(localRequest -> log.info("updateExistingPickupRequest({})", localRequest))
 			.flatMap(hostLmsClient::updateHoldRequest)
