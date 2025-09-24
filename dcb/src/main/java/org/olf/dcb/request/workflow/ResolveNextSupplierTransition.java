@@ -15,8 +15,6 @@ import static reactor.function.TupleUtils.function;
 import java.util.List;
 import java.util.Optional;
 
-import io.micronaut.context.annotation.Value;
-import io.micronaut.core.annotation.Nullable;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
@@ -86,7 +84,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
 		return isReResolutionRequired(context)
 			.flatMap(isRequired -> {
-				log.info(" required: {}", isRequired);
+				log.info("Re-resolution required: {}", isRequired);
 
 				if (isRequired) {
           context.getWorkflowMessages().add("ReResolution is required");
