@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 8.51.0
+
+### Additions
+* [General]
+	* manual clean up now applicable for NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
+	* Alma update hold capability [DCB-1542]
+
+### Changes
+* [Chore]
+	* re-enable excluded lms from re-resolution
+
+### Fixes
+* [General]
+	* handle empty response bodies for Alma delete operations
+
 ## Version 8.50.0
 
 ### Additions
@@ -7,6 +22,10 @@
 	* Allow supplier cancellation / re-resolution for PUA requests [DCB-1534]
 	* support excluded lms from re-resolution - until Alma impl [DCB-1542]
 	* Alma Pickup Anywhere [DCB-1542]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
