@@ -59,9 +59,3 @@ dcb:
   requestability:
     location:
       filtering: false
-  reresolution:
-    excluded:
-      lms:
-        codes:
-          - ALMA
-          - SIERRA

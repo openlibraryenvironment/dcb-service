@@ -59,15 +59,13 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private final BeanProvider<SupplierRequestService> supplierRequestServiceProvider;
 	private SupplierRequestService supplierRequestService;
 	private final ConsortiumService consortiumService;
-	private final List<String> excludedLmsCodes;
 
 	public ResolveNextSupplierTransition(HostLmsService hostLmsService,
 		PatronRequestAuditService patronRequestAuditService,
 		PatronRequestResolutionService patronRequestResolutionService,
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
 		BeanProvider<SupplierRequestService> supplierRequestServiceProvider,
-		ConsortiumService consortiumService,
-		@Value("${dcb.reresolution.excluded.lms.codes:}") @Nullable List<String> excludedLmsCodes) {
+		ConsortiumService consortiumService) {
 
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
@@ -77,7 +75,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.supplierRequestServiceProvider = supplierRequestServiceProvider;
 		this.consortiumService = consortiumService;
-		this.excludedLmsCodes = excludedLmsCodes;
 	}
 
 	@Override
@@ -113,11 +110,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<Boolean> isReResolutionRequired(RequestWorkflowContext context) {
 
 		final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
-		final var borrowingHostLmsCode = getValue(context, RequestWorkflowContext::getPatronSystemCode, null);
-
-		if (excludedLmsCodes.contains(borrowingHostLmsCode)) {
-			return Mono.just(false);
-		}
 
 		return isEnabled()
 			.zipWith(Mono.just(isItemManuallySelected(patronRequest)))
