@@ -22,6 +22,7 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 	private static final List<Status> possibleSourceStatus = List.of(
 		// Unexpected Termination
 		Status.ERROR,
+		Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY,
 		// Non-terminal states
 		Status.SUBMITTED_TO_DCB,
 		Status.PATRON_VERIFIED,
