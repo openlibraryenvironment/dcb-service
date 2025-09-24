@@ -116,7 +116,18 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		if (body != null) request = request.body(body);
 
 		return doExchange(request, Argument.of(responseType))
-			.map(response -> response.getBody().get());
+			.handle((resp, sink) -> {
+				int code = resp.getStatus().getCode();
+				if (code >= 200 && code < 300) {
+					// If status is 2xx and body exists, emit it with sink.next.
+					// If status is 2xx and body is absent, complete with no value. This covers 204 No Content cleanly.
+					resp.getBody().ifPresentOrElse(sink::next, sink::complete);
+				} else {
+					// we should not get here but if we do be explicit about it
+					sink.error(new HttpClientResponseException(
+						"HTTP " + resp.getStatus() + " for " + finalUri, resp));
+				}
+			});
 	}
 
 	private URI resolve(URI relativeURI) {
