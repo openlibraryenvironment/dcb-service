@@ -837,10 +837,23 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	private static AlmaItem applyUpdates(AlmaItem item, String newBarcode, String newType) {
 		var data = item.getItemData();
-		data.setBarcode(newBarcode);
-		data.setPhysicalMaterialType(CodeValuePair.builder().value(newType).build());
-		item.setItemData(data);
-		return item;
+
+		// here we do a dance to avoid an INTERNAL_SERVER_ERROR
+		// the update item endpoint is sensitive to the fields that are sent
+		// before removing or adding be sure to test manually
+		// Doc: https://developers.exlibrisgroup.com/alma/apis/dgit ocs/xsd/rest_item.xsd/?tags=PUT
+		var minimalRequestBody = AlmaItemData.builder()
+			// update fields
+			.barcode(newBarcode)
+			.physicalMaterialType(CodeValuePair.builder().value(newType).build())
+			// unchanged required fields
+			.pid(data.getPid())
+			.policy(data.getPolicy())
+			.library(data.getLibrary())
+			.location(data.getLocation())
+			.build();
+
+		return AlmaItem.builder().itemData(minimalRequestBody).build();
 	}
 
 	@Override
