@@ -244,9 +244,17 @@ public class RequestWorkflowContextHelper {
 	private Mono<RequestWorkflowContext> getRequestingIdentity(RequestWorkflowContext ctx) {
 		log.info("getRequestingIdentity");
 
-		// log.debug("getRequestingIdentity for request {}",ctx.getPatronRequest());
-		return Mono.from(patronRequestRepository.findRequestingIdentityById(ctx.getPatronRequest().getId()))
-			.flatMap(pid -> Mono.just(ctx.setPatronHomeIdentity(pid)))
+		PatronRequest pr = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
+		final UUID prid = getValueOrNull(pr, PatronRequest::getId);
+
+		// log.debug("getRequestingIdentity for request {}", prid);
+		return Mono.from(patronRequestRepository.findRequestingIdentityById(prid))
+			.map(pid -> {
+				ctx.setPatronHomeIdentity(pid);
+				pr.setRequestingIdentity(pid);
+				ctx.setPatronRequest(pr);
+				return ctx;
+			})
 			.defaultIfEmpty(ctx);
 	}
 
