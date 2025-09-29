@@ -135,7 +135,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	// The minimum DCB should give Alma
-	private record DCBHold(String localPatronId, String localItemId, Location pickupLocation, String note, String supplyingLocalItemLocation) {}
+	private record DCBHold(String localPatronId, String localItemId, Location pickupLocation, String note,
+		String supplyingLocalItemLocation, String activeWorkflow) {}
 
 	// This is the minimum we should know to place a hold in Alma (V1)
 	private record MinimumAlmaHold(String localPatronId, String localItemId, String pickupLibraryCode, String comment) {}
@@ -143,7 +144,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters p) {
 		return validate(p)
-			.map(h -> getDcbSharingLibraryCode()) // config-driven
+			.map(hold -> "RET-EXP".equals(hold.activeWorkflow())
+				? resolveLibraryFromLocationRecord(hold) : getDcbSharingLibraryCode())
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtSupplyingAgency patron={} item={}",
@@ -153,7 +155,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters p) {
 		return validate(p)
-			.map(this::resolveLibraryFromLocationRecord)
+			.map(hold -> "RET-PUA".equals(hold.activeWorkflow())
+				? getDcbSharingLibraryCode() : resolveLibraryFromLocationRecord(hold))
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtBorrowingAgency patron={} item={}",
@@ -163,7 +166,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters p) {
 		return validate(p)
-			.map(h -> getDcbSharingLibraryCode()) // config-driven
+			.map(this::resolveLibraryFromLocationRecord)
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtPickupAgency patron={} item={}",
@@ -192,7 +195,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return lib;
 	}
 
-	// Borrowing / Local / pickup: try to derive the Alma library code from pickupLocation.localId
+	// Try to derive the Alma library code from pickupLocation.localId
 	// expectation here is that all location records will have the localId value set
 	private String resolveLibraryFromLocationRecord(DCBHold h) {
 		final var loc = h.pickupLocation();
@@ -240,7 +243,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		if (isBlank(p.getLocalPatronId())) return Mono.error(new IllegalArgumentException("localPatronId is required"));
 		if (isBlank(p.getLocalItemId())) return Mono.error(new IllegalArgumentException("localItemId (item_pid) is required"));
 		if (p.getPickupLocation() == null) return Mono.error(new IllegalArgumentException("pickupLocation is required"));
-		return Mono.just(new DCBHold(p.getLocalPatronId(), p.getLocalItemId(), p.getPickupLocation(), p.getNote(), p.getSupplyingLocalItemLocation()));
+		if (p.getActiveWorkflow() == null) return Mono.error(new IllegalArgumentException("activeWorkflow is required"));
+		return Mono.just(new DCBHold(p.getLocalPatronId(), p.getLocalItemId(), p.getPickupLocation(), p.getNote(),
+			p.getSupplyingLocalItemLocation(), p.getActiveWorkflow()));
 	}
 
 	@Override
