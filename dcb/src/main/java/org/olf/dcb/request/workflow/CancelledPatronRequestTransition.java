@@ -36,6 +36,7 @@ import reactor.core.publisher.Mono;
 public class CancelledPatronRequestTransition implements PatronRequestStateTransition {
 	private static final List<Status> POSSIBLE_SOURCE_STATUS = List.of( // Not yet loaned
 		Status.REQUEST_PLACED_AT_BORROWING_AGENCY,
+		Status.REQUEST_PLACED_AT_PICKUP_AGENCY,
 		Status.PICKUP_TRANSIT,
 		Status.RECEIVED_AT_PICKUP,
 		Status.READY_FOR_PICKUP
