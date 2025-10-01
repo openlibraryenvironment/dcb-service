@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 8.51.1
+
+### Changes
+* [Chore]
+	* add in pickup library abbreviated name log
+
+### Fixes
+* [General]
+	* add REQUEST_PLACED_AT_PICKUP_AGENCY to the CancelledPatronRequestTransition [DCB-2033]
+	* correct Alma hold placement fields for RET-EXP & RET-PUA [DCB-1542]
+	* request body for updating item [DCB-1542]
+	* add requesting identity to patron request when building request workflow context
+
 ## Version 8.51.0
 
 ### Additions
@@ -9,6 +22,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* re-enable excluded lms from re-resolution
 
 ### Fixes
