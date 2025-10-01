@@ -431,6 +431,10 @@ public class BorrowingAgencyService {
 		// var note = "Consortial Hold. tno=" + patronRequest.getId();
     String note = ctx.generateTransactionNote();
 
+		final var pickupLibrary = getValueOrNull(ctx, RequestWorkflowContext::getPickupLibrary);
+		final var abbreviatedName = getValueOrNull(pickupLibrary, Library::getAbbreviatedName);
+
+		log.debug("PickupLibrary {} with AbbreviatedName {}", pickupLibrary, abbreviatedName);
 
 		return hostLmsClient.placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters.builder()
 			.localPatronId(borrowingIdentity.getLocalId())
