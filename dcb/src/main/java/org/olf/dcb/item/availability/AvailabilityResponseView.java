@@ -1,7 +1,6 @@
 package org.olf.dcb.item.availability;
 
-import static java.util.Collections.emptyList;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.CollectionUtils.mapList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -32,20 +31,13 @@ public class AvailabilityResponseView {
 	public static AvailabilityResponseView from(AvailabilityReport report,
 		UUID clusteredBibId) {
 
-		final List<Item> items = getValue(report, AvailabilityReport::getItems, emptyList());
+		final var items = getValueOrNull(report, AvailabilityReport::getItems);
 
-		final var mappedItems = items.stream()
-			.map(AvailabilityResponseView::mapItem)
-			.toList();
+		final var mappedItems = mapList(items, AvailabilityResponseView::mapItem);
 
-		final List<AvailabilityReport.Error> errors = getValue(report,
-			AvailabilityReport::getErrors, emptyList());
+		final var errors = getValueOrNull(report, AvailabilityReport::getErrors);
 
-		final var mappedErrors = errors.stream()
-			.map(error -> Error.builder()
-				.message(getValueOrNull(error, AvailabilityReport.Error::getMessage))
-				.build())
-			.toList();
+		final var mappedErrors = mapList(errors, AvailabilityResponseView::mapError);
 		
 		final var timingsMap = new LinkedHashMap<String, Long> ();
 			report.getTimings().forEach( tuple -> timingsMap.put(tuple.getT1(), tuple.getT2()) );
@@ -103,6 +95,12 @@ public class AvailabilityResponseView {
 			.name(getValueOrNull(agency, DataAgency::getName))
 			// Name still mapped to description for backward compatibility
 			.description(getValueOrNull(agency, DataAgency::getName))
+			.build();
+	}
+
+	private static Error mapError(AvailabilityReport.Error error) {
+		return Error.builder()
+			.message(getValueOrNull(error, AvailabilityReport.Error::getMessage))
 			.build();
 	}
 

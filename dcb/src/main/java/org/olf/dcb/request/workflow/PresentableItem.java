@@ -1,7 +1,6 @@
 package org.olf.dcb.request.workflow;
 
-import static java.util.stream.Collectors.toList;
-import static org.olf.dcb.utils.CollectionUtils.emptyWhenNull;
+import static org.olf.dcb.utils.CollectionUtils.mapList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -33,9 +32,7 @@ public class PresentableItem {
 	String dueDate;
 
 	public static List<PresentableItem> toPresentableItems(List<Item> items) {
-		return emptyWhenNull(items)
-			.map(PresentableItem::toPresentableItem)
-			.collect(toList());
+		return mapList(items, PresentableItem::toPresentableItem);
 	}
 
 	public static PresentableItem toPresentableItem(Item item) {
