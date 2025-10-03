@@ -580,11 +580,13 @@ public class SupplyingAgencyService {
 				final var uniqueId = tuple.getT2().determineUniqueId();
 				final var homeIdentityLocalId = getValueOrNull(requestingPatronIdentity, PatronIdentity::getLocalId);
 				log.info("Local id is {} and unique ID is {} and identity is {}", homeIdentityLocalId,uniqueId, requestingPatronIdentity);
+				// Now supplying localNames from the requesting identity.
 				return client.createPatron(
 					Patron.builder()
 						.localId(Collections.singletonList(homeIdentityLocalId))
 						.localBarcodes(patron_barcodes)
 						.localPatronType(patronType)
+						.localNames(parseList(requestingPatronIdentity.getLocalNames()))
 						.uniqueIds(stringToList(uniqueId))
 						.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
 						.localItemId(supplierRequest.getLocalItemId())
