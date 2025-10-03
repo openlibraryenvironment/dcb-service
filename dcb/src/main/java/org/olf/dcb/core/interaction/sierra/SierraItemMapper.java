@@ -2,10 +2,13 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static io.micrometer.common.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
+import static java.util.Collections.emptyList;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -15,13 +18,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
-import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.rules.AnnotatedObject;
+import org.olf.dcb.rules.ObjectRuleset;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -63,43 +66,56 @@ public class SierraItemMapper {
 		  .orElse(FALSE);
 	}
 
-	public Mono<Item> mapResultToItem( SierraItem itemResult, String hostLmsCode, String localBibId, @NonNull Optional<ObjectRuleset> itemSuppressionRules ) {
-		log.debug("mapResultToItem({}, {}, {})", itemResult, hostLmsCode, localBibId);
+	public Mono<Item> mapResultToItem(SierraItem sierraItem, String hostLmsCode,
+		String localBibId, @NonNull Optional<ObjectRuleset> itemSuppressionRules) {
 
-		final var statusCode = getValueOrNull(itemResult.getStatus(), Status::getCode);
-		final var dueDate = getValueOrNull(itemResult.getStatus(), Status::getDuedate);
+		log.debug("mapResultToItem({}, {}, {})", sierraItem, hostLmsCode, localBibId);
 
-		final String rawVolumeStatement = extractRawVolumeStatement(itemResult.getVarFields());
-		final String parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
-		final Instant parsedDueDate = parsedDueDate(itemResult);
+		return Mono.just(mapItem(sierraItem, localBibId, itemSuppressionRules))
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
+			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
+			.doOnSuccess(item -> log.debug("Mapped Sierra item {} to item: {}", sierraItem, item));
+	}
+
+	private Item mapItem(SierraItem item, String localBibId,
+		Optional<ObjectRuleset> itemSuppressionRules) {
 
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
-		return mapStatus(statusCode, dueDate, hostLmsCode)
-			.map(itemStatus -> Item.builder()
-				.localId(itemResult.getId())
-				.status(itemStatus)
-				.dueDate(parsedDueDate)
-				.location(org.olf.dcb.core.model.Location.builder()
-					.code(itemResult.getLocation().getCode().trim())
-					.name(itemResult.getLocation().getName())
-					.build())
-				.barcode(itemResult.getBarcode())
-				.callNumber(itemResult.getCallNumber())
-				.holdCount(itemResult.getHoldCount())
-				.localBibId(localBibId)
-				.localItemType(itemResult.getItemType())
-				.localItemTypeCode(determineLocalItemTypeCode(itemResult.getFixedFields()))
-				.deleted(itemResult.getDeleted())
-				.suppressed(deriveItemSuppressedFlag(itemResult, itemSuppressionRules))
-				.rawVolumeStatement(rawVolumeStatement)
-				.parsedVolumeStatement(parsedVolumeStatement)
-				.derivedLoanPolicy(DerivedLoanPolicy.GENERAL)
-				.build())
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
-			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
-			.doOnSuccess(item -> log.debug("Mapped Sierra item to item: {}", item));
 
+		final var rawVolumeStatement = extractRawVolumeStatement(
+			getValue(item, SierraItem::getVarFields, emptyList()));
+
+		final var parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
+		final var parsedDueDate = parsedDueDate(item);
+
+		return Item.builder()
+			.localId(getValueOrNull(item, SierraItem::getId))
+			.status(mapStatus(item))
+			.dueDate(parsedDueDate)
+			.location(mapLocation(item))
+			.barcode(getValueOrNull(item, SierraItem::getBarcode))
+			.callNumber(getValueOrNull(item, SierraItem::getCallNumber))
+			.holdCount(getValueOrNull(item, SierraItem::getHoldCount))
+			.localBibId(localBibId)
+			.localItemType(getValueOrNull(item, SierraItem::getItemType))
+			.localItemTypeCode(determineLocalItemTypeCode(
+				getValueOrNull(item, SierraItem::getFixedFields)))
+			.deleted(getValueOrNull(item, SierraItem::getDeleted))
+			.suppressed(deriveItemSuppressedFlag(item, itemSuppressionRules))
+			.rawVolumeStatement(rawVolumeStatement)
+			.parsedVolumeStatement(parsedVolumeStatement)
+			.derivedLoanPolicy(GENERAL)
+			.build();
+	}
+
+	private static Location mapLocation(SierraItem item) {
+		final var location = getValueOrNull(item, SierraItem::getLocation);
+
+		return Location.builder()
+			.code(getValueOrNull(location, l -> l.getCode(), String::trim))
+			.name(getValueOrNull(location, l -> l.getName()))
+			.build();
 	}
 
 	@Nullable
@@ -182,17 +198,27 @@ public class SierraItemMapper {
 		return result;
 	}
 
-	public Mono<ItemStatus> mapStatus(String statusCode, String dueDate, String hostLmsCode) {
-		log.debug("mapStatus(statusCode: {}, dueDate: {} hostLmsCode: {})", statusCode, dueDate, hostLmsCode);
+	private ItemStatus mapStatus(SierraItem item) {
+		log.debug("mapStatus(item: {})", item);
+
+		final var status = getValueOrNull(item, SierraItem::getStatus);
+		final var statusCode = getValueOrNull(status, Status::getCode);
+		final var dueDate = getValueOrNull(status, Status::getDuedate);
+
+		return mapStatus(statusCode, dueDate);
+	}
+
+	public ItemStatus mapStatus(String statusCode, String dueDate) {
+		log.debug("mapStatus(statusCode: {}, dueDate: {})", statusCode, dueDate);
 
 		if (statusCode == null || (statusCode.isEmpty())) {
-			return Mono.just(new ItemStatus(UNKNOWN));
+			return new ItemStatus(UNKNOWN);
 		}
 
 		final var mappedStatus = mapStatusCode(statusCode);
 		final var finalStatus = adjustStatusBasedOnDueDate(mappedStatus, dueDate);
 
-		return Mono.just(new ItemStatus(finalStatus));
+		return new ItemStatus(finalStatus);
 	}
 
 	/**

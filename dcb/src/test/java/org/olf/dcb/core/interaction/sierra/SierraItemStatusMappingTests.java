@@ -92,7 +92,6 @@ public class SierraItemStatusMappingTests {
 
 	@Nullable
 	private ItemStatus mapStatus(String statusCode, String dueDate) {
-		return mapper.mapStatus(statusCode, dueDate, HOST_LMS_CODE)
-			.block();
+		return mapper.mapStatus(statusCode, dueDate);
 	}
 }

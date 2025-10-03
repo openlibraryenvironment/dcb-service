@@ -27,6 +27,8 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocation;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoAgency;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHostLmsCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoParsedVolumeStatement;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasNoRawVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
@@ -178,6 +180,8 @@ class SierraHostLmsClientItemTests {
 				hasAgencyCode("sierra-agency"),
 				hasAgencyName("Sierra Agency"),
 				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasNoRawVolumeStatement(),
+				hasNoParsedVolumeStatement(),
 				isNotSuppressed(),
 				isNotDeleted()
 			),
@@ -195,6 +199,8 @@ class SierraHostLmsClientItemTests {
 				hasHoldCount(1),
 				hasNoAgency(),
 				hasNoHostLmsCode(),
+				hasNoRawVolumeStatement(),
+				hasNoParsedVolumeStatement(),
 				isNotSuppressed(),
 				isNotDeleted()
 			),
@@ -212,6 +218,8 @@ class SierraHostLmsClientItemTests {
 				hasHoldCount(2),
 				hasNoAgency(),
 				hasNoHostLmsCode(),
+				hasNoRawVolumeStatement(),
+				hasNoParsedVolumeStatement(),
 				isNotSuppressed(),
 				isNotDeleted()
 			)
