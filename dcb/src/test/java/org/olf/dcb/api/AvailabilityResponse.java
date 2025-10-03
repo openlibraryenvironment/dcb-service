@@ -44,6 +44,7 @@ public class AvailabilityResponse {
 		private final String canonicalItemType;
 		@Nullable
 		private final Agency agency;
+		// The host LMS of the agency associated with the item
 		@Nullable
 		private final String hostLmsCode;
 	}

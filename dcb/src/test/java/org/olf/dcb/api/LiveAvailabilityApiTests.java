@@ -6,18 +6,33 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasAgency;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasAvailabilityDate;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasBarcode;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasCallNumber;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasCanonicalItemType;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasClusterRecordId;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasDueDate;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasHostLms;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasId;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasItems;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasLocalItemType;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasLocation;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoDueDate;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoErrors;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoHolds;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoItems;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.isNotRequestable;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.isRequestable;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -340,106 +355,5 @@ class LiveAvailabilityApiTests {
 
 		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
 			sourceRecordId, clusterRecord);
-	}
-
-	private static Matcher<AvailabilityResponse> hasClusterRecordId(
-		UUID clusterRecordId) {
-		return hasProperty("clusteredBibId", is(clusterRecordId));
-	}
-
-	@SafeVarargs
-	static Matcher<AvailabilityResponse> hasItems(
-		Matcher<AvailabilityResponse.Item>... itemMatchers) {
-
-		return hasProperty("itemList", containsInAnyOrder(itemMatchers));
-	}
-
-	private static Matcher<AvailabilityResponse> hasNoItems() {
-		return hasProperty("itemList", is(nullValue()));
-	}
-
-	private static Matcher<AvailabilityResponse> hasNoErrors() {
-		return hasProperty("errors", is(nullValue()));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasId(String expectedId) {
-		return hasProperty("id", is(expectedId));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasCallNumber(String expectedCallNumber) {
-		return hasProperty("callNumber", is(expectedCallNumber));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasBarcode(String expectedBarcode) {
-		return hasProperty("barcode", is(expectedBarcode));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasAgency(
-		String expectedCode, String expectedName) {
-
-		return hasProperty("agency", allOf(
-			notNullValue(),
-			hasProperty("code", is(expectedCode)),
-			hasProperty("description", is(expectedName))
-		));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasNoAgency() {
-		return hasProperty("agency", nullValue());
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasLocation(
-		String expectedCode, String expectedName) {
-
-		return hasProperty("location", allOf(
-			notNullValue(),
-			hasProperty("code", is(expectedCode)),
-			hasProperty("name", is(expectedName))
-		));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasHostLms(String expectedHostLmsCode) {
-		return hasProperty("hostLmsCode", is(expectedHostLmsCode));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasNoHostLms() {
-		return hasProperty("hostLmsCode", nullValue());
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasDueDate(String expectedDueDate) {
-		return hasProperty("dueDate", is(expectedDueDate));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasNoDueDate() {
-		return hasProperty("dueDate", nullValue());
-	}
-
-	static Matcher<AvailabilityResponse.Item> hasCanonicalItemType(String expectedItemType) {
-		return hasProperty("canonicalItemType", is(expectedItemType));
-	}
-
-	static Matcher<AvailabilityResponse.Item> hasLocalItemType(String expectedItemType) {
-		return hasProperty("localItemType", is(expectedItemType));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasNoHolds() {
-		return hasProperty("holdCount", is(0));
-	}
-
-	private Matcher<? super AvailabilityResponse.Item> hasAvailabilityDate() {
-		return hasProperty("availabilityDate");
-	}
-
-	private static Matcher<AvailabilityResponse.Item> isRequestable() {
-		return hasProperty("isRequestable", is(true));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> isNotRequestable() {
-		return hasProperty("isRequestable", is(false));
-	}
-
-	private static Matcher<AvailabilityResponse.Item> hasStatus(String expectedStatus) {
-		return hasProperty("status",
-			hasProperty("code", is(expectedStatus)));
 	}
 }

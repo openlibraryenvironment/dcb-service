@@ -1,5 +1,7 @@
 package org.olf.dcb.item.availability;
 
+import static java.util.Collections.emptyList;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -10,12 +12,14 @@ import java.util.UUID;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatus;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Value;
 
 @Data
 @Serdeable
@@ -28,14 +32,18 @@ public class AvailabilityResponseView {
 	public static AvailabilityResponseView from(AvailabilityReport report,
 		UUID clusteredBibId) {
 
-		final var mappedItems = report.getItems()
-			.stream()
+		final List<Item> items = getValue(report, AvailabilityReport::getItems, emptyList());
+
+		final var mappedItems = items.stream()
 			.map(AvailabilityResponseView::mapItem)
 			.toList();
 
-		final var mappedErrors = report.getErrors().stream()
+		final List<AvailabilityReport.Error> errors = getValue(report,
+			AvailabilityReport::getErrors, emptyList());
+
+		final var mappedErrors = errors.stream()
 			.map(error -> Error.builder()
-				.message(error.getMessage())
+				.message(getValueOrNull(error, AvailabilityReport.Error::getMessage))
 				.build())
 			.toList();
 		
@@ -46,89 +54,127 @@ public class AvailabilityResponseView {
 	}
 
 	private static ARVItem mapItem(Item item) {
-		final var agency = getValueOrNull(item, Item::getAgency);
-		final var agencyCode = getValueOrNull(agency, DataAgency::getCode);
-		final var agencyName = getValueOrNull(agency, DataAgency::getName);
-		final var owningContext = getValueOrNull(item, Item::getOwningContext);
-
-		final var mappedAgency = agency != null
-			? new Agency(agencyCode, agencyName)
-			: null;
-
-		return new ARVItem(item.getLocalId(),
-			new Status(item.getStatus().getCode().name()), item.getDueDate(),
-			new Location(item.getLocation().getCode(), item.getLocation().getName()),
-			item.getBarcode(), item.getCallNumber(), item.getHostLmsCode(),
-			owningContext, item.getIsRequestable(), item.getSuppressed(),
-			item.getHoldCount(), item.getAvailableDate(), item.getLocalItemType(),
-			item.getCanonicalItemType(), item.getLocalItemTypeCode(), mappedAgency,
-			item.getRawVolumeStatement(), item.getParsedVolumeStatement(),
-			item.getRawDataValues(),
-			item.getDecisionLogEntries()
-		);
+		return ARVItem.builder()
+			.id(getValueOrNull(item, Item::getLocalId))
+			.barcode(getValueOrNull(item, Item::getBarcode))
+			.status(mapStatus(item))
+			.dueDate(getValueOrNull(item, Item::getDueDate))
+			.holdCount(getValueOrNull(item, Item::getHoldCount))
+			.callNumber(getValueOrNull(item, Item::getCallNumber))
+			.localItemType(getValueOrNull(item, Item::getLocalItemType))
+			.localItemTypeCode(getValueOrNull(item, Item::getLocalItemTypeCode))
+			.canonicalItemType(getValueOrNull(item, Item::getCanonicalItemType))
+			.location(mapLocation(item))
+			.isSuppressed(getValueOrNull(item, Item::getSuppressed))
+			.rawVolumeStatement(getValueOrNull(item, Item::getRawVolumeStatement))
+			.parsedVolumeStatement(getValueOrNull(item, Item::getParsedVolumeStatement))
+			.agency(mapAgency(item))
+			.hostLmsCode(getValueOrNull(item, Item::getHostLmsCode))
+			.availabilityDate(getValueOrNull(item, Item::getAvailableDate))
+			.isRequestable(getValueOrNull(item, Item::getIsRequestable))
+			.owningContext(getValueOrNull(item, Item::getOwningContext))
+			.rawDataValues(getValueOrNull(item, Item::getRawDataValues))
+			.decisionLogEntries(getValueOrNull(item, Item::getDecisionLogEntries))
+			.build();
 	}
 
-	@Data
+	private static Location mapLocation(Item item) {
+		return Location.builder()
+			.code(getValueOrNull(item, Item::getLocation, org.olf.dcb.core.model.Location::getCode))
+			.name(getValueOrNull(item, Item::getLocation, org.olf.dcb.core.model.Location::getName))
+			.build();
+	}
+
+	private static Status mapStatus(Item item) {
+		final var statusCode = getValueOrNull(item, Item::getStatus, ItemStatus::getCode);
+
+		return new Status(getValueOrNull(statusCode, Enum::name));
+	}
+
+	private static Agency mapAgency(Item item) {
+		final var agency = getValueOrNull(item, Item::getAgency);
+
+		if (agency == null) {
+			return null;
+		}
+
+		return Agency.builder()
+			.code(getValueOrNull(agency, DataAgency::getCode))
+			.name(getValueOrNull(agency, DataAgency::getName))
+			// Name still mapped to description for backward compatibility
+			.description(getValueOrNull(agency, DataAgency::getName))
+			.build();
+	}
+
+	@Value
+	@Builder
 	@Serdeable
 	public static class ARVItem {
-		private final String id;
-		private final Status status;
+		String id;
+		Status status;
 		@Nullable
-		private final Instant dueDate;
-		private final Location location;
-		private final String barcode;
-		private final String callNumber;
-		private final String hostLmsCode;
+		Instant dueDate;
+		Location location;
+		String barcode;
+		String callNumber;
+		// The host LMS of the agency associated with the item
+		@Nullable
+		String hostLmsCode;
 
 		// owningContext was added to allow an item to be owned by a library - this is for the shared system setup
     // E.G. the System COOLCAT is shared by several libraries. It is important in the context of resolution to
     // now which context is in force - because for one library and item type may map to CIRC but for another
     // it may map to NONCIRC. This is a first step to surfacing this mapped value in an RTAC response
-		private final String owningContext;
+		String owningContext;
 
-		private final Boolean isRequestable;
+		Boolean isRequestable;
 		@Nullable
-		private final Boolean isSuppressed;
-		private final Integer holdCount;
-		private final Instant availabilityDate;
-		private final String localItemType;
-		private final String canonicalItemType;
-		private final String localItemTypeCode;
+		Boolean isSuppressed;
+		Integer holdCount;
+		Instant availabilityDate;
+		String localItemType;
+		String canonicalItemType;
+		String localItemTypeCode;
 		@Schema(description = "The items specific institution")
-		private final Agency agency;
+		Agency agency;
 		@Nullable
-    private final String rawVolumeStatement;
+    String rawVolumeStatement;
 		@Nullable
-    private final String parsedVolumeStatement;
+		String parsedVolumeStatement;
 
-		private final Map<String,String> rawDataValues;
-		private final List<String> decisionLogEntries;
+		Map<String,String> rawDataValues;
+		List<String> decisionLogEntries;
 	}
 
-	@Data
+	@Value
+	@Builder
 	@Serdeable
 	public static class Status {
-		private final String code;
+		String code;
 	}
 
-	@Data
+	@Value
+	@Builder
 	@Serdeable
 	public static class Location {
-		private final String code;
-		private final String name;
+		String code;
+		String name;
 	}
 
-	@Data
+	@Value
 	@Builder
 	@Serdeable
 	public static class Error {
-		private final String message;
+		String message;
 	}
 
 	@Data
+	@Value
+	@Builder
 	@Serdeable
 	public static class Agency {
-		private final String code;
-		private final String description;
+		String code;
+		String name;
+		String description;
 	}
 }
