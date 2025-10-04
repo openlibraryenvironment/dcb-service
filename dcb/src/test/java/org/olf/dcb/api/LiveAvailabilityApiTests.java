@@ -25,6 +25,7 @@ import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoDueDat
 import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoErrors;
 import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoHolds;
 import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasNoItems;
+import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasSourceHostLms;
 import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.isNotRequestable;
 import static org.olf.dcb.test.matchers.AvailabilityResponseMatchers.isRequestable;
@@ -173,7 +174,8 @@ class LiveAvailabilityApiTests {
 					hasCanonicalItemType("BKM"),
 					hasLocation(locationCode, "King 6th Floor"),
 					hasAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME),
-					hasHostLms(CIRCULATING_HOST_LMS_CODE)
+					hasHostLms(CIRCULATING_HOST_LMS_CODE),
+					hasSourceHostLms(CATALOGUING_HOST_LMS_CODE)
 				),
 				allOf(
 					notNullValue(),
@@ -189,7 +191,8 @@ class LiveAvailabilityApiTests {
 					hasCanonicalItemType("BKM"),
 					hasLocation(locationCode, "King 6th Floor"),
 					hasAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_NAME),
-					hasHostLms(CIRCULATING_HOST_LMS_CODE)
+					hasHostLms(CIRCULATING_HOST_LMS_CODE),
+					hasSourceHostLms(CATALOGUING_HOST_LMS_CODE)
 				)
 			)
 		));

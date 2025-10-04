@@ -4,18 +4,18 @@ import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
-import io.micronaut.data.annotation.Transient;
-
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.Optional;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.Transient;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -54,6 +54,10 @@ public class Item implements Comparable<Item> {
 	// and the processed volume statement. parsed volume statement
 	private String rawVolumeStatement;
 	private String parsedVolumeStatement;
+
+	// Host LMS the item came from
+	// Used for diagnostics during live availability
+	private String sourceHostLmsCode;
 
 	/**
 	 * use rawDataValues to make information from the raw source available to the client. Useful in
@@ -109,7 +113,7 @@ public class Item implements Comparable<Item> {
 	}
 
 	public boolean isAvailable() {
-		return status.getCode() == AVAILABLE;
+		return getValue(this, Item::getStatus, ItemStatus::getCode, UNKNOWN) == AVAILABLE;
 	}
 
 	public boolean hasNoHolds() {

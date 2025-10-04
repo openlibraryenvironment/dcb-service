@@ -4,10 +4,12 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
 
 import org.hamcrest.Matcher;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatusCode;
 
@@ -120,7 +122,7 @@ public class ItemMatchers {
 		return hasProperty("holdCount", is(expectedHoldCount));
 	}
 
-	public static Matcher<Item> hasHoldCountOfZero() {
+	public static Matcher<Item> hasZeroHoldCount() {
 		return hasProperty("holdCount", is(0));
 	}
 
@@ -130,10 +132,6 @@ public class ItemMatchers {
 
 	public static Matcher<Item> isNotSuppressed() {
 		return hasProperty("suppressed", is(false));
-	}
-
-	public static Matcher<Item> suppressionUnknown() {
-		return hasProperty("suppressed", is(nullValue()));
 	}
 
 	public static Matcher<Item> isNotDeleted() {
@@ -158,11 +156,15 @@ public class ItemMatchers {
 		return hasProperty("agency", hasProperty("name", is(expectedAgencyName)));
 	}
 
-	public static Matcher<Item> hasOwningContext(String owningContext) {
-		return hasProperty("owningContext", is(owningContext));
+	public static Matcher<Item> hasOwningContext(String expectedOwningContext) {
+		return hasProperty("owningContext", is(expectedOwningContext));
 	}
 
-	public static Matcher<Item> hasNoOwningContext() {
-		return hasProperty("owningContext", is(nullValue()));
+	public static Matcher<Item> hasSourceHostLmsCode(DataHostLms expectedHostLms) {
+		return hasSourceHostLmsCode(getValue(expectedHostLms, DataHostLms::getCode, "Null Host LMS"));
+	}
+
+	public static Matcher<Item> hasSourceHostLmsCode(String expectedCode) {
+		return hasProperty("sourceHostLmsCode", is(expectedCode));
 	}
 }

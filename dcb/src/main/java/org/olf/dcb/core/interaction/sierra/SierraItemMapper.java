@@ -71,14 +71,14 @@ public class SierraItemMapper {
 
 		log.debug("mapResultToItem({}, {}, {})", sierraItem, hostLmsCode, localBibId);
 
-		return Mono.just(mapItem(sierraItem, localBibId, itemSuppressionRules))
+		return Mono.just(mapItem(sierraItem, localBibId, hostLmsCode, itemSuppressionRules))
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
 			.doOnSuccess(item -> log.debug("Mapped Sierra item {} to item: {}", sierraItem, item));
 	}
 
 	private Item mapItem(SierraItem item, String localBibId,
-		Optional<ObjectRuleset> itemSuppressionRules) {
+		String sourceHostLmsCode, Optional<ObjectRuleset> itemSuppressionRules) {
 
 		// Sierra item type comes from fixed field 61 - see https://documentation.iii.com/sierrahelp/Content/sril/sril_records_fixed_field_types_item.html
 		// We need to be looking at getLocalItemTypeCode - getLocalItemType is giving us a human-readable string at the moment
@@ -91,6 +91,7 @@ public class SierraItemMapper {
 
 		return Item.builder()
 			.localId(getValueOrNull(item, SierraItem::getId))
+			.sourceHostLmsCode(sourceHostLmsCode)
 			.status(mapStatus(item))
 			.dueDate(parsedDueDate)
 			.location(mapLocation(item))

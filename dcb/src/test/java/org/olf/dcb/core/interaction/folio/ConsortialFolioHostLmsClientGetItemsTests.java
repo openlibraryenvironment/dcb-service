@@ -18,6 +18,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
@@ -41,6 +42,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoParsedVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoRawVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasParsedVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasRawVolumeStatement;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasSourceHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
@@ -62,7 +64,6 @@ import org.olf.dcb.core.interaction.FailedToGetItemsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -178,7 +179,8 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					isNotDeleted(),
 					hasAgencyCode("known-agency"),
 					hasAgencyName("Known agency"),
-					hasHostLmsCode(CIRCULATING_HOST_LMS_CODE)
+					hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+					hasSourceHostLmsCode(CATALOGUING_HOST_LMS_CODE)
 				),
 				allOf(
 					hasLocalId("eee7ded7-28cd-4a1d-9bbf-9e155cbe60b3"),
@@ -197,7 +199,8 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					isNotSuppressed(),
 					isNotDeleted(),
 					hasNoAgency(),
-					hasNoHostLmsCode()
+					hasNoHostLmsCode(),
+					hasSourceHostLmsCode(CATALOGUING_HOST_LMS_CODE)
 				)
 			));
 	}
@@ -617,15 +620,9 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 
 	@Nullable
 	private List<Item> getItems(String instanceId) {
-		return client.getItems(BibRecord.builder()
-				.sourceRecordId(instanceId)
-				.build())
-			.block();
-	}
-
-	private void mapStatus(String localStatus, ItemStatusCode canonicalStatus) {
-		referenceValueMappingFixture
-			.defineItemStatusMapping(CATALOGUING_HOST_LMS_CODE, localStatus, canonicalStatus.name());
+		return singleValueFrom(client.getItems(BibRecord.builder()
+			.sourceRecordId(instanceId)
+			.build()));
 	}
 
 	private static Holding.HoldingBuilder exampleHolding() {

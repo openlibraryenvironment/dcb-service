@@ -29,6 +29,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasNoDueDate;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoParsedVolumeStatement;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasNoRawVolumeStatement;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasSourceHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
@@ -167,6 +168,7 @@ class SierraHostLmsClientItemTests {
 		assertThat(items, containsInAnyOrder(
 			allOf(
 				hasLocalId("f2010365-e1b1-4a5d-b431-a3c65b5f23fb"),
+				hasSourceHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 				hasBarcode("9849123490"),
 				hasCallNumber("BL221 .C48"),
 				hasStatus(CHECKED_OUT),
@@ -187,6 +189,7 @@ class SierraHostLmsClientItemTests {
 			),
 			allOf(
 				hasLocalId("c5bc9cd0-fc23-48be-9d52-647cea8c63ca"),
+				hasSourceHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 				hasBarcode("30800005315459"),
 				hasCallNumber("HX157 .H8"),
 				hasStatus(AVAILABLE),
@@ -206,6 +209,7 @@ class SierraHostLmsClientItemTests {
 			),
 			allOf(
 				hasLocalId("69415d0a-ace5-49e4-96fd-f63855235bf0"),
+				hasSourceHostLmsCode(CATALOGUING_HOST_LMS_CODE),
 				hasBarcode("30800005208449"),
 				hasCallNumber("HC336.2 .S74 1969"),
 				hasStatus(AVAILABLE),

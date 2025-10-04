@@ -32,19 +32,18 @@ public class ConsortialFolioItemMapper {
 	}
 
 	public Mono<Item> mapHoldingToItem(Holding holding, String instanceId, String hostLmsCode) {
-
 		log.debug("mapHoldingToItem({}, {}, {})", holding, instanceId, hostLmsCode);
 
 		final var itemStatus = getValueOrNull(holding, Holding::getStatus);
 
 		return mapStatus(itemStatus, hostLmsCode)
-			.map(status -> buildItem(holding, instanceId, status))
+			.map(status -> buildItem(holding, instanceId, status, hostLmsCode))
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, hostLmsCode))
 			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
 			.doOnSuccess(item -> log.trace("Mapped holding to item: {}", item));
 	}
 
-	private Item buildItem(Holding holding, String instanceId, ItemStatus status) {
+	private Item buildItem(Holding holding, String instanceId, ItemStatus status, String sourceHostLmsCode) {
 		final var dueDate = getValueOrNull(holding, Holding::getDueDate);
 
 		return Item.builder()
@@ -57,12 +56,13 @@ public class ConsortialFolioItemMapper {
 			.holdCount(getValueOrNull(holding, Holding::getTotalHoldRequests))
 			.localItemType(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
 			.localItemTypeCode(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
-			.location( buildLocation(holding) )
+			.location(buildLocation(holding))
 			.rawVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 			.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
 			.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
 			.derivedLoanPolicy(DerivedLoanPolicy.GENERAL)
 			.deleted(false)
+			.sourceHostLmsCode(sourceHostLmsCode)
 			.build();
 	}
 

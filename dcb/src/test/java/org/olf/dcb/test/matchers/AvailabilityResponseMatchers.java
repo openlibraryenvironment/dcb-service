@@ -77,6 +77,10 @@ public class AvailabilityResponseMatchers {
 		return hasProperty("hostLmsCode", nullValue());
 	}
 
+	public static Matcher<AvailabilityResponse.Item> hasSourceHostLms(String expectedHostLmsCode) {
+		return hasProperty("sourceHostLmsCode", is(expectedHostLmsCode));
+	}
+
 	public static Matcher<AvailabilityResponse.Item> hasDueDate(String expectedDueDate) {
 		return hasProperty("dueDate", is(expectedDueDate));
 	}

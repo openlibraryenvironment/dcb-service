@@ -103,6 +103,7 @@ public class PolarisItemMapper {
 					.deleted(false)
 					.rawVolumeStatement(itemGetRow.getVolumeNumber())
 					.parsedVolumeStatement(parsedVolumeStatement)
+					.sourceHostLmsCode(hostLmsCode)
 					.owningContext(hostLmsCode)
 					.derivedLoanPolicy(derivedLoanPolicy)
 					.shelvingLocation(shelvingLocation)

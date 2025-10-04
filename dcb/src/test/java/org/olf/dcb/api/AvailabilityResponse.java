@@ -47,6 +47,9 @@ public class AvailabilityResponse {
 		// The host LMS of the agency associated with the item
 		@Nullable
 		private final String hostLmsCode;
+		// The host LMS the item came from
+		@Nullable
+		private final String sourceHostLmsCode;
 	}
 
 	@Data

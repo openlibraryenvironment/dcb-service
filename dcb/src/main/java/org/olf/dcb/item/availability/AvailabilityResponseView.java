@@ -62,6 +62,7 @@ public class AvailabilityResponseView {
 			.parsedVolumeStatement(getValueOrNull(item, Item::getParsedVolumeStatement))
 			.agency(mapAgency(item))
 			.hostLmsCode(getValueOrNull(item, Item::getHostLmsCode))
+			.sourceHostLmsCode(getValueOrNull(item, Item::getSourceHostLmsCode))
 			.availabilityDate(getValueOrNull(item, Item::getAvailableDate))
 			.isRequestable(getValueOrNull(item, Item::getIsRequestable))
 			.owningContext(getValueOrNull(item, Item::getOwningContext))
@@ -118,6 +119,9 @@ public class AvailabilityResponseView {
 		// The host LMS of the agency associated with the item
 		@Nullable
 		String hostLmsCode;
+		// The host LMS the item came from
+		@Nullable
+		String sourceHostLmsCode;
 
 		// owningContext was added to allow an item to be owned by a library - this is for the shared system setup
     // E.G. the System COOLCAT is shared by several libraries. It is important in the context of resolution to

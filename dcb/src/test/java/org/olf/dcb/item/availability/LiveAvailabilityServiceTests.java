@@ -2,20 +2,22 @@ package org.olf.dcb.item.availability;
 
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
+import static java.util.stream.Collectors.groupingBy;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
-import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasError;
+import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasItems;
+import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasItemsInOrder;
+import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasNoErrors;
+import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasNoItems;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasSourceHostLmsCode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
@@ -24,7 +26,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.clustering.ClusterRecord;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
@@ -120,21 +120,28 @@ class LiveAvailabilityServiceTests {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
+		final var firstHostLmsBibId = "465675";
+
 		bibRecordFixture.createBibRecord(randomUUID(), firstHostLms.getId(),
-			"465675", clusterRecord);
+			firstHostLmsBibId, clusterRecord);
+
+		final var secondHostLmsBibId = "767648";
 
 		bibRecordFixture.createBibRecord(randomUUID(), secondHostLms.getId(),
-			"767648", clusterRecord);
+			secondHostLmsBibId, clusterRecord);
 
 		final var firstAgency = agencyFixture.defineAgency("first-agency",
 			"First Agency", firstHostLms);
 
 		mapLocationToAgency("ab6", firstHostLms, firstAgency);
 
-		sierraItemsAPIFixture.itemsForBibId("465675", List.of(
+		final var firstItemFromFirstHostLmsBarcode = "6565750674";
+		final var secondItemFromFirstHostLmsBarcode = "30800005238487";
+
+		sierraItemsAPIFixture.itemsForBibId(firstHostLmsBibId, List.of(
 			SierraItem.builder()
 				.id("1000002")
-				.barcode("6565750674")
+				.barcode(firstItemFromFirstHostLmsBarcode)
 				.callNumber("BL221 .C48")
 				.statusCode("-")
 				.itemType("999")
@@ -143,7 +150,7 @@ class LiveAvailabilityServiceTests {
 				.build(),
 			SierraItem.builder()
 				.id("1000001")
-				.barcode("30800005238487")
+				.barcode(secondItemFromFirstHostLmsBarcode)
 				.callNumber("HD9787.U5 M43 1969")
 				.statusCode("-")
 				.dueDate(Instant.parse("2021-02-25T12:00:00Z"))
@@ -159,10 +166,14 @@ class LiveAvailabilityServiceTests {
 		mapLocationToAgency("ab5", secondHostLms, secondAgency);
 		mapLocationToAgency("ab7", secondHostLms, secondAgency);
 
-		sierraItemsAPIFixture.itemsForBibId("767648", List.of(
+		final var firstItemFromSecondHostLmsBarcode = "9849123490";
+		final var secondItemFromSecondHostLmsBarcode = "30800005315459";
+		final var thirdItemFromSecondHostLmsBarcode = "30800005208449";
+
+		sierraItemsAPIFixture.itemsForBibId(secondHostLmsBibId, List.of(
 			SierraItem.builder()
 				.id("8757567")
-				.barcode("9849123490")
+				.barcode(firstItemFromSecondHostLmsBarcode)
 				.callNumber("BL221 .C48")
 				.statusCode("-")
 				.itemType("999")
@@ -171,7 +182,7 @@ class LiveAvailabilityServiceTests {
 				.build(),
 			SierraItem.builder()
 				.id("8275735")
-				.barcode("30800005315459")
+				.barcode(secondItemFromSecondHostLmsBarcode)
 				.callNumber("HX157 .H8")
 				.statusCode("-")
 				.itemType("999")
@@ -180,7 +191,7 @@ class LiveAvailabilityServiceTests {
 				.build(),
 			SierraItem.builder()
 				.id("72465635")
-				.barcode("30800005208449")
+				.barcode(thirdItemFromSecondHostLmsBarcode)
 				.callNumber("HC336.2 .S74 1969")
 				.statusCode("-")
 				.itemType("999")
@@ -199,32 +210,39 @@ class LiveAvailabilityServiceTests {
 		final var report = checkAvailability(clusterRecord);
 
 		// Assert
+
 		// This is a compromise that checks the rough identity of each item
 		// without duplicating checks for many fields
 		// The order is important due to the sorting applied to items
 		assertThat(report, allOf(
 			hasItems(5),
 			hasItemsInOrder(
-				hasBarcode("9849123490"),
-				hasBarcode("6565750674"),
-				hasBarcode("30800005238487"),
-				hasBarcode("30800005208449"),
-				hasBarcode("30800005315459")
+				allOf(
+					hasBarcode(firstItemFromSecondHostLmsBarcode),
+					hasSourceHostLmsCode(secondHostLms)
+				),
+				allOf(
+					hasBarcode(firstItemFromFirstHostLmsBarcode),
+					hasSourceHostLmsCode(firstHostLms)
+				),
+				allOf(
+					hasBarcode(secondItemFromFirstHostLmsBarcode),
+					hasSourceHostLmsCode(firstHostLms)
+				),
+				allOf(
+					hasBarcode(thirdItemFromSecondHostLmsBarcode),
+					hasSourceHostLmsCode(secondHostLms)
+				),
+				allOf(
+					hasBarcode(secondItemFromSecondHostLmsBarcode),
+					hasSourceHostLmsCode(secondHostLms)
+				)
 			),
 			hasNoErrors()
 		));
 
-		// All available items should have the same availability date
-		final List<Item> items = getValue(report, AvailabilityReport::getItems, emptyList());
-
-		final var availableItems = items.stream()
-			.filter(item -> getValue(item, Item::getStatus, ItemStatus::getCode,
-				UNKNOWN).equals(AVAILABLE))
-			.toList();
-
-		final var firstAvailabilityDate = availableItems.get(0).getAvailableDate();
-
-		availableItems.forEach(item -> assertThat(item.getAvailableDate(), is(firstAvailabilityDate)));
+		assertAllAvailableItemsHaveSameAvailabilityDate(
+			getValue(report, AvailabilityReport::getItems, emptyList()));
 	}
 
 	@Test
@@ -495,26 +513,16 @@ class LiveAvailabilityServiceTests {
 			hostLms.getCode(), locationCode, agency.getCode());
 	}
 
-	private static Matcher<AvailabilityReport> hasNoItems() {
-		return hasProperty("items", empty());
-	}
+	private static void assertAllAvailableItemsHaveSameAvailabilityDate(List<Item> items) {
+		final var groupedByAvailabilityDate = items.stream()
+			.filter(Item::isAvailable)
+			.collect(groupingBy(Item::getAvailableDate));
 
-	private static Matcher<AvailabilityReport> hasItems(int expectedCount) {
-		return hasProperty("items", hasSize(expectedCount));
-	}
+		assertThat("Only one availability date", groupedByAvailabilityDate.keySet(), hasSize(1));
 
-	@SafeVarargs
-	private static Matcher<AvailabilityReport> hasItemsInOrder(Matcher<Item>... matchers) {
-		return hasProperty("items", contains(matchers));
-	}
-
-	private static Matcher<AvailabilityReport> hasNoErrors() {
-		return hasProperty("errors", empty());
-	}
-
-	private static Matcher<AvailabilityReport> hasError(String expectedMessage) {
-		return hasProperty("errors", containsInAnyOrder(
-			hasProperty("message", is(expectedMessage)))
-		);
+		assertThat("Availability date is present",
+			groupedByAvailabilityDate.keySet().stream().findFirst().isPresent(), is(true));
+		assertThat("Availability date is not null",
+			groupedByAvailabilityDate.keySet().stream().findFirst().get(), is(notNullValue()));
 	}
 }
