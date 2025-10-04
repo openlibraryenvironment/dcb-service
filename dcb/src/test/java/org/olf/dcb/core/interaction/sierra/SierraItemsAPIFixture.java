@@ -1,34 +1,36 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.mockserver.client.MockServerClient;
-import org.mockserver.model.HttpRequest;
-import org.mockserver.model.HttpResponse;
-import org.mockserver.model.RequestDefinition;
-import org.mockserver.verify.VerificationTimes;
-import org.olf.dcb.test.TestResourceLoaderProvider;
-import services.k_int.interaction.sierra.CheckoutResultSet;
-import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.LinkResult;
-import services.k_int.interaction.sierra.items.Location;
-import services.k_int.interaction.sierra.items.SierraItem;
-import services.k_int.interaction.sierra.items.Status;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockserver.model.Delay.delay;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.once;
+import static org.olf.dcb.utils.CollectionUtils.mapList;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.mockserver.client.MockServerClient;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.RequestDefinition;
+import org.mockserver.verify.VerificationTimes;
+import org.olf.dcb.test.TestResourceLoaderProvider;
+
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.CheckoutResultSet;
+import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.LinkResult;
+import services.k_int.interaction.sierra.items.Location;
+import services.k_int.interaction.sierra.items.SierraItem;
+import services.k_int.interaction.sierra.items.Status;
 
 @Slf4j
 @AllArgsConstructor
@@ -81,9 +83,7 @@ public class SierraItemsAPIFixture {
 				ItemResultSet.builder()
 					.start(0)
 					.total(items.size())
-					.entries(items.stream()
-						.map(SierraItemsAPIFixture::mapItem)
-						.toList())
+					.entries(mapList(items, SierraItemsAPIFixture::mapItem))
 					.build()), delay(MILLISECONDS, millisecondDelay)));
 	}
 

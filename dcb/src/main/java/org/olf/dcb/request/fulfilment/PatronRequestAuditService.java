@@ -1,8 +1,20 @@
 package org.olf.dcb.request.fulfilment;
 
-import io.micronaut.transaction.annotation.Transactional;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
+import static io.micronaut.core.util.StringUtils.isNotEmpty;
+import static java.util.Optional.empty;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.StringUtils.truncate;
+
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
@@ -11,18 +23,11 @@ import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.zalando.problem.AbstractThrowableProblem;
 import org.zalando.problem.Problem;
+
+import io.micronaut.transaction.annotation.Transactional;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.time.Instant;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import static io.micronaut.core.util.StringUtils.isNotEmpty;
-import static java.util.Optional.empty;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.StringUtils.truncate;
 
 @Slf4j
 @Singleton
@@ -248,18 +253,10 @@ public class PatronRequestAuditService {
 	public static HashMap<String, Object> auditThrowable(HashMap<String, Object> auditData, String key, Throwable error) {
 		try {
 			// Extract relevant stack trace information
-			List<Map<String, Object>> stackTraceList = Arrays.stream(error.getStackTrace())
+			final var stackTraceList = Arrays.stream(error.getStackTrace())
 				.limit(3)  // Limit to the first 3 elements for brevity
-				.map(stackTraceElement -> {
-					Map<String, Object> stackTraceElementMap = new HashMap<>();
-					stackTraceElementMap.put("methodName", stackTraceElement.getMethodName());
-					stackTraceElementMap.put("fileName", stackTraceElement.getFileName());
-					stackTraceElementMap.put("lineNumber", stackTraceElement.getLineNumber());
-					stackTraceElementMap.put("nativeMethod", stackTraceElement.isNativeMethod());
-					stackTraceElementMap.put("className", stackTraceElement.getClassName());
-					return stackTraceElementMap;
-				})
-				.collect(Collectors.toList());
+				.map(PatronRequestAuditService::stackTraceToAudit)
+				.toList();
 
 			// Create the error map with the condensed stack trace
 			Map<String, Object> errorMap = new HashMap<>();
@@ -291,7 +288,22 @@ public class PatronRequestAuditService {
 		return auditData;
 	}
 
-	public static HashMap<String, Object> putAuditData(HashMap<String, Object> auditData, String key, Object value) {
+	private static Map<String, Object> stackTraceToAudit(
+		StackTraceElement stackTraceElement) {
+
+		final Map<String, Object> stackTraceElementMap = new HashMap<>();
+
+		stackTraceElementMap.put("methodName", stackTraceElement.getMethodName());
+		stackTraceElementMap.put("fileName", stackTraceElement.getFileName());
+		stackTraceElementMap.put("lineNumber", stackTraceElement.getLineNumber());
+		stackTraceElementMap.put("nativeMethod", stackTraceElement.isNativeMethod());
+		stackTraceElementMap.put("className", stackTraceElement.getClassName());
+
+		return stackTraceElementMap;
+	}
+
+	public static HashMap<String, Object> putAuditData(
+		HashMap<String, Object> auditData, String key, Object value) {
 
 		putOrNullFallback(auditData, key, value);
 

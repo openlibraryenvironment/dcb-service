@@ -1,6 +1,6 @@
 package org.olf.dcb.utils;
 
-import static java.util.Collections.emptyList;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 import graphql.com.google.common.collect.Streams;
 
 public class CollectionUtils {
+	@SafeVarargs
 	public static <T> List<T> nonNullValuesList(T... values) {
 		return Stream.of(values)
 			.filter(Objects::nonNull)
@@ -27,11 +28,13 @@ public class CollectionUtils {
 
 		iterable.forEach(list::add);
 
-		return list.size() > 0 ? list.toArray() : null;
+		return list.isEmpty()
+			? null
+			: list.toArray();
 	}
 
 	public static <T> Collection<T> nullIfEmpty(Collection<T> collection) {
-		if (collection == null || collection.size() < 1) {
+		if (collection == null || collection.isEmpty()) {
 			return null;
 		}
 
@@ -45,28 +48,24 @@ public class CollectionUtils {
 	}
 
 	public static <T> Stream<T> emptyWhenNull(Collection<T> collection) {
-		if (collection == null) {
-			return Stream.empty();
-		}
-
-		return collection.stream();
+		return getValue(collection, Collection::stream, Stream.empty());
 	}
 
 	public static <R> R firstValueOrNull(Collection<R> collection) {
 		return emptyWhenNull(collection).findFirst().orElse(null);
 	}
 
-	public static List<String> emptyListWhenNull(String value) {
-		return value != null
-			? nonNullValuesList(value)
-			: emptyList();
-	}
-
 	public static <TSource, TDestination> List<TDestination> mapList(
 		List<TSource> sourceList, Function<TSource, TDestination> mapper) {
 
-		return emptyWhenNull(sourceList)
-			.map(mapper)
+		return mapStream(sourceList, mapper)
 			.toList();
+	}
+
+	public static <TSource, TDestination> Stream<TDestination> mapStream(
+		List<TSource> sourceList, Function<TSource, TDestination> mapper) {
+
+		return emptyWhenNull(sourceList)
+			.map(mapper);
 	}
 }
