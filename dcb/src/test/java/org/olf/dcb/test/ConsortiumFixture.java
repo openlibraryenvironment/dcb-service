@@ -99,17 +99,29 @@ public class ConsortiumFixture {
 	 * Creates a complete consortium setup with all necessary related entities.
 	 * Includes a library group, consortium, functional setting, and links them together.
 	 */
-	public Consortium createConsortiumWithFunctionalSetting(FunctionalSettingType functionalSettingType, boolean enabled) {
-		var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
-		var consortium = persistConsortium(createConsortiumFor(libraryGroup));
-		var setting = createFunctionalSetting(functionalSettingType, enabled);
-		var functionalSetting = persistFunctionalSetting(setting);
+	public Consortium createConsortiumWithFunctionalSetting(
+		FunctionalSettingType functionalSettingType, boolean enabled) {
+
+		final var consortium = createConsortium();
+
+		createSetting(consortium, functionalSettingType, enabled);
+
+		return consortium;
+	}
+
+	public void createSetting(Consortium consortium,
+		FunctionalSettingType functionalSettingType, Boolean enabled) {
+
+		final var setting = createFunctionalSetting(functionalSettingType, enabled);
+		final var functionalSetting = persistFunctionalSetting(setting);
+
 		persistConsortiumFunctionalSetting(linkConsortiumToSetting(consortium, functionalSetting));
+	}
 
-		var savedConsortium = findConsortiumById(consortium.getId());
-		log.debug("Test consortium created: {}", savedConsortium);
+	public Consortium createConsortium() {
+		final var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
 
-		return savedConsortium;
+		return persistConsortium(createConsortiumFor(libraryGroup));
 	}
 
 	private LibraryGroup persistLibraryGroup(LibraryGroup libraryGroup) {
@@ -160,7 +172,7 @@ public class ConsortiumFixture {
 			.build();
 	}
 
-	private static FunctionalSetting createFunctionalSetting(FunctionalSettingType functionalSettingType, boolean enabled) {
+	private static FunctionalSetting createFunctionalSetting(FunctionalSettingType functionalSettingType, Boolean enabled) {
 		return FunctionalSetting.builder()
 			.id(randomUUID())
 			.name(functionalSettingType)
