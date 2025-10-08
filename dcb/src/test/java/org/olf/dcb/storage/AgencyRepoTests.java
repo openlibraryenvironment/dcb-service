@@ -50,7 +50,7 @@ class AgencyRepoTests {
 		// Arrange
 		final var hostLms = hostLmsFixture.createSierraHostLms("example-host-lms");
 
-		agencyFixture.saveAgency(DataAgency.builder()
+		agencyFixture.defineAgency(DataAgency.builder()
 			.id(randomUUID())
 			.code("agency-code")
 			.name("agency name")

@@ -315,8 +315,8 @@ class PatronRequestResolutionTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, "example-location", "unknown-circulating-host-lms");
 
-		agencyFixture.defineAgency("unknown-circulating-host-lms",
-			"Unknown Circulating Host LMS", null);
+		agencyFixture.defineAgencyWithNoHostLms("unknown-circulating-host-lms",
+			"Unknown Circulating Host LMS");
 
 		final var patron = definePatron("872321", "465636");
 

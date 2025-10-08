@@ -4,6 +4,8 @@ import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
 
+import java.util.UUID;
+
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.AgencyRepository;
@@ -31,14 +33,6 @@ public class AgencyFixture {
 		return singleValueFrom(agencyRepository.findOneByCode(code));
 	}
 
-	public DataAgency saveAgency(DataAgency agency) {
-		final var savedAgency = singleValueFrom(agencyRepository.save(agency));
-
-		log.debug("Saved agency: {}", savedAgency);
-
-		return savedAgency;
-	}
-
 	public DataAgency defineAgency(String code, String name, DataHostLms hostLms) {
 		return defineAgency(DataAgency.builder()
 			.id(randomUUID())
@@ -50,21 +44,35 @@ public class AgencyFixture {
 			.build());
 	}
 
-	public DataAgency defineAgency(DataAgency agency) {
-		return saveAgency(agency);
+	public DataAgency defineAgency(String code, String name, UUID hostLmsId) {
+		return defineAgency(code, name, DataHostLms.builder().id(hostLmsId).build());
 	}
 
-	public DataAgency defineAgency(String code, String name, DataHostLms hostLms, Double latitude, Double longitude) {
+	public DataAgency defineAgency(DataAgency agency) {
+		final var savedAgency = singleValueFrom(agencyRepository.save(agency));
+
+		log.debug("Saved agency: {}", savedAgency);
+
+		return savedAgency;
+	}
+
+	public DataAgency defineAgency(String code, String name, DataHostLms hostLms,
+		Double latitude, Double longitude) {
+
 		return defineAgency(DataAgency.builder()
 			.id(randomUUID())
-			.code(code)
 			.name(name)
+			.code(code)
 			.isSupplyingAgency(true)
 			.isBorrowingAgency(true)
 			.hostLms(hostLms)
 			.longitude(longitude)
 			.latitude(latitude)
 			.build());
+	}
+
+	public DataAgency defineAgencyWithNoHostLms(String code, String name) {
+		return defineAgency(code, name, (DataHostLms) null);
 	}
 
 	public void delete(DataAgency agency) {

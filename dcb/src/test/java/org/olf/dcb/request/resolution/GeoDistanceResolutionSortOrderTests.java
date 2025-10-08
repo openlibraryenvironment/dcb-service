@@ -130,7 +130,7 @@ class GeoDistanceResolutionSortOrderTests {
 		final var pickupLocationId = definePickupLocationAtRoyalAlbertDock().getId();
 
 		final var agency = agencyFixture.defineAgency("example-agency",
-			"Example Agency", null);
+			"Example Agency", null, null, null);
 
 		// Act
 		final var items = List.of(createItem("536524", agency));

@@ -96,7 +96,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "invalid");
 
-		borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE, "Borrowing Agency", sierraHostLms);
+		borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
+			"Borrowing Agency", sierraHostLms);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);

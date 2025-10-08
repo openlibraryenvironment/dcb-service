@@ -2,6 +2,7 @@ package org.olf.dcb.test;
 
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
 
 import java.util.*;
 
@@ -13,6 +14,7 @@ import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.devtools.interaction.dummy.DummyLmsClient;
 import org.olf.dcb.ingest.IngestSource;
@@ -203,6 +205,13 @@ public class HostLmsFixture {
 
 		dataAccess.deleteAll(hostLmsRepository.queryAll(),
 			hostLms -> hostLmsRepository.delete(hostLms.getId()));
+	}
+
+	public void delete(DataHostLms hostLms) {
+		final var id = getValueOrThrow(hostLms, DataHostLms::getId,
+			() -> new RuntimeException("Host LMS (%s) has no ID".formatted(hostLms)));
+
+		singleValueFrom(hostLmsRepository.delete(id));
 	}
 
 	public HostLmsClient createClient(String code) {

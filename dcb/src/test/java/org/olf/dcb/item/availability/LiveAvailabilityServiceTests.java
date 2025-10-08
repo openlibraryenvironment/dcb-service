@@ -290,8 +290,7 @@ class LiveAvailabilityServiceTests {
 
 		final var knownLocationCode = "known-location";
 
-		final var agency = agencyFixture.defineAgency("agency",
-			"Agency", null);
+		final var agency = agencyFixture.defineAgencyWithNoHostLms("agency", "Agency");
 
 		mapLocationToAgency(knownLocationCode, firstHostLms, agency);
 

@@ -1,5 +1,6 @@
 package services.k_int.utils;
 
+import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -90,5 +91,14 @@ public interface ReactorUtils {
 
 	public static <T> Function<Flux<T>, LoggerAwareFluxSideEffects<T>> logAwareFlux( Logger logger ) {
 		return LoggerAwareFluxSideEffects.withLogger(logger);
+	}
+
+	static <TMain, TRelated> Mono<TMain> fetchRelatedRecord(TMain mainRecord,
+		Function<TMain, Mono<? extends TRelated>> relatedRecordFinder,
+		BiFunction<TMain, TRelated, TMain> combinator) {
+
+		return Mono.just(mainRecord)
+			.zipWhen(relatedRecordFinder, combinator)
+			.switchIfEmpty(Mono.just(mainRecord));
 	}
 }

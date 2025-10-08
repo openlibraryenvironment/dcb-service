@@ -115,7 +115,7 @@ class LocationToAgencyMappingServiceTests {
 		// Arrange
 		final var agencyCode = "known-agency";
 
-		agencyFixture.defineAgency(agencyCode, "Known agency", null);
+		agencyFixture.defineAgencyWithNoHostLms(agencyCode, "Known agency");
 
 		final var locationCode = "location-with-mapping";
 
