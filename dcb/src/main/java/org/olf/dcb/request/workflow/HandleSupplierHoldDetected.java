@@ -1,26 +1,20 @@
 package org.olf.dcb.request.workflow;
 
 import java.util.List;
-import java.util.Set;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.storage.SupplierRequestRepository;
 
-import io.micronaut.context.BeanProvider;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -35,27 +29,17 @@ import reactor.core.publisher.Mono;
 public class HandleSupplierHoldDetected implements PatronRequestStateTransition {
 
 	private final PatronRequestRepository patronRequestRepository;
-	private final SupplierRequestRepository supplierRequestRepository;
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
-	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final PatronRequestAuditService auditService;
-  private final RequestWorkflowContextHelper requestWorkflowContextHelper;
-	private HostLmsService hostLmsService;
+	private final HostLmsService hostLmsService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.LOANED);
 	
 	public HandleSupplierHoldDetected(PatronRequestRepository patronRequestRepository,
-		SupplierRequestRepository supplierRequestRepository,
-		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		PatronRequestAuditService auditService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper,
-		HostLmsService hostLmsService) {
+		PatronRequestAuditService auditService, HostLmsService hostLmsService) {
 
 		this.patronRequestRepository = patronRequestRepository;
-		this.supplierRequestRepository = supplierRequestRepository;
-		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.auditService = auditService;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.hostLmsService = hostLmsService;
 	}
 
