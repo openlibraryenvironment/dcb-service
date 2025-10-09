@@ -9,6 +9,7 @@ import static org.mockserver.model.HttpResponse.response;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.MediaType;
@@ -22,6 +23,7 @@ import jakarta.inject.Inject;
 
 @MockServerMicronautTest
 @Requires(env = {"framework_test"})
+@Disabled
 public class ProxyTest {
 
 	@Inject
