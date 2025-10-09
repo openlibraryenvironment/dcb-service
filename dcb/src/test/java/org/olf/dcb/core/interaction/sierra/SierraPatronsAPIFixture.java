@@ -131,6 +131,15 @@ public class SierraPatronsAPIFixture {
 			.respond(sierraMockServerResponses.noRecordsFound());
 	}
 
+	public void verifyRenewalRequestMade(String checkoutId) {
+		mockServer.verify(postRenewal(checkoutId), once());
+	}
+
+	public void verifyNoCheckoutRelatedRequestsMade() {
+		// This is a compromise because mock server seems to only support wildcards at the end of the path
+		mockServer.verify(sierraMockServerRequests.post("/checkouts/*"), never());
+	}
+
 	public void thisRecordIsNotAvailableResponse(String patronId, String expectedRecordType) {
 		mockServer
 			.when(postPatronHoldRequest(patronId, PatronHoldPost.builder()
@@ -157,7 +166,6 @@ public class SierraPatronsAPIFixture {
 	}
 
 	private HttpRequest postRenewal(String checkoutID) {
-
 		return sierraMockServerRequests.post("/checkouts/" + checkoutID + "/renewal");
 	}
 

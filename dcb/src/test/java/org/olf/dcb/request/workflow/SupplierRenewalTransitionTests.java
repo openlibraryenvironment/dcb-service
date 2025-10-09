@@ -117,13 +117,15 @@ class SupplierRenewalTransitionTests {
 
 		defineSupplierRequest(patronRequest, "4324324", existingPatron);
 
-		sierraItemsAPIFixture.checkoutsForItem("4324324");
-		sierraPatronsAPIFixture.mockRenewalSuccess("1811242");
+		final var checkoutId = sierraItemsAPIFixture.checkoutsForItem("4324324");
+		sierraPatronsAPIFixture.mockRenewalSuccess(checkoutId);
 
 		// Act
 		final var updatedPatronRequest = supplierRenewal(patronRequest);
 
 		// Assert
+		sierraPatronsAPIFixture.verifyRenewalRequestMade(checkoutId);
+
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
 			hasStatus(LOANED),
@@ -173,6 +175,8 @@ class SupplierRenewalTransitionTests {
 		final var updatedPatronRequest = supplierRenewal(patronRequest);
 
 		// Assert
+		sierraPatronsAPIFixture.verifyNoCheckoutRelatedRequestsMade();
+
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
 			hasStatus(LOANED),
@@ -220,6 +224,8 @@ class SupplierRenewalTransitionTests {
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
 
 		// Assert
+		sierraPatronsAPIFixture.verifyNoCheckoutRelatedRequestsMade();
+
 		assertThat(exception.getMessage(), containsString("Supplier renewal is not applicable for request"));
 
 		assertNoAuditRecords(patronRequest);
@@ -236,6 +242,8 @@ class SupplierRenewalTransitionTests {
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
 
 		// Assert
+		sierraPatronsAPIFixture.verifyNoCheckoutRelatedRequestsMade();
+
 		assertThat(exception.getMessage(), containsString("Supplier renewal is not applicable for request"));
 
 		assertNoAuditRecords(patronRequest);
@@ -252,6 +260,8 @@ class SupplierRenewalTransitionTests {
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
 
 		// Assert
+		sierraPatronsAPIFixture.verifyNoCheckoutRelatedRequestsMade();
+
 		assertThat(exception.getMessage(), containsString("Supplier renewal is not applicable for request"));
 
 		assertNoAuditRecords(patronRequest);
@@ -268,6 +278,8 @@ class SupplierRenewalTransitionTests {
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
 
 		// Assert
+		sierraPatronsAPIFixture.verifyNoCheckoutRelatedRequestsMade();
+
 		assertThat(exception.getMessage(), containsString("Supplier renewal is not applicable for request"));
 
 		assertNoAuditRecords(patronRequest);
