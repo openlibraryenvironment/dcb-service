@@ -11,48 +11,40 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.request.fulfilment.PatronService;
 import org.olf.dcb.storage.PatronIdentityRepository;
 import org.olf.dcb.storage.PatronRepository;
 
-import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import reactor.core.publisher.Mono;
 
 @Singleton
+@AllArgsConstructor
 public class PatronFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final PatronRepository patronRepository;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final HostLmsService hostLmsService;
+	private final PatronService patronService;
 	private final PatronRequestsFixture patronRequestsFixture;
-
-	PatronFixture(PatronRepository patronRepository,
-		PatronIdentityRepository patronIdentityRepository,
-		HostLmsService hostLmsService, PatronRequestsFixture patronRequestsFixture) {
-
-		this.patronRepository = patronRepository;
-		this.patronIdentityRepository = patronIdentityRepository;
-		this.hostLmsService = hostLmsService;
-		this.patronRequestsFixture = patronRequestsFixture;
-	}
 
 	public Patron definePatron(String localId, String homeLibraryCode,
 		DataHostLms hostLms, DataAgency agency) {
 
 		final var patron = savePatron(homeLibraryCode);
 
-		final var homeIdentity = saveIdentity(patron,
-			hostLms, localId, true, "-",
-			homeLibraryCode, agency);
+		saveIdentity(patron, hostLms, localId, true, "-", homeLibraryCode, agency);
 
-		// This has to refer to a shallow copy of the patron in order to avoid
-		// a stack overflow caused by a circular reference
-		patron.setPatronIdentities(List.of(
-			homeIdentity.setPatron(Patron.builder().id(patron.getId()).build())
-		));
+		// Fetch the just saved identity from the DB
+		patron.setPatronIdentities(manyValuesFrom(patronService.findAllPatronIdentitiesByPatron(patron)));
 
 		return patron;
+	}
+
+	public Patron definePatron(String localId, String homeLibraryCode, DataHostLms hostLms) {
+		return definePatron(localId, homeLibraryCode, hostLms, null);
 	}
 
 	public Patron savePatron(String homeLibraryCode) {

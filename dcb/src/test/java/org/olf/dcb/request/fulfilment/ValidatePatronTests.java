@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
-import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolvedAgency;
@@ -31,7 +30,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
@@ -71,8 +69,7 @@ public class ValidatePatronTests {
 
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
-	@Inject
-	private PatronService patronService;
+
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	@BeforeAll
@@ -111,7 +108,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
+		final var patron = patronFixture.definePatron(localId, HOME_LIBRARY_CODE, hostLms);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			"validate-patron-transition-tests", 10, 25, "DCB", "15");
@@ -150,7 +147,7 @@ public class ValidatePatronTests {
 
 		final var borrowingHostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, borrowingHostLms, null);
+		final var patron = patronFixture.definePatron(localId, null, borrowingHostLms);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			"validate-patron-transition-tests", 10, 25, "DCB", "15");
@@ -187,7 +184,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
+		final var patron = patronFixture.definePatron(localId, HOME_LIBRARY_CODE, hostLms);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			"validate-patron-transition-tests", 10, 25, "DCB", "15");
@@ -229,7 +226,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
+		final var patron = patronFixture.definePatron(localId, HOME_LIBRARY_CODE, hostLms);
 
 		var patronRequest = savePatronRequest(patron);
 
@@ -258,7 +255,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
+		final var patron = patronFixture.definePatron(localId, HOME_LIBRARY_CODE, hostLms);
 
 		var patronRequest = savePatronRequest(patron);
 
@@ -294,7 +291,7 @@ public class ValidatePatronTests {
 
 		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 
-		final var patron = createPatron(localId, hostLms, HOME_LIBRARY_CODE);
+		final var patron = patronFixture.definePatron(localId, HOME_LIBRARY_CODE, hostLms);
 
 		var patronRequest = savePatronRequest(patron);
 
@@ -319,16 +316,6 @@ public class ValidatePatronTests {
 		assertThat(exception.getMessage(), is(expectedMessage));
 
 		checkPatronRequestHasError(patronRequest.getId(), expectedMessage);
-	}
-
-	private Patron createPatron(String localId, DataHostLms hostLms, String homeLibraryCode) {
-		final Patron patron = patronFixture.savePatron(homeLibraryCode);
-
-		patronFixture.saveIdentity(patron, hostLms, localId, true, "-", homeLibraryCode, null);
-
-		patron.setPatronIdentities(manyValuesFrom(patronService.findAllPatronIdentitiesByPatron(patron)));
-
-		return patron;
 	}
 
 	private PatronRequest savePatronRequest(Patron patron) {
