@@ -94,6 +94,9 @@ public class ValidatePatronTests {
 
 	@BeforeEach
 	public void BeforeEach() {
+		patronRequestsFixture.deleteAll();
+		patronFixture.deleteAllPatrons();
+
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 
