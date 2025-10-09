@@ -13,20 +13,20 @@
 <!--	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>-->
 <!--	<logger name="org.mockserver" level="TRACE"/>-->
 <!--	<logger name="org.olf.dcb.core.interaction.folio" level="TRACE"/>-->
-<!--	<logger name="org.olf.dcb.tracking" level="DEBUG"/>-->
+<!--	<logger name="org.mockserver" level="WARN"/>-->
+<!--	<logger name="org.flywaydb" level="DEBUG"/>-->
+<!--	<logger name="org.flyway" level="DEBUG"/>-->
+<!--	<logger name="io.micronaut.flyway" level="DEBUG"/>-->
+<!--	<logger name="io.micronaut.security" level="DEBUG"/>-->
+<!--	<logger name="com.zaxxer.hikari.HikariDataSource" level="WARN"/>-->
+<!--	<logger name="org.testcontainers" level="WARN"/>-->
+<!--	<logger name="io.micronaut.org.testcontainers" level="WARN"/>-->
+<!--	<logger name="io.micronaut.context.lifecycle" level="WARN"/>-->
 
-	<logger name="org.mockserver" level="WARN"/>
-	<logger name="org.flywaydb" level="DEBUG"/>
-	<logger name="org.flyway" level="DEBUG"/>
-	<logger name="io.micronaut.flyway" level="DEBUG"/>
 	<logger name="org.olf.dcb" level="DEBUG"/>
+	<logger name="org.olf.dcb.tracking" level="DEBUG"/>
 	<logger name="org.olf.dcb.rules" level="TRACE"/>
 	<logger name="services.k_int" level="DEBUG"/>
-	<logger name="io.micronaut.security" level="DEBUG"/>
-	<logger name="com.zaxxer.hikari.HikariDataSource" level="WARN"/>
-	<logger name="org.testcontainers" level="WARN"/>
-	<logger name="io.micronaut.org.testcontainers" level="WARN"/>
-	<logger name="io.micronaut.context.lifecycle" level="WARN"/>
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>
