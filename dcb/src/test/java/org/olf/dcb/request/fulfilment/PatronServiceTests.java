@@ -6,10 +6,12 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
@@ -47,8 +49,7 @@ class PatronServiceTests {
 		patronFixture.saveIdentity(existingPatron, homeHostLms, LOCAL_ID, true, "-", LOCAL_SYSTEM_CODE, null);
 
 		// Act
-		final var foundPatron = patronService
-				.findById(new PatronId(existingPatron.getId())).block();
+		final var foundPatron = findPatron(new PatronId(existingPatron.getId()));
 
 		// Assert
 		assertThat("Expected a patron to be returned, but was null",
@@ -82,10 +83,16 @@ class PatronServiceTests {
 	@DisplayName("should not find patron when given an unknown ID")
 	void shouldNotFindPatronWhenPatronDoesNotExist() {
 		// Act
-		final var result = patronService.findById(new PatronId(randomUUID())).block();
+		final var result = findPatron(new PatronId(randomUUID()));
 
 		// Assert
 		assertThat("Should not return a patron (block converts empty mono to null)",
 			result, is(nullValue()));
+	}
+
+
+
+	private Patron findPatron(PatronId patronId) {
+		return singleValueFrom(patronService.findById(patronId));
 	}
 }
