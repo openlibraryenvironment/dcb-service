@@ -1,9 +1,7 @@
 package org.olf.dcb.core.interaction.folio;
 
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
@@ -14,13 +12,15 @@ import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedIte
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.*;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasTextResponseBody;
 
 import java.util.List;
 import java.util.UUID;
 
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,6 +32,7 @@ import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient.Validatio
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
@@ -64,11 +65,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CREATED");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
-
-		final var localRequest = singleValueFrom(client.getRequest(hostLmsRequest));
+		final var localRequest = getRequest(localRequestId);
 
 		// Assert
 		assertThat(localRequest, allOf(
@@ -88,11 +85,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "OPEN");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
-
-		final var localRequest = singleValueFrom(client.getRequest(hostLmsRequest));
+		final var localRequest = getRequest(localRequestId);
 
 		// Assert
 		assertThat(localRequest, allOf(
@@ -112,11 +105,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CANCELLED");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
-
-		final var localRequest = singleValueFrom(client.getRequest(hostLmsRequest));
+		final var localRequest = getRequest(localRequestId);
 
 		// Assert
 		assertThat(localRequest, allOf(
@@ -146,11 +135,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 					.build())));
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
-
-		final var localRequest = singleValueFrom(client.getRequest(hostLmsRequest));
+		final var localRequest = getRequest(localRequestId);
 
 		// Assert
 		assertThat(localRequest, allOf(
@@ -183,11 +168,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, transactionStatus);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
-
-		final var localRequest = singleValueFrom(client.getRequest(hostLmsRequest));
+		final var localRequest = getRequest(localRequestId);
 
 		// Assert
 		assertThat(localRequest, allOf(
@@ -229,9 +210,9 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			.build();
 
 		final var expectedResponseBody = """
-    HTTP 500 Internal Server Error.
-    If the issue persists, please report it to EBSCO Connect.
-    """;
+			HTTP 500 Internal Server Error.
+			If the issue persists, please report it to EBSCO Connect.
+			""";
 
 		mockFolioFixture.mockGetTransactionStatus(transactionId,
 			response()
@@ -250,13 +231,25 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 
 		assertThat("Should indicate GET method was used in the request",
 			thrown, hasRequestMethod("GET"));
+
 		assertThat("Should contain the exact URL used for the failed request",
 			thrown, hasRequestUrl(expectedUrl));
+
 		assertThat("Should indicate that the response status was 500 (Internal Server Error)",
 			thrown, hasResponseStatusCode(500));
+
 		assertThat("Should associate the error with the correct host LMS code",
 			thrown, hasMessageForHostLms(HOST_LMS_CODE));
+
 		assertThat("Should include the raw text response body for diagnostic purposes",
 			thrown, hasTextResponseBody(expectedResponseBody));
+	}
+
+	private HostLmsRequest getRequest(String localRequestId) {
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
+
+		return singleValueFrom(client.getRequest(hostLmsRequest));
 	}
 }
