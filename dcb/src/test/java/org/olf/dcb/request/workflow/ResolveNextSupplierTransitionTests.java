@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,6 +19,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
@@ -30,6 +32,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,11 +45,11 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.InactiveSupplierRequest;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.test.AgencyFixture;
@@ -166,7 +169,7 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void shouldTerminateRequestWhenSettingIsDisabled() {
+	void shouldCancelRequestWhenSettingIsDisabled() {
 		// Arrange
 		disableFunctionalSetting();
 
@@ -186,7 +189,7 @@ class ResolveNextSupplierTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+		defineCancelledSupplierRequest(patronRequest);
 
 		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
 
@@ -199,6 +202,9 @@ class ResolveNextSupplierTransitionTests {
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasNoResolutionCount()
 		));
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), contains(
+			isNotRequiredAuditEntry("Consortial setting is not enabled")));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
@@ -225,7 +231,7 @@ class ResolveNextSupplierTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		final var supplierRequest = defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+		final var supplierRequest = defineCancelledSupplierRequest(patronRequest);
 
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
@@ -263,7 +269,7 @@ class ResolveNextSupplierTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+		defineCancelledSupplierRequest(patronRequest);
 
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
@@ -275,10 +281,13 @@ class ResolveNextSupplierTransitionTests {
 			hasNoResolutionCount()
 		));
 
-		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
-			notNullValue(),
-			hasBriefDescription("Could not cancel local borrowing request because no local ID is known (ID: \"%s\")"
-				.formatted(patronRequest.getId()))
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), contains(
+			isNotRequiredAuditEntry("Consortial setting is not enabled"),
+			allOf(
+				notNullValue(),
+				hasBriefDescription("Could not cancel local borrowing request because no local ID is known (ID: \"%s\")"
+					.formatted(patronRequest.getId()))
+			)
 		));
 
 		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade();
@@ -293,7 +302,7 @@ class ResolveNextSupplierTransitionTests {
 		final var patronRequest = definePatronRequest(PICKUP_TRANSIT, "3635625",
 			clusterRecordId);
 
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+		defineCancelledSupplierRequest(patronRequest);
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
@@ -338,7 +347,7 @@ class ResolveNextSupplierTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		defineSupplierRequest(patronRequest, HOLD_CANCELLED);
+		defineCancelledSupplierRequest(patronRequest);
 
 		// Act
 		final var error = assertThrows(RuntimeException.class,
@@ -636,6 +645,9 @@ class ResolveNextSupplierTransitionTests {
 			hasResolutionCount(1)
 		));
 
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), contains(
+			isNotRequiredAuditEntry("Item manually selected")));
+
 		assertThat("Previous supplier request should still exist",
 			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
 
@@ -684,6 +696,14 @@ class ResolveNextSupplierTransitionTests {
 				.map(ctx -> resolveNextSupplierTransition.isApplicableFor(ctx)));
 	}
 
+	private static Matcher<PatronRequestAudit> isNotRequiredAuditEntry(String expectedReason) {
+		return allOf(
+			notNullValue(),
+			hasBriefDescription("Re-resolution not required"),
+			hasAuditDataDetail(expectedReason)
+		);
+	}
+
 	private PatronRequest definePatronRequest(
 		PatronRequest.Status status, String localRequestId, UUID clusterRecordId) {
 
@@ -706,13 +726,13 @@ class ResolveNextSupplierTransitionTests {
 		return patronRequest;
 	}
 
-	private SupplierRequest defineSupplierRequest(PatronRequest patronRequest, String localStatus) {
+	private SupplierRequest defineCancelledSupplierRequest(PatronRequest patronRequest) {
 		return supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
 			.id(UUID.randomUUID())
 			.patronRequest(patronRequest)
 			.hostLmsCode("next-supplier-supplying-host-lms")
 			.localItemId("48375735")
-			.localStatus(localStatus)
+			.localStatus(HOLD_CANCELLED)
 			.build());
 	}
 
@@ -750,8 +770,8 @@ class ResolveNextSupplierTransitionTests {
 				.build());
 	}
 
-	private Consortium enableFunctionalSetting() {
-		return consortiumFixture.enableSetting(RE_RESOLUTION);
+	private void enableFunctionalSetting() {
+		consortiumFixture.enableSetting(RE_RESOLUTION);
 	}
 
 	private void disableFunctionalSetting() {

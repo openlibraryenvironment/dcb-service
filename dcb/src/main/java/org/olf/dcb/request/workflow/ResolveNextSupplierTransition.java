@@ -13,6 +13,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.ConsortiumService;
@@ -37,6 +38,8 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
+import reactor.util.function.Tuple3;
+import reactor.util.function.Tuples;
 
 /**
  * ResolveNextSupplierTransition - Called in response to a request in state NOT_SUPPLIED_CURRENT_SUPPLIER
@@ -77,24 +80,28 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	protected boolean checkApplicability(RequestWorkflowContext context) {
+		// Always applicable because request is cancelled when re-resolution is not required
 		return true;
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext context) {
 		return isReResolutionRequired(context)
-			.flatMap(isRequired -> {
-				log.info("Re-resolution required: {}", isRequired);
+			.flatMap(function(this::branchOnRequired));
+	}
 
-				if (isRequired) {
-          context.getWorkflowMessages().add("ReResolution is required");
-					return resolveNextSupplier(context);
-				}
-				else {
-          context.getWorkflowMessages().add("ReResolution is NOT required - terminating");
-					return cancelRequest(context);
-				}
-			});
+	private Mono<RequestWorkflowContext> branchOnRequired(
+		RequestWorkflowContext context, Boolean required, String reason) {
+
+		if (required) {
+			context.getWorkflowMessages().add("ReResolution is required");
+			return resolveNextSupplier(context);
+		}
+		else {
+			return auditNotRequired(context, reason)
+				.flatMap(this::cancelRequest)
+				.thenReturn(context);
+		}
 	}
 
 	private Mono<RequestWorkflowContext> cancelRequest(RequestWorkflowContext context) {
@@ -105,12 +112,10 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.flatMap(this::markNoItemsAvailableAtAnyAgency);
 	}
 
-	private Mono<Boolean> isReResolutionRequired(RequestWorkflowContext context) {
+	private Mono<Tuple3<RequestWorkflowContext, Boolean, String>> isReResolutionRequired(
+		RequestWorkflowContext context) {
 
-		final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
-
-		return isEnabled()
-			.zipWith(Mono.just(isItemManuallySelected(patronRequest)))
+		return Mono.zip(Mono.just(context), isEnabled(), isItemManuallySelected(context))
 			.map(function(ResolveNextSupplierTransition::isEnabledAndNotManuallySelectedItem));
 	}
 
@@ -121,19 +126,27 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.doOnSuccess(enabled -> log.debug("Re-resolution consortium policy enabled: {}", enabled));
 	}
 
-	private static Boolean isItemManuallySelected(PatronRequest patronRequest) {
-		return getValue(patronRequest, PatronRequest::getIsManuallySelectedItem,
-			false);
+	private static Mono<Boolean> isItemManuallySelected(RequestWorkflowContext context) {
+		return Mono.just(getValue(context, RequestWorkflowContext::getPatronRequest,
+			PatronRequest::getIsManuallySelectedItem, false));
 	}
 
-	private static Boolean isEnabledAndNotManuallySelectedItem(Boolean enabled,
-		Boolean itemManuallySelected) {
+	private static Tuple3<RequestWorkflowContext, Boolean, String> isEnabledAndNotManuallySelectedItem(
+		RequestWorkflowContext context, Boolean enabled, Boolean itemManuallySelected) {
 
-		// Do not attempt to re-resolve a request for a manually selected item
-		// When a patron chooses a specific item, they also effectively choose a supplying library
-		// If that library refuses to supply the item, then there are no viable alternatives
-		// that re-resolution can select that would match that criteria
-		return enabled && !itemManuallySelected;
+		if (!enabled) {
+			return Tuples.of(context, false, "Consortial setting is not enabled");
+		}
+
+		if  (itemManuallySelected) {
+			// Do not attempt to re-resolve a request for a manually selected item
+			// When a patron chooses a specific item, they also effectively choose a supplying library
+			// If that library refuses to supply the item, then there are no viable alternatives
+			// that re-resolution can select that would match that criteria
+			return Tuples.of(context, false, "Item manually selected");
+		}
+
+		return Tuples.of(context, true, "");
 	}
 
 	// Main handler for re-resolution logic
@@ -210,6 +223,14 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 		return patronRequestService.updatePatronRequest(patronRequest)
 			.thenReturn(resolution);
+	}
+
+	private Mono<RequestWorkflowContext> auditNotRequired(
+		RequestWorkflowContext context, String reason) {
+
+		return patronRequestAuditService.addAuditEntry(context.getPatronRequest(),
+				"Re-resolution not required", Map.of("detail", reason))
+			.thenReturn(context);
 	}
 
 	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(
