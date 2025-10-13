@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 
 import org.hamcrest.Matcher;
@@ -44,6 +45,12 @@ public class PatronRequestAuditMatchers {
 
 		return hasProperty("auditData",
 			hasEntry(equalTo(expectedPropertyName), is(expectedPropertyValue)));
+	}
+
+	public static Matcher<PatronRequestAudit> hasAuditDataProperty(
+		String expectedPropertyName) {
+
+		return hasProperty("auditData", hasKey(equalTo(expectedPropertyName)));
 	}
 
 	public static Matcher<PatronRequestAudit> hasAuditDataDetail(String expectedDetail) {

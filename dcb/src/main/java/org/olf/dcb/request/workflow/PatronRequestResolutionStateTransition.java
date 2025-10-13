@@ -117,8 +117,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(
 		Resolution resolution, PatronRequest patronRequest) {
 
-		return patronRequestResolutionService.auditResolution(resolution,
-			patronRequest, "Resolved", patronRequestAuditService)
+		return patronRequestResolutionService.auditResolution(resolution, patronRequest, "Resolved")
 			.zipWith(Mono.just(patronRequest));
 	}
 

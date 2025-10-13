@@ -15,6 +15,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNestedAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
@@ -519,7 +520,10 @@ class PatronRequestResolutionTests {
 			hasNestedAuditDataProperty("selectedItem", "localItemType", "1"),
 			hasNestedAuditDataProperty("selectedItem", "canonicalItemType", "loanable-item"),
 			hasNestedAuditDataProperty("selectedItem", "holdCount", 0),
-			hasNestedAuditDataProperty("selectedItem", "agencyCode", SUPPLYING_AGENCY_CODE)
+			hasNestedAuditDataProperty("selectedItem", "agencyCode", SUPPLYING_AGENCY_CODE),
+			hasAuditDataProperty("filteredItems"),
+			hasAuditDataProperty("sortedItems"),
+			hasAuditDataProperty("allItems")
 		));
 	}
 

@@ -41,6 +41,8 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class PatronRequestResolutionService {
 	private final LiveAvailabilityService liveAvailabilityService;
+	private final PatronRequestAuditService patronRequestAuditService;
+
 	private final List<ResolutionSortOrder> allResolutionStrategies;
 	private final String itemResolver;
 	private final ManualSelection manualSelection;
@@ -48,12 +50,14 @@ public class PatronRequestResolutionService {
 	private final Duration timeout;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
+		PatronRequestAuditService patronRequestAuditService,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies, ManualSelection manualSelection,
 		ItemFilter itemFilter,
 		@Value("${dcb.resolution.live-availability.timeout:PT30S}") Duration timeout) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
+		this.patronRequestAuditService = patronRequestAuditService;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.manualSelection = manualSelection;
@@ -88,13 +92,21 @@ public class PatronRequestResolutionService {
 	}
 
 	public Mono<Resolution> auditResolution(Resolution resolution,
-		PatronRequest patronRequest, String startingText,
-		PatronRequestAuditService auditService) {
+		PatronRequest patronRequest, String startingText) {
 
-		// Do not audit a resolution when an item hasn't been chosen
-		if (!getValue(resolution, Resolution::successful, false)) {
+		final var successful = getValue(resolution, Resolution::successful, false);
+
+		if (successful) {
+			return auditSuccessfulResolution(resolution, patronRequest, startingText);
+		}
+		else {
+			// Do not audit a resolution when an item hasn't been chosen
 			return Mono.just(resolution);
 		}
+	}
+
+	private Mono<Resolution> auditSuccessfulResolution(Resolution resolution,
+		PatronRequest patronRequest, String startingText) {
 
 		final var auditData = new HashMap<String, Object>();
 
@@ -104,8 +116,9 @@ public class PatronRequestResolutionService {
 
 		putNonNullValue(auditData, "filteredItems", toPresentableItems(resolution.getFilteredItems()));
 		putNonNullValue(auditData, "sortedItems", toPresentableItems(resolution.getSortedItems()));
+		putNonNullValue(auditData, "allItems", toPresentableItems(resolution.getAllItems()));
 
-		return auditService.addAuditEntry(patronRequest,
+		return patronRequestAuditService.addAuditEntry(patronRequest,
 				("%s to item with local ID \"%s\" from Host LMS \"%s\"").formatted(
 					startingText, getValue(chosenItem, Item::getLocalId, "null"),
 					getValue(chosenItem, Item::getHostLmsCode, "null")), auditData)
@@ -134,7 +147,7 @@ public class PatronRequestResolutionService {
 	 * Checks if the resolution is a tie breaker.
 	 * A tie breaker is when at least the first two items in the sorted list have the same available date.
 	 *
-	 * @return true if the resolution is a tie breaker, false otherwise
+	 * @return resolution and true if the resolution is a tie breaker, false otherwise
 	 */
 	private static Function<Resolution, Boolean> isTieBreaker() {
 		return resolution -> {

@@ -20,6 +20,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
@@ -426,9 +427,9 @@ class ResolveNextSupplierTransitionTests {
 		assertThat("Inactive supplier request should exist and match previous supplier request",
 			oneInactiveSupplierRequest.getLocalId(), is(supplierRequest.getLocalId()));
 
-		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest),
-			hasBriefDescription("Re-resolved to item with local ID \"%s\" from Host LMS \"%s\""
-				.formatted(newItemId, supplyingHostLms.getCode())));
+		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+
+		assertThat(onlyAuditEntry, isResolutionAuditEntry(newItemId, supplyingHostLms.getCode()));
 	}
 
 	@Test
@@ -701,6 +702,19 @@ class ResolveNextSupplierTransitionTests {
 			notNullValue(),
 			hasBriefDescription("Re-resolution not required"),
 			hasAuditDataDetail(expectedReason)
+		);
+	}
+
+	private static Matcher<PatronRequestAudit> isResolutionAuditEntry(
+		String expectedNewItemId, String expectedSupplyingHostLmsCode) {
+
+		return allOf(
+			hasBriefDescription("Re-resolved to item with local ID \"%s\" from Host LMS \"%s\""
+				.formatted(expectedNewItemId, expectedSupplyingHostLmsCode)),
+			hasAuditDataProperty("selectedItem"),
+			hasAuditDataProperty("filteredItems"),
+			hasAuditDataProperty("sortedItems"),
+			hasAuditDataProperty("allItems")
 		);
 	}
 
