@@ -56,6 +56,7 @@ type Mutation {
 		createRole(input: CreateRoleInput): Role!
 		updateRole(input: UpdateRoleInput): Role!
 		updateConsortialMaxLoans(input: UpdateConsortialMaxLoansInput): Agency!
+		updateAgency(input: UpdateAgencyInput): Agency!
 }
 
 input AddAgencyToGroupCommand {
@@ -369,6 +370,15 @@ input UpdateFunctionalSettingInput {
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
+}
+
+input UpdateAgencyInput {
+	code: String!
+	maxConsortialLoans: Int
+	longitude: Float
+	latitude: Float
+	isSupplyingAgency: Boolean
+	isBorrowingAgency: Boolean
 }
 
 type ProcessState {
