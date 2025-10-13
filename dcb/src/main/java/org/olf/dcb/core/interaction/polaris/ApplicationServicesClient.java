@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.folio.User;
 import org.olf.dcb.core.interaction.polaris.exceptions.SaveVirtualItemException;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
@@ -34,6 +35,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.micronaut.http.HttpMethod.*;
 import static java.lang.Boolean.FALSE;
@@ -51,6 +53,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_BOOKS_LEADER;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.getNoteForStaff;
+import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
@@ -227,8 +230,20 @@ class ApplicationServicesClient {
 				.localPatronType(valueOf(data.getPatronCodeID()))
 				.localBarcodes(singletonList(data.getBarcode()))
 				.localHomeLibraryCode(valueOf(data.getOrganizationID()))
+				.localNames(
+					Optional.ofNullable(data.getRegistration())
+						.map(reg -> Stream.of(reg.getNameFirst(), reg.getNameMiddle(), reg.getNameLast())
+							// At the minute if a name is null, we map to a blank string
+							.map(name -> name == null ? "" : name)
+							.map(String::trim)
+							.filter(s -> !s.isEmpty())
+							.collect(Collectors.toList())
+						)
+						// Default to an empty list if registration itself is null
+						.orElse(Collections.emptyList())
+				)
 				.isActive(true)
-				.isBlocked(false)
+				.isBlocked(data.getSystemBlocks() != null && data.getSystemBlocks() > 0)
 				.isDeleted(false)
 				.build());
 	}
