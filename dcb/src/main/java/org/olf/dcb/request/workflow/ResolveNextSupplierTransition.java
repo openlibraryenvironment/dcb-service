@@ -59,7 +59,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private final PatronRequestResolutionService patronRequestResolutionService;
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 	private final BeanProvider<SupplierRequestService> supplierRequestServiceProvider;
-	private SupplierRequestService supplierRequestService;
 	private final ConsortiumService consortiumService;
 
 	public ResolveNextSupplierTransition(HostLmsService hostLmsService,
@@ -155,8 +154,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 		final var patronRequest = getPatronRequestFromContext(context);
 
-		supplierRequestService = supplierRequestServiceProvider.get();
-
 		log.info("Resolving Patron Request {}", getValue(patronRequest, PatronRequest::getId, "Unknown"));
 
 		return findExcludedAgencyCodes(context)
@@ -174,6 +171,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	private Mono<Tuple2<RequestWorkflowContext, List<String>>> findExcludedAgencyCodes(
 		RequestWorkflowContext context) {
+
+		final var supplierRequestService = supplierRequestServiceProvider.get();
 
 		return supplierRequestService.findAllSupplyingAgencies(getPatronRequestFromContext(context))
 			.mapNotNull(agency -> getValueOrNull(agency, DataAgency::getCode))
@@ -212,6 +211,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	private Mono<Tuple2<Resolution, PatronRequest>> makeSupplierRequestInactive(
 		Resolution resolution, RequestWorkflowContext context) {
+
+		final var supplierRequestService = supplierRequestServiceProvider.get();
 
 		final var previousSupplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
 
@@ -255,6 +256,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		PatronRequest patronRequest) {
 
 		log.debug("saveSupplierRequest({}, {})", resolution, patronRequest);
+
+		final var supplierRequestService = supplierRequestServiceProvider.get();
 
 		return supplierRequestService.saveSupplierRequest(
 				mapToSupplierRequest(resolution.getChosenItem(), patronRequest))
