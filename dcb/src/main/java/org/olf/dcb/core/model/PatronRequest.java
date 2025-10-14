@@ -16,7 +16,6 @@ import java.util.UUID;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
-import org.olf.dcb.request.resolution.Resolution;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -466,8 +465,6 @@ public class PatronRequest {
 	}
 
 	public PatronRequest resolveToNoItemsSelectable() {
-		log.debug("resolveToNoItemsAvailable()");
-
 		return setStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 	}
 

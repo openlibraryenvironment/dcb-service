@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -18,6 +19,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNestedAuditDataProperty;
+import static org.olf.dcb.test.matchers.ResolutionAuditMatchers.isNoSelectableItemResolutionAudit;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
@@ -493,11 +495,14 @@ class PatronRequestResolutionTests {
 		));
 	}
 
-	private static void assertNoItemsSelectableResolution(PatronRequest fetchedPatronRequest) {
-		assertThat(fetchedPatronRequest, allOf(
+	private void assertNoItemsSelectableResolution(PatronRequest patronRequest) {
+		assertThat(patronRequest, allOf(
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasNoResolutionCount()
 		));
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest),
+			hasItem(isNoSelectableItemResolutionAudit("Resolution")));
 	}
 
 	private void assertNoSupplierRequestsFor(PatronRequest patronRequest) {
@@ -512,7 +517,7 @@ class PatronRequestResolutionTests {
 
 		assertThat(fetchedAudit, allOf(
 			notNullValue(),
-			hasBriefDescription("Resolved to item with local ID \"%s\" from Host LMS \"%s\""
+			hasBriefDescription("Resolution selected an item with local ID \"%s\" from Host LMS \"%s\""
 				.formatted(expectedItemId, expectedHostLms)),
 			hasNestedAuditDataProperty("selectedItem", "barcode", "6565750674"),
 			hasNestedAuditDataProperty("selectedItem", "requestable", true),

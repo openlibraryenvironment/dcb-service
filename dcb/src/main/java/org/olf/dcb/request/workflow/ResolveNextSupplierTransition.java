@@ -10,6 +10,7 @@ import static org.olf.dcb.request.resolution.ResolutionParameters.parametersFor;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
@@ -94,7 +95,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		RequestWorkflowContext context, Boolean required, String reason) {
 
 		if (required) {
-			context.getWorkflowMessages().add("ReResolution is required");
 			return resolveNextSupplier(context);
 		}
 		else {
@@ -153,29 +153,41 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<RequestWorkflowContext> resolveNextSupplier(RequestWorkflowContext context) {
 		log.debug("resolveNextSupplier({})", context);
 
-		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
+		final var patronRequest = getPatronRequestFromContext(context);
 
 		supplierRequestService = supplierRequestServiceProvider.get();
 
 		log.info("Resolving Patron Request {}", getValue(patronRequest, PatronRequest::getId, "Unknown"));
 
-		return findExcludedAgencyCodes(patronRequest)
-			.flatMap(excludedAgencyCodes -> resolve(patronRequest, excludedAgencyCodes))
-			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
-			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()))
-			.flatMap(resolution -> applyReResolution(resolution, context))
+		return findExcludedAgencyCodes(context)
+			.flatMap(function(this::resolve))
+			.flatMap(resolution -> auditResolution(resolution, context))
+			.flatMap(function(this::applyReResolution))
 			.thenReturn(context);
 	}
 
-	private Mono<Resolution> resolve(PatronRequest patronRequest, List<String> excludedAgencyCodes) {
-		return patronRequestResolutionService.resolve(parametersFor(patronRequest, excludedAgencyCodes));
+	private Mono<Resolution> resolve(RequestWorkflowContext context, List<String> excludedAgencyCodes) {
+		return patronRequestResolutionService.resolve(parametersFor(getPatronRequestFromContext(context), excludedAgencyCodes))
+			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
+			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()));
 	}
 
-	private Mono<List<String>> findExcludedAgencyCodes(PatronRequest patronRequest) {
-		return supplierRequestService.findAllSupplyingAgencies(patronRequest)
+	private Mono<Tuple2<RequestWorkflowContext, List<String>>> findExcludedAgencyCodes(
+		RequestWorkflowContext context) {
+
+		return supplierRequestService.findAllSupplyingAgencies(getPatronRequestFromContext(context))
 			.mapNotNull(agency -> getValueOrNull(agency, DataAgency::getCode))
 			.collectList()
-			.doOnSuccess(codes -> log.debug("Excluded agency codes: {}", codes));
+			.doOnSuccess(codes -> log.debug("Excluded agency codes: {}", codes))
+			.map(excludedAgencyCodes -> Tuples.of(context, excludedAgencyCodes));
+	}
+
+	private Mono<Tuple2<Resolution, RequestWorkflowContext>> auditResolution(
+		Resolution resolution, RequestWorkflowContext context) {
+
+		return patronRequestResolutionService.auditResolution(resolution,
+				getPatronRequestFromContext(context), "Re-resolution")
+			.zipWith(Mono.just(context));
 	}
 
 	private Mono<Void> applyReResolution(Resolution resolution, RequestWorkflowContext context) {
@@ -192,7 +204,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		RequestWorkflowContext context) {
 
 		return makeSupplierRequestInactive(resolution, context)
-			.flatMap(function(this::auditResolution))
 			.flatMap(function(this::checkMappedCanonicalItemType))
 			.flatMap(function(this::saveSupplierRequest))
 			.flatMap(function(this::updatePatronRequest))
@@ -233,13 +244,6 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			.thenReturn(context);
 	}
 
-	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(
-		Resolution resolution, PatronRequest patronRequest) {
-
-		return patronRequestResolutionService.auditResolution(resolution, patronRequest, "Re-resolved")
-			.zipWith(Mono.just(patronRequest));
-	}
-
 	private Mono<Tuple2<Resolution, PatronRequest>> checkMappedCanonicalItemType(Resolution resolution,
 		PatronRequest patronRequest) {
 
@@ -268,8 +272,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			return Mono.error(new RuntimeException("Patron is not associated with a Host LMS"));
 		}
 
-		final var patronRequest = getValue(context,
-			RequestWorkflowContext::getPatronRequest, null);
+		final var patronRequest = getPatronRequestFromContext(context);
 
 		final var localRequestStatus = getValue(patronRequest,
 			PatronRequest::getLocalRequestStatus, "");
@@ -315,8 +318,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<RequestWorkflowContext> cancelLocalPickupRequest(
 		RequestWorkflowContext context) {
 
-		final var patronRequest = getValue(context,
-			RequestWorkflowContext::getPatronRequest, null);
+		final var patronRequest = getPatronRequestFromContext(context);
 
 		// No need to cancel a pickup request if the active workflow is not RET-PUA
 		if (!"RET-PUA".equals(patronRequest.getActiveWorkflow())) {
@@ -368,10 +370,15 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<RequestWorkflowContext> markNoItemsAvailableAtAnyAgency(RequestWorkflowContext context) {
-		final var patronRequest = getValue(context, RequestWorkflowContext::getPatronRequest, null);
+		final var patronRequest = getValueOrThrow(context, RequestWorkflowContext::getPatronRequest,
+			() -> new RuntimeException("No patron request found in context"));
 
-		return Mono.just(context.setPatronRequest(
-			patronRequest.setStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)));
+		return Mono.just(patronRequest.resolveToNoItemsSelectable())
+			.map(context::setPatronRequest);
+	}
+
+	private static PatronRequest getPatronRequestFromContext(RequestWorkflowContext context) {
+		return getValue(context, RequestWorkflowContext::getPatronRequest, null);
 	}
 
 	@Override

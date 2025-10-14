@@ -2,6 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -25,6 +26,7 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescr
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ResolutionAuditMatchers.isNoSelectableItemResolutionAudit;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
@@ -190,7 +192,7 @@ class ResolveNextSupplierTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		defineCancelledSupplierRequest(patronRequest);
+		final var supplierRequest = defineCancelledSupplierRequest(patronRequest);
 
 		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
 
@@ -203,6 +205,12 @@ class ResolveNextSupplierTransitionTests {
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasNoResolutionCount()
 		));
+
+		assertThat("Previous supplier request should still exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
+
+		assertThat("There should be no inactive supplier requests",
+			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
 
 		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), contains(
 			isNotRequiredAuditEntry("Consortial setting is not enabled")));
@@ -250,6 +258,9 @@ class ResolveNextSupplierTransitionTests {
 		assertThat("There should be no inactive supplier requests",
 			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
 
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest),
+			hasItem(isNoSelectableItemResolutionAudit("Re-resolution")));
+
 		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 
@@ -270,7 +281,7 @@ class ResolveNextSupplierTransitionTests {
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		defineCancelledSupplierRequest(patronRequest);
+		final var supplierRequest = defineCancelledSupplierRequest(patronRequest);
 
 		// Act
 		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
@@ -281,6 +292,12 @@ class ResolveNextSupplierTransitionTests {
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasNoResolutionCount()
 		));
+
+		assertThat("Previous supplier request should still exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
+
+		assertThat("There should be no inactive supplier requests",
+			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
 
 		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), contains(
 			isNotRequiredAuditEntry("Consortial setting is not enabled"),
@@ -532,6 +549,9 @@ class ResolveNextSupplierTransitionTests {
 		assertThat("There should still be only 1 inactive supplier request",
 			inactiveSupplierRequestsFixture.findAllFor(patronRequest), hasSize(1));
 
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest),
+			hasItem(isNoSelectableItemResolutionAudit("Re-resolution")));
+
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
 
@@ -587,6 +607,9 @@ class ResolveNextSupplierTransitionTests {
 
 		assertThat("There should be no inactive supplier requests",
 			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest),
+			hasItem(isNoSelectableItemResolutionAudit("Re-resolution")));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
@@ -646,14 +669,14 @@ class ResolveNextSupplierTransitionTests {
 			hasResolutionCount(1)
 		));
 
-		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), contains(
-			isNotRequiredAuditEntry("Item manually selected")));
-
 		assertThat("Previous supplier request should still exist",
 			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
 
 		assertThat("There should be no inactive supplier requests",
 			inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest), is(emptyIterable()));
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), contains(
+			isNotRequiredAuditEntry("Item manually selected")));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
 	}
@@ -709,7 +732,7 @@ class ResolveNextSupplierTransitionTests {
 		String expectedNewItemId, String expectedSupplyingHostLmsCode) {
 
 		return allOf(
-			hasBriefDescription("Re-resolved to item with local ID \"%s\" from Host LMS \"%s\""
+			hasBriefDescription("Re-resolution selected an item with local ID \"%s\" from Host LMS \"%s\""
 				.formatted(expectedNewItemId, expectedSupplyingHostLmsCode)),
 			hasAuditDataProperty("selectedItem"),
 			hasAuditDataProperty("filteredItems"),
