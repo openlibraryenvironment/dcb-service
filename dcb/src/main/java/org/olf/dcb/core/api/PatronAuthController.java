@@ -133,7 +133,7 @@ public class PatronAuthController {
 	 * A secured endpoint to look up a user record by their ID in a remote system.
 	 */
 	@Post(uri = "/lookup", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
-	@Secured({ RoleNames.ADMINISTRATOR, RoleNames.INTERNAL_API, RoleNames.CONSORTIUM_ADMIN, RoleNames.LIBRARY_ADMIN})
+	@Secured({ RoleNames.ADMINISTRATOR, RoleNames.INTERNAL_API, RoleNames.CONSORTIUM_ADMIN, RoleNames.LIBRARY_ADMIN, RoleNames.LIBRARY_READ_ONLY})
 	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(@Body @Valid PatronCredentials c) {
 
 		log.info("PatronAuthController::getUserByLocalPrincipal({})", c);
