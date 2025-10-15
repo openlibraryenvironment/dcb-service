@@ -57,7 +57,7 @@ public class UpdateAgencyDataFetcher implements DataFetcher<CompletableFuture<Da
 		// Get the agency code and the editable values
 		String code = input_map.get("code").toString();
 		Double latitude = input_map.containsKey("latitude") ?
-			Double.valueOf(input_map.get("longitude").toString()): null;
+			Double.valueOf(input_map.get("latitude").toString()): null;
 		Double longitude = input_map.containsKey("longitude") ?
 			Double.valueOf(input_map.get("longitude").toString()) : null;
 		Optional<Boolean> isSupplyingAgency = Optional.ofNullable(input_map.get("isSupplyingAgency"))
