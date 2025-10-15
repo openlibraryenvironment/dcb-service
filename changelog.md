@@ -1,9 +1,26 @@
 # Changelog
 
+## Version 8.52.0
+
+### Additions
+* [General]
+	* Audit unsuccessful resolution
+	* Include all items from availability in resolution audit
+	* Support editing agency lat/longs [DCB-2055]
+	* audit when re-resolution is not required
+	* Include source host LMS code in live availability
+
+### Fixes
+* [General]
+	* Fix incorrect latitude assignment [DCB-2055]
+	* Support LIBRARY_READ_ONLY patron auth lookup [DCB-2056]
+	* Ensure localNames are passed to mod-dcb [DCB-2043]
+
 ## Version 8.51.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* add in pickup library abbreviated name log
 
 ### Fixes
