@@ -130,7 +130,7 @@ class SierraApiLoginTests {
 			));
 
 		// Act
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// First request should fail
 		final var problem = assertThrows(ThrowableProblem.class,
@@ -166,7 +166,7 @@ class SierraApiLoginTests {
 	}
 
 	private AuthToken login(String key, String secret) {
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		return singleValueFrom(sierraApiClient.login(key, secret));
 	}

@@ -64,7 +64,7 @@ class SierraApiBibTests {
 		// Arrange
 		sierraBibsAPIFixture.createGetBibsMockWithQueryStringParameters();
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var response = Mono.from( sierraApiClient.bibs(3, 1, "null",
@@ -101,7 +101,7 @@ class SierraApiBibTests {
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916922);
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var response = Mono.from( sierraApiClient.bibs(bibPatch) ).block();

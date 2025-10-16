@@ -76,7 +76,7 @@ class SierraApiItemTests {
 			"ab1234", "68439643", "7916922");
 
 		// Act
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		final var itemPatch = ItemPatch.builder()
 			.bibIds(List.of(4641865))
@@ -98,7 +98,7 @@ class SierraApiItemTests {
 		// Arrange
 		sierraItemsAPIFixture.jsonErrorResponseForCreateItem();
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		final var itemPatch = ItemPatch.builder()
@@ -157,7 +157,7 @@ class SierraApiItemTests {
 		));
 
 		// Act
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		final var response = singleValueFrom(sierraApiClient.items(
 			Params.builder()
@@ -228,7 +228,7 @@ class SierraApiItemTests {
 
 
 		// Act
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		var response = Mono.from(sierraApiClient.items(
 				Params.builder()
@@ -250,7 +250,7 @@ class SierraApiItemTests {
 				.withBody(json(Map.of("message", "something went wrong"))));
 
 		// Act
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(sierraApiClient.getItem("56737658")));

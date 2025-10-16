@@ -60,7 +60,7 @@ class SierraApiPickupLocationsTests {
 		// Arrange
 		sierraPickupLocationsFixture.successfulResponseWhenGettingPickupLocations();
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var pickupLocations = singleValueFrom(sierraApiClient.pickupLocations());

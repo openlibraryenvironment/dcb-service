@@ -76,7 +76,7 @@ class SierraApiPatronTests {
 
 		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		final var problem = assertThrows(ThrowableProblem.class,
@@ -103,7 +103,7 @@ class SierraApiPatronTests {
 			.build();
 
 		sierraPatronsAPIFixture.postPatronResponse("1234567890", 2745326);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var response = Mono.from(sierraApiClient.patrons(patronPatch)).block();
@@ -126,7 +126,7 @@ class SierraApiPatronTests {
 				.homeLibraryCode("testbbb")
 				.build());
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
@@ -153,7 +153,7 @@ class SierraApiPatronTests {
 				.names(List.of("Bob"))
 				.build());
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var response = singleValueFrom(sierraApiClient.getPatron(Long.valueOf(uniqueId)));
@@ -172,7 +172,7 @@ class SierraApiPatronTests {
 		// Arrange
 		final var uniqueId = "018563984";
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", uniqueId);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		final var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
@@ -186,7 +186,7 @@ class SierraApiPatronTests {
 		// Arrange
 		final var patronLocalId = "018563984";
 		sierraPatronsAPIFixture.mockGetHoldsForPatron(patronLocalId);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var response = Mono.from(sierraApiClient.patronHolds(patronLocalId)).block();
@@ -205,7 +205,7 @@ class SierraApiPatronTests {
 
 		sierraPatronsAPIFixture.patronHoldNotFoundErrorResponse(patronLocalId);
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		final var response = singleValueFrom(sierraApiClient.patronHolds(patronLocalId));
@@ -219,7 +219,7 @@ class SierraApiPatronTests {
 		// Arrange
 		final var patronLocalId = "489365810";
 		sierraPatronsAPIFixture.patronHoldErrorResponse(patronLocalId);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		final var problem = assertThrows(ThrowableProblem.class,
@@ -250,7 +250,7 @@ class SierraApiPatronTests {
 			.pickupLocation("pickupLocation")
 			.build();
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
 		var response = Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block();
@@ -266,7 +266,7 @@ class SierraApiPatronTests {
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId, "i");
 
 		// Act
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE, client);
+		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		final var patronHoldPost = PatronHoldPost.builder()
 			.recordNumber(423543254)

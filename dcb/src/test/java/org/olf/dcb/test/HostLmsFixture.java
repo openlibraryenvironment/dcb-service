@@ -14,14 +14,12 @@ import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.devtools.interaction.dummy.DummyLmsClient;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.core.annotation.Nullable;
-import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
@@ -102,13 +100,16 @@ public class HostLmsFixture {
 	}
 
 	public void createPolarisHostLms(String code, String staffUsername,
-		String staffPassword, String baseUrl, String domain, String accessId, String accessKey){
+		String staffPassword, String baseUrl, String domain, String accessId,
+		String accessKey) {
 
-		createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain, accessId, accessKey, null);
+		createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain,
+			accessId, accessKey, null);
 	}
 
 	public void createPolarisHostLms(String code, String staffUsername,
-		String staffPassword, String baseUrl, String domain, String accessId, String accessKey, String defaultAgencyCode) {
+		String staffPassword, String baseUrl, String domain, String accessId,
+		String accessKey, String defaultAgencyCode) {
 
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("staff-username", staffUsername);
@@ -151,7 +152,6 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createDummyHostLms(String code) {
-
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("base-url", generateBaseUrl(code));
 
@@ -160,7 +160,6 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms createDummyHostLms(String code, String shelvingLocationsCSV) {
-
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("base-url", generateBaseUrl(code));
 		clientConfig.put("shelving-locations", shelvingLocationsCSV);
@@ -223,13 +222,15 @@ public class HostLmsFixture {
 		return singleValueFrom(hostLmsService.getIngestSourceFor(code));
 	}
 
-	public DataHostLms setDummyState(String code, String state, String role, String responseType) {
-		return singleValueFrom(hostLmsService.findByCode(code)
+	public void setDummyState(String code, String state, String role, String responseType) {
+		singleValueFrom(hostLmsService.findByCode(code)
 			.map(hostLms -> updateHostLms(hostLms, state, role, responseType))
 			.flatMap(hostLmsRepository::saveOrUpdate));
 	}
 
-	private DataHostLms updateHostLms(DataHostLms hostLms, String state, String role, String responseType) {
+	private DataHostLms updateHostLms(DataHostLms hostLms, String state,
+		String role, String responseType) {
+
 		if (state != null) {
 			hostLms.getClientConfig().put("state", state);
 		}
@@ -242,17 +243,9 @@ public class HostLmsFixture {
 		return hostLms;
 	}
 
-	public void setDummyState(String code, String state) {
-		setDummyState(code, state, null, null);
-	}
-
-	public void setDummyState(String code, String state, String role) {
-		setDummyState(code, state, role, null);
-	}
-
-	public HostLmsSierraApiClient createLowLevelSierraClient(String code, HttpClient client) {
-		
+	public HostLmsSierraApiClient createLowLevelSierraClient(String code) {
 		final var hostLms = findByCode(code);
+
 		return (HostLmsSierraApiClient) hostLmsSierraApiClientFactory.createClientFor(hostLms);
 	}
 
