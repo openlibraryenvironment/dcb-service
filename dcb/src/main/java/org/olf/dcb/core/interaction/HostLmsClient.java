@@ -3,23 +3,23 @@ package org.olf.dcb.core.interaction;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.time.Duration;
+import java.util.Optional;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.interops.ConfigType;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
-import org.olf.dcb.interops.ConfigType;
 import reactor.core.publisher.Mono;
 
 public interface HostLmsClient extends Comparable<HostLmsClient> {
-
 	Mono<HostLmsRenewal> renew(@NonNull HostLmsRenewal hostLmsRenewal);
 
 	Mono<LocalRequest> updateHoldRequest(@NonNull LocalRequest localRequest);
@@ -168,5 +168,11 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 		return "UNKNOWN";
 	}
 
-	
+	default Boolean isFollowingWorkflow(PlaceHoldRequestParameters parameters,
+		String intendedWorkflow) {
+
+		return Optional.ofNullable(parameters.getActiveWorkflow())
+			.map(intendedWorkflow::equals)
+			.orElse(false);
+	}
 }

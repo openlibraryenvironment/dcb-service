@@ -1,32 +1,31 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Prototype;
+import java.util.List;
+import java.util.Optional;
+
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
-import org.olf.dcb.storage.PatronRequestRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Optional;
-
+@Slf4j
 @Prototype
 public class PlacePatronRequestAtSupplyingAgencyStateTransition implements PatronRequestStateTransition {
-
-	private static final Logger log = LoggerFactory.getLogger(PlacePatronRequestAtSupplyingAgencyStateTransition.class);
-
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.RESOLVED);
 	
-	public PlacePatronRequestAtSupplyingAgencyStateTransition(SupplyingAgencyService supplierRequestService,
-			PatronRequestRepository patronRequestRepository, PatronRequestAuditService patronRequestAuditService) {
+	public PlacePatronRequestAtSupplyingAgencyStateTransition(
+		SupplyingAgencyService supplierRequestService,
+		PatronRequestAuditService patronRequestAuditService) {
+
 		this.supplyingAgencyService = supplierRequestService;
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
@@ -83,7 +82,7 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		final PatronRequest patronRequest = ctx.getPatronRequest();
 		final boolean isStatusApplicable = getPossibleSourceStatus().contains(patronRequest.getStatus());
-		final boolean isNotLocalWorkflow = !"RET-LOCAL".equals(patronRequest.getActiveWorkflow());
+		final boolean isNotLocalWorkflow = !patronRequest.isUsingLocalWorkflow();
 
 		return isStatusApplicable && isNotLocalWorkflow;
 	}

@@ -1,6 +1,24 @@
 package org.olf.dcb.request.workflow;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
+import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,26 +28,26 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.*;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
+
+import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.Optional;
-import java.util.UUID;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -251,7 +269,7 @@ class FinaliseRequestTransitionTests {
 			.localBibId("328947")
 			.localItemId("75432")
 			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
-			.activeWorkflow("RET-PUA")
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
 			.pickupBibId("435432")
 			.pickupItemId("646345")
 			.pickupPatronId(pickupPatronIdentity.getLocalId())
@@ -315,8 +333,8 @@ class FinaliseRequestTransitionTests {
 		));
 	}
 
-	private void assertStatusOfVirtualRecordsWithAudit(PatronRequest updatedPatronRequest) {
-		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest).toString();
+	private void assertStatusOfVirtualRecordsWithAudit(PatronRequest patronRequest) {
+		final var audits = patronRequestsFixture.findAuditEntries(patronRequest).toString();
 
 		assertThat(audits, containsString("briefDescription=Clean up result"));
 		// virtual request audit check
@@ -324,11 +342,9 @@ class FinaliseRequestTransitionTests {
 		assertThat(audits, containsString("localId=75432"));
 		assertThat(audits, containsString("VirtualPatron"));
 
-		final var activeWorkflow = Optional.ofNullable(updatedPatronRequest)
-			.map(PatronRequest::getActiveWorkflow)
-			.orElse(null);
+		final var activeWorkflow = getValueOrNull(patronRequest, PatronRequest::getActiveWorkflow);
 
-		if ("RET-PUA".equals(activeWorkflow)) {
+		if (PICKUP_ANYWHERE_WORKFLOW.equals(activeWorkflow)) {
 			assertThat(audits, containsString("PickupItem"));
 			assertThat(audits, containsString("PickupPatron"));
 		}

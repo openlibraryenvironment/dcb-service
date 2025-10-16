@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -170,7 +171,7 @@ class ResolveNextSupplierTransitionPUATests {
 			.localRequestId(borrowingLocalRequestId)
 			.pickupRequestId(pickupLocalRequestId)
 			.pickupLocationCode(VALID_PICKUP_LOCATION_ID)
-			.activeWorkflow("RET-PUA")
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
 			.build();
 
 		return patronRequestsFixture.savePatronRequest(patronRequest);

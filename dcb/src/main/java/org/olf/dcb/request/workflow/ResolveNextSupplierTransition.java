@@ -324,7 +324,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		final var patronRequest = getPatronRequestFromContext(context);
 
 		// No need to cancel a pickup request if the active workflow is not RET-PUA
-		if (!"RET-PUA".equals(patronRequest.getActiveWorkflow())) {
+		if (!patronRequest.isUsingPickupAnywhereWorkflow()) {
 			return Mono.just(context);
 		}
 

@@ -24,6 +24,8 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
@@ -35,7 +37,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -356,17 +357,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
-
 		log.debug("placeHoldRequestAtBorrowingAgency({})", parameters);
 
 		final var transactionId = UUID.randomUUID().toString();
-		final var isPickupAnywhereRequest = Optional.ofNullable(parameters.getActiveWorkflow())
-			.map("RET-PUA"::equals)
-			.orElse(false);
-		final var isExpeditedCheckoutRequest = Optional.ofNullable(parameters.getActiveWorkflow())
-			.map("RET-EXP"::equals)
-			.orElse(false);
-
+		final var isPickupAnywhereRequest = isFollowingWorkflow(parameters, PICKUP_ANYWHERE_WORKFLOW);
+		final var isExpeditedCheckoutRequest = isFollowingWorkflow(parameters, EXPEDITED_WORKFLOW);
 
 		if (isPickupAnywhereRequest) {
 			log.debug("RET-PUA detected, constructing borrowing transaction request for pickup anywhere workflow");
@@ -386,7 +381,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.localId(transactionId)
 				.localStatus(HOLD_PLACED)
 				.build());
-
 		}
 		else return constructBorrowing_PickupTransactionRequest(parameters, transactionId)
 			.flatMap(this::createTransaction)

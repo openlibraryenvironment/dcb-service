@@ -45,20 +45,19 @@ public class HandleBorrowerSkippedLoanTransit implements PatronRequestStateTrans
 
 		if ( patronRequest.getActiveWorkflow() != null ) {
 
-			if ( patronRequest.getActiveWorkflow().equals("RET-STD") ) {
+			if ( patronRequest.isUsingStandardWorkflow() ) {
 				return ( ( getPossibleSourceStatus().contains(status) ) &&
 					getPossibleLocalItemStatus().contains(localItemStatus) &&
 					possibleLocalRequestStatus.contains(localRequestStatus) ) ;
 			}
-			else if ( patronRequest.getActiveWorkflow().equals("RET-LOCAL") ) {
+			else if ( patronRequest.isUsingLocalWorkflow() ) {
 				// For now we repeat the same configuration for RET-LOCAL - to allow LOCAL loans to also bypass the loan stage
 				// There may be a better way to deal with RET-LOCAL requests.
 				return ( ( getPossibleSourceStatus().contains(status) ) &&
 					getPossibleLocalItemStatus().contains(localItemStatus) &&
 					possibleLocalRequestStatus.contains(localRequestStatus) ) ;
 			}
-			else if ( patronRequest.getActiveWorkflow().equals("RET-PUA") ) {
-
+			else if ( patronRequest.isUsingPickupAnywhereWorkflow() ) {
 				final var localPickupItemStatus = getValue(patronRequest, PatronRequest::getPickupItemStatus,
 					"Unknown");
 				final var localPickupRequestStatus = getValue(patronRequest, PatronRequest::getPickupRequestStatus,

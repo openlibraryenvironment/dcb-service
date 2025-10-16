@@ -1,38 +1,37 @@
 package org.olf.dcb.request.workflow;
 
-import io.micronaut.context.annotation.Prototype;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.resolution.SupplierRequestService;
-import reactor.core.publisher.Mono;
+import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Optional;
 
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.resolution.SupplierRequestService;
+
+import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Prototype
 public class PlaceRequestAtOwnLibraryStateTransition implements PatronRequestStateTransition {
 	private final BorrowingAgencyService borrowingAgencyService;
 	private final SupplierRequestService supplierRequestService;
-	private final PatronRequestAuditService patronRequestAuditService;
 
 	private static final List<Status> possibleSourceStatus = List.of(RESOLVED);
 
 	public PlaceRequestAtOwnLibraryStateTransition(
 		BorrowingAgencyService borrowingAgencyService,
-		SupplierRequestService supplierRequestService,
-		PatronRequestAuditService patronRequestAuditService) {
+		SupplierRequestService supplierRequestService) {
 
 		this.borrowingAgencyService = borrowingAgencyService;
 		this.supplierRequestService = supplierRequestService;
-		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@Override
@@ -77,7 +76,7 @@ public class PlaceRequestAtOwnLibraryStateTransition implements PatronRequestSta
 	private boolean isActiveWorkflowApplicable(PatronRequest patronRequest) {
 		return Optional.ofNullable(patronRequest)
 			.map(PatronRequest::getActiveWorkflow)
-			.map("RET-LOCAL"::equals)
+			.map(LOCAL_WORKFLOW::equals)
 			.orElse(false);
 	}
 

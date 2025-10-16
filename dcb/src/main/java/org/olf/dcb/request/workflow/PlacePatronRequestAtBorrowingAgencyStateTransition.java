@@ -1,20 +1,16 @@
 package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
-import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
-import java.text.MessageFormat;
 import java.util.List;
 import java.util.Optional;
 
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 
 import io.micronaut.context.annotation.Prototype;
@@ -26,16 +22,11 @@ import reactor.core.publisher.Mono;
 @Prototype
 public class PlacePatronRequestAtBorrowingAgencyStateTransition implements PatronRequestStateTransition {
 	private final BorrowingAgencyService borrowingAgencyService;
-	private final PatronRequestAuditService patronRequestAuditService;
 
 	private static final List<Status> possibleSourceStatus = List.of(CONFIRMED);
 	
-	public PlacePatronRequestAtBorrowingAgencyStateTransition(
-		BorrowingAgencyService borrowingAgencyService,
-		PatronRequestAuditService patronRequestAuditService) {
-
+	public PlacePatronRequestAtBorrowingAgencyStateTransition(BorrowingAgencyService borrowingAgencyService) {
 		this.borrowingAgencyService = borrowingAgencyService;
-		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	/**
@@ -94,22 +85,10 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		
 		// Local should only be handed off to the local system.
-		if ("RET-LOCAL".equals( ctx.getPatronRequest().getActiveWorkflow() )) return false;
+		if (ctx.getPatronRequest().isUsingLocalWorkflow()) return false;
 		
 		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
-	}
-
-	private Mono<PatronRequest> createAuditEntry(PatronRequest patronRequest,
-		Status statusUponEntry) {
-
-		if (patronRequest.getStatus() == ERROR)
-			return Mono.just(patronRequest);
-
-		return patronRequestAuditService
-			.addAuditEntry(patronRequest, statusUponEntry, getTargetStatus().get())
-			.map(PatronRequestAudit::getPatronRequest);
 	}
 
 	@Override

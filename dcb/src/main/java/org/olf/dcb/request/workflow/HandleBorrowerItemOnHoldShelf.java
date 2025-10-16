@@ -1,5 +1,7 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -18,8 +20,6 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 @Slf4j
 @Singleton
@@ -86,10 +86,8 @@ public class HandleBorrowerItemOnHoldShelf implements PatronRequestStateTransiti
 		ctx.getPatronRequest().setStatus(PatronRequest.Status.READY_FOR_PICKUP);
 
 		final var patronRequest = ctx.getPatronRequest();
-		final var activeWorkflow = patronRequest.getActiveWorkflow();
 
-		if ("RET-PUA".equals(activeWorkflow)) {
-
+		if (patronRequest.isUsingPickupAnywhereWorkflow()) {
 			// check we need to update the borrower item
 			final var isPickupItemStatusApplicable = isPickupItemStatusApplicable(patronRequest);
 

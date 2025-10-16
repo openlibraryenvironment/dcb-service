@@ -1,5 +1,44 @@
 package org.olf.dcb.request.workflow;
 
+import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.StringUtils.parseList;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.model.Agency;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.NoHomeIdentityException;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.svc.AgencyService;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.PatronService;
+import org.olf.dcb.request.fulfilment.PatronTypeService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.resolution.SharedIndexService;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
+
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -7,28 +46,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.svc.AgencyService;
-import org.olf.dcb.request.fulfilment.*;
-import org.olf.dcb.request.resolution.SharedIndexService;
-import org.zalando.problem.Problem;
-import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
-
-import java.util.*;
-import java.util.function.Function;
-
-import static io.micronaut.core.util.CollectionUtils.isNotEmpty;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.StringUtils.parseList;
 
 @Slf4j
 @Prototype
@@ -640,8 +660,9 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		final PatronRequest patronRequest = ctx.getPatronRequest();
-		final boolean isStatusApplicable = getPossibleSourceStatus().contains(patronRequest.getStatus());
-		final boolean isPickupAnywhereWorkflow = "RET-PUA".equals(patronRequest.getActiveWorkflow());
+
+		final var isStatusApplicable = getPossibleSourceStatus().contains(patronRequest.getStatus());
+		final var isPickupAnywhereWorkflow = patronRequest.isUsingPickupAnywhereWorkflow();
 
 		return isStatusApplicable && isPickupAnywhereWorkflow;
 	}

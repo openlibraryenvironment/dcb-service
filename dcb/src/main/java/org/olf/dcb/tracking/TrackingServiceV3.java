@@ -314,7 +314,7 @@ public class TrackingServiceV3 implements TrackingService {
 	private Mono<RequestWorkflowContext> trackPickupSystem(RequestWorkflowContext rwc) {
 		log.debug("trackPickupSystem");
 
-		if ( !"RET-PUA".equals(rwc.getPatronRequest().getActiveWorkflow() )) {
+		if ( !rwc.getPatronRequest().isUsingPickupAnywhereWorkflow()) {
 			log.warn("PR {} not RET-PUA skipped tracking of pickup system", rwc.getPatronRequest().getId());
 			return Mono.just(rwc);
 		}

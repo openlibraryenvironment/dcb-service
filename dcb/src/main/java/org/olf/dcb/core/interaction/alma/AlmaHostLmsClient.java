@@ -1,48 +1,59 @@
 package org.olf.dcb.core.interaction.alma;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
-import java.util.*;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.interops.ConfigType;
-import org.zalando.problem.DefaultProblem;
-import org.zalando.problem.Problem;
-import services.k_int.interaction.alma.AlmaApiClient;
-import services.k_int.interaction.alma.AlmaLocation;
-import services.k_int.interaction.alma.types.*;
-import services.k_int.interaction.alma.types.error.AlmaError;
-import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
-import services.k_int.interaction.alma.types.error.AlmaException;
-import services.k_int.interaction.alma.types.holdings.AlmaHolding;
-import services.k_int.interaction.alma.AlmaLibraryResponse;
-import services.k_int.interaction.alma.types.items.*;
-import services.k_int.interaction.alma.types.userRequest.*;
-
-import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PingResponse;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.LocationService;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.interops.ConfigType;
+import org.zalando.problem.DefaultProblem;
+import org.zalando.problem.Problem;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -50,9 +61,26 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.http.client.HttpClient;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
-
+import reactor.core.publisher.Mono;
+import services.k_int.interaction.alma.AlmaApiClient;
+import services.k_int.interaction.alma.AlmaLibraryResponse;
+import services.k_int.interaction.alma.AlmaLocation;
+import services.k_int.interaction.alma.types.AlmaBib;
+import services.k_int.interaction.alma.types.AlmaGroupedLocationResponse;
+import services.k_int.interaction.alma.types.AlmaUser;
+import services.k_int.interaction.alma.types.CodeValuePair;
+import services.k_int.interaction.alma.types.UserIdentifier;
+import services.k_int.interaction.alma.types.WithAttr;
+import services.k_int.interaction.alma.types.error.AlmaError;
+import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
+import services.k_int.interaction.alma.types.error.AlmaException;
+import services.k_int.interaction.alma.types.holdings.AlmaHolding;
+import services.k_int.interaction.alma.types.items.AlmaItem;
+import services.k_int.interaction.alma.types.items.AlmaItemData;
+import services.k_int.interaction.alma.types.items.AlmaItemLoan;
+import services.k_int.interaction.alma.types.userRequest.AlmaRequest;
+import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
 import services.k_int.utils.UUIDUtils;
 
 @Slf4j
@@ -144,7 +172,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters p) {
 		return validate(p)
-			.map(hold -> "RET-EXP".equals(hold.activeWorkflow())
+			.map(hold -> EXPEDITED_WORKFLOW.equals(hold.activeWorkflow())
 				? resolveLibraryFromLocationRecord(hold) : getDcbSharingLibraryCode())
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
@@ -155,7 +183,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters p) {
 		return validate(p)
-			.map(hold -> "RET-PUA".equals(hold.activeWorkflow())
+			.map(hold -> PICKUP_ANYWHERE_WORKFLOW.equals(hold.activeWorkflow())
 				? getDcbSharingLibraryCode() : resolveLibraryFromLocationRecord(hold))
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))

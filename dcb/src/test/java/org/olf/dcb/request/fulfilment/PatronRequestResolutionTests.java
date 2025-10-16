@@ -11,6 +11,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
@@ -491,7 +492,7 @@ class PatronRequestResolutionTests {
 		assertThat(fetchedPatronRequest, allOf(
 			hasStatus(RESOLVED),
 			hasResolutionCount(1),
-			hasActiveWorkflow("RET-STD")
+			hasActiveWorkflow(STANDARD_WORKFLOW)
 		));
 	}
 

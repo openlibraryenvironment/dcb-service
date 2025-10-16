@@ -7,6 +7,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
@@ -158,7 +159,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 				.pickupAgency(pickupAgency)
 				.pickupLocation(pickupLocation)
 				.pickupLibrary(pickupLibrary)
-				.activeWorkflow("RET-PUA")
+				.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
 				.build()));
 
 		// Assert

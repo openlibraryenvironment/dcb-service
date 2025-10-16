@@ -3,27 +3,29 @@ package org.olf.dcb.request.workflow;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronIdentity;
-import org.olf.dcb.statemodel.DCBGuardCondition;
-import org.olf.dcb.statemodel.DCBTransitionResult;
-import reactor.core.publisher.Mono;
-
-import java.util.*;
-
-import jakarta.inject.Singleton;
-import jakarta.inject.Named;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.core.HostLmsService;
-
-import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.statemodel.DCBGuardCondition;
+import org.olf.dcb.statemodel.DCBTransitionResult;
+import org.olf.dcb.storage.PatronRequestRepository;
 
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
@@ -72,7 +74,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	}
 
 	private Mono<RequestWorkflowContext> handlePUAWorkflow(RequestWorkflowContext ctx) {
-		if ("RET-PUA".equals(ctx.getPatronRequest().getActiveWorkflow())) {
+		if (ctx.getPatronRequest().isUsingPickupAnywhereWorkflow()) {
 			log.debug("PUA workflow");
 
 			if (Optional.ofNullable(ctx.getPatronRequest().getLocalItemStatus())

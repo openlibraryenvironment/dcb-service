@@ -3,10 +3,12 @@ package org.olf.dcb.request.fulfilment;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
 
 import java.util.HashMap;
 import java.util.function.Function;
 
+import org.olf.dcb.core.UnexpectedlyNullProblem;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.DeleteCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -29,35 +31,36 @@ public class PickupAgencyService {
 	}
 
 	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext requestWorkflowContext) {
-		final var activeWorkflow = requestWorkflowContext.getPatronRequest().getActiveWorkflow();
+		final var patronRequest = getValueOrThrow(requestWorkflowContext,
+			RequestWorkflowContext::getPatronRequest,
+			() -> new UnexpectedlyNullProblem("Patron request during clean up"));
 
-		if (!"RET-PUA".equals(activeWorkflow)) {
+		if (!patronRequest.isUsingPickupAnywhereWorkflow()) {
 			log.debug("Not a PUA workflow, skipping cleanup of pickup system");
 			return Mono.just(requestWorkflowContext);
 		}
 
 		log.debug("PUA workflow, cleaning up pickup system");
-		final var patronRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPatronRequest);
 		final var pickupSystem = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPickupSystem);
 		final var pickupSystemCode = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPickupSystemCode);
 
 		log.info("WORKFLOW pickup system cleanUp {}", patronRequest);
 
-		if (pickupSystem != null && patronRequest != null) {
-			return Mono.just(pickupSystem)
-				.flatMap(client -> deleteItemIfPresent(client, patronRequest))
-				.flatMap(client -> deleteBibIfPresent(client, patronRequest))
-				.flatMap(client -> deleteHoldIfPresent(client, patronRequest))
-				.thenReturn(requestWorkflowContext);
+		if (pickupSystem == null) {
+			final var message = "Pickup system cleanup : Skipped";
+			final var auditData = new HashMap<String, Object>();
+
+			auditData.put("pickupSystem", getValue(pickupSystemCode, "No value present"));
+
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just(requestWorkflowContext));
 		}
 
-		final var message = "Pickup system cleanup : Skipped";
-		final var auditData = new HashMap<String, Object>();
-		auditData.put("pickupSystem", getValue(pickupSystemCode, "No value present"));
-		auditData.put("patronRequest", patronRequest != null ? "Exists" : "No value present");
-		return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
-			.flatMap(audit -> Mono.just(requestWorkflowContext));
-
+		return Mono.just(pickupSystem)
+			.flatMap(client -> deleteItemIfPresent(client, patronRequest))
+			.flatMap(client -> deleteBibIfPresent(client, patronRequest))
+			.flatMap(client -> deleteHoldIfPresent(client, patronRequest))
+			.thenReturn(requestWorkflowContext);
 	}
 
 	private Mono<String> deleteHoldIfPresent(HostLmsClient client, PatronRequest patronRequest) {
@@ -76,7 +79,6 @@ public class PickupAgencyService {
 	}
 
 	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
-
 		final var pickupItemId = getValueOrNull(patronRequest, PatronRequest::getPickupItemId);
 		final var pickupItemStatus = getValueOrNull(patronRequest, PatronRequest::getPickupItemStatus);
 
@@ -111,7 +113,6 @@ public class PickupAgencyService {
 	}
 
 	private Function<Throwable, Mono<String>> logAndReturnErrorString(String message, PatronRequest patronRequest) {
-
 		return error -> {
 			final var auditData = new HashMap<String, Object>();
 			auditThrowable(auditData, "Throwable", error);
@@ -122,7 +123,6 @@ public class PickupAgencyService {
 	}
 
 	private Mono<HostLmsClient> checkItemExists(HostLmsClient client, String pickupItemId, PatronRequest patronRequest) {
-
 		final var pickupRequestId = getValueOrNull(patronRequest, PatronRequest::getPickupRequestId);
 
 		final var hostLmsItem = HostLmsItem.builder()
@@ -159,7 +159,6 @@ public class PickupAgencyService {
 
 	public Mono<HostLmsClient> deleteBibIfPresent(HostLmsClient client, PatronRequest patronRequest) {
 		if (patronRequest.getPickupBibId() != null) {
-
 			final var pickupBibId = patronRequest.getPickupBibId();
 
 			return client.deleteBib(pickupBibId)
@@ -177,7 +176,6 @@ public class PickupAgencyService {
   }
 
 	private Mono<String> checkHoldExists(HostLmsClient client, PatronRequest patronRequest, String operation) {
-
 		final var pickupRequestId = patronRequest.getPickupRequestId();
 		final var pickupPatronId = patronRequest.getPickupPatronId();
 		final var hostlmsRequest = HostLmsRequest.builder().localId(pickupRequestId)
@@ -210,7 +208,6 @@ public class PickupAgencyService {
 	}
 
 	public Mono<HostLmsItem> getItem(RequestWorkflowContext requestWorkflowContext) {
-
 		final var pickupSystem = requestWorkflowContext.getPickupSystem();
 		final var patronRequest = requestWorkflowContext.getPatronRequest();
 		final var pickupItemId = patronRequest.getPickupItemId();
@@ -225,7 +222,6 @@ public class PickupAgencyService {
 	}
 
 	public Mono<Patron> getPatron(RequestWorkflowContext requestWorkflowContext) {
-
 		final var pickupSystem = requestWorkflowContext.getPickupSystem();
 		final var patronRequest = requestWorkflowContext.getPatronRequest();
 		final var pickupPatronId = patronRequest.getPickupPatronId();
@@ -234,7 +230,6 @@ public class PickupAgencyService {
 	}
 
 	public Mono<String> cancelHoldIfPresent(RequestWorkflowContext requestWorkflowContext) {
-
 		final var pickupSystem = requestWorkflowContext.getPickupSystem();
 		final var patronRequest = requestWorkflowContext.getPatronRequest();
 		final var pickupItemId = patronRequest.getPickupItemId();

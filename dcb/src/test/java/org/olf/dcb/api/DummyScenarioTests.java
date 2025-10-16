@@ -1,24 +1,54 @@
 package org.olf.dcb.api;
 
-import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.*;
-import org.olf.dcb.core.model.*;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
-import org.olf.dcb.test.*;
-import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.UUID;
-
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
+import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.READY_FOR_PICKUP;
+import static org.olf.dcb.core.model.PatronRequest.Status.RECEIVED_AT_PICKUP;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
+
+import java.util.UUID;
+
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
+import org.olf.dcb.test.EventLogFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.InactiveSupplierRequestsFixture;
+import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
+
+import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -115,7 +145,7 @@ class DummyScenarioTests {
 		assertThat(placedRequestUUID, is(Matchers.instanceOf(UUID.class)));
 
 		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_BORROWING_AGENCY);
-		assertPatronRequestUsesWorkflow(placedRequestUUID, "RET-STD");
+		assertPatronRequestUsesWorkflow(placedRequestUUID, STANDARD_WORKFLOW);
 
 		log.info("Circulation starting..");
 		log.info("Putting supplier item in transit");
@@ -200,7 +230,7 @@ class DummyScenarioTests {
 		assertThat(placedRequestUUID, is(Matchers.instanceOf(UUID.class)));
 
 		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_PICKUP_AGENCY);
-		assertPatronRequestUsesWorkflow(placedRequestUUID, "RET-PUA");
+		assertPatronRequestUsesWorkflow(placedRequestUUID, PICKUP_ANYWHERE_WORKFLOW);
 
 		log.info("Circulation starting..");
 		log.info("Putting supplier item in transit");
@@ -292,7 +322,7 @@ class DummyScenarioTests {
 		assertThat(placedRequestUUID, is(Matchers.instanceOf(UUID.class)));
 
 		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_PICKUP_AGENCY);
-		assertPatronRequestUsesWorkflow(placedRequestUUID, "RET-PUA");
+		assertPatronRequestUsesWorkflow(placedRequestUUID, PICKUP_ANYWHERE_WORKFLOW);
 
 		log.info("Circulation starting..");
 		log.info("Putting supplier item in transit");
@@ -414,10 +444,13 @@ class DummyScenarioTests {
 		}
 	}
 
-	private void assertPatronRequestUsesWorkflow(UUID placedRequestUUID, String workflow) {
+	private void assertPatronRequestUsesWorkflow(UUID placedRequestUUID, String expectedWorkflow) {
 		final var patronRequest = patronRequestsFixture.findById(placedRequestUUID);
 
-		assertThat(patronRequest, is(notNullValue()));
-		assertThat("patron request should use " + workflow + " workflow", patronRequest.getActiveWorkflow(), is(workflow));
+		assertThat("patron request should use %s workflow".formatted(expectedWorkflow),
+			patronRequest, allOf(
+				notNullValue(),
+				hasActiveWorkflow(expectedWorkflow)
+			));
 	}
 }

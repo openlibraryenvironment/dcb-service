@@ -54,7 +54,7 @@ public class HandleHandOffAsLocalRequest implements PatronRequestStateTransition
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		final var pr = ctx.getPatronRequest();
 		// Needs to be local flow and in a valid current state.
-		return "RET-LOCAL".equals( pr.getActiveWorkflow() ) && getPossibleSourceStatus().contains(pr.getStatus());
+		return pr.isUsingLocalWorkflow() && getPossibleSourceStatus().contains(pr.getStatus());
 	}
 	
 	@Override

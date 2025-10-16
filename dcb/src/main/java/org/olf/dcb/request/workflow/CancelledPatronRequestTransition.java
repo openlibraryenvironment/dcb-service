@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -25,7 +26,6 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.storage.SupplierRequestRepository;
 
-import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -45,7 +45,6 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	public static final String NOT_YET_LOANED_AND_CANCELLED_LOCAL_HOLD = "CancelledPatronRequest : LOCAL_HOLD_CANCELLED";
 	public static final String PATRON_REQUEST_NOT_CANCELLED = "PATRON_REQUEST_NOT_CANCELLED";
 
-	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final HostLmsService hostLmsService;
 	private final SupplierRequestRepository supplierRequestRepository;
@@ -53,13 +52,12 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	private final PickupAgencyService pickupAgencyService;
 
 	public CancelledPatronRequestTransition(
-		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		PatronRequestAuditService patronRequestAuditService,
 		HostLmsService hostLmsService,
 		SupplierRequestRepository supplierRequestRepository,
 		SupplyingAgencyService supplyingAgencyService,
 		PickupAgencyService pickupAgencyService) {
-		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
+
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -93,7 +91,6 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private Mono<RequestWorkflowContext> auditConditionMet(RequestWorkflowContext ctx) {
-
 		final var patronRequest = ctx.getPatronRequest();
 		final var localRequestStatus = patronRequest.getLocalRequestStatus();
 		final var status = patronRequest.getStatus();
@@ -123,7 +120,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 			// we may not need to cancel the pickup system request
 			// we assume there is a pickup request if the active workflow is pickup anywhere
-			if (!"RET-PUA".equals(activeWorkflow)) {
+			if (!PICKUP_ANYWHERE_WORKFLOW.equals(activeWorkflow)) {
 
 				log.debug("cancelPickupRequest not needed for active workflow");
 
@@ -164,7 +161,6 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> verifySupplierCancellation() {
 		return ctx -> {
-
 			final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
 			final var result = getName() + " : verification result";
 
@@ -175,7 +171,6 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private Mono<HostLmsRequest> fetchLocal(SupplierRequest supplierRequest) {
-
 		final var localRequestId = supplierRequest.getLocalId();
 		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
 		final var hostlmsRequest = HostLmsRequest.builder().localId(localRequestId).localPatronId(supplierPatronId).build();
@@ -205,7 +200,6 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private Mono<RequestWorkflowContext> updateSupplierRequest(Boolean cancelled, RequestWorkflowContext context) {
-
 		if (!cancelled) return Mono.just(context);
 
 		context.getSupplierRequest().setStatusCode(CANCELLED);
@@ -236,7 +230,6 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private static String getReasonForCancellation(Status status, String localRequestStatus) {
-
 		boolean isNotYetLoaned = isNotYetLoaned(status);
 		boolean isLocalBorrowingRequestMissing = isLocalBorrowingRequestMissing(localRequestStatus);
 		boolean isLocalBorrowingRequestCancelled = isLocalBorrowingRequestCancelled(localRequestStatus);

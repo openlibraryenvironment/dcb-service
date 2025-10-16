@@ -86,11 +86,12 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 		};
 	}
 
-	private Mono<HashMap<String, Object>> fetchPickupData(RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
+	private Mono<HashMap<String, Object>> fetchPickupData(RequestWorkflowContext ctx,
+		HashMap<String, Object> auditData) {
 
-		final var activeWorkflow = ctx.getPatronRequest().getActiveWorkflow();
-		
-		if (!"RET-PUA".equals(activeWorkflow)) {
+		final var patronRequest = ctx.getPatronRequest();
+
+		if (!patronRequest.isUsingPickupAnywhereWorkflow()) {
 			log.debug("Not a PUA workflow, skipping audit of pickup records");
 			
 			return Mono.just(auditData);

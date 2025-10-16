@@ -1,7 +1,92 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
+import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
+import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.ReactorUtils.raiseError;
+import static services.k_int.utils.StringUtils.parseList;
+
+import java.io.IOException;
+import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.marc4j.marc.Record;
+import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PingResponse;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
+import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
+import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.dataimport.job.SourceRecordDataSource;
+import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
+import org.olf.dcb.ingest.marc.MarcIngestSource;
+import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.ingest.model.RawSource;
+import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.rules.ObjectRuleset;
+import org.olf.dcb.storage.RawSourceRepository;
+import org.reactivestreams.Publisher;
+import org.zalando.problem.Problem;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Creator;
@@ -26,68 +111,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.marc4j.marc.Record;
-import org.olf.dcb.configuration.ConfigurationRecord;
-import org.olf.dcb.core.ProcessStateService;
-import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
-import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
-import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
-import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
-import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
-import org.olf.dcb.core.interaction.shared.PublisherState;
-import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.dataimport.job.SourceRecordDataSource;
-import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
-import org.olf.dcb.dataimport.job.model.SourceRecord;
-import org.olf.dcb.ingest.marc.MarcIngestSource;
-import org.olf.dcb.ingest.model.IngestRecord;
-import org.olf.dcb.ingest.model.RawSource;
-import org.olf.dcb.rules.ObjectRulesService;
-import org.olf.dcb.rules.ObjectRuleset;
-import org.olf.dcb.storage.RawSourceRepository;
-import org.reactivestreams.Publisher;
-import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.retry.Retry;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
-
-import java.io.IOException;
-import java.net.URI;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
-import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
-import static org.olf.dcb.core.interaction.polaris.Direction.POLARIS_TO_HOST_LMS;
-import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRecord;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
-import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.ReactorUtils.raiseError;
-import static services.k_int.utils.StringUtils.parseList;
 
 @Slf4j
 @Prototype
@@ -176,21 +205,18 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
-
-		final var activeWorkflow = getValueOrNull(parameters, PlaceHoldRequestParameters::getActiveWorkflow);
-
 		// PUA - the borrower pickup location is outside the system so use the ILL location
 		// this is how we place supplier holds. Following the same pattern here
-		if ("RET-PUA".equals(activeWorkflow)) {
+		if (isFollowingWorkflow(parameters, PICKUP_ANYWHERE_WORKFLOW)) {
 			return placeHoldRequest(parameters, false);
 		}
 
-		final var borrowerlendingFlow = borrowerlendingFlow();
-		if (borrowerlendingFlow == null) {
+		final var borrowerLendingFlow = borrowerlendingFlow();
+		if (borrowerLendingFlow == null) {
 			return placeHoldRequest(parameters, TRUE);
 		}
 
-		return switch (borrowerlendingFlow) {
+		return switch (borrowerLendingFlow) {
 			case DCB_BORROWING_FLOW -> placeHoldRequest(parameters, TRUE);
 			case ILL_BORROWING_FLOW -> placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 			default -> placeHoldRequest(parameters, TRUE);

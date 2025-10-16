@@ -6,6 +6,9 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
@@ -28,6 +31,7 @@ import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
+import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
 import io.micronaut.serde.annotation.Serdeable;
@@ -374,12 +378,7 @@ public class PatronRequest {
 	}
 
 	/**
-	 * It is useful to have a shorthand note of the specific workflow which is in force for the patron request - initially
-	 * RET- RETURNABLE ITEMS
-	 * RET-LOCAL - We're placing a request in a single system - the patron, pickup and lending roles are all within a single system (1 Party)
-	 * RET-STD - We're placing a request at a remote system, but the patron will pick the item up from their local library (2 parties)
-	 * RET-PUA - The Borrower, Patron and Pickup systems are all different (3 parties)
-	 * RET-EXP - We're placing a request where the supplier and the pickup systems are the same, but the patron may be external. This results in an expedited checkout. (2 parties).
+	 *  @see WorkflowConstants
 	 */
 	@Nullable
 	private String activeWorkflow;
@@ -544,5 +543,25 @@ public class PatronRequest {
 			setPickupItemBarcode(requestedItemBarcode);
 		setStatus(REQUEST_PLACED_AT_PICKUP_AGENCY);
 		return this;
+	}
+
+	@Transient
+	public boolean isUsingStandardWorkflow() {
+		return isUsingWorkflow(STANDARD_WORKFLOW);
+	}
+
+	@Transient
+	public boolean isUsingPickupAnywhereWorkflow() {
+		return isUsingWorkflow(PICKUP_ANYWHERE_WORKFLOW);
+	}
+
+	@Transient
+	public boolean isUsingLocalWorkflow() {
+		return isUsingWorkflow(LOCAL_WORKFLOW);
+	}
+
+	@Transient
+	private boolean isUsingWorkflow(String intendedWorkflow) {
+		return intendedWorkflow.equals(activeWorkflow);
 	}
 }

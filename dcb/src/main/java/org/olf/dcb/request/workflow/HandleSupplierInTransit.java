@@ -1,29 +1,31 @@
 package org.olf.dcb.request.workflow;
 
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
+
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
-import java.util.Optional;
-
-import static org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState.TRANSIT;
-import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 
 /** TODO: Convert this into a PatronRequestStateTransition */
@@ -108,11 +110,10 @@ public class HandleSupplierInTransit implements PatronRequestStateTransition {
 	}
 
 	public Mono<RequestWorkflowContext> updatePickupItem(RequestWorkflowContext rwc) {
-
 		final var patronRequest = rwc.getPatronRequest();
-		final var pickupItemId = Optional.ofNullable(patronRequest).map(PatronRequest::getPickupItemId).orElse(null);
+		final var pickupItemId = getValueOrNull(patronRequest, PatronRequest::getPickupItemId);
 
-		if (pickupItemId != null && "RET-PUA".equals(patronRequest.getActiveWorkflow())) {
+		if (pickupItemId != null && patronRequest.isUsingPickupAnywhereWorkflow()) {
 			log.debug("Update PUA item: {}", pickupItemId);
 
 			final var pickupSystem = rwc.getPickupSystem();

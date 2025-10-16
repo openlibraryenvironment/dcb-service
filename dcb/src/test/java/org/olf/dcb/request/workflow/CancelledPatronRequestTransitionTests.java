@@ -9,6 +9,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
@@ -183,7 +185,7 @@ class CancelledPatronRequestTransitionTests {
 			.patron(patron)
 			.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.localRequestStatus(HOLD_MISSING)
-			.activeWorkflow("RET-STD")
+			.activeWorkflow(STANDARD_WORKFLOW)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -242,7 +244,7 @@ class CancelledPatronRequestTransitionTests {
 			.patron(patron)
 			.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.localRequestStatus(HOLD_MISSING)
-			.activeWorkflow("RET-PUA")
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
 			// pickup request info
 			.pickupItemId("4857934")
 			.pickupRequestId(localPickupHoldId)

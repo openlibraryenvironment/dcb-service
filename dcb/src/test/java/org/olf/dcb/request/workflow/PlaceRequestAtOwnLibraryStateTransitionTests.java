@@ -8,6 +8,9 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
@@ -134,7 +137,7 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	@Test
 	void shouldBeApplicableToPlaceAtOwnLibraryWhenWorkflowIsLocal() {
 		// Arrange
-		final var patronRequest = definePatronRequest(RESOLVED, "RET-LOCAL");
+		final var patronRequest = definePatronRequest(RESOLVED, LOCAL_WORKFLOW);
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
@@ -147,7 +150,7 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	@Test
 	void shouldNotBeApplicableToPlaceAtOwnLibraryWhenWorkflowIsPickupAnywhere() {
 		// Arrange
-		final var patronRequest = definePatronRequest(RESOLVED, "RET-PUA");
+		final var patronRequest = definePatronRequest(RESOLVED, PICKUP_ANYWHERE_WORKFLOW);
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
@@ -160,7 +163,7 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	@Test
 	void shouldBeApplicableToPlaceAtOwnLibraryWhenWorkflowIsStandard() {
 		// Arrange
-		final var patronRequest = definePatronRequest(RESOLVED, "RET-STD");
+		final var patronRequest = definePatronRequest(RESOLVED, STANDARD_WORKFLOW);
 
 		// Act
 		final var applicable = isApplicable(patronRequest);
@@ -200,7 +203,7 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 			.pickupLocationCode("ABC123")
 			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
 			.status(RESOLVED)
-			.activeWorkflow("RET-LOCAL")
+			.activeWorkflow(LOCAL_WORKFLOW)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

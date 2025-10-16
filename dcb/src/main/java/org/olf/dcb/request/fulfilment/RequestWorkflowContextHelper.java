@@ -1,7 +1,13 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -25,8 +31,6 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
-
-import java.util.UUID;
 
 @Slf4j
 @Singleton
@@ -102,9 +106,8 @@ public class RequestWorkflowContextHelper {
 		final var patronRequest = requestWorkflowContext.getPatronRequest();
 		final var patron = patronRequest.getPatron();
 		final var pickupPatronId = patronRequest.getPickupPatronId();
-		final var activeWorkflow = getValueOrNull(patronRequest, PatronRequest::getActiveWorkflow);
 
-		if (pickupPatronId != null && activeWorkflow != null && activeWorkflow.equals("RET-PUA")) {
+		if (pickupPatronId != null && patronRequest.isUsingPickupAnywhereWorkflow()) {
 			// Look up the pickup patron identity and attach to the context
 			log.debug("Do we know about a pickup patron identity for the patron at the pickup system");
 			return Mono.just(patronService.findIdentityByLocalId(patron, pickupPatronId))
@@ -469,14 +472,14 @@ public class RequestWorkflowContextHelper {
 			if (lenderAc.equals(patronAc))
 			{
 				// Make sure that true RET-LOCAL requests where everything is the same still go the RET-LOCAL route
-				return Mono.just("RET-LOCAL")
+				return Mono.just(LOCAL_WORKFLOW)
 					.map(pr::setActiveWorkflow)
 					.map(rwc::setPatronRequest);
 			}
 			else {
 				// But if they're not RET-LOCAL, they belong in our new RET-EXP workflow
 				// Where they can be processed as expedited checkout requests.
-				return Mono.just("RET-EXP")
+				return Mono.just(EXPEDITED_WORKFLOW)
 					.map(pr::setActiveWorkflow)
 					.map(rwc::setPatronRequest);
 			}
@@ -485,7 +488,7 @@ public class RequestWorkflowContextHelper {
 		// Different lender and Pickup agencies...
 
 		// Default workflow is standard if the patron and pickup agencies are equal.
-		final String defaultWorkflow = patronAc.equals(pickupAc) ? "RET-STD" : "RET-PUA";
+		final String defaultWorkflow = patronAc.equals(pickupAc) ? STANDARD_WORKFLOW : PICKUP_ANYWHERE_WORKFLOW;
 
 		// Default mono based on the values of just the agency codes. We also need to consider
 		// the scenario when agencies are not the same, but they live on the same system
@@ -513,7 +516,7 @@ public class RequestWorkflowContextHelper {
 		return Mono.zip(resolveLenderLms, resolvePickupLms) // Empty sources will complete to error...
 
 			.filter(TupleUtils.predicate((ls, ps ) -> ls.compareTo( ps ) == 0)) // We resolved LMS clients and can compare them.
-			.map( _systems -> rwc.setPatronRequest( pr.setActiveWorkflow("RET-LOCAL") ))
+			.map( _systems -> rwc.setPatronRequest( pr.setActiveWorkflow(LOCAL_WORKFLOW) ))
 
 			.onErrorResume( e -> {
 				log.warn("Error when attempting to compare the lender and pickup systems...", e);
@@ -522,22 +525,6 @@ public class RequestWorkflowContextHelper {
 
 			// Empty means the systems did not match, just default.
 			.switchIfEmpty(defaultResolution);
-
-
-		// SO: Preserving legacy logic for a short while.
-//		if ((rwc.getPatronAgencyCode().equals(rwc.getLenderAgencyCode())) &&
-//			(rwc.getPatronAgencyCode().equals(rwc.getPickupAgencyCode()))) {
-//			// Case 1 : Purely local request
-//			rwc.getPatronRequest().setActiveWorkflow("RET-LOCAL");
-//		} else if (rwc.getPatronAgencyCode().equals(rwc.getPickupAgencyCode())) {
-//			// Case 2 : Remote lender, patron picking up from a a library in their home system
-//			rwc.getPatronRequest().setActiveWorkflow("RET-STD");
-//		} else {
-//			// Case 3 : Three legged transaction - Lender, Pickup, Borrower
-//			rwc.getPatronRequest().setActiveWorkflow("RET-PUA");
-//		}
-
-//		return Mono.just(rwc);
 	}
 }
 

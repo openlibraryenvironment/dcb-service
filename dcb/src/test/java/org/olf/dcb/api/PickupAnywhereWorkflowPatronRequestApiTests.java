@@ -1,30 +1,50 @@
 package org.olf.dcb.api;
 
-import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.*;
-import org.mockserver.client.MockServerClient;
-import org.olf.dcb.core.interaction.sierra.*;
-import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.test.*;
-import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.holds.SierraPatronHold;
-import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture.COMMON_BIB_PATCH;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
+import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraItem;
+import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.EventLogFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+
+import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -33,7 +53,6 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	// Injected Dependencies
 	@Inject private SierraApiFixtureProvider sierraApiFixtureProvider;
 	@Inject private PatronRequestsFixture patronRequestsFixture;
-	@Inject private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject private PatronFixture patronFixture;
 	@Inject private HostLmsFixture hostLmsFixture;
 	@Inject private ClusterRecordFixture clusterRecordFixture;
@@ -42,7 +61,6 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	@Inject private AgencyFixture agencyFixture;
 	@Inject private LocationFixture locationFixture;
 	@Inject private EventLogFixture eventLogFixture;
-	@Inject private TrackingFixture trackingFixture;
 	@Inject private PatronRequestApiClient patronRequestApiClient;
 	@Inject private AdminApiClient adminApiClient;
 	// Sierra API Fixtures
@@ -93,6 +111,7 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		eventLogFixture.deleteAll();
+
 		defineMappings();
 	}
 
@@ -307,7 +326,10 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	private void assertPatronRequestUsesPickupAnywhereWorkflow(UUID placedRequestUUID) {
 		final var patronRequest = patronRequestsFixture.findById(placedRequestUUID);
 
-		assertThat(patronRequest, is(notNullValue()));
-		assertThat("patron request should use RET-PUA workflow", patronRequest.getActiveWorkflow(), is("RET-PUA"));
+		assertThat("patron request should use pickup anywhere workflow",
+			patronRequest, allOf(
+				notNullValue(),
+				hasActiveWorkflow(PICKUP_ANYWHERE_WORKFLOW)
+		));
 	}
 }
