@@ -1,4 +1,4 @@
-package org.olf.dcb.core.model.clustering;
+package org.olf.dcb.core.clustering.model;
 
 import java.util.UUID;
 
@@ -48,11 +48,11 @@ public class MatchPoint {
 
 	private static final String PREFIX_VALUE = "MatchPoint";
 	 
-	public static MatchPoint buildFromString ( String input, boolean is_development ) {
-		return buildFromString(input, "UNKNOWN", is_development);
+	public static MatchPoint buildFromString ( String input ) {
+		return buildFromString(input, "UNKNOWN");
 	}
 
-	public static MatchPoint buildFromString ( String input, String domain, boolean is_development ) {
+	public static MatchPoint buildFromString ( String input, String domain ) {
 		
 		final String valueStr = PREFIX_VALUE + ":" + input;
     int input_length = input.length();

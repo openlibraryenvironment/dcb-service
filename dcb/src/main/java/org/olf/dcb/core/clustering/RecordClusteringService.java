@@ -1,4 +1,4 @@
-package org.olf.dcb.core.svc;
+package org.olf.dcb.core.clustering;
 
 import static services.k_int.utils.TupleUtils.curry;
 
@@ -15,10 +15,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.core.model.clustering.MatchPoint;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
+import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.indexing.SharedIndexService;
@@ -65,7 +66,6 @@ public class RecordClusteringService {
 	final BibRecordService bibRecords;
 	final MatchPointRepository matchPointRepository;
 	final Environment environment;
-	final boolean isDevelopment;
 	private final R2dbcOperations operations;
 
 
@@ -84,7 +84,6 @@ public class RecordClusteringService {
 		this.environment = environment;
 		this.matchPointRepository = matchPointRepository;
 		this.operations = operations;
-		this.isDevelopment = environment.getActiveNames().contains(Environment.DEVELOPMENT);
 	}
 
 	// Get cluster record by id
@@ -336,7 +335,7 @@ public class RecordClusteringService {
 				.filter( this::usableForClusteringIdentifiersPredicate )
 				.map( id -> {
 					String s = String.format("%s:%s:%s", MATCHPOINT_ID, id.getNamespace(), id.getValue());
-					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace(), isDevelopment);
+					MatchPoint mp = MatchPoint.buildFromString(s, id.getNamespace());
 					return mp;
         } );
 	}

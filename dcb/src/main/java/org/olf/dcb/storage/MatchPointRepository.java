@@ -3,7 +3,7 @@ package org.olf.dcb.storage;
 import java.util.Collection;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.clustering.MatchPoint;
+import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.reactivestreams.Publisher;
 
 import jakarta.validation.constraints.NotNull;

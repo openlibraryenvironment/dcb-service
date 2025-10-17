@@ -3,7 +3,7 @@ package org.olf.dcb.availability.job;
 import java.util.Collection;
 import java.util.UUID;
 
-import org.olf.dcb.core.svc.RecordClusteringService.MissingAvailabilityInfo;
+import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.json.tree.JsonNode;

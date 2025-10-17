@@ -2,10 +2,10 @@ package org.olf.dcb.core.api;
 
 import java.util.UUID;
 
+import org.olf.dcb.core.clustering.RecordClusteringService;
+import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.MatchPoint;
 import org.olf.dcb.core.svc.BibRecordService;
-import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.security.RoleNames;
 
 import io.micronaut.data.model.Page;

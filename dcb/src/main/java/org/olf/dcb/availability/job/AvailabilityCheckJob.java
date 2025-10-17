@@ -17,13 +17,13 @@ import org.olf.dcb.availability.job.AvailabilityCheckChunk.AvailabilityCheckChun
 import org.olf.dcb.availability.job.BibAvailabilityCount.BibAvailabilityCountBuilder;
 import org.olf.dcb.availability.job.BibAvailabilityCount.Status;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.RecordClusteringService.MissingAvailabilityInfo;
 import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.AvailabilityReport.Error;

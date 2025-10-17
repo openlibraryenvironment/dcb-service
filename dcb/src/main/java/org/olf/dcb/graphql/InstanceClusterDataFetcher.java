@@ -1,6 +1,6 @@
 package org.olf.dcb.graphql;
 
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.storage.postgres.PostgresClusterRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

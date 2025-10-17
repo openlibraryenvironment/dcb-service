@@ -11,9 +11,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.olf.dcb.core.api.serde.ClusterRecordDTO;
+import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.storage.BibRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

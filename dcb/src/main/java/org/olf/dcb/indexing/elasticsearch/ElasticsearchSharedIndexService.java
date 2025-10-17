@@ -8,10 +8,10 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
+import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;

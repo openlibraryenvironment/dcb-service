@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.serde.annotation.Serdeable;

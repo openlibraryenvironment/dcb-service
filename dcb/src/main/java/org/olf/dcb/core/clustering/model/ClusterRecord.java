@@ -1,4 +1,4 @@
-package org.olf.dcb.core.model.clustering;
+package org.olf.dcb.core.clustering.model;
 
 import java.time.Instant;
 import java.util.Set;

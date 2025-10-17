@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import jakarta.transaction.Transactional;
 
-import org.olf.dcb.core.model.clustering.MatchPoint;
+import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.storage.MatchPointRepository;
 
 import io.micronaut.data.model.query.builder.sql.Dialect;

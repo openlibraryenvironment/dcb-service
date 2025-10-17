@@ -2,7 +2,7 @@ package org.olf.dcb.search;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.storage.postgres.PostgresClusterRecordRepository;
 import org.olf.dcb.test.DcbTest;
 

@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.ClusterRecordRepository;

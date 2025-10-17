@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
@@ -50,7 +50,7 @@ public interface ClusterRecordRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById(@NonNull UUID id);
-
+	
 	@NonNull
 	Publisher<ClusterRecord> queryAll();
 

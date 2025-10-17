@@ -6,8 +6,10 @@ import java.util.stream.Collectors;
 
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
+
+import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.model.clustering.*;
+import org.olf.dcb.core.clustering.model.*;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.LibraryGroupMemberRepository;

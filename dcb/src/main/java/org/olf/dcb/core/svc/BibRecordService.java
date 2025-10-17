@@ -10,10 +10,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.olf.dcb.core.clustering.RecordClusteringService;
+import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.core.svc.RecordClusteringService.MissingAvailabilityInfo;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.model.Identifier;

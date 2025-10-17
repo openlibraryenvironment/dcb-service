@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.ingest.model.Author;
 import org.olf.dcb.storage.BibIdentifierRepository;
 import org.olf.dcb.storage.BibRepository;

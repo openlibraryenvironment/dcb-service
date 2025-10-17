@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 
 import org.olf.dcb.availability.job.BibAvailabilityCount;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.ingest.model.Author;
 
 import io.micronaut.core.annotation.NonNull;

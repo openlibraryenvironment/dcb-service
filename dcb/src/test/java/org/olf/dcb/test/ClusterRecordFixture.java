@@ -6,7 +6,7 @@ import static java.time.Instant.now;
 import java.util.Set;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.storage.ClusterRecordRepository;
 
 import jakarta.inject.Singleton;

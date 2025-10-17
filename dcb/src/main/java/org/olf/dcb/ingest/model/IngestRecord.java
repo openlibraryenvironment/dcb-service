@@ -10,8 +10,8 @@ import java.util.function.Consumer;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
+import org.olf.dcb.core.clustering.model.CoreBibliographicMetadata;
 import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.model.clustering.CoreBibliographicMetadata;
 import org.olf.dcb.ingest.model.Author.AuthorBuilder;
 import org.olf.dcb.ingest.model.Identifier.IdentifierBuilder;
 

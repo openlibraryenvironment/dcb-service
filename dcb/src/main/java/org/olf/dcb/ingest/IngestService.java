@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
-import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.ingest.job.IngestJob;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.reactivestreams.Publisher;

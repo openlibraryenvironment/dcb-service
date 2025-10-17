@@ -8,8 +8,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.olf.dcb.core.model.clustering.ClusterRecord;
-import org.olf.dcb.core.svc.RecordClusteringService;
+import org.olf.dcb.core.clustering.RecordClusteringService;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.indexing.model.SharedIndexQueueEntry;

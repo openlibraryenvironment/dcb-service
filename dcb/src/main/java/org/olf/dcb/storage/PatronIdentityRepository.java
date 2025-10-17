@@ -9,7 +9,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 
 import org.olf.dcb.core.model.*;
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;

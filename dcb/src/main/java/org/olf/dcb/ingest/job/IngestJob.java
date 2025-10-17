@@ -10,11 +10,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
-import org.olf.dcb.core.svc.RecordClusteringService;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;

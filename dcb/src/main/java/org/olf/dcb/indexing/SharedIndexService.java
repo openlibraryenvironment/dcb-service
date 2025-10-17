@@ -3,7 +3,7 @@ package org.olf.dcb.indexing;
 import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.clustering.ClusterRecord;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.indexing.bulk.IndexOperation;
 import org.reactivestreams.Publisher;
 
