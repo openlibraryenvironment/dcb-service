@@ -302,18 +302,10 @@ public class LiveAvailabilityService {
 	private static final ItemStatus STATUS_UNKNOWN = new ItemStatus(ItemStatusCode.UNKNOWN);
 	
 	private AvailabilityReport modifyCachedRecord(AvailabilityReport ar) {
-		// Build new item lists and set the status to unknown.
-		List<Item> newItems = new ArrayList<>();
-		ar.getItems().stream()
-			.map( Item::toBuilder )
-			.map( itemBuilder -> itemBuilder
-				.status(STATUS_UNKNOWN)
-				.build())
-			.forEach( newItems::add );
-		
-		return ar.toBuilder()
-			.items(newItems)
-			.build();
+		// Return cached data with original statuses preserved
+		// Cached status is better than showing "unknown" to users
+		log.debug("Returning cached availability data with preserved statuses");
+		return ar;
 	}
 	
 	private static AvailabilityReport getNoCachedValueErrorReport(String message) {
