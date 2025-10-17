@@ -1,29 +1,35 @@
 package org.olf.dcb.processing.matching.goldrush;
 
+import java.io.Serializable;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import jakarta.validation.constraints.Size;
-
-import org.olf.dcb.processing.matching.MatchKey;
 import org.olf.dcb.utils.DCBStringUtilities;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.annotation.MappedEntity;
+import jakarta.validation.constraints.Size;
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
 @Data
 @MappedEntity
-public class GoldrushKey implements MatchKey {
+@Setter(AccessLevel.PRIVATE)
+public class GoldrushKey {
 	
 	public static final int TITLE_LENGTH = 60;
 	public static final int TITLE_SINGLE_CHAR_THRESHOLD = 45;
@@ -62,6 +68,7 @@ public class GoldrushKey implements MatchKey {
 	String publisher;
 	
 	@Nullable
+	@Setter(AccessLevel.PUBLIC)
 	Character recordType;
 	
 	@Nullable
@@ -71,6 +78,23 @@ public class GoldrushKey implements MatchKey {
 	@Nullable
 	@Size(max=10)
 	String titleNumber;
+	
+	public static GoldrushKey parseGoldrushKey( final String goldrushKey ) {
+		GoldrushKey gr = new GoldrushKey();
+		int offset = 0;
+		for (PartEntry part :  gr.getPaddedParts().toList()) {
+			
+			final int end = offset + part.padding;
+			String value = goldrushKey.substring(offset, end);
+
+			// Padding on the right... Lets just remove the right space.
+			part.setValue( value.stripTrailing() );
+			
+			offset = end;
+		}
+		
+		return gr;
+	}
 	
 	public GoldrushKey parseTitle( final String fielda, @NonNull final String fieldb, @NonNull final String fieldc ) {
 		
@@ -211,33 +235,71 @@ public class GoldrushKey implements MatchKey {
 		return this;
 	}
 	
-	@Override
-	public UUID getRepeatableUUID() {
-		// TODO Auto-generated method stub
-		return null;
+	
+	private static Integer _numberOfParts;
+	public static int getNumberOfParts() {
+		if (_numberOfParts != null) return _numberOfParts;
+		
+		_numberOfParts = (int) new GoldrushKey().getPaddedParts().count();
+		return _numberOfParts;
 	}
 	
 	private static String padToLength( final Object val, int desiredLength) {
 		return services.k_int.utils.StringUtils.padRightToLength(Objects.toString(val, ""), desiredLength);
 	}
 	
-	@Override
-	public String getText() {
-		// Assemble all the parts into a String
+	private Stream<PartEntry> getPaddedParts() {
+		
+		final GoldrushKey gr = this;
+		
 		return Stream.of(
-			padToLength(title, 60),
-			padToLength(mediaDesignation, 5),
-			padToLength(pubYear, 4),
-			padToLength(pagination, 4),
-			padToLength(edition, 3),
-			padToLength(publisher, 2),
-			padToLength(recordType, 1),
-			padToLength(titlePart, 20),
-			padToLength(titleNumber, 10)
-		)
-		.sequential()
-		.collect(Collectors.joining(""))
-		.toLowerCase();
+				part("Title", gr::getTitle, gr::setTitle, 60),
+				part("MediaDesignation", gr::getMediaDesignation, gr::setMediaDesignation, 5),
+				part("PubYear", gr::getPubYear, str -> gr.setPubYear( Integer.valueOf(str) ) , 4),
+				part("Pagination", gr::getPagination, str -> gr.setPagination(Integer.valueOf(str)) , 4),
+				part("Edition", gr::getEdition, gr::setEdition, 3),
+				part("Publisher", gr::getPublisher, gr::setPublisher, 2),
+				part("RecordType", gr::getRecordType, str -> gr.setRecordType( str.charAt(0) ), 1),
+				part("TitlePart", gr::getTitlePart, gr::setTitlePart, 20),
+				part("TitleNumber", gr::getTitleNumber, gr::setTitleNumber, 10))
+				.sequential();
+	}
+	
+	public Map<String, String> getParts() {
+		
+		final Map<String, String> theParts = new LinkedHashMap<>();
+		getPaddedParts()
+			.forEach(pe -> {
+				theParts.computeIfAbsent(pe.name(), _name -> pe.getValue());
+			});
+
+		return theParts;
+	}
+	
+	public String getText() {
+		return getPaddedParts()
+			.map( entry -> padToLength( entry.supplier().get(), entry.padding() ) )
+			.collect(Collectors.joining(""))
+			.toLowerCase();
+	}
+	
+	private static PartEntry part(String name, Supplier<Serializable> supplier, Consumer<String> consumer, int padding) {
+		return new PartEntry(name, supplier, consumer, padding);
+	}
+	
+	public static final record PartEntry(
+			String name,
+			Supplier<Serializable> supplier,
+			Consumer<String> consumer,
+			int padding
+		) {
+		String getValue() {
+			return Objects.toString( supplier.get(), null);
+		}
+		
+		void setValue(String val) {
+			consumer.accept(val);
+		}
 	}
 
 }

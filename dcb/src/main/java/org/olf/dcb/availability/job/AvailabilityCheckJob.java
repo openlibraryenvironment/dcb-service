@@ -294,7 +294,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 
 		log.info("Setting totalConcurrency={}, externalPerSystem={}",totalConcurrency,externalPerSystem);
 		
-		return bibRecordService.getAllByIdIn( ids )
+		return bibRecordService.findAllByIdIn( ids )
 			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
 			.flatMapIterable(Map::values)
 			.flatMap( sameSourceBibs -> {

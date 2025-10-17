@@ -1,5 +1,6 @@
 package org.olf.dcb.ingest.marc;
 
+import static services.k_int.features.Features.featureIsEnabled;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.concatSubfieldData;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.extractOrderedSubfields;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.interpretLanguages;
@@ -24,6 +25,7 @@ import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
+import org.olf.dcb.core.clustering.ImprovedRecordClusteringService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.IngestSource;
@@ -54,6 +56,7 @@ import services.k_int.integration.marc4j.Marc4jRecordUtils;
 
 public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordConverter {
 
+	public static final String BLOCKING_TITLE = "BLOCKING_TITLE";
 	public static final String NS_GOLDRUSH = "GOLDRUSH";
 	final static Pattern REGEX_NAMESPACE_ID_PAIR = Pattern.compile("^((\\(([^)]+)\\))|(([^:]+):))(.*)$");
 	final static Pattern REGEX_LINKAGE_245_880 = Pattern.compile("^880-(\\d+)");
@@ -75,7 +78,10 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	  	// Title(s)
 		  enrichWithTitleInformation(ingestRecord, marcRecord);
 			enrichWithBlockingTitle(ingestRecord, marcRecord);
-			enrichWithBlockingWorkTitle(ingestRecord, marcRecord);
+			
+			if (!featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)) {
+				enrichWithBlockingWorkTitle(ingestRecord, marcRecord);
+			}
   		// Identifiers
 	  	enrichWithIdentifiers(ingestRecord, marcRecord);
   		// Author(s)
@@ -197,90 +203,135 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	default IngestRecordBuilder enrichWithTitleInformation(final IngestRecordBuilder ingestRecord,
 			final Record marcRecord) {
 		// Initial title.
-		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
-				.filter(Objects::nonNull)
-				.flatMap(tag -> concatSubfieldData(marcRecord, tag, "abcdefghijklmnopqrstuvwxyz"))
-				.filter(StringUtils::isNotEmpty)
-				.reduce(ingestRecord.build().getTitle(), (current, item) -> {
-					if (StringUtils.isEmpty(current)) {
-						ingestRecord.title(item);
-						return item;
-					}
-					ingestRecord.otherTitle(item);
+//		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
 
-					// Keep returning the first title that was set.
-					return current;
-				});
+		Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
+			.filter(Objects::nonNull)
+			.flatMap(tag -> concatSubfieldData(marcRecord, tag, "abcdefghijklmnopqrstuvwxyz"))
+			.filter(StringUtils::isNotEmpty)
+			.reduce(ingestRecord.build().getTitle(), (current, item) -> {
+				if (StringUtils.isEmpty(current)) {
+					ingestRecord.title(item);
+					return item;
+				}
+				ingestRecord.otherTitle(item);
+
+				// Keep returning the first title that was set.
+				return current;
+			});
 
 		// log.trace("Title used: {}", title);
 
 		return ingestRecord;
 	}
+	
+	public default GoldrushKey getGoldrushKey(final Record marcRecord) {
+		GoldrushKey grk = new GoldrushKey();
 
-  default IngestRecordBuilder enrichWithBlockingTitle(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
-    // Initial title.
-		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
-        .filter(Objects::nonNull)
-        .flatMap(tag -> concatSubfieldData(marcRecord, tag, "abhknp"))
-        .filter(StringUtils::isNotEmpty)
-        .reduce(ingestRecord.build().getIdentifier("BLOCKING_TITLE"), (current_blocking_title, item) -> {
-          if (StringUtils.isEmpty(current_blocking_title)) {
+		// Start with 245. If there is a linkage to a 880, then swap to that instead.
+		final DataField field245 = (DataField) marcRecord.getVariableField("245");
+		final DataField fieldForTitle = extractOrderedSubfields(field245, "6")
+			.map( REGEX_LINKAGE_245_880::matcher )
+			.filter( Matcher::matches )
+			.findFirst()
+			.map( match -> match.group(1) )
+			.flatMap( occNum -> {
+				final Pattern linked880 = Pattern.compile("^245-" + occNum);
+				return marcRecord.getVariableFields("880")
+						.stream()
+						.map( DataField.class::cast )
+						.filter(field880 ->
+							extractOrderedSubfields(field880, "6")
+								.anyMatch(linked880.asMatchPredicate()))
+						.findFirst();
+			})
+			.orElseGet(() -> field245);
+		
+		// Goldrush does not normally include $c but that seems to create very odd clusters for things like 
+		// "Greatest Hits". It seems that $c can be a bit of a dumping ground - so whilst
+		// "$a Greatest Hits - $c Some Artist" is useful, "$a Greatest Hits - $s Some Artist, with a foreward by X and some other stuff by Y"
+		// is likely less helpful. It may be that taking the first 2 words of $c will yeild better results.
+		List<String> fields = extractOrderedSubfields(fieldForTitle, "abc").limit(3) 
+				.toList();
 
-            // 250 Is edition statement
-						List<String> qualifiers = Marc4jRecordUtils
-                                           .concatSubfieldData(marcRecord, "250", "a")
-                                           .map(ed -> EditionNormalizer.normalizeEdition(ed) )
-			                                     .map( StringUtils::trimToNull )
-                                           .toList();
-							
-						// The old style blocking titles arranged words alphabetically, removed duplicates and didn't
-						// suffer with double spacing, so using that here as it provides cleaner matching.
-            String blocking_title = DCBStringUtilities.generateBlockingString(item, qualifiers);
-            if ( blocking_title != null ) {
-              ingestRecord.addIdentifier(id -> {
-						    id.namespace("BLOCKING_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
-					    });
-              // Exit the lambda returning the selected title
-              return blocking_title;
-            }
-          }
+		if (fields.size() > 0) {
+			grk.parseTitle(fields.get(0), 
+				fields.size() > 1 ? fields.get(1) : null,
+				fields.size() > 2 ? fields.get(2) : null);
+		}
 
-          // Keep returning the first title that was set.
-          return current_blocking_title;
-        });
+		parseFromSingleSubfield(marcRecord, "245", 'h', grk::parseMediaDesignation);
+		parseFromSingleSubfield(marcRecord, "260", 'c', grk::parsePubYear);
+		parseFromSingleSubfield(marcRecord, "300", 'a', grk::parsePagination);
+		parseFromSingleSubfield(marcRecord, "250", 'a', grk::parseEdition);
+		parseFromSingleSubfield(marcRecord, "260", 'b', grk::parsePublisher);
+		parseFromSingleSubfield(marcRecord, "245", 'p', grk::parseTitlePart);
+		parseFromSingleSubfield(marcRecord, "245", 'n', grk::parseTitleNumber);
 
-    return ingestRecord;
-  }
+		char type = marcRecord.getLeader().getTypeOfRecord();
+		grk.setRecordType(type);
+//		System.out.println( grk.toString() );
+//		System.out.println( grk.getText() );
+		return grk;
+	}
+
+	default IngestRecordBuilder enrichWithBlockingTitle(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
+		// Initial title.
+//		final String title = Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
+		Stream.of("245", "243", "240", "246", "222", "210", "240", "247", "130")
+			.filter(Objects::nonNull)
+			.flatMap(tag -> concatSubfieldData(marcRecord, tag, "abhknp")).filter(StringUtils::isNotEmpty).map(item -> {
+				
+				// 250 Is edition statement
+				List<String> qualifiers = Marc4jRecordUtils.concatSubfieldData(marcRecord, "250", "a")
+					.map(EditionNormalizer::normalizeEdition)
+					.map(StringUtils::trimToNull)
+					.toList();
+
+				return DCBStringUtilities.generateBlockingString(item, qualifiers);
+			})
+			.filter(StringUtils::isNotEmpty)
+			.findFirst()
+			.map(blocking_title -> ingestRecord
+				.addIdentifier(id -> id
+					.namespace(BLOCKING_TITLE)
+					.value(blocking_title)
+					.confidence(0)));
+
+		return ingestRecord;
+	}
 
 
   default IngestRecordBuilder enrichWithBlockingWorkTitle(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
     // Initial title.
-    final String title = Stream.of("240", "130", "245", "243", "246", "222", "210", "240", "247")
-        .filter(Objects::nonNull)
-        .flatMap(tag -> concatSubfieldData(marcRecord, tag, "abhknp"))
-        .filter(StringUtils::isNotEmpty)
-        .reduce(ingestRecord.build().getIdentifier("BLOCKING_WORK_TITLE"), (current_blocking_title, item) -> {
-          if (StringUtils.isEmpty(current_blocking_title)) {
+//    final String title = Stream.of("240", "130", "245", "243", "246", "222", "210", "240", "247")
 
-            String blocking_title = DCBStringUtilities.generateBlockingString(item);
-            if ( blocking_title != null ) {
-              ingestRecord.addIdentifier(id -> {
-                // This allows us to add in important discriminators into the blocking title - edition being
-                // the most obvious one for now. Ideally we would normalised this tho into a canonical string
-  
-                // The old style blocking titles arranged words alphabetically, removed duplicates and didn't
-                // suffer with double spacing, so using that here as it provides cleaner matching.
-                id.namespace("BLOCKING_WORK_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
-              });
+    Stream.of("240", "130", "245", "243", "246", "222", "210", "240", "247")
+      .filter(Objects::nonNull)
+      .flatMap(tag -> concatSubfieldData(marcRecord, tag, "abhknp"))
+      .filter(StringUtils::isNotEmpty)
+      .reduce(ingestRecord.build().getIdentifier("BLOCKING_WORK_TITLE"), (current_blocking_title, item) -> {
+        if (StringUtils.isEmpty(current_blocking_title)) {
 
-              // Exit the lambda returning the selected title
-              return blocking_title;
-            }
+          String blocking_title = DCBStringUtilities.generateBlockingString(item);
+          if ( blocking_title != null ) {
+            ingestRecord.addIdentifier(id -> {
+              // This allows us to add in important discriminators into the blocking title - edition being
+              // the most obvious one for now. Ideally we would normalised this tho into a canonical string
+
+              // The old style blocking titles arranged words alphabetically, removed duplicates and didn't
+              // suffer with double spacing, so using that here as it provides cleaner matching.
+              id.namespace("BLOCKING_WORK_TITLE").value(blocking_title).confidence(Integer.valueOf(0));
+            });
+
+            // Exit the lambda returning the selected title
+            return blocking_title;
           }
+        }
 
-          // Keep returning the first title that was set.
-          return current_blocking_title;
-        });
+        // Keep returning the first title that was set.
+        return current_blocking_title;
+      });
 
     // log.trace("Title used: {}", title);
 
@@ -291,15 +342,18 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		// Grab the pair of 001 and 003. These contain the identifier value and
 		// namespace respectively
 
-		Optional.ofNullable(marcRecord.getControlNumber()).filter(StringUtils::isNotEmpty).flatMap(cn -> {
-			final String cnAuthority = extractControlData(marcRecord, "003").findFirst()
+		Optional.ofNullable(marcRecord.getControlNumber())
+			.filter(StringUtils::isNotEmpty)
+			.flatMap(cn -> {
+				final String cnAuthority = extractControlData(marcRecord, "003")
+					.findFirst()
 					.orElse(getDefaultControlIdNamespace());
-
-      // log.info("Consider control number {} {}",cnAuthority,cn);
-
-			return Optional.ofNullable(StringUtils.isEmpty(cnAuthority) ? null : Identifier.build(id -> {
-				id.namespace(cnAuthority).value(cn);
-			}));
+	
+	      // log.info("Consider control number {} {}",cnAuthority,cn);
+	
+				return Optional.ofNullable(StringUtils.isEmpty(cnAuthority) ? null : Identifier.build(id -> {
+					id.namespace(cnAuthority).value(cn);
+				}));
 
 		}).ifPresent(ingestRecord::addIdentifiers);
 
@@ -348,8 +402,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		return ingestRecord;
 	}
 
-	static final Map<String, String> IDENTIFIER_FIELD_NAMESPACE = Map.of("010", "LCCN", "020", "ISBN", "022", "ISSN",
-			"027", "STRN");
+	static final Map<String, String> IDENTIFIER_FIELD_NAMESPACE = Map.of(
+		"010", "LCCN",
+		"020", "ISBN",
+		"022", "ISSN",
+		"027", "STRN");
 
 	default IngestRecordBuilder enrichWithIdentifiers(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 
@@ -368,53 +425,57 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		// determine if this record contains just 1 useful ISBN13.
 		Set<String> unqique_normalised_isbn13_set = new java.util.HashSet<String>();
 
-		IDENTIFIER_FIELD_NAMESPACE.keySet().stream().flatMap(tag -> marcRecord.getVariableFields(tag).stream())
-				.filter(Objects::nonNull).map(DataField.class::cast).forEach(df -> {
-					Optional.ofNullable(df.getSubfieldsAsString("a")).filter(StringUtils::isNotEmpty).ifPresent(sfs -> {
+		IDENTIFIER_FIELD_NAMESPACE.keySet().stream()
+			.flatMap(tag -> marcRecord.getVariableFields(tag).stream())
+			.filter(Objects::nonNull)
+			.map(DataField.class::cast)
+			.forEach(df -> {
+				Optional.ofNullable(df.getSubfieldsAsString("a"))
+					.filter(StringUtils::hasText)
+					.ifPresent(sfs -> {
 
-            String idns = IDENTIFIER_FIELD_NAMESPACE.get(df.getTag());
-
-            String duplicate_detection_key = idns+":"+sfs;
-
-            // Don't add duplicates
-            if ( seen_identifiers.contains(duplicate_detection_key) == false ) {
+	          String idns = IDENTIFIER_FIELD_NAMESPACE.get(df.getTag());
+	
+	          String duplicate_detection_key = idns+":"+sfs;
+	
+	          // Don't add duplicates
+	          if ( seen_identifiers.contains(duplicate_detection_key) == false ) {
 						  final boolean first_occurrence_of_type = !(seen_identifier_types.contains( idns ));
-
-  						if ( first_occurrence_of_type )
+	
+							if ( first_occurrence_of_type )
 	  						seen_identifier_types.add(idns);
-
-		  				final Integer confidence = switch ( idns ) {
-			  				case "LCCN" -> Integer.valueOf(10);
-				  			case "ISBN" -> Integer.valueOf(11); // All ISBNs are untrustworthy at this stage - unless there is only 1
-					  		case "ISSN" -> first_occurrence_of_type ? Integer.valueOf(0) : Integer.valueOf(11);
-						  	default -> Integer.valueOf(12);
-  						};
-
-	  					ingestRecord.addIdentifier(id -> {
-		  					id.namespace(idns).value(sfs).confidence(confidence);
-			  			});
-
-              seen_identifiers.add(duplicate_detection_key);
-
-              // Add normalised versions of ISSN and ISBN
-              if ( "ISBN".equals(idns) || "ISSN".equals(idns) ) {
-
-                String cleaned_isxn = cleanIsxn(sfs);
-
-                String norm_id_key = idns+"-n:" + cleaned_isxn;
-
-                if ( seen_identifiers.contains(norm_id_key) == false ) {
-                  // IN the case where an ISBN value is repeated, but with extra punc - e.g. "1234567890" vs "1234567890 :"
-                  // the actual identifier value is different BUT the normalised value is not - so we have to check that we don't add
-                  // duplicate normalised values. Sad but true
-  				  	  	ingestRecord.addIdentifier(id -> {
-				  			    id
-			  					  	.namespace(idns+"-n")
-		  							  .value(cleaned_isxn)
-    									.confidence(confidence);
-                  });
-
-                  seen_identifiers.add(norm_id_key);
+	
+		  				final int confidence = switch ( idns ) {
+			  				case "LCCN" -> featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING) ? 0 : 10;
+				  			case "ISBN" -> 11; // All ISBNs are untrustworthy at this stage - unless there is only 1
+					  		case "ISSN" -> first_occurrence_of_type ? 0 : 11;
+						  	default -> 12;
+							};
+	
+	  					ingestRecord.addIdentifier(id -> id
+		  						.namespace(idns)
+		  						.value(sfs)
+		  						.confidence(confidence));
+	
+	            seen_identifiers.add(duplicate_detection_key);
+	
+	            // Add normalised versions of ISSN and ISBN
+	            if ( "ISBN".equals(idns) || "ISSN".equals(idns) ) {
+	
+	              String cleaned_isxn = cleanIsxn(sfs);
+	
+	              String norm_id_key = idns+"-n:" + cleaned_isxn;
+	
+	              if ( seen_identifiers.contains(norm_id_key) == false ) {
+	                // IN the case where an ISBN value is repeated, but with extra punc - e.g. "1234567890" vs "1234567890 :"
+	                // the actual identifier value is different BUT the normalised value is not - so we have to check that we don't add
+	                // duplicate normalised values. Sad but true
+					  	  	ingestRecord.addIdentifier(id -> id
+		  					  	.namespace(idns+"-n")
+	  							  .value(cleaned_isxn)
+  									.confidence(confidence));
+	
+	                seen_identifiers.add(norm_id_key);
 					
 									// Extra processing for ISBNs - 
 									if ( "ISBN".equals(idns) ) {
@@ -440,16 +501,14 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 												log.error("ISBN [{}] is of invalid length [{}], should be 10 or 13. Skipping ISBN for comparison", cleaned_isxn, isbn_length);
 										}
 										
-//										String isbn_to_consider = cleaned_isxn.length() == 13 ? cleaned_isxn : isbn10to13(cleaned_isxn);
-//										unqique_normalised_isbn13_set.add(isbn_to_consider);
+	//										String isbn_to_consider = cleaned_isxn.length() == 13 ? cleaned_isxn : isbn10to13(cleaned_isxn);
+	//										unqique_normalised_isbn13_set.add(isbn_to_consider);
 									}
-                }
-              }
-            }
-            else {
-            }
+	              }
+	            }
+	          }
 					});
-				});
+			});
 
 		// IF the record carries ONLY A UNIQUE ISBN - then we can consider it useful for clustering.
 		// Unhelpful practices like listing analytical item ISBNs in series level records, or (worse) omnibus records that only carry the 
@@ -471,7 +530,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	}
 
 	
-	public static String isbn10to13( String isbn10 ) {
+	private static String isbn10to13( String isbn10 ) {
 
 		if (isbn10 == null || isbn10.length() != 10) {
 			throw new DcbError("Input must be exactly 10 digits but value was \"" + isbn10 + "\"");
@@ -492,7 +551,6 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		return isbn13Body + checkDigit;
 	}
 
-
   private static String cleanIsxn(String v) {
     Matcher m = REGEX_ISXN_VALUE.matcher(v);
     if ( m.matches() ) {
@@ -504,12 +562,26 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	default IngestRecordBuilder enrichWithGoldrush(final IngestRecordBuilder ingestRecord, final Record marcRecord) {
 		final GoldrushKey grk = getGoldrushKey(marcRecord);
 		
-		return Optional.of(grk.getText())
+		var identifierStream = Stream.of(grk.getText())
 			.map( StringUtils::trimToNull )
-			.map( grVal -> Identifier.build(id -> id.namespace(NS_GOLDRUSH).value(grk.getText())))
-			.map( ingestRecord::addIdentifiers )
-			.orElse( ingestRecord )
-		;
+			.map( grVal -> Identifier.build(id -> id.namespace(NS_GOLDRUSH).value(grk.getText())));
+		
+//		if ( featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING) ) {
+//			
+//			// Instead of just adding a single goldrush value we're going to also add the parts that make up the key.public String getText() {
+//			// Assemble all the parts into a String
+//			identifierStream = Streams.concat(identifierStream, grk.getParts().entrySet().stream()
+//				.filter(e -> StringUtils.hasText( e.getValue() ))
+//				.map(e -> Identifier.build(id -> id
+//					.namespace(NS_GOLDRUSH + "::" + e.getKey().toUpperCase())
+//					.value( "" + e.getValue() )))); // NEED TO FILTER NULLS..
+//		
+//		}
+		
+		identifierStream
+			.forEach(ingestRecord::addIdentifiers);
+		
+		return ingestRecord;
 	}
 
 	public static Stream<String> extractControlData(final Record marcRecord, @NotEmpty final String tag) {
@@ -634,56 +706,6 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			.filter( Objects::nonNull ) // FindFirst non null, or degrade to empty if no data or only nulls.
 			.findFirst()
 			.ifPresent(consumer);
-	}
-
-	public default GoldrushKey getGoldrushKey(final Record marcRecord) {
-		GoldrushKey grk = new GoldrushKey();
-
-		// Start with 245. If there is a linkage to a 880, then swap to that instead.
-		final DataField field245 = (DataField) marcRecord.getVariableField("245");
-		final DataField fieldForTitle = extractOrderedSubfields(field245, "6")
-			.map( REGEX_LINKAGE_245_880::matcher )
-			.filter( Matcher::matches )
-			.findFirst()
-			.map( match -> match.group(1) )
-			.flatMap( occNum -> {
-				final Pattern linked880 = Pattern.compile("^245-" + occNum);
-				return marcRecord.getVariableFields("880")
-						.stream()
-						.map( DataField.class::cast )
-						.filter(field880 ->
-							extractOrderedSubfields(field880, "6")
-								.anyMatch(linked880.asMatchPredicate()))
-						.findFirst();
-			})
-			.orElseGet(() -> field245);
-		
-		// Goldrush does not normally include $c but that seems to create very odd clusters for things like 
-		// "Greatest Hits". It seems that $c can be a bit of a dumping ground - so whilst
-		// "$a Greatest Hits - $c Some Artist" is useful, "$a Greatest Hits - $s Some Artist, with a foreward by X and some other stuff by Y"
-		// is likely less helpful. It may be that taking the first 2 words of $c will yeild better results.
-		List<String> fields = extractOrderedSubfields(fieldForTitle, "abc").limit(3)
-				.toList();
-
-		if (fields.size() > 0) {
-			grk.parseTitle(fields.get(0), 
-				fields.size() > 1 ? fields.get(1) : null,
-				fields.size() > 2 ? fields.get(2) : null);
-		}
-
-		parseFromSingleSubfield(marcRecord, "245", 'h', grk::parseMediaDesignation);
-		parseFromSingleSubfield(marcRecord, "260", 'c', grk::parsePubYear);
-		parseFromSingleSubfield(marcRecord, "300", 'a', grk::parsePagination);
-		parseFromSingleSubfield(marcRecord, "250", 'a', grk::parseEdition);
-		parseFromSingleSubfield(marcRecord, "260", 'b', grk::parsePublisher);
-		parseFromSingleSubfield(marcRecord, "245", 'p', grk::parseTitlePart);
-		parseFromSingleSubfield(marcRecord, "245", 'n', grk::parseTitleNumber);
-
-		char type = marcRecord.getLeader().getTypeOfRecord();
-		grk.setRecordType(type);
-//		System.out.println( grk.toString() );
-//		System.out.println( grk.getText() );
-		return grk;
 	}
 
 	public default IngestRecordBuilder enrichWithCanonicalRecord(final IngestRecordBuilder irb, final Record marcRecord) {
@@ -852,6 +874,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	}
 
 
+	@SuppressWarnings("unchecked")
 	private void addToCanonicalMetadata(String property, VariableField vf, String tags,
 			Map<String, Object> canonical_metadata) {
 

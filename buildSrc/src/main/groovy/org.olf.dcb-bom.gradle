@@ -7,6 +7,7 @@ dependencies {
 		implementation 'info.debatty:java-string-similarity:2.0.0'
 	  implementation 'org.opensearch.client:opensearch-java:2.21.0'
 	  implementation 'org.opensearch.client:opensearch-rest-client:2.19.0'
+	  implementation 'info.debatty:java-string-similarity:2.0.0'
 	  
 	  
 		// These are needed to address critical CVEs that block deployment

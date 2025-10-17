@@ -17,6 +17,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
+import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.processing.ProcessingStep;
@@ -43,8 +44,6 @@ import reactor.function.TupleUtils;
 
 @Singleton
 public class BibRecordService {
-	
-	public static final int PROCESS_VERSION = 3;
 
 	private static final Logger log = LoggerFactory.getLogger(BibRecordService.class);
 
@@ -75,7 +74,7 @@ public class BibRecordService {
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
 		// log.info("Executing step 1");
 
-		bib.setProcessVersion(PROCESS_VERSION);
+		bib.setProcessVersion(IngestService.getProcessVersion());
 
     // We need to pull forward any important changed properties from the ingest record here
     // Once created, fields will not be automatically updated when records are reprocessed unless
@@ -252,25 +251,48 @@ public class BibRecordService {
 			.thenReturn(bib);
 	}
 	
+	/**
+	 * Check for bib without source record. 
+	 * @param bib
+	 * @return
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Mono<BibRecord> checkOrphanedBib(@NonNull BibRecord bib) {
+		// Delete if there is no source record for the bib.
+		// Either returns the updated bib or an empty bib if deleted.
+		
+		// Check delete first.
+		return findSourceRecordForBib(bib)
+			.singleOrEmpty()
+			
+			// Return the bib if source record
+			.thenReturn(bib)
+			
+			// Emtpy means no source record...
+			// Delete the bib.
+			.switchIfEmpty( deleteBibAndUpdateCluster(bib)
+				.doOnNext( toDelete -> log.info( "Deleting bib [{}] with no source record (Orphaned)", toDelete))
+				.then(Mono.empty()));
+	}
+	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<BibRecord> deleteBibAndUpdateCluster(@NonNull BibRecord bib) {
 		return Mono.justOrEmpty( bib.getId() )
-				.flatMap( this::getClusterRecordForBib )
-				.flatMap( cr -> findAllByContributesTo(cr)
-					.count()
-					.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get()
-							.electSelectedBib(cr, Optional.ofNullable(bib))
-							.then(Mono.empty()) : Mono.just( cr ) )
-				)
-				// .doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
-				.flatMap( recordClusteringServiceProvider.get()::softDelete )
-				.then( Mono.defer(() -> {
-					log.info("Deleteing bib [{}]", bib.getId());
-					return deleteBibAndRelations(bib)
-            .doOnError(err -> log.error("Problem in delete bib",err) )
-            .thenReturn(bib); 
-				}))
-			;
+			.flatMap( this::getClusterRecordForBib )
+			.flatMap( cr -> findAllByContributesTo(cr)
+				.count()
+				.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get()
+						.electSelectedBib(cr, Optional.ofNullable(bib))
+						.then(Mono.empty()) : Mono.just( cr ) )
+			)
+			// .doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
+			.flatMap( recordClusteringServiceProvider.get()::softDelete )
+			.then( Mono.defer(() -> {
+				log.info("Deleteing bib [{}]", bib.getId());
+				return deleteBibAndRelations(bib)
+          .doOnError(err -> log.error("Problem in delete bib",err) )
+          .thenReturn(bib); 
+			}));
 	}
 	
 	@Transactional
@@ -384,7 +406,12 @@ public class BibRecordService {
 	}
 	
 	@Transactional
-	public Flux<BibRecord> getAllByIdIn(@NonNull Collection<UUID> ids) {
+	public Flux<BibRecord> findAllByIdIn(@NonNull Collection<UUID> ids) {
+		return Flux.from( bibRepo.findAllByIdIn(ids) );
+	}
+
+	@Transactional
+	public Flux<BibRecord> findAllIncludingClusterByIdIn(@NonNull Collection<UUID> ids) {
 		return Flux.from( bibRepo.getAllByIdIn(ids) );
 	}
 	

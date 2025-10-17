@@ -9,11 +9,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Value;
 
-@Serdeable
-@Builder
-@Value
 @Data
+@Value
+@Builder
+@Serdeable
 public class Identifier {
+	
 	@NotNull
 	String namespace;
 

@@ -37,21 +37,13 @@ import services.k_int.utils.UUIDUtils;
 public class MatchPoint {
 	
 	@Creator
-	public MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId, @Nullable String domain) {
+	MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId, @Nullable String domain) {
     // id, value, bib, domain, sourceValue, valueHint
 		this(id, value, bibId, domain, null, null);
 	}
 
-	public MatchPoint(UUID id, @NonNull UUID value, @NonNull UUID bibId) {
-		this(id, value, bibId, null, null, null);
-	}
-
 	private static final String PREFIX_VALUE = "MatchPoint";
-	 
-	public static MatchPoint buildFromString ( String input ) {
-		return buildFromString(input, "UNKNOWN");
-	}
-
+	
 	public static MatchPoint buildFromString ( String input, String domain ) {
 		
 		final String valueStr = PREFIX_VALUE + ":" + input;
