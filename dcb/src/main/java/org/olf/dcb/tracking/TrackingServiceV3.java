@@ -176,15 +176,23 @@ public class TrackingServiceV3 implements TrackingService {
 
 	/**
 	 * Force an update of the patron request.
+	 * Uses distributed locking to prevent conflicts with scheduled tracking.
 	 * @param pr_id ID of the patron request
 	 * @return patron request
 	 */
 	public Mono<UUID> forceUpdate(UUID pr_id) {
 		log.debug("Manual tracking poll for patron request \"{}\"", pr_id);
 
+		final String lockName = "patron-request-workflow-" + pr_id;
+
 		return fetchWorkflowContext(pr_id)
 			.flatMap(ctx -> failSafeTracking(ctx, false))
+			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(lockName))
 			.flatMap(ctx -> Mono.just(pr_id))
+			.switchIfEmpty(Mono.defer(() -> {
+				log.debug("Could not acquire lock for force update of {}, scheduled tracking may be running", pr_id);
+				return Mono.just(pr_id); // Return ID indicating no update performed
+			}))
 			.doOnError(error -> log.error("TRACKING ForceUpdate Error caught {}", pr_id, error))
 			.onErrorResume(error -> Mono.just(pr_id));
 	}

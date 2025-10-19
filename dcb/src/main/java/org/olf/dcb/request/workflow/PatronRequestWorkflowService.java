@@ -32,6 +32,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.utils.UUIDUtils;
 
 @Slf4j
@@ -45,13 +46,15 @@ public class PatronRequestWorkflowService {
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final TrackingHelpers trackingHelpers;
 	private final AlarmsService alarmsService;
+	private final ReactorFederatedLockService lockService;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		TrackingHelpers trackingHelpers,
-		AlarmsService alarmsService) {
+		AlarmsService alarmsService,
+		ReactorFederatedLockService lockService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		// By loading the list of all transitions, we can declare new transitions
@@ -62,6 +65,7 @@ public class PatronRequestWorkflowService {
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.trackingHelpers = trackingHelpers;
 		this.alarmsService = alarmsService;
+		this.lockService = lockService;
 
 		log.info("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
@@ -87,12 +91,21 @@ public class PatronRequestWorkflowService {
 
 	/**
 	 * Try to progress the identified patron request. This is the main entry point for trying to progress a patron request.
+	 * Uses distributed locking to prevent concurrent updates to the same request.
 	 */
 	public Mono<PatronRequest> progressAll(PatronRequest patronRequest) {
 		log.debug("WORKFLOW progressAll({})", patronRequest);
 
+		final String lockName = "patron-request-workflow-" + patronRequest.getId();
+
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap( ctx -> this.progressUsing(ctx, getApplicableTransitionFor(ctx) ));
+			.flatMap(ctx -> this.progressUsing(ctx, getApplicableTransitionFor(ctx)))
+			.transformDeferred(lockService.withLockOrEmpty(lockName))
+			.switchIfEmpty(Mono.defer(() -> {
+				log.debug("Could not acquire lock for patron request {}, another process is updating it",
+					patronRequest.getId());
+				return Mono.just(patronRequest); // Return unchanged if lock not acquired
+			}));
 	}
 
 	/**
