@@ -328,16 +328,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Mono<Integer> getILLRequestId(String patronLocalId, String title) {
 
-		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
-		// visible
-		synchronized (this) {
-			try {
-				Thread.sleep(2000);
-			} catch (Exception e) {
-			}
-		}
-
-		return ApplicationServices.getIllRequest(patronLocalId)
+		// Wait for Polaris to process the hold using reactive delay (non-blocking)
+		return Mono.delay(Duration.ofSeconds(2))
+			.then(ApplicationServices.getIllRequest(patronLocalId))
 			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(illRequest -> Objects.equals(illRequest.getTitle(), title))
@@ -355,16 +348,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<LocalRequest> getLocalHoldRequestIdv2(String patronId, String title, String note, String activationDate) {
 		log.debug("getLocalHoldRequestIdv2({}, {}, {}, {})", patronId, title, note, activationDate);
 
-		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
-		// visible
-		synchronized (this) {
-			try {
-				Thread.sleep(2000);
-			} catch (Exception e) {
-			}
-		}
-
-		return ApplicationServices.listPatronLocalHolds(patronId)
+		// Wait for Polaris to process the hold using reactive delay (non-blocking)
+		return Mono.delay(Duration.ofSeconds(2))
+			.then(ApplicationServices.listPatronLocalHolds(patronId))
 			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(holds -> shouldIncludeHold(holds, title, note, activationDate))
