@@ -13,6 +13,7 @@
 <!--	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>-->
 <!--	<logger name="org.mockserver" level="TRACE"/>-->
 <!--	<logger name="org.olf.dcb.core.interaction.folio" level="TRACE"/>-->
+<!--	<logger name="org.olf.dcb.core.interaction.polaris" level="TRACE"/>-->
 <!--	<logger name="org.mockserver" level="WARN"/>-->
 <!--	<logger name="org.flywaydb" level="DEBUG"/>-->
 <!--	<logger name="org.flyway" level="DEBUG"/>-->

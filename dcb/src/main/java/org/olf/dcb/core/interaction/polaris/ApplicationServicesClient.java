@@ -1,43 +1,9 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.uri.UriBuilder;
-import io.micronaut.json.tree.JsonNode;
-import io.micronaut.serde.annotation.Serdeable;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.folio.User;
-import org.olf.dcb.core.interaction.polaris.exceptions.SaveVirtualItemException;
-import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
-import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
-import org.zalando.problem.Problem;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple4;
-import reactor.util.function.Tuple5;
-import reactor.util.function.Tuples;
-
-import java.net.URI;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static io.micronaut.http.HttpMethod.*;
+import static io.micronaut.http.HttpMethod.DELETE;
+import static io.micronaut.http.HttpMethod.GET;
+import static io.micronaut.http.HttpMethod.POST;
+import static io.micronaut.http.HttpMethod.PUT;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.valueOf;
@@ -45,18 +11,70 @@ import static java.time.ZoneOffset.UTC;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.*;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.BreakableDeletionLinks;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.BriefItemEntry;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmBibRecordDelete;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmItemBarcodeChanged;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmItemRecordDelete;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.DuplicateRecords;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ExceededTotalRequestLimit;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.FillsRequestTransferPrompt;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.LastCopyOrRecordOptions;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.NoDisplayInPAC;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.PromoteItemRequestToBib;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.UpdateItemRecord;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Yes;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_AV_LEADER;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_BOOKS_LEADER;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.getNoteForStaff;
-import static org.olf.dcb.utils.CollectionUtils.nonNullValuesList;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
+
+import java.net.URI;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
+import org.olf.dcb.core.interaction.polaris.exceptions.SaveVirtualItemException;
+import org.zalando.problem.Problem;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.uri.UriBuilder;
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple4;
+import reactor.util.function.Tuple5;
+import reactor.util.function.Tuples;
 
 @Slf4j
 class ApplicationServicesClient {
@@ -1078,7 +1096,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class ItemRecordFull {
+	public static class ItemRecordFull {
 		@JsonProperty("ItemRecordID")
 		private Integer itemRecordID;
 		@JsonProperty("Barcode")
@@ -1102,7 +1120,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class BibInfo {
+	public static class BibInfo {
 		@JsonProperty("BibliographicRecordID")
 		private Integer bibliographicRecordID;
 	}
@@ -1274,7 +1292,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class SysHoldRequest {
+	public static class SysHoldRequest {
 		@JsonProperty("SysHoldRequestID")
 		private Integer sysHoldRequestID;
 		@JsonProperty("SysHoldStatusID")
@@ -1402,7 +1420,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class BibliographicRecord {
+	public static class BibliographicRecord {
 		@JsonProperty("BibliographicRecordID")
 		private Integer bibliographicRecordID;
 		@JsonProperty("BrowseAuthor")
@@ -1504,7 +1522,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class WorkflowRequest {
+	public static class WorkflowRequest {
 		@JsonProperty("WorkflowRequestType")
 		private Integer workflowRequestType;
 		@JsonProperty("TxnBranchID")
@@ -1521,7 +1539,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class RequestExtension {
+	public static class RequestExtension {
 		@JsonProperty("WorkflowRequestExtensionType")
 		private Integer workflowRequestExtensionType;
 		@JsonProperty("Data")
@@ -2045,7 +2063,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class LibraryHold {
+	public static class LibraryHold {
 		@JsonProperty("SysHoldStatusID")
 		private Integer sysHoldStatusID;
 		@JsonProperty("SysHoldStatus")

@@ -124,9 +124,10 @@ class PolarisLmsClientTests {
 	void beforeAll(MockServerClient mockServerClient) {
 		this.mockServerClient = mockServerClient;
 
-		final String BASE_URL = "https://polaris-hostlms-tests.com";
-		final String KEY = "polaris-hostlms-test-key";
-		final String SECRET = "polaris-hostlms-test-secret";
+		final var HOST = "polaris-hostlms-tests.com";
+		final String BASE_URL = "https://" + HOST;
+		final String KEY = "test-key";
+		final String SECRET = "test-secret";
 		final String DOMAIN = "TEST";
 
 		agencyFixture.deleteAll();
@@ -138,7 +139,7 @@ class PolarisLmsClientTests {
 		hostLmsFixture.createPolarisHostLms(CIRCULATING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
 
-		mockPolarisFixture = new MockPolarisFixture("polaris-hostlms-tests.com",
+		mockPolarisFixture = new MockPolarisFixture(HOST,
 			mockServerClient, testResourceLoaderProvider);
 	}
 

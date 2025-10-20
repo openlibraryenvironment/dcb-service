@@ -17,6 +17,10 @@ public class LocalRequestMatchers {
 		return hasProperty("rawLocalStatus", is(expectedRawLocalStatus));
 	}
 
+	public static Matcher<LocalRequest> hasLocalId(Integer expectedLocalId) {
+		return hasLocalId(expectedLocalId.toString());
+	}
+
 	public static Matcher<LocalRequest> hasLocalId(String expectedLocalId) {
 		return hasProperty("localId", is(expectedLocalId));
 	}

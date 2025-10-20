@@ -111,7 +111,16 @@ public class HostLmsFixture {
 		String staffPassword, String baseUrl, String domain, String accessId,
 		String accessKey, String defaultAgencyCode) {
 
+		createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain,
+			accessId, accessKey, defaultAgencyCode, 73);
+	}
+
+	public void createPolarisHostLms(String code, String staffUsername,
+		String staffPassword, String baseUrl, String domain, String accessId,
+		String accessKey, String defaultAgencyCode, Integer illLocationId) {
+
 		Map<String, Object> clientConfig = new HashMap<>();
+
 		clientConfig.put("staff-username", staffUsername);
 		clientConfig.put("staff-password", staffPassword);
 		clientConfig.put("base-url", baseUrl);
@@ -143,7 +152,7 @@ public class HostLmsFixture {
 		item.put("loan-period-code-id", "9");
 		item.put("shelving-scheme-id", "3");
 		item.put("barcode-prefix", "test");
-		item.put("ill-location-id", "73");
+		item.put("ill-location-id", illLocationId.toString());
 
 		clientConfig.put("item", item);
 

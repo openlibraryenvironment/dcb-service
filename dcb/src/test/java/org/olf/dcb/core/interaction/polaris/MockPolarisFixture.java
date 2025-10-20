@@ -6,12 +6,21 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.MediaType.APPLICATION_JSON;
+import static org.mockserver.verify.VerificationTimes.once;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
+
+import java.util.List;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecordFull;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExtension;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExtensionData;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowRequest;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistration;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -172,6 +181,14 @@ public class MockPolarisFixture {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId, "item-by-id.json");
 	}
 
+	public void mockGetItem(Integer itemId, ItemRecordFull expectedItem) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId,
+			response()
+				.withHeader("Content-Type", "application/json")
+				.withStatusCode(200)
+				.withBody(json(expectedItem)));
+	}
+
 	public void mockGetItemWithNullRenewalCount(String itemId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/itemrecords/" + itemId, "item-by-id-without-renewal-count.json");
 	}
@@ -199,9 +216,32 @@ public class MockPolarisFixture {
 			"unsuccessful-place-request.json");
 	}
 
+	void verifyPlaceHold(RequestExtensionData expectedRequest) {
+		mockServerClient.verify(baselineRequest("POST",
+				"/polaris.applicationservices/api/v1/eng/20/polaris/73/1/workflow")
+			.withBody(json(WorkflowRequest.builder()
+				.workflowRequestType(5)
+				.txnBranchID(73)
+				.txnUserID(1)
+				.txnWorkstationID(1)
+				// Cannot match on expiration date and notes because it is generated internally
+				.requestExtension(RequestExtension.builder()
+					.workflowRequestExtensionType(9)
+					.data(expectedRequest)
+					.build())
+				.build())), once());
+	}
+
 	public void mockListPatronLocalHolds() {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/1/requests/local",
 			"listPatronLocalHolds.json");
+	}
+
+	public void mockListPatronLocalHolds(Integer patronId, SysHoldRequest expectedHold) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s/requests/local".formatted(patronId),
+			response()
+				.withStatusCode(200)
+				.withBody(json(List.of(expectedHold))));
 	}
 
 	public void mockEmptyListPatronLocalHolds() {
@@ -238,6 +278,14 @@ public class MockPolarisFixture {
 	public void mockGetBib(String bibId) {
 		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/" + bibId + "*",
 			"get-bib.json");
+	}
+
+	public void mockGetBib(Integer bibId, BibliographicRecord expectedBib) {
+		mock("GET", "/polaris.applicationservices/api/v1/eng/20/polaris/73/1/bibliographicrecords/" + bibId + "*",
+			response()
+				.withStatusCode(200)
+				.withContentType(APPLICATION_JSON)
+				.withBody(json(expectedBib)));
 	}
 
 	public void mockGetPagedBibs() {

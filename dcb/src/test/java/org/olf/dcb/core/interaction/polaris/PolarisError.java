@@ -8,7 +8,7 @@ import lombok.Value;
 @Builder
 @Value
 @Serdeable
-class PolarisError {
+public class PolarisError {
 	@JsonProperty("ErrorCode")
 	Integer errorCode;
 	@JsonProperty("Message")
