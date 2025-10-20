@@ -21,6 +21,8 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_READY;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ERR0210;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
@@ -106,6 +108,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class PolarisLmsClientTests {
 	private static final String CATALOGUING_HOST_LMS_CODE = "polaris-cataloguing";
 	private static final String CIRCULATING_HOST_LMS_CODE = "polaris-circulating";
+	private static final int ILL_LOCATION_ID = 50;
 
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
@@ -134,7 +137,8 @@ class PolarisLmsClientTests {
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createPolarisHostLms(CATALOGUING_HOST_LMS_CODE, KEY,
-			SECRET, BASE_URL, DOMAIN, KEY, SECRET, "default-agency-code");
+			SECRET, BASE_URL, DOMAIN, KEY, SECRET, "default-agency-code",
+			ILL_LOCATION_ID);
 
 		hostLmsFixture.createPolarisHostLms(CIRCULATING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, DOMAIN, KEY, SECRET);
@@ -575,6 +579,88 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldBeAbleToPlaceRequestAtBorrowingAndPickupAgency() {
+		// Arrange
+		final Integer itemId = 453545;
+		final Integer bibId = 563645;
+
+		mockPolarisFixture.mockGetItem(itemId,
+			ApplicationServicesClient.ItemRecordFull.builder()
+				.itemRecordID(itemId)
+				.bibInfo(ApplicationServicesClient.BibInfo.builder()
+					.bibliographicRecordID(bibId)
+					.build())
+				.build());
+
+		mockPolarisFixture.mockGetBib(bibId,
+			ApplicationServicesClient.BibliographicRecord.builder()
+				.bibliographicRecordID(bibId)
+				.build());
+
+		mockPolarisFixture.mockPlaceHold();
+
+		final Integer holdId = 6747554;
+		final var matchingNote = "DCB Testing PACDisplayNotes";
+
+		final Integer patronId = 573734;
+
+		mockPolarisFixture.mockListPatronLocalHolds(patronId,
+			ApplicationServicesClient.SysHoldRequest.builder()
+				.sysHoldRequestID(holdId)
+				.bibliographicRecordID(bibId)
+				.pacDisplayNotes(matchingNote)
+				.build());
+
+		final var itemBarcode = "785574212";
+		final var localHoldStatus = "In Processing";
+
+		mockPolarisFixture.mockGetHold(holdId.toString(),
+			LibraryHold.builder()
+				.sysHoldStatus(localHoldStatus)
+				.itemRecordID(itemId)
+				.itemBarcode(itemBarcode)
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final Integer pickupBranchId = 3721593;
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtBorrowingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId(patronId.toString())
+				.localBibId(bibId.toString())
+				.localItemId(itemId.toString())
+				.pickupLocationCode(pickupBranchId.toString())
+				.note(matchingNote)
+				.patronRequestId(UUID.randomUUID().toString())
+				.activeWorkflow(STANDARD_WORKFLOW)
+				.build()
+		));
+
+		// Assert
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(holdId),
+			hasLocalStatus(localHoldStatus),
+			hasRequestedItemId(itemId.toString()),
+			hasRequestedItemBarcode(itemBarcode)
+		));
+
+		mockPolarisFixture.verifyPlaceHold(
+			ApplicationServicesClient.RequestExtensionData.builder()
+				.itemRecordID(itemId)
+				.patronID(patronId)
+				.pickupBranchID(pickupBranchId)
+				.origin(2)
+				.bibliographicRecordID(bibId)
+				.itemLevelHold(true)
+				.build());
+	}
+
+
+
+	@Test
 	void shouldBeAbleToPlaceRequestAtPickupAgency() {
 		// Arrange
 		final var itemId = "3453465";
@@ -613,6 +699,84 @@ class PolarisLmsClientTests {
 			hasRequestedItemId("3453465"),
 			hasRequestedItemBarcode("45673567")
 		));
+	}
+
+	@Test
+	void shouldBeAbleToPlaceRequestAtBorrowingOnlyAgency() {
+		// Arrange
+		final Integer itemId = 274725;
+		final Integer bibId = 684556;
+
+		mockPolarisFixture.mockGetItem(itemId,
+			ApplicationServicesClient.ItemRecordFull.builder()
+				.itemRecordID(itemId)
+				.bibInfo(ApplicationServicesClient.BibInfo.builder()
+					.bibliographicRecordID(bibId)
+					.build())
+				.build());
+
+		mockPolarisFixture.mockGetBib(bibId,
+			ApplicationServicesClient.BibliographicRecord.builder()
+				.bibliographicRecordID(bibId)
+				.build());
+
+		mockPolarisFixture.mockPlaceHold();
+
+		final Integer holdId = 476522;
+		final var matchingNote = "DCB Testing PACDisplayNotes";
+
+		final Integer patronId = 538539;
+
+		mockPolarisFixture.mockListPatronLocalHolds(patronId,
+			ApplicationServicesClient.SysHoldRequest.builder()
+				.sysHoldRequestID(holdId)
+				.bibliographicRecordID(bibId)
+				.pacDisplayNotes(matchingNote)
+				.build());
+
+		final var itemBarcode = "785574212";
+		final var localHoldStatus = "In Processing";
+
+		mockPolarisFixture.mockGetHold(holdId.toString(),
+			LibraryHold.builder()
+				.sysHoldStatus(localHoldStatus)
+				.itemRecordID(itemId)
+				.itemBarcode(itemBarcode)
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtBorrowingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId(patronId.toString())
+				.localBibId(bibId.toString())
+				.localItemId(itemId.toString())
+				.pickupLocationCode("543875")
+				.note(matchingNote)
+				.patronRequestId(UUID.randomUUID().toString())
+				.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
+				.build()
+		));
+
+		// Assert
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(holdId),
+			hasLocalStatus(localHoldStatus),
+			hasRequestedItemId(itemId.toString()),
+			hasRequestedItemBarcode(itemBarcode)
+		));
+
+		mockPolarisFixture.verifyPlaceHold(
+			ApplicationServicesClient.RequestExtensionData.builder()
+				.itemRecordID(itemId)
+				.patronID(patronId)
+				.pickupBranchID(ILL_LOCATION_ID)
+				.origin(2)
+				.bibliographicRecordID(bibId)
+				.itemLevelHold(true)
+				.build());
 	}
 
 	@Test
