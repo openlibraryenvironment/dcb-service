@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowableMonoWrap;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.putAuditData;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -40,7 +41,8 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	private final PickupAgencyService pickupAgencyService;
 	private final CleanupService cleanupService;
 
-	private static final List<Status> possibleSourceStatus = List.of(COMPLETED, CANCELLED);
+	private static final List<Status> possibleSourceStatus = List.of(COMPLETED,
+		CANCELLED, NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 
 	public FinaliseRequestTransition(PatronRequestAuditService patronRequestAuditService,
 		SupplyingAgencyService supplyingAgencyService, BorrowingAgencyService borrowingAgencyService,
