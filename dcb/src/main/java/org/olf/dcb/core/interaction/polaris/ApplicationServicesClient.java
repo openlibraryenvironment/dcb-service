@@ -1123,6 +1123,12 @@ class ApplicationServicesClient {
 	public static class BibInfo {
 		@JsonProperty("BibliographicRecordID")
 		private Integer bibliographicRecordID;
+		@JsonProperty("CanItemBeRenewed")
+		private Boolean canItemBeRenewed;
+		@JsonProperty("Renewals")
+		private Integer renewals;
+		@JsonProperty("CallNumber")
+		private String callNumber;
 	}
 
 	@Builder

@@ -804,8 +804,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
 					.status(hostLmsStatus)
 					.rawStatus(itemRecord.getItemStatusName())
+					// CH: Note that itemStatusName no longer appears to exist in Polaris API responses. No sign in docs of when this changed.
+					// As such we will need to re-work the above.
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
+					.renewable(itemRecord.getBibInfo().getCanItemBeRenewed()) // Seems to be false until the item is checked out.
 					.build();
 			})
 			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem )
