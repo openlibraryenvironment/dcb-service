@@ -1,5 +1,21 @@
 # Changelog
 
+## Version 8.53.0
+
+### Additions
+* [General]
+	* Trigger finalisation for requests where no item were selectable
+
+### Changes
+* [Chore]
+	* Get patron blocks and names for Polaris [DCB-2043]
+* [Refactor]
+	* Move clustering functionality into designated package
+
+### Fixes
+* [General]
+	* Get the correct renewable value from Polaris [DCB-2022]
+
 ## Version 8.52.0
 
 ### Additions
@@ -9,6 +25,10 @@
 	* Support editing agency lat/longs [DCB-2055]
 	* audit when re-resolution is not required
 	* Include source host LMS code in live availability
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
