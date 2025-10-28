@@ -19,11 +19,7 @@ import static services.k_int.utils.StringUtils.parseList;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -936,26 +932,73 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(item -> ApplicationServices.updateItemRecordStatus(itemId, item.getItemStatusID(), toStatus));
 	}
 
+	private Mono<ApplicationServicesClient.PatronData> updatePatronExpiryDateIfNeeded(
+		ApplicationServicesClient.PatronData patronData) {
+
+		final var registration = patronData.getRegistration();
+		if (registration == null) {
+			log.warn("PatronData {} has no registration block. Cannot check expiry.", patronData.getPatronID());
+			return Mono.just(patronData);
+		}
+
+		final var patronExpiryDateTime = registration.getExpirationDate();
+		if (patronExpiryDateTime == null) {
+			log.warn("PatronData {} has no expiration date. Cannot check expiry.", patronData.getPatronID());
+			return Mono.just(patronData);
+		}
+
+		// Get the current time and the expiry threshold
+		// 7 days to be safe. But we can adjust this if needed.
+		final var now = LocalDateTime.now(ZoneOffset.UTC);
+		final var expiryThreshold = now.plusDays(7);
+
+		// If the patron is expiring soon or has already expired, update
+		if (patronExpiryDateTime.isBefore(expiryThreshold)) {
+			// Let's log if the patron is expiring soon
+			log.debug("Patron {} expiry date {} is within 7 days. Updating.", patronData.getPatronID(), patronExpiryDateTime);
+
+			// And then extend the expiry date by 90 days
+			final var newExpiryLocalDateTime = now.plusDays(90);
+			registration.setExpirationDate(newExpiryLocalDateTime);
+
+			// Now we need to update the patron's registration in Polaris
+			return ApplicationServices.updatePatronRegistration(String.valueOf(patronData.getPatronID()), registration)
+				.map(success -> {
+					if (Boolean.TRUE.equals(success)) {
+						log.debug("Successfully updated patron {} expiry date in Polaris to {}", patronData.getPatronID(), newExpiryLocalDateTime);
+						return patronData;
+					} else {
+						// If we fail to update, we must make sure we're using the old expiry in DCB
+						// Otherwise patrons could slip the net.
+						log.warn("Failed to update patron {} expiry date in Polaris. Reverting patron change.", patronData.getPatronID());
+						registration.setExpirationDate(patronExpiryDateTime);
+						return patronData;
+					}
+				});
+		}
+
+		// If our patron hasn't expired, just return the original data
+		return Mono.just(patronData);
+	}
+
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		final var barcodeListAsString = getValueOrNull(patron,
 			org.olf.dcb.core.model.Patron::determineHomeIdentityBarcode);
 
 		final var firstBarcodeInList = parseList(barcodeListAsString).get(0);
-
 		// note: if a patron isn't found a empty mono will need to be returned
 		// to then create the patron
 		return PAPIService.patronSearch(firstBarcodeInList)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
-			.flatMap(this::foundVirtualPatron);
-	}
+			.flatMap(this::foundVirtualPatron);	}
 
 	private Mono<Patron> foundVirtualPatron(Integer patronId) {
 		log.info("Found virtual patron with local id: {}", patronId);
 
 		return ApplicationServices.handlePatronBlock(patronId)
 			.map(String::valueOf)
-			.flatMap(ApplicationServices::getPatron)
+			.flatMap(ApplicationServices::getVirtualPatronAndCheckExpiry)	// Check expiry and update if needed
 			.flatMap(this::enrichWithCanonicalPatronType)
 			.switchIfEmpty(Mono.defer(() -> Mono.error(patronNotFound(String.valueOf(patronId), getHostLmsCode()))));
 	}
