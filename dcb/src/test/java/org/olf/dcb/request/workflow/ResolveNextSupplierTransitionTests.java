@@ -18,6 +18,7 @@ import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
@@ -184,6 +185,11 @@ class ResolveNextSupplierTransitionTests {
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
+			/*
+			 This is important to include to trigger the audit service adding additional data
+			 to the audit details, which is how this will be used in practice
+			*/
+			.previousStatus(REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)

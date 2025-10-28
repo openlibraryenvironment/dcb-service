@@ -140,6 +140,7 @@ public class PatronRequestResolutionService {
 
 	private static void addItemCollectionsToAuditData(Resolution resolution,
 		HashMap<String, Object> auditData) {
+
 		putNonNullValue(auditData, "filteredItems", toPresentableItems(resolution.getFilteredItems()));
 		putNonNullValue(auditData, "sortedItems", toPresentableItems(resolution.getSortedItems()));
 		putNonNullValue(auditData, "allItems", toPresentableItems(resolution.getAllItems()));

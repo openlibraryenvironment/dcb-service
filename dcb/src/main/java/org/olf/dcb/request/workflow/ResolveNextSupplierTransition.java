@@ -12,9 +12,10 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
 import static reactor.function.TupleUtils.function;
+import static services.k_int.utils.MapUtils.putNonNullValue;
 
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.olf.dcb.core.ConsortiumService;
@@ -240,8 +241,12 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<RequestWorkflowContext> auditNotRequired(
 		RequestWorkflowContext context, String reason) {
 
+		final var auditData = new HashMap<String, Object>();
+
+		putNonNullValue(auditData, "detail", reason);
+
 		return patronRequestAuditService.addAuditEntry(context.getPatronRequest(),
-				"Re-resolution not required", Map.of("detail", reason))
+				"Re-resolution not required", auditData)
 			.thenReturn(context);
 	}
 
