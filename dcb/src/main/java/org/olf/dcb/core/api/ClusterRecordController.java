@@ -5,16 +5,24 @@ import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
+import lombok.Data;
 import org.olf.dcb.core.api.serde.ClusterRecordDTO;
 import org.olf.dcb.core.clustering.RecordClusteringService;
+import org.olf.dcb.core.clustering.model.MatchPoint;
+import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
+import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.storage.BibRepository;
+import org.olf.dcb.storage.MatchPointRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,14 +61,21 @@ public class ClusterRecordController {
 	private final RecordClusteringService recordClusteringService;
 	private final BibRepository bibRepository;
 	private final ObjectMapper objectMapper;
+	private final MatchPointRepository matchPointRepository;
+	private final BibRecordService bibRecordService;
 	
 	public ClusterRecordController(
 			RecordClusteringService recordClusteringService,
 			BibRepository bibRepository,
-			ObjectMapper objectMapper) {
+			ObjectMapper objectMapper,
+			MatchPointRepository matchPointRepository,
+			BibRecordService bibRecordService) {
 		this.recordClusteringService = recordClusteringService;
 		this.bibRepository = bibRepository;
 		this.objectMapper = objectMapper;
+		this.matchPointRepository = matchPointRepository;
+		this.bibRecordService = bibRecordService;
+
 	}
 
 	@Operation(
@@ -138,4 +153,91 @@ public class ClusterRecordController {
       
 		}).map(HttpResponse.accepted()::<String>body);
 	}
+
+	@Operation(summary = "Get the match point details for a cluster")
+	@Get("/{id}/matchPointDetails")
+	public Mono<ClusterMatchPointDetailsDto> matchPointDetails(UUID id) {
+		// Takes cluster UUID, returns the details of all match points.
+
+		// The main reactive stream starts here - finding all member bib records for the given cluster ID.
+		return Flux.from(bibRepository.findMemberBibsForCluster(id))
+
+			// Use flatmap to perform async operation on each MemberBib that comes through the stream
+			// This adds more details
+			// `flatMap` subscribes to the inner Mono/Flux and flattens each
+			// result back into the main stream.
+			// We could probably have done this with nested Monos also
+			.flatMap(memberBib -> {
+
+				// We need lists of match points and identifiers for each member
+				// So we create two separate Monos that will fetch this data.
+				// First up are the match points. Grab a flux of them and use collectList
+				Mono<List<MatchPoint>> matchPointsMono = Flux.from(
+						matchPointRepository.findAllByBibId(memberBib.bibid())
+					)
+					.collectList();
+
+				// To get identifiers, we will need full BibRecord object
+				Mono<BibRecord> bibRecordMono = Mono.from(bibRepository.getById(memberBib.bibid()));
+				// Then we can do a reactive chain off the bib record mono
+				// And use 'flatMapMany' because `findAllIdentifiersForBib` returns a Flux,
+				// And we want to flatten the items and put them in a list with collectList
+				Mono<List<BibIdentifier>> identifiersMono = bibRecordMono
+					.flatMapMany(bibRecordService::findAllIdentifiersForBib)
+					.collectList();
+
+
+				// We now have two Monos (matchPointsMono, identifiersMono) that can be executed concurrently.
+				// Mono.zip is used here because it will take both Monos and wait for them both to complete
+				// On completion these will be turned into a Tuple2
+				return Mono.zip(matchPointsMono, identifiersMono)
+					// Once the zip completes map performs synchronous transformation.
+					// We take the results from the tuple and data we already have from memberBib to build BibDetailsDto.
+					.map(tuple -> BibDetailsDto.builder()
+						.bibId(memberBib.bibid())
+						.title(memberBib.title())
+						.hostLmsName(memberBib.sourcesystem())
+						// We are lucky here - the source system on the member bib appears to be the Host LMS code
+						// On the standard bib record this would have been the Host LMS UUID - we'd have needed another fetch
+						.matchPoints(tuple.getT1()) // Result from matchPointsMono
+						.identifiers(tuple.getT2()) // Result from identifiersMono
+						.build()
+					);
+			})
+
+			// At this point, the  stream is a Flux<BibDetailsDto> (one for
+			// each bib in the cluster).
+			// collectList waits for the Flux to complete and then emits a single Mono<List<BibDetailsDto>>.
+			.collectList()
+
+			// To finish, map transforms our bib details list onto the ClusterMatchPointDetailsDto we return
+			// Which also includes the original cluster ID.
+			.map(bibDetailsList -> ClusterMatchPointDetailsDto.builder()
+				.clusterId(id)
+				.bibs(bibDetailsList)
+				.build()
+			);
+	}
+
+
+	@Data
+	@Builder
+	@Serdeable
+	public static class ClusterMatchPointDetailsDto {
+		private UUID clusterId;
+		private List<BibDetailsDto> bibs;
+	}
+
+	// This holds the details for a single bib record in the cluster
+	@Data
+	@Builder
+	@Serdeable
+	static class BibDetailsDto {
+		private UUID bibId;
+		private String title;
+		private String hostLmsName;
+		private List<BibIdentifier> identifiers;
+		private List<MatchPoint> matchPoints;
+	}
 }
+
