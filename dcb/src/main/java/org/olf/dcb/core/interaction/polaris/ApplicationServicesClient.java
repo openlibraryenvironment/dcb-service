@@ -4,6 +4,7 @@ import static io.micronaut.http.HttpMethod.DELETE;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
+import static io.micronaut.http.HttpMethod.PATCH;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.valueOf;
@@ -37,6 +38,7 @@ import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
@@ -263,6 +265,7 @@ class ApplicationServicesClient {
 				.isActive(true)
 				.isBlocked(data.getSystemBlocks() != null && data.getSystemBlocks() > 0)
 				.isDeleted(false)
+				.expiryDate((data.getRegistration() != null && data.getRegistration().getExpirationDate() != null) ? Timestamp.valueOf(data.getRegistration().getExpirationDate()) : null)
 				.build());
 	}
 
@@ -1090,6 +1093,141 @@ class ApplicationServicesClient {
 				log.info("Placed item block {}", bool);
 			})
 			.then();
+	}
+
+
+	/**
+	 * Fetches a virtual patron, checks the expiry date, updates if necessary
+	 * and then maps the final data to the DCB Patron model.
+	 * For virtual patrons ONLY.
+	 * The intention is to prevent request failures because of virtual patrons expiring and causing blocks.
+	 * This will only run for a virtual patron that is actually being used in a request.
+	 * @param localPatronId The patron's local ID
+	 * @return A Mono emitting the Patron, with expiry date potentially updated.
+	 */
+	public Mono<Patron> getVirtualPatronAndCheckExpiry(String localPatronId) {
+		final var path = createPath("patrons", localPatronId);
+		return createRequest(GET, path, uri -> {})
+			.flatMap(request -> client.exchange(request, PatronData.class, TRUE))
+			.map(HttpResponse::body)
+			// Call the expiry check logic
+			.flatMap(this::checkAndUpdateExpiryIfNeeded)
+			// Now map the (potentially updated) data to the DCB Patron
+			.map(data -> Patron.builder()
+				.localId(singletonList(valueOf(data.getPatronID())))
+				.localPatronType(valueOf(data.getPatronCodeID()))
+				.localBarcodes(singletonList(data.getBarcode()))
+				.localHomeLibraryCode(valueOf(data.getOrganizationID()))
+				.localNames(
+					Optional.ofNullable(data.getRegistration())
+						.map(reg -> Stream.of(reg.getNameFirst(), reg.getNameMiddle(), reg.getNameLast())
+							// At the minute if a name is null, we map to a blank string
+							.map(name -> name == null ? "" : name)
+							.map(String::trim)
+							.filter(s -> !s.isEmpty())
+							.collect(Collectors.toList())
+						)
+						// Default to an empty list if registration itself is null
+						.orElse(Collections.emptyList())
+				)
+				.isActive(true)
+				.isBlocked(data.getSystemBlocks() != null && data.getSystemBlocks() > 0)
+				.isDeleted(false)
+				.expiryDate((data.getRegistration() != null && data.getRegistration().getExpirationDate() != null) ? Timestamp.valueOf(data.getRegistration().getExpirationDate()) : null)
+				.build());
+	}
+
+	/**
+	 * Checks if a patron's registration is expired or expiring within 7 days.
+	 * If it is, it attempts to update the expiry date in Polaris to 90 days from now.
+	 * Think of 90 days as a starting point: this can be changed if necessary.
+	 * @param patronData The raw PatronData from Polaris.
+	 * @return A Mono emitting the PatronData, which will be updated if the update was successful.
+	 */
+	private Mono<PatronData> checkAndUpdateExpiryIfNeeded(PatronData patronData) {
+		final var registration = patronData.getRegistration();
+		if (registration == null) {
+			log.warn("PatronData {} has no registration block. Cannot check expiry.", patronData.getPatronID());
+			return Mono.just(patronData);
+		}
+
+		final var patronExpiryDateTime = registration.getExpirationDate();
+		if (patronExpiryDateTime == null) {
+			log.warn("PatronData {} has no expiration date. Cannot check expiry.", patronData.getPatronID());
+			return Mono.just(patronData);
+		}
+
+		// Making sure it's in UTC for constant time checking
+		final var now = LocalDateTime.now(UTC);
+		final var expiryThreshold = now.plusDays(7);
+
+		// If the patron is expiring within 7 days or has already expired, update
+		if (patronExpiryDateTime.isBefore(expiryThreshold)) {
+			log.debug("Patron {} expiry date {} is within 7 days. Updating.", patronData.getPatronID(), patronExpiryDateTime);
+
+			final var newExpiryLocalDateTime = now.plusDays(90);
+			// Update the registration object, which is used by updatePatronRegistration
+			registration.setExpirationDate(newExpiryLocalDateTime);
+
+			return this.updatePatronRegistration(valueOf(patronData.getPatronID()), registration)
+				.map(success -> {
+					if (Boolean.TRUE.equals(success)) {
+						log.debug("Successfully updated patron {} expiry date in Polaris to {}", patronData.getPatronID(), newExpiryLocalDateTime);
+						// The patronData object is already mutated, so just pass it on.
+						return patronData;
+					} else {
+						// If we fail, we must revert the mutation before passing it on.
+						// Or we'll think we've updated a patron expiry when we haven't.
+						log.warn("Failed to update patron {} expiry date in Polaris. Reverting patron change.", patronData.getPatronID());
+						registration.setExpirationDate(patronExpiryDateTime);
+						return patronData;
+					}
+				});
+		}
+		// If our patron hasn't expired, just return the original data
+		return Mono.just(patronData);
+	}
+
+	/**
+	 * Checks if a patron's registration is expired or expiring within 7 days.
+	 * If it is, it attempts to update the expiry date in Polaris to 90 days from now.
+	 * Think of 90 days as a starting point: this can be changed if necessary.
+	 * @param localPatronId The Polaris Patron ID
+	 * @param registration The PatronRegistration object to update the Polaris Patron with
+	 * @return Boolean Mono depending on whether the update is successful.
+	 * Success indicator is a 204 No Content response.
+	 */
+	public Mono<Boolean> updatePatronRegistration(String localPatronId, PatronRegistration registration) {
+		log.debug("Updating registration for patron {}: {}", localPatronId, registration);
+		final var path = createPath("patrons", localPatronId) + "?type=profile";
+		// Construct the body
+		// The endpoint expects a PATCH request
+		// With a JSON body with the new expiry date and override policy true
+		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/patrons/patron_patch
+		final var requestBody = DtoPatronProfile.builder()
+															.expirationDate(valueOf(registration.expirationDate))
+															.overridePolicy(true)
+															.build();
+		return createRequest(PATCH, path, uri -> {})
+			.map(request -> request.body(requestBody))
+			// It would be good to audit log this and not just rely on the logs
+			.flatMap(request -> client.exchange(request, Void.class, FALSE))
+			.flatMap(response -> {
+				// Check for 204 No Content
+				if (response.getStatus() == HttpStatus.NO_CONTENT) {
+					log.info("Successfully updated registration for virtual patron {}", localPatronId);
+					return Mono.just(TRUE);
+				} else {
+					// Any other status code means it didn't work for whatever reason
+					log.warn("Unexpected status {} when updating virtual patron {} registration. Body: {}",
+						response.getStatus(), localPatronId, response.getBody().orElse(null));
+					return Mono.just(FALSE);
+				}
+			})
+			.onErrorResume(e -> {
+				log.error("Error updating patron {} registration: {}", localPatronId, e.getMessage(), e);
+				return Mono.just(FALSE); // Return false on error to prevent breaking the chain
+			});
 	}
 
 	@Builder
@@ -2259,5 +2397,16 @@ class ApplicationServicesClient {
 		private Integer noteId;
 		@JsonProperty("Text")
 		private String text;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class DtoPatronProfile {
+		@JsonProperty("OverridePolicy")
+		private Boolean overridePolicy;
+		@JsonProperty("ExpirationDate")
+		private String expirationDate;
 	}
 }
