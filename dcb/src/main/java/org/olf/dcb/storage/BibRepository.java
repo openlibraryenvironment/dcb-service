@@ -2,6 +2,7 @@ package org.olf.dcb.storage;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
@@ -128,8 +129,53 @@ public interface BibRepository {
 	@Vetoed
 	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit, Instant graceCutoff );
 	
+	@Query(value = """
+select mp.value as match_point_value,
+       mp.domain as match_point_domain,
+       br.id as bib_id,
+       br.title,
+       br.process_version as process_version,
+       hl.name as host_name,
+       (select count(*) from match_point where bib_id = br.id) as number_of_match_points
+from match_point mp, bib_record br, host_lms hl
+where hl.id = br.source_system_id and
+      mp.bib_id = br.id and
+      br.contributes_to = :clusterId
+order by br.id
+""", nativeQuery = true)
+	Publisher<BibMatchPointDetail> findMatchPointDetailsFor(@NonNull UUID clusterId);
+
+	@Query(value = """
+select distinct bi.value, bi.namespace
+from bib_identifier bi,
+     bib_record br
+where bi.owner_id = br.id and
+      bi.namespace in ( :namespaces ) and
+      br.contributes_to = :clusterId
+""", nativeQuery = true)
+	Publisher<Identifier> findDistinctIdentifiersFor(@NonNull UUID clusterId, @NonNull List<String> namespaces);
+
 	@Introspected
 	public static record MemberBib(UUID bibid, @Nullable String title, String sourcerecordid, @Nullable String metadatascore,
 			@Nullable String clusterreason, String sourcesystem) {
+	};
+
+	@Introspected
+	public static record BibMatchPointDetail(
+		UUID bibId,
+		UUID matchPointValue,
+		@Nullable String title,
+		@Nullable String matchPointDomain,
+		Integer processVersion,
+		String hostName,
+		Integer numberOfMatchPoints
+	) {
+	};
+
+	@Introspected
+	public static record Identifier(
+		String namespace,
+		String value
+	) {
 	};
 }
