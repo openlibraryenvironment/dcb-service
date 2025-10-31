@@ -345,6 +345,7 @@ public class SupplyingAgencyService {
 					// It is common in III systems to want the pickup location at the supplying library
 					// to be set to the location where the item currently resides.
 					.supplyingLocalItemLocation(supplierRequest.getLocalItemLocationCode())
+					.activeWorkflow(context.getPatronRequest().getActiveWorkflow()) // For Alma - needed for minimum DCB hold
 					.build()));
 	}
 
