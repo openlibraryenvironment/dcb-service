@@ -150,7 +150,7 @@ select distinct bi.value, bi.namespace
 from bib_identifier bi,
      bib_record br
 where bi.owner_id = br.id and
-      bi.namespace in ( :namespaces ) and
+      upper(bi.namespace) in ( :namespaces ) and
       br.contributes_to = :clusterId
 """, nativeQuery = true)
 	Publisher<Identifier> findDistinctIdentifiersFor(@NonNull UUID clusterId, @NonNull List<String> namespaces);
