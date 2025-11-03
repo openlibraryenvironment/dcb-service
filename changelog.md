@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 8.54.0
+
+### Additions
+* [General]
+	* Provide the ability to filter on date ranges [DCB-844]
+	* Update Polaris virtual patron expiry [DCB-2059]
+	* Add endpoint for explaining a cluster record's matchpoints
+
+### Fixes
+* [General]
+	* Make sure we provide the active workflow in all situations for Alma requests [DCB-2065]
+	* Provide active workflow for Alma requests [DCB-2065]
+	* Wasn't performing an upper on the bib identifier namespace
+	* Added an endpoint, that gives details about the match points for a cluster record
+
 ## Version 8.53.0
 
 ### Additions
@@ -8,6 +23,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Get patron blocks and names for Polaris [DCB-2043]
 * [Refactor]
 	* Move clustering functionality into designated package
