@@ -532,6 +532,7 @@ public class BorrowingAgencyService {
 						.supplyingLocalItemId(supplierRequest.getLocalItemId())
 						.supplyingLocalItemBarcode(supplierRequest.getLocalItemBarcode())
 						.canonicalItemType(supplierRequest.getCanonicalItemType())
+						.activeWorkflow(patronRequest.getActiveWorkflow()) // For Alma - needed for minimum DCB hold
 						.build()))
 					.delaySubscription(Duration.ofSeconds(5))
 					.doOnSuccess(localRequest -> log.debug("placeSingularRequest returned: {}", localRequest))
