@@ -180,6 +180,14 @@ public interface AlmaApiClient {
 	}
 
 	/**
+	 * 	This appears to be possible but is not documented. Use only if no other option
+	 */
+
+	default Mono<AlmaItem> retrieveItemBarcodeOnly(String item_barcode) {
+		return get("/almaws/v1/items", AlmaItem.class, Map.of("item_barcode", item_barcode));
+	}
+
+	/**
 	 * Place a hold request for a user.
 	 * <p>
 	 * API: POST /almaws/v1/users/{user_id}/requests?item_pid={item_pid}
