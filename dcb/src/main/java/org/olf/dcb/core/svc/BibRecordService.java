@@ -88,7 +88,9 @@ public class BibRecordService {
 
 	private BibRecord minimalRecord(final IngestRecord imported) {
 
-		return BibRecord.builder().id(imported.getUuid()).title(imported.getTitle())
+		return BibRecord.builder()
+				.id(imported.getUuid())
+				.title(imported.getTitle())
 				.sourceSystemId(imported.getSourceSystem().getId())
 				.sourceRecordId(imported.getSourceRecordId())
 				.recordStatus(imported.getRecordStatus())
@@ -263,16 +265,21 @@ public class BibRecordService {
 		
 		// Check delete first.
 		return findSourceRecordForBib(bib)
-			.singleOrEmpty()
-			
-			// Return the bib if source record
-			.thenReturn(bib)
-			
-			// Emtpy means no source record...
-			// Delete the bib.
-			.switchIfEmpty( deleteBibAndUpdateCluster(bib)
-				.doOnNext( toDelete -> log.info( "Deleting bib [{}] with no source record (Orphaned)", toDelete))
-				.then(Mono.empty()));
+			.collectList()
+			.flatMap( matchedSources -> {
+				
+				// If we match multiple sources... We should assume that they
+				// will be flagged for reprocessing and treat the bib as if we got a single source for now.
+				if (matchedSources.size() > 0) {
+					return Mono.just(bib);
+				}
+				
+				// No source record could be determined. Delete the bib and cause the cluster to update.
+				return deleteBibAndUpdateCluster(bib)
+					.doOnNext( toDelete -> log.info( "Deleting bib [{}] with no source record (Orphaned)", toDelete))
+					// Return empty mono.
+					.then(Mono.empty());
+			});
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -314,11 +321,36 @@ public class BibRecordService {
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public @NonNull	Flux<SourceRecord> findSourceRecordForBib(@NonNull BibRecord bibRecord) {
-
-		String sourceRecordId = bibRecord.getSourceRecordId();
+		
+		// Shortcut the method to not do the like query.
+		final UUID sourceRecordLocalId = bibRecord.getSourceRecordUuid();
+		if (sourceRecordLocalId != null) {
+			return sourceRecords.get().getByLocalId(sourceRecordLocalId)
+				.flux();
+		}
+		
+		// No local ID reference. Do the like.
+		String sourceRecordRemoteId = bibRecord.getSourceRecordId();
 		UUID sourceSystemId = bibRecord.getSourceSystemId();
 		
-		return Flux.from( sourceRecords.get().findByHostLmsIdAndRemoteIdLike(sourceSystemId, sourceRecordId) );
+		return Flux.from( sourceRecords.get().findByHostLmsIdAndRemoteIdLike(sourceSystemId, sourceRecordRemoteId) )
+			.collectList()
+			.flatMapMany( matches -> {
+				
+				if (matches.size() > 1) {
+					// Multiple sources found because of the loose selection. Log the error.
+					log.warn("Performing source lookup for bib [{}] matched more than 1 [{}]. Reprocess sources",
+							bibRecord.getId(), matches.stream().map(SourceRecord::getId).toList() );
+					
+					// Flag the need to reprocess the multiple sources. That should cause their bibs to obtain the direct link to the
+					// SourceReocrd instead.
+					return Flux.fromIterable( matches )
+						.flatMap( ambiguousSource -> sourceRecords.get().requireProcessing(ambiguousSource.getId())
+								.thenReturn( ambiguousSource ));
+				}
+		
+				return Flux.fromIterable(matches);
+			});
 	}
 	
 	

@@ -448,9 +448,9 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	}
 	
 	// Handle requesting availability chunks and update cluster chunks.
-	@AppTask
+	//@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
-	@Scheduled(initialDelay = "10s", fixedDelay = "2m")
+	// @Scheduled(initialDelay = "10s", fixedDelay = "2m")
 	public void run() {
 		
 		Mono.just( this )

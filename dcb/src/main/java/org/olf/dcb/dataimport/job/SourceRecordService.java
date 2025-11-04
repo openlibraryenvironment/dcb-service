@@ -65,6 +65,11 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 		this.lockService = lockService;
 	}
 	
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Mono<SourceRecord> getByLocalId(UUID id) {
+		return Mono.from( sourceRecords.getById(id) );
+	}
+	
 	public Mono<SourceRecordImportJob> createJobInstanceForSource( IngestSource ingestSource ) {
 		return(createJobInstanceForSource(ingestSource, false));
 	}

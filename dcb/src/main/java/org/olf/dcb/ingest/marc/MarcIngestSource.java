@@ -566,17 +566,24 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			.map( StringUtils::trimToNull )
 			.map( grVal -> Identifier.build(id -> id.namespace(NS_GOLDRUSH).value(grk.getText())));
 		
-//		if ( featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING) ) {
-//			
+		if ( featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING) ) {
+			// Add just the Goldrush title as well.
+			identifierStream = Stream.concat(identifierStream, grk.getParts().entrySet().stream()
+					.filter(e -> "Title".equalsIgnoreCase( e.getKey() ))
+					.filter(e -> StringUtils.hasText( e.getValue() ))
+					.map(e -> Identifier.build(id -> id
+						.namespace(NS_GOLDRUSH + "::" + e.getKey().toUpperCase())
+						.value( "" + e.getValue().toLowerCase() )))); // NEED TO FILTER NULLS..
+//
 //			// Instead of just adding a single goldrush value we're going to also add the parts that make up the key.public String getText() {
 //			// Assemble all the parts into a String
-//			identifierStream = Streams.concat(identifierStream, grk.getParts().entrySet().stream()
+//			identifierStream = Stream.concat(identifierStream, grk.getParts().entrySet().stream()
 //				.filter(e -> StringUtils.hasText( e.getValue() ))
 //				.map(e -> Identifier.build(id -> id
 //					.namespace(NS_GOLDRUSH + "::" + e.getKey().toUpperCase())
-//					.value( "" + e.getValue() )))); // NEED TO FILTER NULLS..
-//		
-//		}
+//					.value( "" + e.getValue().toLowerCase() )))); // NEED TO FILTER NULLS..
+		
+		}
 		
 		identifierStream
 			.forEach(ingestRecord::addIdentifiers);
