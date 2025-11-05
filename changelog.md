@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 8.55.0
+
+### Additions
+* [Clustering]
+	* New clustering and Housekeeping
+* [General]
+	* Concat map and retry added to improve stability
+
+### Fixes
+* [General]
+	* Update Polaris virtual patron expiry check cut-off to 30 days [DCB-2069]
+	* Use correct library code for item checkout [DCB-2074]
+	* Reinstate disabled job.
+	* Try and be more adaptive to multiple source matches
+
 ## Version 8.54.0
 
 ### Additions
@@ -7,6 +22,10 @@
 	* Provide the ability to filter on date ranges [DCB-844]
 	* Update Polaris virtual patron expiry [DCB-2059]
 	* Add endpoint for explaining a cluster record's matchpoints
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
