@@ -474,6 +474,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return client.retrieveLibraries()
 			.flatMapMany(librariesResponse -> {
 				List<AlmaLibraryResponse> libraries = librariesResponse.getLibraries();
+				log.info("Libraries for Alma are {}", libraries);
 				if (libraries == null || libraries.isEmpty()) {
 					return Flux.empty();
 				}
@@ -1132,23 +1133,58 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
+		// Get the ID of the patron, the local request and the pickup circ desk
 		final var patronId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getPatronId);
 		final var requestId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLocalRequestId);
 		final var pickupLocationCircuationDesk = config.getPickupCircDesk("DEFAULT_CIRC_DESK");
-		final var libraryCode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLibraryCode);
+		// The item's local Alma ID (PID) and its barcode should both be obtainable from the checkout command
 		final var itemId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemId);
+		final var itemBarcode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemBarcode);
 
-		log.info("Checking out item {} to patron {} with request id {} and pickup location {} and library code {}",
-			itemId, patronId, requestId, pickupLocationCircuationDesk, libraryCode);
+		// We must have the barcode to find the item's library in Alma
+		if (isBlank(itemBarcode)) {
+			log.error("Cannot perform checkout for item {}: item barcode is missing from CheckoutItemCommand.", itemId);
+			return Mono.error(new IllegalArgumentException("Item barcode is required for Alma checkout to determine library code."));
+		}
 
-		AlmaItemLoan almaItemLoan = AlmaItemLoan.builder().circDesk(CodeValuePair.builder().value(pickupLocationCircuationDesk).build())
-			.returnCircDesk(CodeValuePair.builder().value(pickupLocationCircuationDesk).build())
-			.library(CodeValuePair.builder().value(libraryCode).build())
-			.requestId(CodeValuePair.builder().value(requestId).build())
-			.build();
+		// Still get the old value were using for logging purposes so we know if this changes.
+		// Needs to be logged while we're testing this, logging to be removed before live
+		final var oldLibraryCode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLibraryCode);
 
-		return client.createUserLoan(patronId, itemId, almaItemLoan)
-			.thenReturn("OK");
+		log.info("Alma: Checking out item {} (barcode: {}) to patron {} (request: {}). Fetching item details to confirm library...",
+			itemId, itemBarcode, patronId, requestId);
+
+		// Use the barcode to fetch the full item data and get the correct library code from that
+		// If this ever fails, we will need to switch to finding the holding / bib and go from there
+		return client.retrieveItemBarcodeOnly(itemBarcode)
+			.flatMap(almaItem -> {
+
+				final var correctLibraryCode = Optional.ofNullable(almaItem.getItemData())
+					.map(AlmaItemData::getLibrary)
+					.map(CodeValuePair::getValue)
+					.filter(s -> !s.isBlank())
+					.orElse(null);
+
+				if (correctLibraryCode == null) {
+					log.error("Failed to extract library code from Alma item data for barcode {}", itemBarcode);
+					return Mono.error(new IllegalStateException("Could not determine library code for item barcode: " + itemBarcode));
+				}
+
+				log.info("Alma: Proceeding with checkout for item {}. Corrected library: {}, Old Library: {}. Circ desk: {}",
+					itemId, correctLibraryCode, oldLibraryCode, pickupLocationCircuationDesk);
+
+				// Then just build the loan as we did before but with a new code
+				AlmaItemLoan almaItemLoan = AlmaItemLoan.builder()
+					.circDesk(CodeValuePair.builder().value(pickupLocationCircuationDesk).build())
+					.returnCircDesk(CodeValuePair.builder().value(pickupLocationCircuationDesk).build())
+					.library(CodeValuePair.builder().value(correctLibraryCode).build())
+					.requestId(CodeValuePair.builder().value(requestId).build())
+					.build();
+
+				return client.createUserLoan(patronId, itemId, almaItemLoan);
+			})
+			.thenReturn("OK")
+			.doOnError(e -> log.error("Alma checkout API call failed for patron {} and item {}: {}", patronId, itemId, e.getMessage()));
 	}
 
 	@Override
