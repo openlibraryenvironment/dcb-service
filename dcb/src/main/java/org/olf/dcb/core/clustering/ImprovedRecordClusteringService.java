@@ -47,6 +47,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
@@ -675,6 +676,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 	 * Actual flow is to orphan all the bibs 
 	 */
 	@Override
+	@Retryable
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<UUID> disperseAndRecluster(@NotNull @NonNull UUID clusterID) {
 
@@ -684,7 +686,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 		// Cluster bibs
 		Flux<BibRecord> theBibs = Mono.defer(() -> manifestClusterRecord)
 			.flatMapMany(bibRecords::findAllByContributesTo)
-			.flatMap( bibRecords::checkOrphanedBib )
+			.concatMap( bibRecords::checkOrphanedBib )
 			.cache();
 
 		// Get the selected bib, or the first from all bibs if no selected item.

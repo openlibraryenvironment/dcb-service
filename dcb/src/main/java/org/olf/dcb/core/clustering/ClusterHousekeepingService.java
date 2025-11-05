@@ -148,7 +148,11 @@ public class ClusterHousekeepingService {
 			.switchIfEmpty( databaseEntitySubscription() )
 			.concatMap( toCheck -> {
 				return Flux.fromIterable( toCheck )
-					.concatMap( this::performClusterHousekeeping );
+					.concatMap( clusterId -> performClusterHousekeeping(clusterId)
+						.onErrorResume(e -> {
+							log.error("Failed to flag [{}] for recluster, even after retries.");
+							return Mono.empty();
+						}));
 			})
 			.count()
 			.map( count -> {
