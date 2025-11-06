@@ -98,6 +98,9 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Status transition will not be possible from %'
 		   then
 			   'Status transition not possible, DCB-1399'
+		   when pra.audit_data->>'detail' = 'Duplicate barcode detected'
+		   then
+			   'Duplicate barcode detected, DCB-2076'
 		   when (pra.audit_data->'responseBody'->>'description' = 'This record is not available' or 
 		         pra.audit_data->>'detail' like '%XCirc Error: This record is not available')
 		   then
@@ -146,6 +149,9 @@ select case
 		   when pra.audit_data->>'detail' like '%Patron has exceeded the holds limit on this material type.%'
 		   then
 			   'errors/patronExceededHoldLimitForMaterialType'
+		   when pra.audit_data->>'detail' = 'Duplicate barcode detected'
+		   then
+			   'errors/duplicateBarcodeDected'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Page requests are not allowed for this patron and item combination%'
 		   then
 			   'errors/pageRequestAreNotAllowed'
@@ -284,6 +290,7 @@ where pra.from_status != 'ERROR' and
 	  (
 		  pra.audit_data->>'errorMessage' = 'Connection closed before response was received' or
 		  pra.brief_description = 'Connection closed before response was received' or
+		  pra.audit_data->>'detail' = 'Duplicate barcode detected' or
 		  pra.audit_data->>'detail' like 'Item with barcode: % already exists in host%' or
 		  pra.audit_data->'responseBody'->>'description' = 'This record is not available' or
 		  pra.audit_data->>'detail' = 'Duplicate hold requests exist' or
