@@ -98,10 +98,11 @@ select case
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like 'Status transition will not be possible from %'
 		   then
 			   'Status transition not possible, DCB-1399'
-		   when pra.audit_data->>'detail' = 'Duplicate barcode detected'
+		   when (pra.audit_data->>'detail' = 'Duplicate barcode detected' or
+				 pra.audit_data->>'detail' like '%This barcode has already been taken%')
 		   then
 			   'Duplicate barcode detected, DCB-2076'
-		   when pra.audit_data->>'detail' = 'Item is blocked'
+		   when pra.audit_data->>'detail' like '%Item is blocked'
 		   then
 			   'Item is blocked, DCB-????'
 		   when (pra.audit_data->'responseBody'->>'description' = 'This record is not available' or 
@@ -145,6 +146,9 @@ select case
 		   when pra.brief_description = 'Fallback(0): no error message was determined'
 		   then
 			   'No error message was determined, DCB-????'
+		   when pra.audit_data->>'detail' like '%Inactive users cannot make requests%'
+		   then
+			   'Inactive users cannot make requests, DCB-???'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "description",
@@ -158,10 +162,11 @@ select case
 		   when pra.audit_data->>'detail' like '%Patron has exceeded the holds limit on this material type.%'
 		   then
 			   'errors/patronExceededHoldLimitForMaterialType'
-		   when pra.audit_data->>'detail' = 'Duplicate barcode detected'
+		   when (pra.audit_data->>'detail' = 'Duplicate barcode detected' or
+				 pra.audit_data->>'detail' like '%This barcode has already been taken%')
 		   then
 			   'errors/duplicateBarcodeDected'
-		   when pra.audit_data->>'detail' = 'Item is blocked'
+		   when pra.audit_data->>'detail' like '%Item is blocked'
 		   then
 			   'errors/itemIsBlocked'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Page requests are not allowed for this patron and item combination%'
@@ -295,6 +300,9 @@ select case
 		    when pra.brief_description = 'Fallback(0): no error message was determined'
 			then
 			   'errors/fallbackNoErrorDetermined'
+		   when pra.audit_data->>'detail' like '%Inactive users cannot make requests%'
+		   then
+			   'errors/inactiveUsersCannotMakeRequests'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "namedSql",
@@ -309,7 +317,8 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->>'errorMessage' = 'Connection closed before response was received' or
 		  pra.brief_description = 'Connection closed before response was received' or
 		  pra.audit_data->>'detail' = 'Duplicate barcode detected' or
-		  pra.audit_data->>'detail' = 'Item is blocked' or
+		  pra.audit_data->>'detail' like '%This barcode has already been taken%' or
+		  pra.audit_data->>'detail' like '%Item is blocked' or
 		  pra.audit_data->>'detail' like 'Item with barcode: % already exists in host%' or
 		  pra.audit_data->'responseBody'->>'description' = 'This record is not available' or
 		  pra.audit_data->>'detail' = 'Duplicate hold requests exist' or
@@ -354,7 +363,8 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%' or
 		  pra.brief_description = 'Staff Auth Failed' or
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%This requester already has this item on loan%' or
-		  pra.brief_description = 'Fallback(0): no error message was determined'
+		  pra.brief_description = 'Fallback(0): no error message was determined' or
+		  pra.audit_data->>'detail' like '%Inactive users cannot make requests%'
 	  )
 group by 1, 2
 union
