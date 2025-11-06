@@ -57,7 +57,11 @@ where pr.error_message not like 'Could not update item % status for hostlms: %' 
 						 pra.audit_data->>'detail' like 'No holds to process for local patron id:%' or
 						 pra.brief_description = 'Multiple Virtual Patrons Found' or
 						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%' or
-						 pra.brief_description = 'Staff Auth Failed'
+						 pra.brief_description = 'Staff Auth Failed' or
+						 pra.audit_data->>'detail' = 'Duplicate barcode detected' or
+						 pra.audit_data->>'detail' = 'Item is blocked' or
+						 pra.audit_data->'responseBody'->'errors'->0->>'message' like '%This requester already has this item on loan%' or
+						 pra.brief_description = 'Fallback(0): no error message was determined'
 					 )
 				 ) and
 	  pr.status_code = 'ERROR' and

@@ -101,6 +101,9 @@ select case
 		   when pra.audit_data->>'detail' = 'Duplicate barcode detected'
 		   then
 			   'Duplicate barcode detected, DCB-2076'
+		   when pra.audit_data->>'detail' = 'Item is blocked'
+		   then
+			   'Item is blocked, DCB-????'
 		   when (pra.audit_data->'responseBody'->>'description' = 'This record is not available' or 
 		         pra.audit_data->>'detail' like '%XCirc Error: This record is not available')
 		   then
@@ -136,6 +139,12 @@ select case
 		   when pra.brief_description = 'Staff Auth Failed'
 		   then
 			   'Staff authentication failed, DCB-????'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%This requester already has this item on loan%'
+		   then
+			   'Requester already has this item on loan, DCB-????'
+		   when pra.brief_description = 'Fallback(0): no error message was determined'
+		   then
+			   'No error message was determined, DCB-????'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "description",
@@ -152,6 +161,9 @@ select case
 		   when pra.audit_data->>'detail' = 'Duplicate barcode detected'
 		   then
 			   'errors/duplicateBarcodeDected'
+		   when pra.audit_data->>'detail' = 'Item is blocked'
+		   then
+			   'errors/itemIsBlocked'
 		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%Page requests are not allowed for this patron and item combination%'
 		   then
 			   'errors/pageRequestAreNotAllowed'
@@ -277,6 +289,12 @@ select case
 		   when pra.brief_description = 'Staff Auth Failed'
 		   then
 			   'errors/staffAuthFailed'
+		   when pra.audit_data->'responseBody'->'errors'->0->>'message' like '%This requester already has this item on loan%'
+		   then
+			   'errors/requesterAlreadyHasItemOnLoan'
+		    when pra.brief_description = 'Fallback(0): no error message was determined'
+			then
+			   'errors/fallbackNoErrorDetermined'
 		   else
 			   concat('not caught: ', pra.id, ', ', pra.brief_description)
 		   end "namedSql",
@@ -291,6 +309,7 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->>'errorMessage' = 'Connection closed before response was received' or
 		  pra.brief_description = 'Connection closed before response was received' or
 		  pra.audit_data->>'detail' = 'Duplicate barcode detected' or
+		  pra.audit_data->>'detail' = 'Item is blocked' or
 		  pra.audit_data->>'detail' like 'Item with barcode: % already exists in host%' or
 		  pra.audit_data->'responseBody'->>'description' = 'This record is not available' or
 		  pra.audit_data->>'detail' = 'Duplicate hold requests exist' or
@@ -333,7 +352,9 @@ where pra.from_status != 'ERROR' and
 		  pra.audit_data->>'detail' like 'No holds to process for local patron id:%' or
 		  pra.brief_description = 'Multiple Virtual Patrons Found' or
 		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%One or more Pickup locations are no longer available%' or
-		  pra.brief_description = 'Staff Auth Failed'
+		  pra.brief_description = 'Staff Auth Failed' or
+		  pra.audit_data->'responseBody'->'errors'->0->>'message' like '%This requester already has this item on loan%' or
+		  pra.brief_description = 'Fallback(0): no error message was determined'
 	  )
 group by 1, 2
 union
