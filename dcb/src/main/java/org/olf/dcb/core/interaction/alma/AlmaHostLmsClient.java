@@ -81,6 +81,7 @@ import services.k_int.interaction.alma.types.items.AlmaItemData;
 import services.k_int.interaction.alma.types.items.AlmaItemLoan;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequest;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
+import services.k_int.interaction.alma.types.userRequest.AlmaRequests;
 import services.k_int.utils.UUIDUtils;
 
 @Slf4j
@@ -153,7 +154,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				}
 				return Flux.fromIterable(items);
 			})
-			.map(this::mapAlmaItemToDCBItem)
+			.flatMap(this::mapAlmaItemToDCBItem)
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
 			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
 			.onErrorContinue((throwable, item) -> {
@@ -1081,21 +1082,55 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
-		return client.retrieveItem(hostLmsItem.getBibId(), hostLmsItem.getHoldingId(), hostLmsItem.getLocalId())
-			.map(item -> {
+		// As in getItems, we need another call to get the hold count for this item
+
+		final String bibId = hostLmsItem.getBibId();
+		final String holdingId = hostLmsItem.getHoldingId();
+		final String itemId = hostLmsItem.getLocalId();
+		// First get the item
+
+		return client.retrieveItem(bibId, holdingId, itemId)
+			.doOnError(e -> {
+				AlmaErrorResponse almaError = extractAlmaErrors(e);
+				if (almaError != null) {
+					log.error("Failed to retrieve main details for Alma item {}. BibId: {}, HoldingId: {}. Alma Error: {}",
+						itemId, bibId, holdingId, almaError);
+				} else {
+					log.error("Failed to retrieve main details for Alma item {}. BibId: {}, HoldingId: {}. Non-Alma Error: {}",
+						itemId, bibId, holdingId, e.getMessage(), e);
+				}
+			})
+			.flatMap(item -> {
 
 				final var almaItemData = getValueOrNull(item, AlmaItem::getItemData);
 
-				var returnHostLmsItem = HostLmsItem.builder()
-					.localId(almaItemData.getPid())
-					.barcode(almaItemData.getBarcode())
-					.bibId(hostLmsItem.getBibId())
-					.holdingId(hostLmsItem.getHoldingId())
-					.build();
+				Mono<Integer> holdCountMono = client.retrieveItemRequests(bibId, holdingId, itemId)
+					.map(requests -> (requests.getRecordCount() != null) ? requests.getRecordCount() : 0)
+					.doOnError(e -> {
+						AlmaErrorResponse almaError = extractAlmaErrors(e);
+						if (almaError != null) {
+							log.warn("Failed to retrieve hold count for Alma item {}. Alma Error: {}. Defaulting to 0.",
+								itemId, almaError.toString());
+						} else {
+							log.warn("Failed to retrieve hold count for Alma item {}. Defaulting to 0. Non-Alma Error: {}",
+								itemId, e.getMessage(), e);
+						}
+					})
+					.onErrorReturn(0);
+				// Now bring it all together. Same 0 fallback for hold counts we can't get
+				return holdCountMono.map(holdCount -> {
+					var returnHostLmsItem = HostLmsItem.builder()
+						.localId(almaItemData.getPid())
+						.barcode(almaItemData.getBarcode())
+						.bibId(bibId)
+						.holdingId(holdingId)
+						.holdCount(holdCount)
+						.build();
 
 					returnHostLmsItem = deriveItemStatusFromProcessType(returnHostLmsItem, almaItemData);
 
-				return returnHostLmsItem;
+					return returnHostLmsItem;
+				});
 			});
 	}
 
@@ -1141,7 +1176,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var itemId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemId);
 		final var itemBarcode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemBarcode);
 
-		// We must have the barcode to find the item's library in Alma
+		// With the method we are using, we need the barcode.
 		if (isBlank(itemBarcode)) {
 			log.error("Cannot perform checkout for item {}: item barcode is missing from CheckoutItemCommand.", itemId);
 			return Mono.error(new IllegalArgumentException("Item barcode is required for Alma checkout to determine library code."));
@@ -1329,56 +1364,80 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return "v1";
 	}
 
-	public Item mapAlmaItemToDCBItem(AlmaItem almaItem) {
+	/**
+	 * Builds a DCB Item from an AlmaItem. Now includes async call for the hold count
+	 *
+	 * @param almaItem The AlmaItem retrieved from the API
+	 * @return A Mono<Item> containing the fully populated DCB Item
+	 */
+	private Mono<Item> mapAlmaItemToDCBItem(AlmaItem almaItem) {
+		final String bibId = almaItem.getBibData().getMmsId();
+		final String holdingId = almaItem.getHoldingData().getHoldingId();
+		final String itemId = almaItem.getItemData().getPid();
 
-		ItemStatus derivedItemStatus = deriveItemStatus(almaItem.getItemData());
-		Boolean isRequestable = ( derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE ? Boolean.TRUE : Boolean.FALSE );
+		// Note: hold counts can sometimes be obtained from internal note 3
+		// But we cannot assume this
+		// If we could, then we could remove the need for an extra call and make this a lot simpler.
 
-		Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
-			? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
-			: null ;
+		return client.retrieveItemRequests(bibId, holdingId, itemId)
+			.map(AlmaRequests::getRecordCount)
+			.onErrorResume(e -> {
+				// If the request fails (e.g., API error), log it and default to 0.
+				// This prevents one item's failure from breaking the whole list.
+				log.warn("Failed to retrieve hold count for item {} (bib: {}, holding: {}): {}. Defaulting to 0.",
+					itemId, bibId, holdingId, e.getMessage());
+				return Mono.just(0);
+			})
+			.map(holdCount -> {
+				// Now we have the hold count, we can build the item.
+				ItemStatus derivedItemStatus = deriveItemStatus(almaItem.getItemData());
+				Boolean isRequestable = (derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE);
 
-		// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
-		// through a service that creates missing location records in the host lms and where possible derives agency but
-		// where not flags the location record as needing attention.
-		Location derivedLocation = almaItem.getItemData().getLocation() != null
-			? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLocation().getValue())
-			: null ;
+				Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
+					? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
+					: null;
 
-		Boolean derivedSuppression = ( ( almaItem.getBibData().getSuppressFromPublishing() != null ) && ( almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true") ) )
-			? Boolean.TRUE
-			: Boolean.FALSE;
+				// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
+				// through a service that creates missing location records in the host lms and where possible derives agency but
+				// where not flags the location record as needing attention.
+				Location derivedLocation = almaItem.getItemData().getLocation() != null
+					? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLocation().getValue())
+					: null;
 
-		return Item.builder()
-			.localId(almaItem.getItemData().getPid())
-			.status(derivedItemStatus)
-			// In alma we need to query the Loans API to get the due date
-			.dueDate(due_back_instant)
-			// alma library = library of the item, location = shelving location
-			.location(derivedLocation)
-			.barcode(almaItem.getItemData().getBarcode())
-			.callNumber(almaItem.getHoldingData().getCallNumber())
-			.isRequestable(isRequestable)
-			// ToDo - This data needs to be retrieved from GET /almaws/v1/items/{mms_id}/{holding_id}/{item_pid}
-			.holdCount(0)
-			.localBibId(almaItem.getBibData().getMmsId())
-			// this item type looks to be used for auditing
-			.localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
-			// this item type code is used for mapping
-			.localItemTypeCode(almaItem.getItemData().getPhysicalMaterialType().getValue())
-			.canonicalItemType(null)
-			.deleted(null)
-			.suppressed( derivedSuppression )
-			.owningContext(getHostLms().getCode())
-			// Need to query loans API for this
-			.availableDate(null)
-			.rawVolumeStatement(null)
-			.parsedVolumeStatement(null)
-			.build();
+				Boolean derivedSuppression = ((almaItem.getBibData().getSuppressFromPublishing() != null) &&
+					(almaItem.getBibData().getSuppressFromPublishing().equalsIgnoreCase("true")));
+
+				return Item.builder()
+					.localId(itemId)
+					.status(derivedItemStatus)
+					// In alma we need to query the Loans API to get the due date
+					.dueDate(due_back_instant)
+					// alma library = library of the item, location = shelving location
+					.location(derivedLocation)
+					.barcode(almaItem.getItemData().getBarcode())
+					.callNumber(almaItem.getHoldingData().getCallNumber())
+					.isRequestable(isRequestable)
+					.holdCount(holdCount)
+					.localBibId(bibId)
+					// this item type looks to be used for auditing
+					.localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
+					// this item type code is used for mapping
+					.localItemTypeCode(almaItem.getItemData().getPhysicalMaterialType().getValue())
+					.canonicalItemType(null)
+					.deleted(null)
+					.suppressed(derivedSuppression)
+					.owningContext(getHostLms().getCode())
+					// Need to query loans API for this
+					.availableDate(null)
+					.rawVolumeStatement(null)
+					.parsedVolumeStatement(null)
+					.build();
+			});
 	}
 
 	private ItemStatus deriveItemStatus(AlmaItemData almaItem) {
 		// Extract base status, default to 0
+		// Note: this means that "item not in place" is considered UNKNOWN
 		String extracted_base_status = almaItem.getBaseStatus() != null ? almaItem.getBaseStatus().getValue() : "0";
 
 		return switch ( extracted_base_status ) {
