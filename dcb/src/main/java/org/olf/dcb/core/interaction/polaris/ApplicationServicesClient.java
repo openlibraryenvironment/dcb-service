@@ -1159,13 +1159,13 @@ class ApplicationServicesClient {
 
 		// Making sure it's in UTC for constant time checking
 		final var now = LocalDateTime.now(UTC);
-		final var expiryThreshold = now.plusDays(7);
+		final var expiryThreshold = now.plusDays(30); // 30 days as loans can cover more than 7 days
 
-		// If the patron is expiring within 7 days or has already expired, update
+		// If the patron is expiring within 30 days or has already expired, update
 		if (patronExpiryDateTime.isBefore(expiryThreshold)) {
-			log.debug("Patron {} expiry date {} is within 7 days. Updating.", patronData.getPatronID(), patronExpiryDateTime);
+			log.debug("Patron {} expiry date {} is within 30 days. Updating.", patronData.getPatronID(), patronExpiryDateTime);
 
-			final var newExpiryLocalDateTime = now.plusDays(90);
+			final var newExpiryLocalDateTime = now.plusDays(120);
 			// Update the registration object, which is used by updatePatronRegistration
 			registration.setExpirationDate(newExpiryLocalDateTime);
 

@@ -25,8 +25,14 @@ import jakarta.validation.constraints.NotNull;
 
 public interface BibRepository {
 	
+
 	@NonNull
-	Publisher<BibRecord> getAllByIdIn( Collection<UUID> ids );
+	@SingleResult
+	@Join(value = "contributesTo")
+	Publisher<BibRecord> getAllByIdIn( @NonNull Collection<UUID> ids);
+	
+	@NonNull
+	Publisher<BibRecord> findAllByIdIn( @NonNull Collection<UUID> ids );
 
 	@NonNull
 	@SingleResult

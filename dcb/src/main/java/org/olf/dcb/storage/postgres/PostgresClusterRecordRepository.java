@@ -62,15 +62,48 @@ public interface PostgresClusterRecordRepository extends
 			+ " ORDER BY date_created ASC;")
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 	
-  @Query(value = "SELECT cr_.*, mp_.value mp_val FROM cluster_record cr_"
-      + " INNER JOIN bib_record br_ ON br_.contributes_to = cr_.id"
-      + " INNER JOIN match_point mp_ ON mp_.bib_id = br_.id"
-      + " WHERE br_.derived_type = :derivedType "
-      + "   AND mp_.value IN (:points)"
-			+ "   AND not exists ( Select bi_.id from bib_identifier bi_ where bi_.owner = br_.id AND bi_.namespace='ONLY-ISBN-13' AND bi_.value <> :isbnExclusion"
-      + " ORDER BY date_created ASC;")
-  Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsWithISBNExclusion ( String derivedType, Collection<UUID> points, String isbnExclusion );
+	@NonNull
+	@Override
+	@Query(value = "SELECT cr_.* FROM cluster_record cr_"
+			+ "	INNER JOIN bib_record br_ ON br_.contributes_to = cr_.id"
+			+ "	WHERE br_.id NOT IN (:bibIds)"
+			+ "   AND br_.derived_type = :derivedType"
+			+ "   AND cr_.id NOT IN (:excludeClusters)"
+			+ " ORDER BY date_created ASC;")
+	Publisher<ClusterRecord> findAllByBibIdInAndDerivedTypeAndIdNotIn ( Collection<UUID> bibIds, String derivedType, Collection<UUID> excludeClusters );
+	
+//  @Query(value = "SELECT cr_.*, mp_.value mp_val FROM cluster_record cr_"
+//      + " INNER JOIN bib_record br_ ON br_.contributes_to = cr_.id"
+//      + " INNER JOIN match_point mp_ ON mp_.bib_id = br_.id"
+//      + " WHERE br_.derived_type = :derivedType "
+//      + "   AND mp_.value IN (:points)"
+//			+ "   AND not exists ( Select bi_.id from bib_identifier bi_ where bi_.owner = br_.id AND bi_.namespace='ONLY-ISBN-13' AND bi_.value <> :isbnExclusion"
+//      + " ORDER BY date_created ASC;")
+//  Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsWithISBNExclusion ( String derivedType, Collection<UUID> points, String isbnExclusion );
 
+	@NonNull
+	@Override
+	@Query(
+		"SELECT id FROM cluster_record cr "
+		+ "WHERE EXISTS ("
+		+ "	SELECT * FROM bib_record LEFT JOIN source_record ON source_record.id = bib_record.source_record_uuid"
+		+ "	WHERE (bib_record.source_record_uuid IS NULL"
+		+ "	  OR source_record.processing_state != 'PROCESSING_REQUIRED')"
+		+ "	AND contributes_to = cr.id AND process_version < :version"
+		+ ") "
+		+ "LIMIT :max;")
+	Publisher<UUID> getClusterIdsWithOutdatedUnprocessedBibs( int version, int max );
+
+	@NonNull
+	@Override
+	@Query(
+			"SELECT cr.id FROM cluster_record cr " +
+			"WHERE cr.id IN (:ids)" +
+				"AND EXISTS ( " +
+					"SELECT * FROM bib_record " +
+					"WHERE contributes_to = cr.id AND process_version < :version " +
+				");")
+	Publisher<UUID> getClusterIdsWithBibsPriorToVersionInList( int version, Collection<UUID> ids );
 
 	@NonNull
 	@SingleResult

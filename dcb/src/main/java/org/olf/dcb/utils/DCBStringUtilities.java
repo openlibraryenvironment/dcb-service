@@ -10,7 +10,12 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import org.olf.dcb.core.clustering.ImprovedRecordClusteringService;
+
+import io.micronaut.core.util.StringUtils;
 import jakarta.validation.constraints.NotNull;
+import static services.k_int.features.Features.featureIsEnabled;
 import services.k_int.utils.UUIDUtils;
 
 public class DCBStringUtilities {
@@ -50,7 +55,8 @@ public class DCBStringUtilities {
 
 		return Optional.ofNullable(source)
 				.map(text -> Normalizer.normalize(text, Normalizer.Form.NFKD))
-				.map(text -> DIACRITIC_AND_NONE_ALPHANUMERIC.matcher(text).replaceAll(""))
+				.map(text -> DIACRITIC_AND_NONE_ALPHANUMERIC.matcher(text)
+						.replaceAll(" "))
 				.orElseGet(() -> null);
 	}
 
@@ -62,8 +68,13 @@ public class DCBStringUtilities {
 		if (inputString == null)
 			return null;
 		
-		// Replace Names
+		// Under a feature flag we need to branch and make sure the string is ordered. 
+		// This should be removed when we are confident this is better and just use the "new" route.
+		if (featureIsEnabled(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING))
+			return generateNewBlockingString(inputString, qualifiers);
 		
+		// Feature not enabled. Drop through to the previous method 
+		// Replace Names
 		return Stream.concat(
 			qualifiers.stream()
 				.map(DCBStringUtilities::toNoneDiacriticAlphaNumeric),
@@ -75,6 +86,23 @@ public class DCBStringUtilities {
 		.flatMap(SPLITTING_DELIMETER::splitAsStream)	// Split
 		.filter(Predicate.not(stopwords::contains)) 	// Remove stop words
 		.collect(Collectors.joining(" "));						// Rejoin with single spacing.
+	}
+	
+	private static String generateNewBlockingString(final String inputString, @NotNull List<String> qualifiers) {
+		// Replace Names
+			return Stream.concat(
+				qualifiers.stream()
+					.map(DCBStringUtilities::toNoneDiacriticAlphaNumeric),
+				Stream.of(NAMES.matcher(toNoneDiacriticAlphaNumeric(inputString)).replaceAll("$2 $1"))
+			)
+			.map(StringUtils::trimToNull)
+			.filter(Objects::nonNull)													// Trim blanks and nulls
+			.map(String::toLowerCase)													// Lowercase
+			.flatMap(SPLITTING_DELIMETER::splitAsStream)			// Split
+			.filter(Predicate.not(stopwords::contains)) 			// Remove stop words
+			.filter(StringUtils::hasText)											// Trim blanks and nulls
+			.sorted()																					// Sort the members
+			.collect(Collectors.joining(" "));								// Rejoin with single spacing.
 	}
 
 //	public static final String generateOldBlockingString(String inputString, List<String> qualifiers) {

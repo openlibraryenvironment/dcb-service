@@ -17,6 +17,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
+import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.processing.ProcessingStep;
@@ -43,8 +44,6 @@ import reactor.function.TupleUtils;
 
 @Singleton
 public class BibRecordService {
-	
-	public static final int PROCESS_VERSION = 3;
 
 	private static final Logger log = LoggerFactory.getLogger(BibRecordService.class);
 
@@ -75,7 +74,7 @@ public class BibRecordService {
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
 		// log.info("Executing step 1");
 
-		bib.setProcessVersion(PROCESS_VERSION);
+		bib.setProcessVersion(IngestService.getProcessVersion());
 
     // We need to pull forward any important changed properties from the ingest record here
     // Once created, fields will not be automatically updated when records are reprocessed unless
@@ -89,7 +88,9 @@ public class BibRecordService {
 
 	private BibRecord minimalRecord(final IngestRecord imported) {
 
-		return BibRecord.builder().id(imported.getUuid()).title(imported.getTitle())
+		return BibRecord.builder()
+				.id(imported.getUuid())
+				.title(imported.getTitle())
 				.sourceSystemId(imported.getSourceSystem().getId())
 				.sourceRecordId(imported.getSourceRecordId())
 				.recordStatus(imported.getRecordStatus())
@@ -252,25 +253,53 @@ public class BibRecordService {
 			.thenReturn(bib);
 	}
 	
+	/**
+	 * Check for bib without source record. 
+	 * @param bib
+	 * @return
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Mono<BibRecord> checkOrphanedBib(@NonNull BibRecord bib) {
+		// Delete if there is no source record for the bib.
+		// Either returns the updated bib or an empty bib if deleted.
+		
+		// Check delete first.
+		return findSourceRecordForBib(bib)
+			.collectList()
+			.flatMap( matchedSources -> {
+				
+				// If we match multiple sources... We should assume that they
+				// will be flagged for reprocessing and treat the bib as if we got a single source for now.
+				if (matchedSources.size() > 0) {
+					return Mono.just(bib);
+				}
+				
+				// No source record could be determined. Delete the bib and cause the cluster to update.
+				return deleteBibAndUpdateCluster(bib)
+					.doOnNext( toDelete -> log.info( "Deleting bib [{}] with no source record (Orphaned)", toDelete))
+					// Return empty mono.
+					.then(Mono.empty());
+			});
+	}
+	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<BibRecord> deleteBibAndUpdateCluster(@NonNull BibRecord bib) {
 		return Mono.justOrEmpty( bib.getId() )
-				.flatMap( this::getClusterRecordForBib )
-				.flatMap( cr -> findAllByContributesTo(cr)
-					.count()
-					.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get()
-							.electSelectedBib(cr, Optional.ofNullable(bib))
-							.then(Mono.empty()) : Mono.just( cr ) )
-				)
-				// .doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
-				.flatMap( recordClusteringServiceProvider.get()::softDelete )
-				.then( Mono.defer(() -> {
-					log.info("Deleteing bib [{}]", bib.getId());
-					return deleteBibAndRelations(bib)
-            .doOnError(err -> log.error("Problem in delete bib",err) )
-            .thenReturn(bib); 
-				}))
-			;
+			.flatMap( this::getClusterRecordForBib )
+			.flatMap( cr -> findAllByContributesTo(cr)
+				.count()
+				.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get()
+						.electSelectedBib(cr, Optional.ofNullable(bib))
+						.then(Mono.empty()) : Mono.just( cr ) )
+			)
+			// .doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
+			.flatMap( recordClusteringServiceProvider.get()::softDelete )
+			.then( Mono.defer(() -> {
+				log.info("Deleteing bib [{}]", bib.getId());
+				return deleteBibAndRelations(bib)
+          .doOnError(err -> log.error("Problem in delete bib",err) )
+          .thenReturn(bib); 
+			}));
 	}
 	
 	@Transactional
@@ -292,11 +321,36 @@ public class BibRecordService {
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public @NonNull	Flux<SourceRecord> findSourceRecordForBib(@NonNull BibRecord bibRecord) {
-
-		String sourceRecordId = bibRecord.getSourceRecordId();
+		
+		// Shortcut the method to not do the like query.
+		final UUID sourceRecordLocalId = bibRecord.getSourceRecordUuid();
+		if (sourceRecordLocalId != null) {
+			return sourceRecords.get().getByLocalId(sourceRecordLocalId)
+				.flux();
+		}
+		
+		// No local ID reference. Do the like.
+		String sourceRecordRemoteId = bibRecord.getSourceRecordId();
 		UUID sourceSystemId = bibRecord.getSourceSystemId();
 		
-		return Flux.from( sourceRecords.get().findByHostLmsIdAndRemoteIdLike(sourceSystemId, sourceRecordId) );
+		return Flux.from( sourceRecords.get().findByHostLmsIdAndRemoteIdLike(sourceSystemId, sourceRecordRemoteId) )
+			.collectList()
+			.flatMapMany( matches -> {
+				
+				if (matches.size() > 1) {
+					// Multiple sources found because of the loose selection. Log the error.
+					log.warn("Performing source lookup for bib [{}] matched more than 1 [{}]. Reprocess sources",
+							bibRecord.getId(), matches.stream().map(SourceRecord::getId).toList() );
+					
+					// Flag the need to reprocess the multiple sources. That should cause their bibs to obtain the direct link to the
+					// SourceReocrd instead.
+					return Flux.fromIterable( matches )
+						.flatMap( ambiguousSource -> sourceRecords.get().requireProcessing(ambiguousSource.getId())
+								.thenReturn( ambiguousSource ));
+				}
+		
+				return Flux.fromIterable(matches);
+			});
 	}
 	
 	
@@ -384,7 +438,12 @@ public class BibRecordService {
 	}
 	
 	@Transactional
-	public Flux<BibRecord> getAllByIdIn(@NonNull Collection<UUID> ids) {
+	public Flux<BibRecord> findAllByIdIn(@NonNull Collection<UUID> ids) {
+		return Flux.from( bibRepo.findAllByIdIn(ids) );
+	}
+
+	@Transactional
+	public Flux<BibRecord> findAllIncludingClusterByIdIn(@NonNull Collection<UUID> ids) {
 		return Flux.from( bibRepo.getAllByIdIn(ids) );
 	}
 	

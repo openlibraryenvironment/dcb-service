@@ -2,6 +2,7 @@ package org.olf.dcb.storage;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 
 import org.olf.dcb.core.clustering.model.ClusterRecord;
@@ -73,10 +74,21 @@ public interface ClusterRecordRepository {
 	@NonNull
 	@Vetoed
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
-
-	@NonNull
+	
 	@Vetoed
-  Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsWithISBNExclusion ( String derivedType, Collection<UUID> points, String isbnExclusion );
+	@NonNull
+	Publisher<ClusterRecord> findAllByBibIdInAndDerivedTypeAndIdNotIn(Collection<UUID> bibIds, String derivedType,
+			Collection<UUID> excludeClusters);
+	
+	@Vetoed
+	@NonNull
+	default Publisher<ClusterRecord> findAllByBibIdInAndDerivedType(Collection<UUID> bibIds, String derivedType) {
+		return this.findAllByBibIdInAndDerivedTypeAndIdNotIn(bibIds, derivedType, Collections.emptySet());
+	}
+
+//	@NonNull
+//	@Vetoed
+//  Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPointsWithISBNExclusion ( String derivedType, Collection<UUID> points, String isbnExclusion );
 
 	@NonNull
 	@SingleResult
@@ -89,8 +101,21 @@ public interface ClusterRecordRepository {
 	@NonNull
 	Publisher<ClusterRecord> findAllByIdInList(@NonNull Collection<UUID> id);
 
-
 	@Vetoed
 	@NonNull
 	Publisher<ClusterRecord> findByIdInListWithBibs(@NonNull Collection<UUID> id);
+
+	@Vetoed
+	@NonNull
+	Publisher<UUID> getClusterIdsWithOutdatedUnprocessedBibs(int version, int max);
+	
+	@NonNull
+	@SingleResult
+	default Publisher<UUID> getClusterIdIfOutdated(int version, UUID id) {
+		return getClusterIdsWithBibsPriorToVersionInList(version, Collections.singleton(id));
+	}
+
+	@Vetoed
+	@NonNull
+	Publisher<UUID> getClusterIdsWithBibsPriorToVersionInList(int version, Collection<UUID> ids);
 }

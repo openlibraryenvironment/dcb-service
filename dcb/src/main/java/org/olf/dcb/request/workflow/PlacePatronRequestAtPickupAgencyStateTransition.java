@@ -337,6 +337,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					.supplyingLocalItemBarcode(supplierRequest.getLocalItemBarcode())
 					.supplyingAgencyCode(context.getLenderAgencyCode())
 					.canonicalItemType(supplierRequest.getCanonicalItemType())
+					.activeWorkflow(patronRequest.getActiveWorkflow()) // For Alma - needed for minimum DCB hold
 					.build()));
 	}
 

@@ -22,24 +22,26 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
-@Builder
 @Data
-@RequiredArgsConstructor(onConstructor_ = @Creator())
-@AllArgsConstructor
+@Builder
 @Serdeable
 @MappedEntity
-@ExcludeFromGeneratedCoverageReport
+@AllArgsConstructor
 @Accessors(chain = true)
-@ToString(exclude = "bibs" )
+@ExcludeFromGeneratedCoverageReport
+@RequiredArgsConstructor(onConstructor_ = @Creator())
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ClusterRecord {
 	
-	@NonNull
 	@Id
+	@NonNull
+	@EqualsAndHashCode.Include
 	@TypeDef(type = DataType.UUID)
 	private final UUID id;
 
@@ -55,8 +57,9 @@ public class ClusterRecord {
 	@TypeDef(type = DataType.STRING)
 	private String title;
 
-  @JsonIgnoreProperties({"contributesTo"})
 	@Nullable
+	@ToString.Exclude
+  @JsonIgnoreProperties({"contributesTo"})
 	@Relation(value = Relation.Kind.ONE_TO_MANY, mappedBy="contributesTo")
 	private Set<BibRecord> bibs;
 

@@ -95,6 +95,8 @@ dependencies {
 	implementation("io.netty:netty-handler")
 	implementation("org.apache.httpcomponents.client5:httpclient5")
 	implementation("commons-beanutils:commons-beanutils")
+	
+	implementation 'info.debatty:java-string-similarity'
 
   runtimeOnly("ch.qos.logback.contrib:logback-json-classic")
   runtimeOnly("ch.qos.logback.contrib:logback-jackson")

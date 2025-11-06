@@ -39,6 +39,11 @@ public interface SourceRecordRepository {
 		.thenReturn(rawSource);
 	}
 	
+
+	@NonNull
+	@SingleResult
+	Publisher<SourceRecord> getById( @NonNull UUID id );
+	
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> existsById( @NonNull UUID id );

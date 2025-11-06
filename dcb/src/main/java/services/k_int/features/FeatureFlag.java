@@ -14,15 +14,12 @@ import io.micronaut.core.annotation.AnnotationMetadataProvider;
 
 @Retention(RUNTIME)
 @Target({TYPE, PACKAGE})
-@Requires(condition = FeatureGate.FeatureGateOpen.class)
-public @interface FeatureGate {
+@Requires(condition = FeatureFlag.FeatureFlagSet.class)
+public @interface FeatureFlag {
 
 	String value();
 
-	public static final class FeatureGateOpen implements Condition {
-
-		public FeatureGateOpen() {
-		}
+	public static final class FeatureFlagSet implements Condition {
 
 		@Override
 		public boolean matches(@SuppressWarnings("rawtypes") ConditionContext context) {
@@ -30,14 +27,16 @@ public @interface FeatureGate {
 			AnnotationMetadataProvider annProvider = context.getComponent();
 			AnnotationMetadata ann = annProvider.getAnnotationMetadata();
 
-			if (!ann.hasDeclaredAnnotation(FeatureGate.class))
+			if (!ann.hasDeclaredAnnotation(FeatureFlag.class))
 				return true;
+			
+			Features features = context.getBean(Features.class);
+			String flagName = ann.stringValue(FeatureFlag.class, "value").get();
+			
+			boolean active = features.isEnabled(flagName);
 
-			String gateName = ann.stringValue(FeatureGate.class, "value").get();
-			boolean active = context.getProperty("features.%s.enabled".formatted(gateName), Boolean.class, false);
-
-			if (!active) {
-				context.fail("Required feature gate [%s] is not explicitly enabled".formatted(gateName));
+			if (!features.isEnabled(flagName)) {
+				context.fail("Required feature flag [%s] is not explicitly set".formatted(flagName));
 			}
 			
 			return active;

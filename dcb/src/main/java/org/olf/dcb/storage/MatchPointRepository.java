@@ -20,5 +20,7 @@ public interface MatchPointRepository {
 	
 	Publisher<Long> deleteAllByBibIdAndValueNotIn(@NotNull UUID bibId, @NotNull Collection<UUID> values);
 	
+	Publisher<MatchPoint> findAllByBibIdNotAndValueIn( @NotNull UUID bibId, @NotNull Collection<UUID> values );
+	
 	Publisher<Void> delete (@NotNull UUID id);
 }

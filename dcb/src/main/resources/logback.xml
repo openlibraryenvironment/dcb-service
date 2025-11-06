@@ -59,9 +59,12 @@
 	<logger name="org.olf.dcb.core.svc" level="INFO"/>
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	<logger name="org.olf.dcb.core.interaction" level="INFO" />
+	<logger name="org.olf.dcb.core.clustering.ImprovedRecordClusteringService" level="DEBUG" />
+	
 	<logger name="org.olf.dcb.tracking" level="INFO"/>
 	<logger name="org.olf.dcb.request" level="INFO"/>
 	<logger name="org.olf.dcb.ingest" level="INFO"/>
+	
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
 	<logger name="org.olf.dcb.core.svc.BibRecordService" level="INFO" />
 	<logger name="org.olf.dcb.ingest.job" level="INFO" />
