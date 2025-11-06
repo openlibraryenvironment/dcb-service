@@ -11,6 +11,7 @@ import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequest;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
+import services.k_int.interaction.alma.types.userRequest.AlmaRequests;
 
 import java.util.Collections;
 import java.util.Map;
@@ -185,6 +186,20 @@ public interface AlmaApiClient {
 
 	default Mono<AlmaItem> retrieveItemBarcodeOnly(String item_barcode) {
 		return get("/almaws/v1/items", AlmaItem.class, Map.of("item_barcode", item_barcode));
+	}
+
+	/**
+	 * Retrieves the list of requests for a specific item.
+	 * GET /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_id}/requests
+	 * Docs: <a href="https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1faWR9L3JlcXVlc3Rz/">...</a>
+	 *
+	 * @param mmsId The Bib ID
+	 * @param holdingId The Holding ID
+	 * @param itemId The Item ID (PID)
+	 * @return A Mono emitting the list of requests
+	 */
+	default Mono<AlmaRequests> retrieveItemRequests(String mmsId, String holdingId, String itemId) {
+		return get("/almaws/v1/bibs/" + mmsId + "/holdings/" + holdingId + "/items/" + itemId + "/requests", AlmaRequests.class);
 	}
 
 	/**
