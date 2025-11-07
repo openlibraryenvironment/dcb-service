@@ -477,6 +477,9 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 		// Compare the blocking titles.
 		String refTitle = reference.getBlockingTitle();
 		String candidateTitle = candidate.getBlockingTitle();
+		
+		// If either are null then return 0 
+		if (candidateTitle == null || refTitle == null) return 0;
 
 		// Score is the average of applying all the similarity functions.
 		final double score = similarityFunctions.stream()
