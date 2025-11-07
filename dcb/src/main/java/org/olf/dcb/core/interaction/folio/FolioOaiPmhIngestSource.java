@@ -1,12 +1,13 @@
 package org.olf.dcb.core.interaction.folio;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.storage.RawSourceRepository;
 
 import io.micronaut.context.annotation.Parameter;
-import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.core.convert.ConversionService;
@@ -35,9 +36,9 @@ public class FolioOaiPmhIngestSource extends FolioOaiPmhIngestSource2 {
 			ProcessStateService processStateService,
 			R2dbcOperations r2dbcOperations,
 			ObjectMapper objectMapper,
-			ObjectRulesService objectRulesService) {
+			ObjectRulesService objectRulesService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService) {
 		super(hostLms, rawSourceRepository, client, conversionService, processStateService, r2dbcOperations, objectMapper,
-				objectRulesService);
+				objectRulesService, cacheInvalidator, hostLmsService);
 	}
 	
 }

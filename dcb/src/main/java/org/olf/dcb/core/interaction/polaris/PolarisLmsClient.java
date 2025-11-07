@@ -19,7 +19,11 @@ import static services.k_int.utils.StringUtils.parseList;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -38,7 +42,9 @@ import java.util.stream.Collectors;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -64,6 +70,7 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -134,6 +141,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
 	private final ObjectMapper objectMapper;
 	private final ObjectRulesService objectRuleService;
+	private final RulesetCacheInvalidator cacheInvalidator;
+	private final HostLmsService hostLmsService;
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
@@ -150,13 +159,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
-									 ObjectRulesService objectRuleService) {
+									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
 		this.lms = hostLms;
 		this.objectMapper = objectMapper;
 		this.conversionService = conversionService;
+		this.cacheInvalidator = cacheInvalidator;
+		this.hostLmsService = hostLmsService;
 		this.polarisConfig = convertConfig(hostLms);
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
@@ -752,16 +763,23 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId, objectRuleset, polarisConfig));
 	}
 
+	private Mono<DataHostLms> refetchLms() {
+		
+		return Mono.fromSupplier( lms::getId )
+			.flatMap( hostLmsService::findById )
+			.cacheInvalidateWhen( cacheInvalidator::getInvalidator );
+	}
+
 	// bib suppression not supported in Polaris
-	private final Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
+//	private final Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
 
 	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
 	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
 
-		if (_lmsBibSuppressionRuleset == null) {
-			var supSetName = lms.getItemSuppressionRulesetName();
+		if (_lmsItemSuppressionRuleset == null) {
 
-			_lmsItemSuppressionRuleset = Mono.justOrEmpty( supSetName )
+			_lmsItemSuppressionRuleset = refetchLms()
+				.mapNotNull( HostLms::getItemSuppressionRulesetName )
 				.flatMap( name -> objectRuleService.findByName(name)
 					.doOnSuccess(val -> {
 						if (val == null) {
@@ -771,9 +789,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 						log.debug("Found item suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
 					}))
-				.map( Optional::of )
-				.defaultIfEmpty(Optional.empty())
-				.cache();
+				.singleOptional()
+				.cacheInvalidateWhen( cacheInvalidator::getInvalidator );
 		}
 		return  _lmsItemSuppressionRuleset;
 	}

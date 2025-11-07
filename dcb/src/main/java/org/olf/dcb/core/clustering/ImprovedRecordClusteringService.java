@@ -44,6 +44,7 @@ import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Replaces;
 import io.micronaut.context.env.Environment;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
@@ -475,10 +476,11 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 	protected double doDeeperBibComparison(BibRecord reference, BibRecord candidate) {
 		
 		// Compare the blocking titles.
-		String refTitle = reference.getBlockingTitle();
-		String candidateTitle = candidate.getBlockingTitle();
+		String refTitle = StringUtils.trimToNull( reference.getBlockingTitle() );
+		String candidateTitle = StringUtils.trimToNull( candidate.getBlockingTitle() );
 		
-		// If either are null then return 0 
+		// If either are null then return 0
+		
 		if (candidateTitle == null || refTitle == null) return 0;
 
 		// Score is the average of applying all the similarity functions.

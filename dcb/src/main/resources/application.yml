@@ -257,7 +257,7 @@ dcb:
 
   # Add any proper config-based rulesets here, for defaults.
   rulesets:
-    folio999t:
+    folio-default:
       type: "DISJUNCTIVE"
       conditions:
         - operation: propertyPresent

@@ -5,14 +5,14 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.HostLmsService2;
+import org.olf.dcb.core.events.RulesetRelatedDataChangedEvent;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.event.ApplicationEventPublisher;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -46,16 +46,16 @@ public class HostLmssController {
 
 	private final HostLmsRepository hostLMSRepository;
 	private final HostLmsService hostLmsService;
-	private final HostLmsService2 hostLmsService2;
+	private final ApplicationEventPublisher<RulesetRelatedDataChangedEvent> eventPublisher;
 
 	public HostLmssController(
 		HostLmsRepository hostLMSRepository,
 		HostLmsService hostLmsService,
-		HostLmsService2 hostLmsService2
+		ApplicationEventPublisher<RulesetRelatedDataChangedEvent> eventPublisher
 	) {
 		this.hostLMSRepository = hostLMSRepository;
 		this.hostLmsService = hostLmsService;
-		this.hostLmsService2 = hostLmsService2;
+		this.eventPublisher = eventPublisher;
 	}
 
 	@Operation(summary = "Browse HOST LMSs", description = "Paginate through the list of known host LMSs", parameters = {
@@ -82,7 +82,13 @@ public class HostLmssController {
 			hostLMS.setId(UUIDUtils.generateHostLmsId(hostLMS.getCode()));
 		}
 		return Mono.from(hostLMSRepository.existsById(hostLMS.getId()))
-				.flatMap(exists -> Mono.fromDirect(exists ? hostLMSRepository.update(hostLMS) : hostLMSRepository.save(hostLMS)));
+			.flatMap(exists -> Mono.fromDirect(exists ? hostLMSRepository.update(hostLMS) : hostLMSRepository.save(hostLMS)))
+			.doOnSuccess(data -> {
+				if (data != null) {
+					log.debug("Raising event to clear suppression caches");
+					eventPublisher.publishEvent( new RulesetRelatedDataChangedEvent(data) );
+				}
+			});
 	}
 	
 	private Mono<MutableHttpResponse<Object>> startBackgroundDataRemoval( final @NonNull DataHostLms hostLms ) {
@@ -116,11 +122,11 @@ public class HostLmssController {
 	
 	@Get("/importIngestDetails")
 	public Mono<List<Map<String, Object>>> getAllImportIngestDetails() {
-		return(hostLmsService2.getAllImportIngestDetails());
+		return(hostLmsService.getAllImportIngestDetails());
 	}
 
 	@Get("/importIngestDetails/{id}")
 	public Mono<Map<String, Object>> getImportIngestDetails(UUID id) {
-		return(hostLmsService2.getImportIngestDetails(id));
+		return(hostLmsService.getImportIngestDetails(id));
 	}
 }

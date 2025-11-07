@@ -54,7 +54,9 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -78,6 +80,7 @@ import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
@@ -187,6 +190,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final SierraPatronMapper sierraPatronMapper;
 	
 	private final R2dbcOperations r2dbcOperations;
+	private final RulesetCacheInvalidator cacheInvalidator;
+	private final HostLmsService hostLmsService;
 
 	public SierraLmsClient(@Parameter HostLms lms,
 		HostLmsSierraApiClientFactory clientFactory,
@@ -198,7 +203,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		SierraItemMapper itemMapper,
 		ObjectRulesService objectRuleService,
 		PublisherTransformationService publisherTransformationService,
-		SierraPatronMapper sierraPatronMapper, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper) {
+		SierraPatronMapper sierraPatronMapper, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService) {
 
 		this.lms = lms;
 		this.objectMapper = objectMapper;
@@ -216,6 +221,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.objectRuleService = objectRuleService;
 		this.sierraPatronMapper = sierraPatronMapper;
 		this.r2dbcOperations = r2dbcOperations;
+		this.cacheInvalidator = cacheInvalidator;
+		this.hostLmsService = hostLmsService;
 	}
 
 	private Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
@@ -522,12 +529,43 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 	
 	private Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
-	private synchronized Optional<ObjectRuleset> getLmsBibSuppressionRuleset() {
+//	private synchronized Optional<ObjectRuleset> getLmsBibSuppressionRuleset() {
+//		
+//		if (_lmsBibSuppressionRuleset == null) {
+//			var supSetName = lms.getSuppressionRulesetName();
+//			
+//			_lmsBibSuppressionRuleset = Mono.justOrEmpty( supSetName )
+//				.flatMap( name -> objectRuleService.findByName(name)
+//						.doOnSuccess(val -> {
+//							if (val == null) {
+//								log.warn("Host LMS [{}] specified using ruleset [{}] for bib suppression, but no ruleset with that name could be found", lms.getCode(), name);
+//								return;
+//							}
+//							
+//							log.debug("Found bib suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
+//						}))
+//				.mapNotNull( this::setCacheFlag )
+//				.cacheInvalidateIf( this::refetchRequired );
+//		}
+//		
+//		// TODO: Blocking!!!! Needs refactoring
+//		return  _lmsBibSuppressionRuleset.blockOptional();
+//	}
+
+	private Mono<DataHostLms> refetchLms() {
+		
+		return Mono.fromSupplier( lms::getId )
+			.flatMap( hostLmsService::findById )
+			.doOnNext( _v -> log.info("Refreshing host lms") )
+			.cacheInvalidateWhen( cacheInvalidator::getInvalidator );
+	}
+	
+	private synchronized Mono<ObjectRuleset> getLmsBibSuppressionRuleset() {
 		
 		if (_lmsBibSuppressionRuleset == null) {
-			var supSetName = lms.getSuppressionRulesetName();
 			
-			_lmsBibSuppressionRuleset = Mono.justOrEmpty( supSetName )
+			_lmsBibSuppressionRuleset = refetchLms()
+				.mapNotNull( HostLms::getSuppressionRulesetName )
 				.flatMap( name -> objectRuleService.findByName(name)
 						.doOnSuccess(val -> {
 							if (val == null) {
@@ -537,20 +575,21 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 							
 							log.debug("Found bib suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
 						}))
-				.cache();
+				.singleOptional()
+				.doOnNext( val -> log.info("Refreshed bib suppressison rules. Using [{}]", (val.isPresent() ? val.get().getName() : "[none]" )) )
+				.cacheInvalidateWhen( cacheInvalidator::getInvalidator )
+				.flatMap( Mono::justOrEmpty );
 		}
-		
-		// TODO: Blocking!!!! Needs refactoring
-		return  _lmsBibSuppressionRuleset.blockOptional();
+		return  _lmsBibSuppressionRuleset;
 	}
 	
 	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
 	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
 		
 		if (_lmsBibSuppressionRuleset == null) {
-			var supSetName = lms.getItemSuppressionRulesetName();
 			
-			_lmsItemSuppressionRuleset = Mono.justOrEmpty( supSetName )
+			_lmsItemSuppressionRuleset = refetchLms()
+				.mapNotNull( HostLms::getItemSuppressionRulesetName )
 				.flatMap( name -> objectRuleService.findByName(name)
 						.doOnSuccess(val -> {
 							if (val == null) {
@@ -560,25 +599,34 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 							
 							log.debug("Found item suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
 						}))
-				.map( Optional::of )
-				.defaultIfEmpty(Optional.empty())
-				.cache();
+				.singleOptional()
+				.doOnNext( val -> log.info("Refreshed item suppressison rules. Using [{}]", (val.isPresent() ? val.get().getName() : "[none]" )) )
+				.cacheInvalidateWhen( cacheInvalidator::getInvalidator );
 		}
 		return  _lmsItemSuppressionRuleset;
 	}
+
+	@Override
+	public Mono<IngestRecordBuilder> reactiveIngestRecordBuilderChanges(@NonNull BibResult resource,
+			@NonNull IngestRecordBuilder ingestRecordBuilder) {
+		
+		return Mono.just(ingestRecordBuilder)
+			.zipWith( derriveBibSuppressedFlag(resource) )
+			.map( TupleUtils.function((builder, suppress) -> {
+				return builder.suppressFromDiscovery(suppress);
+			}));
+	}
 	
-	private boolean derriveBibSuppressedFlag( BibResult resource ) {
+	private Mono<Boolean> derriveBibSuppressedFlag( BibResult resource ) {
 
 		List<String> decisionLog = new ArrayList<String>();
-		
-		if ( Boolean.TRUE.equals(resource.suppressed()) ) return true;
 		
 		// Grab the suppression rules set against the Host Lms
 		// False is the default value for suppression if we can't find the named ruleset
 		// or if there isn't one.
 		return getLmsBibSuppressionRuleset()
 		  .map( rules -> rules.negate().test(new AnnotatedObject(resource, decisionLog)) ) // Negate as the rules evaluate "true" for inclusion
-		  .orElse(FALSE);
+		  .defaultIfEmpty(FALSE); // Default to not suppressing
 	}
 
 	@Override
@@ -588,7 +636,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		IngestRecordBuilder irb = IngestRecord.builder().uuid(uuid5ForBibResult(resource))
 			.sourceSystem(lms)
 			.sourceRecordId(resource.id())
-			.suppressFromDiscovery(derriveBibSuppressedFlag(resource))
+//			.suppressFromDiscovery(derriveBibSuppressedFlag(resource))
 			.deleted(resource.deleted());
 
 		// log.info("resource id {}",resource.id());

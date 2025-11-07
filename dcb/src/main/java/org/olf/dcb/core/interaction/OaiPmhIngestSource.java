@@ -22,10 +22,13 @@ import java.util.function.Predicate;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.interaction.folio.OaiResumptionTokenError;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
@@ -107,16 +110,18 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	
 	private final ObjectMapper objectMapper;
 	private final ObjectRulesService objectRulesService;
-	
+	private final RulesetCacheInvalidator cacheInvalidator;
+	private final HostLmsService hostLmsService;
 	
 	private String identifierSeparator = "/"; 
 	private String uuid5Prefix = ""; 
 
-	public OaiPmhIngestSource(@Parameter("hostLms") HostLms hostLms, 
-		RawSourceRepository rawSourceRepository, 
+	public OaiPmhIngestSource(@Parameter("hostLms")
+	HostLms hostLms, 
+		RawSourceRepository rawSourceRepository,
 		HttpClient client, 
 		ConversionService conversionService, 
-		ProcessStateService processStateService, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper, ObjectRulesService objectRuleService) {
+		ProcessStateService processStateService, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper, ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService) {
 
 		this.lms = hostLms;
 		this.rawSourceRepository = rawSourceRepository;
@@ -143,6 +148,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 
 		this.r2dbcOperations = r2dbcOperations;
 		this.objectRulesService = objectRuleService;
+		this.cacheInvalidator = cacheInvalidator;
+		this.hostLmsService = hostLmsService;
 	}
 
 	protected void setUuid5Prefix(String uuid5Prefix) {
@@ -783,17 +790,25 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		  .defaultIfEmpty(FALSE); // Default to not suppressing
 	}
 	
-	protected String getSuppressionRulesetName() {
-		return lms.getSuppressionRulesetName();
+	private Mono<DataHostLms> refetchLms() {
+		
+		return Mono.fromSupplier( lms::getId )
+			.flatMap( hostLmsService::findById )
+			.doOnNext( _v -> log.info("Refreshing host lms") )
+			.cacheInvalidateWhen( cacheInvalidator::getInvalidator );
+	}
+	
+	protected Mono<String> getSuppressionRulesetName() {
+		return refetchLms()
+			.mapNotNull( HostLms::getSuppressionRulesetName );
 	}
 	
 	private Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
 	private synchronized Mono<ObjectRuleset> getLmsBibSuppressionRuleset() {
 		
 		if (_lmsBibSuppressionRuleset == null) {
-			var supSetName = getSuppressionRulesetName();
 			
-			_lmsBibSuppressionRuleset = Mono.justOrEmpty( supSetName )
+			_lmsBibSuppressionRuleset = getSuppressionRulesetName()
 				.flatMap( name -> objectRulesService.findByName(name)
 						.doOnSuccess(val -> {
 							if (val == null) {
@@ -803,7 +818,10 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 							
 							log.debug("Found bib suppression ruleset [{}] for Host LMS [{}]", name, lms.getCode());
 						}))
-				.cache();
+				.singleOptional()
+				.doOnNext( val -> log.info("Refreshed bib suppressison rules. Using [{}]", (val.isPresent() ? val.get().getName() : "[none]" )) )
+				.cacheInvalidateWhen( cacheInvalidator::getInvalidator )
+				.flatMap( Mono::justOrEmpty );
 		}
 		return  _lmsBibSuppressionRuleset;
 	}

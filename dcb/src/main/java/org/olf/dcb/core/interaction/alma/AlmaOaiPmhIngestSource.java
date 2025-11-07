@@ -1,6 +1,8 @@
 package org.olf.dcb.core.interaction.alma;
 
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.interaction.OaiPmhIngestSource;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.rules.ObjectRulesService;
@@ -35,9 +37,10 @@ public class AlmaOaiPmhIngestSource extends OaiPmhIngestSource {
 		ProcessStateService processStateService,
 		R2dbcOperations r2dbcOperations,
 		ObjectMapper objectMapper,
-		ObjectRulesService objectRulesService
+		ObjectRulesService objectRulesService,
+		RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService
 	) {
-		super(hostLms, rawSourceRepository, client, conversionService, processStateService, r2dbcOperations, objectMapper, objectRulesService);
+		super(hostLms, rawSourceRepository, client, conversionService, processStateService, r2dbcOperations, objectMapper, objectRulesService, cacheInvalidator, hostLmsService);
 		
 		String institutionCode = MapUtils.getAsOptionalString(
 			hostLms.getClientConfig(), CONFIG_INSTITUTION_CODE
