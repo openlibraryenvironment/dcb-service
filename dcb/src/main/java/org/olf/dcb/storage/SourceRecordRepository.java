@@ -54,6 +54,10 @@ public interface SourceRecordRepository {
 	
 	@SingleResult
 	@NonNull
+	Publisher<Page<SourceRecord>> findAllByDateUpdatedAfter (@NonNull Instant since, @NonNull Pageable pageable);
+	
+	@SingleResult
+	@NonNull
 	Publisher<Integer> updateById (@NonNull UUID id, @NonNull Instant lastProcessed, @NonNull ProcessingStatus processingState, @Nullable String processingInformation);
 
 	@SingleResult
