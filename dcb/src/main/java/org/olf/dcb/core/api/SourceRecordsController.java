@@ -52,14 +52,14 @@ public class SourceRecordsController {
 		@Parameter(hidden = true) @Valid Pageable pageable
 	) {
 		final Instant effectiveSince = since == null ? Instant.EPOCH : since;
-		final Pageable sortedPageable = withLastModifiedSort(pageable);
+		final Pageable sortedPageable = withDateUpdatedSort(pageable);
 
 		return Mono.from(sourceRecordRepository.findAllByDateUpdatedAfter(effectiveSince, sortedPageable));
 	}
 
-	private Pageable withLastModifiedSort(@Nullable Pageable pageable) {
+	private Pageable withDateUpdatedSort(@Nullable Pageable pageable) {
 		final Pageable base = pageable == null ? Pageable.from(0, DEFAULT_PAGE_SIZE) : pageable;
 
-		return base.order(Sort.Order.desc("lastModified"));
+		return base.order(Sort.Order.desc("dateUpdated"));
 	}
 }
