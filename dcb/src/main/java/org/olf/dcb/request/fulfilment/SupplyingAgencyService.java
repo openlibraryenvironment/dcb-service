@@ -311,8 +311,7 @@ public class SupplyingAgencyService {
 		final var homeIdentity = patron.getHomeIdentity()
 			.orElseThrow(() -> new NoHomeIdentityException(patron.getId(),
 				patron.getPatronIdentities()));
-		log.info("Identity at supplier {}, and supplier request {}", patronIdentityAtSupplier, supplierRequest);
-
+		log.debug("Identity at supplier {}, and supplier request {}", patronIdentityAtSupplier, supplierRequest);
 		// String note = "Consortial Hold. tno=" + patronRequest.getId();
 		String note = context.generateTransactionNote();
 
@@ -346,6 +345,7 @@ public class SupplyingAgencyService {
 					// to be set to the location where the item currently resides.
 					.supplyingLocalItemLocation(supplierRequest.getLocalItemLocationCode())
 					.activeWorkflow(patronRequest.getActiveWorkflow()) // For Alma - needed for minimum DCB hold
+					.localNames(homeIdentity.getLocalNames()) // For DCB-2043
 					.build()));
 	}
 

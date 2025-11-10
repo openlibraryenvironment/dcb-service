@@ -24,6 +24,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
@@ -143,6 +145,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private final ConsortialFolioItemMapper consortialFolioItemMapper;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final ConversionService conversionService;
+	private final ConsortiumService consortiumService;
 
 	private final String apiKey;
 	private final URI rootUri;
@@ -153,7 +156,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		@Parameter("client") HttpClient httpClient,
 		ConsortialFolioItemMapper consortialFolioItemMapper,
 		ReferenceValueMappingService referenceValueMappingService,
-		ConversionService conversionService) {
+		ConversionService conversionService, ConsortiumService consortiumService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -164,6 +167,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
 		this.conversionService = conversionService;
+		this.consortiumService = consortiumService;
 	}
 
 	@Override
@@ -286,32 +290,38 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var firstBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
 		final var libraryCode = getLibraryCode(parameters);
 		final var servicePointName = getValueOrNull(parameters.getPickupLocation(), Location::getPrintLabel);
-
-		final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
-			.body(CreateTransactionRequest.builder()
-				.role("LENDER")
-				.item(CreateTransactionRequest.Item.builder()
-					.id(parameters.getLocalItemId())
-					.barcode(parameters.getLocalItemBarcode())
-					.build())
-				.patron(CreateTransactionRequest.Patron.builder()
+		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE)
+			.flatMap(namesVisible -> {
+				// Conditionally build the patron object, only including the names if setting explicitly enabled
+				var patronBuilder = CreateTransactionRequest.Patron.builder()
 					.id(parameters.getLocalPatronId())
 					.barcode(firstBarcodeInList)
-					.group(parameters.getLocalPatronType()) // Needs to be double quoted, otherwise errors in the folio call if there are reserved characters, eg. bracket
-					.build())
-				.pickup(CreateTransactionRequest.Pickup.builder()
-					.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
-					.servicePointName(servicePointName)
-					.libraryCode(libraryCode)
-					.build())
-				.build());
+					.group(parameters.getLocalPatronType()); // Needs to be double quoted, otherwise errors in the folio call if there are reserved characters, eg. bracket
 
-		return createTransaction(request)
-			.map(response -> LocalRequest.builder()
-				.localId(transactionId)
-				.localStatus(HOLD_CONFIRMED)
-				.rawLocalStatus(response.getStatus())
-				.build());
+				if (namesVisible) {
+					patronBuilder.localNames(parameters.getLocalNames());
+				}
+				final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+					.body(CreateTransactionRequest.builder()
+						.role("LENDER")
+						.item(CreateTransactionRequest.Item.builder()
+							.id(parameters.getLocalItemId())
+							.barcode(parameters.getLocalItemBarcode())
+							.build())
+						.patron(patronBuilder.build())
+						.pickup(CreateTransactionRequest.Pickup.builder()
+							.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
+							.servicePointName(servicePointName)
+							.libraryCode(libraryCode)
+							.build())
+						.build());
+				return createTransaction(request)
+					.map(response -> LocalRequest.builder()
+						.localId(transactionId)
+						.localStatus(HOLD_CONFIRMED)
+						.rawLocalStatus(response.getStatus())
+						.build());
+			});
 	}
 
 	private String getLibraryCode(PlaceHoldRequestParameters parameters) {
@@ -540,8 +550,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var pickupLocation = resolvePickupLocation(parameters);
 
-		return findLocalItemType(parameters.getCanonicalItemType())
-			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+		// We must find the local item type AND check the virtual names setting. Zip time
+		return Mono.zip(
+			findLocalItemType(parameters.getCanonicalItemType()),
+			consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE)
+		).map(tuple -> {
+			final var localItemType = tuple.getT1();
+			final var namesVisible = tuple.getT2();
+			var patronBuilder = CreateTransactionRequest.Patron.builder()
+				.id(parameters.getLocalPatronId())
+				.barcode(firstPatronBarcodeInList)
+				.group(parameters.getLocalPatronType());
+
+			if (namesVisible) {
+				patronBuilder.localNames(parameters.getLocalNames());
+			}
+			return authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 				.body(CreateTransactionRequest.builder()
 					.role("PICKUP")
 					.item(CreateTransactionRequest.Item.builder()
@@ -551,15 +575,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.materialType(localItemType)
 						.lendingLibraryCode(parameters.getSupplyingAgencyCode())
 						.build())
-					.patron(CreateTransactionRequest.Patron.builder()
-						.id(parameters.getLocalPatronId())
-						.barcode(firstPatronBarcodeInList)
-						.group(parameters.getLocalPatronType()) // Needs to be double quoted, otherwise errors in the folio call if there are reserved characters, eg. bracket
-						.build())
+					.patron(patronBuilder.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(pickupLocation)
 						.build())
-					.build()));
+					.build());
+		});
 	}
 
 	private static String resolvePickupLocation(PlaceHoldRequestParameters parameters) {

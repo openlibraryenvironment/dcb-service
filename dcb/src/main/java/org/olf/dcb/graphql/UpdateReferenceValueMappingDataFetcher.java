@@ -10,7 +10,6 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 
-import org.olf.dcb.storage.ConsortiumRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +20,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-
-import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 
 
 @Singleton

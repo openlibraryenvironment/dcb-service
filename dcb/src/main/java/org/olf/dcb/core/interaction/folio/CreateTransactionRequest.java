@@ -32,6 +32,7 @@ class CreateTransactionRequest {
 		String id;
 		String barcode;
 		String group;
+		String localNames;
 	}
 
 	@Data
