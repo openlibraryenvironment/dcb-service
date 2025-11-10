@@ -1,5 +1,27 @@
 # Changelog
 
+## Version 8.56.0
+
+### Additions
+* [Suppression]
+	* Up to date suppression rules used.
+* [General]
+	* Include patron name in FOLIO virtual patrons [DCB-2043]
+	* Add date_updated index on source_record with secondary on source_id
+	* Add SourceRecords controller
+
+### Changes
+* [Chore]
+	* Added a couple more scenarios that we take into account in the sql
+	* Added some more errors that we can trap through sql
+	* DCB-2076 Added script for duplicate barcode detected
+
+### Fixes
+* [General]
+	* The sort for source records should be date updated and not last modified
+	* Always flag null titles as not similar. Even when both null
+	* Provide hold counts for Alma items [DCB-2046]
+
 ## Version 8.55.0
 
 ### Additions
@@ -7,6 +29,10 @@
 	* New clustering and Housekeeping
 * [General]
 	* Concat map and retry added to improve stability
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
