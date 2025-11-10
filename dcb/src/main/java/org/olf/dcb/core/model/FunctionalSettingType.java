@@ -11,12 +11,13 @@ public enum FunctionalSettingType {
 	// These are the valid functional setting names.
 	// If you are adding a new valid functional setting, please also add it to the enum in schema.graphqls.
 	// This will ensure that you do not break DCB Admin functionality.
-	OWN_LIBRARY_BORROWING,
-  PICKUP_ANYWHERE,
-	RE_RESOLUTION,
-	SELECT_UNAVAILABLE_ITEMS,
-  TRIGGER_SUPPLIER_RENEWAL,
-	DENY_LIBRARY_MAPPING_EDIT; // If enabled, stops library users from being able to edit mappings
+	OWN_LIBRARY_BORROWING, // If enabled, items from the patron's own library will be included in resolution
+  PICKUP_ANYWHERE, // If enabled, pickup anywhere requests are allowed and an item can be picked up at any eligible location
+	RE_RESOLUTION, // If enabled, DCB will attempt to re-resolve to a new supplier if the first supplier is unable to fulfil the request
+	SELECT_UNAVAILABLE_ITEMS, // If enabled, DCB will include unavailable items in resolution
+  TRIGGER_SUPPLIER_RENEWAL, // If enabled, DCB will attempt to mirror a renewal at the supplying library
+	DENY_LIBRARY_MAPPING_EDIT, // If enabled, stops library users from being able to edit mappings
+	VIRTUAL_PATRON_NAMES_VISIBLE; // If enabled, virtual patrons will be created with names from the 'real patron'.
 
 	public static boolean isValid(String name) {
 		for (FunctionalSettingType type : values()) {
