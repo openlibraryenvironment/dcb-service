@@ -283,7 +283,14 @@ public class LiveAvailabilityService {
 		Duration timeout, BibRecord bib, HostLmsClient hostLms, boolean ignoreCache) {
 		
 		return (liveData) -> {
-			if (ignoreCache) return liveData;
+			// Return the livedata source or empty after timeout
+			if (ignoreCache) { 
+				return Mono.firstWithSignal(
+					liveData,
+					Mono.delay(timeout)
+						.then(Mono.empty()));
+			}
+				
 			
 			Mono<AvailabilityReport> cachedData = getFromCache( bib )
 				.delaySubscription(timeout)
