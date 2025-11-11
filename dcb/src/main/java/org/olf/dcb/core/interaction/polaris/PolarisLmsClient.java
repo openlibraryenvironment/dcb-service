@@ -282,7 +282,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			})
 			.doOnSuccess(item -> log.info("Successfully updated item, returning {}.", item))
 			.doOnError(error -> log.error("Error updating item: {}", error.getMessage()))
-			.flatMap(__ -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build()))
+			.then(Mono.defer(() -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build())))
 			.map(hostLmsRequest -> LocalRequest.builder()
 				.localId(hostLmsRequest.getLocalId())
 				.localStatus(hostLmsRequest.getStatus())
