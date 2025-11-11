@@ -107,6 +107,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonArray;
 import io.micronaut.json.tree.JsonNode;
+import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotNull;
@@ -281,7 +282,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			})
 			.doOnSuccess(item -> log.info("Successfully updated item, returning {}.", item))
 			.doOnError(error -> log.error("Error updating item: {}", error.getMessage()))
-			.flatMap(__ -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build()))
+			.then(Mono.defer(() -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build())))
 			.map(hostLmsRequest -> LocalRequest.builder()
 				.localId(hostLmsRequest.getLocalId())
 				.localStatus(hostLmsRequest.getStatus())
@@ -332,19 +333,23 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.requestedItemBarcode( illRequestInfo.getItemBarcode() )
 				.build();
 	}
+	
+	/**
+	 * Waits for a fixed delay and retries on failure.
+	 * @param patronLocalId
+	 * @return 
+	 */
+	@Retryable(attempts = "2", delay = "2s")
+	protected <T> Mono<T> delayAndRetryTransformer ( Mono<T> targetFunction ) {
+		return Mono.delay(Duration.ofSeconds(2))
+			.then(targetFunction);
+	}
 
 	private Mono<Integer> getILLRequestId(String patronLocalId, String title) {
-
-		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
-		// visible
-		synchronized (this) {
-			try {
-				Thread.sleep(2000);
-			} catch (Exception e) {
-			}
-		}
-
-		return ApplicationServices.getIllRequest(patronLocalId)
+		
+		return Mono.just(patronLocalId)
+			.flatMap(ApplicationServices::getIllRequest)
+			.transform(this::delayAndRetryTransformer)
 			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(illRequest -> Objects.equals(illRequest.getTitle(), title))
@@ -361,17 +366,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	public Mono<LocalRequest> getLocalHoldRequestIdv2(String patronId, String title, String note, String activationDate) {
 		log.debug("getLocalHoldRequestIdv2({}, {}, {}, {})", patronId, title, note, activationDate);
-
-		// TEMPORARY WORKAROUND - Wait for polaris to process the hold and make it
-		// visible
-		synchronized (this) {
-			try {
-				Thread.sleep(2000);
-			} catch (Exception e) {
-			}
-		}
-
-		return ApplicationServices.listPatronLocalHolds(patronId)
+		
+		return Mono.just(patronId)
+			.flatMap(ApplicationServices::listPatronLocalHolds)
+			.transform(this::delayAndRetryTransformer)
 			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
 			.flatMapMany(Flux::fromIterable)
 			.filter(holds -> shouldIncludeHold(holds, title, note, activationDate))

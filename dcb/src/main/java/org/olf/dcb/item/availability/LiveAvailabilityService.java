@@ -120,25 +120,31 @@ public class LiveAvailabilityService {
 			.defaultIfEmpty(report);
 	}
 
+
+
+	public Mono<AvailabilityReport> checkAvailabilityNoCache(UUID clusteredBibId, Optional<Duration> timeout) {
+		return checkAvailability(clusteredBibId, timeout, Optional.of("all"), true );
+	}
+	
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
 		Optional<Duration> timeout) {
 
-		return checkAvailability(clusteredBibId, timeout, Optional.of("all"));
+		return checkAvailability(clusteredBibId, timeout, Optional.of("all"), false );
 	}
 	
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
 		Duration timeout, String filters) {
 
 		return checkAvailability(clusteredBibId, Optional.ofNullable(timeout),
-			Optional.ofNullable(filters));
+			Optional.ofNullable(filters), false);
 	}
 	
 	public Mono<AvailabilityReport> checkBibAvailability (BibRecord bib, Duration timeout, String filters) {
-		return checkBibAvailabilityAtHost(Optional.ofNullable(timeout), bib, Collections.emptyList(), Optional.ofNullable(filters));
+		return checkBibAvailabilityAtHost(Optional.ofNullable(timeout), bib, Collections.emptyList(), Optional.ofNullable(filters), false);
 	}
 		
 	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
-		Optional<Duration> timeout, Optional<String> filters) {
+		Optional<Duration> timeout, Optional<String> filters, boolean ignoreCache) {
 
 		log.debug("getAvailableItems({})", clusteredBibId);
 
@@ -151,7 +157,7 @@ public class LiveAvailabilityService {
 		return Mono.defer(() -> Mono.just(System.nanoTime()))
 			.flatMap(start -> Mono.just(clusteredBibId)
 				.flatMapMany(this::getClusterMembers)
-				.flatMap(b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters))
+				.flatMap(b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters, ignoreCache))
 				.doOnNext(b -> log.debug("Requestability check result == {}", b))
 				.reduce(emptyReport(), AvailabilityReport::combineReports)
 				.flatMap(availabilityReport -> calculateFields(availabilityReport,
@@ -197,10 +203,10 @@ public class LiveAvailabilityService {
 	}
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bibRecord, List<Tag> parentTags, Optional<String> filters) {
+		Optional<Duration> timeout, BibRecord bibRecord, List<Tag> parentTags, Optional<String> filters, boolean ignoreCache) {
 		
 		return hostLmsService.getClientFor(bibRecord.getSourceSystemId())
-		  .flatMap(hostLms -> this.checkBibAvailabilityAtHost(timeout, bibRecord, parentTags, hostLms, filters))
+		  .flatMap(hostLms -> checkBibAvailabilityAtHost(timeout, bibRecord, parentTags, hostLms, filters, ignoreCache))
 			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
 	
@@ -217,7 +223,7 @@ public class LiveAvailabilityService {
 	}
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms, Optional<String> filters) {
+		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms, Optional<String> filters, boolean ignoreCache) {
 
 		// Removing bib ID from metric as we need 1 entry per system and task rather one for every bib.
 		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("lms", hostLms.getHostLmsCode())));
@@ -259,7 +265,7 @@ public class LiveAvailabilityService {
 			.cache();
 		
 		return timeout
-			.map(timeoutSet -> liveData.transformDeferred(addCacheFallback(timeoutSet, bib, hostLms)))
+			.map(timeoutSet -> liveData.transformDeferred(addCacheFallback(timeoutSet, bib, hostLms, ignoreCache)))
 			.orElse(liveData);
 	}
 
@@ -274,9 +280,11 @@ public class LiveAvailabilityService {
 	}
 
 	private Function<Mono<AvailabilityReport>, Mono<AvailabilityReport>> addCacheFallback(
-		Duration timeout, BibRecord bib, HostLmsClient hostLms) {
-
+		Duration timeout, BibRecord bib, HostLmsClient hostLms, boolean ignoreCache) {
+		
 		return (liveData) -> {
+			if (ignoreCache) return liveData;
+			
 			Mono<AvailabilityReport> cachedData = getFromCache( bib )
 				.delaySubscription(timeout)
 				.doOnCancel(() -> log.trace("Request for bib {} from host lms {} completed in time. Cancelled cache subscription.", bib.getId(), hostLms.getHostLmsCode()) )
@@ -295,26 +303,26 @@ public class LiveAvailabilityService {
 	
 	private Mono<AvailabilityReport> getFromCache(BibRecord bib) {
 		return Mono.just(bib.getId().toString())
-			.mapNotNull(availabilityCache::getIfPresent)
-			.map( this::modifyCachedRecord );
+			.mapNotNull(availabilityCache::getIfPresent);
+//			.map( this::modifyCachedRecord );
 	}
 	
-	private static final ItemStatus STATUS_UNKNOWN = new ItemStatus(ItemStatusCode.UNKNOWN);
+//	private static final ItemStatus STATUS_UNKNOWN = new ItemStatus(ItemStatusCode.UNKNOWN);
 	
-	private AvailabilityReport modifyCachedRecord(AvailabilityReport ar) {
-		// Build new item lists and set the status to unknown.
-		List<Item> newItems = new ArrayList<>();
-		ar.getItems().stream()
-			.map( Item::toBuilder )
-			.map( itemBuilder -> itemBuilder
-				.status(STATUS_UNKNOWN)
-				.build())
-			.forEach( newItems::add );
-		
-		return ar.toBuilder()
-			.items(newItems)
-			.build();
-	}
+//	private AvailabilityReport modifyCachedRecord(AvailabilityReport ar) {
+//		// Build new item lists and set the status to unknown.
+//		List<Item> newItems = new ArrayList<>();
+//		ar.getItems().stream()
+//			.map( Item::toBuilder )
+//			.map( itemBuilder -> itemBuilder
+//				.status(STATUS_UNKNOWN)
+//				.build())
+//			.forEach( newItems::add );
+//		
+//		return ar.toBuilder()
+//			.items(newItems)
+//			.build();
+//	}
 	
 	private static AvailabilityReport getNoCachedValueErrorReport(String message) {
 		return Optional.of(message)
