@@ -15,7 +15,7 @@ import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 
 @DcbTest
-class PolarisItemStatusMapperTests {
+class PolarisItemMapperTests {
 	/**
 	 * The codes used here come from the descriptions from
 	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
