@@ -68,6 +68,7 @@ public class AvailabilityResponseView {
 			.owningContext(getValueOrNull(item, Item::getOwningContext))
 			.rawDataValues(getValueOrNull(item, Item::getRawDataValues))
 			.decisionLogEntries(getValueOrNull(item, Item::getDecisionLogEntries))
+			.statusCorrectAsOf(getValueOrNull(item, Item::getStatusCorrectAsOf))
 			.build();
 	}
 
@@ -146,6 +147,9 @@ public class AvailabilityResponseView {
 
 		Map<String,String> rawDataValues;
 		List<String> decisionLogEntries;
+		
+
+		Instant statusCorrectAsOf;
 	}
 
 	@Value
