@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static java.lang.Boolean.FALSE;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -87,9 +88,8 @@ public class PolarisItemMapper {
 				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules, decisionLogEntries);
 				final var parsedVolumeStatement = parseVolumeStatement(itemGetRow.getVolumeNumber());
 
-				// Check the shelving location if present. If the value is in the list of local only shelving locations
-				// then set to LOCAL_ONLY
-				DerivedLoanPolicy derivedLoanPolicy = deriveLoanPolicy(shelvingLocation, polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
+				final var derivedLoanPolicy = deriveLoanPolicy(shelvingLocation,
+					polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
 
 				return org.olf.dcb.core.model.Item.builder()
 					.localId(localId)
@@ -123,7 +123,8 @@ public class PolarisItemMapper {
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
 	}
 
-	private DerivedLoanPolicy deriveLoanPolicy(String shelvingLocation, Map<String,String> shelfLocationPolicyMap, List<String> decisionLogEntries) {
+	private DerivedLoanPolicy deriveLoanPolicy(String shelvingLocation,
+		Map<String,String> shelfLocationPolicyMap, List<String> decisionLogEntries) {
 
 		// If anything is missing, default to GENERAL
 		if ( ( shelvingLocation == null ) || 
@@ -131,14 +132,13 @@ public class PolarisItemMapper {
          ( ! shelfLocationPolicyMap.containsKey(shelvingLocation) ) )
 		{
 			decisionLogEntries.add("LoanPolicy GENERAL because shelvingLocation null OR shelfLocationPolicyMap null OR "+shelfLocationPolicyMap+" contains key "+shelvingLocation);
-			return DerivedLoanPolicy.GENERAL;
+			return GENERAL;
 		}
 
-		// Interrogate list of shelving location policies to see if this is a LocalOnly or Reference. Possible 
-		// this choice belongs in the core.... 
-
+		// Interrogate list of shelving location policies. Possible
+		// this choice belongs in the core....
 		decisionLogEntries.add("LoanPolicy derived by taking value of "+shelvingLocation+" for shelving location");
-		return DerivedLoanPolicy.valueOf(shelvingLocation);
+		return DerivedLoanPolicy.valueOf(shelfLocationPolicyMap.get(shelvingLocation));
 	}
 
 	/**

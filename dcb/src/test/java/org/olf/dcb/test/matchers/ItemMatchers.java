@@ -10,6 +10,7 @@ import java.time.Instant;
 
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatusCode;
 
@@ -166,5 +167,9 @@ public class ItemMatchers {
 
 	public static Matcher<Item> hasSourceHostLmsCode(String expectedCode) {
 		return hasProperty("sourceHostLmsCode", is(expectedCode));
+	}
+
+	public static Matcher<Item> hasDerivedLoanPolicy(DerivedLoanPolicy expectedPolicy) {
+		return hasProperty("derivedLoanPolicy", is(expectedPolicy));
 	}
 }

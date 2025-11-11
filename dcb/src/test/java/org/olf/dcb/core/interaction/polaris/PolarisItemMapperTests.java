@@ -4,15 +4,15 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.SHORT_LOAN;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasDerivedLoanPolicy;
 
 import java.util.Map;
 import java.util.Optional;
@@ -130,41 +130,65 @@ class PolarisItemMapperTests {
 	}
 
 	@Test
-	void raisesErrorWhenShelvingLocationIsMappedToPolicy() {
+	void shouldMapLocationToPolicyWhenMappingDefined() {
 		// Arrange
-		final var locationName = "Example Location";
+		final var locationName = "Mapped Location";
 
-		final var config = PolarisConfig.builder()
-			.shelfLocationPolicyMap(Map.of(locationName, SHORT_LOAN.name()))
-			.item(ItemConfig.builder()
-				// This is duplicated here due to the builder using a constructor that overwrites the field default
-				.itemAgencyResolutionMethod("Legacy")
-				.build())
-			.build();
+		final var expectedPolicy = SHORT_LOAN;
+
+		final var config = locationToPolicyMapConfig(
+			Map.of(locationName, expectedPolicy.name()));
 
 		// Act
 		final var polarisItem = ItemGetRow.builder()
 			.ShelfLocation(locationName)
 			.build();
 
-		final var error = assertThrows(IllegalArgumentException.class,
-			() -> mapItem(polarisItem, config));
+		final var item = mapItem(polarisItem, config);
 
 		// Assert
-		assertThat(error, allOf(
+		assertThat(item, allOf(
 			notNullValue(),
-			hasMessage("No enum constant org.olf.dcb.core.model.DerivedLoanPolicy." + locationName)
+			hasDerivedLoanPolicy(expectedPolicy)
+		));
+	}
+
+	@Test
+	void shouldDefaultPolicyWhenNoMappingDefined() {
+		// Arrange
+		final var config = locationToPolicyMapConfig(Map.of());
+
+		// Act
+		final var polarisItem = ItemGetRow.builder()
+			.ShelfLocation("Unmapped Location")
+			.build();
+
+		final var item = mapItem(polarisItem, config);
+
+		// Assert
+		assertThat(item, allOf(
+			notNullValue(),
+			hasDerivedLoanPolicy(GENERAL)
 		));
 	}
 
 	@Nullable
 	private ItemStatus mapPolarisStatus(String statusCode) {
-		return mapper.mapStatus(statusCode, HOST_LMS_CODE)
-			.block();
+		return singleValueFrom(mapper.mapStatus(statusCode, HOST_LMS_CODE));
 	}
 
 	private Item mapItem(ItemGetRow polarisItem, PolarisConfig config) {
 		return singleValueFrom(mapper.mapItemGetRowToItem(polarisItem,
 			HOST_LMS_CODE, "567346463", Optional.empty(), config));
+	}
+
+	private static PolarisConfig locationToPolicyMapConfig(Map<String, String> mapping) {
+		return PolarisConfig.builder()
+			.shelfLocationPolicyMap(mapping )
+			.item(ItemConfig.builder()
+				// This is duplicated here due to the builder using a constructor that overwrites the field default
+				.itemAgencyResolutionMethod("Legacy")
+				.build())
+			.build();
 	}
 }
