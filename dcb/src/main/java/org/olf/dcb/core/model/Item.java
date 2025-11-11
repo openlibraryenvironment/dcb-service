@@ -29,8 +29,12 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor()
 @Accessors(chain=true)
 public class Item implements Comparable<Item> {
+	
+	private final Instant statusCorrectAsOf = Instant.now();
+	
 	private String localId;
 	private ItemStatus status;
+	
 	@Nullable
 	private Instant dueDate;
 	private Location location;

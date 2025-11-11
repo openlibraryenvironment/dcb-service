@@ -259,7 +259,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
-		return liveAvailabilityService.checkAvailability(clusteredBibId, Optional.of(timeout));
+		return liveAvailabilityService.checkAvailabilityNoCache(clusteredBibId, Optional.of(timeout));
 	}
 
 	private Mono<Resolution> sortItems(ResolutionSortOrder sortOrder, Resolution resolution) {
