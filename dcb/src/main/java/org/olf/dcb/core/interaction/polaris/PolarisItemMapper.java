@@ -5,6 +5,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -20,6 +21,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
 import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
@@ -67,7 +69,7 @@ public class PolarisItemMapper {
 	 * @return a Mono containing a fully mapped DCB Item
 	 */
 	public Mono<org.olf.dcb.core.model.Item> mapItemGetRowToItem(
-		PAPIClient.ItemGetRow itemGetRow, String hostLmsCode, String localBibId,
+		ItemGetRow itemGetRow, String hostLmsCode, String localBibId,
 		@NonNull Optional<ObjectRuleset> itemSuppressionRules, @NonNull PolarisConfig polarisConfig) {
 
 		final String itemAgencyResolutionMethod = polarisConfig.getItem().getItemAgencyResolutionMethod();
@@ -148,7 +150,7 @@ public class PolarisItemMapper {
 	 * @param hostLmsCode the host LMS code
 	 * @return a Mono containing the enriched item
 	 */
-	private Mono<Item> enrichItemWithAgency(PAPIClient.ItemGetRow itemGetRow, Item item, String hostLmsCode, String itemAgencyResolutionMethod) {
+	private Mono<Item> enrichItemWithAgency(ItemGetRow itemGetRow, Item item, String hostLmsCode, String itemAgencyResolutionMethod) {
 		return switch(itemAgencyResolutionMethod) {
 			case "LocationId" -> enrichItemWithAgencyUsingLocationId(itemGetRow, item, hostLmsCode);
 			case "Legacy" -> legacyEnrichItemWithAgency(item, hostLmsCode);
@@ -156,7 +158,7 @@ public class PolarisItemMapper {
     };
   }
 
-	private Mono<Item> enrichItemWithAgencyUsingLocationId(@NonNull PAPIClient.ItemGetRow itemGetRow, @NonNull Item item, @NonNull String hostLmsCode) {
+	private Mono<Item> enrichItemWithAgencyUsingLocationId(@NonNull ItemGetRow itemGetRow, @NonNull Item item, @NonNull String hostLmsCode) {
 		return locationToAgencyMappingService.dataAgencyFromMappedExernal(hostLmsCode, "Location", itemGetRow.getLocationID().toString())
 			.map(item::setAgency)
 			.switchIfEmpty(Mono.defer(() -> {
@@ -193,12 +195,12 @@ public class PolarisItemMapper {
 			}));
 	}
 
-	private org.olf.dcb.core.model.Location getLocation(PAPIClient.ItemGetRow itemGetRow, String itemAgencyResolutionMethod) {
+	private org.olf.dcb.core.model.Location getLocation(ItemGetRow itemGetRow, String itemAgencyResolutionMethod) {
 
 		final var locationName = switch(itemAgencyResolutionMethod) {
-      case "LocationId" -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getLocationName);
-      case "Legacy" -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
-      default -> getValueOrNull(itemGetRow, PAPIClient.ItemGetRow::getShelfLocation);
+      case "LocationId" -> getValueOrNull(itemGetRow, ItemGetRow::getLocationName);
+      case "Legacy" -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
+      default -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
     };
 
 		if (locationName == null) return Location.builder().build();
@@ -210,12 +212,14 @@ public class PolarisItemMapper {
 			.build();
 	}
 
-	private boolean deriveItemSuppressedFlag(@NonNull PAPIClient.ItemGetRow itemGetRow,
+	private boolean deriveItemSuppressedFlag(@NonNull ItemGetRow itemGetRow,
 		@NonNull Optional<ObjectRuleset> itemSuppressionRules, List<String> decisionLog) {
 
 		// do we display in pac? if false we need true for suppression
 		// if display in pac is set to true then suppression is false
-		if ( Boolean.TRUE.equals(!itemGetRow.getIsDisplayInPAC()) ) {
+		final var displayInPAC = getValue(itemGetRow, ItemGetRow::getIsDisplayInPAC, false);
+
+		if (!displayInPAC) {
 			log.warn("POLARIS_ITEM_SUPPRESSION :: Item: {} Reason: {}", itemGetRow.getItemRecordID(), "isDisplayInPAC is false");
 			decisionLog.add("suppress because isDisplayInPAC is FALSE");
 			return true;
@@ -237,7 +241,7 @@ public class PolarisItemMapper {
 			.orElse(FALSE);
 	}
 
-	private Map<String, Object> convertToMapFrom(PAPIClient.ItemGetRow itemGetRow) {
+	private Map<String, Object> convertToMapFrom(ItemGetRow itemGetRow) {
 		final var rawJson = conversionService.convertRequired(itemGetRow, JsonNode.class);
 		@SuppressWarnings("unchecked")
 		final Map<String, Object> itemGetRowMap = conversionService.convertRequired(rawJson, Map.class);

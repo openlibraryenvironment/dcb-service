@@ -9,12 +9,16 @@ import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationExcep
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
+@Builder
 @Serdeable
+@NoArgsConstructor
+@AllArgsConstructor
 public class PolarisConfig {
 	@JsonProperty("default-agency-code")
 	private String defaultAgencyCode;
@@ -268,8 +272,10 @@ public class PolarisConfig {
 	}
 
 	@Data
-	@NoArgsConstructor
+	@Builder
 	@Serdeable
+	@NoArgsConstructor
+	@AllArgsConstructor
 	public static class ItemConfig {
 		@JsonProperty("renewal-limit")
 		private Object renewalLimit;

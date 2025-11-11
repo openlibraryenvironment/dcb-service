@@ -2,29 +2,70 @@ package org.olf.dcb.core.interaction.polaris;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.olf.dcb.core.model.ItemStatusCode.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.SHORT_LOAN;
+import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
+import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
+import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
+import java.util.Map;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
+import org.olf.dcb.core.interaction.polaris.PolarisConfig.ItemConfig;
+import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
+import org.olf.dcb.test.HostLmsFixture;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 
 @DcbTest
+@TestInstance(PER_CLASS)
+@Slf4j
 class PolarisItemMapperTests {
 	/**
 	 * The codes used here come from the descriptions from
 	 * <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/itemstatuses/get_item_statuses">this API</a>
 	 */
 
-	private static final String HOST_LMS_CODE = "polaris-host-lms";
+	private static final String HOST_LMS_CODE = "polaris-item-mapper-host-lms";
+	private static final String DEFAULT_AGENCY_CODE = "default-agency";
 
 	@Inject
 	private PolarisItemMapper mapper;
+
+	@Inject
+	private HostLmsFixture hostLmsFixture;
+
+	@Inject
+	private AgencyFixture agencyFixture;
+
+	@BeforeAll
+	void beforeAll() {
+		agencyFixture.deleteAll();
+		hostLmsFixture.deleteAll();
+
+		final var polarisHostLms = hostLmsFixture.createPolarisHostLms(
+			HOST_LMS_CODE, "", "", "", "", "",
+			"", DEFAULT_AGENCY_CODE);
+
+		agencyFixture.defineAgency(DEFAULT_AGENCY_CODE, "Default Agency", polarisHostLms);
+	}
 
 	@Test
 	void statusIsAvailableWhenCodeIsIn() {
@@ -88,9 +129,42 @@ class PolarisItemMapperTests {
 		assertThat(mappedStatus.getCode(), is(CHECKED_OUT));
 	}
 
+	@Test
+	void raisesErrorWhenShelvingLocationIsMappedToPolicy() {
+		// Arrange
+		final var locationName = "Example Location";
+
+		final var config = PolarisConfig.builder()
+			.shelfLocationPolicyMap(Map.of(locationName, SHORT_LOAN.name()))
+			.item(ItemConfig.builder()
+				// This is duplicated here due to the builder using a constructor that overwrites the field default
+				.itemAgencyResolutionMethod("Legacy")
+				.build())
+			.build();
+
+		// Act
+		final var polarisItem = ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.build();
+
+		final var error = assertThrows(IllegalArgumentException.class,
+			() -> mapItem(polarisItem, config));
+
+		// Assert
+		assertThat(error, allOf(
+			notNullValue(),
+			hasMessage("No enum constant org.olf.dcb.core.model.DerivedLoanPolicy." + locationName)
+		));
+	}
+
 	@Nullable
 	private ItemStatus mapPolarisStatus(String statusCode) {
 		return mapper.mapStatus(statusCode, HOST_LMS_CODE)
 			.block();
+	}
+
+	private Item mapItem(ItemGetRow polarisItem, PolarisConfig config) {
+		return singleValueFrom(mapper.mapItemGetRowToItem(polarisItem,
+			HOST_LMS_CODE, "567346463", Optional.empty(), config));
 	}
 }

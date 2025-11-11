@@ -107,15 +107,15 @@ public class HostLmsFixture {
 			accessId, accessKey, null);
 	}
 
-	public void createPolarisHostLms(String code, String staffUsername,
+	public DataHostLms createPolarisHostLms(String code, String staffUsername,
 		String staffPassword, String baseUrl, String domain, String accessId,
 		String accessKey, String defaultAgencyCode) {
 
-		createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain,
+		return createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain,
 			accessId, accessKey, defaultAgencyCode, 73);
 	}
 
-	public void createPolarisHostLms(String code, String staffUsername,
+	public DataHostLms createPolarisHostLms(String code, String staffUsername,
 		String staffPassword, String baseUrl, String domain, String accessId,
 		String accessKey, String defaultAgencyCode, Integer illLocationId) {
 
@@ -156,7 +156,7 @@ public class HostLmsFixture {
 
 		clientConfig.put("item", item);
 
-		createHostLms(randomUUID(), code, PolarisLmsClient.class,
+		return createHostLms(randomUUID(), code, PolarisLmsClient.class,
 			Optional.of(PolarisLmsClient.class), clientConfig);
 	}
 
