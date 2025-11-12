@@ -10,6 +10,7 @@ import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasRenewalCount;
 import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasStatus;
 
@@ -65,6 +66,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 			notNullValue(),
 			hasLocalId(localItemId),
 			hasStatus("HOLDSHELF"),
+			hasRawStatus("AWAITING_PICKUP"),
 			hasRenewalCount(0)
 		));
 	}
@@ -86,6 +88,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 			notNullValue(),
 			hasLocalId(localItemId),
 			hasStatus("LOANED"),
+			hasRawStatus("ITEM_CHECKED_OUT"),
 			hasRenewalCount(0)
 		));
 	}
@@ -115,6 +118,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 			notNullValue(),
 			hasLocalId(localItemId),
 			hasStatus("LOANED"),
+			hasRawStatus("ITEM_CHECKED_OUT"),
 			hasRenewalCount(2)
 		));
 	}
@@ -136,6 +140,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 			notNullValue(),
 			hasLocalId(localItemId),
 			hasStatus("TRANSIT"),
+			hasRawStatus("ITEM_CHECKED_IN"),
 			hasRenewalCount(0)
 		));
 	}
@@ -157,6 +162,7 @@ class ConsortialFolioHostLmsClientGetItemTests {
 			notNullValue(),
 			hasLocalId(localItemId),
 			hasStatus("AVAILABLE"),
+			hasRawStatus("CLOSED"),
 			hasRenewalCount(0)
 		));
 	}
@@ -216,26 +222,31 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		assertThat(localRequest, allOf(
 			notNullValue(),
 			hasLocalId(localItemId),
-			hasStatus(transactionStatus)
+			hasStatus(transactionStatus),
+			hasRawStatus(transactionStatus)
 		));
 	}
 
 	@Test
-	void shouldRaiseErrorForUnexpectedStatus() {
+	void shouldReturnUnmappedTransactionStatusForUnexpectedStatus() {
 		// Arrange
 		final var localRequestId = randomUUID().toString();
 		final var localItemId = randomUUID().toString();
 
-		mockFolioFixture.mockGetTransactionStatus(localRequestId, "UNEXPECTED_STATUS");
+		final var unexpectedStatus = "UNEXPECTED_STATUS";
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, unexpectedStatus);
 
 		// Act
-		final var exception = assertThrows(RuntimeException.class,
-			() -> getItem(localItemId, localRequestId));
+		final var localRequest = getItem(localItemId, localRequestId);
 
 		// Assert
-		assertThat(exception, hasMessage(
-			"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
-				.formatted("UNEXPECTED_STATUS", localRequestId)));
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasStatus(unexpectedStatus),
+			hasRawStatus(unexpectedStatus)
+		));
 	}
 
 	private HostLmsItem getItem(String localItemId, String localRequestId) {

@@ -10,6 +10,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemBarcode;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasNoRequestedItemId;
+import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
@@ -72,26 +73,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			notNullValue(),
 			hasLocalId(localRequestId),
 			hasStatus("CONFIRMED"),
-			hasNoRequestedItemId(),
-			hasNoRequestedItemBarcode()
-		));
-	}
-
-	@Test
-	void shouldDetectRequestHasBeenDispatched() {
-		// Arrange
-		final var localRequestId = UUID.randomUUID().toString();
-
-		mockFolioFixture.mockGetTransactionStatus(localRequestId, "OPEN");
-
-		// Act
-		final var localRequest = getRequest(localRequestId);
-
-		// Assert
-		assertThat(localRequest, allOf(
-			notNullValue(),
-			hasLocalId(localRequestId),
-			hasStatus("OPEN"),
+			hasRawStatus("CREATED"),
 			hasNoRequestedItemId(),
 			hasNoRequestedItemBarcode()
 		));
@@ -112,6 +94,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			notNullValue(),
 			hasLocalId(localRequestId),
 			hasStatus("CANCELLED"),
+			hasRawStatus("CANCELLED"),
 			hasNoRequestedItemId(),
 			hasNoRequestedItemBarcode()
 		));
@@ -158,7 +141,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {"AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR"})
+	@ValueSource(strings = {"OPEN", "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR"})
 	void shouldReturnUnmappedTransactionStatusForAnyOtherStatus(String transactionStatus) {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
@@ -173,6 +156,7 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 			notNullValue(),
 			hasLocalId(localRequestId),
 			hasStatus(transactionStatus),
+			hasRawStatus(transactionStatus),
 			hasNoRequestedItemId(),
 			hasNoRequestedItemBarcode()
 		));
@@ -183,16 +167,22 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		// Arrange
 		final var localRequestId = UUID.randomUUID().toString();
 
-		mockFolioFixture.mockGetTransactionStatus(localRequestId, "UNEXPECTED_STATUS");
+		final var unexpectedStatus = "UNEXPECTED_STATUS";
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, unexpectedStatus);
 
 		// Act
-		final var exception = assertThrows(RuntimeException.class,
-			() -> getRequest(localRequestId));
+		final var localRequest = getRequest(localRequestId);
 
 		// Assert
-		assertThat(exception, hasMessage(
-			"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
-				.formatted("UNEXPECTED_STATUS", localRequestId)));
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(localRequestId),
+			hasStatus(unexpectedStatus),
+			hasRawStatus(unexpectedStatus),
+			hasNoRequestedItemId(),
+			hasNoRequestedItemBarcode()
+		));
 	}
 
 	@Test

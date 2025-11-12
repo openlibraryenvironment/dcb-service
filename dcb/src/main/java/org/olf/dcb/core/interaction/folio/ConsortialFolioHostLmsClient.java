@@ -921,6 +921,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
 		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
+
 		return getTransactionStatus(localRequestId)
 			.map(transactionStatus -> mapToHostLmsRequest(localRequestId, transactionStatus))
 			.onErrorResume(TransactionNotFoundException.class,
@@ -936,11 +937,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var mappedStatus = switch(status) {
 			case "CREATED" -> HOLD_CONFIRMED;
 			case "CANCELLED" -> HOLD_CANCELLED;
-			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
-			case "OPEN", "AWAITING_PICKUP", "ITEM_CHECKED_OUT", "ITEM_CHECKED_IN", "CLOSED", "ERROR" -> status;
-			default -> throw new RuntimeException(
-				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
-					.formatted(status, transactionId));
+			// Some statuses are expected but do not map to any request status
+			// Due to mod-dcb using a single transaction status to represent both
+			// Pass both recognised but unhandled and unrecognised statuses without mapping
+			default -> status;
 		};
 
 		return HostLmsRequest.builder()
@@ -966,12 +966,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return getTransactionStatus(localRequestId)
 			.doOnSuccess(transactionStatus -> log.debug("got transaction {} status {}",  localRequestId, transactionStatus))
-			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus, localRequestId))
+			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus))
 			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
 	}
 
 	private static HostLmsItem mapToHostLmsItem(String itemId,
-		TransactionStatus transactionStatus, String transactionId) {
+		TransactionStatus transactionStatus) {
 
 		if (itemId == null) {
 			log.warn("getItem returning HostLmsItem with a null item id.");
@@ -981,7 +981,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return HostLmsItem.builder()
 			.localId(itemId)
-			.status(mapLocalStatus(rawLocalStatus, transactionId))
+			.status(mapToItemStatus(rawLocalStatus))
 			.rawStatus(rawLocalStatus)
 			.renewalCount(getValue(transactionStatus, TransactionStatus::getRenewalCount, 0))
 			.holdCount(transactionStatus.getHoldCount())
@@ -989,9 +989,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
-	private static String mapLocalStatus(String status, String transactionId) {
+	private static String mapToItemStatus(String transactionStatus) {
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
-		return switch (status) {
+		return switch (transactionStatus) {
 			// When the item is returned back to the supplying agency, the transaction is closed
 			// The Host LMS reactions use the available local item status to represent the item becoming available again at the end
 			case "CLOSED" -> ITEM_AVAILABLE;
@@ -1001,11 +1001,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			case "OPEN",
 				// This is needed to trigger the return to the lending agency workflow action
 				"ITEM_CHECKED_IN" -> ITEM_TRANSIT;
-			// These recognised but unhandled statuses should trigger the unhandled status handlers in host LMS reactions
-			case "CREATED", "CANCELLED", "ERROR" -> status;
-			default -> throw new RuntimeException(
-				"Unrecognised transaction status: \"%s\" for transaction ID: \"%s\""
-					.formatted(status, transactionId));
+			// Some statuses are expected but do not map to any item status
+			// Due to mod-dcb using a single transaction status to represent both
+			// Pass both recognised but unhandled and unrecognised statuses without mapping
+			default -> transactionStatus;
 		};
 	}
 
