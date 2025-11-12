@@ -1632,9 +1632,31 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
   @Override
   public Mono<String> deleteHold(DeleteCommand deleteCommand) {
-		log.info("Delete hold is not currently implemented for Polaris");
-    return Mono.just("OK");
-  }
+		String requestId = deleteCommand.getRequestId();
+		String patronId = deleteCommand.getPatronId();
+		log.debug("Delete hold for Polaris. Patron ID {}, request ID {}", patronId, requestId);
+		if (requestId == null || patronId == null) {
+			log.error("DeleteCommand is missing required request ID or patronId. {}", deleteCommand);
+			return Mono.error(new MissingParameterException("DeleteCommand missing holdingsId or patronId"));
+		}
+
+		// First we try to delete the hold.
+		return ApplicationServices.deleteHoldRequest(requestId)
+			.flatMap(deleteSucceeded -> {
+				if (Boolean.TRUE.equals(deleteSucceeded)) {
+					return Mono.just("OK_DELETED");
+				}
+				// If that doesn't work, we fall back to cancelling the hold on the virtual item.
+				// This will get rid of the 'unbreakable link' when we try to delete the virtual item without getting rid of the hold
+				log.warn("DELETE /holds/{} failed, falling back to cancel hold request.", requestId);
+				return this.cancelHoldRequest(CancelHoldRequestParameters.builder()
+					.patronId(patronId)
+					.localRequestId(requestId)
+					.build())
+					.map(cancelResult -> "OK_CANCELLED");
+			});
+	}
+
 
 	@Override
 	public @NonNull String getClientId() {

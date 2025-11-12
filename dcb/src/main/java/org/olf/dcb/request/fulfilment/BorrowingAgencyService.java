@@ -144,7 +144,28 @@ public class BorrowingAgencyService {
 
 			return checkHoldExists(client, localRequestId, patronRequest)
 				.flatMap(_client -> _client.deleteHold(deleteCommand))
-
+				.flatMap(deleteResult -> {
+					// There are different success variations that we need to handle for some LMS
+					// i.e. if we've not been able to delete the hold but we successfully cancelled it instead, that's worth noting
+					// Polaris is the primary example: it doesn't always let us delete the hold and then it stops us deleting the item
+					final String message;
+					if ("OK_CANCELLED".equals(deleteResult)) {
+						message = "Delete borrower request : Success (Fallback Cancel)";
+					} else if ("OK_DELETED".equals(deleteResult)) {
+						message = "Delete borrower request : Success (Deleted)";
+					} else {
+						// For the standard "OK" for systems where we don't need to have the fallback.
+						// This is the most common outcome.
+						message = "Delete borrower request : Success";
+					}
+					// Trying to make sure we make an audit entry if we have actually succeeded
+					// So we have something to point to
+					final var auditData = new HashMap<String, Object>();
+					auditData.put("localRequestId", localRequestId);
+					auditData.put("deleteResult", deleteResult);
+					return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+						.thenReturn(deleteResult);
+				})
 				// Catch any skipped deletions
 				.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
 
@@ -210,10 +231,17 @@ public class BorrowingAgencyService {
 
 			return checkItemExists(client, localItemId, patronRequest)
 				.flatMap(_client -> _client.deleteItem(deleteCommand))
-
+				// Catch a successful deletion of a virtual item
+				.flatMap(deleteResult -> {
+					final var message = "Delete virtual item : Success";
+					final var auditData = new HashMap<String, Object>();
+					auditData.put("localItemId", localItemId);
+					auditData.put("deleteResult", deleteResult);
+					return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+						.thenReturn(deleteResult);
+				})
 				// Catch any skipped deletions
 				.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
-
 				// Genuine error we didn't account for
 				.onErrorResume(logAndReturnErrorString("Delete virtual item : Failed", patronRequest))
 				.thenReturn(client);

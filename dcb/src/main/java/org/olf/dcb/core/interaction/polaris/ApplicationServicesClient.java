@@ -240,6 +240,25 @@ class ApplicationServicesClient {
 			});
 	}
 
+	Mono<Boolean> deleteHoldRequest(String holdId) {
+		log.debug("Deleting hold request by id: {}", holdId);
+
+		final var path = createPath("holds", holdId);
+		return createRequest(DELETE, path, uri -> {})
+			.flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
+			.doOnSuccess(bool -> {
+				if (Boolean.TRUE.equals(bool)) {
+					log.info("Successfully deleted hold request {}", holdId);
+				} else {
+					log.warn("Deleting hold request {} returned false.", holdId);
+				}
+			})
+			.onErrorResume(error -> {
+				log.error("Failed to delete hold request {} from lms {}", holdId, client.getHostLmsCode(), error);
+				return Mono.just(FALSE);
+			});
+	}
+
 	Mono<Patron> getPatron(String localPatronId) {
 		final var path = createPath("patrons", localPatronId);
 		return createRequest(GET, path, uri -> {})
