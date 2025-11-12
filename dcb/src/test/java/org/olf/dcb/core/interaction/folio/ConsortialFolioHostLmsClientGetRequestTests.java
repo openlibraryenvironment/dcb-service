@@ -150,10 +150,8 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 	@Test
 	void shouldNotRequestTransactionStatusForNullId() {
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		final var exception = assertThrows(NullPointerException.class,
-			() -> singleValueFrom(client.getRequest(null)));
+			() -> getRequest(null));
 
 		// Assert
 		assertThat(exception, hasMessage("Cannot use transaction id: null to fetch transaction status."));
@@ -188,12 +186,8 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 		mockFolioFixture.mockGetTransactionStatus(localRequestId, "UNEXPECTED_STATUS");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var hostLmsRequest = HostLmsRequest.builder().localId(localRequestId).build();
-
 		final var exception = assertThrows(RuntimeException.class,
-			() -> singleValueFrom(client.getRequest(hostLmsRequest)));
+			() -> getRequest(localRequestId));
 
 		// Assert
 		assertThat(exception, hasMessage(
@@ -205,9 +199,6 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 	void shouldThrowUnexpectedHttpResponseProblemWhenTransactionStatusReturns500() {
 		// Arrange
 		final var transactionId = UUID.randomUUID().toString();
-		final var hostLmsRequest = HostLmsRequest.builder()
-			.localId(transactionId)
-			.build();
 
 		final var expectedResponseBody = """
 			HTTP 500 Internal Server Error.
@@ -220,11 +211,9 @@ class ConsortialFolioHostLmsClientGetRequestTests {
 				.withBody(expectedResponseBody)
 		);
 
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		// Act
 		final var thrown = assertThrows(UnexpectedHttpResponseProblem.class,
-			() -> singleValueFrom(client.getRequest(hostLmsRequest)));
+			() -> getRequest(transactionId));
 
 		// Assert
 		final var expectedUrl = "https://fake-folio/dcbService/transactions/" + transactionId + "/status";

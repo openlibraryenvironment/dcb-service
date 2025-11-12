@@ -193,10 +193,8 @@ class ConsortialFolioHostLmsClientGetItemTests {
 	@Test
 	void shouldNotRequestTransactionStatusForNullId() {
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		final var exception = assertThrows(NullPointerException.class,
-			() -> singleValueFrom(client.getRequest(null)));
+			() -> getItem(null, null));
 
 		// Assert
 		assertThat(exception, hasMessage("Cannot use transaction id: null to fetch transaction status."));
