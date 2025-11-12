@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +39,7 @@ import io.micronaut.context.env.Environment;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.json.tree.JsonNode;
+import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.scheduling.annotation.Scheduled;
@@ -234,11 +236,14 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	}
 	
 	private Mono<BibAvailabilityCount> updateMappingIfRequired( BibAvailabilityCount count ) {
+		final Instant now = Instant.now();
+		
 		if (count.getStatus() == Status.MAPPED) {
 			// Nothing to do, just tag the last updated.
 			return Mono.just(
 					count.toBuilder()
-						.lastUpdated(Instant.now())
+						.lastUpdated(now)
+						.gracePeriodEnd(now.plus( jobConfig.getMappedRecheckGracePeriod() ))
 						.build())
 				.flatMap(this::doSave);
 		}
@@ -250,7 +255,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 						.status(Status.UNMAPPED)
 						.internalLocationCode(null)
 						.mappingResult( "No remote location code" )
-						.lastUpdated(Instant.now())
+						.lastUpdated(now)
+						.gracePeriodEnd(now.plus( jobConfig.getRecheckGracePeriod() ))
 						.build())
 				.flatMap(this::doSave);
 		}
@@ -265,7 +271,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				.status(Status.MAPPED)
 				.internalLocationCode(mappedCode)
 				.mappingResult( "Mapped [%s -> %s]".formatted(count.getRemoteLocationCode(), mappedCode) )
-				.lastUpdated(Instant.now())
+				.lastUpdated(now)
+				.gracePeriodEnd(now.plus( jobConfig.getMappedRecheckGracePeriod() ))
 				.build())
 			
 			// No mapping...
@@ -275,7 +282,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					.status(Status.UNMAPPED)
 					.internalLocationCode(null)
 					.mappingResult( "No mapping was found" )
-					.lastUpdated(Instant.now())
+					.lastUpdated(now)
+					.gracePeriodEnd(now.plus( jobConfig.getRecheckGracePeriod() ))
 					.build()))
 
 			.flatMap(this::doSave);
@@ -321,12 +329,20 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			.collectMultimap(count -> count.getBibId().toString());
 	}
 	
+
+	@Retryable(attempts = "3", delay = "2.5", multiplier = "2")
+	protected Mono<AvailabilityReport> remoteBibFetch( BibRecord bib ) {
+		return liveAvailabilityService.checkBibAvailability(bib, TIMEOUT, FILTERS);
+	}
+	
 	private Flux<BibAvailabilityCount> checkSingleBib ( BibRecord bib ) {
-		return liveAvailabilityService.checkBibAvailability(bib, TIMEOUT, FILTERS)
-				.onErrorResume(e -> Mono.just(AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
-						.message("Error when fetching bib availability for [%s] %s".formatted(bib.getId().toString(), e))
-						.build())))
-				.flatMapMany( rep -> updateCountsFromAvailabilityReport(bib, rep) );
+		
+		return Mono.just( bib )
+			.flatMap(this::remoteBibFetch)
+			.onErrorResume(e -> Mono.just(AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
+					.message("Error when fetching bib availability for [%s] %s".formatted(bib.getId().toString(), e))
+					.build())))
+			.flatMapMany( rep -> updateCountsFromAvailabilityReport(bib, rep) );
 	}
 	
 	/**
@@ -420,30 +436,33 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			.build();		
 	}
 	
+	private long getGraceNanos() {
+		final Duration grace = jobConfig.getRecheckGracePeriod();
+		return grace.isNegative() ? grace.toNanos() * -1 : grace.toNanos();
+	}
+	
 	private Mono<JobChunk<MissingAvailabilityInfo>> getChunk( Optional<JsonNode> resumption ) {
 
 		log.info("Creating next chunk subscription");
 
-		final int totalConcurrency = jobConfig.getPageSize();
-		
-		final Duration grace = jobConfig.getRecheckGracePeriod();
-		
-		final long graceNanos = grace.isNegative() ? grace.toNanos() * -1 : grace.toNanos();
-		
+		final int pageSize = jobConfig.getPageSize();
 		final Instant updatedBefore = Instant.now()
-			.minusNanos(graceNanos);
+			.minusNanos( getGraceNanos() );
 		
-		log.info("Using configured values totalConcurrency:[{}], updatedBefore[{}]", totalConcurrency, updatedBefore);
+		log.info("Using configured values totalConcurrency:[{}], updatedBefore[{}]", pageSize, updatedBefore);
 		
-		return Mono.just( Tuples.of(totalConcurrency, updatedBefore) )
+		return Mono.just( Tuples.of(pageSize, updatedBefore) )
 			.doOnNext( _v -> log.debug ("Producing next set of availability lookup") )
+			
 			.flatMapMany( TupleUtils.function( bibRecordService::findMissingAvailability ))
+			.collectList()
+			.flatMapIterable( Function.identity() )
+			.reduceWith( this::defaultChunkBuilder, (builder, item) -> builder.dataEntry(item) )
+			.map( AvailabilityCheckChunkBuilder::build )
 			
 			// Temporarily adding a 50ms delay - steve to review
-			.delayElements(Duration.ofMillis(50))
-			.reduceWith( this::defaultChunkBuilder, (builder, item) -> builder.dataEntry(item) )
+			.delayElement(Duration.ofMillis(50))
 			
-			.map( AvailabilityCheckChunkBuilder::build )
 			.map( AvailabilityCheckJob::chunkPostProcess );
 	}
 	

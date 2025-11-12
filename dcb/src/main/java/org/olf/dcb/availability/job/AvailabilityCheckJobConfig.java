@@ -30,6 +30,11 @@ public interface AvailabilityCheckJobConfig {
   	Optional<Integer> getInstanceWide();
   }
 
+  @NonNull
+	@NotNull
+	@Bindable(defaultValue = "P30D")
+  Duration getMappedRecheckGracePeriod();
+  
 	@NonNull
 	@NotNull
 	@Bindable(defaultValue = "P7D")

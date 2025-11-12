@@ -38,8 +38,12 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 			SELECT bib_availability_count.id
 			FROM bib_availability_count
 			WHERE bib_availability_count.bib_id = bib_record.id
-				AND bib_availability_count.status != 'RECHECK_REQUIRED'
-				AND bib_availability_count.last_updated > :graceCutoff
+			AND (
+					bib_availability_count.status != 'RECHECK_REQUIRED'
+					AND (
+						bib_availability_count.grace_period_end > NOW()
+						OR (bib_availability_count.grace_period_end IS NULL
+					AND bib_availability_count.last_updated < :graceCutoff)))
 		)
 		ORDER BY contributes_to, bib_record.date_updated ASC NULLS FIRST
 		LIMIT :limit;""", nativeQuery = true)

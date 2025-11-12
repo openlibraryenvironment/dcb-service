@@ -62,4 +62,8 @@ public class BibAvailabilityCount {
 	@NonNull
 	@NotNull
 	private final Instant lastUpdated;
+
+	@NonNull
+	@NotNull
+	private final Instant gracePeriodEnd;
 }
