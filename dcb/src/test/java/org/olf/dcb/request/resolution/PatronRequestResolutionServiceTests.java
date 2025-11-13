@@ -34,12 +34,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -168,7 +169,7 @@ class PatronRequestResolutionServiceTests {
 		final var unavailableItemBarcode = "6256486473634";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			CheckedOutItem(unavailableItemId, unavailableItemBarcode),
+			checkedOutItem(unavailableItemId, unavailableItemBarcode),
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
@@ -265,8 +266,97 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldExcludeUnavailableItem() {
+	void shouldNotSelectsUnavailableManuallySelectedItem() {
 		// Arrange
+		disallowUnavaiableItems();
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "462655";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var unavailableItemId = "7685845";
+		final var unavailableItemBarcode = "2645535";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			checkedOutItem(unavailableItemId, unavailableItemBarcode),
+			// Any other item
+			availableItem("683855", "694828563", ITEM_LOCATION_CODE)
+		));
+
+		// Act
+		final var parameters = ResolutionParameters.builder()
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
+			.manualItemSelection(ManualItemSelection.builder()
+				.isManuallySelected(true)
+				.localItemId(unavailableItemId)
+				.hostLmsCode(CIRCULATING_HOST_LMS_CODE)
+				.agencyCode(SUPPLYING_AGENCY_CODE)
+				.build())
+			.build();
+
+		final var resolution = resolve(parameters);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem()
+		));
+	}
+
+	@Test
+	void shouldNotSelectsUnfoundManuallySelectedItem() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = "826559";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var notFoundItemId = "7274653";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, emptyList());
+
+		// Act
+		final var parameters = ResolutionParameters.builder()
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
+			.manualItemSelection(ManualItemSelection.builder()
+				.isManuallySelected(true)
+				.localItemId(notFoundItemId)
+				.hostLmsCode(CIRCULATING_HOST_LMS_CODE)
+				.agencyCode(SUPPLYING_AGENCY_CODE)
+				.build())
+			.build();
+
+		final var resolution = resolve(parameters);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem()
+		));
+	}
+
+	@Test
+	void shouldExcludeUnavailableItemWhenSettingDisabled() {
+		// Arrange
+		disallowUnavaiableItems();
+
 		final var bibRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
@@ -280,7 +370,7 @@ class PatronRequestResolutionServiceTests {
 		final var unavailableItemBarcode = "6256486473634";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			CheckedOutItem(unavailableItemId, unavailableItemBarcode)
+			checkedOutItem(unavailableItemId, unavailableItemBarcode)
 		));
 
 		// Act
@@ -363,7 +453,7 @@ class PatronRequestResolutionServiceTests {
 		final var unavailableItemBarcode = "6256486473634";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			CheckedOutItem(unavailableItemId, unavailableItemBarcode),
+			checkedOutItem(unavailableItemId, unavailableItemBarcode),
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		), 2000);
 
@@ -385,11 +475,10 @@ class PatronRequestResolutionServiceTests {
 		));
 	}
 
-
 	@Test
 	void shouldExcludeItemFromSameAgencyAsBorrowerWhenSettingIsDisabledForConsortia() {
 		// Arrange
-		consortiumFixture.createConsortiumWithFunctionalSetting(OWN_LIBRARY_BORROWING, false);
+		defineSetting(OWN_LIBRARY_BORROWING, false);
 
 		final var bibRecordId = randomUUID();
 
@@ -434,7 +523,7 @@ class PatronRequestResolutionServiceTests {
 	@Test
 	void shouldIncludeItemFromSameAgencyAsBorrowerWhenSettingIsEnabledForConsortia() {
 		// Arrange
-		consortiumFixture.createConsortiumWithFunctionalSetting(OWN_LIBRARY_BORROWING, true);
+		defineSetting(OWN_LIBRARY_BORROWING, true);
 
 		final var bibRecordId = randomUUID();
 
@@ -632,7 +721,7 @@ class PatronRequestResolutionServiceTests {
 		final var thirdAvailableItemBarcode = "876543210987";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			CheckedOutItem(unavailableItemId, unavailableItemBarcode),
+			checkedOutItem(unavailableItemId, unavailableItemBarcode),
 			availableItem(firstAvailableItemId, firstAvailableItemBarcode, ITEM_LOCATION_CODE),
 			availableItem(secondAvailableItemId, secondAvailableItemBarcode, ITEM_LOCATION_CODE),
 			availableItem(thirdAvailableItemId, thirdAvailableItemBarcode, ITEM_LOCATION_CODE)
@@ -714,11 +803,11 @@ class PatronRequestResolutionServiceTests {
 		final var availableItemBarcode = "76653672456";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode),
+			checkedOutItem(checkedOutItemId, checkedOutItemBarcode),
 			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		enableFunctionalSetting();
+		allowUnavailableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -764,11 +853,11 @@ class PatronRequestResolutionServiceTests {
 		final var itemBBarcode = "6256486473634";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			CheckedOutItem(itemAId, itemABarcode, Instant.parse("2024-12-18T00:00:00Z")),
-			CheckedOutItem(itemBId, itemBBarcode, Instant.parse("2024-12-01T00:00:00Z"))
+			checkedOutItem(itemAId, itemABarcode, Instant.parse("2024-12-18T00:00:00Z")),
+			checkedOutItem(itemBId, itemBBarcode, Instant.parse("2024-12-01T00:00:00Z"))
 		));
 
-		enableFunctionalSetting();
+		allowUnavailableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -809,7 +898,7 @@ class PatronRequestResolutionServiceTests {
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of());
 
-		enableFunctionalSetting();
+		allowUnavailableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -853,10 +942,10 @@ class PatronRequestResolutionServiceTests {
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			itemWithHolds(itemWithHoldsId, itemWithHoldsBarcode),
 			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE),
-			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
+			checkedOutItem(checkedOutItemId, checkedOutItemBarcode)
 		));
 
-		enableFunctionalSetting();
+		allowUnavailableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -918,7 +1007,7 @@ class PatronRequestResolutionServiceTests {
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			itemWithHolds(itemWithHoldsId, itemWithHoldsBarcode),
 			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE),
-			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
+			checkedOutItem(checkedOutItemId, checkedOutItemBarcode)
 		));
 
 		// Act
@@ -973,10 +1062,10 @@ class PatronRequestResolutionServiceTests {
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			itemWithHolds(itemWithHoldsId, itemWithHoldsBarcode),
 			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE),
-			CheckedOutItem(checkedOutItemId, checkedOutItemBarcode)
+			checkedOutItem(checkedOutItemId, checkedOutItemBarcode)
 		));
 
-		disableFunctionalSetting();
+		disallowUnavaiableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -1022,7 +1111,7 @@ class PatronRequestResolutionServiceTests {
 			unavailableItemWithHolds(unavailableItemWithHoldsId, unavailableItemWithHoldsBarcode)
 		));
 
-		enableFunctionalSetting();
+		allowUnavailableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -1062,7 +1151,7 @@ class PatronRequestResolutionServiceTests {
 			availableItem(availableItemId, availableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		enableFunctionalSetting();
+		allowUnavailableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -1104,7 +1193,7 @@ class PatronRequestResolutionServiceTests {
 			.build();
 	}
 
-	private SierraItem CheckedOutItem(String id, String barcode) {
+	private SierraItem checkedOutItem(String id, String barcode) {
 		return SierraItem.builder()
 			.id(id)
 			.barcode(barcode)
@@ -1120,7 +1209,7 @@ class PatronRequestResolutionServiceTests {
 
 
 	// Helper method to create a checked out item with a specific due date
-	private SierraItem CheckedOutItem(String id, String barcode, Instant dueDate) {
+	private SierraItem checkedOutItem(String id, String barcode, Instant dueDate) {
 		return SierraItem.builder()
 			.id(id)
 			.barcode(barcode)
@@ -1155,16 +1244,16 @@ class PatronRequestResolutionServiceTests {
 			.build();
 	}
 
-	private void enableFunctionalSetting() {
-		defineSetting(true);
+	private void allowUnavailableItems() {
+		defineSetting(SELECT_UNAVAILABLE_ITEMS, true);
 	}
 
-	private void disableFunctionalSetting() {
-		defineSetting(false);
+	private void disallowUnavaiableItems() {
+		defineSetting(SELECT_UNAVAILABLE_ITEMS, false);
 	}
 
-	private void defineSetting(boolean enabled) {
-		consortiumFixture.createConsortiumWithFunctionalSetting(SELECT_UNAVAILABLE_ITEMS, enabled);
+	private void defineSetting(FunctionalSettingType settingType, boolean enabled) {
+		consortiumFixture.createConsortiumWithFunctionalSetting(settingType, enabled);
 	}
 
 	@SafeVarargs

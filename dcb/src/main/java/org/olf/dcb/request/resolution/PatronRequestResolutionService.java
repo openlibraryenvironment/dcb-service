@@ -197,7 +197,9 @@ public class PatronRequestResolutionService {
 		final var itemSelection = getValueOrNull(resolution, Resolution::getParameters,
 			ResolutionParameters::getManualItemSelection);
 
-		return Mono.justOrEmpty(manualSelection.chooseItem(resolution.getAllItems(), itemSelection))
+		final List<Item> items = getValue(resolution, Resolution::getFilteredItems, emptyList());
+
+		return Mono.justOrEmpty(manualSelection.chooseItem(items, itemSelection))
 			.map(resolution::selectItem);
 	}
 
