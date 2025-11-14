@@ -213,7 +213,6 @@ public class BorrowingAgencyService {
 				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
 			});
 	}
-
 	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
 
 		final var localItemId = getValueOrNull(patronRequest, PatronRequest::getLocalItemId);
@@ -233,7 +232,8 @@ public class BorrowingAgencyService {
 				.flatMap(_client -> _client.deleteItem(deleteCommand))
 				// Catch a successful deletion of a virtual item
 				.flatMap(deleteResult -> {
-					final var message = "Delete virtual item : Success";
+					// Trying to provide more useful feedback
+					final var message = "Delete virtual item : Success - Result"+ deleteResult;
 					final var auditData = new HashMap<String, Object>();
 					auditData.put("localItemId", localItemId);
 					auditData.put("deleteResult", deleteResult);

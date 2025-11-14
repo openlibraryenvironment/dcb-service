@@ -1425,7 +1425,47 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// workflow PUT continue delete
 		// workflow PUT don't delete bib if last item
 		// ERROR PolarisWorkflowException
-		return ApplicationServices.deleteItemRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
+		return ApplicationServices.deleteItemRecord(id)
+				.flatMap(workflowResponse -> {
+					if (Objects.equals(workflowResponse.getWorkflowStatus(), ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully)) {
+						log.debug("Workflow success for item {}", id);
+						// The workflow can complete without the item necessarily being deleted
+						// Hence a success is not a definite indicator that the item definitely got deleted in Polaris
+						// We need to verify that it has been included in the deleted list
+						// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/delete_item_record
+						var answerData = Optional.ofNullable(workflowResponse.getAnswerExtension())
+							.map(ApplicationServicesClient.AnswerExtension::getAnswerData)
+							.orElse(null);
+
+						// More of a theoretical scenario than anything else, really
+						if (answerData == null) {
+							log.warn("Workflow for item {} completed successfully (Status: 1) but returned no AnswerExtension data. Unable to confirm virtual item deletion.", id);
+							return Mono.just("OK_WORKFLOW_NO_ANSWER");
+						}
+
+						// If our ID is in the deleted list, we're definitely all good
+						if (Optional.ofNullable(answerData.getDeletedRecordIds()).orElse(Collections.emptyList()).contains(id)) {
+							log.info("Successfully deleted item record {}", id);
+							return Mono.just("OK");
+						}
+
+						// Apparently IDs can also be in the blocked list.
+						// This is important as it would appear to be deleted, but it wouldn't actually have been deleted
+						if (Optional.ofNullable(answerData.getBlockedRecordIds()).orElse(Collections.emptyList()).contains(id)) {
+							log.warn("Workflow for item {} completed (Status: 1), but deletion was BLOCKED by Polaris.", id);
+							return Mono.just("OK_WORKFLOW_BLOCKED");
+						}
+						// Weirdly it wasn't in either list
+						log.warn("Polaris Workflow for item {} completed but ID was not present in the response", id);
+						return Mono.just("OK_WORKFLOW_ID_MISSING");
+					}
+					else
+					{
+						log.warn("deleteItemRecord for item {} completed with non-success status: {}. Response: {}", id, workflowResponse.getWorkflowStatus(), workflowResponse);
+						return Mono.just("OK"); // Appears there is a scenario where we don't get an immediate success response but we do still manage to delete the item
+					}
+			})
+			.defaultIfEmpty("ERROR");// And if the response is empty, assume it failed
 	}
 
 	@Override

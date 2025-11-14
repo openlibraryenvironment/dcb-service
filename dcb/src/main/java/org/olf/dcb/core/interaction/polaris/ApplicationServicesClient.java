@@ -1651,6 +1651,11 @@ class ApplicationServicesClient {
 		private ItemRecord itemRecord;
 		@JsonProperty("ILLRequestInfo")
 		private ILLRequestInfo iLLRequestInfo;
+		@JsonProperty("BlockedRecordIDs")
+		private List<String> blockedRecordIds;
+		@JsonProperty("DeletedRecordIDs")
+		private List<String> deletedRecordIds;
+
 	}
 
 	@Builder
