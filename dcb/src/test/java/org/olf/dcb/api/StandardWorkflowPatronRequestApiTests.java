@@ -780,7 +780,7 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat("Should no longer have an error message",
 			rolledBackPatronRequest.getErrorMessage(), Matchers.nullValue());
 		assertThat("Should set the next expected status",
-			rolledBackPatronRequest.getNextExpectedStatus(), is(RETURN_TRANSIT.getNextExpectedStatus()));
+			rolledBackPatronRequest.getNextExpectedStatus(), is(RETURN_TRANSIT.getNextExpectedStatus("RET-STD")));
 	}
 
 	private static Matcher<Object> isPlacedAtBorrowingAgency() {
