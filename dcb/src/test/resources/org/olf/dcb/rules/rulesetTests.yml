@@ -11,7 +11,18 @@ dcb:
           property: "metadata.record.fields.999.subfields.t"
           values: [ "1", "true" ]
           negated: true
-      
+    
+    folio998t:
+      type: "DISJUNCTIVE"
+      conditions: 
+        - operation: propertyPresent
+          property: "metadata.record.fields.998.subfields.t"
+          negated: true
+        - operation: propertyValueAnyOf
+          property: "metadata.record.fields.998.subfields.t"
+          negated: true
+          values: [ "1", "true" ]
+    
     sierraff31:
       type: DISJUNCTIVE
       conditions:
