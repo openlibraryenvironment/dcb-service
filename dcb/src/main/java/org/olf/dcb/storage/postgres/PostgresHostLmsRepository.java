@@ -22,8 +22,9 @@ import jakarta.transaction.Transactional;
 public interface PostgresHostLmsRepository extends ReactiveStreamsPageableRepository<DataHostLms, UUID>, 
                                                         ReactiveStreamsJpaSpecificationExecutor<DataHostLms>,
                                                         HostLmsRepository {
-
-        @NonNull
-        @SingleResult
-        Publisher<DataHostLms> findById(@NonNull UUID id);
+	
+	@NonNull
+	@Override
+	@SingleResult
+	Publisher<DataHostLms> findById(@NonNull UUID id);
 }
