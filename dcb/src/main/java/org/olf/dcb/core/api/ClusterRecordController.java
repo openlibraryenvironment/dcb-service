@@ -195,7 +195,7 @@ public class ClusterRecordController {
 
 	// TODO: These have been copied, see the comment in the area that is using them as we do not want copied values here
 	private static final String MATCHPOINT_ID = "id";
-	private static final List<String> namesspacesUsedForClustering = List.of("BLOCKING_TITLE","GOLDRUSH","ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" );
+	private static final List<String> namesspacesUsedForClustering = List.of("BLOCKING_TITLE","GOLDRUSH","GOLDRUSH::TITLE","ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" );
 	
 	@Operation(
 		summary = "Obtain match point details for a cluster",
