@@ -69,18 +69,18 @@ public class RulesetTests {
 	@BeforeEach
 	void setupFileSources() throws IOException {
 		if (folioSources == null) {
-			folioSources = parseJsonFile("folio-999texcluded.json");
+			folioSources = parseJsonFile("folio-source-data.json");
 		}
 		
 		if (sierraSources == null) {
 			sierraSources = parseJsonFile("sierra-records.json");
 		}
 	}
-	
 
 	@ParameterizedTest
-	@CsvSource({"excluded-explicitly,false", "excluded-explicitly-true,false", "included-explicitly,true", "included-missing-field,true", "included-missing-field-2,true"})
-	void testFolio99tSuppressionFromJSON( String propertyName, boolean expected ) throws IOException {
+	@CsvSource({"excluded-explicitly,false", "excluded-explicitly-true,false", "included-explicitly,true",
+		"included-missing-field,true", "included-missing-field-2,true", "test-998t-variant,true"})
+	void testFolio999tSuppressionFromJSON( String propertyName, boolean expected ) throws IOException {
 		
 		ObjectRuleset ruleset = ruleService.findByName("folio999t").block();
 		assertNotNull(ruleset);
@@ -95,10 +95,46 @@ public class RulesetTests {
 	}
 	
 	@ParameterizedTest
-	@CsvSource({"excluded-explicitly,false", "excluded-explicitly-true,false", "included-explicitly,true", "included-missing-field,true", "included-missing-field-2,true"})
-	void testFolio99tSuppressionFromObjects( String propertyName, boolean expected ) throws IOException {
+	@CsvSource({"excluded-explicitly,false", "excluded-explicitly-true,false", "included-explicitly,true",
+		"included-missing-field,true", "included-missing-field-2,true", "test-998t-variant,true"})
+	void testFolio999tSuppressionFromObjects( String propertyName, boolean expected ) throws IOException {
 		
 		ObjectRuleset ruleset = ruleService.findByName("folio999t").block();
+		assertNotNull(ruleset);
+		
+		JsonNode json = folioSources.get(propertyName);
+		OaiRecord target = conversionService.convertRequired(json, OaiRecord.class);
+
+		assertNotNull(target);
+		ArrayList<String> details = new ArrayList<>();
+		
+		boolean result = ruleset.test(new AnnotatedObject(target, details));
+		assertEquals(expected, result);
+	}
+	
+	@ParameterizedTest
+	@CsvSource({"excluded-explicitly,true", "excluded-explicitly-true,true", "included-explicitly,true",
+		"included-missing-field,true", "included-missing-field-2,true", "test-998t-variant,false"})
+	void testFolio998tSuppressionFromJSON( String propertyName, boolean expected ) throws IOException {
+		
+		ObjectRuleset ruleset = ruleService.findByName("folio998t").block();
+		assertNotNull(ruleset);
+		
+		JsonNode json = folioSources.get(propertyName);
+
+		assertNotNull(json);
+		
+		ArrayList<String> details = new ArrayList<>();
+		boolean result = ruleset.test(new AnnotatedObject(json, details));
+		assertEquals(expected, result);
+	}
+	
+	@ParameterizedTest
+	@CsvSource({"excluded-explicitly,true", "excluded-explicitly-true,true", "included-explicitly,true",
+		"included-missing-field,true", "included-missing-field-2,true", "test-998t-variant,false"})
+	void testFolio998tSuppressionFromObjects( String propertyName, boolean expected ) throws IOException {
+		
+		ObjectRuleset ruleset = ruleService.findByName("folio998t").block();
 		assertNotNull(ruleset);
 		
 		JsonNode json = folioSources.get(propertyName);

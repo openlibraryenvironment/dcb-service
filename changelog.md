@@ -1,5 +1,21 @@
 # Changelog
 
+## Version 8.57.0
+
+### Additions
+* [Availability]
+	* Longer default grace period for mapped items
+* [General]
+	* Accept any FOLIO transaction status during tracking
+
+### Fixes
+* [General]
+	* Handle more complicated cleanup scenarios [DCB-2076]
+	* Do not select unavailable manually selected item DCB-2082
+	* Use Polaris location to policy mapping when present
+	* Return cached status in live availability with statusCorrectAsOf
+	* Use reactive delay instead of sleep
+
 ## Version 8.56.0
 
 ### Additions
@@ -12,6 +28,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Added a couple more scenarios that we take into account in the sql
 	* Added some more errors that we can trap through sql
 	* DCB-2076 Added script for duplicate barcode detected

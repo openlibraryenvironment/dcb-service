@@ -1,18 +1,17 @@
 package org.olf.dcb.storage;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.DataHostLms;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Mono;
@@ -28,8 +27,7 @@ public interface HostLmsRepository {
 
 	@NonNull
 	@SingleResult
-	@Vetoed
-	Publisher<DataHostLms> findById(@NonNull UUID id);
+	public Publisher<DataHostLms> findById(@NonNull UUID id);
 
 	@NonNull
 	@SingleResult
@@ -66,4 +64,12 @@ where json_array_length(childlms.client_config::json->'roles') = 1 and
 		return Mono.from(existsById(hostLMS.getId()))
 			.flatMap(exists -> Mono.fromDirect(exists ? update(hostLMS) : save(hostLMS)));
 	}
+
+	@NonNull
+	@SingleResult
+	Publisher<Page<DataHostLms>> findAll(QuerySpecification<DataHostLms> spec, Pageable pageable);
+	
+	@NonNull
+	@SingleResult
+	Publisher<Page<DataHostLms>> findAll(Pageable pageable);
 }

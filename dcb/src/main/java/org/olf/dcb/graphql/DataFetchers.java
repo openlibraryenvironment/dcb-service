@@ -12,6 +12,7 @@ import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.clustering.model.*;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
+import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LibraryGroupMemberRepository;
 import org.olf.dcb.storage.postgres.*;
 import org.slf4j.Logger;
@@ -42,7 +43,7 @@ public class DataFetchers {
 	private final PostgresInactiveSupplierRequestRepository postgresInactiveSupplierRequestRepository;
 	private final AgencyGroupMemberRepository agencyGroupMemberRepository;
 	private final PostgresBibRepository postgresBibRepository;
-	private final PostgresHostLmsRepository postgresHostLmsRepository;
+	private final HostLmsRepository hostLmsRepository;
 	private final PostgresLocationRepository postgresLocationRepository;
 	private final PostgresAgencyGroupRepository postgresAgencyGroupRepository;
 	private final PostgresProcessStateRepository postgresProcessStateRepository;
@@ -84,7 +85,7 @@ public class DataFetchers {
 											PostgresSupplierRequestRepository postgresSupplierRequestRepository,
 											PostgresInactiveSupplierRequestRepository postgresInactiveSupplierRequestRepository,
 											PostgresBibRepository postgresBibRepository,
-											PostgresHostLmsRepository postgresHostLmsRepository,
+											HostLmsRepository hostLmsRepository,
 											PostgresLocationRepository postgresLocationRepository,
 											PostgresAgencyGroupRepository postgresAgencyGroupRepository,
 											PostgresProcessStateRepository postgresProcessStateRepository,
@@ -113,7 +114,7 @@ public class DataFetchers {
 		this.postgresSupplierRequestRepository = postgresSupplierRequestRepository;
 		this.postgresInactiveSupplierRequestRepository = postgresInactiveSupplierRequestRepository;
 		this.postgresBibRepository = postgresBibRepository;
-		this.postgresHostLmsRepository = postgresHostLmsRepository;
+		this.hostLmsRepository = hostLmsRepository;
 		this.postgresLocationRepository = postgresLocationRepository;
 		this.postgresAgencyGroupRepository = postgresAgencyGroupRepository;
 		this.postgresProcessStateRepository = postgresProcessStateRepository;
@@ -469,12 +470,12 @@ public class DataFetchers {
 
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, DataHostLms.class);
-                                return Mono.from(postgresHostLmsRepository.findAll(spec, pageable)).toFuture();
+                                return Mono.from(hostLmsRepository.findAll(spec, pageable)).toFuture();
                         }
 
                         log.debug("Returning simple clusterRecord list");
 
-                        return Mono.from(postgresHostLmsRepository.findAll(pageable)).toFuture();
+                        return Mono.from(hostLmsRepository.findAll(pageable)).toFuture();
                 };
         }
 
@@ -594,7 +595,7 @@ public class DataFetchers {
                         Location l = (Location) env.getSource();
 			if ( l.getHostSystem() != null ) {
                         	UUID hostSystemUUID = l.getHostSystem().getId();
-                        	return Mono.from(postgresHostLmsRepository.findById(hostSystemUUID)).toFuture();
+                        	return Mono.from(hostLmsRepository.findById(hostSystemUUID)).toFuture();
 			}
 			else {
 				Mono<DataHostLms> r = Mono.empty();
@@ -788,7 +789,7 @@ public class DataFetchers {
 			Agency a = (Agency) env.getSource();
 			if (a.getHostLms() != null) {
 				UUID hostSystemUUID = a.getHostLms().getId();
-				return Mono.from(postgresHostLmsRepository.findById(hostSystemUUID)).toFuture();
+				return Mono.from(hostLmsRepository.findById(hostSystemUUID)).toFuture();
 			} else {
 				Mono<DataHostLms> r = Mono.empty();
 				return r.toFuture();
@@ -824,7 +825,7 @@ public class DataFetchers {
 						if (agency != null) {
 							DataHostLms h = agency.getHostLms();
 							if (h != null) {
-								return Mono.from(postgresHostLmsRepository.findById(h.getId()))
+								return Mono.from(hostLmsRepository.findById(h.getId()))
 									.flatMap(hostLms -> {
 										ArrayList roles = (ArrayList) hostLms.getClientConfig().get("roles");
 										ArrayList context = (ArrayList) hostLms.getClientConfig().get("contextHierarchy");
@@ -833,7 +834,7 @@ public class DataFetchers {
 										{
 											String hostLmsCode = (String) context.get(1);
 											if (roles != null && roles.size() < 2) {
-												return Mono.from(postgresHostLmsRepository.findByCode(hostLmsCode));
+												return Mono.from(hostLmsRepository.findByCode(hostLmsCode));
 											}
 										}
 										return Mono.empty();

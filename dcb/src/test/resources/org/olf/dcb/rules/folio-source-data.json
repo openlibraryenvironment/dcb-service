@@ -2,7 +2,7 @@
 	"excluded-explicitly": {
 	  "header": {
 	    "datestamp": "2025-07-28T14:09:54Z",
-	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	    "identifier": "oai:redacted/058b473c-2439-520b-8688-6d9f01655cda"
 	  },
 	  "metadata": {
 	    "record": {
@@ -375,7 +375,7 @@
 	"included-explicitly": {
 	  "header": {
 	    "datestamp": "2025-07-28T14:09:54Z",
-	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	    "identifier": "oai:redacted/058b473c-2439-520b-8688-6d9f01655cda"
 	  },
 	  "metadata": {
 	    "record": {
@@ -748,7 +748,7 @@
 	"included-missing-field": {
 	  "header": {
 	    "datestamp": "2025-07-28T14:09:54Z",
-	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	    "identifier": "oai:redacted/058b473c-2439-520b-8688-6d9f01655cda"
 	  },
 	  "metadata": {
 	    "record": {
@@ -762,7 +762,7 @@
 	"excluded-explicitly-true": {
 	  "header": {
 	    "datestamp": "2025-07-28T14:09:54Z",
-	    "identifier": "oai:folio.org:cs00000002m012/058b473c-2439-520b-8688-6d9f01655cda"
+	    "identifier": "oai:redacted/058b473c-2439-520b-8688-6d9f01655cda"
 	  },
 	  "metadata": {
 	    "record": {
@@ -787,5 +787,437 @@
  	"included-missing-field-2": {
  		"header": {
 		}
-  }
+  },
+ 	"test-998t-variant": {
+    "header": {
+      "datestamp": "2025-11-18T05:13:22Z",
+      "identifier": "oai:redacted/052c4843-a135-55de-aae8-2898092bdce3"
+    },
+    "metadata": {
+      "record": {
+        "fields": [
+          {
+            "001": "mobiusin00002997064"
+          },
+          {
+            "005": "20251118051321.2"
+          },
+          {
+            "008": "151124s2015    mou      b    000 0 eng d"
+          },
+          {
+            "035": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "(Sirsi) u2529547"
+                }
+              ]
+            }
+          },
+          {
+            "035": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "(Sirsi) a2529547"
+                }
+              ]
+            }
+          },
+          {
+            "040": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "CALB"
+                },
+                {
+                  "b": "eng"
+                },
+                {
+                  "e": "rda"
+                },
+                {
+                  "c": "CALBC"
+                },
+                {
+                  "d": "UtOrBLW"
+                }
+              ]
+            }
+          },
+          {
+            "049": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "CALB"
+                }
+              ]
+            }
+          },
+          {
+            "050": {
+              "ind1": "1",
+              "ind2": "4",
+              "subfields": [
+                {
+                  "a": "LB2810.5"
+                },
+                {
+                  "b": "G74 2015"
+                }
+              ]
+            }
+          },
+          {
+            "100": {
+              "ind1": "1",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "Greco, Matthew F.,"
+                }
+              ]
+            }
+          },
+          {
+            "245": {
+              "ind1": "1",
+              "ind2": "0",
+              "subfields": [
+                {
+                  "a": "Accreditation for Faith Christian Academy /"
+                },
+                {
+                  "c": "Matthew F. Greco."
+                }
+              ]
+            }
+          },
+          {
+            "264": {
+              "ind1": "0",
+              "ind2": "1",
+              "subfields": [
+                {
+                  "a": "Kansas City, Missouri :"
+                },
+                {
+                  "b": "Calvary Bible College,"
+                },
+                {
+                  "c": "2015."
+                }
+              ]
+            }
+          },
+          {
+            "300": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "iii, 51 pages ;."
+                },
+                {
+                  "2": "8 cm."
+                }
+              ]
+            }
+          },
+          {
+            "336": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "text"
+                },
+                {
+                  "b": "txt"
+                },
+                {
+                  "2": "rdacontent."
+                }
+              ]
+            }
+          },
+          {
+            "337": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "unmediated"
+                },
+                {
+                  "b": "n"
+                },
+                {
+                  "2": "rdamedia."
+                }
+              ]
+            }
+          },
+          {
+            "338": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "volume"
+                },
+                {
+                  "b": "nc"
+                },
+                {
+                  "2": "rdacarrier."
+                }
+              ]
+            }
+          },
+          {
+            "490": {
+              "ind1": "1",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "Calvary Bible College thesis"
+                }
+              ]
+            }
+          },
+          {
+            "502": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "Project"
+                },
+                {
+                  "b": "(M.S. in Education) --"
+                },
+                {
+                  "c": "Calvary Theological Seminary"
+                },
+                {
+                  "d": "2015."
+                }
+              ]
+            }
+          },
+          {
+            "504": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "Includes bibliographical references (pages 49-51)."
+                }
+              ]
+            }
+          },
+          {
+            "650": {
+              "ind1": " ",
+              "ind2": "0",
+              "subfields": [
+                {
+                  "a": "Accreditation"
+                },
+                {
+                  "x": "K-12"
+                },
+                {
+                  "x": "Muslim"
+                }
+              ]
+            }
+          },
+          {
+            "650": {
+              "ind1": " ",
+              "ind2": "0",
+              "subfields": [
+                {
+                  "a": "Accreditation process."
+                }
+              ]
+            }
+          },
+          {
+            "650": {
+              "ind1": " ",
+              "ind2": "0",
+              "subfields": [
+                {
+                  "a": "Accreditation"
+                },
+                {
+                  "x": "Non-traditional classical school."
+                }
+              ]
+            }
+          },
+          {
+            "830": {
+              "ind1": " ",
+              "ind2": "0",
+              "subfields": [
+                {
+                  "a": "Calvary Bible College thesis."
+                }
+              ]
+            }
+          },
+          {
+            "907": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "4675749"
+                },
+                {
+                  "b": "kctowers"
+                },
+                {
+                  "z": "f"
+                }
+              ]
+            }
+          },
+          {
+            "991": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "a": "mob03102481"
+                }
+              ]
+            }
+          },
+          {
+            "998": {
+              "ind1": " ",
+              "ind2": " ",
+              "subfields": [
+                {
+                  "t": "1"
+                }
+              ]
+            }
+          },
+          {
+            "999": {
+              "ind1": "f",
+              "ind2": "f",
+              "subfields": [
+                {
+                  "i": "052c4843-a135-55de-aae8-2898092bdce3"
+                },
+                {
+                  "s": "02a4f1d5-b7ae-5c85-9bf8-537ba9a0def8"
+                },
+                {
+                  "t": "0"
+                }
+              ]
+            }
+          },
+          {
+            "952": {
+              "ind1": "f",
+              "ind2": "f",
+              "subfields": [
+                {
+                  "p": "Can circulate"
+                },
+                {
+                  "a": "Calvary University"
+                },
+                {
+                  "b": "Calvary University"
+                },
+                {
+                  "c": "CU Hilda Kroeker Library"
+                },
+                {
+                  "d": "CU Reference"
+                },
+                {
+                  "t": "0"
+                },
+                {
+                  "e": "REF THESIS LB2810.5 .G74 2015"
+                },
+                {
+                  "h": "Library of Congress classification"
+                },
+                {
+                  "i": "Reference"
+                },
+                {
+                  "m": "0002500679572"
+                },
+                {
+                  "n": "1"
+                }
+              ]
+            }
+          },
+          {
+            "952": {
+              "ind1": "f",
+              "ind2": "f",
+              "subfields": [
+                {
+                  "p": "Can circulate"
+                },
+                {
+                  "a": "Calvary University"
+                },
+                {
+                  "b": "Calvary University"
+                },
+                {
+                  "c": "CU Hilda Kroeker Library"
+                },
+                {
+                  "d": "CU Circulating"
+                },
+                {
+                  "t": "0"
+                },
+                {
+                  "e": "THESIS LB2810.5 .G74 2015"
+                },
+                {
+                  "h": "Library of Congress classification"
+                },
+                {
+                  "i": "Monograph"
+                },
+                {
+                  "m": "0002500679580"
+                },
+                {
+                  "n": "1"
+                }
+              ]
+            }
+          }
+        ],
+        "leader": "01219cam a2200337 i 4500"
+      }
+	  }
+	}
 }

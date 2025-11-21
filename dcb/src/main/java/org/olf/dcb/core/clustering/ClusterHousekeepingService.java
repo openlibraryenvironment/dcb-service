@@ -1,6 +1,7 @@
 package org.olf.dcb.core.clustering;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
@@ -8,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.storage.ClusterRecordRepository;
@@ -77,7 +79,7 @@ public class ClusterHousekeepingService {
 	 */
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	protected Flux<List<UUID>> prioritySubscription() {
+	protected Flux<Collection<UUID>> prioritySubscription() {
 		return Mono.fromSupplier( this::getDedupedPriorityBatch )
 			.expand( batch -> batch == null ? Mono.empty() : Mono.fromSupplier(this::getDedupedPriorityBatch))
 			.flatMap( list -> Flux.fromIterable(list)
@@ -86,12 +88,12 @@ public class ClusterHousekeepingService {
 	}
 	
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	protected Mono<List<UUID>> databaseEntitySubscription() {
+	protected Mono<Set<UUID>> databaseEntitySubscription() {
 		
 		log.info( "Next batch of up to [{}] from database", BATCH_SIZE );
 		return Flux.from( clusterRecordRepo.getClusterIdsWithOutdatedUnprocessedBibs(IngestService.getProcessVersion(), BATCH_SIZE) )
-			.collectList()
-			.filter( Predicate.not( List::isEmpty ));
+			.collect(Collectors.toUnmodifiableSet())
+			.filter( Predicate.not( Set::isEmpty ));
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)
