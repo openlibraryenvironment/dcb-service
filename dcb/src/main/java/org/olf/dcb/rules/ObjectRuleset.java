@@ -3,7 +3,6 @@ package org.olf.dcb.rules;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -243,11 +242,13 @@ public class ObjectRuleset implements Predicate<AnnotatedObject> {
 			JsonNode jsonObj = (JsonNode) obj;
 			
 			if (jsonObj.isValueNode()) {
+				var unwrapped = jsonObj.getValue();
+				
 				if (log.isTraceEnabled()) {
-					var unwrapped = jsonObj.getValue();
 					log.trace("Unwrapping JSON scalar resulted in [{}]", unwrapped);
-					return unwrapped;
 				}
+				
+				return unwrapped;
 			}
 			return obj;
 		}
