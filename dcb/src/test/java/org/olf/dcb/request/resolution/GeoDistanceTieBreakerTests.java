@@ -11,6 +11,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -210,7 +211,9 @@ public class GeoDistanceTieBreakerTests {
 		final var furthestAwayItemId = "651463";
 		final var furthestAwayItemBarcode = "76653672456";
 		final var furtherAwayItemLocationCode = "A";
-		final var furthestAwayItemDueDate = Instant.parse("2024-12-01T00:00:00Z");
+		// This is an overdue item, with a zero hold count.
+		// So it's going to have an availability date of "Now" + one default loan period
+		final var furthestAwayItemDueDate = Instant.now().plus(28, ChronoUnit.DAYS);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, furtherAwayItemLocationCode, marbleArchAgency.getCode());
@@ -219,12 +222,12 @@ public class GeoDistanceTieBreakerTests {
 		final var closestItemBarcode = "6256486473634";
 		final var closestItemLocationCode = "B";
 
-		// Is after the due date of the furthest away item
-		final var closestItemDueDate = Instant.parse("2024-12-15T00:00:00Z");
+		// This is not an overdue item. Hence, it should be after the due date of the furthest away item
+		// 84 days to be sure (3 default loan periods)
+		final var closestItemDueDate = Instant.now().plus(84, ChronoUnit.DAYS);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, closestItemLocationCode, chatsworthAgency.getCode());
-
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			createCheckedOutItem(furthestAwayItemId, furthestAwayItemBarcode,
 				furtherAwayItemLocationCode, furthestAwayItemDueDate),
