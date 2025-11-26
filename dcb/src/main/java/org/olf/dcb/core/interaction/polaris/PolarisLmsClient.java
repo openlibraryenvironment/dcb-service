@@ -40,6 +40,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpStatus;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.HostLmsService;
@@ -98,10 +103,6 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
@@ -1677,23 +1678,49 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.debug("Delete hold for Polaris. Patron ID {}, request ID {}", patronId, requestId);
 		if (requestId == null || patronId == null) {
 			log.error("DeleteCommand is missing required request ID or patronId. {}", deleteCommand);
-			return Mono.error(new MissingParameterException("DeleteCommand missing holdingsId or patronId"));
+			return Mono.error(new MissingParameterException("DeleteCommand missing requestId or patronId"));
 		}
 
 		// First we try to delete the hold.
+		// Please be aware that if the hold is pending, active, held or shipped, Polaris will return a 400 and won't let us delete it
+		// Polaris may also give us an 'unbreakable link' error when trying to delete a virtual item if we ignore this
+		// So if our first deletion attempt fails, we fall back to cancelling the hold and then we try and delete it again.
+		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/holdrequests/delete_holdrequest_local
 		return ApplicationServices.deleteHoldRequest(requestId)
 			.flatMap(deleteSucceeded -> {
 				if (Boolean.TRUE.equals(deleteSucceeded)) {
 					return Mono.just("OK_DELETED");
 				}
-				// If that doesn't work, we fall back to cancelling the hold on the virtual item.
-				// This will get rid of the 'unbreakable link' when we try to delete the virtual item without getting rid of the hold
-				log.warn("DELETE /holds/{} failed, falling back to cancel hold request.", requestId);
-				return this.cancelHoldRequest(CancelHoldRequestParameters.builder()
-					.patronId(patronId)
-					.localRequestId(requestId)
-					.build())
-					.map(cancelResult -> "OK_CANCELLED");
+				// If it's not succeeded and we don't know why, generic error
+				return Mono.just("ERROR");
+			})
+			.onErrorResume(HttpClientResponseException.class, error -> {
+				if (error.getStatus() == HttpStatus.BAD_REQUEST) {
+					log.info("Delete hold {} failed (Status 400). Hold likely in non-deletable status. Attempting to cancel then re-delete.", requestId);
+					return this.cancelHoldRequest(CancelHoldRequestParameters.builder()
+							.patronId(patronId)
+							.localRequestId(requestId)
+							.build())
+						.flatMap(cancelResult -> {
+							log.debug("Hold cancelled (Result: {}). Retrying delete for {}.", cancelResult, requestId);
+							return ApplicationServices.deleteHoldRequest(requestId);
+						})
+						.map(retrySucceeded -> {
+							if (Boolean.TRUE.equals(retrySucceeded)) {
+								return "OK_DELETED";
+							}
+							// Even if the second delete returns false, the hold is cancelled.
+							return "OK_CANCELLED";
+						})
+						// Fail-safe to OK_CANCELLED: as we have tried to break the link and Polaris might just be being a bit slow.
+						// This is being generous to Polaris: we may want to make this more strict in future.
+						.onErrorResume(retryError -> {
+							log.warn("Secondary delete failed for {}. Returning OK_CANCELLED.", requestId, retryError);
+							return Mono.just("OK_CANCELLED");
+						});
+				}
+				// Fallback if an error has fallen through somehow that we don't know about
+				return Mono.error(error);
 			});
 	}
 

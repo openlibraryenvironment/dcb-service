@@ -141,6 +141,7 @@ public class SupplyingAgencyService {
 		HoldOperation operation) {
 
 		final var supplierRequest = getValueOrNull(context, RequestWorkflowContext::getSupplierRequest);
+		final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
 		final var hostLmsCode = getValueOrNull(supplierRequest, SupplierRequest::getHostLmsCode);
 		final var localRequestId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
 		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
@@ -149,7 +150,6 @@ public class SupplyingAgencyService {
 		log.info("WORKFLOW attempting to {} local supplier hold :: {}", operationDescription, supplierRequest);
 
 		if (hostLmsCode == null || localRequestId == null) {
-			final var patronRequest = getValueOrNull(context, RequestWorkflowContext::getPatronRequest);
 
 			log.error("WORKFLOW could not {} supplier hold :: hostLmsCode={} localRequestId={}",
 				operationDescription, hostLmsCode, localRequestId);
@@ -177,7 +177,26 @@ public class SupplyingAgencyService {
 							.requestId(localRequestId)
 							// If the original supplier patron ID is not available (Polaris), use the virtual patron's local ID to make sure we delete the hold.
 							.patronId(supplierPatronId ==  null || supplierPatronId.isBlank() ? virtualLocalId : supplierPatronId)
-							.build());
+							.build())	.flatMap(deleteResult -> {
+							// There are different success variations that we need to handle for some LMS
+							// i.e. if we've not been able to delete the hold but we successfully cancelled it instead, that's worth noting
+							// Polaris is the primary example: it doesn't always let us delete the hold and then it stops us deleting the item
+							final String message;
+							if ("OK_CANCELLED".equals(deleteResult)) {
+								message = "Delete supplier hold request : Success (Fallback Cancel)";
+							} else if ("OK_DELETED".equals(deleteResult)) {
+								message = "Delete supplier hold request : Success (Deleted)";
+							} else {
+								// For the standard "OK" for systems where we don't need to have the fallback.
+								// This is the most common outcome.
+								message = "Delete supplier hold request : Success";
+							}
+							final var auditData = new HashMap<String, Object>();
+							auditData.put("localRequestId", localRequestId);
+							auditData.put("deleteResult", deleteResult);
+							return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+								.thenReturn(deleteResult);
+						});
 					case CANCEL:
 						// For cancel operation, we need additional parameters
 						final var localItemId = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemId);
