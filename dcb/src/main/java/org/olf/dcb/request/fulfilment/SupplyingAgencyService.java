@@ -170,9 +170,13 @@ public class SupplyingAgencyService {
 			.flatMap(client -> {
 				switch (operation) {
 					case DELETE:
+						final var virtualIdentity = getValueOrNull(context, RequestWorkflowContext::getPatronVirtualIdentity);
+						final var virtualLocalId = virtualIdentity.getLocalId();
+						log.debug("Deleting hold - Supplier patron ID {} and virtual local ID{}", supplierPatronId, virtualLocalId);
 						return client.deleteHold(DeleteCommand.builder()
 							.requestId(localRequestId)
-							.patronId(supplierPatronId)
+							// If the original supplier patron ID is not available (Polaris), use the virtual patron's local ID to make sure we delete the hold.
+							.patronId(supplierPatronId ==  null || supplierPatronId.isBlank() ? virtualLocalId : supplierPatronId)
 							.build());
 					case CANCEL:
 						// For cancel operation, we need additional parameters
