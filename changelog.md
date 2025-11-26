@@ -1,5 +1,19 @@
 # Changelog
 
+## Version 8.58.0
+
+### Additions
+* [Database]
+	* Added indexes to bib_record
+
+### Fixes
+* [Cluster   Housekeeping]
+	* Improve query time.
+* [General]
+	* Ruleset not unwrapping JSON scalars.
+	* Updated the matchPointDetails endpoint, so that it nows take into account the goldrush::title
+	* Grace period should be nullable as existing values will be null
+
 ## Version 8.57.0
 
 ### Additions
@@ -7,6 +21,10 @@
 	* Longer default grace period for mapped items
 * [General]
 	* Accept any FOLIO transaction status during tracking
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
