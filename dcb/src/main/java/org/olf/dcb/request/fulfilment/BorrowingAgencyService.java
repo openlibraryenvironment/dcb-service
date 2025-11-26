@@ -233,7 +233,7 @@ public class BorrowingAgencyService {
 				// Catch a successful deletion of a virtual item
 				.flatMap(deleteResult -> {
 					// Trying to provide more useful feedback
-					final var message = "Delete virtual item : Success - Result"+ deleteResult;
+					final var message = "Delete virtual item : Success - Result "+ deleteResult;
 					final var auditData = new HashMap<String, Object>();
 					auditData.put("localItemId", localItemId);
 					auditData.put("deleteResult", deleteResult);

@@ -245,7 +245,8 @@ class ApplicationServicesClient {
 
 		final var path = createPath("holds", holdId);
 		return createRequest(DELETE, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
+			.flatMap(request -> client.exchange(request, Boolean.class, FALSE))
+			.map(HttpResponse::body)
 			.doOnSuccess(bool -> {
 				if (Boolean.TRUE.equals(bool)) {
 					log.info("Successfully deleted hold request {}", holdId);
@@ -253,8 +254,24 @@ class ApplicationServicesClient {
 					log.warn("Deleting hold request {} returned false.", holdId);
 				}
 			})
+			// Deal with the HTTP errors
+			.onErrorResume(HttpClientResponseException.class, error -> {
+				// A 400 here usually means that the hold is in a status that does not allow deletion
+				// So it needs to be cancelled first
+				if (error.getStatus() == HttpStatus.BAD_REQUEST) {
+					return Mono.error(error);
+				}
+
+				// Any other HTTP error - fail-safely to FALSE
+				// There might be a case for handling a 404 separately (hold can't be found) - as someone could have beaten us to it
+				// But for now we will fail safe and just class it as an error
+				log.error("Failed to delete hold request {} from LMS {}", holdId, client.getHostLmsCode(), error);
+				return Mono.just(FALSE);
+			})
+			// Deal with the non HTTP errors
 			.onErrorResume(error -> {
-				log.error("Failed to delete hold request {} from lms {}", holdId, client.getHostLmsCode(), error);
+				if (error instanceof HttpClientResponseException) return Mono.error(error);
+				log.error("Failed to delete hold request {} from LMS {}", holdId, client.getHostLmsCode(), error);
 				return Mono.just(FALSE);
 			});
 	}

@@ -25,6 +25,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasLocationCode;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -853,8 +854,8 @@ class PatronRequestResolutionServiceTests {
 		final var itemBBarcode = "6256486473634";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			checkedOutItem(itemAId, itemABarcode, Instant.parse("2024-12-18T00:00:00Z")),
-			checkedOutItem(itemBId, itemBBarcode, Instant.parse("2024-12-01T00:00:00Z"))
+			checkedOutItem(itemAId, itemABarcode,Instant.now().plus(84, ChronoUnit.DAYS)), // CHECKED_OUT item due to be returned 84 days from now (3 DEFAULT_LOAN_PERIODS)
+			checkedOutItem(itemBId, itemBBarcode, Instant.parse("2024-12-01T00:00:00Z")) // Overdue item with 0 hold count. DEFAULT_LOAN_PERIOD (28 days) will be applied for availability date
 		));
 
 		allowUnavailableItems();
