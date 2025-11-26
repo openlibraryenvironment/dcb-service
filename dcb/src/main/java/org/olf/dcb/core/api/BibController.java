@@ -1,13 +1,19 @@
 package org.olf.dcb.core.api;
 
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.UUID;
 
+import org.olf.dcb.core.audit.ProcessAuditService;
+import org.olf.dcb.core.audit.model.ProcessAuditLogEntry;
 import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.security.RoleNames;
 
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.annotation.Controller;
@@ -33,10 +39,12 @@ public class BibController {
 
 	private final BibRecordService bibService;
 	private final RecordClusteringService recordClusteringService;
+	private final ProcessAuditService processAuditService;
 
-	public BibController(BibRecordService bibService, RecordClusteringService recordClusteringService) {
+	public BibController(BibRecordService bibService, RecordClusteringService recordClusteringService, ProcessAuditService processAuditService) {
 		this.bibService = bibService;
 		this.recordClusteringService = recordClusteringService;
+		this.processAuditService = processAuditService;
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -58,6 +66,14 @@ public class BibController {
 	@Get("/{id}")
 	public Mono<BibRecord> show(UUID id) {
 		return bibService.getById(id);
+	}
+
+	@NonNull
+	@Get("/{id}/audit-log")
+	public Mono<Map<@NonNull String, @NonNull Collection<ProcessAuditLogEntry>>> auditLog(@NonNull final UUID id) {
+		return processAuditService.getProcessAudits(id)
+			.sort( Comparator.comparing(ProcessAuditLogEntry::getTimestamp) )
+			.collectMultimap(ProcessAuditLogEntry::getProcessType);
 	}
 
 	@Transactional( readOnly = true )

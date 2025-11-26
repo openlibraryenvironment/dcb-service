@@ -15,7 +15,10 @@ import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.MatchPointRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.util.StringUtils;
@@ -29,14 +32,14 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 @Requires(bean = ImprovedRecordClusteringService.class)
-public class MatchpointGenerator {
+public class MatchpointService {
 	public static final String MATCHPOINT_ID = "id";
 	private static final Pattern PATTERN_WILCARD = Pattern.compile("\\*");
 	
 	public static final Predicate<String> HIGH_CERTAINTY_IDS = Stream.of(
 			"GOLDRUSH", "ONLY-ISBN-13", "ISSN-N", "LCCN", "OCOLC", "STRN" )
 			
-		.map( MatchpointGenerator::toPredicate )
+		.map( MatchpointService::toPredicate )
 		.reduce( Predicate::or )
 		.get();
 	
@@ -44,7 +47,7 @@ public class MatchpointGenerator {
 	public static final Predicate<String> OTHER_IDS = Stream.of(
 			"BLOCKING_TITLE", "GOLDRUSH::TITLE", "ISBN-N") 
 			
-		.map( MatchpointGenerator::toPredicate )
+		.map( MatchpointService::toPredicate )
 		.reduce( Predicate::or )
 		.get();
 	
@@ -66,10 +69,13 @@ public class MatchpointGenerator {
 	
 	private final BibRecordService bibRecords;
 	private final MatchPointRepository matchPointRepository;
+
+	private final BibRepository bibRepository;
 	
-	public MatchpointGenerator(MatchPointRepository matchPointRepository, BibRecordService bibRecords) {
+	public MatchpointService(MatchPointRepository matchPointRepository, BibRecordService bibRecords, BibRepository bibRepository) {
 		this.bibRecords = bibRecords;
 		this.matchPointRepository = matchPointRepository;
+		this.bibRepository = bibRepository;
 	}
 	
 	private boolean completeIdentifiersPredicate ( BibIdentifier bibId ) {
@@ -163,5 +169,10 @@ public class MatchpointGenerator {
           // Include and value not already present
 					.filter( mp -> !current_bib_match_points.contains( mp.getValue() ) )
 					.toList());
+	}
+
+	@Transactional(propagation = Propagation.MANDATORY)
+	public Flux<MatchPoint> getMatchesByDerrivedType(String derrivedType, Collection<UUID> matchPointValues) {
+		return Flux.from(matchPointRepository.getMatchesByDerrivedType(derrivedType, matchPointValues));
 	}
 }

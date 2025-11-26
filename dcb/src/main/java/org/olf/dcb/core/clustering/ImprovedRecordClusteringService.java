@@ -3,9 +3,11 @@ package org.olf.dcb.core.clustering;
 import static services.k_int.utils.TupleUtils.curry;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,7 +26,8 @@ import java.util.stream.DoubleStream;
 import java.util.stream.Stream;
 
 import org.apache.commons.codec.language.DoubleMetaphone;
-import org.olf.dcb.core.clustering.matching.MatchpointGenerator;
+import org.olf.dcb.core.audit.ProcessAuditService;
+import org.olf.dcb.core.clustering.matching.MatchpointService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.BibRecord;
@@ -47,10 +50,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
-import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.retry.annotation.Retryable;
-import io.micronaut.scheduling.TaskExecutors;
-import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionDefinition.Propagation;
 import io.micronaut.transaction.annotation.Transactional;
 import io.micronaut.transaction.reactive.ReactiveTransactionStatus;
@@ -58,10 +58,10 @@ import jakarta.inject.Singleton;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
+import services.k_int.events.ReactiveTransactionalBehaviours;
 import services.k_int.features.FeatureFlag;
 
 @Singleton
@@ -84,23 +84,24 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 	private final Optional<SourceRecordService> sourceRecordService;
 	private final BeanProvider<SharedIndexService> sharedIndexService;
 	private final BibRecordService bibRecords;
-	private final R2dbcOperations operations;
-	private final MatchpointGenerator matchpointGenerator;
+	private final MatchpointService matchpointService;
+	private final ReactiveTransactionalBehaviours transactionalBehaviours;
+	private final ProcessAuditService processAuditService; 
 
 	public ImprovedRecordClusteringService(
 			ClusterRecordRepository clusterRecordRepository,
 			BibRecordService bibRecordService,
 			Environment environment,
 			MatchPointRepository matchPointRepository,
-			R2dbcOperations operations,
 			Optional<SourceRecordService> sourceRecordService,
-			BeanProvider<SharedIndexService> sharedIndexService, MatchpointGenerator matchpointGenerator) {
+			BeanProvider<SharedIndexService> sharedIndexService, MatchpointService matchpointservice, ReactiveTransactionalBehaviours transactionalBehaviours, ProcessAuditService genericAuditService) {
 		this.clusterRecords = clusterRecordRepository;
 		this.sourceRecordService = sourceRecordService;
 		this.sharedIndexService = sharedIndexService;
 		this.bibRecords = bibRecordService;
-		this.operations = operations;
-		this.matchpointGenerator = matchpointGenerator;
+		this.matchpointService = matchpointservice;
+		this.transactionalBehaviours = transactionalBehaviours;
+		this.processAuditService = genericAuditService;
 
 		log.info("***** Using Improved Clustering Service *****");
 	}
@@ -147,63 +148,19 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 				.flatMap(current ->
 				// Create a new record for the deleted item.
 				Mono.just(ClusterRecord.builder()
-						.id(current.getId())
-						.dateCreated(current.getDateCreated())
-						.isDeleted(true)
-						.build())
+					.id(current.getId())
+					.dateCreated(current.getDateCreated())
+					.isDeleted(true)
+					.build())
 
-						.flatMap(deleted -> this.saveOrUpdate(deleted)
-								.thenReturn(deleted))
-						.doOnNext(cr -> log.debug("Soft deleted cluster {}", cr.getId())));
+					.flatMap(deleted -> this.saveOrUpdate(deleted)
+							.thenReturn(deleted))
+					.doOnNext(cr -> log.debug("Soft deleted cluster {}", cr.getId())));
 	}
 
 	final Map<ReactiveTransactionStatus<?>, ConcurrentLinkedQueue<Runnable>> events = new ConcurrentHashMap<>();
 
 	final Map<ReactiveTransactionStatus<?>, Mono<Void>> trxWatchers = new ConcurrentHashMap<>();
-
-	@Transactional(propagation = Propagation.MANDATORY)
-	@ExecuteOn(TaskExecutors.BLOCKING)
-	protected Mono<Void> onCommittal(Runnable runnable) {
-
-		return Mono.from(operations.withTransaction(status -> {
-			var queue = events.computeIfAbsent(status, (s) -> {
-				log.trace("Creating list of events for transaction {}", s.toString());
-				return new ConcurrentLinkedQueue<>();
-			});
-			queue.add(runnable);
-
-			trxWatchers.computeIfAbsent(status, sts -> {
-				var watcher = Mono.just(sts)
-					.publishOn(Schedulers.boundedElastic())
-					.subscribeOn(Schedulers.boundedElastic())
-					.repeat()
-					.skipUntil(s -> s.isCompleted())
-					.next()
-					.map(s -> {
-						if (!s.isRollbackOnly()) {
-							log.trace("Transaction [{}] committal. Running events.", s.toString());
-							events.get(s).forEach(Runnable::run);
-						} else {
-							log.info("Transaction [{}] rollback, skipping events.", s.toString());
-						}
-						return s;
-					})
-					.then()
-					.doFinally(_signal -> {
-						log.trace("Clean up transactional event queues for [{}]", sts);
-						trxWatchers.remove(sts);
-						events.remove(sts);
-					});
-
-				watcher.subscribe(_v -> {
-				}, err -> log.error("Error watching for index update on committal", err));
-
-				return watcher;
-			});
-
-			return Mono.empty();
-		}));
-	}
 
 	@Override
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -267,13 +224,12 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 						.map(coll -> coll.iterator().next())
 						.collect(Collectors.toList());
 
-				// The list contains the sorted (weighted) matches via the match points. We
-				// should add the current
-				// cluster as the lowest weighted cluster, if it wasn't matched by the points.
-				// This is likely because the
-				// previously seen bib was not matched, because the data had changed so much. If
-				// we don't add this cluster,
-				// it would be left in the database in circumstances, as an orphan.
+				// The list contains the sorted (weighted) matches via the match points. We should
+				// add the current cluster as the lowest weighted cluster, if it wasn't matched by
+				// the points.
+				// This is likely because the previously seen bib was not matched, because the data
+				// had changed so much. If we don't add this cluster, it would be left orphaned in
+				// the database in certain circumstances.
 				currentCluster
 						.filter(current -> !ocurrences.containsKey(current.getId().toString()))
 						.ifPresent(sortedOccurences::add);
@@ -283,7 +239,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 			.flatMap(prioritisedClusters -> {
 
 				if (prioritisedClusters.size() == 0) {
-					log.trace("Didn't match any clusters in the databse and no current cluster. Requires new.");
+					log.trace("Didn't match any clusters in the database and no current cluster. Requires new.");
 					return Mono.empty();
 				}
 
@@ -292,21 +248,61 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 				if (prioritisedClusters.size() == 0) {
 
 					if (log.isTraceEnabled() && currentCluster.isPresent()) {
-						log.trace("Matched [{}], which is existing cluster");
+						log.trace("Matched [{}], which is the current cluster");
 					} else {
 						log.trace("Matched [{}]", primary.getId());
 					}
 
-					return Mono.just(primary);
+					return Mono.just(primary)
+						.flatMap(processAuditService.withAuditMessage("Matched single cluster [%s]"
+							.formatted(primary.getId())));
 				}
 
 				if (log.isDebugEnabled()) {
 					log.debug("Matched [{}], and need to absorb [{}]", primary.getId(), prioritisedClusters.stream()
 							.map(cr -> cr.getId().toString()).collect(Collectors.joining(" ,")));
 				}
-				return mergeClusterRecords(primary, prioritisedClusters);
+				
+				return processAuditService.auditMessage("Matched cluster [%s] (merging with [%d] other clusters)".formatted(primary.getId(), prioritisedClusters.size()))
+					.then(mergeClusterRecords(primary, prioritisedClusters));
 
 			});
+	}
+
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Mono<ClusterRecord> doSaveOrUpdate( final ClusterRecord cluster, boolean isUpdate ) {
+		final Function<ClusterRecord, Publisher<? extends ClusterRecord>> saveMethod = isUpdate
+				? clusterRecords::update
+				: clusterRecords::save;
+
+		final Mono<ClusterRecord> saveChain = Mono.just(cluster)
+				.map(saveMethod)
+				.flatMap(Mono::from);
+
+		if (!sharedIndexService.isPresent()) {
+			return saveChain;
+		}
+
+		return saveChain
+			.transform(transactionalBehaviours.doOnCommittal(c -> {
+				final UUID id = c.getId();
+
+				if (Boolean.TRUE.equals(c.getIsDeleted())) {
+					log.debug("Delete index for record [{}]", id);
+					sharedIndexService.get().delete(c.getId());
+					return;
+				}
+
+				if (isUpdate) {
+					log.debug("Update index for record [{}]", id);
+					sharedIndexService.get().update(id);
+					return;
+				}
+
+				// Addition
+				log.debug("Add index for record [{}]", id);
+				sharedIndexService.get().add(c.getId());
+			}));
 	}
 
 	@Override
@@ -314,42 +310,8 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 	public Mono<ClusterRecord> saveOrUpdate(final ClusterRecord cluster) {
 
 		return Mono.just(cluster)
-				.zipWhen(cr -> Mono.from(clusterRecords.existsById(cr.getId())))
-				.flatMap(TupleUtils.function((cr, update) -> {
-					final Function<ClusterRecord, Publisher<? extends ClusterRecord>> saveMethod = update
-							? clusterRecords::update
-							: clusterRecords::save;
-
-					final Mono<ClusterRecord> saveChain = Mono.just(cr)
-							.map(saveMethod)
-							.flatMap(Mono::from);
-
-					if (!sharedIndexService.isPresent()) {
-						return saveChain;
-					}
-
-					return saveChain
-						.flatMap(c -> onCommittal(() -> {
-							final UUID id = c.getId();
-
-							if (Boolean.TRUE.equals(c.getIsDeleted())) {
-								log.trace("Delete index for record [{}]", id);
-								sharedIndexService.get().delete(cr.getId());
-								return;
-							}
-
-							if (update) {
-								log.trace("Update index for record [{}]", id);
-								sharedIndexService.get().update(id);
-								return;
-							}
-
-							// Addition
-							log.trace("Add index for record [{}]", id);
-							sharedIndexService.get().add(c.getId());
-						})
-						.thenReturn(c));
-				}));
+			.zipWhen(cr -> Mono.from(clusterRecords.existsById(cr.getId())))
+			.flatMap(TupleUtils.function(this::doSaveOrUpdate));
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -358,15 +320,14 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 		// Save the cluster
 		return Mono.just(cluster)
-				.flatMap(this::saveOrUpdate)
-				// Update the contribution and save the bib
-				.zipWhen(cr -> Mono.just(bib.setContributesTo(cr))
-						.flatMap(bibRecords::saveOrUpdate))
-
-				// We can do some things at the same time.
-				.flatMap(TupleUtils.function((cr, br) ->
+			.flatMap(this::saveOrUpdate)
+			// Update the contribution and save the bib
+			.zipWhen(cr -> Mono.just(bib.setContributesTo(cr))
+				.flatMap(bibRecords::saveOrUpdate))
+			// We can do some things at the same time.
+			.flatMap(TupleUtils.function((cr, br) ->
 				// Reconcile the matchpoints and elect the primary bib on the matched cluster
-				Mono.zip(matchpointGenerator.reconcileMatchPoints(currentMatchPoints, br), electSelectedBib(cr))
+				Mono.zip(matchpointService.reconcileMatchPoints(currentMatchPoints, br), electSelectedBib(cr))
 						.thenReturn(Tuples.of(br, cr))));
 	}
 
@@ -390,49 +351,40 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 			.toList();
 		
 		return Flux.from( clusterRecords.getClusterIdsWithBibsPriorToVersionInList(IngestService.getProcessVersion(), allClusters))
+			.transformDeferred(transactionalBehaviours.doOnCommittal(cluster -> {
+				priorityReprocessingQueue.offer(cluster.toString());
+			}))
+			.flatMap(processAuditService.withAuditMessage( c -> "Cluster [%s] contains outdated bibs, flag for reprocessing and ignore match at this time".formatted(c) ))
 			.collectList()
-			
-			// Register an on commit listener to register the clusters for reprocessing,
-			// and return the filtered list of matches.
-			// Doing it on commit should ensure that this process is finished and reflected in the database
-			// before we attempt to split related clusters.
-			.flatMap( clustersToReprocess -> onCommittal(
-				() -> {
-					// Register clusters needing reprocessing.
-					clustersToReprocess.stream()
-					.map(Objects::nonNull)
-					.map(Objects::toString)
-						.forEach(priorityReprocessingQueue::offer);
-				})
-
-				.thenMany(Flux.fromIterable( potentialMatches )
-			  	.filter(cr -> !clustersToReprocess.contains( cr.getId() )))
-				.collectList()
-				.map(matches -> Tuples.of(matches, currentCluster)));
+			.flatMapMany( clustersToReprocess -> Flux.fromIterable( potentialMatches )
+		  	.filter(cr -> !clustersToReprocess.contains( cr.getId() )))
+			.collectList()
+			.map(matches -> Tuples.of(matches, currentCluster));
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<Tuple2<BibRecord, ClusterRecord>> clusterUsingMatchPoints(BibRecord bib,
 			Collection<MatchPoint> matchPoints) {
 		return matchClusters(bib, matchPoints)
-				.collectList()
-				.zipWith(bibRecords.getClusterRecordForBib(bib.getId()).singleOptional())
-				// Check to see if we want to reprocess any of these cluster records.
-				// We need to if they contain any bibs not on the latest processing version.
-				
-				// Simply filter out those cluster records, allowing this bib to only match with
-				// Up-to-date entries. Preserve the list and
-				.flatMap(TupleUtils.function( this::filterOutdatedClustersAndReprocess ))
-				.flatMap(curry(matchPoints.size(), this::reduceClusterRecords))
-				.switchIfEmpty(Mono.just(bib)
-						.map(this::newOrExistingClusterRecord))
-				.flatMap(curry(bib, matchPoints, this::updateBibAndClusterData));
+			.collectList()
+			.zipWith(bibRecords.getClusterRecordForBib(bib.getId()).singleOptional())
+			// Check to see if we want to reprocess any of these cluster records.
+			// We need to if they contain any bibs not on the latest processing version.
+			
+			// Simply filter out those cluster records, allowing this bib to only match with
+			// Up-to-date entries.
+			.flatMap( TupleUtils.function( this::filterOutdatedClustersAndReprocess ))
+			.flatMap( curry(matchPoints.size(), this::reduceClusterRecords) )
+			.switchIfEmpty(Mono.just(bib)
+				.flatMap(processAuditService.withAuditMessage("No existing cluster, create a new one"))
+				.map(this::newOrExistingClusterRecord))
+			.flatMap( curry(bib, matchPoints, this::updateBibAndClusterData) );
 	}
 
 	private ClusterRecord newOrExistingClusterRecord(BibRecord bib) {
 		if (bib.getContributesTo() != null) {
 			log.warn(
-					"Asked to create a new cluster record because no other clustebetter rs matched, but the record already points at a cluster");
+					"Asked to create a new cluster record because no other clusters matched, but the record already points at a cluster");
 		}
 		return newClusterRecord(bib);
 	}
@@ -441,7 +393,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 	protected Mono<Map<String, MatchPoint>> findAllCandidateMatchPoints(BibRecord bib, Collection<UUID> pointValues) {
 
 		// Fetch all the candidate match points.
-		return matchpointGenerator.getAllCandidateMatchpointHits(bib, pointValues)
+		return matchpointService.getAllCandidateMatchpointHits(bib, pointValues)
 				.collectMap(mp -> mp.getValue().toString());
 	}
 
@@ -449,7 +401,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 		final String domain = mp.getDomain().toUpperCase();
 
-		if (MatchpointGenerator.HIGH_CERTAINTY_IDS.test(domain))
+		if (MatchpointService.HIGH_CERTAINTY_IDS.test(domain))
 			return MatchConfidence.HIGH;
 
 		return MatchConfidence.LOW;
@@ -473,7 +425,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 			.orElse(0);
 	}
 
-	protected double doDeeperBibComparison(BibRecord reference, BibRecord candidate) {
+	protected double compareBlockingTitles(BibRecord reference, BibRecord candidate) {
 		
 		// Compare the blocking titles.
 		String refTitle = StringUtils.trimToNull( reference.getBlockingTitle() );
@@ -502,10 +454,15 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 		return Mono.just(clusterBibs)
 			.flatMapMany(bibs -> {
+//				final Set<ClusterRecord> matches = new HashSet<>();
 				final Set<ClusterRecord> matches = new HashSet<>();
+				final List<String> auditLog = new ArrayList<>();
 
 				bibs.forEach((candidate, points) -> {
-						
+					
+					if (candidate.getContributesTo() == null)
+						return;
+					
 					if (matches.contains(candidate.getContributesTo()))
 						return;
 
@@ -533,17 +490,21 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 					// If we have a none title match but no title match... We can compare by reading
 					// in the candidate data
 					if (hasNoneTitleMatch) {
+						auditLog.add("One or more low confidence matches with bib [%s], check title-type properties...".formatted(candidate.getId()));
+						
 						if (hasTitleMatch) {
 							// Add the cluster record as a match and return.
+							auditLog.add("Exact match on at least one title-type property with bib [%s]. Match!".formatted(candidate.getId()));
+							
 							matches.add(candidate.getContributesTo());
 
 						} else {
-							// Need do to a data comparison of the identifiers.
+							// Need do to a data comparison of the title-types.
 							log.info(
 								"Potential match between [{}] and [{}] required deeper examination",
 								compareTo.getId(), candidate.getId());
 							
-							double matchScore = doDeeperBibComparison(compareTo, candidate);
+							double matchScore = compareBlockingTitles(compareTo, candidate);
 							if (matchScore >= COMPARISON_THRESHOLD) {
 								var cluster = candidate.getContributesTo();
 								if (log.isDebugEnabled()) {
@@ -552,20 +513,28 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 											compareTo.getId(), candidate.getId(), matchScore,
 											cluster.getId());
 								}
+								auditLog.add("Blocking title similarity [%#.2f%%] with bib [%s] greater or equal to threashold [%#.2f%%]. Match!".formatted(
+										(matchScore * 100d),	candidate.getId(), (COMPARISON_THRESHOLD * 100d) ));
 								
 								// Add to secondary matches
 								matches.add(cluster);
-							} else if (log.isDebugEnabled()) {
-								log.debug(
-									"Potential bib match of [{}] with [{}] scored [{}] which is loswer than the [{}] threshold. None-match",
-									compareTo.getId(), candidate.getId(), matchScore, COMPARISON_THRESHOLD);
+							} else {
+								if (log.isDebugEnabled()) {
+									log.debug(
+										"Potential bib match of [{}] with [{}] scored [{}] which is lower than the [{}] threshold. None-match",
+										compareTo.getId(), candidate.getId(), matchScore, COMPARISON_THRESHOLD);
+								}
+								auditLog.add("Blocking title similarity [%#.2f%%] with bib [%s] less than threashold [%#.2f%%]. No Match".formatted(
+										matchScore,	candidate.getId(), COMPARISON_THRESHOLD));
 							}
 						}
 					}
 				});
 
 				// Flux of the matches...
-				return Flux.fromIterable(matches);
+				return Flux.fromIterable( auditLog )
+					.flatMap( processAuditService::auditMessage )
+					.thenMany(Flux.fromIterable(matches));
 			});
 	}
 
@@ -581,9 +550,10 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 		// Mutate the map making the manifested bib the key and not just the ID
 		return Mono.just(candidates.stream()
+			.filter( mp -> !mp.getBibId().equals(compareTo.getId()) )
 			.collect(Collectors.groupingBy(mp -> mp.getBibId().toString())))
 
-			// Manifest the bibs in the map, and that aren't attached to clusters tha
+			// Manifest the bibs in the map, and that aren't attached to clusters that
 			// we've already decided to match with.
 			.flatMap(bibIdMap -> bibRecords.findAllIncludingClusterByIdIn(bibIdMap.keySet().stream()
 				.map(UUID::fromString).toList())
@@ -606,37 +576,73 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 			log.error("0 match points from {}", bib);
 
 		return Flux.fromIterable(matchPoints)
-			.collectMultimap(ImprovedRecordClusteringService::initialMatchConfidence)
-			.flatMapMany(rankedPoints -> {
-				var uuids = rankedPoints.computeIfAbsent(MatchConfidence.HIGH, _k -> Collections.emptySet())
-					.stream()
-					.map(MatchPoint::getValue)
-					.collect(Collectors.toUnmodifiableSet());
+			.collectMultimap( ImprovedRecordClusteringService::initialMatchConfidence )
+			.flatMapMany( rankedPoints -> getListOfMatchedClusters(bib, rankedPoints) );
+	}
 
-				// Returns a list of ClusterRecord matches. The re-occurences of Clusters is
-				// important as it equates to the number of matches. i.e. If it's in the list
-				// twice it was matched on 2 match points.
-				// Hence List and NOT Set
-				return Flux.from(clusterRecords.findAllByDerivedTypeAndMatchPoints(bib.getDerivedType(), uuids))
-					.collectList()
-					.flatMapMany(primaryMatchedClusters -> Flux.fromIterable(primaryMatchedClusters)
-						.concatWith(
-							doExtraProcessing(bib, rankedPoints.computeIfAbsent(MatchConfidence.LOW,
-								_k -> Collections.emptySet()), primaryMatchedClusters)));
+	@Transactional(propagation = Propagation.MANDATORY)
+	protected Flux<ClusterRecord> getListOfMatchedClusters(BibRecord bib, Map<MatchConfidence, Collection<MatchPoint>> rankedPoints) {
+		
+		final Map<UUID, MatchPoint> matchPointValueMap = new HashMap<>();
+		
+		// Create a map of matchpoints with the value as the key so we can easily look up the matches and produce an audit log message
+		rankedPoints.forEach((confidence, mps) -> {
+			mps.forEach( mp -> {
+				matchPointValueMap.put(mp.getValue(), mp);
 			});
+		});
+		
+		// Set of unique high-confidence values.
+		final var highConfidenceValues = rankedPoints.getOrDefault(MatchConfidence.HIGH, Collections.emptySet())
+			.stream()
+			.map(MatchPoint::getValue)
+			.collect(Collectors.toUnmodifiableSet());
+		
+		return matchpointService.getMatchesByDerrivedType(bib.getDerivedType(), highConfidenceValues)
+			.filter( mp -> !mp.getBibId().equals(bib.getId()) )
+			.flatMap( processAuditService.withAuditMessage( match -> {
+				// The match here is the matchpoint from the database so contains no extra debug information
+				// we can look it up from the map to add an audit message without polluting the database with
+				// debug only data.
+				var matchSource = matchPointValueMap.get(match.getValue());
+				
+//				matchPointValueMap.get(match.)
+				
+				return "High confidence match with Bib [%s] on [%s] = [%s]".formatted(
+					match.getBibId(),
+					matchSource.getDomain(), matchSource.getSourceValueHint());
+			}))
+			.map(MatchPoint::getBibId)
+			.collect(Collectors.toUnmodifiableSet())
+			.flatMapMany( bibRecords::findAllIncludingClusterByIdIn )
+			.mapNotNull( BibRecord::getContributesTo )
+			
+			// Returns a list of ClusterRecord matches. The re-occurences of Clusters is
+			// important as it equates to the number of matches. i.e. If it's in the list
+			// twice it was matched on 2 match points.
+			// Hence List and NOT Set
+			.collectList()
+			.flatMapMany(primaryMatchedClusters -> Flux.fromIterable(primaryMatchedClusters)
+				.concatWith(
+					doExtraProcessing(bib, rankedPoints.computeIfAbsent(MatchConfidence.LOW,
+						_k -> Collections.emptySet()), primaryMatchedClusters)));
 	}
 
 	@Override
 	@Transactional(propagation = Propagation.NESTED)
 	public Mono<BibRecord> clusterBib(final BibRecord bib) {
 
-		return matchpointGenerator.generateMatchPoints(bib)
+		return matchpointService.generateMatchPoints(bib)
 			.collectList()
 			.flatMap(curry(bib, this::clusterUsingMatchPoints))
 			.map(TupleUtils.function((savedBib, savedCluster) -> {
 				log.trace("Cluster {} selected for bib {}", savedCluster, savedBib);
 				return savedBib;
-			}));
+			}))
+			// Set the subject for the audit messages produced upstream
+			// The process ID should already be set by the job initiator.
+			.transform( processAuditService.withProcessAudit(process -> process
+				.processSubject(bib.getId())) );
 	}
 
 	@Override
@@ -699,7 +705,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 		Mono<String> findBibToPreserve = manifestClusterRecord
 			.mapNotNull(ClusterRecord::getSelectedBib)
 			.switchIfEmpty(theBibs
-				.single()
+				.next()
 				.map(BibRecord::getId))
 
 			.map(Objects::toString)
@@ -777,75 +783,10 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 				sharedIndexService.get().update(clusterID);
 					return clusterID;
 				}));
-			
-			
-
-		// The flow...
-//		return findBibToPreserve
-//				// No bibs attached to this cluster, ensure soft deleted
-//				.switchIfEmpty(manifestClusterRecord
-//						.flatMap(this::softDelete)
-//						.then(Mono.empty()))
-//
-//				// Cluster has at least one bib, refingerprint all bibs.
-//				.flatMapMany(primaryBib -> refingerprintBibs
-//					.filter(currentBib -> !currentBib.getId().toString().equals(primaryBib)))
-//
-//				// Only none primary now.
-//				// Null out the contributes to, and save the bib (as an orphan).
-//				.map(nonePrimaryBib -> {
-//
-//					log.debug("Null out cluster contribution for bib [{}]", nonePrimaryBib.getId());
-//					return nonePrimaryBib.setContributesTo(null);
-//				})
-//				.flatMap(bibRecords::saveOrUpdate)
-//				.flatMap( this::clusterBib )
-//				.then(Mono.fromSupplier(() -> {
-//					sharedIndexService.get().update(clusterID);
-//						return clusterID;
-//					}));
-
-//				// Find the source ID for each none-primary bib and flag it for (re)processing
-//				.flatMap(bib -> {
-//					// Because of the use of LIKE in this query (because of the strangely loose
-//					// identifiers),
-//					// we shouldn't assume 1 record. Here it's fairly safe to schedule all matches
-//					// for "reprocessing"
-//					if (!log.isWarnEnabled()) {
-//
-//						return bibRecords.findSourceRecordForBib(bib);
-//					}
-//
-//					// Output a warning if we matched more than one source for a bib.
-//					return bibRecords.findSourceRecordForBib(bib)
-//						.collectList()
-//						.map(hits -> {
-//							if (hits.size() != 1) {
-//								log.warn("Couldn't find single source record for bib [{}], found {} matches",
-//										bib.getId(), hits.size());
-//							}
-//
-//							return hits;
-//						})
-//						.flatMapMany(Flux::fromIterable);
-//				})
-//
-//				.map(SourceRecord::getId)
-//				.flatMap(sourceId -> Mono.justOrEmpty(sourceRecordService)
-//					.flatMap(sourceRecords -> {
-//						log.debug("Flag sourceRecord [{}] for reprocessing", sourceId);
-//						return sourceRecords.requireProcessing(sourceId);
-//					}))
-//
-//				// If there were none-primary bibs then save the cluster.
-//				.then(Mono.fromSupplier(() -> {
-//					sharedIndexService.get().update(clusterID);
-//					return clusterID;
-//				}));
 	}
 
 	@Override
 	public Flux<MatchPoint> generateMatchPoints(BibRecord bibRecord) {
-		return matchpointGenerator.generateMatchPoints(bibRecord);
+		return matchpointService.generateMatchPoints(bibRecord);
 	}
 }

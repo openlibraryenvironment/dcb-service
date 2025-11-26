@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
@@ -122,6 +123,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	protected Mono<IngestOperation> createOperation( SourceRecord source ) {
 		IngestOperationBuilder op = IngestOperation.builder()
 			.sourceId( source.getId() );
+		
 		
 		return Mono.from( tryConvertToIngestRecord(source) )
 			.map( ingestRecord -> { 
@@ -385,12 +387,13 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 				ingestEventPublisher.publishEvent(IngestEvent.builder().eventType("error").build());
 			})
       // Lock operator returns empty if not acquired; keep EMPTY semantics for callers
+			.transformDeferred(ProcessAuditService.withNewProcessAudit("ingest"))
       .transformDeferred(lockService.withLockOrEmpty("ingest-job"));
   }
 	
 	@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
-	@Scheduled(initialDelay = "40s", fixedDelay = "2m")
+	@Scheduled(initialDelay = "15s", fixedDelay = "2m")
 	public void scheduleJob() {
 		
 		buildIngestJobStream()
