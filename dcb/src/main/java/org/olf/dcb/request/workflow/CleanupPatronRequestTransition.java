@@ -30,6 +30,7 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 		Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY,
 		Status.CONFIRMED,
 		Status.REQUEST_PLACED_AT_BORROWING_AGENCY,
+		Status.REQUEST_PLACED_AT_PICKUP_AGENCY,
 		Status.PICKUP_TRANSIT,
 		Status.RECEIVED_AT_PICKUP,
 		Status.READY_FOR_PICKUP,
