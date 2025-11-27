@@ -256,6 +256,13 @@ class ApplicationServicesClient {
 			})
 			// Deal with the HTTP errors
 			.onErrorResume(HttpClientResponseException.class, error -> {
+				// A 404 means that this hold is already gone.
+				// We will optimistically assume that this means someone has deleted it already.
+				if (error.getStatus() == HttpStatus.NOT_FOUND) {
+					log.debug("Hold not found: it may already have been deleted.");
+					return Mono.just(TRUE);
+				}
+
 				// A 400 here usually means that the hold is in a status that does not allow deletion
 				// So it needs to be cancelled first
 				if (error.getStatus() == HttpStatus.BAD_REQUEST) {
@@ -263,8 +270,6 @@ class ApplicationServicesClient {
 				}
 
 				// Any other HTTP error - fail-safely to FALSE
-				// There might be a case for handling a 404 separately (hold can't be found) - as someone could have beaten us to it
-				// But for now we will fail safe and just class it as an error
 				log.error("Failed to delete hold request {} from LMS {}", holdId, client.getHostLmsCode(), error);
 				return Mono.just(FALSE);
 			})
