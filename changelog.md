@@ -1,10 +1,26 @@
 # Changelog
 
+## Version 8.58.1
+
+### Changes
+* [Chore]
+	* Add REQUEST_PLACED_AT_PICKUP_AGENCY as eligible cleanup status [DCB-2068]
+
+### Fixes
+* [General]
+	* Make sure we provide the localNames when constructing a FOLIO PUA transaction [DCB-2043]
+	* Improve handling when we don't find a Polaris hold for deletion [DCB-2075]
+	* Prevent double increment of availability date [DCB-2075]
+
 ## Version 8.58.0
 
 ### Additions
 * [Database]
 	* Added indexes to bib_record
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [Cluster   Housekeeping]
