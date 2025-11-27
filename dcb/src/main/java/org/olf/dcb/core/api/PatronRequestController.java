@@ -27,6 +27,7 @@ import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingService;
 import reactor.core.publisher.Mono;
@@ -41,6 +42,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
+import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
 
 @Controller("/patrons/requests")
 @Validated
@@ -85,7 +87,7 @@ public class PatronRequestController {
 	 * TODO: We prolly want to change this, to not be so explicit. But I think that's part of a necessary
 	 * overhaul to the whole system.
 	 */
-	@Secured(CONSORTIUM_ADMIN)
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN})
 	@SingleResult
 	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
 	public Mono<UUID> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
