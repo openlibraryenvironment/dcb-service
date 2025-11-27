@@ -443,8 +443,19 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var firstPatronBarcodeInList = parseList(parameters.getLocalPatronBarcode()).get(0);
 
 		final var pickupLocation = resolvePickupLocation(parameters);
-		return findLocalItemType(parameters.getCanonicalItemType())
-			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+		return Mono.zip(
+			findLocalItemType(parameters.getCanonicalItemType()),
+			consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE)
+		).map(tuple -> {
+			final var localItemType = tuple.getT1();
+			final var namesVisible = tuple.getT2();
+			var patronBuilder = CreateTransactionRequest.Patron.builder()
+				.id(parameters.getLocalPatronId())
+				.barcode(firstPatronBarcodeInList);
+			if (namesVisible) {
+				patronBuilder.localNames(parameters.getLocalNames());
+			}
+			return authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
 				.body(CreateTransactionRequest.builder()
 					.role("BORROWING-PICKUP")
 					.item(CreateTransactionRequest.Item.builder()
@@ -454,14 +465,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.materialType(localItemType)
 						.lendingLibraryCode(parameters.getSupplyingAgencyCode())
 						.build())
-					.patron(CreateTransactionRequest.Patron.builder()
-						.id(parameters.getLocalPatronId())
-						.barcode(firstPatronBarcodeInList)
-						.build())
+					.patron(patronBuilder.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
 						.servicePointId(pickupLocation)
 						.build())
-					.build()));
+					.build());
+		});
 	}
 
 	// https://folio-org.atlassian.net/browse/UXPROD-5114
