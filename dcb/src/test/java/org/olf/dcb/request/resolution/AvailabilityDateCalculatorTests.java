@@ -49,8 +49,7 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, holdCount
-		)));
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, holdCount)));
 	}
 
 	@Test
@@ -89,8 +88,7 @@ public class AvailabilityDateCalculatorTests {
 		final var availabilityDate = calculator.calculate(item);
 
 		// Assert
-		assertThat(availabilityDate, is(
-			extendDateByDefaultLoanPeriod(dueDate, holdCount)));
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(dueDate, holdCount)));
 	}
 
 	@Test
@@ -116,6 +114,30 @@ public class AvailabilityDateCalculatorTests {
 
 		// Assert
 		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, 1)));
+	}
+
+	@Test
+	void availabilityDateShouldBeExtendedFromNowForOverdueItemsWithNoHolds() {
+		// Arrange
+		final var item = createItem(CHECKED_OUT, now.minus(5, DAYS), 0);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, 1)));
+	}
+	
+	@Test
+	void availabilityDateShouldBeExtendedFromNowForOverdueItemsWithHolds() {
+		// Arrange
+		final var item = createItem(CHECKED_OUT, now.minus(5, DAYS), 1);
+
+		// Act
+		final var availabilityDate = calculator.calculate(item);
+
+		// Assert
+		assertThat(availabilityDate, is(extendDateByDefaultLoanPeriod(now, 2)));
 	}
 
 	@Test
