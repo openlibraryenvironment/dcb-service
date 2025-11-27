@@ -57,15 +57,14 @@ public class AvailabilityDateCalculator {
 			// Before, this led to CHECKED_OUT items with availability dates in the past being prioritised if SELECT_UNAVAILABLE_ITEMS is on
 			// To avoid this we must handle pessimistically and increment by the DEFAULT_LOAN_PERIOD, so that CHECKED_OUT items are not prioritised over AVAILABLE ones
 			if (dueDate.isBefore(now)) {
-				final Instant calculatedDueDate;
-				calculatedDueDate = incrementByDefaultLoanPeriod(now, holdCount + 1); // +1 to handle zero hold count situations (i.e. Polaris clears holds on check out)
+				final var calculatedAvailability = incrementByDefaultLoanPeriod(now, holdCount + 1); // +1 to handle zero hold count situations (i.e. Polaris clears holds on check out)
 				log.warn("This CHECKED_OUT item has a due date that is in the past (agency code: \"{}\", barcode: \"{}\", dueDate: \"{}\"). " +
 							"It has been allocated an availability date of: {}",
 						getValue(item, Item::getAgencyCode, "Unknown"),
 						getValue(item, Item::getBarcode, "Unknown"),
 						dueDate,
-						calculatedDueDate);
-				return incrementByDefaultLoanPeriod(calculatedDueDate, holdCount);
+						calculatedAvailability);
+				return calculatedAvailability;
 			}
 			// If the due date is not in the past, we handle this situation as before.
 			return incrementByDefaultLoanPeriod(dueDate, holdCount);
