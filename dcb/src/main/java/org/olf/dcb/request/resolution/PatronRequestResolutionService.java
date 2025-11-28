@@ -290,8 +290,11 @@ public class PatronRequestResolutionService {
 	private Mono<Resolution> filterItems(Resolution resolution) {
 		final List<Item> allItems = getValue(resolution, Resolution::getAllItems, emptyList());
 
+		log.debug("All items from live availability: {}", allItems);
+
 		return itemFilter.filterItems(fromIterable(allItems), resolution)
 			.collectList()
+			.doOnSuccess(filteredItems -> log.debug("Filtered items: {}", filteredItems))
 			.map(resolution::trackFilteredItems);
 	}
 

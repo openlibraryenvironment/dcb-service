@@ -14,16 +14,19 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -81,6 +84,9 @@ class ResolveNextSupplierTransitionTests {
 
 	private static final String NEWLY_SUPPLYING_AGENCY_CODE = "new-supplying-agency";
 	private static final String PREVIOUSLY_SUPPLYING_AGENCY_CODE = "previous-supplying-agency";
+
+	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
+	private static final String PICKUP_LOCATION_CODE = "pickup-location";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -162,8 +168,11 @@ class ResolveNextSupplierTransitionTests {
 		consortiumFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 
-		borrowingAgency = agencyFixture.defineAgency("borrowing-agency",
+		borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
 			"Borrowing Agency", borrowingHostLms);
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
 
 		supplyingAgency = agencyFixture.defineAgency(NEWLY_SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
@@ -175,7 +184,7 @@ class ResolveNextSupplierTransitionTests {
 	@Test
 	void shouldCancelRequestWhenSettingIsDisabled() {
 		// Arrange
-		disableFunctionalSetting();
+		disableReResolution();
 
 		final var borrowingLocalRequestId = "4656352";
 
@@ -228,7 +237,7 @@ class ResolveNextSupplierTransitionTests {
 	@ValueSource(strings = {HOLD_MISSING, HOLD_CANCELLED})
 	void shouldNotCancelBorrowingRequestWhenMissingOrCancelled(String localRequestStatus) {
 		// Arrange
-		enableFunctionalSetting();
+		enableReResolution();
 
 		final var borrowingLocalRequestId = "7836734";
 
@@ -388,7 +397,7 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldSelectNewSupplierWhenAnItemFromDifferentSupplierIsSelectable() {
-		enableFunctionalSetting();
+		enableReResolution();
 
 		final var sourceRecordId = "798472";
 		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
@@ -429,7 +438,8 @@ class ResolveNextSupplierTransitionTests {
 		assertThat(updatedPatronRequest, allOf(
 			notNullValue(),
 			hasStatus(RESOLVED),
-			hasResolutionCount(2)
+			hasResolutionCount(2),
+			hasActiveWorkflow(STANDARD_WORKFLOW)
 		));
 
 		final var newSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
@@ -478,7 +488,7 @@ class ResolveNextSupplierTransitionTests {
 		 of the dummy Host LMS to make it easier to define more complicated host LMS client outputs
 		*/
 
-		enableFunctionalSetting();
+		enableReResolution();
 
 		final var sourceRecordId = "236455";
 		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
@@ -562,8 +572,107 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
+	void doesNotChangeWorkflowTypeWhenAnLocalToBorrowerItemIsSelected() {
+		/*
+		 This is a rather artificial set up (usually a Host LMS only maps to a single agency)
+
+		 To demonstrate that the workflow should change because a local item has now been selected
+		 (or vice versa) then item provided by the mock Host LMS needs to be artificially mapped
+		 to a different agency, even
+		*/
+
+		final var consortium = consortiumFixture.createConsortium();
+
+		consortiumFixture.enableSetting(consortium, RE_RESOLUTION);
+		consortiumFixture.enableSetting(consortium, OWN_LIBRARY_BORROWING);
+
+		final var sourceRecordId = "5746627";
+		final var clusterRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, clusterRecordId);
+
+		final var hostLms = hostLmsFixture.findByCode(borrowingHostLms.getCode());
+
+		final var sourceSystemId = hostLms.getId();
+
+		bibRecordFixture.createBibRecord(randomUUID(), sourceSystemId,
+			sourceRecordId, clusterRecord);
+
+		final var borrowingLocalRequestId = "3725585";
+
+		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
+			borrowingLocalRequestId, clusterRecordId);
+
+		final var supplierRequest = saveSupplierRequest(patronRequest,
+			previouslySupplyingHostLms.getCode(), previouslySupplyingAgency);
+
+		final var newItemId = "673764";
+		final var newItemBarcode = "2856468";
+
+		final var borrowingAgencyLocation = "borrowing-agency-code";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id(newItemId)
+				.barcode(newItemBarcode)
+				.callNumber("BL221 .C48")
+				.statusCode("-")
+				.itemType("999")
+				.locationCode(borrowingAgencyLocation)
+				.locationName("Borrowing Agency Location")
+				.suppressed(false)
+				.deleted(false)
+				.build()));
+
+		// Map item location to borrowing agency to demonstrate local workflow
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			borrowingHostLms.getCode(), borrowingAgencyLocation,  borrowingAgency.getCode());
+
+		// Is based upon the Host LMS from the agency mapping, so has to be borrowing agency
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			borrowingHostLms.getCode(), 999, 999, "BKM");
+
+		// Temporary to allow test to progress
+		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(RESOLVED),
+			hasResolutionCount(2),
+			hasActiveWorkflow(STANDARD_WORKFLOW)
+		));
+
+		final var newSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat("New supplier request should have been created", newSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalItemId(newItemId),
+			hasLocalItemBarcode(newItemBarcode)
+		));
+
+		assertThat("Previous supplier request should no longer exist",
+			supplierRequestsFixture.exists(supplierRequest.getId()), is(false));
+
+		final var listOfInactiveSupplierRequests = inactiveSupplierRequestsFixture.findAllFor(updatedPatronRequest);
+		final var oneInactiveSupplierRequest = listOfInactiveSupplierRequests.get(0);
+
+		assertThat(oneInactiveSupplierRequest, notNullValue());
+		assertThat("Inactive supplier request should exist and match previous supplier request",
+			oneInactiveSupplierRequest.getLocalId(), is(supplierRequest.getLocalId()));
+
+		final var auditEntries = patronRequestsFixture.findAuditEntries(patronRequest);
+
+		assertThat(auditEntries, hasItem(isResolutionAuditEntry(newItemId, borrowingHostLms.getCode())));
+	}
+
+	@Test
 	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution() {
-		enableFunctionalSetting();
+		enableReResolution();
 
 		final var sourceRecordId = "798475";
 		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
@@ -622,7 +731,7 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldCancelRequestWhenItemWasManuallySelected() {
-		enableFunctionalSetting();
+		enableReResolution();
 
 		final var sourceRecordId = "798475";
 		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
@@ -689,8 +798,8 @@ class ResolveNextSupplierTransitionTests {
 
 	@Test
 	void shouldFailWhenMoreThanOneConsortiumIsDefined() {
-		enableFunctionalSetting();
-		enableFunctionalSetting();
+		enableReResolution();
+		enableReResolution();
 
 		final var clusterRecordId = randomUUID();
 		final var borrowingLocalRequestId = "3635625";
@@ -761,7 +870,10 @@ class ResolveNextSupplierTransitionTests {
 			.patronHostlmsCode(borrowingHostLms.getCode())
 			.localRequestId(localRequestId)
 			.bibClusterId(clusterRecordId)
+			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.resolutionCount(1)
+			.activeWorkflow(STANDARD_WORKFLOW)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -813,11 +925,11 @@ class ResolveNextSupplierTransitionTests {
 				.build());
 	}
 
-	private void enableFunctionalSetting() {
+	private void enableReResolution() {
 		consortiumFixture.enableSetting(RE_RESOLUTION);
 	}
 
-	private void disableFunctionalSetting() {
+	private void disableReResolution() {
 		consortiumFixture.disableSetting(RE_RESOLUTION);
 	}
 }

@@ -3,8 +3,6 @@ package org.olf.dcb.test;
 import static java.util.UUID.randomUUID;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.util.UUID;
-
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
 import org.olf.dcb.core.model.FunctionalSetting;
@@ -87,26 +85,28 @@ public class ConsortiumFixture {
 		}
 	}
 
-	public Consortium enableSetting(FunctionalSettingType settingType) {
-		return createConsortiumWithFunctionalSetting(settingType, true);
+	public void enableSetting(Consortium consortium, FunctionalSettingType type) {
+		createSetting(consortium, type, true);
 	}
 
-	public Consortium disableSetting(FunctionalSettingType settingType) {
-		return createConsortiumWithFunctionalSetting(settingType, false);
+	public void enableSetting(FunctionalSettingType settingType) {
+		createConsortiumWithFunctionalSetting(settingType, true);
+	}
+
+	public void disableSetting(FunctionalSettingType settingType) {
+		createConsortiumWithFunctionalSetting(settingType, false);
 	}
 
 	/**
 	 * Creates a complete consortium setup with all necessary related entities.
 	 * Includes a library group, consortium, functional setting, and links them together.
 	 */
-	public Consortium createConsortiumWithFunctionalSetting(
+	public void createConsortiumWithFunctionalSetting(
 		FunctionalSettingType functionalSettingType, boolean enabled) {
 
 		final var consortium = createConsortium();
 
 		createSetting(consortium, functionalSettingType, enabled);
-
-		return consortium;
 	}
 
 	public void createSetting(Consortium consortium,
@@ -142,16 +142,10 @@ public class ConsortiumFixture {
 		return saved;
 	}
 
-	private ConsortiumFunctionalSetting persistConsortiumFunctionalSetting(ConsortiumFunctionalSetting setting) {
+	private void persistConsortiumFunctionalSetting(ConsortiumFunctionalSetting setting) {
 		var saved = singleValueFrom(consortiumFunctionalSettingRepository.save(setting));
 		log.debug("Persisted consortium functional setting: {}", saved);
-		return saved;
 	}
-
-	private Consortium findConsortiumById(UUID id) {
-		return singleValueFrom(consortiumRepository.findById(id));
-	}
-	// Factory methods for creating entities
 
 	private static LibraryGroup createMobiusLibraryGroup() {
 		return LibraryGroup.builder()
