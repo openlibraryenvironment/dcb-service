@@ -4,14 +4,8 @@ import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
@@ -22,14 +16,19 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocationCode;
+import static org.olf.dcb.test.matchers.ResolutionMatchers.hasAllItems;
+import static org.olf.dcb.test.matchers.ResolutionMatchers.hasChosenItem;
+import static org.olf.dcb.test.matchers.ResolutionMatchers.hasFilteredItems;
+import static org.olf.dcb.test.matchers.ResolutionMatchers.hasFilteredItemsSize;
+import static org.olf.dcb.test.matchers.ResolutionMatchers.hasNoChosenItem;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.FunctionalSettingType;
-import org.olf.dcb.core.model.Item;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -156,7 +154,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -220,7 +218,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "174625";
 
@@ -269,11 +267,11 @@ class PatronRequestResolutionServiceTests {
 	@Test
 	void shouldNotSelectsUnavailableManuallySelectedItem() {
 		// Arrange
-		disallowUnavaiableItems();
+		disallowUnavailableItems();
 
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "462655";
 
@@ -318,7 +316,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "826559";
 
@@ -356,11 +354,11 @@ class PatronRequestResolutionServiceTests {
 	@Test
 	void shouldExcludeUnavailableItemWhenSettingDisabled() {
 		// Arrange
-		disallowUnavaiableItems();
+		disallowUnavailableItems();
 
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "2656846";
 
@@ -397,7 +395,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "174663256";
 
@@ -440,7 +438,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -483,7 +481,7 @@ class PatronRequestResolutionServiceTests {
 
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "632545";
 
@@ -528,7 +526,7 @@ class PatronRequestResolutionServiceTests {
 
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "4526453";
 
@@ -574,7 +572,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "632545";
 
@@ -622,7 +620,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -659,7 +657,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "6736442";
 
@@ -702,7 +700,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -790,7 +788,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -840,7 +838,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -890,7 +888,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -924,7 +922,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -989,7 +987,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -1044,7 +1042,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -1066,7 +1064,7 @@ class PatronRequestResolutionServiceTests {
 			checkedOutItem(checkedOutItemId, checkedOutItemBarcode)
 		));
 
-		disallowUnavaiableItems();
+		disallowUnavailableItems();
 
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -1100,7 +1098,7 @@ class PatronRequestResolutionServiceTests {
 	void shouldNotSelectItemWithHoldsWhenStatusNotKnownAndSelectUnavailableItemsIsOn() {
 		// Arrange
 		final var bibRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 		final var sourceRecordId = "465675";
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
@@ -1138,7 +1136,7 @@ class PatronRequestResolutionServiceTests {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var clusterRecord = createClusterRecord(bibRecordId);
 
 		final var sourceRecordId = "465675";
 
@@ -1210,6 +1208,7 @@ class PatronRequestResolutionServiceTests {
 
 
 	// Helper method to create a checked out item with a specific due date
+
 	private SierraItem checkedOutItem(String id, String barcode, Instant dueDate) {
 		return SierraItem.builder()
 			.id(id)
@@ -1221,7 +1220,6 @@ class PatronRequestResolutionServiceTests {
 			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 			.build();
 	}
-
 	private SierraItem itemWithHolds(String itemWithHoldsId, String itemWithHoldsBarcode) {
 		return SierraItem.builder()
 			.id(itemWithHoldsId)
@@ -1233,6 +1231,7 @@ class PatronRequestResolutionServiceTests {
 			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 			.build();
 	}
+
 	private SierraItem unavailableItemWithHolds(String itemWithHoldsId, String itemWithHoldsBarcode) {
 		return SierraItem.builder()
 			.id(itemWithHoldsId)
@@ -1244,12 +1243,11 @@ class PatronRequestResolutionServiceTests {
 			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
 			.build();
 	}
-
 	private void allowUnavailableItems() {
 		defineSetting(SELECT_UNAVAILABLE_ITEMS, true);
 	}
 
-	private void disallowUnavaiableItems() {
+	private void disallowUnavailableItems() {
 		defineSetting(SELECT_UNAVAILABLE_ITEMS, false);
 	}
 
@@ -1257,26 +1255,7 @@ class PatronRequestResolutionServiceTests {
 		consortiumFixture.createConsortiumWithFunctionalSetting(settingType, enabled);
 	}
 
-	@SafeVarargs
-	private Matcher<Resolution> hasChosenItem(Matcher<Item>... matchers) {
-		return hasProperty("chosenItem", allOf(matchers));
-	}
-
-	private Matcher<Resolution> hasNoChosenItem() {
-		return hasProperty("chosenItem", is(nullValue()));
-	}
-
-	@SafeVarargs
-	private static Matcher<Resolution> hasAllItems(Matcher<Item>... matchers) {
-		return hasProperty("allItems", contains(matchers));
-	}
-
-	@SafeVarargs
-	private static Matcher<Resolution> hasFilteredItems(Matcher<Item>... matchers) {
-		return hasProperty("filteredItems", containsInAnyOrder(matchers));
-	}
-
-	private static Matcher<Resolution> hasFilteredItemsSize(int size) {
-		return hasProperty("filteredItems", hasSize(size));
+	private ClusterRecord createClusterRecord(UUID bibRecordId) {
+		return clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
 	}
 }
