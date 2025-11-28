@@ -23,7 +23,6 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.FunctionalSetting;
-import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -64,6 +63,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private final BeanProvider<SupplierRequestService> supplierRequestServiceProvider;
 	private final ConsortiumService consortiumService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final ActiveWorkflowService activeWorkflowService;
 
 	public ResolveNextSupplierTransition(HostLmsService hostLmsService,
 		PatronRequestAuditService patronRequestAuditService,
@@ -71,7 +71,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
 		BeanProvider<SupplierRequestService> supplierRequestServiceProvider,
 		ConsortiumService consortiumService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
+		ActiveWorkflowService activeWorkflowService) {
 
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
@@ -82,6 +83,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		this.supplierRequestServiceProvider = supplierRequestServiceProvider;
 		this.consortiumService = consortiumService;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+		this.activeWorkflowService = activeWorkflowService;
 	}
 
 	@Override
@@ -209,39 +211,11 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		RequestWorkflowContext context) {
 
 		return makeSupplierRequestInactive(resolution, context)
-			.flatMap(function(this::updateActiveWorkflow))
+			.flatMap(function(activeWorkflowService::setActiveWorkflow))
 			.flatMap(function(this::checkMappedCanonicalItemType))
 			.flatMap(function(this::saveSupplierRequest))
 			.flatMap(function(this::updatePatronRequest))
 			.then();
-	}
-
-	private Mono<Tuple2<Resolution, PatronRequest>> updateActiveWorkflow(Resolution resolution,
-		PatronRequest patronRequest) {
-
-		final var borrowingAgencyCode = getValueOrNull(resolution, Resolution::getBorrowingAgencyCode);
-		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
-		final var itemAgencyCode = getValueOrNull(chosenItem, Item::getAgencyCode);
-
-		// NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
-		if (chosenItem == null) {
-			return Mono.just(resolution)
-				.zipWith(Mono.just(patronRequest));
-		}
-
-		log.debug("Setting PatronRequestWorkflow BorrowingAgencyCode: {}, ItemAgencyCode: {}",
-			borrowingAgencyCode, itemAgencyCode);
-
-		// build a temporary context to allow the active workflow to be set
-		final var rwc = new RequestWorkflowContext()
-			.setPatronRequest(patronRequest)
-			.setPatronAgencyCode(borrowingAgencyCode)
-			.setLenderAgencyCode(itemAgencyCode);
-
-		return requestWorkflowContextHelper.resolvePickupLocationAgency(rwc)
-			.flatMap(requestWorkflowContextHelper::setPatronRequestWorkflow)
-			.map(RequestWorkflowContext::getPatronRequest)
-			.map(p -> Tuples.of(resolution, p));
 	}
 
 	private Mono<Tuple2<Resolution, PatronRequest>> makeSupplierRequestInactive(

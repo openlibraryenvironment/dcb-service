@@ -6,7 +6,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 import static org.olf.dcb.request.resolution.ResolutionParameters.parametersFor;
-import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
@@ -16,10 +15,8 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
-import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.resolution.SupplierRequestService;
@@ -29,33 +26,29 @@ import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 
 @Slf4j
 @Prototype
 public class PatronRequestResolutionStateTransition implements PatronRequestStateTransition {
 	private final PatronRequestResolutionService patronRequestResolutionService;
-	private final PatronRequestAuditService patronRequestAuditService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 	private final SupplierRequestService supplierRequestService;
-	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+	private final ActiveWorkflowService activeWorkflowService;
 
 	private static final List<Status> possibleSourceStatus = List.of(PATRON_VERIFIED);
 
 	public PatronRequestResolutionStateTransition(
 		PatronRequestResolutionService patronRequestResolutionService,
-		PatronRequestAuditService patronRequestAuditService,
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
 		SupplierRequestService supplierRequestService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper) {
+		ActiveWorkflowService activeWorkflowService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
-		this.patronRequestAuditService = patronRequestAuditService;
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.supplierRequestService = supplierRequestService;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
+		this.activeWorkflowService = activeWorkflowService;
 	}
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
@@ -72,7 +65,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.flatMap(function(this::auditResolution))
 			.flatMap(function(this::checkMappedCanonicalItemType))
 			.flatMap(function(this::saveSupplierRequest))
-			.flatMap(function(this::setPatronRequestWorkflow))
+			.flatMap(function(activeWorkflowService::setActiveWorkflow))
 			.flatMap(function(this::updatePatronRequest))
 			// This is the original context, rather than the context created in setPatronRequestWorkflow
 			// That could mean the information returned here is incorrect
@@ -84,34 +77,6 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			.zipWith(Mono.just(patronRequest));
-	}
-
-	private Mono<Tuple2<Resolution, PatronRequest>> setPatronRequestWorkflow(
-		Resolution resolution, PatronRequest patronRequest) {
-
-		final var borrowingAgencyCode = getValueOrNull(resolution, Resolution::getBorrowingAgencyCode);
-		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
-		final var itemAgencyCode = getValueOrNull(chosenItem, Item::getAgencyCode);
-
-		// NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
-		if (chosenItem == null) {
-			return Mono.just(resolution)
-				.zipWith(Mono.just(patronRequest));
-		}
-
-		log.debug("Setting PatronRequestWorkflow BorrowingAgencyCode: {}, ItemAgencyCode: {}",
-			borrowingAgencyCode, itemAgencyCode);
-
-		// build a temporary context to allow the active workflow to be set
-		final var rwc = new RequestWorkflowContext()
-			.setPatronRequest(patronRequest)
-			.setPatronAgencyCode(borrowingAgencyCode)
-			.setLenderAgencyCode(itemAgencyCode);
-
-		return requestWorkflowContextHelper.resolvePickupLocationAgency(rwc)
-			.flatMap(requestWorkflowContextHelper::setPatronRequestWorkflow)
-			.map(RequestWorkflowContext::getPatronRequest)
-			.map(p -> Tuples.of(resolution, p));
 	}
 
 	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(
