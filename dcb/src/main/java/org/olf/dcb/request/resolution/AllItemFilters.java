@@ -4,6 +4,8 @@ import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_IT
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
+import java.util.List;
+
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.Item;
@@ -38,15 +40,17 @@ public class AllItemFilters {
 		this.agencyExclusionItemFilter = agencyExclusionItemFilter;
 	}
 
-	public Flux<Item> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
+	public Mono<List<Item>> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
 		final var borrowingHostLmsCode = getValueOrNull(parameters,
 			ItemFilterParameters::getBorrowingHostLmsCode);
 
-		return items.filterWhen(excludeFromSameAgencyItemFilter.predicate(parameters))
+		return items
+			.filterWhen(excludeFromSameAgencyItemFilter.predicate(parameters))
 			.filterWhen(agencyExclusionItemFilter.predicate(parameters))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
-			.filterWhen(item -> fromSameServer(item, borrowingHostLmsCode));
+			.filterWhen(item -> fromSameServer(item, borrowingHostLmsCode))
+			.collectList();
 	}
 
 	/**

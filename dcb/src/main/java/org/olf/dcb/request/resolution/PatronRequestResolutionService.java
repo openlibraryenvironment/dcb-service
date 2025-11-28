@@ -293,13 +293,10 @@ public class PatronRequestResolutionService {
 		log.debug("All items from live availability: {}", allItems);
 
 		return allItemFilters.filterItems(fromIterable(allItems), resolution)
-			.collectList()
-			.doOnSuccess(filteredItems -> log.debug("Filtered items: {}", filteredItems))
 			.map(resolution::trackFilteredItems);
 	}
 
 	public static Resolution checkMappedCanonicalItemType(Resolution resolution) {
-
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 
 		// NO_ITEMS_SELECTABLE_AT_ANY_AGENCY
