@@ -29,15 +29,18 @@ public class AllItemFilters {
 	private final HostLmsService hostLmsService;
 	private final AgencyExclusionItemFilter agencyExclusionItemFilter;
 	private final ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter;
+	private final IsRequestableItemFilter isRequestableItemFilter;
 
 	AllItemFilters(ConsortiumService consortiumService, HostLmsService hostLmsService,
 		ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter,
-		AgencyExclusionItemFilter agencyExclusionItemFilter) {
+		AgencyExclusionItemFilter agencyExclusionItemFilter,
+		IsRequestableItemFilter isRequestableItemFilter) {
 
 		this.consortiumService = consortiumService;
 		this.hostLmsService = hostLmsService;
 		this.excludeFromSameAgencyItemFilter = excludeFromSameAgencyItemFilter;
 		this.agencyExclusionItemFilter = agencyExclusionItemFilter;
+		this.isRequestableItemFilter = isRequestableItemFilter;
 	}
 
 	public Mono<List<Item>> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
@@ -47,7 +50,7 @@ public class AllItemFilters {
 		return items
 			.filterWhen(excludeFromSameAgencyItemFilter.predicate(parameters))
 			.filterWhen(agencyExclusionItemFilter.predicate(parameters))
-			.filter(Item::getIsRequestable)
+			.filterWhen(isRequestableItemFilter.predicate(parameters))
 			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, borrowingHostLmsCode))
 			.collectList();
