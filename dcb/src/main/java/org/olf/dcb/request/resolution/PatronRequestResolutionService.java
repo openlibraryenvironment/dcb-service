@@ -46,14 +46,14 @@ public class PatronRequestResolutionService {
 	private final List<ResolutionSortOrder> allResolutionStrategies;
 	private final String itemResolver;
 	private final ManualSelection manualSelection;
-	private final ItemFilter itemFilter;
+	private final AllItemFilters allItemFilters;
 	private final Duration timeout;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		PatronRequestAuditService patronRequestAuditService,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies, ManualSelection manualSelection,
-		ItemFilter itemFilter,
+		AllItemFilters allItemFilters,
 		@Value("${dcb.resolution.live-availability.timeout:PT30S}") Duration timeout) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
@@ -61,7 +61,7 @@ public class PatronRequestResolutionService {
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.manualSelection = manualSelection;
-		this.itemFilter = itemFilter;
+		this.allItemFilters = allItemFilters;
 		this.timeout = timeout;
 
 		log.debug("Using live availability timeout of {} during resolution", timeout);
@@ -292,7 +292,7 @@ public class PatronRequestResolutionService {
 
 		log.debug("All items from live availability: {}", allItems);
 
-		return itemFilter.filterItems(fromIterable(allItems), resolution)
+		return allItemFilters.filterItems(fromIterable(allItems), resolution)
 			.collectList()
 			.doOnSuccess(filteredItems -> log.debug("Filtered items: {}", filteredItems))
 			.map(resolution::trackFilteredItems);

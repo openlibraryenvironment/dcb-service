@@ -19,7 +19,7 @@ import reactor.util.function.Tuple2;
 @Slf4j
 @Primary
 @Singleton
-class AllItemFilters implements ItemFilter {
+public class AllItemFilters {
 	// Todo: This currently includes all of the current filters
 	// they could be split into separate classes
 	// then this can act as a composite https://guides.micronaut.io/latest/micronaut-patterns-composite-maven-java.html)
@@ -32,7 +32,6 @@ class AllItemFilters implements ItemFilter {
 		this.hostLmsService = hostLmsService;
 	}
 
-	@Override
 	public Flux<Item> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
 		final var borrowingHostLmsCode = getValueOrNull(parameters,
 			ItemFilterParameters::getBorrowingHostLmsCode);
