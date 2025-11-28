@@ -19,16 +19,17 @@ import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.ResolutionAuditService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 
 import io.micronaut.context.BeanProvider;
-import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
 @Slf4j
-@Prototype
+@Singleton
 public class PatronRequestResolutionStateTransition implements PatronRequestStateTransition {
 	private final PatronRequestResolutionService patronRequestResolutionService;
 
@@ -36,6 +37,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 	private final SupplierRequestService supplierRequestService;
 	private final ActiveWorkflowService activeWorkflowService;
+	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+	private final ResolutionAuditService resolutionAuditService;
 
 	private static final List<Status> possibleSourceStatus = List.of(PATRON_VERIFIED);
 
@@ -43,12 +46,14 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		PatronRequestResolutionService patronRequestResolutionService,
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
 		SupplierRequestService supplierRequestService,
-		ActiveWorkflowService activeWorkflowService) {
+		ActiveWorkflowService activeWorkflowService,
+		ResolutionAuditService resolutionAuditService) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.supplierRequestService = supplierRequestService;
 		this.activeWorkflowService = activeWorkflowService;
+		this.resolutionAuditService = resolutionAuditService;
 	}
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
@@ -82,7 +87,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(
 		Resolution resolution, PatronRequest patronRequest) {
 
-		return patronRequestResolutionService.auditResolution(resolution,
+		return resolutionAuditService.auditResolution(resolution,
 				patronRequest, "Resolution")
 			.zipWith(Mono.just(patronRequest));
 	}

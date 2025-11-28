@@ -28,9 +28,9 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.ResolutionAuditService;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -62,8 +62,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private final BeanProvider<PatronRequestService> patronRequestServiceProvider;
 	private final BeanProvider<SupplierRequestService> supplierRequestServiceProvider;
 	private final ConsortiumService consortiumService;
-	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final ActiveWorkflowService activeWorkflowService;
+	private final ResolutionAuditService resolutionAuditService;
 
 	public ResolveNextSupplierTransition(HostLmsService hostLmsService,
 		PatronRequestAuditService patronRequestAuditService,
@@ -71,8 +71,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
 		BeanProvider<SupplierRequestService> supplierRequestServiceProvider,
 		ConsortiumService consortiumService,
-		RequestWorkflowContextHelper requestWorkflowContextHelper,
-		ActiveWorkflowService activeWorkflowService) {
+		ActiveWorkflowService activeWorkflowService,
+		ResolutionAuditService resolutionAuditService) {
 
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
@@ -82,8 +82,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.supplierRequestServiceProvider = supplierRequestServiceProvider;
 		this.consortiumService = consortiumService;
-		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.activeWorkflowService = activeWorkflowService;
+		this.resolutionAuditService = resolutionAuditService;
 	}
 
 	@Override
@@ -192,7 +192,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<Tuple2<Resolution, RequestWorkflowContext>> auditResolution(
 		Resolution resolution, RequestWorkflowContext context) {
 
-		return patronRequestResolutionService.auditResolution(resolution,
+		return resolutionAuditService.auditResolution(resolution,
 				getPatronRequestFromContext(context), "Re-resolution")
 			.zipWith(Mono.just(context));
 	}
