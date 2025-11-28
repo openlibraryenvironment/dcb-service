@@ -1,6 +1,5 @@
 package org.olf.dcb.request.resolution;
 
-import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
@@ -35,31 +34,16 @@ class AllItemFilters implements ItemFilter {
 
 	@Override
 	public Flux<Item> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
-		final var borrowingAgencyCode = getValueOrNull(parameters,
-			ItemFilterParameters::getBorrowingAgencyCode);
-
 		final var borrowingHostLmsCode = getValueOrNull(parameters,
 			ItemFilterParameters::getBorrowingHostLmsCode);
 
-		return items
-			.filterWhen(item -> excludeItemFromSameAgency(item, borrowingAgencyCode))
+		final var excludeFromSameAgencyItemFilter = new ExcludeFromSameAgencyItemFilter(consortiumService);
+
+		return items.filterWhen(excludeFromSameAgencyItemFilter.predicate(parameters))
 			.filter(item -> agencyExclusionItemFilter.filterItem(item, parameters))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, borrowingHostLmsCode));
-	}
-
-	private Mono<Boolean> excludeItemFromSameAgency(Item item, String borrowingAgencyCode) {
-		return consortiumService.isEnabled(OWN_LIBRARY_BORROWING)
-			.map(enabled -> {
-				if (enabled) {
-					return true;
-				}
-
-				final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
-
-				return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
-			});
 	}
 
 	/**
