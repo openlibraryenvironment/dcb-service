@@ -21,6 +21,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
@@ -572,7 +573,7 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	@Test
-	void doesNotChangeWorkflowTypeWhenAnLocalToBorrowerItemIsSelected() {
+	void shouldChangeWorkflowTypeWhenAnLocalToBorrowerItemIsSelected() {
 		/*
 		 This is a rather artificial set up (usually a Host LMS only maps to a single agency)
 
@@ -644,7 +645,7 @@ class ResolveNextSupplierTransitionTests {
 			notNullValue(),
 			hasStatus(RESOLVED),
 			hasResolutionCount(2),
-			hasActiveWorkflow(STANDARD_WORKFLOW)
+			hasActiveWorkflow(LOCAL_WORKFLOW)
 		));
 
 		final var newSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
