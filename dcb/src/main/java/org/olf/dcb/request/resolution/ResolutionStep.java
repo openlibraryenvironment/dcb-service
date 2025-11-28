@@ -1,9 +1,9 @@
 package org.olf.dcb.request.resolution;
 
+import java.util.function.Function;
+
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.function.Function;
 
 @Slf4j
 record ResolutionStep(
@@ -14,11 +14,6 @@ record ResolutionStep(
 	// Simplified constructor for unconditional steps
 	public ResolutionStep(String name, Function<Resolution, Mono<Resolution>> operation) {
 		this(name, operation, resolution -> true);
-	}
-
-	// Simplified constructor for boolean condition steps
-	public ResolutionStep(String name, Function<Resolution, Mono<Resolution>> operation, boolean staticCondition) {
-		this(name, operation, resolution -> staticCondition);
 	}
 
 	// Apply the operation if the condition is true
