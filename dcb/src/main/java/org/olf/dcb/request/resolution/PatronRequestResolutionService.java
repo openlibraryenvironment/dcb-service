@@ -35,6 +35,7 @@ import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -46,14 +47,14 @@ public class PatronRequestResolutionService {
 	private final List<ResolutionSortOrder> allResolutionStrategies;
 	private final String itemResolver;
 	private final ManualSelection manualSelection;
-	private final AllItemFilters allItemFilters;
+	private final ItemFilter itemFilter;
 	private final Duration timeout;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		PatronRequestAuditService patronRequestAuditService,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies, ManualSelection manualSelection,
-		AllItemFilters allItemFilters,
+		ItemFilter itemFilter,
 		@Value("${dcb.resolution.live-availability.timeout:PT30S}") Duration timeout) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
@@ -61,7 +62,7 @@ public class PatronRequestResolutionService {
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.manualSelection = manualSelection;
-		this.allItemFilters = allItemFilters;
+		this.itemFilter = itemFilter;
 		this.timeout = timeout;
 
 		log.debug("Using live availability timeout of {} during resolution", timeout);
@@ -292,7 +293,9 @@ public class PatronRequestResolutionService {
 
 		log.debug("All items from live availability: {}", allItems);
 
-		return allItemFilters.filterItems(fromIterable(allItems), resolution)
+		return Flux.fromIterable(allItems)
+			.filterWhen(itemFilter.predicate(resolution))
+			.collectList()
 			.map(resolution::trackFilteredItems);
 	}
 

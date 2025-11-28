@@ -1,48 +1,40 @@
 package org.olf.dcb.request.resolution;
 
 import java.util.List;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.Item;
+import org.reactivestreams.Publisher;
 
 import io.micronaut.context.annotation.Primary;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
 @Primary
 @Singleton
-public class AllItemFilters {
-	// Todo: This currently includes all of the current filters
-	// they could be split into separate classes
-	// then this can act as a composite https://guides.micronaut.io/latest/micronaut-patterns-composite-maven-java.html)
-	private final AgencyExclusionItemFilter agencyExclusionItemFilter;
-	private final ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter;
-	private final IsRequestableItemFilter isRequestableItemFilter;
-	private final IncludeItemWithHoldsItemFilter includeItemWithHoldsItemFilter;
-	private final SameServerItemFilter sameServerItemFilter;
+public class AllItemFilters implements ItemFilter {
+	// Acts as a composite (https://guides.micronaut.io/latest/micronaut-patterns-composite-maven-java.html)
+	private final List<ItemFilter> itemFilters;
 
-	AllItemFilters(ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter,
-		AgencyExclusionItemFilter agencyExclusionItemFilter,
-		IsRequestableItemFilter isRequestableItemFilter,
-		IncludeItemWithHoldsItemFilter includeItemWithHoldsItemFilter,
-		SameServerItemFilter sameServerItemFilter) {
-
-		this.excludeFromSameAgencyItemFilter = excludeFromSameAgencyItemFilter;
-		this.agencyExclusionItemFilter = agencyExclusionItemFilter;
-		this.isRequestableItemFilter = isRequestableItemFilter;
-		this.includeItemWithHoldsItemFilter = includeItemWithHoldsItemFilter;
-		this.sameServerItemFilter = sameServerItemFilter;
+	AllItemFilters(List<ItemFilter> itemFilters) {
+		this.itemFilters = itemFilters;
 	}
 
-	public Mono<List<Item>> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
-		return items
-			.filterWhen(excludeFromSameAgencyItemFilter.predicate(parameters))
-			.filterWhen(agencyExclusionItemFilter.predicate(parameters))
-			.filterWhen(isRequestableItemFilter.predicate(parameters))
-			.filterWhen(includeItemWithHoldsItemFilter.predicate(parameters))
-			.filterWhen(sameServerItemFilter.predicate(parameters))
-			.collectList();
+	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
+		// This is a bit of workaround to allow the predicate method to work with
+		// filterWhen for either a mono or a flux and still implement a composite
+		return item -> {
+			var filterMono = Mono.just(item);
+
+			for (ItemFilter itemFilter : itemFilters) {
+				filterMono = filterMono.filterWhen(itemFilter.predicate(parameters));
+			}
+
+			return filterMono
+				.map(i -> true) // Return true if all the filters pass
+				.defaultIfEmpty(false); // Return false if any filter fails;
+		};
 	}
 }
