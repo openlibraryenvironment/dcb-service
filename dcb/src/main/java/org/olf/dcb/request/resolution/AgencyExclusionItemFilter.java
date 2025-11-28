@@ -5,10 +5,20 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.olf.dcb.core.model.Item;
+import org.reactivestreams.Publisher;
 
-class AgencyExclusionItemFilter {
+import jakarta.inject.Singleton;
+import reactor.core.publisher.Mono;
+
+@Singleton
+class AgencyExclusionItemFilter implements ItemFilter {
+	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
+		return item -> Mono.just(filterItem(item, parameters));
+	}
+
 	/**
 	 * Checks if an item should be excluded from the resolution process because it belongs to an excluded agency.
 	 * <p>

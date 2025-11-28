@@ -25,15 +25,17 @@ public class AllItemFilters {
 	// then this can act as a composite https://guides.micronaut.io/latest/micronaut-patterns-composite-maven-java.html)
 	private final ConsortiumService consortiumService;
 	private final HostLmsService hostLmsService;
-	private final AgencyExclusionItemFilter agencyExclusionItemFilter = new AgencyExclusionItemFilter();
+	private final AgencyExclusionItemFilter agencyExclusionItemFilter;
 	private final ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter;
 
 	AllItemFilters(ConsortiumService consortiumService, HostLmsService hostLmsService,
-		ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter) {
+		ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter,
+		AgencyExclusionItemFilter agencyExclusionItemFilter) {
 
 		this.consortiumService = consortiumService;
 		this.hostLmsService = hostLmsService;
 		this.excludeFromSameAgencyItemFilter = excludeFromSameAgencyItemFilter;
+		this.agencyExclusionItemFilter = agencyExclusionItemFilter;
 	}
 
 	public Flux<Item> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
@@ -41,7 +43,7 @@ public class AllItemFilters {
 			ItemFilterParameters::getBorrowingHostLmsCode);
 
 		return items.filterWhen(excludeFromSameAgencyItemFilter.predicate(parameters))
-			.filter(item -> agencyExclusionItemFilter.filterItem(item, parameters))
+			.filterWhen(agencyExclusionItemFilter.predicate(parameters))
 			.filter(Item::getIsRequestable)
 			.filterWhen(this::includeItemWithHolds)
 			.filterWhen(item -> fromSameServer(item, borrowingHostLmsCode));
