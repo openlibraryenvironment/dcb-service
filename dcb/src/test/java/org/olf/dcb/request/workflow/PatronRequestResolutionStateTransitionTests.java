@@ -1,4 +1,4 @@
-package org.olf.dcb.request.fulfilment;
+package org.olf.dcb.request.workflow;
 
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
@@ -54,10 +54,10 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
-import org.olf.dcb.request.workflow.PatronRequestResolutionStateTransition;
-import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -78,7 +78,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
-class PatronRequestResolutionTests {
+class PatronRequestResolutionStateTransitionTests {
 	private final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
 	private final String BORROWING_HOST_LMS_CODE = "resolution-borrowing";
