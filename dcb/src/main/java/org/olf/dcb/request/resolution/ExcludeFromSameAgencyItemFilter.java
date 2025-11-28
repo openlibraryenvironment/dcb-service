@@ -9,15 +9,18 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
-public class ExcludeFromSameAgencyItemFilter {
+@Singleton
+public class ExcludeFromSameAgencyItemFilter implements ItemFilter {
 	private final ConsortiumService consortiumService;
 
 	public ExcludeFromSameAgencyItemFilter(ConsortiumService consortiumService) {
 		this.consortiumService = consortiumService;
 	}
 
+	@Override
 	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
 		return item -> excludeItemFromSameAgency(item, parameters);
 	}

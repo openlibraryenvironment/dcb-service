@@ -26,17 +26,19 @@ public class AllItemFilters {
 	private final ConsortiumService consortiumService;
 	private final HostLmsService hostLmsService;
 	private final AgencyExclusionItemFilter agencyExclusionItemFilter = new AgencyExclusionItemFilter();
+	private final ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter;
 
-	AllItemFilters(ConsortiumService consortiumService, HostLmsService hostLmsService) {
+	AllItemFilters(ConsortiumService consortiumService, HostLmsService hostLmsService,
+		ExcludeFromSameAgencyItemFilter excludeFromSameAgencyItemFilter) {
+
 		this.consortiumService = consortiumService;
 		this.hostLmsService = hostLmsService;
+		this.excludeFromSameAgencyItemFilter = excludeFromSameAgencyItemFilter;
 	}
 
 	public Flux<Item> filterItems(Flux<Item> items, ItemFilterParameters parameters) {
 		final var borrowingHostLmsCode = getValueOrNull(parameters,
 			ItemFilterParameters::getBorrowingHostLmsCode);
-
-		final var excludeFromSameAgencyItemFilter = new ExcludeFromSameAgencyItemFilter(consortiumService);
 
 		return items.filterWhen(excludeFromSameAgencyItemFilter.predicate(parameters))
 			.filter(item -> agencyExclusionItemFilter.filterItem(item, parameters))
