@@ -871,9 +871,27 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				if (response != null && response.getReservations() != null) {
 					// Count the number of reservations for this item
 					int externalHoldCount = response.getReservations().size();
-					return externalHoldCount;
+					if (externalHoldCount > 0)
+					{
+						return externalHoldCount;
+
+					}
+					else {
+						// There is a situation where the reservation data is not present, but the hold count is not zero
+						// In this situation, we should use the total count as a fallback
+						if (response.getTotalCount() != null && response.getTotalCount() > 0)
+						{
+							return response.getTotalCount();
+
+						}
+						else
+						{
+							// If the total count is not present or is zero, fall back to original count
+							return currentCount;
+						}
+					}
 				}
-				// Fall back to the original count if no reservation data is available
+				// Fall back to the original count if no reservation data or total count is available
 				return currentCount;
 			})
 			// Handle getReservationsForItem returning empty
