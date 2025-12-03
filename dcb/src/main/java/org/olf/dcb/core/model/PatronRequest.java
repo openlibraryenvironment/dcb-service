@@ -9,15 +9,11 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
-import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
-import java.util.Map;
-import java.util.HashMap;
 
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -90,76 +86,12 @@ public class PatronRequest {
 		FINALISED, // We've cleaned up everything and this is the end of the line
 		ERROR,
     ARCHIVED;
+// CH: The paths are now in PatronRequestWorkflowPath.java
 
-		private static final EnumMap<Status, Status> path = new EnumMap<>(Status.class);
-		private static final Map<String, Map<Status, Status>> workflowPaths = new HashMap<>();
-		// expected path via https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2870575137/Tracking+v3+matrix
-		// May need different paths for different workflows
-		static {
-
-			final EnumMap<Status, Status> expeditedCheckoutPath = new EnumMap<>(Status.class);
-			final EnumMap<Status, Status> localPath =  new EnumMap<>(Status.class);
-			path.put(SUBMITTED_TO_DCB, PATRON_VERIFIED);
-			path.put(PATRON_VERIFIED, RESOLVED);
-			path.put(RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY);
-			path.put(NOT_SUPPLIED_CURRENT_SUPPLIER, NOT_SUPPLIED_CURRENT_SUPPLIER);
-			path.put(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY, NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
-			path.put(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED);
-			path.put(CONFIRMED, REQUEST_PLACED_AT_BORROWING_AGENCY);
-			path.put(REQUEST_PLACED_AT_BORROWING_AGENCY, PICKUP_TRANSIT);
-			path.put(PICKUP_TRANSIT, RECEIVED_AT_PICKUP);
-			path.put(RECEIVED_AT_PICKUP, READY_FOR_PICKUP);
-			path.put(READY_FOR_PICKUP, LOANED);
-			path.put(LOANED, RETURN_TRANSIT);
-			path.put(RETURN_TRANSIT, COMPLETED);
-			path.put(CANCELLED, CANCELLED);
-			path.put(COMPLETED, FINALISED);
-			path.put(FINALISED, FINALISED);
-			path.put(ERROR, ERROR);
-			// The PUA path is a clone of the standard path with a few minor overrides
-			EnumMap<Status, Status> pickupAnywherePath = new EnumMap<>(path);
-			pickupAnywherePath.put(REQUEST_PLACED_AT_BORROWING_AGENCY, REQUEST_PLACED_AT_PICKUP_AGENCY);
-			pickupAnywherePath.put(REQUEST_PLACED_AT_PICKUP_AGENCY, PICKUP_TRANSIT);
-
-			// The RET-EXP path is a bit more complicated
-			expeditedCheckoutPath.put(SUBMITTED_TO_DCB, PATRON_VERIFIED);
-			expeditedCheckoutPath.put(PATRON_VERIFIED, RESOLVED);
-			expeditedCheckoutPath.put(RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY);
-			expeditedCheckoutPath.put(NOT_SUPPLIED_CURRENT_SUPPLIER, NOT_SUPPLIED_CURRENT_SUPPLIER);
-			expeditedCheckoutPath.put(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY, NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
-			expeditedCheckoutPath.put(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED);
-			expeditedCheckoutPath.put(CONFIRMED, REQUEST_PLACED_AT_BORROWING_AGENCY);
-			expeditedCheckoutPath.put(REQUEST_PLACED_AT_BORROWING_AGENCY, LOANED);
-			expeditedCheckoutPath.put(REQUEST_PLACED_AT_PICKUP_AGENCY, LOANED);
-			expeditedCheckoutPath.put(LOANED, RETURN_TRANSIT);
-			expeditedCheckoutPath.put(RETURN_TRANSIT, COMPLETED);
-			expeditedCheckoutPath.put(CANCELLED, CANCELLED);
-			expeditedCheckoutPath.put(COMPLETED, FINALISED);
-			expeditedCheckoutPath.put(FINALISED, FINALISED);
-			expeditedCheckoutPath.put(ERROR, ERROR);
-
-			// The local path is a lot simpler
-			localPath.put(SUBMITTED_TO_DCB, PATRON_VERIFIED);
-			localPath.put(PATRON_VERIFIED, RESOLVED);
-			localPath.put(RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY);
-			localPath.put(REQUEST_PLACED_AT_SUPPLYING_AGENCY, HANDED_OFF_AS_LOCAL);
-			workflowPaths.put(STANDARD_WORKFLOW, path);
-			workflowPaths.put(PICKUP_ANYWHERE_WORKFLOW, pickupAnywherePath);
-			workflowPaths.put(EXPEDITED_WORKFLOW, expeditedCheckoutPath);
-			workflowPaths.put(LOCAL_WORKFLOW, localPath);
-		}
-
-//		public Status getNextExpectedStatus() {
-//			return path.get(this);
-//		}
-		public Status getNextExpectedStatus(String activeWorkflow) {
-			// Standard workflow is default
-			String targetWorkflow = (activeWorkflow != null && workflowPaths.containsKey(activeWorkflow))
-				? activeWorkflow
-				: STANDARD_WORKFLOW;
-
-			return workflowPaths.get(targetWorkflow).get(this);
-		}
+public Status getNextExpectedStatus(String activeWorkflow) {
+	return PatronRequestWorkflowPath.fromCode(activeWorkflow)
+		.getNextStatus(this);
+}
 	}
 
 	@Serdeable
