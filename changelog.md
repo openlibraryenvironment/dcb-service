@@ -1,9 +1,17 @@
 # Changelog
 
+## Version 8.58.2
+
+### Fixes
+* [General]
+	* Get Polaris hold count if reservation data not present [DCB-2093]
+	* Change patron request workflow during resolution DCB-2087
+
 ## Version 8.58.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add REQUEST_PLACED_AT_PICKUP_AGENCY as eligible cleanup status [DCB-2068]
 
 ### Fixes
