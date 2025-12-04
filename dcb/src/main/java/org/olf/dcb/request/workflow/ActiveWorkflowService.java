@@ -32,8 +32,15 @@ public class ActiveWorkflowService {
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 		final var itemAgencyCode = getValueOrNull(chosenItem, Item::getAgencyCode);
 
-		log.debug("Setting PatronRequestWorkflow BorrowingAgencyCode: {}, ItemAgencyCode: {}",
-			borrowingAgencyCode, itemAgencyCode);
+		return updatePatronRequest(patronRequest, borrowingAgencyCode, itemAgencyCode)
+			.map(updatedRequest -> Tuples.of(resolution, updatedRequest));
+	}
+
+	public Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest,
+		String borrowingAgencyCode, String itemAgencyCode) {
+
+		log.debug("setActiveWorkflow(PatronRequest: {}, BorrowingAgencyCode: {}, ItemAgencyCode: {})",
+			patronRequest, borrowingAgencyCode, itemAgencyCode);
 
 		// build a temporary context to allow the active workflow to be set
 		final var context = new RequestWorkflowContext()
@@ -43,7 +50,6 @@ public class ActiveWorkflowService {
 
 		return requestWorkflowContextHelper.resolvePickupLocationAgency(context)
 			.flatMap(requestWorkflowContextHelper::setPatronRequestWorkflow)
-			.map(RequestWorkflowContext::getPatronRequest)
-			.map(p -> Tuples.of(resolution, p));
+			.map(RequestWorkflowContext::getPatronRequest);
 	}
 }
