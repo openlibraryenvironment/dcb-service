@@ -1306,6 +1306,8 @@ class ApplicationServicesClient {
 		private Boolean canItemBeRenewed;
 		@JsonProperty("Renewals")
 		private Integer renewals;
+		@JsonProperty("RenewalLimit")
+		private Integer renewalLimit;
 		@JsonProperty("CallNumber")
 		private String callNumber;
 	}

@@ -993,8 +993,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.status(mapToItemStatus(rawLocalStatus))
 			.rawStatus(rawLocalStatus)
 			.renewalCount(getValue(transactionStatus, TransactionStatus::getRenewalCount, 0))
-			.holdCount(transactionStatus.getHoldCount())
-			.renewable(transactionStatus.getRenewable())
+			.holdCount(transactionStatus.getHoldCount() !=null ? transactionStatus.getHoldCount() : transactionStatus.getItem().getHoldCount() )
+			.renewable(transactionStatus.getRenewable()) // does this even exist?
 			.build();
 	}
 
@@ -1318,8 +1318,19 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// WE don't seem to access to loan id :/
     log.info("Folio prevent renewal {}",prc);
 		// This is fugly
-		return updateTransactionStatus(prc.getRequestId(), TransactionStatus.CANCELLED)
-			.then();
+
+		// CH: We need a success indicator here. This isn't going to do it
+		// Should be blocking on a loaned virtual item IF the supplier item has a hold
+		// i.e. not our hold, presumably
+		// But a different one
+		// Polaris-FOLIO good test for this
+		final var path = "/dcbService/transactions/%s/block-renewal".formatted(prc.getRequestId());
+		// If we get 404 it suggests this endpoint isn't supported. Revert to previous behaviour
+		// This will set the renewal count to maximum
+
+
+
+		return makeRequest(authorisedRequest(PUT, path));
   }
 
   @Override

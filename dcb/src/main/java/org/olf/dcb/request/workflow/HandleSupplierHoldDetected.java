@@ -2,9 +2,9 @@ package org.olf.dcb.request.workflow;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -18,6 +18,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.storage.SupplierRequestRepository;
 import reactor.core.publisher.Mono;
 
 /**
@@ -30,85 +31,123 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 
 	private final PatronRequestRepository patronRequestRepository;
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
+	private final SupplierRequestRepository supplierRequestRepository;
 	private final PatronRequestAuditService auditService;
 	private final HostLmsService hostLmsService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.LOANED);
 	
-	public HandleSupplierHoldDetected(PatronRequestRepository patronRequestRepository,
+	public HandleSupplierHoldDetected(PatronRequestRepository patronRequestRepository, SupplierRequestRepository supplierRequestRepository,
 		PatronRequestAuditService auditService, HostLmsService hostLmsService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.auditService = auditService;
 		this.hostLmsService = hostLmsService;
+		this.supplierRequestRepository = supplierRequestRepository;
 	}
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
+		// Applicable if LOANED, if supplier request is not null, and a hold count exists at the supplier
+		// And of course only if the renewal status is ALLOWED (i.e. we didn't already prevent renewals, and renewals are supported)
+
+		// It's probably worth considering local renewable status here too. If the item will never be renewable, we can save ourselves some pain.
 
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
 			( ctx.getSupplierRequest() != null ) &&
-			( 
-				( shouldPreventRenewal(ctx) ) &&
-				(
-					(ctx.getPatronRequest().getRenewalStatus() == null) || 
-					(PatronRequest.RenewalStatus.ALLOWED == ctx.getPatronRequest().getRenewalStatus())
-				)
-			);
+				shouldPreventRenewal(ctx) && 	(
+					(ctx.getPatronRequest().getRenewalStatus() == null) ||
+					(PatronRequest.RenewalStatus.ALLOWED == ctx.getPatronRequest().getRenewalStatus()));
 	}
 
-		/** Return true if the supplier item is NOT renewable - but allow the initial loan.
-		 * We detect the initial loan when the local renewal count and the renewal count are zero: this indicates that DCB is not aware of any external renewal, and has not triggered one.*/
-	private static boolean shouldPreventRenewal(RequestWorkflowContext ctx) {
-		log.debug("The context is {}", ctx);
-		if ( ctx.getSupplierRequest() != null ) {
-			int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
-			int renewal_count = ctx.getPatronRequest().getRenewalCount() != null ? ctx.getPatronRequest().getRenewalCount() : 0;
-			int local_renewal_count = ctx.getPatronRequest().getLocalRenewalCount() != null ? ctx.getPatronRequest().getLocalRenewalCount() : 0;
-			boolean renewable = ctx.getPatronRequest().getRenewalStatus() != null && ctx.getPatronRequest().getRenewalStatus().equals(PatronRequest.RenewalStatus.ALLOWED);
-			boolean supplierRenewable = ctx.getSupplierRequest().getLocalRenewable() != null && ctx.getSupplierRequest().getLocalRenewable();
-
-			// In the unlikely event renewal status is null, we should prevent renewal
-			if (ctx.getPatronRequest().getRenewalStatus() == null)
-			{
-				return true;
-			}
-			// A guard to stop the initial loan from being prevented - see DCB-2006
-			if (renewal_count == 0 && local_renewal_count == 0)
-				return false;
-			// I have deliberately kept this extremely basic for readability purposes - CH
-			// If the supplier request OR the main request are renewable, we must not prevent renewal.
-			// This is what was causing the regression failure for 8.46.1
-			if (renewable || supplierRenewable)
-			{
-				return false;
-			}
-			// Now, we will only prevent renewal on requests with a hold count of greater than zero that have not been flagged as renewable
-			if ( hold_count > 0 )
-        return true;
-
-			// If renewable is false, and also the local renewal count is greater than zero (i.e. not the initial loan)
-			return Boolean.FALSE.equals(ctx.getSupplierRequest().getLocalRenewable());
-    }
-    return false;
-	}
+	/** Return true if there is still a hold on the supplier after checkout.
+	 * But we need some guards just in case we've not got the correct hold count.
+	 * And we need to make sure we allow the initial loan, as sometimes there is a delay*/
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		log.info("PR {} detected that a hold has been placed at the owning library. verifying...", ctx.getPatronRequest().getId());
 
-		log.info("PR {} detected that a hold has been placed at the owning library",ctx.getPatronRequest().getId());
+		// At this point, we think we have detected a hold. But we need to check that
+		// As sometimes DCB will not update the local hold count in time
+		// So we will end up always preventing renewals if we do not check the current value.
+		final var supplierRequest = ctx.getSupplierRequest();
+		final var supplierSystemCode = supplierRequest.getHostLmsCode();
 
-    return hostLmsService.getClientFor(ctx.getPatronSystemCode())
+		final var supplierItemId = HostLmsItem.builder()
+			.localId(supplierRequest.getLocalItemId())
+			.localRequestId(supplierRequest.getLocalId())
+			.build();
+
+		// Quick check of the actual item. Does it really have a hold?
+		return hostLmsService.getClientFor(supplierSystemCode)
+			.flatMap(client -> Mono.from(client.getItem(supplierItemId)))
+			.flatMap(freshItem -> {
+				int freshHoldCount = freshItem.getHoldCount() != null ? freshItem.getHoldCount() : 0;
+				// We set the new value, and, just to be sure, we persist it also.
+				// We should probably NOT do this if it's the same as the old hold count
+				supplierRequest.setLocalHoldCount(freshHoldCount);
+				return Mono.from(supplierRequestRepository.saveOrUpdate(supplierRequest))
+					.doOnSuccess(sr -> log.debug("Updated local hold count cache for PR {} to {}", ctx.getPatronRequest().getId(), freshHoldCount))
+					.thenReturn(freshHoldCount);
+			})
+			.flatMap(freshHoldCount -> {
+				// Now we know that we have got the up-to-date hold value
+				if (freshHoldCount > 0) {
+					log.debug("Holds confirmed ({}). Preventing renewals at borrowing library.", freshHoldCount);
+					return executePreventRenewal(ctx);
+				} else {
+					log.info("False positive detected (Count is 0). DB updated. Skipping renewal prevention.");
+					return auditService.addAuditEntry(ctx.getPatronRequest(),
+							"Renewal not prevented: hold count checked in the local system and verified as 0.") //
+						.thenReturn(ctx);				}
+			})
+			.onErrorResume(error -> {
+				log.error("Error verifying supplier hold count for PR {}. Defaulting to proceeding with caution.", ctx.getPatronRequest().getId(), error);
+				return auditService.addAuditEntry(ctx.getPatronRequest(),
+						"Error verifying supplier hold count (" + error.getMessage() + "). Defaulting to preventing renewals.") //
+					.then(executePreventRenewal(ctx));
+			});
+	}
+
+	private Mono<RequestWorkflowContext> executePreventRenewal(RequestWorkflowContext ctx) {
+		return hostLmsService.getClientFor(ctx.getPatronSystemCode())
 			.flatMap(hostLmsClient -> hostLmsClient.preventRenewalOnLoan(
 				PreventRenewalCommand.builder()
 					.requestId(ctx.getPatronRequest().getLocalRequestId())
 					.itemBarcode(ctx.getPatronRequest().getPickupItemBarcode())
 					.itemId(ctx.getPatronRequest().getLocalItemId())
 					.build()))
-			.then( markPatronRequestNotRenewable(ctx) )
-			.then( auditService.addAuditEntry(ctx.getPatronRequest(), "Hold detected at owning Library. Borrowing Library told to prevent renewals") )
-      .thenReturn(ctx);
+			.then(markPatronRequestNotRenewable(ctx))
+			.then(auditService.addAuditEntry(ctx.getPatronRequest(), "Hold detected at owning Library. Borrowing Library told to prevent renewals"))
+			.thenReturn(ctx);
 	}
+
+
+	/** Return true if there is still a hold on the supplier after checkout.
+	 * But we need some guards just in case we've not got the correct hold count.
+	 * And we need to make sure we allow the initial loan, as sometimes there is a delay*/
+	private static boolean shouldPreventRenewal(RequestWorkflowContext ctx) {
+		if (ctx.getSupplierRequest() != null) {
+			int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
+			// When we reach LOANED, the following questions need to be asked
+			// Does the SUPPLIER item have a hold? Yes or no
+			// If no, we should NOT prevent renewal
+			// If we think it does have a hold, are we sure this is a current hold?
+			// As DCB can be slow in detecting that the hold we placed isn't still there.
+			if (hold_count == 0) {
+				log.debug("No holds! Renewal is allowed");
+				return false;
+			} else {
+				log.debug("Hold up! Renewal not allowed ..");
+				return true;
+			}
+		} else {
+			// Fail-safe: do not prevent renewals unless we are sure there are still holds
+			// See the 8.46.1 regression failure where everything broke - CH
+			return false;
+		}
+	};
 
 	private Mono<RequestWorkflowContext> markPatronRequestNotRenewable(RequestWorkflowContext ctx) {
 		// Rely upon outer framework to same 

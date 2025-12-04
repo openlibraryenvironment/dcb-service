@@ -45,6 +45,7 @@ class TransactionStatus {
 	@Serdeable
 	static class Item {
 		RenewalInformation renewalInfo;
+		Integer holdCount; // This appears to be on the Item in some responses ...
 	}
 
 	@Data
