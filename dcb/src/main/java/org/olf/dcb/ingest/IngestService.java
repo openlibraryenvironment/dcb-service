@@ -47,7 +47,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 	public static final String TRANSFORMATIONS_BIBS = "ingest-bibs";
 	
 	public static int getProcessVersion() {
-		return Features.featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING ) ? 4 : 3;
+		return Features.featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING ) ? 5 : 3;
 	}
 		
 	@Value("${dcb.shutdown.maxwait:0}")
