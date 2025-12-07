@@ -22,6 +22,7 @@ import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.request.workflow.UnsupportedWorkflowProblem;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -465,6 +466,12 @@ public class RequestWorkflowContextHelper {
 
 		// Grab a reference to the patron request.
 		final PatronRequest pr = rwc.getPatronRequest();
+
+		// Unsupported variant of pickup anywhere workflow
+		if (lenderAc.equals(patronAc) && !pickupAc.equals(lenderAc)) {
+			return Mono.error(new UnsupportedWorkflowProblem(
+				"Same supplying and borrowing library, different pickup library"));
+		}
 
 		if (lenderAc.equals(pickupAc)) {
 			if (lenderAc.equals(patronAc))

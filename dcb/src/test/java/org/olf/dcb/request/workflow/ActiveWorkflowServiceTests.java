@@ -1,13 +1,17 @@
 package org.olf.dcb.request.workflow;
 
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -151,6 +155,39 @@ class ActiveWorkflowServiceTests {
 
 		// Assert
 		assertThat(determinedWorkflow, is(PICKUP_ANYWHERE_WORKFLOW));
+	}
+
+	@Test
+	void shouldFailWhenSameSupplyingAndBorrowingYetDifferentPickupLibraryAsIsUnsupported() {
+		// Arrange
+		final var pickupHostLms = hostLmsFixture.createDummyHostLms("pickup-host-lms");
+
+		final var pickupAgency = agencyFixture.defineAgency("pickup-agency",
+			"Pickup Agency", pickupHostLms);
+
+		final var pickupLocationCode = "pickup-location";
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			pickupHostLms.getCode(), pickupLocationCode, pickupAgency.getCode());
+
+		final var supplyingAndBorrowingHostLms = hostLmsFixture.createDummyHostLms(
+			"supplying-and-borrowing-host-lms");
+
+		final var supplyingAndBorrowingAgency = agencyFixture.defineAgency(
+			"supplying-and-borrowing-agency", "Supplying And Borrowing Agency",
+			supplyingAndBorrowingHostLms);
+
+		// Act
+		final var error = assertThrows(UnsupportedWorkflowProblem.class,
+			() -> determineWorkflow(supplyingAndBorrowingAgency.getCode(),
+				supplyingAndBorrowingAgency.getCode(), pickupLocationCode,
+				pickupHostLms.getCode()));
+
+		// Assert
+		assertThat(error, allOf(
+			notNullValue(),
+			hasTitle("Unsupported workflow: Same supplying and borrowing library, different pickup library")
+		));
 	}
 
 	private String determineWorkflow(String supplyingAgencyCode,
