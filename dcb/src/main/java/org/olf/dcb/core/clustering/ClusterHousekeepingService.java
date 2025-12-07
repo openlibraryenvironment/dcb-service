@@ -1,13 +1,13 @@
 package org.olf.dcb.core.clustering;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -35,10 +35,10 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 @FeatureFlag(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)
 public class ClusterHousekeepingService {
 
-	private static final int BATCH_SIZE = 2000;
+	private static final int BATCH_SIZE = 5000;
 	private final ClusterRecordRepository clusterRecordRepo;
 	private final RecordClusteringService recordClusteringService;
-	private final Queue<String> priorityReprocessingQueue = new ConcurrentLinkedQueue<>();
+	private final LinkedHashSet<String> priorityReprocessingQueue = new LinkedHashSet<>();
   private final ReactorFederatedLockService lockService;
 	
 	public ClusterHousekeepingService(ClusterRecordRepository clusterRecordRepo, RecordClusteringService recordClusteringService, ReactorFederatedLockService lockService) {
@@ -47,26 +47,29 @@ public class ClusterHousekeepingService {
 		this.lockService = lockService;
 	}
 	
-	public boolean prioritiseReprocessing(String idStr) {
-		return priorityReprocessingQueue.offer( idStr );
+	public void prioritiseReprocessing(String idStr) {
+		synchronized (priorityReprocessingQueue) {
+			priorityReprocessingQueue.add(idStr);
+		}
 	}
 	
 	private List<UUID> getDedupedPriorityBatch() {
-		
 		log.info( "Next batch of up to [{}] from priority queue", BATCH_SIZE );
-		String idStr;
-		final Set<String> toProcess = new LinkedHashSet<>( BATCH_SIZE );
-		while (toProcess.size() < BATCH_SIZE && (idStr = priorityReprocessingQueue.poll()) != null) {
-			toProcess.add(idStr);
+		final List<UUID> toProcess = new ArrayList<>( BATCH_SIZE );
+		synchronized (priorityReprocessingQueue) {
+			
+			Iterator<String> queue = priorityReprocessingQueue.iterator();
+			while (toProcess.size() < BATCH_SIZE && queue.hasNext()) {
+				try {
+					UUID id = UUID.fromString(queue.next());
+					
+					toProcess.add(id);
+				} catch (IllegalArgumentException ex) {
+					// Invalid UUID somehow. Ignore.
+				}
+			}
 		}
-		
-		// Will cause an empty subscription
-		if (toProcess.isEmpty()) return null;
-		
-		// Deduped up to 100 candidates.
-		return toProcess.stream()
-			.map(UUID::fromString)
-			.toList();
+		return toProcess.size() > 0 ? toProcess : null;
 	}
 	
 	/**

@@ -23,7 +23,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
-import java.util.stream.Stream;
 
 import org.apache.commons.codec.language.DoubleMetaphone;
 import org.olf.dcb.core.audit.ProcessAuditService;
@@ -343,15 +342,16 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 	
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Mono<Tuple2<List<ClusterRecord>, Optional<ClusterRecord>>> filterOutdatedClustersAndReprocess(List<ClusterRecord> potentialMatches, Optional<ClusterRecord> currentCluster) {
-		// We should check the current cluster as well, as this resource may have been pulled in here by outdated information.
-		// This may result in the bibs current clustdisperseAndReclusterer being reprocessed afterwards. This is fine, and we should leave the optional in tact
-		// to potentially leave the bib in the cluster for now.
-		var allClusters = Stream.concat(currentCluster.stream(), potentialMatches.stream())
+		
+		var allClusters = potentialMatches.stream()
 			.map(ClusterRecord::getId)
 			.toList();
 		
 		return Flux.from( clusterRecords.getClusterIdsWithBibsPriorToVersionInList(IngestService.getProcessVersion(), allClusters))
 			.transformDeferred(transactionalBehaviours.doOnCommittal(cluster -> {
+				if (currentCluster.isPresent()) {
+					if (cluster.equals(currentCluster.get().getId())) return;
+				}
 				priorityReprocessingQueue.offer(cluster.toString());
 			}))
 			.flatMap(processAuditService.withAuditMessage( c -> "Cluster [%s] contains outdated bibs, flag for reprocessing and ignore match at this time".formatted(c) ))
