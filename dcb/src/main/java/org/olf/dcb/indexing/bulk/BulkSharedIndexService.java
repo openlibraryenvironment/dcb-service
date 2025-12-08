@@ -65,7 +65,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		
 		this.clusters = clusters;
 		this.maxSize = conf.maxResourceListSize().orElse(1500); // Default to 1500
-		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(15)); // Default 15 seconds.
+		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(5)); // Default 5 seconds.
 		this.sharedIndexQueueRepository = sharedIndexQueueRepository;
 		this.publisherTransformer = publisherTransformationService;
 		initializeQueue();
