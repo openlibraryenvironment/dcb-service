@@ -35,7 +35,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 @FeatureFlag(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)
 public class ClusterHousekeepingService {
 
-	private static final int BATCH_SIZE = 5000;
+	private static final int BATCH_SIZE = 1000;
 	private final ClusterRecordRepository clusterRecordRepo;
 	private final RecordClusteringService recordClusteringService;
 	private final LinkedHashSet<String> priorityReprocessingQueue = new LinkedHashSet<>();
@@ -136,7 +136,7 @@ public class ClusterHousekeepingService {
 	}
 
 	@AppTask
-	@Scheduled(initialDelay = "10s", fixedDelay = "10s")
+	@Scheduled(initialDelay = "10s", fixedDelay = "5s")
 	protected void reprocess() {
 		
 		if (completed) {
