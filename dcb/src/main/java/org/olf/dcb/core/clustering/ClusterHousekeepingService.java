@@ -136,7 +136,7 @@ public class ClusterHousekeepingService {
 	}
 
 	@AppTask
-	@Scheduled(initialDelay = "10s", fixedDelay = "30s")
+	@Scheduled(initialDelay = "10s", fixedDelay = "10s")
 	protected void reprocess() {
 		
 		if (completed) {
@@ -146,7 +146,7 @@ public class ClusterHousekeepingService {
 		
 		log.info("Running cluster housekeeping task");
 		
-		// Deduped up to 100 candidates.
+		// Deduped candidates.
 		prioritySubscription()
 			.publishOn( Schedulers.boundedElastic() )
 			.subscribeOn( Schedulers.boundedElastic() )
@@ -158,7 +158,7 @@ public class ClusterHousekeepingService {
 							log.error("Failed to flag [{}] for recluster, even after retries.");
 							return Mono.empty();
 						}));
-			})
+			}, 0)
 			.count()
 			.map( count -> {
 				
