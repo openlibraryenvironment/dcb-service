@@ -161,7 +161,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		return idFlux
 			.concatMap( this::manifestCluster )
 			.filter( Predicates.not( List::isEmpty ) )
-			.flatMap(ops -> this.offloadToImplementation(ops)
+			.concatMap(ops -> this.offloadToImplementation(ops)
 				.onErrorResume(e -> {
 					
 					if (CircuitOpenException.class.isAssignableFrom(e.getClass())) {
@@ -175,7 +175,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 					
 	//				return Mono.empty();
 					return queueInBackupJob( ops );
-				}));
+				}), 5);
 	}
 
 	@NonNull
