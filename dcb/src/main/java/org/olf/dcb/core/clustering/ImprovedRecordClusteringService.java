@@ -354,7 +354,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 				}
 				priorityReprocessingQueue.offer(cluster.toString());
 			}))
-			.flatMap(processAuditService.withAuditMessage( c -> "Cluster [%s] contains outdated bibs, flag for reprocessing and ignore match at this time".formatted(c) ))
+			.concatMap(processAuditService.withAuditMessage( c -> "Cluster [%s] contains outdated bibs, flag for reprocessing and ignore match at this time".formatted(c)), 0)
 			.collectList()
 			.flatMapMany( clustersToReprocess -> Flux.fromIterable( potentialMatches )
 		  	.filter(cr -> !clustersToReprocess.contains( cr.getId() )))
@@ -533,7 +533,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 				// Flux of the matches...
 				return Flux.fromIterable( auditLog )
-					.flatMap( processAuditService::auditMessage )
+					.concatMap( processAuditService::auditMessage, 0)
 					.thenMany(Flux.fromIterable(matches));
 			});
 	}
@@ -600,7 +600,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 		
 		return matchpointService.getMatchesByDerrivedType(bib.getDerivedType(), highConfidenceValues)
 			.filter( mp -> !mp.getBibId().equals(bib.getId()) )
-			.flatMap( processAuditService.withAuditMessage( match -> {
+			.concatMap( processAuditService.withAuditMessage( match -> {
 				// The match here is the matchpoint from the database so contains no extra debug information
 				// we can look it up from the map to add an audit message without polluting the database with
 				// debug only data.
@@ -611,7 +611,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 				return "High confidence match with Bib [%s] on [%s] = [%s]".formatted(
 					match.getBibId(),
 					matchSource.getDomain(), matchSource.getSourceValueHint());
-			}))
+			}), 0)
 			.map(MatchPoint::getBibId)
 			.collect(Collectors.toUnmodifiableSet())
 			.flatMapMany( bibRecords::findAllIncludingClusterByIdIn )
