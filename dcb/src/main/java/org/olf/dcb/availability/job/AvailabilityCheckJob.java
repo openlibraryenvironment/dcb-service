@@ -307,12 +307,14 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		return bibRecordService.findAllByIdIn( ids )
 			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
 			.flatMapIterable(Map::values)
-			.concatMap( sameSourceBibs -> {
+			.flatMap( sameSourceBibs -> {
 				return Flux.fromIterable(sameSourceBibs)
-					.window(externalPerSystem)
+					.buffer(externalPerSystem)
 					.delayElements(Duration.of(1, ChronoUnit.SECONDS))
-					.concatMap( items -> items
-						.flatMap( this::checkSingleBib ), 0); // No prefetching
+					.concatMap( items -> {
+						return Flux.fromIterable(items)
+							.flatMap( this::checkSingleBib );
+					}, 0); // No prefetching
 			}, totalConcurrency);
 	}
 	
