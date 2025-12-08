@@ -64,8 +64,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	protected BulkSharedIndexService( RecordClusteringService clusters, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService publisherTransformationService, SharedIndexConfiguration conf ) {
 		
 		this.clusters = clusters;
-		this.maxSize = conf.maxResourceListSize().orElse(250); // Default to 250
-		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(15)); // Default 30 seconds.
+		this.maxSize = conf.maxResourceListSize().orElse(1500); // Default to 1500
+		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(5)); // Default 5 seconds.
 		this.sharedIndexQueueRepository = sharedIndexQueueRepository;
 		this.publisherTransformer = publisherTransformationService;
 		initializeQueue();
@@ -82,8 +82,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		return in
 			.windowTimeout( maxSize * 2, throttleTimeout.dividedBy(2) )
 			.windowTimeout( 2, throttleTimeout )
-			.flatMap( sources -> Flux.concat( sources ).distinct().buffer(maxSize) )
-			.delayElements( Duration.ofSeconds(2) )
+			.flatMap( sources -> Flux.concat( sources ).distinct().buffer(maxSize))
+//			.delayElements( Duration.ofSeconds(2) )
 			.map( bulk -> {
 				
 				var deduped = bulk.stream().distinct().map(UUID::fromString).toList();
@@ -175,7 +175,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 					
 	//				return Mono.empty();
 					return queueInBackupJob( ops );
-				}));
+				}), 5);
 	}
 
 	@NonNull
