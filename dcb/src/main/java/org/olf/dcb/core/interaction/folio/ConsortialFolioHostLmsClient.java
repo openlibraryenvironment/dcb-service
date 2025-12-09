@@ -38,6 +38,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -979,6 +980,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
 	}
 
+	private static int determineHoldCount(TransactionStatus transactionStatus) {
+		return Optional.ofNullable(transactionStatus)
+			.map(TransactionStatus::getHoldCount)
+			.orElseGet(() ->
+				Optional.ofNullable(transactionStatus)
+					.map(TransactionStatus::getItem)
+					.map(TransactionStatus.Item::getHoldCount)
+					.orElse(0)
+			);
+	}
+
 	private static HostLmsItem mapToHostLmsItem(String itemId,
 		TransactionStatus transactionStatus) {
 
@@ -993,8 +1005,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.status(mapToItemStatus(rawLocalStatus))
 			.rawStatus(rawLocalStatus)
 			.renewalCount(getValue(transactionStatus, TransactionStatus::getRenewalCount, 0))
-			.holdCount(transactionStatus.getHoldCount() !=null ? transactionStatus.getHoldCount() : transactionStatus.getItem().getHoldCount() )
-			.renewable(transactionStatus.getRenewable()) // does this even exist?
+			.holdCount(determineHoldCount(transactionStatus))
+			.renewable(transactionStatus.getRenewable())
 			.build();
 	}
 
