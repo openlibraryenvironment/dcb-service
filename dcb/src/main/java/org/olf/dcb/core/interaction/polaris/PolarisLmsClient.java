@@ -842,8 +842,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<Item> enrichWithCombinedNumberOfHoldsOnItem(Item item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
+		String barcode = item.getBarcode();
 
-		return enrichHoldCount(localId, currentHoldCount)
+		return enrichHoldCount(localId, currentHoldCount, barcode)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
@@ -853,8 +854,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<HostLmsItem> enrichWithCombinedNumberOfHoldsOnItem(HostLmsItem item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
+		String barcode = item.getBarcode();
 
-		return enrichHoldCount(localId, currentHoldCount)
+
+		return enrichHoldCount(localId, currentHoldCount, barcode)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
@@ -864,45 +867,77 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	/**
 	 // Make calls to get any holds on the item, or on the title
 	 */
-	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount) {
 
+	// Performance improvements required. But it's a start.
+	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount, String itemBarcode) {
 		// prevent NPEs
 		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
 		if (localId == null) return Mono.just(currentCount);
 
-		// Convert localId to Integer for the reservation request
-		Integer itemId = Integer.valueOf(localId);
+		log.info("Current count is {}", currentCount);
 
-		return ApplicationServices.getReservationsForItem(itemId)
-			.map(response -> {
-				// If there's a valid response with reservation data
-				if (response != null && response.getReservations() != null) {
-					// Count the number of reservations for this item
-					int externalHoldCount = response.getReservations().size();
-					if (externalHoldCount > 0)
-					{
-						return externalHoldCount;
+		final int itemId = Integer.parseInt(localId);
+		final int PAGE_SIZE = 50; // In practice, we are extremely unlikely to need to paginate here.
+		// But it is possible for really popular items.
 
-					}
-					else {
-						// There is a situation where the reservation data is not present, but the hold count is not zero
-						// In this situation, we should use the total count as a fallback
-						if (response.getTotalCount() != null && response.getTotalCount() > 0)
-						{
-							return response.getTotalCount();
-
-						}
-						else
-						{
-							// If the total count is not present or is zero, fall back to original count
-							return currentCount;
-						}
-					}
+		return ApplicationServices.getReservationsForItem(itemId, 0, PAGE_SIZE)
+			// expand can help us grab all the reservations
+			.expand(response -> {
+				int totalCount = response.getTotalCount() != null ? response.getTotalCount() : 0;
+				int currentOffset = response.getOffset() != null ? response.getOffset() : 0;
+				int nextOffset = currentOffset + PAGE_SIZE;
+				if (nextOffset < totalCount) {
+					return ApplicationServices.getReservationsForItem(itemId, nextOffset, PAGE_SIZE);
 				}
-				// Fall back to the original count if no reservation data or total count is available
-				return currentCount;
+				return Mono.empty();
 			})
-			// Handle getReservationsForItem returning empty
+			// Check if there are any reservations
+			// NOTE: Because of Polaris API decisions, you must have a limit set on the getReservationsForItem call
+			// Or you'll be relying on the total count which could include cancelled holds
+			.map(response -> response.getReservations() != null ? response.getReservations() : Collections.<ApplicationServicesClient.ItemReservationRecord>emptyList())
+			.flatMapIterable(list -> list)
+			.filter(hold -> {
+				// Now it's time for the Polaris item-level hold count dance
+				// Only keep ones that are NOT cancelled (Polaris status 16). This includes null statuses for safety purposes.
+				Integer status = hold.getSysHoldStatusID();
+				if (status != null && status.equals(16)) return false;
+
+				String holdBarcode = hold.getItemBarcode();
+				// Then we need to filter so we only get the holds for this specific item
+				// Because sometimes this can happen despite us making a request for the holds for this item.
+				// At this stage, we let the "null barcodes" through. They are probably, but not always, bib-level holds.
+				return holdBarcode == null || itemBarcode == null || holdBarcode.equals(itemBarcode);
+			})
+			.flatMap(hold -> {
+				if (hold.getItemBarcode() != null) {
+					// We already verified the barcode matches above. This should not be needed but Polaris does some weird things
+					return Mono.just(true);
+				}
+				// Unfortunately, this is necessary because on checked out items, Polaris will allow item-level holds
+				// but will still set a null item barcode. So to the above part they look like bib-level holds.
+				// For preventing renewals, we need to be able to spot item-level holds on checked out items.
+				// So sadly we have to make another request to interrogate the hold itself.
+				// This will tell us whether it is a bib level hold (not currently relevant to hold count) or an item hold.
+				return ApplicationServices.getLocalHoldRequest(hold.getSysHoldRequestID())
+					.map(detail -> {
+						Integer holdItemId = detail.getItemRecordID();
+
+						// Only match if the hold item ID is equal to our item ID
+						if (holdItemId != null && holdItemId.equals(itemId)) {
+							return true;
+						}
+						// If we run into Polaris shenanigans, we could also decide to do a lower-confidence match
+						// i.e. on barcode, or if this hold is an item level hold it should be for our item
+						// Leaving out for now for performance reasons - it's bad enough we have to make a separate request already
+						return false;
+					})
+					.defaultIfEmpty(false)
+					.onErrorReturn(false);
+			})
+			.filter(Boolean::booleanValue)
+			.count()
+			.map(Long::intValue)
+			// If we get nothing fall back to the original count
 			.defaultIfEmpty(currentCount);
 	}
 
@@ -1339,6 +1374,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType))
+			.doOnNext(logSuccessRequestAndResponseDetails(request))
 			.doOnError(logRequestAndResponseDetails(request))
 			// Additional request specific error handling
 			.transform(errorHandlingTransformer)
@@ -1354,6 +1390,40 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 				return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
 			});
+	}
+	private <T> Consumer<T> logSuccessRequestAndResponseDetails(MutableHttpRequest<?> request) {
+		return response -> {
+			// Change to log.isDebugEnabled() if you want to reduce noise in production
+			if (log.isInfoEnabled()) {
+				try {
+					Object responseBody = response;
+					String status = "OK"; // Default for direct body retrieval
+
+					// If the response is wrapped in HttpResponse, extract status and body
+					if (response instanceof HttpResponse<?> httpResponse) {
+						responseBody = httpResponse.getBody().orElse(null);
+						status = httpResponse.getStatus().toString();
+					}
+
+					log.info("""
+                        HTTP Request SUCCESS:
+                        URL: {}
+                        Method: {}
+                        Headers: {}
+                        Request Body: {}
+                        Response Status: {}
+                        Response Body: {}""",
+						request.getUri(),
+						request.getMethod(),
+						request.getHeaders().asMap(),
+						request.getBody().orElse(null),
+						status,
+						responseBody);
+				} catch (Exception e) {
+					log.error("Couldn't log success request and response details", e);
+				}
+			}
+		};
 	}
 
 	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
@@ -1376,6 +1446,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 		};
 	}
+
 
 	/**
 	 * Utility method to specify that no specialised error handling will be needed for this request
@@ -1514,6 +1585,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
   // N.B.   public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) is now the main entry point for harvest v2 NOT this method
+	// Still being called
 	@Override
 	public Publisher<BibsPagedRow> getResources(Instant since, Publisher<String> terminator) {
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
@@ -1811,6 +1883,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
    */
 	@Override
 	public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) {
+		log.info("GET THOSE CHUNKS");
 		try {
 
 			// Use the inbuilt marshalling to convert into the BibParams.
@@ -1837,8 +1910,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					
 					.flatMap( bibsPaged -> {
 
-            if ( bibsPaged.get("PAPIErrorCode") != null )
+            if ( bibsPaged.get("PAPIErrorCode") != null ) // THIS CAN BE A POSITIVE VALUE AND NOT MEAN AN ERROR
               log.info("PAPIErrorCode: {}",bibsPaged.get("PAPIErrorCode").getValue());
+						log.info("Bibs paged {}", bibsPaged.toString());
+
 
             if ( bibsPaged.get("ErrorMessage") != null )
               log.info("ErrorMessage: {}",bibsPaged.get("ErrorMessage").getValue());
