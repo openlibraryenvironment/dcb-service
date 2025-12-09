@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.alma;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.lang3.NotImplementedException;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
@@ -98,6 +100,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private final HostLmsService hostLmsService;
 	private final AlmaApiClient client;
 	private final AlmaClientConfig config;
+	private final ConsortiumService consortiumService;
 
 	public AlmaHostLmsClient(@Parameter HostLms hostLms,
 		@Parameter("client") HttpClient httpClient,
@@ -107,7 +110,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		ConversionService conversionService,
 		LocationService locationService,
-		HostLmsService hostLmsService) {
+		HostLmsService hostLmsService,
+	 	ConsortiumService consortiumService) {
 
 		this.hostLms = hostLms;
 		this.httpClient = httpClient;
@@ -119,6 +123,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		this.conversionService = conversionService;
 		this.locationService = locationService;
 		this.hostLmsService = hostLmsService;
+		this.consortiumService = consortiumService;
 	}
 
 	@Override
@@ -688,23 +693,27 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
+		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE)
+			.flatMap(namesVisible -> {
+				// Only use real names if the setting is explicitly enabled
+				final var firstName = namesVisible ? extractFirstName(patron) : DEFAULT_FIRST_NAME;
+				final var lastName = namesVisible ? extractLastName(patron) : DEFAULT_LAST_NAME;
 
-		final var firstName = extractFirstName(patron);
-		final var lastName = extractLastName(patron);
-		final var externalId = extractExternalId(patron);
+				final var externalId = extractExternalId(patron);
 
-		List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
-		AlmaUser almaUser = buildAlmaUser(firstName, lastName, externalId, userIdentifiers);
-		log.info("Attempting to create a patron for Alma with Patron: {}, alma user: {} and user identifiers {}. First name is {}, last name is {}", patron, almaUser, userIdentifiers, firstName,lastName);
+				List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
+				AlmaUser almaUser = buildAlmaUser(firstName, lastName, externalId, userIdentifiers);
+				log.info("Attempting to create a patron for Alma with Patron: {}, alma user: {} and user identifiers {}. First name is {}, last name is {}", patron, almaUser, userIdentifiers, firstName, lastName);
 
-		return determinePatronType(patron)
-			.flatMap(patronType -> {
-				almaUser.setUser_group(CodeValuePair.builder().value(patronType).build());
+				return determinePatronType(patron)
+					.flatMap(patronType -> {
+						almaUser.setUser_group(CodeValuePair.builder().value(patronType).build());
 
-				return Mono.from(client.createUser(almaUser))
-					.flatMap(returnedUser -> {
-						log.info("Created alma user {}", returnedUser);
-						return Mono.just(returnedUser.getPrimary_id());
+						return Mono.from(client.createUser(almaUser))
+							.flatMap(returnedUser -> {
+								log.info("Created alma user {}", returnedUser);
+								return Mono.just(returnedUser.getPrimary_id());
+							});
 					});
 			});
 	}

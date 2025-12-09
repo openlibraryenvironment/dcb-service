@@ -11,6 +11,7 @@ import io.micronaut.http.client.HttpClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
@@ -41,6 +42,7 @@ class AlmaHostLmsClientUpdateHoldRequestTests {
 	private ConversionService conversionService;
 	private LocationService locationService;
 	private HostLmsService hostLmsService;
+	private ConsortiumService consortiumService;
 
 	private AlmaHostLmsClient sut;
 
@@ -60,6 +62,7 @@ class AlmaHostLmsClientUpdateHoldRequestTests {
 		conversionService = mock(ConversionService.class);
 		locationService = mock(LocationService.class);
 		hostLmsService = mock(HostLmsService.class);
+		consortiumService = mock(ConsortiumService.class);
 
 		sut = new AlmaHostLmsClient(
 				hostLms,
@@ -70,7 +73,8 @@ class AlmaHostLmsClientUpdateHoldRequestTests {
 				locationToAgencySvc,
 				conversionService,
 				locationService,
-				hostLmsService
+				hostLmsService,
+			consortiumService
 		);
 	}
 
