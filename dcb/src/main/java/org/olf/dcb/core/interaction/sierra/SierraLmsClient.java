@@ -940,13 +940,16 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		final String patronExpirationDate = df.format(patron.getExpiryDate());
 		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE) //
 			.flatMap(namesVisible -> {
-				// If VIRTUAL_PATRON_NAMES_VISIBLE, use the real names
-				// If not (or if empty), fall back to anonymised unique IDs as before
-				List<String> namesToUse;
-				if (namesVisible && patron.getLocalNames() != null && !patron.getLocalNames().isEmpty()) {
-					namesToUse = patron.getLocalNames();
-				} else {
-					namesToUse = Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList);
+				// If VIRTUAL_PATRON_NAMES_VISIBLE is enabled, use the real names and unique IDs (as librarians use these in existing workflows)
+				// If it is not enabled or there aren't any names, fall back to anonymised unique IDs as before
+				// This should ensure that there is something to use in any scenario for librarians dealing with virtual patrons
+				List<String> namesToUse = new ArrayList<>();
+
+				if (namesVisible && patron.getLocalNames() != null) {
+					namesToUse.addAll(patron.getLocalNames());
+				}
+				if (patron.getUniqueIds() != null) {
+					namesToUse.addAll(patron.getUniqueIds());
 				}
 
 				final var patronPatch = PatronPatch.builder()

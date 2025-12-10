@@ -17,7 +17,8 @@ public enum FunctionalSettingType {
 	SELECT_UNAVAILABLE_ITEMS, // If enabled, DCB will include unavailable items in resolution
   TRIGGER_SUPPLIER_RENEWAL, // If enabled, DCB will attempt to mirror a renewal at the supplying library
 	DENY_LIBRARY_MAPPING_EDIT, // If enabled, stops library users from being able to edit mappings
-	VIRTUAL_PATRON_NAMES_VISIBLE; // If enabled, virtual patrons will be created with names from the 'real patron'.
+	VIRTUAL_PATRON_NAMES_VISIBLE, // If enabled, virtual patrons will be created with names from the 'real patron'.
+	VIRTUAL_PATRON_NAMES_POLARIS; // A special case for Polaris virtual patron functionality. To be deprecated when we have group functional settings.
 
 	public static boolean isValid(String name) {
 		for (FunctionalSettingType type : values()) {
