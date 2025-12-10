@@ -39,6 +39,7 @@ r2dbc:
       options:
         maxSize: 1
         initialSize: 1
+        maxIdle: "PT2S"
         validationQuery: "SELECT 1"
         validationDepth: REMOTE
       schema-generate: NONE
@@ -59,3 +60,9 @@ dcb:
   requestability:
     location:
       filtering: false
+      
+test-resources:
+  containers:
+    postgres:
+      image-name: "postgres:18"
+      command: ["postgres", "-N", "200"]
