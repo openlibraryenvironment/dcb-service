@@ -69,7 +69,6 @@ public class ReactiveTransactionalBehaviours {
 				// Rollbacks degrade to empty publisher
 				.filter( ReactiveTransactionalBehaviours::noneRollbackPredicate )
 				.mapNotNull( sideEffects::get )
-				.flatMapMany( Flux::fromIterable )
 				
 				// Always tidy up.
 				.doFinally( tidyQueues(sts) )
@@ -108,13 +107,16 @@ public class ReactiveTransactionalBehaviours {
 	}
 	
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
-	protected static Consumer<Runnable> handleEvent(final ReactiveTransactionStatus<?> status) {
+	protected static Consumer<ConcurrentLinkedQueue<Runnable>> handleEvent(final ReactiveTransactionStatus<?> status) {
 		
-		return callable -> {
-			try {
-				callable.run();
-			} catch (Throwable t) {
-				log.error("Error running [{}] as side effect for transaction [{}]", callable, status);
+		return runnables -> {
+			
+			for (Runnable runnable : runnables) {
+				try {
+					runnable.run();
+				} catch (Throwable t) {
+					log.error("Error running [{}] as side effect for transaction [{}]", runnable, status);
+				}
 			}
 		};
 	}

@@ -547,7 +547,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 			return Flux.empty();
 		}
-
+		
 		// Mutate the map making the manifested bib the key and not just the ID
 		return Mono.just(candidates.stream()
 			.filter( mp -> !mp.getBibId().equals(compareTo.getId()) )
@@ -555,8 +555,8 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 			// Manifest the bibs in the map, and that aren't attached to clusters that
 			// we've already decided to match with.
-			.flatMap(bibIdMap -> bibRecords.findAllIncludingClusterByIdIn(bibIdMap.keySet().stream()
-				.map(UUID::fromString).toList())
+			.flatMap(bibIdMap -> Mono.just(bibIdMap.keySet().stream().map(UUID::fromString).toList())
+				.flatMapMany( ids -> chunkLoadBibsAndCluster(ids, 200) )
 				.filter(bib -> alreadyMatchedClusers.contains(bib.getContributesTo()))
 				.collectMap(bib -> bib.getId().toString())
 				.map(manifestedBibs -> {
@@ -614,7 +614,7 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 			}), 0)
 			.map(MatchPoint::getBibId)
 			.collect(Collectors.toUnmodifiableSet())
-			.flatMapMany( bibRecords::findAllIncludingClusterByIdIn )
+			.flatMapMany( ids -> chunkLoadBibsAndCluster(ids, 200) )
 			.mapNotNull( BibRecord::getContributesTo )
 			
 			// Returns a list of ClusterRecord matches. The re-occurences of Clusters is
@@ -626,6 +626,13 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 				.concatWith(
 					doExtraProcessing(bib, rankedPoints.computeIfAbsent(MatchConfidence.LOW,
 						_k -> Collections.emptySet()), primaryMatchedClusters)));
+	}
+	
+	@Transactional(propagation = Propagation.REQUIRED)
+	protected Flux<BibRecord> chunkLoadBibsAndCluster( Collection<UUID> ids, int max ) {
+		return Flux.fromIterable(ids)
+			.buffer(500)
+			.concatMap( bibRecords::findAllIncludingClusterByIdIn );
 	}
 
 	@Override
