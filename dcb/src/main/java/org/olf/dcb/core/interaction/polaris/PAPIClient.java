@@ -8,10 +8,12 @@ import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
 import static java.util.Collections.singletonList;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_POLARIS;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.HostLms;
 
 import java.time.Duration;
@@ -64,8 +66,9 @@ public class PAPIClient {
 	private final PolarisConfig polarisConfig;
 	private final ConversionService conversionService;
 	private final HostLms lms;
+	private final ConsortiumService consortiumService;
 
-	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService, HostLms lms) {
+	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService, HostLms lms, ConsortiumService consortiumService) {
 		this.client = client;
 		this.polarisConfig = polarisConfig;
 		this.authFilter = new PAPIAuthFilter(client, polarisConfig);
@@ -77,6 +80,7 @@ public class PAPIClient {
 		this.PUBLIC_PARAMETERS = BASE_PARAMETERS + "/public" + PAPI_PARAMETERS;
 		this.PROTECTED_PARAMETERS = BASE_PARAMETERS + "/protected" + PAPI_PARAMETERS;
 		this.conversionService = conversionService;
+		this.consortiumService = consortiumService;
 	}
 
 	/*
@@ -122,36 +126,57 @@ public class PAPIClient {
 		log.info("patronRegistrationCreate {}", patron);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron");
-		final PatronRegistration body = getPatronRegistration(patron);
 
-		return createRequest(POST, path, uri -> {})
-			.map(request -> request.body(body))
-			.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
-			// passing empty patron credentials will allow public requests without patron auth
-			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
+		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_POLARIS)
+			.flatMap(namesVisible -> {
+				final PatronRegistration body = getPatronRegistration(patron, namesVisible);
+				return createRequest(POST, path, uri -> {})
+					.map(request -> request.body(body))
+					.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
+					// passing empty patron credentials will allow public requests without patron auth
+					.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
+					.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
+			});
 	}
 
-	private PatronRegistration getPatronRegistration(Patron patron) {
+	private PatronRegistration getPatronRegistration(Patron patron, Boolean namesVisible) {
 		final var patronBarcodePrefix = polarisConfig.getPatronBarcodePrefix("DCB-");
-		return PatronRegistration.builder()
+		// Stick with the anonymised defaults, only use local names if the setting is enabled and localnames exist
+		String firstName = patron.getLocalBarcodes().get(0);
+		String lastName = patron.getUniqueIds().get(0);
+		String middleName = null;
+
+		if (namesVisible && patron.getLocalNames() != null && !patron.getLocalNames().isEmpty()) {
+			firstName = patron.getLocalNames().get(0);
+			if (patron.getLocalNames().size() > 1) {
+				// Polaris last name is 255 chars. So we've got space to include the unique identifier as well
+				lastName = patron.getLocalNames().get(patron.getLocalNames().size() - 1) + patron.getUniqueIds().get(0);
+			}
+			if (patron.getLocalNames().size() > 2) {
+				middleName = patron.getLocalNames().get(1);
+			}
+		}
+
+		var patronRegistration = PatronRegistration.builder()
 			.logonBranchID(polarisConfig.getLogonBranchId())
 			.logonUserID(polarisConfig.getLogonUserId())
 			.logonWorkstationID(polarisConfig.getServicesWorkstationId())
 			.patronBranchID(patron.getLocalItemLocationId())
-			.nameFirst(patron.getLocalBarcodes().get(0))
-			.nameLast(patron.getUniqueIds().get(0))
+			.nameFirst(firstName)
+			.nameLast(lastName)
 			.patronCode(parseInt(patron.getLocalPatronType()))
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.birthdate("1999-11-01")
-
 			// Polaris requires these fields,
 			// we call the API to extract defaults
 			// or fallback to empty strings if not
 			.postalCode(patron.getPostalCode())
 			.city(patron.getCity())
-			.state(patron.getState())
-			.build();
+			.state(patron.getState());
+		if (namesVisible) {
+			patronRegistration.nameMiddle(middleName);
+		}
+		return patronRegistration.build();
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {

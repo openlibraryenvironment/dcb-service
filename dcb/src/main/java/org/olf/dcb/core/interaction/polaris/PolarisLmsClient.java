@@ -47,6 +47,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
@@ -161,7 +162,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
-									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService) {
+									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
+									 ConsortiumService consortiumService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -174,7 +176,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
 		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig);
-		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms);
+		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
