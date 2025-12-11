@@ -798,8 +798,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
+		// Think it is this one
 
 		final var localItemId = hostLmsItem.getLocalId();
+		log.info("Getting item called!");
 
 		return parseLocalItemId(localItemId)
 			.flatMap(id -> ApplicationServices.itemrecords(id,TRUE))
@@ -814,6 +816,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.map(ApplicationServicesClient.CirculationData::getRenewalCount)
 					.orElse(0);
 
+				final var isAtRenewalLimit = Objects.equals(itemRecord.getBibInfo().getRenewals(), itemRecord.getBibInfo().getRenewalLimit());
+				// Set based on material type in Polaris. We need to first understand if we are at the renewal limit, and then understand if we are not renewable for another reason
+				// e.g. are we at the renewal limit, and can we even renew this item at all? (regardless of limit)
+				final var isItemRenewable = itemRecord.getBibInfo().getCanItemBeRenewed();
+
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
 					.status(hostLmsStatus)
@@ -822,7 +829,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					// As such we will need to re-work the above.
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
-					.renewable(itemRecord.getBibInfo().getCanItemBeRenewed()) // Seems to be false until the item is checked out.
+					// If the item is renewable at the top level AND we're not at the renewal limit
+					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
 					.build();
 			})
 			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem )
@@ -836,8 +844,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<Item> enrichWithCombinedNumberOfHoldsOnItem(Item item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
+		String barcode = item.getBarcode();
 
-		return enrichHoldCount(localId, currentHoldCount)
+		return enrichHoldCount(localId, currentHoldCount, barcode)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
@@ -847,8 +856,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private Mono<HostLmsItem> enrichWithCombinedNumberOfHoldsOnItem(HostLmsItem item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
+		String barcode = item.getBarcode();
 
-		return enrichHoldCount(localId, currentHoldCount)
+
+		return enrichHoldCount(localId, currentHoldCount, barcode)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
@@ -858,27 +869,73 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	/**
 	 // Make calls to get any holds on the item, or on the title
 	 */
-	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount) {
 
+	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount, String itemBarcode) {
 		// prevent NPEs
 		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
 		if (localId == null) return Mono.just(currentCount);
 
-		// Convert localId to Integer for the reservation request
-		Integer itemId = Integer.valueOf(localId);
+		log.info("Current count is {}", currentCount);
 
-		return ApplicationServices.getReservationsForItem(itemId)
-			.map(response -> {
-				// If there's a valid response with reservation data
-				if (response != null && response.getReservations() != null) {
-					// Count the number of reservations for this item
-					int externalHoldCount = response.getReservations().size();
-					return externalHoldCount;
+		final int itemId = Integer.parseInt(localId);
+		final int PAGE_SIZE = 50; // In practice, we are extremely unlikely to need to paginate here.
+		// But it is possible for really popular items.
+
+		return ApplicationServices.getReservationsForItem(itemId, 0, PAGE_SIZE)
+			// expand can help us grab all the reservations
+			.expand(response -> {
+				int totalCount = response.getTotalCount() != null ? response.getTotalCount() : 0;
+				if (totalCount == 0) return Mono.empty(); // If the total count is zero, we know there are no holds at all. So no need to do anything else
+				int currentOffset = response.getOffset() != null ? response.getOffset() : 0;
+				int nextOffset = currentOffset + PAGE_SIZE;
+				if (nextOffset < totalCount) {
+					return ApplicationServices.getReservationsForItem(itemId, nextOffset, PAGE_SIZE);
 				}
-				// Fall back to the original count if no reservation data is available
-				return currentCount;
+				return Mono.empty();
 			})
-			// Handle getReservationsForItem returning empty
+			// Check if there are any reservations
+			// NOTE: Because of Polaris API decisions, you must have a limit set on the getReservationsForItem call
+			// Or you'll be relying on the total count which could include cancelled holds
+			.map(response -> response.getReservations() != null ? response.getReservations() : Collections.<ApplicationServicesClient.ItemReservationRecord>emptyList())
+			.flatMapIterable(list -> list)
+			.filter(hold -> {
+				// Now it's time for the Polaris item-level hold count dance
+				// Only keep ones that are NOT cancelled (Polaris status 16). This includes null statuses for safety purposes.
+				Integer status = hold.getSysHoldStatusID();
+				if (status != null && status.equals(16)) return false;
+				String holdBarcode = hold.getItemBarcode();
+				// Then we need to filter so we only get the holds for this specific item
+				// Despite this being an API call for the holds on this item only, others can slip through
+				// At this stage, we let the "null barcodes" through. They are probably, but not always, bib-level holds.
+				return holdBarcode == null || itemBarcode == null || holdBarcode.equals(itemBarcode);
+			})
+			.flatMap(hold -> {
+				if (hold.getItemBarcode() != null) {
+					// We already verified the barcode matches above. This should not be needed but Polaris does some weird things
+					return Mono.just(true);
+				}
+				// Unfortunately, this is necessary because on checked out items, Polaris will allow item-level holds
+				// but will still set a null item barcode. So to the above part they look like bib-level holds.
+				// For preventing renewals, we need to be able to spot item-level holds on checked out items.
+				// So sadly we have to make another request to interrogate the hold itself.
+				// This will tell us whether it is a bib level hold (not currently relevant to hold count) or an item hold.
+				return ApplicationServices.getLocalHoldRequest(hold.getSysHoldRequestID())
+					.map(detail -> {
+						Integer holdItemId = detail.getItemRecordID();
+
+						// Only match if the hold item ID is equal to our item ID
+						if (holdItemId != null && holdItemId.equals(itemId)) {
+							return true;
+						}
+						return false;
+					})
+					.defaultIfEmpty(false)
+					.onErrorReturn(false);
+			})
+			.filter(Boolean::booleanValue)
+			.count()
+			.map(Long::intValue)
+			// If we get nothing fall back to the original count
 			.defaultIfEmpty(currentCount);
 	}
 
@@ -1397,6 +1454,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		};
 	}
 
+
 	/**
 	 * Utility method to specify that no specialised error handling will be needed for this request
 	 *
@@ -1534,6 +1592,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
   // N.B.   public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) is now the main entry point for harvest v2 NOT this method
+	// Still being called
 	@Override
 	public Publisher<BibsPagedRow> getResources(Instant since, Publisher<String> terminator) {
 		log.info("Fetching MARC JSON from Polaris for {}", lms.getName());
@@ -1831,6 +1890,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
    */
 	@Override
 	public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) {
+		log.info("GET THOSE CHUNKS");
 		try {
 
 			// Use the inbuilt marshalling to convert into the BibParams.
@@ -1857,8 +1917,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					
 					.flatMap( bibsPaged -> {
 
-            if ( bibsPaged.get("PAPIErrorCode") != null )
+            if ( bibsPaged.get("PAPIErrorCode") != null ) // THIS CAN BE A POSITIVE VALUE AND NOT MEAN AN ERROR
               log.info("PAPIErrorCode: {}",bibsPaged.get("PAPIErrorCode").getValue());
+						log.info("Bibs paged {}", bibsPaged.toString());
+
 
             if ( bibsPaged.get("ErrorMessage") != null )
               log.info("ErrorMessage: {}",bibsPaged.get("ErrorMessage").getValue());

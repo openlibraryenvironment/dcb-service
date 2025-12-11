@@ -38,6 +38,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -979,6 +980,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
 	}
 
+	private static int determineHoldCount(TransactionStatus transactionStatus) {
+		return Optional.ofNullable(transactionStatus)
+			.map(TransactionStatus::getHoldCount)
+			.orElseGet(() ->
+				Optional.ofNullable(transactionStatus)
+					.map(TransactionStatus::getItem)
+					.map(TransactionStatus.Item::getHoldCount)
+					.orElse(0)
+			);
+	}
+
 	private static HostLmsItem mapToHostLmsItem(String itemId,
 		TransactionStatus transactionStatus) {
 
@@ -993,7 +1005,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.status(mapToItemStatus(rawLocalStatus))
 			.rawStatus(rawLocalStatus)
 			.renewalCount(getValue(transactionStatus, TransactionStatus::getRenewalCount, 0))
-			.holdCount(transactionStatus.getHoldCount())
+			.holdCount(determineHoldCount(transactionStatus))
 			.renewable(transactionStatus.getRenewable())
 			.build();
 	}
@@ -1318,8 +1330,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// WE don't seem to access to loan id :/
     log.info("Folio prevent renewal {}",prc);
 		// This is fugly
-		return updateTransactionStatus(prc.getRequestId(), TransactionStatus.CANCELLED)
-			.then();
+
+		// This endpoint was introduced after Sunflower SP3, in its own special deployment
+		// This will set the renewal count to maximum
+		final var path = "/dcbService/transactions/%s/block-renewal".formatted(prc.getRequestId());
+		// If we get 404 it suggests this endpoint isn't supported. Revert to previous behaviour
+		return makeRequest(authorisedRequest(PUT, path));
   }
 
   @Override

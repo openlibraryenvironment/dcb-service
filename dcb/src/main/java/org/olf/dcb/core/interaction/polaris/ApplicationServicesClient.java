@@ -1098,26 +1098,27 @@ class ApplicationServicesClient {
 	}
 
 
-  public Mono<GetItemHoldsResponse> getReservationsForItem(Integer id) {
-    log.info("Getting reservations for item: {}", id);
+	public Mono<GetItemHoldsResponse> getReservationsForItem(Integer id, Integer offset, Integer limit) {
 
-    final var path = createPath("itemrecords", id, "holds");
+		final var path = createPath("itemrecords", id, "holds");
+		// Note that this will return bib level holds as well.
 
-    return createRequest(GET, path, uri -> {})
-      .flatMap(request -> client.exchange(request, GetItemHoldsResponse.class, FALSE))
-      .map(HttpResponse::body)
-      .onErrorResume(error -> {
-        log.error(client.getHostLmsCode() + " " + path, error);
-
-        if ((error instanceof HttpClientResponseException) &&
-          (((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
-          return Mono.empty();
-        } else {
-          return raiseError(error);
-        }
-      });
+		return createRequest(GET, path, uri -> uri
+			.queryParam("Limit", limit) // Make sure this is set or you will not get ANY reservation data
+			.queryParam("Offset", offset))// Introducing pagination just in case we get some crazy amount of reservations
+			.flatMap(request -> client.exchange(request, GetItemHoldsResponse.class, FALSE))
+			.map(HttpResponse::body)
+			.onErrorResume(error -> {
+				// Just in case
+				if ((error instanceof HttpClientResponseException) &&
+					(((HttpClientResponseException) error).getStatus() == HttpStatus.NOT_FOUND)) {
+					return Mono.empty();
+				} else {
+					log.error("{} {}", client.getHostLmsCode(), path, error);
+					return raiseError(error);
+				}
+			});
 	}
-
 	public Mono<Void> placeItemBlock(String itemId, Integer noteId, String text) {
 
 		final var path = createPath("itemrecords", itemId, "blockingnote");
@@ -1306,6 +1307,8 @@ class ApplicationServicesClient {
 		private Boolean canItemBeRenewed;
 		@JsonProperty("Renewals")
 		private Integer renewals;
+		@JsonProperty("RenewalLimit")
+		private Integer renewalLimit;
 		@JsonProperty("CallNumber")
 		private String callNumber;
 	}
@@ -2432,6 +2435,8 @@ class ApplicationServicesClient {
 		private String dueDate;
     @JsonProperty("VolumeName")
 		private String volumeName;
+		@JsonProperty("SysHoldStatusID")
+		private Integer sysHoldStatusID;
 	}
 
   @Builder
