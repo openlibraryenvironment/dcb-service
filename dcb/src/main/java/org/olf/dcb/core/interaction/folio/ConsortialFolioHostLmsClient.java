@@ -1331,17 +1331,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
     log.info("Folio prevent renewal {}",prc);
 		// This is fugly
 
-		// CH: We need a success indicator here. This isn't going to do it
-		// Should be blocking on a loaned virtual item IF the supplier item has a hold
-		// i.e. not our hold, presumably
-		// But a different one
-		// Polaris-FOLIO good test for this
+		// This endpoint was introduced after Sunflower SP3, in its own special deployment
+		// This will set the renewal count to maximum
 		final var path = "/dcbService/transactions/%s/block-renewal".formatted(prc.getRequestId());
 		// If we get 404 it suggests this endpoint isn't supported. Revert to previous behaviour
-		// This will set the renewal count to maximum
-
-
-
 		return makeRequest(authorisedRequest(PUT, path));
   }
 

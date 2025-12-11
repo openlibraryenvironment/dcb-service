@@ -868,7 +868,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 // Make calls to get any holds on the item, or on the title
 	 */
 
-	// Performance improvements required. But it's a start.
 	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount, String itemBarcode) {
 		// prevent NPEs
 		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
@@ -884,6 +883,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			// expand can help us grab all the reservations
 			.expand(response -> {
 				int totalCount = response.getTotalCount() != null ? response.getTotalCount() : 0;
+				if (totalCount == 0) return Mono.empty(); // If the total count is zero, we know there are no holds at all. So no need to do anything else
 				int currentOffset = response.getOffset() != null ? response.getOffset() : 0;
 				int nextOffset = currentOffset + PAGE_SIZE;
 				if (nextOffset < totalCount) {
@@ -901,10 +901,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				// Only keep ones that are NOT cancelled (Polaris status 16). This includes null statuses for safety purposes.
 				Integer status = hold.getSysHoldStatusID();
 				if (status != null && status.equals(16)) return false;
-
 				String holdBarcode = hold.getItemBarcode();
 				// Then we need to filter so we only get the holds for this specific item
-				// Because sometimes this can happen despite us making a request for the holds for this item.
+				// Despite this being an API call for the holds on this item only, others can slip through
 				// At this stage, we let the "null barcodes" through. They are probably, but not always, bib-level holds.
 				return holdBarcode == null || itemBarcode == null || holdBarcode.equals(itemBarcode);
 			})
@@ -926,9 +925,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						if (holdItemId != null && holdItemId.equals(itemId)) {
 							return true;
 						}
-						// If we run into Polaris shenanigans, we could also decide to do a lower-confidence match
-						// i.e. on barcode, or if this hold is an item level hold it should be for our item
-						// Leaving out for now for performance reasons - it's bad enough we have to make a separate request already
 						return false;
 					})
 					.defaultIfEmpty(false)
@@ -1374,7 +1370,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType))
-			.doOnNext(logSuccessRequestAndResponseDetails(request))
 			.doOnError(logRequestAndResponseDetails(request))
 			// Additional request specific error handling
 			.transform(errorHandlingTransformer)
@@ -1390,40 +1385,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 				return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
 			});
-	}
-	private <T> Consumer<T> logSuccessRequestAndResponseDetails(MutableHttpRequest<?> request) {
-		return response -> {
-			// Change to log.isDebugEnabled() if you want to reduce noise in production
-			if (log.isInfoEnabled()) {
-				try {
-					Object responseBody = response;
-					String status = "OK"; // Default for direct body retrieval
-
-					// If the response is wrapped in HttpResponse, extract status and body
-					if (response instanceof HttpResponse<?> httpResponse) {
-						responseBody = httpResponse.getBody().orElse(null);
-						status = httpResponse.getStatus().toString();
-					}
-
-					log.info("""
-                        HTTP Request SUCCESS:
-                        URL: {}
-                        Method: {}
-                        Headers: {}
-                        Request Body: {}
-                        Response Status: {}
-                        Response Body: {}""",
-						request.getUri(),
-						request.getMethod(),
-						request.getHeaders().asMap(),
-						request.getBody().orElse(null),
-						status,
-						responseBody);
-				} catch (Exception e) {
-					log.error("Couldn't log success request and response details", e);
-				}
-			}
-		};
 	}
 
 	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {

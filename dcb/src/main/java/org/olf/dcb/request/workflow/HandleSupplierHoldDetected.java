@@ -50,8 +50,7 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		// Applicable if LOANED, if supplier request is not null, and a hold count exists at the supplier
 		// And of course only if the renewal status is ALLOWED (i.e. we didn't already prevent renewals, and renewals are supported)
-
-		// It's probably worth considering local renewable status here too. If the item will never be renewable, we can save ourselves some pain.
+		// A potential extension might be to check the item status here too: if it will never be renewable, we could save some pain and auto-prevent renewals.
 
 		return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
 			( ctx.getSupplierRequest() != null ) &&
@@ -86,6 +85,7 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 				int freshHoldCount = freshItem.getHoldCount() != null ? freshItem.getHoldCount() : 0;
 				// We set the new value, and, just to be sure, we persist it also.
 				// We should probably NOT do this if it's the same as the old hold count
+				// We should also probably update the whole item on the supplier request?
 				supplierRequest.setLocalHoldCount(freshHoldCount);
 				return Mono.from(supplierRequestRepository.saveOrUpdate(supplierRequest))
 					.doOnSuccess(sr -> log.debug("Updated local hold count cache for PR {} to {}", ctx.getPatronRequest().getId(), freshHoldCount))
@@ -119,10 +119,17 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 					.itemId(ctx.getPatronRequest().getLocalItemId())
 					.build()))
 			.then(markPatronRequestNotRenewable(ctx))
-			.then(auditService.addAuditEntry(ctx.getPatronRequest(), "Hold detected at owning Library. Borrowing Library told to prevent renewals"))
-			.thenReturn(ctx);
+			.flatMap(updatedCtx -> auditService.addAuditEntry(updatedCtx.getPatronRequest(),
+					"Hold confirmed at owning Library. Borrowing Library told to prevent renewals")
+				.thenReturn(updatedCtx)
+			)
+			.onErrorResume(error -> {
+			log.warn("Failed to prevent renewal for PR {}: {}", ctx.getPatronRequest().getId(), error.getMessage());
+			return auditService.addAuditEntry(ctx.getPatronRequest(),
+					"Failed to prevent renewal at borrowing library: " + error.getMessage()) //
+				.then(markPatronRequestRenewalUnsupported(ctx));
+		});
 	}
-
 
 	/** Return true if there is still a hold on the supplier after checkout.
 	 * But we need some guards just in case we've not got the correct hold count.
@@ -131,10 +138,9 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		if (ctx.getSupplierRequest() != null) {
 			int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
 			// When we reach LOANED, the following questions need to be asked
-			// Does the SUPPLIER item have a hold? Yes or no
+			// Does the SUPPLIER item have a hold?
 			// If no, we should NOT prevent renewal
-			// If we think it does have a hold, are we sure this is a current hold?
-			// As DCB can be slow in detecting that the hold we placed isn't still there.
+			// If we think it does have a hold, we must be sure that this is a current hold, and we're not lagging detecting our own hold
 			if (hold_count == 0) {
 				log.debug("No holds! Renewal is allowed");
 				return false;
@@ -152,6 +158,15 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 	private Mono<RequestWorkflowContext> markPatronRequestNotRenewable(RequestWorkflowContext ctx) {
 		// Rely upon outer framework to same 
 		ctx.getPatronRequest().setRenewalStatus(PatronRequest.RenewalStatus.DISALLOWED);
+		return Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest()))
+			.thenReturn(ctx);
+	}
+
+	// This is used if renewal prevention fails.
+	// It should ensure we don't get an infinite loop, and the request can continue
+	// But it makes it clear that something is not right.
+	private Mono<RequestWorkflowContext> markPatronRequestRenewalUnsupported(RequestWorkflowContext ctx) {
+		ctx.getPatronRequest().setRenewalStatus(PatronRequest.RenewalStatus.UNSUPPORTED);
 		return Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest()))
 			.thenReturn(ctx);
 	}
