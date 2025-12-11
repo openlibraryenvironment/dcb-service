@@ -1,6 +1,22 @@
 # Changelog
 
+## Version 8.59.0
+
+### Additions
+* [General]
+	* Include patron name in Alma virtual patrons [DCB-2058]
+	* Include patron name in Sierra virtual patron [DCB-2057]
+	* Ingest process audit
+
+### Fixes
+* [General]
+	* Make sure we fail safely if the prevent renewal endpoint is not available [DCB-1533]
+
 ## Version 8.58.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
