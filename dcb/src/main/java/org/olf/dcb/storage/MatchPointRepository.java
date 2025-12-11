@@ -6,6 +6,8 @@ import java.util.UUID;
 import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Vetoed;
 import jakarta.validation.constraints.NotNull;
 
 public interface MatchPointRepository {
@@ -23,4 +25,8 @@ public interface MatchPointRepository {
 	Publisher<MatchPoint> findAllByBibIdNotAndValueIn( @NotNull UUID bibId, @NotNull Collection<UUID> values );
 	
 	Publisher<Void> delete (@NotNull UUID id);
+
+	@NonNull
+	@Vetoed
+	Publisher<MatchPoint> getMatchesByDerrivedType(String derivedType, Collection<UUID> points);
 }

@@ -23,6 +23,7 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.integerPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.utils.DCBStringUtilities.deRestify;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -54,6 +55,7 @@ import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.configuration.LocationRecord;
 import org.olf.dcb.configuration.PickupLocationRecord;
 import org.olf.dcb.configuration.RefdataRecord;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
@@ -192,6 +194,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private final R2dbcOperations r2dbcOperations;
 	private final RulesetCacheInvalidator cacheInvalidator;
 	private final HostLmsService hostLmsService;
+	private final ConsortiumService consortiumService;
 
 	public SierraLmsClient(@Parameter HostLms lms,
 		HostLmsSierraApiClientFactory clientFactory,
@@ -203,7 +206,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		SierraItemMapper itemMapper,
 		ObjectRulesService objectRuleService,
 		PublisherTransformationService publisherTransformationService,
-		SierraPatronMapper sierraPatronMapper, R2dbcOperations r2dbcOperations, ObjectMapper objectMapper, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService) {
+		SierraPatronMapper sierraPatronMapper, R2dbcOperations r2dbcOperations,
+	 	ObjectMapper objectMapper, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
+		ConsortiumService consortiumService) {
 
 		this.lms = lms;
 		this.objectMapper = objectMapper;
@@ -223,6 +228,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.r2dbcOperations = r2dbcOperations;
 		this.cacheInvalidator = cacheInvalidator;
 		this.hostLmsService = hostLmsService;
+		this.consortiumService = consortiumService;
 	}
 
 	private Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
@@ -932,24 +938,36 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		df.setTimeZone(tz);
 
 		final String patronExpirationDate = df.format(patron.getExpiryDate());
+		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE) //
+			.flatMap(namesVisible -> {
+				// If VIRTUAL_PATRON_NAMES_VISIBLE is enabled, use the real names and unique IDs (as librarians use these in existing workflows)
+				// If it is not enabled or there aren't any names, fall back to anonymised unique IDs as before
+				// This should ensure that there is something to use in any scenario for librarians dealing with virtual patrons
+				List<String> namesToUse = new ArrayList<>();
 
-		final var patronPatch = PatronPatch.builder()
-			.patronType(parseInt(patron.getLocalPatronType()))
-			.uniqueIds(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
-			// Unique IDs are used for names to avoid transmission of personally
-			// identifiable information
-			.names(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
-			.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
-			.expirationDate(patronExpirationDate)
-			.pin(getVirtualPatronPin(getConfig()))
-			.build();
+				if (namesVisible && patron.getLocalNames() != null) {
+					namesToUse.addAll(patron.getLocalNames());
+				}
+				if (patron.getUniqueIds() != null) {
+					namesToUse.addAll(patron.getUniqueIds());
+				}
 
-		return Mono.from(client.patrons(patronPatch))
-			.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
-			.map(patronResult -> deRestify(patronResult.getLink()))
-			.onErrorResume(NullPointerException.class, error -> {
-				log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
-				return Mono.error(new RuntimeException("Error occurred when creating Patron"));
+				final var patronPatch = PatronPatch.builder()
+					.patronType(parseInt(patron.getLocalPatronType()))
+					.uniqueIds(Objects.requireNonNullElseGet(patron.getUniqueIds(), Collections::emptyList))
+					.names(namesToUse)
+					.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
+					.expirationDate(patronExpirationDate)
+					.pin(getVirtualPatronPin(getConfig()))
+					.build();
+
+				return Mono.from(client.patrons(patronPatch))
+					.doOnSuccess(result -> log.debug("the result of createPatron({})", result))
+					.map(patronResult -> deRestify(patronResult.getLink()))
+					.onErrorResume(NullPointerException.class, error -> {
+						log.debug("NullPointerException occurred when creating Patron: {}", error.getMessage());
+						return Mono.error(new RuntimeException("Error occurred when creating Patron"));
+					});
 			});
 	}
 

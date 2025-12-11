@@ -11,6 +11,7 @@ import java.util.function.Function;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,6 +20,7 @@ import org.olf.dcb.availability.job.BibAvailabilityCount.BibAvailabilityCountBui
 import org.olf.dcb.availability.job.BibAvailabilityCount.Status;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -305,14 +307,12 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		return bibRecordService.findAllByIdIn( ids )
 			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
 			.flatMapIterable(Map::values)
-			.flatMap( sameSourceBibs -> {
+			.concatMap( sameSourceBibs -> {
 				return Flux.fromIterable(sameSourceBibs)
-					.buffer(externalPerSystem)
+					.window(externalPerSystem)
 					.delayElements(Duration.of(1, ChronoUnit.SECONDS))
-					.concatMap( items -> {
-						return Flux.fromIterable(items)
-							.flatMap( this::checkSingleBib );
-					}, 0); // No prefetching
+					.concatMap( items -> items
+						.flatMap( this::checkSingleBib ), 0); // No prefetching
 			}, totalConcurrency);
 	}
 	

@@ -22,6 +22,7 @@ import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.request.workflow.UnsupportedWorkflowProblem;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -451,24 +452,28 @@ public class RequestWorkflowContextHelper {
 	// Here we work out which particular workflow is in force and set a value on the patron request for easy reference.
 	// This can change as we select different suppliers, so we recalculate for each new supplier.
 	public Mono<RequestWorkflowContext> setPatronRequestWorkflow(RequestWorkflowContext rwc) {
-
 		var patronAc = rwc.getPatronAgencyCode();
 		log.debug("patronAc: [{}]", patronAc);
+
 		var lenderAc = rwc.getLenderAgencyCode();
-		if ( lenderAc == null ) {
-			// BAD TM. Tests make really naive assumptions and this is considered OK.
-			lenderAc = patronAc;
-		}
 		log.debug("lenderAc: [{}]", lenderAc);
+
 		var pickupAc = rwc.getPickupAgencyCode();
 		log.debug("pickupAc: [{}]", pickupAc);
+
 		// For DCB-1555 troubleshooting only, will be removed afterwards.
 		log.info("pickupAc {}, lenderAc {}, patronAc {}", pickupAc, lenderAc, patronAc);
 
 		// Grab a reference to the patron request.
 		final PatronRequest pr = rwc.getPatronRequest();
 
-		if ( lenderAc.equals(pickupAc) ) {
+		// Unsupported variant of pickup anywhere workflow
+		if (lenderAc.equals(patronAc) && !pickupAc.equals(lenderAc)) {
+			return Mono.error(new UnsupportedWorkflowProblem(
+				"Same supplying and borrowing library, different pickup library"));
+		}
+
+		if (lenderAc.equals(pickupAc)) {
 			if (lenderAc.equals(patronAc))
 			{
 				// Make sure that true RET-LOCAL requests where everything is the same still go the RET-LOCAL route

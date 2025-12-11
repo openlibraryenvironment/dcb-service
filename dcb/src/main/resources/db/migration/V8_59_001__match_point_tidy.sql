@@ -1,0 +1,1 @@
+ALTER TABLE match_point DROP COLUMN source_value_hint;

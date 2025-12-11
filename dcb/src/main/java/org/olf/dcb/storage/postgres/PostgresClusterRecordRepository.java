@@ -83,11 +83,17 @@ public interface PostgresClusterRecordRepository extends
 
 	@NonNull
 	@Override
-	@Query(
-		"SELECT contributes_to FROM bib_record LEFT JOIN source_record ON source_record.id = bib_record.source_record_uuid "
-		+ " WHERE "
-		+ "   (bib_record.source_record_uuid IS NULL OR source_record.processing_state != 'PROCESSING_REQUIRED') "
-		+ "   AND (process_version < :version OR process_version IS NULL) LIMIT :max;")
+	@Query("""
+		SELECT contributes_to FROM bib_record
+		WHERE
+		  ( bib_record.source_record_uuid IS NULL
+			  OR process_version < :version
+			  OR process_version IS NULL )
+		  AND NOT EXISTS (
+		        SELECT id FROM source_record
+		          WHERE source_record.id = bib_record.source_record_uuid
+		                AND source_record.processing_state = 'PROCESSING_REQUIRED')
+		LIMIT :max;""")
 	Publisher<UUID> getClusterIdsWithOutdatedUnprocessedBibs( int version, int max );
 
 	@NonNull

@@ -2,6 +2,7 @@ package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -32,18 +33,36 @@ public class ActiveWorkflowService {
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 		final var itemAgencyCode = getValueOrNull(chosenItem, Item::getAgencyCode);
 
-		log.debug("Setting PatronRequestWorkflow BorrowingAgencyCode: {}, ItemAgencyCode: {}",
-			borrowingAgencyCode, itemAgencyCode);
+		return updatePatronRequest(patronRequest, borrowingAgencyCode, itemAgencyCode)
+			.map(updatedRequest -> Tuples.of(resolution, updatedRequest));
+	}
+
+	public Mono<PatronRequest> updatePatronRequest(PatronRequest patronRequest,
+		String borrowingAgencyCode, String supplyingAgencyCode) {
+
+		log.debug("setActiveWorkflow(PatronRequest: {}, BorrowingAgencyCode: {}, SupplyingAgencyCode: {})",
+			patronRequest, borrowingAgencyCode, supplyingAgencyCode);
+
+		if (supplyingAgencyCode == null) {
+			return Mono.error(new MissingParameterException("Supplying agency code"));
+		}
+
+		if (borrowingAgencyCode == null) {
+			return Mono.error(new MissingParameterException("Borrowing agency code"));
+		}
+
+		if (getValueOrNull(patronRequest, PatronRequest::getPickupLocationCode) == null) {
+			return Mono.error(new MissingParameterException("Pickup Location code (used to determine pickup agency)"));
+		}
 
 		// build a temporary context to allow the active workflow to be set
 		final var context = new RequestWorkflowContext()
 			.setPatronRequest(patronRequest)
 			.setPatronAgencyCode(borrowingAgencyCode)
-			.setLenderAgencyCode(itemAgencyCode);
+			.setLenderAgencyCode(supplyingAgencyCode);
 
 		return requestWorkflowContextHelper.resolvePickupLocationAgency(context)
 			.flatMap(requestWorkflowContextHelper::setPatronRequestWorkflow)
-			.map(RequestWorkflowContext::getPatronRequest)
-			.map(p -> Tuples.of(resolution, p));
+			.map(RequestWorkflowContext::getPatronRequest);
 	}
 }

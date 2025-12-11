@@ -47,6 +47,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
@@ -161,7 +162,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
-									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService) {
+									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
+									 ConsortiumService consortiumService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -174,7 +176,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
 		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig);
-		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms);
+		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
@@ -936,6 +938,50 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			// If we get nothing fall back to the original count
 			.defaultIfEmpty(currentCount);
 	}
+
+//	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount) {
+//
+//		// prevent NPEs
+//		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
+//		if (localId == null) return Mono.just(currentCount);
+//
+//		// Convert localId to Integer for the reservation request
+//		Integer itemId = Integer.valueOf(localId);
+//
+//		return ApplicationServices.getReservationsForItem(itemId)
+//			.map(response -> {
+//				// If there's a valid response with reservation data
+//				if (response != null && response.getReservations() != null) {
+//					// Count the number of reservations for this item
+//					int externalHoldCount = response.getReservations().size();
+//					return externalHoldCount;
+//
+////					if (externalHoldCount > 0)
+////					{
+////						return externalHoldCount;
+////
+////					}
+////					else {
+////						// There is a situation where the reservation data is not present, but the hold count is not zero
+////						// In this situation, we should use the total count as a fallback
+////						if (response.getTotalCount() != null && response.getTotalCount() > 0)
+////						{
+////							return response.getTotalCount();
+////
+////						}
+////						else
+////						{
+////							// If the total count is not present or is zero, fall back to original count
+////							return currentCount;
+////						}
+////					}
+//				}
+//				// Fall back to the original count if no reservation data or total count is available
+//				return currentCount;
+//			})
+//			// Handle getReservationsForItem returning empty
+//			.defaultIfEmpty(currentCount);
+//	}
 
 	private Mono<String> parseLocalItemId(String localItemId) {
 		if (localItemId == null) {
