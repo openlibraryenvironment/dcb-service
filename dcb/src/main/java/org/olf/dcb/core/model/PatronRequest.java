@@ -12,7 +12,6 @@ import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -87,33 +86,12 @@ public class PatronRequest {
 		FINALISED, // We've cleaned up everything and this is the end of the line
 		ERROR,
     ARCHIVED;
+// CH: The paths are now in PatronRequestWorkflowPath.java
 
-		private static final EnumMap<Status, Status> path = new EnumMap<>(Status.class);
-		// expected path via https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/2870575137/Tracking+v3+matrix
-
-		static {
-			path.put(SUBMITTED_TO_DCB, PATRON_VERIFIED);
-			path.put(PATRON_VERIFIED, RESOLVED);
-			path.put(RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY);
-			path.put(NOT_SUPPLIED_CURRENT_SUPPLIER, NOT_SUPPLIED_CURRENT_SUPPLIER);
-			path.put(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY, NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
-			path.put(REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED);
-			path.put(CONFIRMED, REQUEST_PLACED_AT_BORROWING_AGENCY);
-			path.put(REQUEST_PLACED_AT_BORROWING_AGENCY, PICKUP_TRANSIT);
-			path.put(PICKUP_TRANSIT, RECEIVED_AT_PICKUP);
-			path.put(RECEIVED_AT_PICKUP, READY_FOR_PICKUP);
-			path.put(READY_FOR_PICKUP, LOANED);
-			path.put(LOANED, RETURN_TRANSIT);
-			path.put(RETURN_TRANSIT, COMPLETED);
-			path.put(CANCELLED, CANCELLED);
-			path.put(COMPLETED, FINALISED);
-			path.put(FINALISED, FINALISED);
-			path.put(ERROR, ERROR);
-		}
-
-		public Status getNextExpectedStatus() {
-			return path.get(this);
-		}
+public Status getNextExpectedStatus(String activeWorkflow) {
+	return PatronRequestWorkflowPath.fromCode(activeWorkflow)
+		.getNextStatus(this);
+}
 	}
 
 	@Serdeable
@@ -347,8 +325,7 @@ public class PatronRequest {
 
 			// keep the 'last' next expected status on error
 			if (status != ERROR) {
-				this.nextExpectedStatus = status.getNextExpectedStatus();
-			}
+				this.nextExpectedStatus = status.getNextExpectedStatus(this.activeWorkflow);			}
 		}
 
 		this.status = status;
@@ -371,6 +348,14 @@ public class PatronRequest {
 		// if not null check the state change is what we expected
 		else if (this.nextExpectedStatus != null && this.nextExpectedStatus != status) {
 			this.outOfSequenceFlag = Boolean.TRUE;
+			boolean isPickupAnywhereDeviation =
+				this.status == REQUEST_PLACED_AT_BORROWING_AGENCY &&
+					status == REQUEST_PLACED_AT_PICKUP_AGENCY &&
+					isUsingPickupAnywhereWorkflow();
+
+			if (isPickupAnywhereDeviation) {
+				this.outOfSequenceFlag = Boolean.FALSE;
+			}
 		}
 		else {
 			this.outOfSequenceFlag = Boolean.FALSE;
