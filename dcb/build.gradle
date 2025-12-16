@@ -28,7 +28,7 @@ repositories {
 }
 
 ext {
-  BASE_IMAGE = project.findProperty('BASE_IMAGE') ?: 'eclipse-temurin:17-alpine'
+  BASE_IMAGE = project.findProperty('BASE_IMAGE') ?: 'eclipse-temurin:21-jre-alpine'
 }
 
 
