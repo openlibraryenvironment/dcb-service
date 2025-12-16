@@ -35,6 +35,7 @@ import jakarta.annotation.PreDestroy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import services.k_int.micronaut.PublisherTransformationService;
 
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -94,9 +95,11 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	}
 	
 	protected void initializeQueue() {
-		Flux.create( this::setSink )		
-			.transform( this::addHooks )	
-			.transform( publisherTransformer::executeOnBlockingThreadPool )
+		Flux.create( this::setSink )
+			.subscribeOn(Schedulers.boundedElastic())
+			.publishOn(Schedulers.boundedElastic())
+			.transform( this::addHooks )
+//			.transform( publisherTransformer::executeOnBlockingThreadPool )
 			.transform( this::collectAndDedupe )
 			.transform( this::expandAndProcess )
 			.doOnComplete(() -> log.info("Subscription finalised"))
@@ -182,9 +185,13 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	@CircuitBreaker(reset = "2m", attempts = "3", maxDelay = "5s", throwWrappedException = true )
 	protected Flux<List<IndexOperation<UUID, ClusterRecord>>> offloadToImplementation( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
 		return Flux.just(ops)
-			.transform( publisherTransformer::executeOnBlockingThreadPool )
-			.flatMap( data -> Flux.from( doOnNext(data) ).transform( publisherTransformer::executeOnBlockingThreadPool ) )
-			.concatMap( data -> afterIndex(data).transform( publisherTransformer::executeOnBlockingThreadPool ) )
+			.subscribeOn(Schedulers.boundedElastic())
+			.publishOn(Schedulers.boundedElastic())
+//			.transform( publisherTransformer::executeOnBlockingThreadPool )
+			.flatMap( data -> Flux.from( doOnNext(data) ))
+//				.transform( publisherTransformer::executeOnBlockingThreadPool ) )
+			.concatMap( data -> afterIndex(data))
+//				 .transform( publisherTransformer::executeOnBlockingThreadPool ) )
 			.doOnNext(_item -> this.flagCircuitClosed());
 	}
 	
@@ -259,8 +266,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	protected Mono<List<IndexOperation<UUID, ClusterRecord>>> manifestCluster (final List<UUID> itemIds) {
 		
 		return Mono.just(itemIds)
-			.transform( publisherTransformer::executeOnBlockingThreadPool )
-			.flatMapMany( clusters::findAllByIdInListWithBibs)
+			.publishOn(Schedulers.boundedElastic())
+			.flatMapMany( clusters::findAllByIdInListWithBibs )
 			.map( this::clusterRecordToIndexOperation )
 			.collectMultimap( IndexOperation::type )
 			.map( typeMap -> {
@@ -279,7 +286,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 				}
 				
 				return records;
-			});
+			})
+			.subscribeOn(Schedulers.boundedElastic());
 	}
 	
 	private IndexOperation<UUID, ClusterRecord> clusterRecordToIndexOperation( @NotNull final ClusterRecord cr ) {

@@ -149,8 +149,8 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	// Wrap for proper transactional boundaries.
 	@Transactional(readOnly = true)
 	protected Mono<Page<SourceRecord>> fetchPage() {
-    log.info("Collecting page of unprocessed records");
-		return Mono.from( sourceRecordService.getUnprocessedRecords( Pageable.from(0, PAGE_SIZE) ));
+		return Mono.from( sourceRecordService.getUnprocessedRecords( Pageable.from(0, PAGE_SIZE) ))
+			.doOnSubscribe(_s -> log.info("Collecting page of unprocessed records"));
 	}
 	
 	protected Mono<JobChunk<IngestOperation>> getChunk() {

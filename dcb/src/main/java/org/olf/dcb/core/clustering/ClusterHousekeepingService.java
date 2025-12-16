@@ -54,7 +54,7 @@ public class ClusterHousekeepingService {
 	}
 	
 	private List<UUID> getDedupedPriorityBatch() {
-		log.info( "Next batch of up to [{}] from priority queue", BATCH_SIZE );
+		log.debug( "Next batch of up to [{}] from priority queue", BATCH_SIZE );
 		final List<UUID> toProcess = new ArrayList<>( BATCH_SIZE );
 		synchronized (priorityReprocessingQueue) {
 			
@@ -93,7 +93,7 @@ public class ClusterHousekeepingService {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected Mono<Set<UUID>> databaseEntitySubscription() {
 		
-		log.info( "Next batch of up to [{}] from database", BATCH_SIZE );
+		log.debug( "Next batch of up to [{}] from database", BATCH_SIZE );
 		return Flux.from( clusterRecordRepo.getClusterIdsWithOutdatedUnprocessedBibs(IngestService.getProcessVersion(), BATCH_SIZE) )
 			.collect(Collectors.toUnmodifiableSet())
 			.filter( Predicate.not( Set::isEmpty ));
@@ -106,7 +106,7 @@ public class ClusterHousekeepingService {
 	
 	// Intentionally not transactional as the disperse op uses a new transaction.
 	private Mono<UUID> performClusterHousekeeping(UUID id) {
-		log.info("Disperse and recluster [{}]", id);
+		log.debug("Disperse and recluster [{}]", id);
 		return recordClusteringService.disperseAndRecluster(id);
 	}
 	

@@ -44,6 +44,7 @@ import jakarta.json.stream.JsonParser;
 import lombok.Setter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import services.k_int.micronaut.PublisherTransformationService;
 
 @Order(OpenSearchSharedIndexService.OS_INDEXER_PRIORITY)
@@ -202,6 +203,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			Collection<org.olf.dcb.indexing.bulk.IndexOperation<UUID, ClusterRecord>> cr) {
 		
 		return Flux.fromIterable(cr)
+			.subscribeOn(Schedulers.boundedElastic())
+			.publishOn(Schedulers.boundedElastic())
 			.reduce( new BulkRequest.Builder(), this::addBulkOperation )
 			.flatMap( bops -> Mono.<BulkResponse>create(sink -> {
 				try {
@@ -230,7 +233,6 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						sink.error(e);
 					}
 				})
-				.transform(getPublisherTransformer()::executeOnBlockingThreadPool)
 				.onErrorMap(e -> new DcbError("Error communicating with OpenSearch", e))
 			)
 			.doOnNext( resp -> {

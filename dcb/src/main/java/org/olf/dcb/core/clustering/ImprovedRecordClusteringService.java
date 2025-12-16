@@ -716,7 +716,9 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 				.map(BibRecord::getId))
 
 			.map(Objects::toString)
-			.doOnSuccess(val -> log.debug("Primary bib: [{}]", val != null ? val : "No primary bib for cluster [{}]", clusterID));
+			.doOnSuccess(val -> {
+				if (val == null) log.warn("No primary bib for cluster [{}]", clusterID);
+			});
 
 		// Regenerate match points for all the bibs in the cluster.
 //		Flux<BibRecord> refingerprintBibs = theBibs
@@ -743,16 +745,16 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 					
 					// Leave primary bib owner unchanged.
 					if (currentBib.getId().toString().equals(primaryBib)) {
-						log.info("Leave cluster contribution for bib [{}], as it's the primary contibutor", currentBib.getId());
+						log.debug("Leave cluster contribution for bib [{}], as it's the primary contibutor", currentBib.getId());
 						return currentBib; 
 					}
 					
-					log.info("Null out cluster contribution for bib [{}]", currentBib.getId());
+					log.debug("Null out cluster contribution for bib [{}]", currentBib.getId());
 					return currentBib.setContributesTo(null);
 				})
 				.distinct(br -> br.getId().toString())
 				.flatMap(currentBib -> {
-					log.info("Saving bib [{}]", currentBib.getId());
+					log.debug("Saving bib [{}]", currentBib.getId());
 					return bibRecords.saveOrUpdate(currentBib);
 				})
 				.sort((br1, br2) -> br1.getContributesTo() != null ? 1 : 0)
