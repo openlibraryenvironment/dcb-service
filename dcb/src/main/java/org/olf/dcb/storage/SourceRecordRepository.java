@@ -1,6 +1,7 @@
 package org.olf.dcb.storage;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.RecordCount;
@@ -48,9 +49,8 @@ public interface SourceRecordRepository {
 	@SingleResult
 	Publisher<Boolean> existsById( @NonNull UUID id );
 	
-	@SingleResult
 	@NonNull
-	Publisher<Page<SourceRecord>> findAllByProcessingState (@NonNull SourceRecord.ProcessingStatus processingState, @NonNull Pageable pageable);
+	Publisher<SourceRecord> findAllByProcessingState (@NonNull SourceRecord.ProcessingStatus processingState, @NonNull Pageable pageable);
 	
 	@SingleResult
 	@NonNull

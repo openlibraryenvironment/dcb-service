@@ -1,10 +1,11 @@
 package org.olf.dcb.dataimport.job;
 
-import static services.k_int.utils.ReactorUtils.withMonoLogging;
+import static services.k_int.utils.ReactorUtils.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -144,10 +145,12 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<Page<SourceRecord>> getUnprocessedRecords (@NonNull Pageable page) {
-		return Mono.from(sourceRecords.findAllByProcessingState(ProcessingStatus.PROCESSING_REQUIRED, page))
-				.transform(	withMonoLogging(log, l -> 
-					l.doOnSubscribe(Level.DEBUG, _s -> log.debug("Fetching page of SourceRecord data [{}]", page))));
+	public Mono<List<SourceRecord>> getUnprocessedRecords (@NonNull Pageable page) {
+		
+		return Flux.from(sourceRecords.findAllByProcessingState(ProcessingStatus.PROCESSING_REQUIRED, page))
+				.transform(	withFluxLogging(log, l -> 
+					l.doOnSubscribe(Level.DEBUG, _s -> log.debug("Fetching page of SourceRecord data [{}]", page))))
+				.collectList();
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)

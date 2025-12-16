@@ -3,6 +3,7 @@ package org.olf.dcb.ingest.job;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -32,7 +33,6 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.convert.ConversionService;
-import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.json.tree.JsonNode;
 import io.micronaut.retry.annotation.Retryable;
@@ -63,7 +63,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	private static final String JOB_NAME = "Data ingest job";
 	
-	private final int PAGE_SIZE = 500;
+	private final int PAGE_SIZE = 1500;
 	private final Map<String, Mono<SourceToIngestRecordConverter>> sourceRecConverterCache = new ConcurrentHashMap<>();
 	
 	
@@ -91,7 +91,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	}
 	
 	@NonNull
-	protected Mono<IngestJobChunk> buildChunkFromPage( @NonNull Page<SourceRecord> page ) {
+	protected Mono<IngestJobChunk> buildChunkFromPage( @NonNull List<SourceRecord> page ) {
 		
 		// NOTE: This job doesn't need a pointer for resumption. It always fetches the first page of results that haven't been
 		// processed. As the results are processed that should slide processed results off the page. The transactional
@@ -105,7 +105,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		
 		JsonNode newCheckpoint = conversionService.convertRequired( params, JsonNode.class);
 		
-		boolean terminal = page.getNumberOfElements() < page.getSize();
+		boolean terminal = page.size() < PAGE_SIZE;
 		
 		IngestJobChunkBuilder chunk = IngestJobChunk.builder()
 			.jobId( getId() )
@@ -148,7 +148,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	
 	// Wrap for proper transactional boundaries.
 	@Transactional(readOnly = true)
-	protected Mono<Page<SourceRecord>> fetchPage() {
+	protected Mono<List<SourceRecord>> fetchPage() {
 		return Mono.from( sourceRecordService.getUnprocessedRecords( Pageable.from(0, PAGE_SIZE) ))
 			.doOnSubscribe(_s -> log.info("Collecting page of unprocessed records"));
 	}
