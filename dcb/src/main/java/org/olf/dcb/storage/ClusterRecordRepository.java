@@ -118,4 +118,9 @@ public interface ClusterRecordRepository {
 	@Vetoed
 	@NonNull
 	Publisher<UUID> getClusterIdsWithBibsPriorToVersionInList(int version, Collection<UUID> ids);
+
+	@Vetoed
+	@NonNull
+	@SingleResult
+	Publisher<Integer> reprocessOrphanedBibs();
 }

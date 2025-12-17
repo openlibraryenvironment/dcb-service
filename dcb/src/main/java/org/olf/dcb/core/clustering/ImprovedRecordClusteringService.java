@@ -687,6 +687,15 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 			.defaultIfEmpty(cr)
 			.flatMap(this::saveOrUpdate);
 	}
+	
+	@NonNull
+	@Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Mono<Void> reprocessBibsWithNoCluster() {
+		return Mono.from( clusterRecords.reprocessOrphanedBibs() )
+			.doOnSuccess( num -> log.info("Flagged [{}] bibs with no cluster for reprocessing", num) )
+			.then();
+	}
 
 	/**
 	 * Flag that this cluster needs reprocessing.

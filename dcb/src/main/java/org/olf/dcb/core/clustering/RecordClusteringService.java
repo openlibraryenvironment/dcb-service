@@ -45,4 +45,7 @@ public interface RecordClusteringService {
 
 	Flux<MatchPoint> generateMatchPoints(BibRecord bibRecord);
 
+	@NonNull
+	Mono<Void> reprocessBibsWithNoCluster();
+
 }

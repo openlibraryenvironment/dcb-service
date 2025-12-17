@@ -35,7 +35,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 @FeatureFlag(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)
 public class ClusterHousekeepingService {
 
-	private static final int BATCH_SIZE = 1000;
+	private static final int BATCH_SIZE = 5000;
 	private final ClusterRecordRepository clusterRecordRepo;
 	private final RecordClusteringService recordClusteringService;
 	private final LinkedHashSet<String> priorityReprocessingQueue = new LinkedHashSet<>();
@@ -136,7 +136,7 @@ public class ClusterHousekeepingService {
 	}
 
 	@AppTask
-	@Scheduled(initialDelay = "10s", fixedDelay = "5s")
+	@Scheduled(initialDelay = "10s")
 	protected void reprocess() {
 		
 		if (completed) {
@@ -148,9 +148,11 @@ public class ClusterHousekeepingService {
 		
 		// Deduped candidates.
 		prioritySubscription()
-			.publishOn( Schedulers.boundedElastic() )
 			.subscribeOn( Schedulers.boundedElastic() )
+			.publishOn( Schedulers.boundedElastic() )
 			.switchIfEmpty( databaseEntitySubscription() )
+			.switchIfEmpty( recordClusteringService.reprocessBibsWithNoCluster()
+				.then(Mono.empty()))
 			.concatMap( toCheck -> {
 				return Flux.fromIterable( toCheck )
 					.concatMap( clusterId -> performClusterHousekeeping(clusterId)
@@ -159,6 +161,14 @@ public class ClusterHousekeepingService {
 							return Mono.empty();
 						}));
 			}, 0)
+			.repeatWhen( completion -> completion.flatMap(
+				count -> {
+					if (count == 0) return Mono.empty();
+
+					log.info("Finished page");
+					return Mono.delay(Duration.ofSeconds(5))
+						.doOnNext( _l -> log.info("Resubscribe for more"));
+				}))
 			.count()
 			.map( count -> {
 				

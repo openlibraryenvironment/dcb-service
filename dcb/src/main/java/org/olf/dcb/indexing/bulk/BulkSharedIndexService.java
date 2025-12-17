@@ -116,6 +116,9 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		
 		// Calculate our trigger values.
 		final Duration trigger = throttleTimeout.dividedBy(3);
+		final Flux<String> closeThreshold = Mono.just("timeout").cache()
+			.delaySubscription(throttleTimeout.multipliedBy(2))
+			.repeat();
 		final long triggerMillis = trigger.toMillis();
 		
 		common
@@ -142,7 +145,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 				rateThresholdOpenHook();
 				
 			})
-			.sampleTimeout( rate -> Mono.delay(throttleTimeout) )
+			.sampleTimeout( rate -> closeThreshold )
 			.subscribe(rate -> {
 				if (!rateThresholdOpen.get()) {
 					log.trace("Rate threshold already closed: NOOP");

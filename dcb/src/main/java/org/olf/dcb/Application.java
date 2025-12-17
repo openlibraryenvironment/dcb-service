@@ -5,7 +5,6 @@ import java.net.URL;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 
-import io.micronaut.context.env.Environment;
 import io.micronaut.core.annotation.TypeHint;
 import io.micronaut.runtime.Micronaut;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
@@ -28,18 +27,21 @@ public class Application {
 
 	public static void main(String[] args) {
 		
-		final var appContext = Micronaut.build(args)
-			.classes(Application.class)
-			.build();
 		
-		// Configure reactor BEFORE we import any of it's classes. 
-		defaultReactorSystemProps( appContext.getEnvironment().start() );
-		
-		appContext.start();
-//		Micronaut.run(Application.class, args);
+		defaultReactorSystemProps( args );
+		// Run the full application after.
+		Micronaut.run(Application.class, args);
 	}
 	
-	public static void defaultReactorSystemProps (Environment env) {
+	public static void defaultReactorSystemProps (String[] args) {
+		final var appContext = Micronaut.build(args)
+				.classes(Application.class)
+				.bootstrapEnvironment(false);
+			
+		// Start the environment only, and stop it afterwards.
+		// We need this in order to resolve properties from the various
+		// places.
+		final var env = appContext.build().getEnvironment().start();
 		
 		// Virtual threads should be used if the JVM is 21+
 		final int majorVersion = Runtime.version().feature();
@@ -70,5 +72,7 @@ public class Application {
 		log.trace("Constant [DEFAULT_BOUNDED_ELASTIC_QUEUESIZE] equals [{}]", Schedulers.DEFAULT_BOUNDED_ELASTIC_QUEUESIZE);
 		log.trace("Constant [DEFAULT_BOUNDED_ELASTIC_ON_VIRTUAL_THREADS] equals [{}]", Schedulers.DEFAULT_BOUNDED_ELASTIC_ON_VIRTUAL_THREADS);
 		log.trace("Constant [DEFAULT_POOL_SIZE] equals [{}]", Schedulers.DEFAULT_POOL_SIZE);
+
+		env.stop();
 	}
 }

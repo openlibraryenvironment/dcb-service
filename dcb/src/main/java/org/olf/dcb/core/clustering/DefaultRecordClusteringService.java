@@ -661,4 +661,13 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 			}));
 						
 	}
+
+	@NonNull
+	@Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Mono<Void> reprocessBibsWithNoCluster() {
+		return Mono.from( clusterRecords.reprocessOrphanedBibs() )
+			.doOnSuccess( num -> log.info("Flagged [{}] bibs with no cluster for reprocessing", num) )
+			.then();
+	}
 }

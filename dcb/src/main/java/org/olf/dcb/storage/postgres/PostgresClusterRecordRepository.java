@@ -85,21 +85,34 @@ public interface PostgresClusterRecordRepository extends
 	@Override
 	@Query("""
 		SELECT contributes_to FROM bib_record
-			INNER JOIN source_record ON source_record.id = bib_record.source_record_uuid
+			LEFT JOIN source_record ON source_record.id = bib_record.source_record_uuid
 		WHERE (bib_record.source_record_uuid IS NULL OR process_version IS NULL OR process_version < :version)
-		AND source_record.processing_state != 'PROCESSING_REQUIRED'
+			AND source_record.processing_state != 'PROCESSING_REQUIRED'
 		LIMIT :max;""")
 	Publisher<UUID> getClusterIdsWithOutdatedUnprocessedBibs( int version, int max );
-
+	
+	@NonNull
+	@Override
+	@SingleResult
+	@Query("""
+		UPDATE source_record
+		SET processing_state = 'PROCESSING_REQUIRED'
+		WHERE id IN (
+			SELECT source_record.id FROM source_record
+				INNER JOIN bib_record ON bib_record.source_record_uuid = source_record.id
+			WHERE bib_record.contributes_to IS NULL
+				AND source_record.processing_state != 'PROCESSING_REQUIRED');""")
+	Publisher<Integer> reprocessOrphanedBibs();
+	
 	@NonNull
 	@Override
 	@Query(
-			"SELECT cr.id FROM cluster_record cr " +
-			"WHERE cr.id IN (:ids)" +
-				"AND EXISTS ( " +
-					"SELECT * FROM bib_record " +
-					"WHERE contributes_to = cr.id AND process_version < :version " +
-				");")
+		"SELECT cr.id FROM cluster_record cr " +
+		"WHERE cr.id IN (:ids)" +
+			"AND EXISTS ( " +
+				"SELECT * FROM bib_record " +
+				"WHERE contributes_to = cr.id AND process_version < :version " +
+			");")
 	Publisher<UUID> getClusterIdsWithBibsPriorToVersionInList( int version, Collection<UUID> ids );
 
 	@NonNull
