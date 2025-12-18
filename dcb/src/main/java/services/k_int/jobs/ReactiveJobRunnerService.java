@@ -20,6 +20,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import services.k_int.jobs.JobChunkProcessor.ApplicableChunkTypes;
 
 /**
@@ -100,6 +101,7 @@ public class ReactiveJobRunnerService {
 			.expand( chunk -> {
 				
 				return processChunkAndSaveCheckpoint(chunk)
+
 					.flatMap(theChunk -> {
 						if (theChunk.isLastChunk()) {
 							log.info("Ending job run as chunk was marked as the last one");
@@ -107,8 +109,8 @@ public class ReactiveJobRunnerService {
 						}
 						final var checkpoint = theChunk.getCheckpoint();
 						return Mono.from( jobInstance.resume( checkpoint ) )
-                .doOnError( e -> log.error(" Error in process chunk {}",e.getMessage(),e))
-								.doOnNext( cp -> log.info("Get next chunk using checkpoint"));
+              .doOnError( e -> log.error(" Error in process chunk {}",e.getMessage(),e))
+							.doOnNext( cp -> log.info("Get next chunk using checkpoint"));
 					});
 			});
 	}
@@ -125,8 +127,8 @@ public class ReactiveJobRunnerService {
 		JobChunkProcessor processor = getProcessorForChunkType( chunk.getClass() );
 		
 		// Save publisher 
-		Mono<JsonNode> saveCheckpoint = Mono.from(checkpoints.saveCheckpointForJobId( chunk.getJobId(), chunk.getCheckpoint() ))
-				.doOnSuccess( savedCheckpoint -> log.info("Save checkpoint [{}]", savedCheckpoint.getValue()));
+		Mono<JsonNode> saveCheckpoint = Mono.defer(() -> Mono.from(checkpoints.saveCheckpointForJobId( chunk.getJobId(), chunk.getCheckpoint() )))
+			.doOnSuccess( savedCheckpoint -> log.info("Save checkpoint [{}]", savedCheckpoint.getValue()));
 		
 		return Mono.from(processor.processChunk(chunk))
 			.then( saveCheckpoint )

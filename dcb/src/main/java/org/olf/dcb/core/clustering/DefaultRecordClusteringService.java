@@ -179,8 +179,6 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 			
 			trxWatchers.computeIfAbsent(status, sts -> { 
 				var watcher = Mono.just(sts)
-					.publishOn(Schedulers.boundedElastic())
-					.subscribeOn(Schedulers.boundedElastic())
 					.repeat()
 					.skipUntil( s ->
 					  s.isCompleted()
@@ -200,7 +198,8 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 						log.debug("Clean up transactional event queues for [{}]", sts);
 						trxWatchers.remove(sts);
 						events.remove(sts);
-					});
+					})
+					.subscribeOn(Schedulers.boundedElastic());
 				
 				watcher.subscribe( _v -> {}, err -> log.error("Error watching for index update on committal", err) );
 				

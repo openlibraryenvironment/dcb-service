@@ -473,8 +473,6 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	public void run() {
 		
 		Mono.just( this )
-			.publishOn( Schedulers.boundedElastic() )
-			.subscribeOn( Schedulers.boundedElastic() )
 			.flatMapMany( jobRunnerService::processJobInstance )
 			.map(chunk -> Optional.ofNullable(chunk.getData()) // Extract resource count.
 					.map( Collection::size )
@@ -494,6 +492,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					log.info(JOB_NAME + " skipping as set to run ouside office hours");
 				}
 			})
+			.subscribeOn( Schedulers.boundedElastic() )
 			.subscribe(
 					TupleUtils.consumer(this::jobSubscriber),
 					this::errorSubscriber);

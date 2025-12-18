@@ -203,7 +203,6 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			Collection<org.olf.dcb.indexing.bulk.IndexOperation<UUID, ClusterRecord>> cr) {
 		
 		return Flux.fromIterable(cr)
-			.subscribeOn(Schedulers.boundedElastic())
 			.publishOn(Schedulers.boundedElastic())
 			.reduce( new BulkRequest.Builder(), this::addBulkOperation )
 			.flatMap( bops -> Mono.<BulkResponse>create(sink -> {
@@ -256,6 +255,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private Mono<IndexSettings> getIndexSettings() {
 		
 		try {
+			
 			return Mono.fromFuture(
 					client.indices()
 					.getSettings( ind -> ind

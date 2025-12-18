@@ -218,7 +218,6 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		try {
 			return getConverterForHostLms(sourceRecord.getHostLmsId())
 				.publishOn( Schedulers.boundedElastic() )
-				.subscribeOn( Schedulers.boundedElastic() )
 				.single()
 				.onErrorMap(NoSuchElementException.class, e ->
 					new DcbException("No IngestRecord converter found for source record [%s]".formatted(sourceRecord.getId())))
@@ -250,9 +249,6 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
     int MAX_CONCURRENCY=32;
 		return Flux.fromIterable( ijc.getData() )
 			.flatMap(op -> processSingleOperation(op, processedTime)
-
-        .subscribeOn(Schedulers.boundedElastic())
-					
 				// Do this error handling here as the mono is set to retry on exception.
 				.onErrorResume(err -> {
 					if ( err instanceof IllegalStateException && err.getMessage().contains("connection is closed"))
@@ -309,8 +305,8 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 				
 			// Successfully clustered the bib.
 			.flatMap( bib ->
-					opSuccess(op, processedTime, "Bib [%s] created/updated".formatted(bib.getId()) )
-						.thenReturn(bib))
+				opSuccess(op, processedTime, "Bib [%s] created/updated".formatted(bib.getId()) )
+					.thenReturn(bib))
 			
 			// Empty means there was an error.
 			// Log it, but assume that upstream has completed without error for a reason.
@@ -371,8 +367,6 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	
 	public Mono<Tuple2<Long, Long>> buildIngestJobStream() {
     return Mono.just(this)
-      .publishOn(Schedulers.boundedElastic())
-      .subscribeOn(Schedulers.boundedElastic())
       .flatMapMany(jobRunnerService::processJobInstance)
       .map(chunk -> Optional.ofNullable(chunk.getData())
                             .map(Collection::size)
@@ -405,6 +399,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 					log.info(JOB_NAME + "Scheduled");
         }
 			})
+			.subscribeOn(Schedulers.boundedElastic())
 			.subscribe(
 					TupleUtils.consumer(this::jobSubscriber), this::errorSubscriber);
 	}

@@ -65,8 +65,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	protected BulkSharedIndexService( RecordClusteringService clusters, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService publisherTransformationService, SharedIndexConfiguration conf ) {
 		
 		this.clusters = clusters;
-		this.maxSize = conf.maxResourceListSize().orElse(2000); // Default to 1500
-		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(3)); // Default 5 seconds.
+		this.maxSize = conf.maxResourceListSize().orElse(1500); // Default to 1500
+		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(5)); // Default 5 seconds.
 		this.sharedIndexQueueRepository = sharedIndexQueueRepository;
 		this.publisherTransformer = publisherTransformationService;
 		initializeQueue();
@@ -96,14 +96,13 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	
 	protected void initializeQueue() {
 		Flux.create( this::setSink )
-			.subscribeOn(Schedulers.boundedElastic())
-			.publishOn(Schedulers.boundedElastic())
 			.transform( this::addHooks )
-//			.transform( publisherTransformer::executeOnBlockingThreadPool )
 			.transform( this::collectAndDedupe )
 			.transform( this::expandAndProcess )
 			.doOnComplete(() -> log.info("Subscription finalised"))
 			.retry(10)
+			.doOnSubscribe(_s -> log.info("Started common index subscription") )
+			.subscribeOn(Schedulers.newSingle("index-scheduler"))
 			.subscribe( null, t -> {
 				log.atError().log("Index service cannot be initialized", t);
 			});
@@ -164,12 +163,15 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 
 	@Override
 	public Publisher<List<IndexOperation<UUID, ClusterRecord>>> expandAndProcess( Flux<List<UUID>> idFlux ) {
+		
 		return idFlux
+			.parallel()
+			.runOn(Schedulers.parallel())
 			.concatMap( this::manifestCluster )
 			.filter( Predicates.not( List::isEmpty ) )
 			.flatMap(ops -> this.offloadToImplementation(ops)
 				.onErrorResume(e -> {
-					
+				
 					if (CircuitOpenException.class.isAssignableFrom(e.getClass())) {
 						// Ensure the global flag to prevent scheduled backup job is set.
 						flagCircuitOpen();
@@ -178,23 +180,18 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 						log.atInfo().log("Index service circuit broken temporarily to prevent IO flooding.");
 						log.atTrace().log("Circuit open cause: ", e.getCause() );
 					}
-					
-	//				return Mono.empty();
+				
+//				return Mono.empty();
 					return queueInBackupJob( ops );
-				}), 3);
+			}));
 	}
 
 	@NonNull
 	@CircuitBreaker(reset = "2m", attempts = "3", maxDelay = "5s", throwWrappedException = true )
 	protected Flux<List<IndexOperation<UUID, ClusterRecord>>> offloadToImplementation( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
 		return Flux.just(ops)
-			.subscribeOn(Schedulers.boundedElastic())
-			.publishOn(Schedulers.boundedElastic())
-//			.transform( publisherTransformer::executeOnBlockingThreadPool )
 			.flatMap( data -> Flux.from( doOnNext(data) ))
-//				.transform( publisherTransformer::executeOnBlockingThreadPool ) )
 			.concatMap( data -> afterIndex(data))
-//				 .transform( publisherTransformer::executeOnBlockingThreadPool ) )
 			.doOnNext(_item -> this.flagCircuitClosed());
 	}
 	
@@ -204,6 +201,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		List<UUID> queueEntryIds = ops.stream()
 			.map( IndexOperation::id )
 			.toList();
+		
+		
 		
 		return Mono.from(sharedIndexQueueRepository.deleteAllByClusterIdIn(queueEntryIds))
 			.doOnNext(count -> {
@@ -269,7 +268,6 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	protected Mono<List<IndexOperation<UUID, ClusterRecord>>> manifestCluster (final List<UUID> itemIds) {
 		
 		return Mono.just(itemIds)
-			.publishOn(Schedulers.boundedElastic())
 			.flatMapMany( clusters::findAllByIdInListWithBibs )
 			.map( this::clusterRecordToIndexOperation )
 			.collectMultimap( IndexOperation::type )
@@ -289,8 +287,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 				}
 				
 				return records;
-			})
-			.subscribeOn(Schedulers.boundedElastic());
+			});
 	}
 	
 	private IndexOperation<UUID, ClusterRecord> clusterRecordToIndexOperation( @NotNull final ClusterRecord cr ) {

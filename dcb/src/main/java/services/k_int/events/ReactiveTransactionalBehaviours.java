@@ -1,5 +1,6 @@
 package services.k_int.events;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -58,13 +59,10 @@ public class ReactiveTransactionalBehaviours {
 		// Create the listener for this transaction.
 		trxWatchers.computeIfAbsent(status, sts -> {
 			var watcher = Mono.just(sts)
-				.publishOn( scheduler )
+//				.publishOn( scheduler )
 				.subscribeOn( scheduler )
-				.repeat()
-				.skipUntil( ReactiveTransactionStatus::isCompleted )
-				
-				// Wait until the transaction is completed.
-				.next()
+				.filter( ReactiveTransactionStatus::isCompleted )
+				.repeatWhenEmpty( l -> Mono.delay(Duration.ofNanos(200)))
 				
 				// Rollbacks degrade to empty publisher
 				.filter( ReactiveTransactionalBehaviours::noneRollbackPredicate )

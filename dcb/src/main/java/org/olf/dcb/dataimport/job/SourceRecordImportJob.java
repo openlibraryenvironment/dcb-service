@@ -10,6 +10,7 @@ import io.micronaut.json.tree.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import services.k_int.jobs.Job;
 import services.k_int.jobs.JobChunk;
 
@@ -25,7 +26,8 @@ public class SourceRecordImportJob implements Job<SourceRecord> {
 	}
 	
 	private Mono<JobChunk<SourceRecord>> getChunkForCheckpoint( Optional<JsonNode> checkpointOpt ) {
-		return datasource.getChunk(checkpointOpt)
+		return Mono.just(checkpointOpt)
+			.flatMap( datasource::getChunk )
 			.map( chunk -> chunk.toBuilder().jobId(getId()).build() );
 	}
 

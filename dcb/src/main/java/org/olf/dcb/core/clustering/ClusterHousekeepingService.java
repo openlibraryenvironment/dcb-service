@@ -35,7 +35,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 @FeatureFlag(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)
 public class ClusterHousekeepingService {
 
-	private static final int BATCH_SIZE = 5000;
+	private static final int BATCH_SIZE = 2000;
 	private final ClusterRecordRepository clusterRecordRepo;
 	private final RecordClusteringService recordClusteringService;
 	private final LinkedHashSet<String> priorityReprocessingQueue = new LinkedHashSet<>();
@@ -148,8 +148,6 @@ public class ClusterHousekeepingService {
 		
 		// Deduped candidates.
 		prioritySubscription()
-			.subscribeOn( Schedulers.boundedElastic() )
-			.publishOn( Schedulers.boundedElastic() )
 			.switchIfEmpty( databaseEntitySubscription() )
 			.switchIfEmpty( recordClusteringService.reprocessBibsWithNoCluster()
 				.then(Mono.empty()))
@@ -166,7 +164,7 @@ public class ClusterHousekeepingService {
 					if (count == 0) return Mono.empty();
 
 					log.info("Finished page");
-					return Mono.delay(Duration.ofSeconds(5))
+					return Mono.delay(Duration.ofNanos(500))
 						.doOnNext( _l -> log.info("Resubscribe for more"));
 				}))
 			.count()
@@ -190,6 +188,7 @@ public class ClusterHousekeepingService {
 					log.info("Cluster Housekeeping allready running (NOOP)");
 				}
 			})
+			.subscribeOn( Schedulers.boundedElastic() )
 			.subscribe(
 				TupleUtils.consumer(this::jobSubscriber),
 				this::errorSubscriber);

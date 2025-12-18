@@ -34,14 +34,12 @@ public class Application {
 	}
 	
 	public static void defaultReactorSystemProps (String[] args) {
-		final var appContext = Micronaut.build(args)
+		final var env = Micronaut.build(args)
 				.classes(Application.class)
-				.bootstrapEnvironment(false);
-			
-		// Start the environment only, and stop it afterwards.
-		// We need this in order to resolve properties from the various
-		// places.
-		final var env = appContext.build().getEnvironment().start();
+				.bootstrapEnvironment(false)
+				.build()
+				.getEnvironment()
+				.start();
 		
 		// Virtual threads should be used if the JVM is 21+
 		final int majorVersion = Runtime.version().feature();
@@ -51,7 +49,6 @@ public class Application {
 		// Default to the number of processors, with a min of 2. 
 		final int scalingFactor = env.get("scaling.factor", Integer.class, 
 			Math.max(Runtime.getRuntime().availableProcessors(), 2));
-		
 		
 		final int backgroundThreadPoolSize = scalingFactor * BACKGROUND_POOL_COEFFICIENT;
 		final int backgroundThreadPoolQueueSize = scalingFactor * BACKGROUND_POOL_COEFFICIENT * BACKGROUND_POOL_QUEUE_PER_THREAD;

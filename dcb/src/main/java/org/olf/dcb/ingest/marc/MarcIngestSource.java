@@ -624,12 +624,11 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	@SingleResult
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	default Publisher<IngestRecord> processSingleResource( T resource ) {
-		return Mono.just(resource) // Reactor will blow up above if resource is null.						
+		return Mono.just(resource) // Reactor will blow up above if resource is null.			
+				.publishOn(Schedulers.boundedElastic())			
 				.flatMap( r -> saveRawAndContinue(r)
 						.onErrorComplete()) // Complete the mono (Empty) and terminate for this resource. Let the upstream log any messages.
 
-				.publishOn(Schedulers.boundedElastic())
-				.subscribeOn(Schedulers.boundedElastic())
 				.flatMap( this::reactiveInitIngestRecordBuilder )
 				.zipWith(Mono.justOrEmpty( resourceToMarc(resource) ) ) // For zipWith to emit a value the zipWith value must not be Empty -  or zipWith also emits Empty
         .switchIfEmpty(
@@ -688,7 +687,6 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		
 		return Flux.defer(() -> getResources(since, terminator))
 			.publishOn(Schedulers.boundedElastic())
-			.subscribeOn(Schedulers.boundedElastic())
 			.concatMap(this::processSingleResource);
 	}
 
