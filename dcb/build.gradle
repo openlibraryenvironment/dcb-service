@@ -7,6 +7,7 @@ buildscript {
 }
 
 plugins {
+  id "io.micronaut.graalvm" version "$micronautGradleVersion"
 	id("com.github.johnrengelman.shadow") version "8.1.1"
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
@@ -18,7 +19,6 @@ plugins {
   // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
   id "com.gorylenko.gradle-git-properties" version "2.5.0"
   id('com.jaredsburrows.license') version '0.9.8'
-  id "io.micronaut.graalvm" version "$micronautGradleVersion"
 }
 
 //version = "0.1"
