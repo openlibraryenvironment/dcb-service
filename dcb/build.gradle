@@ -18,6 +18,7 @@ plugins {
   // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
   id "com.gorylenko.gradle-git-properties" version "2.5.0"
   id('com.jaredsburrows.license') version '0.9.8'
+  id "io.micronaut.graalvm" version "$micronautGradleVersion"
 }
 
 //version = "0.1"
@@ -198,7 +199,7 @@ dependencies {
 
 	runtimeOnly("org.yaml:snakeyaml")
 
-  implementation("io.projectreactor.tools:blockhound:1.0.13.RELEASE")
+//  implementation("io.projectreactor.tools:blockhound:1.0.13.RELEASE")
 
 	//aotPlugins platform("io.micronaut.platform:micronaut-platform:$micronautVersion")
 	//aotPlugins ("io.micronaut.security:micronaut-security-aot")
@@ -229,7 +230,6 @@ java {
 	targetCompatibility = JavaVersion.toVersion("17")
 }
 
-graalvmNative.toolchainDetection = false
 micronaut {
 	runtime("netty")
 	testRuntime("junit5")
@@ -368,8 +368,15 @@ tasks {
 }
 
 graalvmNative {
+		toolchainDetection = false
+		metadataRepository {
+      // Force the version of the metadata
+      moduleToConfigVersion.put("com.hazelcast:hazelcast", "5.2.1")
+    }
     binaries {
         main {
+        		// Uncomment quickBuild when testing in development only
+        		// quickBuild = true
             buildArgs.add('--verbose')
             buildArgs.add('-march=x86-64-v2')
             buildArgs.add('-H:+AddAllCharsets')
@@ -380,7 +387,7 @@ graalvmNative {
             buildArgs.add('--trace-class-initialization=ch.qos.logback.classic.Logger')
             buildArgs.add('--trace-object-instantiation=ch.qos.logback.core.AsyncAppenderBase$Worker')
             buildArgs.add('--initialize-at-run-time=io.netty')
-            buildArgs.add('-H:ReflectionConfigurationFiles=/home/app/resources/META-INF/native-image/reflect-config.json')
+            // buildArgs.add('-H:ReflectionConfigurationFiles=/home/app/resources/META-INF/native-image/reflect-config.json')
             // buildArgs.add('--exact-reachability-metadata')
         }
 		}

@@ -372,7 +372,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	}
 
 	@PreDestroy
-	protected void cleanup() {
+	public void cleanup() {
 		if (theSink != null) {
 			theSink.complete();
 			theSink = null;

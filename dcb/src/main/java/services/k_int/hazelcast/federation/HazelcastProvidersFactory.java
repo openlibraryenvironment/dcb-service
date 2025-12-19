@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 @Factory
 @Slf4j
 public class HazelcastProvidersFactory {
+	private final String FILENAME_PREFIX = "hazelcast";
 	private static final String EXTENSION_YML = "yml";
 	private static final String EXTENSION_YAML = "yaml";
 	private final Environment env;
@@ -28,12 +29,14 @@ public class HazelcastProvidersFactory {
 	}
 
 	private Optional<Config> findHazelcastConfig(String fileName) {
+		
+		log.info("Looking for hazelcast config [{}]", fileName);
 		return resourceResolver.getResourceAsStream("classpath:" + fileName + "." + EXTENSION_YML)
 				.or(() -> resourceResolver.getResourceAsStream("classpath:" + fileName + "." + EXTENSION_YAML))
-				.map(inputStream -> Config.loadFromStream(inputStream));
+				.map(Config::loadFromStream);
 	}
 
-	private boolean environemntSpecificConfigCandidate(String envName) {
+	private boolean environmentSpecificConfigCandidate(String envName) {
 
 		return switch (envName) {
 		case Environment.KUBERNETES, Environment.DEVELOPMENT -> true;
@@ -45,17 +48,21 @@ public class HazelcastProvidersFactory {
 
 	private Optional<Config> applicableHazelcastConfig() {
 		return env.getActiveNames().stream()
-				.filter(this::environemntSpecificConfigCandidate)
-				.map("hazelcast-%s"::formatted)
+				.filter(this::environmentSpecificConfigCandidate)
+				.map((FILENAME_PREFIX + "-%s")::formatted)
 				.map(this::findHazelcastConfig)
-				.filter(Optional::isPresent)
-				.map(Optional::get).findFirst();
+				.flatMap(Optional::stream)
+				.findFirst()
+				.or(() -> findHazelcastConfig(FILENAME_PREFIX) );
 	}
 
 	@Singleton
 	@Named("hazelcastInstance")
 	@Bean(preDestroy = "shutdown")
 	public HazelcastInstance hazelcastInstance() {
-		return applicableHazelcastConfig().map(Hazelcast::newHazelcastInstance).orElseGet(Hazelcast::newHazelcastInstance);
+		
+		return applicableHazelcastConfig()
+			.map(Hazelcast::newHazelcastInstance)
+			.get();
 	}
 }

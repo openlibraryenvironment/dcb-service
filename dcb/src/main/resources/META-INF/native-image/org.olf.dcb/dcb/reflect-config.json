@@ -1,4 +1,45 @@
-[
+[	
+	{
+	  "condition":{"typeReachable":"com.hazelcast.instance.BuildInfoProvider"},
+	  "name":"com.hazelcast.instance.GeneratedBuildProperties",
+	  "fields":[{"name":"ARTIFACT_ID"}, {"name":"BUILD"}, {"name":"COMMIT_ID"}, {"name":"DISTRIBUTION"}, {"name":"REVISION"}, {"name":"SERIALIZATION_VERSION"}, {"name":"VERSION"}]
+	},
+	{
+	  "condition":{"typeReachable":"com.hazelcast.shaded.org.jctools.queues.MpmcArrayQueueProducerIndexField"},
+	  "name":"com.hazelcast.shaded.org.jctools.queues.MpmcArrayQueueProducerIndexField",
+	  "fields":[{"name":"producerIndex"}]
+	},
+	{
+	  "condition":{"typeReachable":"com.hazelcast.shaded.org.jctools.queues.MpmcArrayQueueConsumerIndexField"},
+	  "name":"com.hazelcast.shaded.org.jctools.queues.MpmcArrayQueueConsumerIndexField",
+	  "fields":[{"name":"consumerIndex"}]
+	},
+	{
+	  "name":"com.hazelcast.internal.partition.impl.MigrationStats",
+	  "allDeclaredFields":true,
+	  "queryAllDeclaredMethods":true,
+	  "methods":[{"name":"getElapsedDestinationCommitTimeNanoseconds","parameterTypes":[] }, {"name":"getElapsedMigrationOperationTimeNanoseconds","parameterTypes":[] }, {"name":"getElapsedMigrationTimeNanoseconds","parameterTypes":[] }, {"name":"getTotalElapsedDestinationCommitTimeNanoseconds","parameterTypes":[] }, {"name":"getTotalElapsedMigrationOperationTimeNanoseconds","parameterTypes":[] }, {"name":"getTotalElapsedMigrationTimeNanoseconds","parameterTypes":[] }]
+	},
+  {
+    "name": "com.github.benmanes.caffeine.cache.PSAMS",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+	{
+	  "name":"com.hazelcast.logging.Slf4jFactory",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true,
+    "allDeclaredClasses": true,
+    "allPublicClasses": true
+	},
   {
     "name": "ch.qos.logback.classic.AsyncAppender",
     "allDeclaredConstructors": true,
@@ -109,8 +150,8 @@
     "allDeclaredClasses": true,
     "allPublicClasses": true
   },
-	{
-		"name": "ch.qos.logback.contrib.jackson.JacksonJsonFormatter",
+  {
+    "name": "ch.qos.logback.contrib.jackson.JacksonJsonFormatter",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -119,9 +160,8 @@
     "allPublicFields": true,
     "allDeclaredClasses": true,
     "allPublicClasses": true ,
-		"methods": [
-			{ "name": "setPrettyPrint", "parameterTypes": ["boolean"] }
-		]
-	}
+    "methods": [
+      { "name": "setPrettyPrint", "parameterTypes": [ "boolean" ] }
+    ]
+  }
 ]
-

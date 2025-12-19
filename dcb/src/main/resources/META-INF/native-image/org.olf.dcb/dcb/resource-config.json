@@ -1,0 +1,11 @@
+{
+  "resources" : {
+    "includes" : [
+	    {"pattern":"\\Qgit.properties\\E"},
+	    {"pattern":".*opencsv.*properties"},
+	    {"pattern":".*hazelcast-.*\\.yml"},
+	    {"pattern":".*hazelcast-config-.*\\.json"},
+	    {"pattern":".*QueryParserMessages.*"}
+    ]
+  }
+}
