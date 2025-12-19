@@ -152,9 +152,13 @@ public class PatronRequestResolutionService {
 
 		log.debug("Items with same availability date as the first item: {}", sameAvailabilityDateItems.size());
 
-		resolution.trackSortedItems(sameAvailabilityDateItems);
+//		resolution.trackSortedItems(sameAvailabilityDateItems);
 
-		return applySortingStrategy(itemResolver, resolution);
+		// I think previously we were not doing anything with the sorted items and that causes issues
+		// now we do. let's see what happens
+		final var resolutionWithTiedItems = resolution.trackSortedItems(sameAvailabilityDateItems);
+
+		return applySortingStrategy(itemResolver, resolutionWithTiedItems);
 	}
 
 	// Only apply the sorting strategy if it is a valid strategy code
