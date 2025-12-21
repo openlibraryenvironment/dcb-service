@@ -64,6 +64,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	private static final String JOB_NAME = "Data ingest job";
 	
 	private final int PAGE_SIZE = 1500;
+	private static final long SLOW_OP_MS = 2000;
 	private final Map<String, Mono<SourceToIngestRecordConverter>> sourceRecConverterCache = new ConcurrentHashMap<>();
 	
 	
@@ -115,6 +116,10 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		return Flux.fromIterable( page )
 			.flatMap( this::createOperation )
 			.collectList()
+			.elapsed()
+			.doOnNext( result -> log.info("Built ingest chunk with {} ops from {} source records in {} ms (terminal={})",
+				result.getT2().size(), page.size(), result.getT1(), terminal))
+			.map( Tuple2::getT2 )
 			.map( chunk::data )
 			.map( IngestJobChunkBuilder::build )
       .doOnError( e -> log.error("problem in buildChunkFromPage {}",e.getMessage(),e) );
@@ -150,6 +155,9 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	@Transactional(readOnly = true)
 	protected Mono<List<SourceRecord>> fetchPage() {
 		return Mono.from( sourceRecordService.getUnprocessedRecords( Pageable.from(0, PAGE_SIZE) ))
+			.elapsed()
+			.doOnNext( result -> log.info("Fetched {} unprocessed source records in {} ms", result.getT2().size(), result.getT1()))
+			.map( Tuple2::getT2 )
 			.doOnSubscribe(_s -> log.info("Collecting page of unprocessed records"));
 	}
 	
@@ -247,6 +255,9 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		IngestJobChunk ijc = (IngestJobChunk)chunk;
 		
     int MAX_CONCURRENCY=32;
+		final int chunkSize = Optional.ofNullable(ijc.getData()).map(Collection::size).orElse(0);
+		final Instant chunkStart = Instant.now();
+		log.info("Processing ingest chunk size={} maxConcurrency={}", chunkSize, MAX_CONCURRENCY);
 		return Flux.fromIterable( ijc.getData() )
 			.flatMap(op -> processSingleOperation(op, processedTime)
 				// Do this error handling here as the mono is set to retry on exception.
@@ -255,8 +266,11 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 						return Mono.error(err);
 					return opFail(op, processedTime, "Failed to process bib: %s", err);
 				}), MAX_CONCURRENCY)
-			
-			.then( Mono.just(chunk) );
+			.then( Mono.fromCallable(() -> {
+				long elapsedMs = Duration.between(chunkStart, Instant.now()).toMillis();
+				log.info("Processed ingest chunk size={} in {} ms", chunkSize, elapsedMs);
+				return chunk;
+			}) );
 			
 		
 //		throw new IllegalStateException("NOPE!");
@@ -269,30 +283,41 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		
 		IngestRecord ir = op.getIngest();
 		var error = op.getException();
+		final Instant opStart = Instant.now();
+		final Mono<BibRecord> result;
 		
 		if (error != null) {
       log.error("Error getting ingest record "+error);
-			return opFail(op, processedTime, "Failed to create IngestRecord from source: %s", error);
+			result = opFail(op, processedTime, "Failed to create IngestRecord from source: %s", error);
 		}
-		
-		if (ir == null) {
+		else if (ir == null) {
 			// Couldn't create an ingest record.
       log.error("Failed to create Ingest Record from source record "+op.getSourceId());
-			return opFail(op, processedTime, "Failed to create IngestRecord from source: Unknown error");
+			result = opFail(op, processedTime, "Failed to create IngestRecord from source: Unknown error");
 		}
+		else {
+			// log.trace("processSingleOperation: title {} - {}",ir.getTitle(),ir.getIdentifiers());
+			
+			result = bibRecordService.process( ir )
+				// Returned bib (Not delete operation), try cluster.
+				.switchIfEmpty( opSuccess(op, processedTime, "No returned Bib. Assumed redacted or without sufficient title info") )
+				.flatMap( bib -> processNoneDelete( op, bib, processedTime ))
+				.onErrorResume(err -> {
+					if ( err instanceof IllegalStateException && err.getMessage().contains("connection is closed"))
+						return Mono.error(err);
 
-    // log.trace("processSingleOperation: title {} - {}",ir.getTitle(),ir.getIdentifiers());
+					return opFail(op, processedTime, "Failed to process bib: %s", err);
+				});
+		}
 		
-		return bibRecordService.process( ir )
-			// Returned bib (Not delete operation), try cluster.
-			.switchIfEmpty( opSuccess(op, processedTime, "No returned Bib. Assumed redacted or without sufficient title info") )
-			.flatMap( bib -> processNoneDelete( op, bib, processedTime ))
-			.onErrorResume(err -> {
-				if ( err instanceof IllegalStateException && err.getMessage().contains("connection is closed"))
-					return Mono.error(err);
+		return result.doFinally(signal -> logSlowOp(opStart, op));
+	}
 
-				return opFail(op, processedTime, "Failed to process bib: %s", err);
-			});
+	private void logSlowOp(Instant start, IngestOperation op) {
+		long elapsedMs = Duration.between(start, Instant.now()).toMillis();
+		if (elapsedMs > SLOW_OP_MS) {
+			log.warn("Slow ingest operation {} ms for sourceId {}", elapsedMs, op.getSourceId());
+		}
 	}
 	
 
