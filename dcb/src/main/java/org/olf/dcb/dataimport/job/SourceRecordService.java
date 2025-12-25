@@ -144,6 +144,10 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 					l.doOnSuccess(Level.TRACE, savedRecord -> log.trace("Save source record [{}]", srcRec))));
 	}
 
+  // II: I'm trying to work out why in my clone of Mob live I see the number of records requiring processing
+  // is (correctly, due to outdated versio) going up, but those records are never being processed. I can't see
+  // this method called anywhere.. This is note to self as I try to unpick whats going so wrong.
+  // call possibly comes from IngestJob
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<List<SourceRecord>> getUnprocessedRecords (@NonNull Pageable page) {
 		
@@ -153,6 +157,10 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 				.collectList();
 	}
 	
+  // II: I'm trying to work out why in my clone of Mob live I see the number of records requiring processing
+  // is (correctly, due to outdated versio) going up, but those records are never being processed. I can't see
+  // this method called anywhere.. This is note to self as I try to unpick whats going so wrong.
+  // call possibly comes from IngestJob
 	@Transactional(propagation = Propagation.MANDATORY)
 	public @NonNull Mono<UUID> requireProcessing (@NonNull UUID sourceRecordId) {
 		return Mono.from(sourceRecords.updateProcessingStateById(sourceRecordId, ProcessingStatus.PROCESSING_REQUIRED))

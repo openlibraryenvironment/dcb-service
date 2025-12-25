@@ -11,12 +11,24 @@ services:
       - ELASTIC_PASSWORD=elastic
       - ELASTICSEARCH_PLUGINS=analysis-icu
       - xpack.security.enabled=true
-      - ES_JAVA_OPTS=-Xms1024m -Xmx1024m
+      - ES_JAVA_OPTS=-Xms4g -Xmx4g
     ports:
       - "9200:9200"
       - "9300:9300"
     volumes:
       - elastic_data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    cap_add:
+      - IPC_LOCK
+
+
     healthcheck:
       test: [ "CMD-SHELL", "curl -s -u elastic:elastic http://localhost:9200/_cluster/health || exit 1" ]
       interval: 10s
@@ -26,7 +38,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4096m
+          memory: 8g
 
 volumes:
   elastic_data:

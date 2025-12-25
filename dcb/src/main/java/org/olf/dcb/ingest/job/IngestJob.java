@@ -9,6 +9,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.audit.ProcessAuditService;
@@ -63,7 +64,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	private static final String JOB_NAME = "Data ingest job";
 	
-	private final int PAGE_SIZE = 1500;
+	private final int PAGE_SIZE = 500;
 	private static final long SLOW_OP_MS = 2000;
 	private final Map<String, Mono<SourceToIngestRecordConverter>> sourceRecConverterCache = new ConcurrentHashMap<>();
 	
@@ -257,9 +258,25 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
     int MAX_CONCURRENCY=32;
 		final int chunkSize = Optional.ofNullable(ijc.getData()).map(Collection::size).orElse(0);
 		final Instant chunkStart = Instant.now();
+		final AtomicInteger inFlight = new AtomicInteger();
 		log.info("Processing ingest chunk size={} maxConcurrency={}", chunkSize, MAX_CONCURRENCY);
 		return Flux.fromIterable( ijc.getData() )
+			.doOnRequest(req -> log.debug("processChunk demand={} currentInFlight={}", req, inFlight.get()))
 			.flatMap(op -> processSingleOperation(op, processedTime)
+				.doOnSubscribe(_s -> {
+					int current = inFlight.incrementAndGet();
+					if (current > MAX_CONCURRENCY) {
+						log.warn("processChunk inFlight {} exceeds maxConcurrency {}", current, MAX_CONCURRENCY);
+					} else if (log.isDebugEnabled()) {
+						log.debug("processChunk inFlight {}", current);
+					}
+				})
+				.doFinally(signal -> {
+					int current = inFlight.decrementAndGet();
+					if (current == 0 && log.isDebugEnabled()) {
+						log.debug("processChunk inFlight drained");
+					}
+				})
 				// Do this error handling here as the mono is set to retry on exception.
 				.onErrorResume(err -> {
 					if ( err instanceof IllegalStateException && err.getMessage().contains("connection is closed"))

@@ -57,8 +57,11 @@ public class ClusterHousekeepingService {
 		log.debug( "Next batch of up to [{}] from priority queue", BATCH_SIZE );
 		final List<UUID> toProcess = new ArrayList<>( BATCH_SIZE );
 		synchronized (priorityReprocessingQueue) {
-			
+
+      log.debug("Get priorityReprocessingQueue...");
 			Iterator<String> queue = priorityReprocessingQueue.iterator();
+      log.debug("enqueue priorityReprocessingQueue...");
+
 			while (toProcess.size() < BATCH_SIZE && queue.hasNext()) {
 				try {
 					UUID id = UUID.fromString(queue.next());
@@ -68,6 +71,8 @@ public class ClusterHousekeepingService {
 					// Invalid UUID somehow. Ignore.
 				}
 			}
+
+      log.debug("Located {} records to reprocess",toProcess.size());
 		}
 		return toProcess.size() > 0 ? toProcess : null;
 	}
@@ -83,6 +88,7 @@ public class ClusterHousekeepingService {
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected Flux<Collection<UUID>> prioritySubscription() {
+
 		return Mono.fromSupplier( this::getDedupedPriorityBatch )
 			.expand( batch -> batch == null ? Mono.empty() : Mono.fromSupplier(this::getDedupedPriorityBatch))
 			.flatMap( list -> Flux.fromIterable(list)
@@ -96,6 +102,13 @@ public class ClusterHousekeepingService {
 		log.debug( "Next batch of up to [{}] from database", BATCH_SIZE );
 		return Flux.from( clusterRecordRepo.getClusterIdsWithOutdatedUnprocessedBibs(IngestService.getProcessVersion(), BATCH_SIZE) )
 			.collect(Collectors.toUnmodifiableSet())
+			.doOnNext(ids -> {
+				if (ids.isEmpty()) {
+					log.debug("No outdated clusters found in this batch");
+				} else {
+					log.info("Found {} outdated clusters to reprocess (process_version < {})", ids.size(), IngestService.getProcessVersion());
+				}
+			})
 			.filter( Predicate.not( Set::isEmpty ));
 	}
 	
@@ -163,7 +176,7 @@ public class ClusterHousekeepingService {
 				count -> {
 					if (count == 0) return Mono.empty();
 
-					log.info("Finished page");
+					log.info("Finished page of {}",count);
 					return Mono.delay(Duration.ofNanos(500))
 						.doOnNext( _l -> log.info("Resubscribe for more"));
 				}))
