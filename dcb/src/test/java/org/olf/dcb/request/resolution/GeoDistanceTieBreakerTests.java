@@ -271,7 +271,6 @@ public class GeoDistanceTieBreakerTests {
 				.borrowingAgencyCode(BORROWING_AGENCY_CODE)
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
-				// This is due to geo-proximity interpreting the location code parameter as the ID
 				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build()));
 	}

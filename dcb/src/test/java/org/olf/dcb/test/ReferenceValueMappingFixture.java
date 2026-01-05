@@ -34,23 +34,6 @@ public class ReferenceValueMappingFixture {
 		numericRangeMappingFixture.deleteAll();
 	}
 
-	public void defineItemStatusMapping(String fromHostLmsCode, String fromValue, String toValue) {
-		saveReferenceValueMapping(ReferenceValueMapping.builder()
-			.id(UUID.randomUUID())
-			.fromCategory("itemStatus")
-			.fromContext(fromHostLmsCode)
-			.fromValue(fromValue)
-			.toCategory("itemStatus")
-			.toContext("DCB")
-			.toValue(toValue)
-			.reciprocal(true)
-			.build());
-	}
-
-	public void defineLocationToAgencyMapping(String locationCode, String agencyCode) {
-		defineLocationToAgencyMapping("DCB", locationCode, agencyCode);
-	}
-
 	public void defineLocationToAgencyMapping(String fromContext, String locationCode, String agencyCode) {
 		log.debug("Define location mapping in tests with from context: {}, location code: {}, agency code: {}",
 			fromContext, locationCode, agencyCode);

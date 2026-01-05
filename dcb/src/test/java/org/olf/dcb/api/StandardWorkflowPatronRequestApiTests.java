@@ -207,13 +207,9 @@ class StandardWorkflowPatronRequestApiTests {
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsFixture.deleteAll();
-
 		patronFixture.deleteAllPatrons();
-
 		clusterRecordFixture.deleteAll();
-
 		referenceValueMappingFixture.deleteAll();
-
 		eventLogFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
@@ -227,8 +223,6 @@ class StandardWorkflowPatronRequestApiTests {
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			SUPPLYING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
-		referenceValueMappingFixture.defineLocationToAgencyMapping(PICKUP_LOCATION_CODE,
-			BORROWING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			SUPPLYING_HOST_LMS_CODE, 999, 999, "loanable-item");
@@ -658,10 +652,11 @@ class StandardWorkflowPatronRequestApiTests {
 		savePatronTypeMappings();
 
 		// Act
+		final var unknownPickupLocationId = randomUUID().toString();
+
 		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				KNOWN_PATRON_LOCAL_ID, "unknown-pickup-location",
-				BORROWING_HOST_LMS_CODE, "home-library-code"));
+			() -> patronRequestApiClient.placePatronRequest(clusterRecordId, KNOWN_PATRON_LOCAL_ID,
+				unknownPickupLocationId, BORROWING_HOST_LMS_CODE, "home-library-code"));
 
 		// Assert
 		final var response = exception.getResponse();
@@ -672,65 +667,29 @@ class StandardWorkflowPatronRequestApiTests {
 		final var optionalBody = response.getBody(ChecksFailure.class);
 
 		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
+
+		final var unrecognisedPickupLocationMessage = "\"%s\" is not a recognised pickup location code"
+			.formatted(unknownPickupLocationId);
+
+		final var unmappedPickupLocationMessage = "Pickup location \"%s\" is not mapped to an agency"
+			.formatted(unknownPickupLocationId);
 
 		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
 				allOf(
-					hasDescription("\"unknown-pickup-location\" is not a recognised pickup location code"),
+					hasDescription(unrecognisedPickupLocationMessage),
 					hasCode("UNKNOWN_PICKUP_LOCATION_CODE")
 				),
 				allOf(
-					hasDescription("Pickup location \"unknown-pickup-location\" is not mapped to an agency"),
+					hasDescription(unmappedPickupLocationMessage),
 					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
 				)
 			)));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			isFailedCheckEvent("\"unknown-pickup-location\" is not a recognised pickup location code"),
-			isFailedCheckEvent("Pickup location \"unknown-pickup-location\" is not mapped to an agency")
+			isFailedCheckEvent(unrecognisedPickupLocationMessage),
+			isFailedCheckEvent(unmappedPickupLocationMessage)
 		));
-	}
-
-	@Test
-	void cannotPlaceRequestForPickupAtUnmappedLocation() {
-		// Arrange
-		final var clusterRecordId = randomUUID();
-		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
-		final var hostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
-		final var sourceSystemId = hostLms.getId();
-
-		bibRecordFixture.createBibRecord(clusterRecordId, sourceSystemId, "798472", clusterRecord);
-
-		locationFixture.createPickupLocation("Unmapped pickup location", "unmapped-pickup-location");
-
-		savePatronTypeMappings();
-
-		// Act
-		final var exception = assertThrows(HttpClientResponseException.class,
-			() -> patronRequestApiClient.placePatronRequest(clusterRecordId,
-				KNOWN_PATRON_LOCAL_ID, "unmapped-pickup-location",
-				BORROWING_HOST_LMS_CODE, "home-library-code"));
-
-		// Assert
-		final var response = exception.getResponse();
-
-		assertThat("Should respond with a bad request status",
-			response.getStatus(), is(BAD_REQUEST));
-
-		final var optionalBody = response.getBody(ChecksFailure.class);
-
-		assertThat("Response should have a body", optionalBody.isPresent(), is(true));
-
-		assertThat("Body should report unmapped pickup location failed check", optionalBody.get(),
-			hasProperty("failedChecks", containsInAnyOrder(
-				allOf(
-					hasDescription("Pickup location \"unmapped-pickup-location\" is not mapped to an agency"),
-					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
-				)
-			)));
-
-		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			isFailedCheckEvent("Pickup location \"unmapped-pickup-location\" is not mapped to an agency")));
 	}
 
 	@Test

@@ -1,6 +1,29 @@
 package org.olf.dcb.request.fulfilment;
 
-import jakarta.inject.Inject;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
+import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasToStatus;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.List;
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,35 +33,33 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
-import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
-import org.olf.dcb.test.*;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 import org.zalando.problem.ThrowableProblem;
+
+import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.List;
-
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -47,6 +68,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private static final String INVALID_HOLD_POLICY_HOST_LMS_CODE = "invalid-hold-policy";
 
 	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
+	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -67,15 +89,21 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private LocationFixture locationFixture;
+
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
+
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private PatronRequestWorkflowService patronRequestWorkflowService;
+
 	@Inject
 	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
-	private DataAgency borrowingAgency;
+
+	private DataAgency supplyingAgency;
 
 	@BeforeAll
 	public void beforeAll(MockServerClient mockServerClient) {
@@ -96,8 +124,11 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "invalid");
 
-		borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
 			"Borrowing Agency", sierraHostLms);
+
+		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
+			"Supplying Agency", sierraHostLms);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
@@ -110,8 +141,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 			.build();
 
 		sierraBibsAPIFixture.createPostBibsMock(bibPatch, 7916921);
+
 		sierraItemsAPIFixture.successResponseForCreateItem(7916921,
-			BORROWING_AGENCY_CODE, "9849123490", "7916922");
+			SUPPLYING_AGENCY_CODE, "9849123490", "7916922");
 
 		sierraItemsAPIFixture.mockGetItemById("7916922",
 			SierraItem.builder()
@@ -125,17 +157,16 @@ class PlaceRequestAtBorrowingAgencyTests {
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsFixture.deleteAll();
-
 		patronFixture.deleteAllPatrons();
-
 		clusterRecordFixture.deleteAll();
+		locationFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,
 			BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE);
+
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			INVALID_HOLD_POLICY_HOST_LMS_CODE, BORROWING_AGENCY_CODE,
-			BORROWING_AGENCY_CODE);
-		referenceValueMappingFixture.defineLocationToAgencyMapping(HOST_LMS_CODE,"ABC123",
 			BORROWING_AGENCY_CODE);
 	}
 
@@ -154,35 +185,28 @@ class PlaceRequestAtBorrowingAgencyTests {
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var localPatronId = "562967";
-		final var patron = patronFixture.savePatron("Home");
 
-		patronFixture.saveIdentity(patron, hostLms, localPatronId, true, "-", localPatronId, null);
+		final var patron = patronFixture.savePatron("home-library");
+
+		final var hostLms1 = hostLmsFixture.findByCode(HOST_LMS_CODE);
+
+		patronFixture.saveIdentity(patron, hostLms1, localPatronId, true, "-",
+			localPatronId, null);
+
+		final var agency = agencyFixture.findByCode(BORROWING_AGENCY_CODE);
+
+		final var pickupLocation = locationFixture.createPickupLocation(agency);
+
+		final var pickupLocationId = getValueOrNull(pickupLocation, Location::getId, UUID::toString);
 
 		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.status(CONFIRMED)
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
-			.build();
+
+		var patronRequest = definePatronRequest(patronRequestId, clusterRecordId,
+			patron, pickupLocationId, 1, null, null);
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest
-				.builder()
-				.id(randomUUID())
-				.patronRequest(patronRequest)
-				.localItemId("localItemId")
-				.localBibId("76832")
-				.localItemLocationCode(BORROWING_AGENCY_CODE)
-				.localItemBarcode("9849123490")
-				.hostLmsCode(hostLms.code)
-				.isActive(true)
-				.localItemLocationCode(BORROWING_AGENCY_CODE)
-				.resolvedAgency(borrowingAgency)
-				.build());
+		createSupplierRequest(patronRequest, "76832", supplyingAgency);
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b", 7916921);
 
@@ -209,8 +233,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertThat("Local request status wasn't expected.", pr.getLocalRequestStatus(), is("CONFIRMED"));
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade(localPatronId, "b",
-			7916921, "ABC123",
-			"Consortial Hold. tno=" + pr.getId()+" \nFor UNKNOWN@null\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION");
+			7916921, pickupLocation.getCode(),
+			"Consortial Hold. tno=%s \nFor UNKNOWN@null\n Pickup MISSING-PICKUP-LIB@null"
+				.formatted(pr.getId()));
 	}
 
 	@Test
@@ -228,47 +253,36 @@ class PlaceRequestAtBorrowingAgencyTests {
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
 		final var localPatronId = "562967";
-		final var patron = patronFixture.savePatron("Home");
 
-		patronFixture.saveIdentity(patron, hostLms, localPatronId, true, "-", localPatronId, null);
+		final var patron = patronFixture.savePatron("home-library");
+
+		patronFixture.saveIdentity(patron, hostLms, localPatronId, true, "-",
+			localPatronId, null);
+
+		final var pickupLocation = locationFixture.createPickupLocation(
+			agencyFixture.findByCode(BORROWING_AGENCY_CODE));
+
+		final var pickupLocationId = getValueOrNull(pickupLocation, Location::getId,
+			UUID::toString);
 
 		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.status(CONFIRMED)
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
-			.resolutionCount(2)
-			.localRequestId("864902")
-			.localItemId("243252")
-			.localRequestStatus("CONFIRMED")
-			.build();
+
+		var patronRequest = definePatronRequest(patronRequestId, clusterRecordId,
+			patron, pickupLocationId, 2, "864902", "243252");
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
-			.id(randomUUID())
-			.patronRequest(patronRequest)
-			.localItemId("243252")
-			.localBibId("76832")
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.localItemBarcode("9849123490")
-			.hostLmsCode(hostLms.code)
-			.isActive(true)
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.resolvedAgency(borrowingAgency)
-			.canonicalItemType("ebook")
-			.build());
+		createSupplierRequest(patronRequest, "76832", supplyingAgency);
 
 		sierraItemsAPIFixture.mockUpdateItem("243252");
+
 		sierraItemsAPIFixture.mockGetItemById("243252",
 			SierraItem.builder()
 				.id("243252")
 				.barcode("9849123490")
 				.statusCode("-")
 				.build());
+
 		sierraPatronsAPIFixture.mockGetHoldById("864902",
 			SierraPatronHold.builder()
 				.id("864902")
@@ -279,7 +293,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 					.build())
 				.build());
 
-		referenceValueMappingFixture.defineMapping("DCB", "ItemType", "ebook", HOST_LMS_CODE, "ItemType", "007");
+		referenceValueMappingFixture.defineMapping("DCB",
+			"ItemType", "ebook", HOST_LMS_CODE, "ItemType", "007");
 
 		// Act
 		final var pr = placeRequestAtBorrowingAgency(patronRequest);
@@ -292,7 +307,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		sierraItemsAPIFixture.verifyUpdateItemRequestMade("243252");
 	}
-
 
 	@Test
 	void shouldFailWhenPlacingRequestInSierraRespondsWithServerError() {
@@ -308,35 +322,12 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var patron = patronFixture.savePatron("972321");
+		final var localPatronId = "972321";
 
-		patronFixture.saveIdentity(patron, hostLms, "972321", true, "-", "972321", null);
+		final var patronRequest = createPatronRequest(localPatronId,
+			"home-library", clusterRecordId);
 
-		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.pickupLocationCode("ABC123")
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.status(CONFIRMED)
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest
-			.builder()
-			.id(randomUUID())
-			.patronRequest(patronRequest)
-			.localItemId("localItemId")
-			.localBibId("647245")
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.localItemBarcode("9849123490")
-			.hostLmsCode(hostLms.code)
-			.isActive(true)
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.resolvedAgency(borrowingAgency)
-			.build());
+		createSupplierRequest(patronRequest, "647245", supplyingAgency);
 
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "b");
 
@@ -379,58 +370,36 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var patron = patronFixture.savePatron("972321");
+		final var localPatronId = "562967";
+		final var homeLibraryCode = "972321";
 
-		patronFixture.saveIdentity(patron, hostLms, "785843", true, "-", "972321", null);
+		final var patronRequest = createPatronRequest(localPatronId,
+			homeLibraryCode, clusterRecordId);
 
-		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.pickupLocationCode("ABC123")
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.status(CONFIRMED)
-			.build();
+		createSupplierRequest(patronRequest, "35365", supplyingAgency);
 
-		patronRequestsFixture.savePatronRequest(patronRequest);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b", 7916921);
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest
-			.builder()
-			.id(randomUUID())
-			.patronRequest(patronRequest)
-			.localItemId("localItemId")
-			.localBibId("35365")
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.localItemBarcode("9849123490")
-			.hostLmsCode(hostLms.code)
-			.isActive(true)
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.resolvedAgency(borrowingAgency)
-			.build());
-
-		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("785843", "b", 7916921);
-
-		sierraPatronsAPIFixture.notFoundWhenGettingPatronRequests("785843");
+		sierraPatronsAPIFixture.notFoundWhenGettingPatronRequests(localPatronId);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> placeRequestAtBorrowingAgency(patronRequest));
 
 		// Assert
-		assert exception.getMessage().startsWith("No holds to process for local patron id:" + " 785843");
-		// assertThat(exception.getMessage(), is("No hold request found for the given note: Consortial Hold. tno=" + patronRequestId));
+		String expectedNote="No holds to process for local patron id: " + localPatronId;
+
+		assertThat(exception.getMessage(), startsWith(expectedNote));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
 		assertThat("Request should have error status afterwards",
 			fetchedPatronRequest.getStatus(), is(ERROR));
 
-		String expectedNote="No holds to process for local patron id: 785843";
 
 		assertThat("Request should have error message afterwards", fetchedPatronRequest.getErrorMessage(), is(expectedNote));
 
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest,expectedNote);
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedNote);
 	}
 
 	@Test
@@ -443,39 +412,29 @@ class PlaceRequestAtBorrowingAgencyTests {
 			clusterRecordId, bibRecordId);
 
 		final var invalidHoldPolicyHostLms = hostLmsFixture.findByCode(INVALID_HOLD_POLICY_HOST_LMS_CODE);
+
 		final var sourceSystemId = invalidHoldPolicyHostLms.getId();
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
+		final var localPatronId = "562967";
+
 		final var patron = patronFixture.savePatron("872321");
 
-		patronFixture.saveIdentity(patron, invalidHoldPolicyHostLms, "872321", true, "-", "872321", null);
+		patronFixture.saveIdentity(patron, invalidHoldPolicyHostLms, localPatronId, true, "-",
+			localPatronId, null);
 
 		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.status(CONFIRMED)
-			.pickupLocationCode("ABC123")
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.build();
+
+		final var pickupLocationId = createPickupLocation(
+			agencyFixture.findByCode(BORROWING_AGENCY_CODE));
+
+		var patronRequest = definePatronRequest(patronRequestId, clusterRecordId,
+			patron, pickupLocationId, 1, "864902", "243252");
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest
-			.builder()
-			.id(randomUUID())
-			.patronRequest(patronRequest)
-			.localItemId("localItemId")
-			.localBibId("76832")
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.localItemBarcode("9849123490")
-			.hostLmsCode(invalidHoldPolicyHostLms.code)
-			.isActive(true)
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.resolvedAgency(borrowingAgency)
-			.build());
+		createSupplierRequest(patronRequest, "76832", supplyingAgency);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
@@ -507,26 +466,13 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		clusterRecordFixture.createClusterRecord(clusterRecordId, bibRecordId);
 
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var localPatronId = "562967";
+		final var homeLibraryCode = "972321";
 
-		final var patron = patronFixture.savePatron("872321");
+		final var patronRequest = createPatronRequest(localPatronId,
+			homeLibraryCode, clusterRecordId);
 
-		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
-
-		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.status(CONFIRMED)
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.pickupLocationCode("ABC123")
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			BORROWING_AGENCY_CODE, "9849123490", hostLms.code, BORROWING_AGENCY_CODE);
+		createSupplierRequest(patronRequest, "798472", supplyingAgency);
 
 		// Act
 		final var exception = assertThrows(CannotFindSelectedBibException.class,
@@ -563,38 +509,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var patron = patronFixture.savePatron("872321");
+		final var localPatronId = "562967";
 
-		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
+		final var patronRequest = createPatronRequest(localPatronId,
+			"home-library", clusterRecordId);
 
-		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.status(CONFIRMED)
-			.pickupLocationCode("ABC123")
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		// creating an agency that does not exist
+		// define an agency that does not exist
 		final var invalidAgency = DataAgency.builder().id(randomUUID()).code("INVALID_AGENCY").build();
 
-		supplierRequestsFixture.saveSupplierRequest(SupplierRequest
-			.builder()
-			.id(randomUUID())
-			.patronRequest(patronRequest)
-			.localItemId("localItemId")
-			.localBibId("76832")
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.localItemBarcode("9849123490")
-			.hostLmsCode(hostLms.code)
-			.isActive(true)
-			.localItemLocationCode(BORROWING_AGENCY_CODE)
-			.resolvedAgency(invalidAgency)
-			.build());
+		createSupplierRequest(patronRequest, "76832", invalidAgency);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
@@ -623,26 +546,12 @@ class PlaceRequestAtBorrowingAgencyTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
-		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var localPatronId = "562967";
 
-		final var patron = patronFixture.savePatron("872321");
+		final var patronRequest = createPatronRequest(localPatronId,
+			"home-library", clusterRecordId);
 
-		patronFixture.saveIdentity(patron, hostLms, "872321", true, "-", "872321", null);
-
-		final var patronRequestId = randomUUID();
-		var patronRequest = PatronRequest.builder()
-			.id(patronRequestId)
-			.patron(patron)
-			.bibClusterId(clusterRecordId)
-			.status(CONFIRMED)
-			.pickupLocationCode("ABC123")
-			.pickupLocationCodeContext(HOST_LMS_CODE)
-			.build();
-
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		supplierRequestsFixture.saveSupplierRequest(randomUUID(), patronRequest, "76832", "localItemId",
-			BORROWING_AGENCY_CODE, "9849123490", hostLms.code, BORROWING_AGENCY_CODE);
+		createSupplierRequest(patronRequest, "76832", supplyingAgency);
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
@@ -664,21 +573,16 @@ class PlaceRequestAtBorrowingAgencyTests {
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
 
-	private void assertSuccessfulTransitionAudit(PatronRequest patronRequest) {
-		assertThat("Patron request has expected status", patronRequest.getStatus(), is(REQUEST_PLACED_AT_BORROWING_AGENCY));
-	}
-
 	private void assertUnsuccessfulTransitionAudit(PatronRequest patronRequest, String description) {
-		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+		final var fetchedAudit = patronRequestsFixture.findAuditEntries(patronRequest);
 
-		assertThat("Patron Request audit should have brief description",
-			fetchedAudit.getBriefDescription(), is(description));
-
-		assertThat("Patron Request audit should have from state",
-			fetchedAudit.getFromStatus(), is(CONFIRMED));
-
-		assertThat("Patron Request audit should have to state",
-			fetchedAudit.getToStatus(), is(ERROR));
+		assertThat(fetchedAudit, containsInAnyOrder(
+			allOf(
+				hasBriefDescription(description),
+				hasFromStatus(CONFIRMED),
+				hasToStatus(ERROR)
+			)
+		));
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {
@@ -693,5 +597,69 @@ class PlaceRequestAtBorrowingAgencyTests {
 						placePatronRequestAtBorrowingAgencyStateTransition, ctx));
 			})
 			.thenReturn(patronRequest));
+	}
+
+	private String createPickupLocation(DataAgency agency) {
+		final var pickupLocation = locationFixture.createPickupLocation(agency);
+
+		return getValueOrNull(pickupLocation, Location::getId, UUID::toString);
+	}
+
+	private PatronRequest createPatronRequest(String localPatronId,
+		String homeLibraryCode, UUID clusterRecordId) {
+
+		final var patron = patronFixture.savePatron(homeLibraryCode);
+
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+
+		patronFixture.saveIdentity(patron, hostLms, localPatronId, true, "-",
+			localPatronId, null);
+
+		final var agency = agencyFixture.findByCode(BORROWING_AGENCY_CODE);
+
+		final var pickupLocationId = createPickupLocation(agency);
+
+		final var patronRequestId = randomUUID();
+
+		var patronRequest = definePatronRequest(patronRequestId, clusterRecordId,
+			patron, pickupLocationId, 1, null, null);
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		return patronRequest;
+	}
+
+	private static PatronRequest definePatronRequest(UUID patronRequestId, UUID clusterRecordId,
+		Patron patron, String pickupLocationId, Integer resolutionCount,
+		String localRequestId, String localItemId) {
+
+		return PatronRequest.builder()
+			.id(patronRequestId)
+			.patron(patron)
+			.bibClusterId(clusterRecordId)
+			.status(CONFIRMED)
+			.pickupLocationCode(pickupLocationId)
+			.localRequestId(localRequestId)
+			.localItemId(localItemId)
+			.resolutionCount(resolutionCount)
+			.build();
+	}
+
+	private void createSupplierRequest(PatronRequest patronRequest,
+		String localBibId, DataAgency supplyingAgency) {
+
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest
+			.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.localBibId(localBibId)
+			.localItemId("localItemId")
+			.canonicalItemType("ebook")
+			.localItemLocationCode(SUPPLYING_AGENCY_CODE)
+			.localItemBarcode("9849123490")
+			.hostLmsCode(HOST_LMS_CODE)
+			.resolvedAgency(supplyingAgency)
+			.isActive(true)
+			.build());
 	}
 }

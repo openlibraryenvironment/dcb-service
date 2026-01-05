@@ -8,12 +8,14 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
-import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,10 +23,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
-import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -33,15 +35,15 @@ import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.HostLmsFixture;
-import org.olf.dcb.test.InactiveSupplierRequestsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.test.TransitionFixture;
 import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -62,21 +64,21 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
 	@Inject
-	private InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture;
-	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private LocationFixture locationFixture;
 	@Inject
 	private ConsortiumFixture consortiumFixture;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
 	private BibRecordFixture bibRecordFixture;
+	@Inject
+	private TransitionFixture transitionFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
-
-	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
@@ -90,7 +92,6 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	private DataAgency borrowingAgency;
 
 	private DataHostLms supplyingHostLms;
-	private DataAgency supplyingAgency;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
@@ -114,7 +115,6 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 		supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE,
 			key, secret, supplyingHostLmsBaseUrl);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 	}
 
@@ -124,23 +124,25 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		agencyFixture.deleteAll();
+		locationFixture.deleteAll();
 		consortiumFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 
 		borrowingAgency = agencyFixture.defineAgency("borrowing-agency",
 			"Borrowing Agency", borrowingHostLms);
 
-		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
+		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
 	}
 
 	@Test
 	void shouldBeApplicableToPlaceAtOwnLibraryWhenWorkflowIsLocal() {
 		// Arrange
-		final var patronRequest = definePatronRequest(RESOLVED, LOCAL_WORKFLOW);
+		final var patronRequest = definePatronRequest(LOCAL_WORKFLOW);
 
 		// Act
-		final var applicable = isApplicable(patronRequest);
+		final var applicable = transitionFixture.isApplicable(
+			placeRequestAtOwnLibraryStateTransition, patronRequest);
 
 		// Assert
 		assertThat("Should be applicable for local request",
@@ -150,10 +152,11 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	@Test
 	void shouldNotBeApplicableToPlaceAtOwnLibraryWhenWorkflowIsPickupAnywhere() {
 		// Arrange
-		final var patronRequest = definePatronRequest(RESOLVED, PICKUP_ANYWHERE_WORKFLOW);
+		final var patronRequest = definePatronRequest(PICKUP_ANYWHERE_WORKFLOW);
 
 		// Act
-		final var applicable = isApplicable(patronRequest);
+		final var applicable = transitionFixture.isApplicable(
+			placeRequestAtOwnLibraryStateTransition, patronRequest);
 
 		// Assert
 		assertThat("Should not be applicable for pickup anywhere request",
@@ -163,10 +166,11 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	@Test
 	void shouldBeApplicableToPlaceAtOwnLibraryWhenWorkflowIsStandard() {
 		// Arrange
-		final var patronRequest = definePatronRequest(RESOLVED, STANDARD_WORKFLOW);
+		final var patronRequest = definePatronRequest(STANDARD_WORKFLOW);
 
 		// Act
-		final var applicable = isApplicable(patronRequest);
+		final var applicable = transitionFixture.isApplicable(
+			placeRequestAtOwnLibraryStateTransition, patronRequest);
 
 		// Assert
 		assertThat("Should not be applicable for standard request",
@@ -174,7 +178,7 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 	}
 
 	/*
-	We want to ensure errors are thrown when api requests fail so that they can be handled by the workflow
+	We want to ensure errors are thrown when api requests fail so that they can be handled
 	The workflow service will audit errors thrown and put the request in an error state
 	 */
 	@Test
@@ -195,13 +199,17 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 
 		patronFixture.saveIdentity(patron, hostLms, "972321", true, "-", "972321", null);
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
+		final var pickupLocationId = getValueOrNull(pickupLocation, Location::getId, UUID::toString);
+
 		final var patronRequestId = randomUUID();
+
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.pickupLocationCode("ABC123")
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.status(RESOLVED)
 			.activeWorkflow(LOCAL_WORKFLOW)
 			.build();
@@ -224,9 +232,6 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse("972321", "b");
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, "ABC123", borrowingAgency.getCode());
-
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			supplyingHostLms.getCode(), 999, 999, "BKM");
 
@@ -244,34 +249,19 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 		));
 	}
 
-	private PatronRequest placeRequestAtOwnLibrary(PatronRequest patronRequest) {
-		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap(ctx -> {
-				if (!placeRequestAtOwnLibraryStateTransition.isApplicableFor(ctx)) {
-					return Mono.error(new RuntimeException("Place request at own library is not applicable for request"));
-				}
-
-				return placeRequestAtOwnLibraryStateTransition.attempt(ctx);
-			})
-			.thenReturn(patronRequest));
+	private void placeRequestAtOwnLibrary(PatronRequest patronRequest) {
+		transitionFixture.attemptIfApplicable(placeRequestAtOwnLibraryStateTransition,
+			patronRequest);
 	}
 
-	private Boolean isApplicable(PatronRequest patronRequest) {
-		return singleValueFrom(
-			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.map(ctx -> placeRequestAtOwnLibraryStateTransition.isApplicableFor(ctx)));
-	}
-
-	private PatronRequest definePatronRequest(PatronRequest.Status status,
-		String activeWorkflow) {
-
+	private PatronRequest definePatronRequest(String activeWorkflow) {
 		final var patron = patronFixture.definePatron("365636", "home-library",
 			borrowingHostLms, borrowingAgency);
 
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
-			.status(status)
+			.status(PatronRequest.Status.RESOLVED)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.activeWorkflow(activeWorkflow)
 			.build();

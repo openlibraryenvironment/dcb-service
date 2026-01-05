@@ -15,26 +15,18 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 
 import jakarta.inject.Singleton;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Singleton
+@RequiredArgsConstructor
 public class PatronRequestsFixture {
 	private final DataAccess dataAccess = new DataAccess();
 
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestsFixture supplierRequestsFixture;
-	private final InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture;
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
-
-	public PatronRequestsFixture(PatronRequestRepository patronRequestRepository,
-		SupplierRequestsFixture supplierRequestsFixture,
-		InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture,
-		PatronRequestAuditRepository patronRequestAuditRepository) {
-
-		this.patronRequestRepository = patronRequestRepository;
-		this.supplierRequestsFixture = supplierRequestsFixture;
-		this.inactiveSupplierRequestsFixture = inactiveSupplierRequestsFixture;
-		this.patronRequestAuditRepository = patronRequestAuditRepository;
-	}
 
 	public void deleteAll() {
 		deleteAllAuditEntries();
@@ -68,6 +60,8 @@ public class PatronRequestsFixture {
 
 	public PatronRequestAudit findOnlyAuditEntry(PatronRequest patronRequest) {
 		final var entries = findAuditEntries(patronRequest);
+
+		log.debug("found audit log entries: {}", entries);
 
 		assertThat("Should only have single audit entry", entries, hasSize(1));
 

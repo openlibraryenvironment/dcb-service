@@ -56,6 +56,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.InactiveSupplierRequest;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -66,10 +67,12 @@ import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.InactiveSupplierRequestsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
@@ -87,7 +90,6 @@ class ResolveNextSupplierTransitionTests {
 	private static final String PREVIOUSLY_SUPPLYING_AGENCY_CODE = "previous-supplying-agency";
 
 	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
-	private static final String PICKUP_LOCATION_CODE = "pickup-location";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -109,6 +111,8 @@ class ResolveNextSupplierTransitionTests {
 	private ClusterRecordFixture clusterRecordFixture;
 	@Inject
 	private BibRecordFixture bibRecordFixture;
+	@Inject
+	private LocationFixture locationFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
@@ -171,9 +175,6 @@ class ResolveNextSupplierTransitionTests {
 
 		borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
 			"Borrowing Agency", borrowingHostLms);
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
 
 		supplyingAgency = agencyFixture.defineAgency(NEWLY_SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", supplyingHostLms);
@@ -857,8 +858,13 @@ class ResolveNextSupplierTransitionTests {
 		);
 	}
 
-	private PatronRequest definePatronRequest(
-		PatronRequest.Status status, String localRequestId, UUID clusterRecordId) {
+	private PatronRequest definePatronRequest(PatronRequest.Status status,
+		String localRequestId, UUID clusterRecordId) {
+
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
+		final var pickupLocationId = PropertyAccessUtils.getValueOrNull(
+			pickupLocation, Location::getId, UUID::toString);
 
 		final var patron = patronFixture.definePatron("365636", "home-library",
 			borrowingHostLms, borrowingAgency);
@@ -871,8 +877,7 @@ class ResolveNextSupplierTransitionTests {
 			.patronHostlmsCode(borrowingHostLms.getCode())
 			.localRequestId(localRequestId)
 			.bibClusterId(clusterRecordId)
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.resolutionCount(1)
 			.activeWorkflow(STANDARD_WORKFLOW)
 			.build();

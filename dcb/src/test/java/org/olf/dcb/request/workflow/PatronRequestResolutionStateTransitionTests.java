@@ -11,21 +11,21 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasNestedAuditDataProperty;
-import static org.olf.dcb.test.matchers.ResolutionAuditMatchers.isNoSelectableItemResolutionAudit;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
+import static org.olf.dcb.test.matchers.ResolutionAuditMatchers.isNoSelectableItemResolutionAudit;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalAgencyCode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalBibId;
@@ -37,10 +37,12 @@ import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalItemSt
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasNoLocalStatus;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasResolvedAgency;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -52,6 +54,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -62,6 +65,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -86,7 +90,6 @@ class PatronRequestResolutionStateTransitionTests {
 	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
 	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
 
-	private final String PICKUP_LOCATION_CODE = "pickup-location";
 	private final String ITEM_LOCATION_CODE = "item-location";
 
 	@Inject
@@ -115,6 +118,8 @@ class PatronRequestResolutionStateTransitionTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private LocationFixture locationFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
@@ -158,9 +163,7 @@ class PatronRequestResolutionStateTransitionTests {
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
+		locationFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, ITEM_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
@@ -205,14 +208,20 @@ class PatronRequestResolutionStateTransitionTests {
 				.build()
 		));
 
+		final var agency = agencyFixture.findByCode(BORROWING_AGENCY_CODE);
+
+		final var pickupLocation = locationFixture.createPickupLocation(agency);
+
+		final var pickupLocationId = getValueOrNull(
+			pickupLocation, Location::getId, UUID::toString);
+
 		final var patron = definePatron("872321", "465636");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.status(PATRON_VERIFIED)
 			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
 			.build();
@@ -268,14 +277,15 @@ class PatronRequestResolutionStateTransitionTests {
 				.build()
 		));
 
+		final var pickupLocationId = createPickupLocation();
+
 		final var patron = definePatron("872321", "465636");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -322,14 +332,15 @@ class PatronRequestResolutionStateTransitionTests {
 		agencyFixture.defineAgencyWithNoHostLms("unknown-circulating-host-lms",
 			"Unknown Circulating Host LMS");
 
+		final var pickupLocationId = createPickupLocation();
+
 		final var patron = definePatron("872321", "465636");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -358,14 +369,15 @@ class PatronRequestResolutionStateTransitionTests {
 
 		sierraItemsAPIFixture.itemsForBibId("245375", emptyList());
 
+		final var pickupLocationId = createPickupLocation();
+
 		final var patron = definePatron("872321", "294385");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -387,6 +399,8 @@ class PatronRequestResolutionStateTransitionTests {
 		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - entering\n\n");
 
 		// Arrange
+		final var pickupLocationId = createPickupLocation();
+
 		final var patron = definePatron("86848", "757646");
 
 		final var clusterRecordId = randomUUID();
@@ -395,8 +409,7 @@ class PatronRequestResolutionStateTransitionTests {
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecordId)
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -435,14 +448,15 @@ class PatronRequestResolutionStateTransitionTests {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), null);
 
+		final var pickupLocationId = createPickupLocation();
+
 		final var patron = definePatron("86848", "757646");
 
 		var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.bibClusterId(clusterRecord.getId())
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
+			.pickupLocationCode(pickupLocationId)
 			.status(PATRON_VERIFIED)
 			.build();
 
@@ -486,6 +500,14 @@ class PatronRequestResolutionStateTransitionTests {
 		return ctx -> Mono.just(ctx.getPatronRequest())
 			.flatMap(patronRequestWorkflowService.attemptTransitionWithErrorTransformer(
 				patronRequestResolutionStateTransition, ctx));
+	}
+
+	private String createPickupLocation() {
+		final var agency = agencyFixture.findByCode(BORROWING_AGENCY_CODE);
+
+		final var pickupLocation = locationFixture.createPickupLocation(agency);
+
+		return getValueOrNull(pickupLocation, Location::getId, UUID::toString);
 	}
 
 	private static void assertSuccessfulResolution(PatronRequest fetchedPatronRequest) {

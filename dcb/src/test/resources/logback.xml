@@ -8,13 +8,13 @@
 	</appender>
 
 <!-- Uncomment as you need but please don't commit with these turned on-->
+<!--	<logger name="org.olf.dcb.test" level="TRACE"/>-->
 <!--	<logger name="io.micronaut.http.client" level="TRACE"/>-->
 <!--	<logger name="io.micronaut.data.query" level="TRACE"/>-->
 <!--	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>-->
 <!--	<logger name="org.mockserver" level="TRACE"/>-->
 <!--	<logger name="org.olf.dcb.core.interaction.folio" level="TRACE"/>-->
 <!--	<logger name="org.olf.dcb.core.interaction.polaris" level="TRACE"/>-->
-<!--	<logger name="org.mockserver" level="WARN"/>-->
 <!--	<logger name="org.flywaydb" level="DEBUG"/>-->
 <!--	<logger name="org.flyway" level="DEBUG"/>-->
 <!--	<logger name="io.micronaut.flyway" level="DEBUG"/>-->

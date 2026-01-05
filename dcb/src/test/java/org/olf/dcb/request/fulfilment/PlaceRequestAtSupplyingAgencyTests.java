@@ -8,11 +8,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
-import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescriptionContains;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataDetail;
@@ -30,6 +30,7 @@ import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
 import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasDetail;
 import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -54,6 +56,7 @@ import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTran
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -96,6 +99,9 @@ class PlaceRequestAtSupplyingAgencyTests {
 	@Inject
 	private AgencyFixture agencyFixture;
 	@Inject
+	private LocationFixture locationFixture;
+
+	@Inject
 	private PatronService patronService;
 	@Inject
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
@@ -105,6 +111,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 	private DataAgency supplyingAgency;
+	private Location pickupLocation;
 
 	@BeforeEach
 	public void beforeEach(MockServerClient mockServerClient) {
@@ -116,8 +123,11 @@ class PlaceRequestAtSupplyingAgencyTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
+		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
+		locationFixture.deleteAll();
+		agencyFixture.deleteAll();
 
 		final var sierraHostLms = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE,
 			KEY, SECRET, BASE_URL, "title");
@@ -126,7 +136,10 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"Supplying Agency", sierraHostLms);
 
 		// Any agency associated with a pickup location MUST also be associated with a host LMS
-		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, "Borrowing Agency", sierraHostLms);
+		final var borrowingAgency = agencyFixture.defineAgency(
+			BORROWING_AGENCY_CODE, "Borrowing Agency", sierraHostLms);
+
+		pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
 		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
@@ -204,7 +217,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, BORROWING_AGENCY_CODE,
-			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION"
+			"Consortial Hold. tno=" + patronRequest.getId()+" \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@null"
 				.formatted(SUPPLYING_AGENCY_CODE));
 	}
 
@@ -267,7 +280,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000002", "b",
 			563653, BORROWING_AGENCY_CODE,
-			"Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION".formatted(
+			"Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@null".formatted(
 				patronRequest.getId(), SUPPLYING_AGENCY_CODE));
 	}
 
@@ -320,7 +333,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			"546730@%s".formatted(SUPPLYING_AGENCY_CODE));
 
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
-			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@MISSING-PICKUP-LOCATION"
+			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@null"
 				.formatted(patronRequest.getId(), SUPPLYING_AGENCY_CODE));
 	}
 
@@ -456,7 +469,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 			.patron(patron)
 			.requestingIdentity(requestingIdentity)
 			.bibClusterId(clusterRecordId)
-			.pickupLocationCode("ABC123")
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 			.status(RESOLVED)
 			.activeWorkflow(STANDARD_WORKFLOW)
 			.build();
@@ -503,7 +516,5 @@ class PlaceRequestAtSupplyingAgencyTests {
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,20,25, "DCB", "SQUIGGLE");
 
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", "SQUIGGLE", HOST_LMS_CODE, "15");
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping("ABC123", BORROWING_AGENCY_CODE);
 	}
 }

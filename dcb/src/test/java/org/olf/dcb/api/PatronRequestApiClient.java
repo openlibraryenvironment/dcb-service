@@ -1,9 +1,10 @@
 package org.olf.dcb.api;
 
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+
 import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.security.TestStaticTokenValidator;
 
 import io.micronaut.core.annotation.Nullable;
@@ -23,18 +24,14 @@ class PatronRequestApiClient {
 
 	public PatronRequestApiClient(@Client("/") HttpClient client) {
 		this.httpClient = client;
-		TestStaticTokenValidator.add(accessToken, "test-patreq-client-token", List.of(RoleNames.ADMINISTRATOR));
+
+		TestStaticTokenValidator.add(accessToken, "test-patreq-client-token",
+			List.of(ADMINISTRATOR));
 	}
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
 		String localId, String pickupLocationCode, String localSystemCode,
 		String homeLibraryCode) {
-		return placePatronRequest(bibClusterId,localId,pickupLocationCode,localSystemCode,homeLibraryCode,null);
-	}
-
-	HttpResponse<PlacedPatronRequest> placePatronRequestForItem(UUID bibClusterId,
-		String localId, String pickupLocationCode, String localSystemCode, String homeLibraryCode,
-		String itemLocalId, String itemLocalSystemCode, String itemAgencyCode) {
 
 		return placePatronRequest(PlacePatronRequestCommand.builder()
 			.requestor(Requestor.builder()
@@ -44,31 +41,6 @@ class PatronRequestApiClient {
 				.build())
 			.citation(Citation.builder()
 				.bibClusterId(bibClusterId)
-				.build())
-			.pickupLocation(PickupLocation.builder()
-				.code(pickupLocationCode)
-				.build())
-			.item(Item.builder()
-				.localId(itemLocalId)
-				.localSystemCode(itemLocalSystemCode)
-				.agencyCode(itemAgencyCode)
-				.build())
-			.build());
-	}
-
-	HttpResponse<PlacedPatronRequest> placePatronRequest(UUID bibClusterId,
-		String localId, String pickupLocationCode, String localSystemCode,
-		String homeLibraryCode, String volumeDesignation) {
-
-		return placePatronRequest(PlacePatronRequestCommand.builder()
-			.requestor(Requestor.builder()
-				.localId(localId)
-				.localSystemCode(localSystemCode)
-				.homeLibraryCode(homeLibraryCode)
-				.build())
-			.citation(Citation.builder()
-				.bibClusterId(bibClusterId)
-				.volumeDesignator(volumeDesignation)
 				.build())
 			.pickupLocation(PickupLocation.builder()
 				.code(pickupLocationCode)
@@ -77,7 +49,6 @@ class PatronRequestApiClient {
 	}
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(PlacePatronRequestCommand command) {
-
 		final var blockingClient = httpClient.toBlocking();
 
 		final var request = HttpRequest.POST("/patrons/requests/place", command)
@@ -87,7 +58,6 @@ class PatronRequestApiClient {
 	}
 
 	HttpResponse<UUID> updatePatronRequest(UUID patronRequestId) {
-
 		final var blockingClient = httpClient.toBlocking();
 
 		final var request = HttpRequest.POST("/patrons/requests/" + patronRequestId + "/update", patronRequestId)
@@ -97,7 +67,6 @@ class PatronRequestApiClient {
 	}
 
 	HttpResponse<UUID> rollbackPatronRequest(UUID patronRequestId) {
-
 		final var blockingClient = httpClient.toBlocking();
 
 		final var request = HttpRequest.POST("/patrons/requests/" + patronRequestId + "/rollback", patronRequestId)
@@ -174,7 +143,7 @@ class PatronRequestApiClient {
 	@Builder
 	public static class Item {
 		@Nullable String localId;
-		@Nullable String localSystemCode;	// hostlms code
+		@Nullable String localSystemCode;	// host LMS code
 		@Nullable String agencyCode;
 	}
 }

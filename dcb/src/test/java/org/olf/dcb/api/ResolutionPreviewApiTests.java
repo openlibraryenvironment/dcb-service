@@ -14,10 +14,12 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,13 +31,16 @@ import org.olf.dcb.core.api.ResolutionPreview;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.request.resolution.ResolutionParameters;
 import org.olf.dcb.request.workflow.PresentableItem;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -56,7 +61,6 @@ class ResolutionPreviewApiTests {
 
 	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
 
-	private final String PICKUP_LOCATION_CODE = "pickup-location";
 	private final String ITEM_LOCATION_CODE = "item-location";
 
 	@Inject
@@ -75,10 +79,13 @@ class ResolutionPreviewApiTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private LocationFixture locationFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
 	private DataHostLms cataloguingHostLms;
+	private DataAgency borrowingAgency;
 
 	@BeforeAll
 	@SneakyThrows
@@ -112,9 +119,7 @@ class ResolutionPreviewApiTests {
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
+		locationFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, ITEM_LOCATION_CODE, supplyingAgencyCode);
@@ -122,8 +127,8 @@ class ResolutionPreviewApiTests {
 		agencyFixture.defineAgency(supplyingAgencyCode, supplyingAgencyCode,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
-		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE,
-			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
+		borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
+			BORROWING_AGENCY_CODE, hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
 	}
 
 	@Test
@@ -163,13 +168,15 @@ class ResolutionPreviewApiTests {
 		sierraItemsAPIFixture.itemsForBibId(localBibId,
 			List.of(checkedOutItem, availableItem));
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		// Act
 		final var resolutionPreview = resolutionApiClient.previewResolution(
 			ResolutionParameters.builder()
 				.borrowingAgencyCode(BORROWING_AGENCY_CODE)
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
-				.pickupLocationCode(PICKUP_LOCATION_CODE)
+				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build());
 
 		// Assert
@@ -204,13 +211,15 @@ class ResolutionPreviewApiTests {
 
 		sierraItemsAPIFixture.zeroItemsResponseForBibId(localBibId);
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		// Act
 		final var resolutionPreview = resolutionApiClient.previewResolution(
 			ResolutionParameters.builder()
 				.borrowingAgencyCode(BORROWING_AGENCY_CODE)
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
-				.pickupLocationCode(PICKUP_LOCATION_CODE)
+				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build());
 
 		// Assert
@@ -229,6 +238,8 @@ class ResolutionPreviewApiTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		// Act
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> resolutionApiClient.previewResolution(
@@ -236,7 +247,7 @@ class ResolutionPreviewApiTests {
 					.borrowingAgencyCode(BORROWING_AGENCY_CODE)
 					.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 					.bibClusterId(clusterRecordId)
-					.pickupLocationCode(PICKUP_LOCATION_CODE)
+					.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 					.build()));
 
 		// Assert

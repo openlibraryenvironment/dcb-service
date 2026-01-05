@@ -12,17 +12,22 @@ import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
-import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import jakarta.inject.Inject;
 
@@ -39,17 +44,17 @@ class ActiveWorkflowServiceTests {
 	@Inject
 	private AgencyFixture agencyFixture;
 	@Inject
-	private ReferenceValueMappingFixture referenceValueMappingFixture;
-	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private LocationFixture locationFixture;
 
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
-		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
+		locationFixture.deleteAll();
 	}
 
 	@Test
@@ -60,10 +65,11 @@ class ActiveWorkflowServiceTests {
 		final var borrowingAndPickupAgency = agencyFixture.defineAgency("borrowing-and-pickup-agency",
 			"Borrowing and Pickup Agency", borrowingAndPickupHostLms);
 
-		final var pickupLocationCode = "pickup-location";
+		final var pickupLocation = locationFixture.createPickupLocation(
+			borrowingAndPickupAgency);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			borrowingAndPickupHostLms.getCode(), pickupLocationCode, borrowingAndPickupAgency.getCode());
+		final var pickupLocationId = getValueOrNull(
+			pickupLocation, Location::getId, UUID::toString);
 
 		final var supplyingHostLms = hostLmsFixture.createDummyHostLms("supplying-host-lms");
 
@@ -71,8 +77,8 @@ class ActiveWorkflowServiceTests {
 			"Supplying Agency", supplyingHostLms);
 
 		// Act
-		final var determinedWorkflow = determineWorkflow(supplyingAgency.getCode(),
-			borrowingAndPickupAgency.getCode(), pickupLocationCode, borrowingAndPickupHostLms.getCode());
+		final var determinedWorkflow = determineWorkflow(supplyingAgency,
+			borrowingAndPickupAgency, pickupLocationId);
 
 		// Assert
 		assertThat(determinedWorkflow, is(STANDARD_WORKFLOW));
@@ -87,14 +93,15 @@ class ActiveWorkflowServiceTests {
 		final var allRolesAgency = agencyFixture.defineAgency("all-roles-agency",
 			"All Roles Agency", allRolesLibraryHostLms);
 
-		final var pickupLocationCode = "pickup-location";
+		final var pickupLocation = locationFixture.createPickupLocation(
+			allRolesAgency);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			allRolesLibraryHostLms.getCode(), pickupLocationCode, allRolesAgency.getCode());
+		final var pickupLocationId = getValueOrNull(
+			pickupLocation, Location::getId, UUID::toString);
 
 		// Act
-		final var determinedWorkflow = determineWorkflow(allRolesAgency.getCode(),
-			allRolesAgency.getCode(), pickupLocationCode, allRolesLibraryHostLms.getCode());
+		final var determinedWorkflow = determineWorkflow(allRolesAgency,
+			allRolesAgency, pickupLocationId);
 
 		// Assert
 		assertThat(determinedWorkflow, is(LOCAL_WORKFLOW));
@@ -108,10 +115,9 @@ class ActiveWorkflowServiceTests {
 		final var supplyingAndPickupAgency = agencyFixture.defineAgency("supplying-and-pickup-agency",
 			"Supplying and Pickup Agency", supplyingAndPickupHostLms);
 
-		final var pickupLocationCode = "pickup-location";
+		final var pickupLocation = locationFixture.createPickupLocation(supplyingAndPickupAgency);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			supplyingAndPickupHostLms.getCode(), pickupLocationCode, supplyingAndPickupAgency.getCode());
+		final var pickupLocationId = getValueOrNull(pickupLocation, Location::getId, UUID::toString);
 
 		final var borrowingHostLms = hostLmsFixture.createDummyHostLms("borrowing-host-lms");
 
@@ -119,8 +125,8 @@ class ActiveWorkflowServiceTests {
 			"Borrowing Agency", borrowingHostLms);
 
 		// Act
-		final var determinedWorkflow = determineWorkflow(supplyingAndPickupAgency.getCode(),
-			borrowingAgency.getCode(), pickupLocationCode, supplyingAndPickupHostLms.getCode());
+		final var determinedWorkflow = determineWorkflow(supplyingAndPickupAgency,
+			borrowingAgency, pickupLocationId);
 
 		// Assert
 		assertThat(determinedWorkflow, is(EXPEDITED_WORKFLOW));
@@ -134,10 +140,9 @@ class ActiveWorkflowServiceTests {
 		final var pickupAgency = agencyFixture.defineAgency("pickup-agency",
 			"Pickup Agency", pickupHostLms);
 
-		final var pickupLocationCode = "pickup-location";
+		final var pickupLocation = locationFixture.createPickupLocation(pickupAgency);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			pickupHostLms.getCode(), pickupLocationCode, pickupAgency.getCode());
+		final var pickupLocationId = getValueOrNull(pickupLocation, Location::getId, UUID::toString);
 
 		final var borrowingHostLms = hostLmsFixture.createDummyHostLms("borrowing-host-lms");
 
@@ -150,8 +155,8 @@ class ActiveWorkflowServiceTests {
 			"Supplying Agency", supplyingHostLms);
 
 		// Act
-		final var determinedWorkflow = determineWorkflow(supplyingAgency.getCode(),
-			borrowingAgency.getCode(), pickupLocationCode, pickupHostLms.getCode());
+		final var determinedWorkflow = determineWorkflow(supplyingAgency,
+			borrowingAgency, pickupLocationId);
 
 		// Assert
 		assertThat(determinedWorkflow, is(PICKUP_ANYWHERE_WORKFLOW));
@@ -165,10 +170,9 @@ class ActiveWorkflowServiceTests {
 		final var pickupAgency = agencyFixture.defineAgency("pickup-agency",
 			"Pickup Agency", pickupHostLms);
 
-		final var pickupLocationCode = "pickup-location";
+		final var pickupLocation = locationFixture.createPickupLocation(pickupAgency);
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			pickupHostLms.getCode(), pickupLocationCode, pickupAgency.getCode());
+		final var pickupLocationId = getValueOrNull(pickupLocation, Location::getId, UUID::toString);
 
 		final var supplyingAndBorrowingHostLms = hostLmsFixture.createDummyHostLms(
 			"supplying-and-borrowing-host-lms");
@@ -179,9 +183,8 @@ class ActiveWorkflowServiceTests {
 
 		// Act
 		final var error = assertThrows(UnsupportedWorkflowProblem.class,
-			() -> determineWorkflow(supplyingAndBorrowingAgency.getCode(),
-				supplyingAndBorrowingAgency.getCode(), pickupLocationCode,
-				pickupHostLms.getCode()));
+			() -> determineWorkflow(supplyingAndBorrowingAgency,
+				supplyingAndBorrowingAgency, pickupLocationId));
 
 		// Assert
 		assertThat(error, allOf(
@@ -190,12 +193,14 @@ class ActiveWorkflowServiceTests {
 		));
 	}
 
-	private String determineWorkflow(String supplyingAgencyCode,
-		String borrowingAgencyCode, String pickupLocationCode, String pickupLocationContext) {
+	private String determineWorkflow(DataAgency supplyingAgency,
+		DataAgency borrowingAgency, String pickupLocationId) {
+
+		String supplyingAgencyCode = getValueOrNull(supplyingAgency, DataAgency::getCode);
+		String borrowingAgencyCode = getValueOrNull(borrowingAgency, DataAgency::getCode);
 
 		final var patronRequest = PatronRequest.builder()
-			.pickupLocationCode(pickupLocationCode)
-			.pickupLocationCodeContext(pickupLocationContext)
+			.pickupLocationCode(pickupLocationId)
 			.build();
 
 		return singleValueFrom(activeWorkflowService.updatePatronRequest(patronRequest,
