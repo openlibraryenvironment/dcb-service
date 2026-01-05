@@ -682,11 +682,16 @@ class StandardWorkflowPatronRequestApiTests {
 				allOf(
 					hasDescription("Pickup location \"unknown-pickup-location\" is not mapped to an agency"),
 					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
+				),
+				allOf(
+					hasDescription("Pickup location \"unknown-pickup-location\" is not mapped to an agency"),
+					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
 				)
 			)));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
 			isFailedCheckEvent("\"unknown-pickup-location\" is not a recognised pickup location code"),
+			isFailedCheckEvent("Pickup location \"unknown-pickup-location\" is not mapped to an agency"),
 			isFailedCheckEvent("Pickup location \"unknown-pickup-location\" is not mapped to an agency")
 		));
 	}
@@ -726,11 +731,17 @@ class StandardWorkflowPatronRequestApiTests {
 				allOf(
 					hasDescription("Pickup location \"unmapped-pickup-location\" is not mapped to an agency"),
 					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
+				),
+				allOf(
+					hasDescription("Pickup location \"unmapped-pickup-location\" is not mapped to an agency"),
+					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
 				)
 			)));
 
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			isFailedCheckEvent("Pickup location \"unmapped-pickup-location\" is not mapped to an agency")));
+			isFailedCheckEvent("Pickup location \"unmapped-pickup-location\" is not mapped to an agency"),
+			isFailedCheckEvent("Pickup location \"unmapped-pickup-location\" is not mapped to an agency")
+		));
 	}
 
 	@Test

@@ -20,23 +20,23 @@ public class PlacePatronRequestCommand {
 	@Nullable Item item;
 	@Nullable Boolean isExpeditedRequest;
 
-	String getPickupLocationCode() {
+	public String getPickupLocationCode() {
 		return getPickupLocation().getCode();
 	}
 
-	String getPickupLocationContext() {
+	public String getPickupLocationContext() {
 		return getPickupLocation().getContext();
 	}
 
-	String getRequestorLocalSystemCode() {
+	public String getRequestorLocalSystemCode() {
 		return getRequestor().getLocalSystemCode();
 	}
 
-	String getRequestorAgencyCode() {
+	public String getRequestorAgencyCode() {
 		return getRequestor().getAgencyCode();
 	}
 
-	String getRequestorLocalId() {
+	public String getRequestorLocalId() {
 		return getRequestor().getLocalId();
 	}
 

@@ -159,7 +159,7 @@ public class PolarisItemMapper {
   }
 
 	private Mono<Item> enrichItemWithAgencyUsingLocationId(@NonNull ItemGetRow itemGetRow, @NonNull Item item, @NonNull String hostLmsCode) {
-		return locationToAgencyMappingService.dataAgencyFromMappedExernal(hostLmsCode, "Location", itemGetRow.getLocationID().toString())
+		return locationToAgencyMappingService.dataAgencyFromMappedExternal(hostLmsCode, "Location", itemGetRow.getLocationID().toString())
 			.map(item::setAgency)
 			.switchIfEmpty(Mono.defer(() -> {
 				return Mono.just(item);

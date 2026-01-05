@@ -20,7 +20,7 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveItemAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.util.StringUtils;
@@ -52,7 +52,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
-			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error, localPatronId))
+			.onErrorResume(UnableToResolveItemAgencyProblem.class, error -> agencyNotFound(error, localPatronId))
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(hostLmsCode))
 			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode));
 	}
@@ -187,7 +187,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<List<CheckResult>> agencyNotFound(
-		UnableToResolveAgencyProblem error, String localPatronId) {
+		UnableToResolveItemAgencyProblem error, String localPatronId) {
 
 		return Mono.just(List.of(
 			failedUm("PATRON_NOT_ASSOCIATED_WITH_AGENCY",

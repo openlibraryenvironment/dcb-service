@@ -8,7 +8,6 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +18,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Citation;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.PickupLocation;
@@ -27,6 +27,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
@@ -68,6 +69,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private LocationFixture locationFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
@@ -106,6 +109,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
+		locationFixture.deleteAll();
 		agencyFixture.deleteAll();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
@@ -156,6 +160,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecord.getId())
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -196,6 +201,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -250,6 +256,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -307,6 +314,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.localSystemCode(CIRCULATING_HOST_LMS_CODE)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -340,6 +348,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -382,6 +391,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -435,6 +445,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -488,6 +499,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -539,6 +551,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -566,9 +579,10 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.localId("6545362")
 				.build())
 			.citation(Citation.builder()
-				.bibClusterId(UUID.randomUUID())
+				.bibClusterId(randomUUID())
 				.build())
 			.pickupLocation(PickupLocation.builder()
+				.context(BORROWING_HOST_LMS_CODE)
 				.code(PICKUP_LOCATION_CODE)
 				.build())
 			.build();
@@ -579,6 +593,131 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		assertThat(results, containsInAnyOrder(
 			failedCheck("UNKNOWN_BORROWING_HOST_LMS",
 				"\"%s\" is not a recognised Host LMS".formatted(unknownHostLmsCode))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPickupLocationCodeIsNotMappedToAnAgency() {
+		// Arrange
+		final var localPatronId = definePatron("5736463");
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.context("pickup-context")
+				.code("unmapped-pickup-location")
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY",
+				"Pickup location \"unmapped-pickup-location\" is not mapped to an agency")
+		));
+	}
+
+	@Test
+	void shouldFailWhenPickupAgencyIsUnknown() {
+		// Arrange
+		final var localPatronId = definePatron("6784636");
+
+		// Act
+		final var unknownPickupLocationId = randomUUID().toString();
+
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(unknownPickupLocationId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("UNKNOWN_PICKUP_LOCATION_CODE",
+				"Pickup location \"%s\" is not known or not associated with an agency"
+					.formatted(unknownPickupLocationId))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPickupLocationIsNotAssociatedWithAnAgency() {
+		// Arrange
+		final var localPatronId = definePatron("2917863");
+
+		// Act
+		final var pickupLocation = locationFixture.createPickupLocation(randomUUID(), "", "", null);
+
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(pickupLocation.getId().toString())
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("UNKNOWN_PICKUP_LOCATION_CODE",
+				"Pickup location \"%s\" is not known or not associated with an agency"
+					.formatted(pickupLocation.getId()))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPickupLocationIsAssociatedWithAnUnknownAgency() {
+		// Arrange
+		final var localPatronId = definePatron("2917863");
+
+		// Act
+		final var pickupLocation = locationFixture.createPickupLocation(randomUUID(), "", "",
+			DataAgency.builder()
+				.id(randomUUID())
+				.build());
+
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(pickupLocation.getId().toString())
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("UNKNOWN_PICKUP_LOCATION_CODE",
+				"Pickup location \"%s\" is not known or not associated with an agency"
+					.formatted(pickupLocation.getId()))
 		));
 	}
 

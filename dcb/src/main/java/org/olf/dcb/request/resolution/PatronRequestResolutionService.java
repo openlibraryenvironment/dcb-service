@@ -21,8 +21,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.item.availability.AvailabilityReport;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.zalando.problem.Problem;
 
 import io.micronaut.context.annotation.Value;
@@ -36,6 +41,8 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class PatronRequestResolutionService {
 	private final LiveAvailabilityService liveAvailabilityService;
+	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
+
 	private final List<ResolutionSortOrder> allResolutionStrategies;
 	private final String itemResolver;
 	private final ManualSelection manualSelection;
@@ -43,12 +50,14 @@ public class PatronRequestResolutionService {
 	private final Duration timeout;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
+		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies, ManualSelection manualSelection,
 		ItemFilter itemFilter,
 		@Value("${dcb.resolution.live-availability.timeout:PT30S}") Duration timeout) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
+		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.manualSelection = manualSelection;
@@ -61,6 +70,88 @@ public class PatronRequestResolutionService {
 		for (ResolutionSortOrder t : allResolutionStrategies) {
 			log.debug(t.getClass().getName());
 		}
+	}
+
+	public Mono<ResolutionParameters> resolutionParametersFor(PatronRequest patronRequest,
+		List<String> excludedSupplyingAgencyCodes) {
+
+		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
+
+		return findPickupAgencyCodeForLocation(patronRequest)
+			.map(pickupAgencyCode -> ResolutionParameters.builder()
+				.borrowingAgencyCode(getValueOrNull(patron, Patron::determineAgencyCode))
+				.borrowingHostLmsCode(getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode))
+				.bibClusterId(getValueOrNull(patronRequest, PatronRequest::getBibClusterId))
+				.pickupLocationCode(getValueOrNull(patronRequest, PatronRequest::getPickupLocationCode))
+				.pickupAgencyCode(pickupAgencyCode)
+				.excludedSupplyingAgencyCodes(excludedSupplyingAgencyCodes)
+				.manualItemSelection(ManualItemSelection.builder()
+					.isManuallySelected(getValue(patronRequest, PatronRequest::getIsManuallySelectedItem, false))
+					.localItemId(getValueOrNull(patronRequest, PatronRequest::getLocalItemId))
+					.hostLmsCode(getValueOrNull(patronRequest, PatronRequest::getLocalItemHostlmsCode))
+					.agencyCode(getValueOrNull(patronRequest, PatronRequest::getLocalItemAgencyCode))
+					.build())
+				.build()
+			);
+	}
+
+	public Mono<ResolutionParameters> resolutionParametersFor(PlacePatronRequestCommand command,
+		Patron patron) {
+
+		log.debug("resolutionParametersFor({}, {})", command, patron);
+
+		final var fakePatronRequest = PatronRequest.builder()
+			.pickupLocationCodeContext(getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationContext))
+			.pickupLocationCode(getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode))
+			.build();
+
+		return findPickupAgencyCodeForLocation(fakePatronRequest)
+			.map(pickupAgencyCode -> ResolutionParameters.builder()
+				.borrowingAgencyCode(getValueOrNull(patron, Patron::determineAgencyCode))
+				.borrowingHostLmsCode(
+					getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
+				.bibClusterId(getValueOrNull(command, PlacePatronRequestCommand::getCitation,
+					PlacePatronRequestCommand.Citation::getBibClusterId))
+				.pickupLocationCode(
+					getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode))
+				.pickupAgencyCode(pickupAgencyCode)
+				.manualItemSelection(mapManualItemSelection(
+					getValueOrNull(command, PlacePatronRequestCommand::getItem)))
+				.build()
+			);
+	}
+
+	private static ManualItemSelection mapManualItemSelection(
+		PlacePatronRequestCommand.Item item) {
+		if (item == null) {
+			return null;
+		}
+
+		final var id = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalId);
+		final var hostLmsCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalSystemCode);
+		final var agencyCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getAgencyCode);
+
+		if (id == null || hostLmsCode == null || agencyCode == null) {
+			log.warn("Possibly incomplete manually selected item: {}", item);
+
+			return null;
+		}
+
+		return ManualItemSelection.builder()
+			.isManuallySelected(true)
+			.localItemId(id)
+			.hostLmsCode(hostLmsCode)
+			.agencyCode(agencyCode)
+			.build();
+	}
+
+	private Mono<String> findPickupAgencyCodeForLocation(PatronRequest patronRequest) {
+		// build a temporary context to allow the pickup agency to be set
+		final var context = new RequestWorkflowContext()
+			.setPatronRequest(patronRequest);
+
+		return requestWorkflowContextHelper.resolvePickupLocationAgency(context)
+			.map(RequestWorkflowContext::getPickupAgencyCode);
 	}
 
 	public Mono<Resolution> resolve(ResolutionParameters parameters) {

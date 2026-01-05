@@ -10,7 +10,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 
 import lombok.Builder;
-import lombok.Value;
 
 class AgencyExclusionItemFilterTests {
 	private final AgencyExclusionItemFilter filter = new AgencyExclusionItemFilter();
@@ -89,10 +88,7 @@ class AgencyExclusionItemFilterTests {
 	}
 
 	@Builder
-	@Value
-	static class Parameters implements ItemFilterParameters {
-		List<String> excludedSupplyingAgencyCodes;
-		String borrowingAgencyCode;
-		String borrowingHostLmsCode;
-	}
+	record Parameters(List<String> excludedSupplyingAgencyCodes,
+		String borrowingAgencyCode, String borrowingHostLmsCode,
+		String pickupAgencyCode) implements ItemFilterParameters { }
 }

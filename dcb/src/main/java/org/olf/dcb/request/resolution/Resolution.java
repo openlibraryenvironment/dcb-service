@@ -80,11 +80,11 @@ public class Resolution implements ItemFilterParameters {
 			.build();
 	}
 
-	public List<String> getExcludedSupplyingAgencyCodes() {
+	public List<String> excludedSupplyingAgencyCodes() {
 		return getValue(parameters, ResolutionParameters::getExcludedSupplyingAgencyCodes, emptyList());
 	}
 
-	public String getBorrowingAgencyCode() {
+	public String borrowingAgencyCode() {
 		final var borrowingAgencyCode = getValueOrNull(parameters,
 			ResolutionParameters::getBorrowingAgencyCode);
 
@@ -95,7 +95,11 @@ public class Resolution implements ItemFilterParameters {
 		return borrowingAgencyCode;
 	}
 
-	public String getBorrowingHostLmsCode() {
+	public String pickupAgencyCode() {
+		return getValueOrNull(parameters, ResolutionParameters::getPickupAgencyCode);
+	}
+
+	public String borrowingHostLmsCode() {
 		return getValueOrNull(parameters, ResolutionParameters::getBorrowingHostLmsCode);
 	}
 }

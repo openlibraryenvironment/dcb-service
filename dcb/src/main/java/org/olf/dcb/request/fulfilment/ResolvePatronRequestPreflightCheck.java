@@ -9,6 +9,7 @@ import static reactor.function.TupleUtils.function;
 
 import java.util.List;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.LocalPatronService;
@@ -17,13 +18,13 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.request.MissingLocationToAgencyMappingProblem;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
-import org.olf.dcb.request.resolution.ManualItemSelection;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
-import org.olf.dcb.request.resolution.ResolutionParameters;
-import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
+import org.olf.dcb.request.workflow.exceptions.UnableToDeterminePickupAgencyProblem;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveItemAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -54,14 +55,14 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		// being too coupled to a patron request
 		return Mono.just(command)
 			.zipWhen(this::mapToPatron)
-			.map(function(ResolvePatronRequestPreflightCheck::mapToParameters))
+			.flatMap(function(patronRequestResolutionService::resolutionParametersFor))
 			.doOnSuccess(patronRequest -> log.debug("Completed mapping to patron request: {}", patronRequest))
 			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Completed resolution: {}", resolution))
 			.map(this::checkResolution)
 			// Many of these errors are duplicated from the resolve patron preflight check
 			// This is due to both having to resolve the patron before performing the checks
-			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error,
+			.onErrorResume(UnableToResolveItemAgencyProblem.class, error -> agencyNotFound(error,
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
@@ -70,9 +71,33 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorResume(NoBibsForClusterRecordException.class, this::clusterRecordNotFound)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
+			.onErrorResume(MissingLocationToAgencyMappingProblem.class,
+				this::locationToAgencyMappingNotFound)
+			.onErrorResume(UnableToDeterminePickupAgencyProblem.class,
+				this::unableToDeterminePickupAgency)
 			.defaultIfEmpty(List.of(failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST",
 				"Failed due to empty reactive chain",
 				intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST"))));
+	}
+
+	private @NonNull Mono<List<CheckResult>> locationToAgencyMappingNotFound(
+		MissingLocationToAgencyMappingProblem error) {
+
+		return Mono.just(List.of(failedUm("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY",
+			"Pickup location \"%s\" is not mapped to an agency".formatted(
+				error.getPickupLocationIdentifier()),
+			intMessageService.getMessage("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
+		)));
+	}
+
+	private @NonNull Mono<List<CheckResult>> unableToDeterminePickupAgency(
+		UnableToDeterminePickupAgencyProblem error) {
+
+		return Mono.just(List.of(failedUm("UNKNOWN_PICKUP_LOCATION_CODE",
+			"Pickup location \"%s\" is not known or not associated with an agency"
+				.formatted(error.getPickupLocationIdentifier()),
+			intMessageService.getMessage("UNKNOWN_PICKUP_LOCATION_CODE")
+		)));
 	}
 
 	private Mono<Patron> mapToPatron(PlacePatronRequestCommand command) {
@@ -96,42 +121,6 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 					.patronIdentities(List.of(homeIdentity))
 					.build();
 			}));
-	}
-
-	private static ResolutionParameters mapToParameters(PlacePatronRequestCommand command, Patron patron) {
-		log.debug("mapToParameters({}, {})", command, patron);
-
-		return ResolutionParameters.builder()
-			.borrowingAgencyCode(getValueOrNull(patron, Patron::determineAgencyCode))
-			.borrowingHostLmsCode(getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
-			.bibClusterId(getValueOrNull(command, PlacePatronRequestCommand::getCitation,
-				PlacePatronRequestCommand.Citation::getBibClusterId))
-			.pickupLocationCode(getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode))
-			.manualItemSelection(mapManualItemSelection(getValueOrNull(command, PlacePatronRequestCommand::getItem)))
-			.build();
-	}
-
-	private static ManualItemSelection mapManualItemSelection(PlacePatronRequestCommand.Item item) {
-		if (item == null) {
-			return null;
-		}
-
-		final var id = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalId);
-		final var hostLmsCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalSystemCode);
-		final var agencyCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getAgencyCode);
-
-		if (id == null || hostLmsCode == null || agencyCode == null) {
-			log.warn("Possibly incomplete manually selected item: {}", item);
-
-			return null;
-		}
-
-		return ManualItemSelection.builder()
-			.isManuallySelected(true)
-			.localItemId(id)
-			.hostLmsCode(hostLmsCode)
-			.agencyCode(agencyCode)
-			.build();
 	}
 
 	private List<CheckResult> checkResolution(Resolution resolution) {
@@ -174,7 +163,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	}
 
 	private Mono<List<CheckResult>> agencyNotFound(
-		UnableToResolveAgencyProblem error, String localPatronId) {
+		UnableToResolveItemAgencyProblem error, String localPatronId) {
 
 		return Mono.just(List.of(
 			failedUm("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
