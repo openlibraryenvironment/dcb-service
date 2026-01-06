@@ -1,5 +1,24 @@
 # Changelog
 
+## Version 8.60.0
+
+### Additions
+* [Ingest]
+	* Increase page size and don't issue count query
+* [Threading]
+	* Better defaults
+
+### Changes
+* [Chore]
+	* Support updating more library attributes
+	* Still trying to track down why QA system performans is radically different. Instrumentation
+	* Threading - Use the bounded elastic pools.
+	* Improve handling of different active workflows [DCB-2085]
+
+### Fixes
+* [General]
+	* Fix resolution selecting item with holds over available one [DCB-2106]
+
 ## Version 8.59.0
 
 ### Additions
@@ -7,6 +26,10 @@
 	* Include patron name in Alma virtual patrons [DCB-2058]
 	* Include patron name in Sierra virtual patron [DCB-2057]
 	* Ingest process audit
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
