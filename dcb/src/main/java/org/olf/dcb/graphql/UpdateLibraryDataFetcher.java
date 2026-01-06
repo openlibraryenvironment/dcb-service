@@ -71,6 +71,19 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			input_map.get("abbreviatedName").toString() : null;
 		String targetLoanToBorrowRatio = input_map.containsKey("targetLoanToBorrowRatio") ?
 			input_map.get("targetLoanToBorrowRatio").toString() : null;
+		String secretLabel = input_map.containsKey("secretLabel") ?
+			input_map.get("secretLabel").toString() : null;
+		String principalLabel = input_map.containsKey("principalLabel") ?
+			input_map.get("principalLabel").toString() : null;
+		String address = input_map.containsKey("address") ?
+			input_map.get("address").toString() : null;
+		String discoverySystem = input_map.containsKey("discoverySystem") ?
+			input_map.get("discoverySystem").toString() : null;
+		String patronWebsite = input_map.containsKey("patronWebsite") ?
+			input_map.get("patronWebsite").toString() : null;
+		String type = input_map.containsKey("type") ?
+			input_map.get("type").toString() : null;
+
 
 		Float latitude = input_map.containsKey("latitude") ?
 			((Number) input_map.get("latitude")).floatValue() : null;
@@ -104,6 +117,24 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 					}
 					if (targetLoanToBorrowRatio != null) {
 						library.setTargetLoanToBorrowRatio(targetLoanToBorrowRatio);
+					}
+					if (secretLabel != null) {
+						library.setSecretLabel(secretLabel);
+					}
+					if (principalLabel != null) {
+						library.setPrincipalLabel(principalLabel);
+					}
+					if (address != null) {
+						library.setAddress(address);
+					}
+					if (discoverySystem != null) {
+						library.setDiscoverySystem(discoverySystem);
+					}
+					if (patronWebsite != null) {
+						library.setPatronWebsite(patronWebsite);
+					}
+					if (type != null) {
+						library.setType(type);
 					}
 					library.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(library::setChangeReferenceUrl);

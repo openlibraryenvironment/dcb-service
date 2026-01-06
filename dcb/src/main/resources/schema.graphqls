@@ -334,6 +334,12 @@ input UpdateLibraryInput {
 	reason: String
 	changeReferenceUrl: String
 	changeCategory: String
+	secretLabel: String
+	principalLabel: String
+	address: String
+	type: String
+	patronWebsite: String
+	discoverySystem: String
 }
 
 input UpdatePersonInput {
