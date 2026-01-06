@@ -240,26 +240,29 @@ public class AgenciesController {
 	private Mono<Tuple2<DataAgency, Library>> addLibraryLabels(DataAgency dataAgency) {
 		return Mono.just(dataAgency)
 			.zipWith( Mono.from(libraryRepository.findOneByAgencyCode(dataAgency.getCode())) )
-			.doOnNext(logWarningForMissingLibraryLabels(dataAgency.getName()))
+//			.doOnNext(logWarningForMissingLibraryLabels(dataAgency.getName()))
 			.switchIfEmpty(Mono.defer(() -> {
 				log.info("No Library was found for Agency[{}] when trying to addLibraryLabels()", dataAgency.getName());
 				return Mono.just(Tuples.of(dataAgency, Library.builder().build()));
 			}));
 	}
 
-	private static Consumer<Tuple2<DataAgency, Library>> logWarningForMissingLibraryLabels(String agencyName) {
-		return tuple -> {
-			final var library = tuple.getT2();
-
-			if (library.getPrincipalLabel() == null) {
-				log.warn("Missing principal label for Library {}, Agency {}", library.getFullName(), agencyName);
-			}
-
-			if (library.getSecretLabel() == null) {
-				log.warn("Missing secret label for Library {}, Agency {}", library.getFullName(), agencyName);
-			}
-		};
-	}
+	// CH: If these ever become essential configuration, this can be restored.
+	// For now, it looks like they're not really used and the warnings are spamming the logs.
+	// See https://openlibraryfoundation.atlassian.net/browse/DCB-1186 for context.
+//	private static Consumer<Tuple2<DataAgency, Library>> logWarningForMissingLibraryLabels(String agencyName) {
+//		return tuple -> {
+//			final var library = tuple.getT2();
+//
+//			if (library.getPrincipalLabel() == null) {
+//				log.warn("Missing principal label for Library {}, Agency {}", library.getFullName(), agencyName);
+//			}
+//
+//			if (library.getSecretLabel() == null) {
+//				log.warn("Missing secret label for Library {}, Agency {}", library.getFullName(), agencyName);
+//			}
+//		};
+//	}
 
 	private static Function<Tuple2<DataAgency, Library>, AgencyDTO> mapToAgencyDTO() {
 		return function(AgencyDTO::mapToAgencyDTO);
