@@ -10,6 +10,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Support updating more library attributes
 	* Still trying to track down why QA system performans is radically different. Instrumentation
 	* Threading - Use the bounded elastic pools.
