@@ -31,7 +31,7 @@ class AgencyExclusionItemFilter implements ItemFilter {
 	 */
 	public boolean filterItem(Item item, ItemFilterParameters parameters) {
 		final List<String> excludedAgencyCodes = getValue(parameters,
-			ItemFilterParameters::excludedSupplyingAgencyCodes, emptyList());
+			ItemFilterParameters::getExcludedSupplyingAgencyCodes, emptyList());
 
 		// if the item is present
 		return Optional.ofNullable(item)

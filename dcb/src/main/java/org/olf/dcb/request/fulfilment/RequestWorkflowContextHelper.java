@@ -20,11 +20,9 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.request.MissingLocationToAgencyMappingProblem;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.UnsupportedWorkflowProblem;
-import org.olf.dcb.request.workflow.exceptions.UnableToDeterminePickupAgencyProblem;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -133,6 +131,25 @@ public class RequestWorkflowContextHelper {
 	private Mono<RequestWorkflowContext> decorateWithPatronRequestStateOnEntry(RequestWorkflowContext requestWorkflowContext) {
 		requestWorkflowContext.patronRequestStateOnEntry = requestWorkflowContext.getPatronRequest().getStatus();
 		return Mono.just(requestWorkflowContext);
+	}
+
+	// Given a supplier request, construct the patron request context containing all related objects for a workflow
+	public Mono<RequestWorkflowContext> fromSupplierRequest(SupplierRequest sr) {
+		RequestWorkflowContext rwc = new RequestWorkflowContext();
+		log.info("fromSupplierRequest {}",sr.getId());
+
+		return Mono.just( rwc.setSupplierRequest(sr) )
+			.flatMap(rwcp -> Mono.from(supplierRequestRepository.findPatronRequestById(rwc.getSupplierRequest().getId())))
+			.flatMap(pr -> Mono.just(rwc.setPatronRequest(pr)))
+			.flatMap(this::decorateWithPatronRequestStateOnEntry)
+			.flatMap(this::decorateWithPatron)
+			.flatMap(this::decorateWithPatronVirtualIdentity)
+			.flatMap(this::decorateContextWithPatronDetails)
+			.flatMap(this::decorateContextWithLenderDetails)
+			.flatMap(this::resolvePickupLocationAgency)
+			.flatMap(this::decorateWithPickupLibrary)
+			.flatMap(this::decorateWithPickupPatronIdentity)
+			.flatMap(this::report);
 	}
 
 	private Mono<RequestWorkflowContext> decorateWithPickupLibrary(RequestWorkflowContext ctx) {
@@ -329,22 +346,20 @@ public class RequestWorkflowContextHelper {
 					ctx.setPickupSystemCode(pickupAgency.getHostLms().getCode());
 					return this.setPickupSystemFrom(ctx);
 				})
-				.switchIfEmpty(Mono.error(
-					new UnableToDeterminePickupAgencyProblem(pickupSymbolContext, pickupSymbol)));
+				.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s".formatted(pickupSymbol))));
 		}
 		else {
 			ctx.getWorkflowMessages().add("PickupSymbol is not 36 characters");
 		}
 
 		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
-			.switchIfEmpty(Mono.error(new MissingLocationToAgencyMappingProblem(pickupSymbolContext, pickupSymbol)))
+			.switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\"")))
 			.flatMap(rvm -> Mono.from(getDataAgencyWithHostLms(rvm.getToValue())))
 			.flatMap(pickupAgency -> Mono.just(ctx.setPickupAgency(pickupAgency)))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupAgencyCode(ctx2.getPickupAgency().getCode())))
 			.flatMap(ctx2 -> Mono.just(ctx2.setPickupSystemCode(ctx2.getPickupAgency().getHostLms().getCode())))
 			.flatMap(this::setPickupSystemFrom)
-			.switchIfEmpty(Mono.error(
-				new UnableToDeterminePickupAgencyProblem(pickupSymbolContext, pickupSymbol)));
+			.switchIfEmpty(Mono.error(new RuntimeException("No agency found for pickup location: %s:%s".formatted(pickupSymbolContext,pickupSymbol))));
 	}
 
 	private Mono<RequestWorkflowContext> setPickupSystemFrom(RequestWorkflowContext ctx) {
@@ -358,9 +373,16 @@ public class RequestWorkflowContextHelper {
 
 	// If an agency has been directly attached to the location then return it by just walking the model
 	private Mono<DataAgency> getAgencyDirectlyFromLocation(Location l) {
-		return Mono.justOrEmpty(l.getAgency())
-			.flatMap(agency -> Mono.just(agency.getId()))
-			.flatMap(agencyId -> Mono.from(agencyRepository.findById(agencyId)));
+		return Mono.just(l.getAgency())
+			.flatMap ( agency -> Mono.just(agency.getId()) )
+			.flatMap ( agencyId -> Mono.from(agencyRepository.findById(agencyId)));
+	}
+
+	// Attempt to look up a data agency using the pickup location mappings instead of a direct reference
+	private Mono<DataAgency> getAgencyFromPickupLocationMappingTable(String pickupSymbolContext, String pickupSymbol) {
+		return agencyForPickupLocationSymbol(pickupSymbolContext, pickupSymbol)
+			.switchIfEmpty(Mono.error(new RuntimeException("RWCH No mapping found for pickup location \""+pickupSymbolContext+":"+pickupSymbol+"\"")))
+			.flatMap(rvm -> { return Mono.from(getDataAgencyWithHostLms(rvm.getToValue())); } );
 	}
 
 	private Mono<ReferenceValueMapping> agencyForPickupLocationSymbol(String pickupSymbolNamespace, String symbol) {

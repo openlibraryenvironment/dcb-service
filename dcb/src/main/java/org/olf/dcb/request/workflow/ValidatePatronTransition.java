@@ -20,7 +20,7 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.workflow.exceptions.NoAgencyFoundException;
-import org.olf.dcb.request.workflow.exceptions.UnableToResolveItemAgencyProblem;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
@@ -162,7 +162,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			// If homeLibraryCode or findAgencyForLocation produced empty,
 			// try to use a default agency code from config
 			.switchIfEmpty(Mono.defer(() -> locationToAgencyMappingService.findDefaultAgencyCode(systemCode)))
-			.switchIfEmpty(UnableToResolveItemAgencyProblem.raiseError(homeLibraryCode, systemCode))
+			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(homeLibraryCode, systemCode))
 
 			// when either findAgencyForLocation or findAgencyForDefaultAgencyCode
 			// successfully found an agency code then..

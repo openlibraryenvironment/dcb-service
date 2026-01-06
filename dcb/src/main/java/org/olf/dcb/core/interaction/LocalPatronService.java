@@ -8,7 +8,7 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.request.workflow.exceptions.UnableToResolveItemAgencyProblem;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +56,7 @@ public class LocalPatronService {
 			.doOnSuccess(agencyCode -> log.info("Found location to agency code mapping: {}", agencyCode))
 			.switchIfEmpty(defer(() -> findDefaultAgencyCode(hostLmsCode)))
 			.flatMap(agencyService::findByCode)
-			.switchIfEmpty(UnableToResolveItemAgencyProblem.raiseError(
+			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(
 				patron.getLocalHomeLibraryCode(), hostLmsCode));
 	}
 

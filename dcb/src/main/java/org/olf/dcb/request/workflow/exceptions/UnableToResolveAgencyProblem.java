@@ -6,6 +6,7 @@ import java.net.URI;
 import java.util.Map;
 
 import org.zalando.problem.AbstractThrowableProblem;
+import org.zalando.problem.StatusType;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
@@ -14,24 +15,31 @@ import services.k_int.utils.ReactorUtils;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class UnableToResolveItemAgencyProblem extends AbstractThrowableProblem {
+public class UnableToResolveAgencyProblem extends AbstractThrowableProblem {
+
 	String systemCode;
 	String homeLibraryCode;
 	String defaultAgencyCode;
 
 	public static <T> Mono<T> raiseError(String homeLibraryCode, String systemCode) {
-		return ReactorUtils.raiseError(new UnableToResolveItemAgencyProblem(
+		return ReactorUtils.raiseError(new UnableToResolveAgencyProblem(
 			"DCB could not use any agency code to find an agency.",
 			"This problem was triggered because both the home library code and the default agency code were unresolvable.",
 			systemCode, homeLibraryCode, null));
 	}
 
-	UnableToResolveItemAgencyProblem(String title, String detail,
+	UnableToResolveAgencyProblem(String title, String detail,
 		String systemCode, String homeLibraryCode, String defaultAgencyCode) {
 
-		super(URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/overview"),
-			title, null, detail, null, null,
-			determineParameters(systemCode, homeLibraryCode, defaultAgencyCode));
+		super(
+			URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/overview"),
+			title,
+			(StatusType)null,
+			detail,
+			null,
+			null,
+			determineParameters(systemCode, homeLibraryCode, defaultAgencyCode)
+		);
 
 		this.systemCode = systemCode;
 		this.homeLibraryCode = homeLibraryCode;

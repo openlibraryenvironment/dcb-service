@@ -204,8 +204,6 @@ class ResolveNextSupplierTransitionTests {
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)
 			.localRequestStatus(HOLD_CONFIRMED)
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -254,8 +252,6 @@ class ResolveNextSupplierTransitionTests {
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)
 			.localRequestStatus(localRequestStatus)
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -297,8 +293,6 @@ class ResolveNextSupplierTransitionTests {
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(null)
 			.localRequestStatus(null)
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -383,8 +377,6 @@ class ResolveNextSupplierTransitionTests {
 			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -772,8 +764,6 @@ class ResolveNextSupplierTransitionTests {
 			.localItemId(null)
 			.localItemHostlmsCode(borrowingAgency.getCode())
 			.localItemAgencyCode(borrowingAgency.getCode())
-			.pickupLocationCodeContext(BORROWING_HOST_LMS_CODE)
-			.pickupLocationCode(PICKUP_LOCATION_CODE)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -873,7 +863,7 @@ class ResolveNextSupplierTransitionTests {
 		final var patron = patronFixture.definePatron("365636", "home-library",
 			borrowingHostLms, borrowingAgency);
 
-		final var patronRequest = PatronRequest.	builder()
+		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.status(status)

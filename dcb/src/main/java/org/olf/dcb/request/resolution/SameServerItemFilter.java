@@ -26,7 +26,7 @@ public class SameServerItemFilter implements ItemFilter {
 
 	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
 		final var borrowingHostLmsCode = getValueOrNull(parameters,
-			ItemFilterParameters::borrowingHostLmsCode);
+			ItemFilterParameters::getBorrowingHostLmsCode);
 
 		return item -> fromSameServer(item, borrowingHostLmsCode);
 	}

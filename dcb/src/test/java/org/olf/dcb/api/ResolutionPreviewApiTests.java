@@ -170,7 +170,6 @@ class ResolutionPreviewApiTests {
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
 				.pickupLocationCode(PICKUP_LOCATION_CODE)
-				.pickupAgencyCode(BORROWING_AGENCY_CODE)
 				.build());
 
 		// Assert
@@ -212,7 +211,6 @@ class ResolutionPreviewApiTests {
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
 				.pickupLocationCode(PICKUP_LOCATION_CODE)
-				.pickupAgencyCode(BORROWING_AGENCY_CODE)
 				.build());
 
 		// Assert
@@ -239,7 +237,6 @@ class ResolutionPreviewApiTests {
 					.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 					.bibClusterId(clusterRecordId)
 					.pickupLocationCode(PICKUP_LOCATION_CODE)
-					.pickupAgencyCode(BORROWING_AGENCY_CODE)
 					.build()));
 
 		// Assert
