@@ -11,10 +11,12 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasAuditDataProperty;
@@ -55,6 +57,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -64,6 +67,7 @@ import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.PatronFixture;
@@ -120,6 +124,8 @@ class PatronRequestResolutionStateTransitionTests {
 	private AgencyFixture agencyFixture;
 	@Inject
 	private LocationFixture locationFixture;
+	@Inject
+	private ConsortiumFixture consortiumFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
@@ -160,6 +166,7 @@ class PatronRequestResolutionStateTransitionTests {
 	void beforeEach() {
 		log.info("beforeEach\n\n");
 
+		consortiumFixture.deleteAll();
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
@@ -234,7 +241,7 @@ class PatronRequestResolutionStateTransitionTests {
 		// Assert
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertSuccessfulResolution(fetchedPatronRequest);
+		assertSuccessfulResolution(fetchedPatronRequest, STANDARD_WORKFLOW);
 
 		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
 
@@ -255,7 +262,78 @@ class PatronRequestResolutionStateTransitionTests {
 		));
 
 		assertSuccessfulResolutionAudit(fetchedPatronRequest, "1000002",
-			CIRCULATING_HOST_LMS_CODE);
+			"6565750674", CIRCULATING_HOST_LMS_CODE);
+	}
+
+	@Test
+	void shouldChooseItemFromDifferentSupplierWhenPickingUpAnywhere() {
+		// Arrange
+		allowOwnLibraryBorrowing();
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var localBibId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			localBibId, clusterRecord);
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CIRCULATING_HOST_LMS_CODE, 1, 1, "loanable-item");
+
+		final var localItemId = "583723";
+		final var localItemBarcode = "0873753";
+
+		sierraItemsAPIFixture.itemsForBibId(localBibId, List.of(
+			availableItem(localItemId, localItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var pickupLocation = locationFixture.createPickupLocation(
+			agencyFixture.defineAgency("pickup-agency", "Pickup Agency",
+				hostLmsFixture.createDummyHostLms("pickup-host-lms")));
+
+		final var patron = definePatron("365342", "837532");
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+		.pickupLocationCode(getValueOrNull(pickupLocation,  Location::getId, UUID::toString))
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		resolve(patronRequest);
+
+		// Assert
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertSuccessfulResolution(fetchedPatronRequest, PICKUP_ANYWHERE_WORKFLOW);
+
+		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		final var expectedAgency = agencyFixture.findByCode(SUPPLYING_AGENCY_CODE);
+
+		assertThat(onlySupplierRequest, allOf(
+			notNullValue(),
+			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+			hasLocalItemId(localItemId),
+			hasLocalItemBarcode(localItemBarcode),
+			hasLocalBibId(localBibId),
+			hasLocalItemLocationCode(ITEM_LOCATION_CODE),
+			hasNoLocalItemStatus(),
+			hasNoLocalId(),
+			hasNoLocalStatus(),
+			hasLocalAgencyCode(SUPPLYING_AGENCY_CODE),
+			hasResolvedAgency(expectedAgency)
+		));
+
+		assertSuccessfulResolutionAudit(fetchedPatronRequest, localItemId,
+			localItemBarcode, CIRCULATING_HOST_LMS_CODE);
 	}
 
 	@Test
@@ -510,11 +588,11 @@ class PatronRequestResolutionStateTransitionTests {
 		return getValueOrNull(pickupLocation, Location::getId, UUID::toString);
 	}
 
-	private static void assertSuccessfulResolution(PatronRequest fetchedPatronRequest) {
-		assertThat(fetchedPatronRequest, allOf(
+	private static void assertSuccessfulResolution(PatronRequest request, String expectedWorkflow) {
+		assertThat(request, allOf(
 			hasStatus(RESOLVED),
 			hasResolutionCount(1),
-			hasActiveWorkflow(STANDARD_WORKFLOW)
+			hasActiveWorkflow(expectedWorkflow)
 		));
 	}
 
@@ -534,7 +612,7 @@ class PatronRequestResolutionStateTransitionTests {
 	}
 
 	public void assertSuccessfulResolutionAudit(PatronRequest patronRequest,
-		String expectedItemId, String expectedHostLms) {
+		String expectedItemId, String expectedItemBarcode, String expectedHostLms) {
 
 		final var fetchedAudit = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
 
@@ -542,7 +620,7 @@ class PatronRequestResolutionStateTransitionTests {
 			notNullValue(),
 			hasBriefDescription("Resolution selected an item with local ID \"%s\" from Host LMS \"%s\""
 				.formatted(expectedItemId, expectedHostLms)),
-			hasNestedAuditDataProperty("selectedItem", "barcode", "6565750674"),
+			hasNestedAuditDataProperty("selectedItem", "barcode", expectedItemBarcode),
 			hasNestedAuditDataProperty("selectedItem", "requestable", true),
 			hasNestedAuditDataProperty("selectedItem", "statusCode", "AVAILABLE"),
 			hasNestedAuditDataProperty("selectedItem", "localItemType", "1"),
@@ -568,5 +646,27 @@ class PatronRequestResolutionStateTransitionTests {
 
 		assertThat("Patron Request audit should have to state",
 			fetchedAudit.getToStatus(), is(ERROR));
+	}
+
+	private SierraItem availableItem(String id, String barcode,
+		String itemLocationCode) {
+
+		return SierraItem.builder()
+			.id(id)
+			.barcode(barcode)
+			.locationCode(itemLocationCode)
+			.statusCode("-")
+			// needs to align with NumericRangeMapping
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+			.build();
+	}
+
+	private void allowOwnLibraryBorrowing() {
+		defineSetting(OWN_LIBRARY_BORROWING, true);
+	}
+
+	private void defineSetting(FunctionalSettingType settingType, boolean enabled) {
+		consortiumFixture.createConsortiumWithFunctionalSetting(settingType, enabled);
 	}
 }
