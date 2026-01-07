@@ -1890,7 +1890,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
    */
 	@Override
 	public Mono<SourceRecordImportChunk> getChunk( Optional<JsonNode> checkpoint ) {
-		log.info("GET THOSE CHUNKS");
 		try {
 
 			// Use the inbuilt marshalling to convert into the BibParams.
