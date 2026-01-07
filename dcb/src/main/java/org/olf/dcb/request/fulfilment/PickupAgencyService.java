@@ -1,5 +1,6 @@
 package org.olf.dcb.request.fulfilment;
 
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -75,7 +76,8 @@ public class PickupAgencyService {
 		return checkHoldExists(client, patronRequest, "Delete")
 			.flatMap(id -> client.deleteHold(deleteCommand))
 			// Catch any skipped deletions
-			.switchIfEmpty(Mono.defer(() -> Mono.just("OK")));
+			.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
+			.onErrorResume(logAndReturnErrorString("Delete pickup hold : Failed", patronRequest));
 	}
 
 	public Mono<HostLmsClient> deleteItemIfPresent(HostLmsClient client, PatronRequest patronRequest) {
@@ -184,8 +186,9 @@ public class PickupAgencyService {
 		return client.getRequest(hostlmsRequest)
 			.flatMap(hostLmsRequest -> {
 
-				// if the hold exists a local id will be present
-				if (hostLmsRequest != null && hostLmsRequest.getLocalId() != null) {
+				// if the hold exists a local id will be present.
+				// Don't proceed if we know the hold is already missing
+				if (hostLmsRequest != null && hostLmsRequest.getLocalId() != null && !HOLD_MISSING.equals(hostLmsRequest.getStatus())) {
 
 					// return the pickupRequestId to proceed with operation
 					return Mono.just(pickupRequestId);
