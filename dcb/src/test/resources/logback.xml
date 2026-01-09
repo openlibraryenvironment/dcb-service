@@ -29,6 +29,9 @@
 	<logger name="org.olf.dcb.rules" level="TRACE"/>
 	<logger name="services.k_int" level="DEBUG"/>
 
+	<!-- Mock server is pretty noisy at the default info level -->
+	<logger name="org.mockserver" level="WARN"/>
+
 	<root level="info">
 		<appender-ref ref="STDOUT"/>
 	</root>

@@ -1,37 +1,38 @@
 package org.olf.dcb.core.model;
 
-import java.util.UUID;
-import java.util.Map;
+import static io.micronaut.data.model.DataType.JSON;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
-import io.micronaut.security.annotation.UpdatedBy;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
+
+import org.olf.dcb.core.audit.Auditable;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.DateCreated;
+import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.TypeDef;
-import io.micronaut.data.annotation.DateCreated;
-import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.model.DataType;
+import io.micronaut.security.annotation.UpdatedBy;
 import io.micronaut.serde.annotation.Serdeable;
-
 import jakarta.persistence.Column;
+import jakarta.persistence.Transient;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.ToString;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
+import lombok.ToString;
 import lombok.experimental.Accessors;
-import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
-import java.time.Instant;
-
-import static io.micronaut.data.model.DataType.JSON;
 
 
 @Data
@@ -158,4 +159,9 @@ public class Location implements Auditable {
   @TypeDef(type = JSON)
 	@Nullable
 	private Map<String,Workflow> archivedWorkflows;
+
+	@Transient
+	public String getIdAsString() {
+		return getValueOrNull(this, Location::getId, UUID::toString);
+	}
 }
