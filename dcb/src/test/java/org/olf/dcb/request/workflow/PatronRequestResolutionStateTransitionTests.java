@@ -16,6 +16,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
@@ -131,6 +132,7 @@ class PatronRequestResolutionStateTransitionTests {
 	private DataHostLms cataloguingHostLms;
 	private DataHostLms borrowingHostLms;
 	private DataAgency borrowingAgency;
+	private DataHostLms circulatingHostLms;
 
 	@BeforeAll
 	@SneakyThrows
@@ -157,8 +159,9 @@ class PatronRequestResolutionStateTransitionTests {
 		cataloguingHostLms = hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE,
 			HOST_LMS_KEY, HOST_LMS_SECRET, cataloguingHostLmsUrl, "item");
 
-		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
-			"", "http://some-system", "item");
+		circulatingHostLms = hostLmsFixture.createSierraHostLms(
+			CIRCULATING_HOST_LMS_CODE, HOST_LMS_KEY,
+			HOST_LMS_SECRET, "http://some-circulating-system", "item");
 
 		final var borrowingHostLmsUrl = "http://some-borrowing-system";
 
@@ -413,6 +416,77 @@ class PatronRequestResolutionStateTransitionTests {
 		assertSuccessfulResolutionAudit(fetchedPatronRequest, localItemId,
 			localItemBarcode, BORROWING_HOST_LMS_CODE, borrowingAgency.getCode());
 	}
+
+	@Test
+	void shouldExpediteCheckoutWhenPatronFromDifferentLibraryPicksUpItemLocally() {
+		// Arrange
+		allowOwnLibraryBorrowing();
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var localBibId = "465675";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			localBibId, clusterRecord);
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			CIRCULATING_HOST_LMS_CODE, 1, 1, "loanable-item");
+
+		final var localItemId = "365453";
+		final var localItemBarcode = "0973656";
+
+		sierraItemsAPIFixture.itemsForBibId(localBibId, List.of(
+			availableItem(localItemId, localItemBarcode, ITEM_LOCATION_CODE)
+		));
+
+		final var pickupLocation = locationFixture.createPickupLocation(
+			agencyFixture.findByCode(SUPPLYING_AGENCY_CODE));
+
+		final var patron = definePatron("187536", "6385731");
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecord.getId())
+			.pickupLocationCode(pickupLocation.getIdAsString())
+			.status(PATRON_VERIFIED)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		resolve(patronRequest);
+
+		// Assert
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertSuccessfulResolution(fetchedPatronRequest, EXPEDITED_WORKFLOW);
+
+		final var onlySupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		final var expectedAgency = agencyFixture.findByCode(SUPPLYING_AGENCY_CODE);
+
+		assertThat(onlySupplierRequest, allOf(
+			notNullValue(),
+			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+			hasLocalItemId(localItemId),
+			hasLocalItemBarcode(localItemBarcode),
+			hasLocalBibId(localBibId),
+			hasLocalItemLocationCode(ITEM_LOCATION_CODE),
+			hasNoLocalItemStatus(),
+			hasNoLocalId(),
+			hasNoLocalStatus(),
+			hasLocalAgencyCode(SUPPLYING_AGENCY_CODE),
+			hasResolvedAgency(expectedAgency)
+		));
+
+		assertSuccessfulResolutionAudit(fetchedPatronRequest, localItemId,
+			localItemBarcode, CIRCULATING_HOST_LMS_CODE);
+	}
+
 
 	@Test
 	void shouldExcludeItemWhenLocationIsNotMappedToAgency() {

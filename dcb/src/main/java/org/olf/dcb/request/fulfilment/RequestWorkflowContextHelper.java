@@ -461,7 +461,6 @@ public class RequestWorkflowContextHelper {
 		var pickupAc = rwc.getPickupAgencyCode();
 		log.debug("pickupAc: [{}]", pickupAc);
 
-		// For DCB-1555 troubleshooting only, will be removed afterwards.
 		log.info("pickupAc {}, lenderAc {}, patronAc {}", pickupAc, lenderAc, patronAc);
 
 		// Grab a reference to the patron request.
