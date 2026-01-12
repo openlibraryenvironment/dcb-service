@@ -671,25 +671,19 @@ class StandardWorkflowPatronRequestApiTests {
 		final var unrecognisedPickupLocationMessage = "\"%s\" is not a recognised pickup location code"
 			.formatted(unknownPickupLocationId);
 
-		final var unmappedPickupLocationMessage = "Pickup location \"%s\" is not mapped to an agency"
-			.formatted(unknownPickupLocationId);
-
 		assertThat("Body should report unknown pickup location failed check", optionalBody.get(),
 			hasProperty("failedChecks", containsInAnyOrder(
 				allOf(
 					hasDescription(unrecognisedPickupLocationMessage),
 					hasCode("UNKNOWN_PICKUP_LOCATION_CODE")
-				),
-				allOf(
-					hasDescription(unmappedPickupLocationMessage),
-					hasCode("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY")
 				)
 			)));
 
-		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
-			isFailedCheckEvent(unrecognisedPickupLocationMessage),
-			isFailedCheckEvent(unmappedPickupLocationMessage)
-		));
+		assertThat("Failed check should be logged", eventLogFixture.findAll(),
+			containsInAnyOrder(
+				isFailedCheckEvent(unrecognisedPickupLocationMessage)
+			)
+		);
 	}
 
 	@Test

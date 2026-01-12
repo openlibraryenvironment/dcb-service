@@ -1,27 +1,15 @@
 package org.olf.dcb.core;
 
-import org.olf.dcb.core.api.exceptions.MultipleConsortiumException;
-import org.olf.dcb.core.model.Consortium;
-import org.olf.dcb.core.model.FunctionalSetting;
-import org.olf.dcb.core.model.FunctionalSettingType;
-import org.olf.dcb.storage.ConsortiumRepository;
-import org.olf.dcb.storage.postgres.PostgresConsortiumFunctionalSettingRepository;
-import org.olf.dcb.storage.postgres.PostgresFunctionalSettingRepository;
+import java.util.Map;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-
-import java.util.Map;
 
 @Slf4j
 @Singleton
 public class IntMessageService {
-
-	public static final Map<String,String> mappings = Map.ofEntries(
+	private static final Map<String,String> mappings = Map.ofEntries(
 		Map.entry("UNKNOWN_PICKUP_LOCATION_CODE", "There has been an error in selecting the pickup location. Please try again or select a different pickup location. If this error persists, please notify your library."),
-		Map.entry("PICKUP_LOCATION_NOT_MAPPED_TO_AGENCY", "The selected pickup location is not associated with a valid agency. Please try again or select a different pickup location. If this error persists, please notify your library."),
 		Map.entry("DUPLICATE_REQUEST_ATTEMPT", "It appears you already have an existing request for this resource. Please modify your request. If this message is in error, please notify your library."),
 		Map.entry("PATRON_NOT_FOUND", "A borrower account could not be found using the information provided."),
 		Map.entry("INVALID_PATRON_BARCODE", "The barcode provided is invalid."),
@@ -38,7 +26,6 @@ public class IntMessageService {
 		Map.entry("EXCEEDS_GLOBAL_LIMIT", "Your account has exceeded the maximum global limit for consortial requests"),
 		Map.entry("EXCEEDS_AGENCY_LIMIT", "Your account has exceeded the maximum global limit for requests from your institution")
 	);
-
 
 	public String getMessage(String code) {
 		return mappings.get(code);
