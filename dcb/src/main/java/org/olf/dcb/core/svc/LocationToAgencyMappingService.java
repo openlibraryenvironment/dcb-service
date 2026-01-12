@@ -1,29 +1,28 @@
 package org.olf.dcb.core.svc;
 
-import java.time.Instant;
-import java.time.Duration;
-
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.model.Alarm;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.AlarmsService;
-import services.k_int.utils.UUIDUtils;
-import graphql.com.google.common.base.Predicates;
-import reactor.core.publisher.Mono;
-
-import java.util.List;
-
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.trimToNull;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.core.publisher.Mono.empty;
 import static reactor.core.publisher.Mono.justOrEmpty;
 import static reactor.function.TupleUtils.function;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.Alarm;
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+
+import graphql.com.google.common.base.Predicates;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Singleton
@@ -48,12 +47,13 @@ public class LocationToAgencyMappingService {
 	/**
 	 * Return an agency based on some external reference
 	 */
-	public Mono<DataAgency> dataAgencyFromMappedExernal(String fromContext, String fromCategory, String fromValue) {
+	public Mono<DataAgency> dataAgencyFromMappedExternal(String fromContext,
+		String fromCategory, String fromValue) {
+
 		return mapExternalIdentifierToAgency(fromContext,fromCategory,fromValue);
 	}
 
 	private Mono<DataAgency> findLocationToAgencyMapping(Item item, String hostLmsCode) {
-
 		final var locationCode = trimToNull(getValueOrNull(item, Item::getLocationCode));
 
 		if (isEmpty(locationCode)) {
@@ -67,7 +67,8 @@ public class LocationToAgencyMappingService {
 		return mapExternalIdentifierToAgency(hostLmsCode, "Location", locationCode);
 	}
 
-	private Mono<DataAgency> mapExternalIdentifierToAgency(String hostLmsCode, String fromCategory, String locationCode) {
+	private Mono<DataAgency> mapExternalIdentifierToAgency(String hostLmsCode,
+		String fromCategory, String locationCode) {
 
 		return findLocationToAgencyMapping(hostLmsCode, fromCategory, locationCode)
 			.map(ReferenceValueMapping::getToValue)
@@ -84,10 +85,6 @@ public class LocationToAgencyMappingService {
             .build());
         return Mono.empty();
       }));
-	}
-
-	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String pickupLocationCode) {
-		return findLocationToAgencyMapping("DCB", pickupLocationCode);
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
