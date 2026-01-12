@@ -1267,10 +1267,52 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			return "";
 	}
 
-  @Override
-  public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
-    return Mono.error(new NotImplementedException("Prevent renewal on loan is not currently implemented in " + getHostLmsCode()));
-  }
+	@Override
+	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+		log.info("preventRenewalOnLoan({})", prc);
+
+		final var itemId = prc.getItemId();
+		final var itemBarcode = prc.getItemBarcode();
+
+		final String blockMessage = "A hold has been placed on this item by a patron at the owning library. Please do not renew.";
+
+		if (itemId == null || itemBarcode == null) {
+			return Mono.error(new IllegalArgumentException("Item ID and barcode are required to prevent renewal"));
+		}
+
+		return client.retrieveItemBarcodeOnly(itemBarcode)
+			.flatMap(item -> {
+				AlmaItemData data = item.getItemData();
+
+				// Essentially we do an item update here
+				// This should cause a note to appear on the Item in the Alma UI/ Primo
+				// So it's 'soft renewal prevention'
+				// As we can't do hard renewal prevention without TOUs which as of early 2026 are v.hard/impossible to do via API
+				if (data != null) {
+					String currentNote = data.getFulfillmentNote();
+
+					// Check if the note is already present to avoid duplicates
+					if (currentNote == null || !currentNote.contains(blockMessage)) {
+
+						String newNote = (currentNote == null || currentNote.isBlank())
+							? blockMessage
+							: currentNote + " | " + blockMessage;
+
+						data.setFulfillmentNote(newNote);
+
+						String mmsId = item.getBibData().getMmsId();
+						String holdingId = item.getHoldingData().getHoldingId();
+
+						return client.updateItem(mmsId, holdingId, itemId, item);
+					}
+				}
+				// If note already exists or data is null, just return empty to signal completion
+				return Mono.just(item);
+			})
+			.doOnSuccess(ignored -> log.info("Added fulfillment note block to item {}", itemId))
+			.doOnError(e -> log.error("Failed to add block note to item {}: {}", itemId, e.getMessage()))
+			.then();
+	}
 
   @Override
   public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
