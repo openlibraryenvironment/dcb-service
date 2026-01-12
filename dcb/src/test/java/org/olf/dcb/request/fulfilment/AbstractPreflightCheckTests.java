@@ -4,17 +4,16 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasProperty;
 
-import org.hamcrest.Matcher;
-
 import java.util.UUID;
+
+import org.hamcrest.Matcher;
 
 public abstract class AbstractPreflightCheckTests {
 	protected static PlacePatronRequestCommand placeRequestCommand(
-		String pickupLocationCode, String pickupLocationContext, String requestorHostLmsCode) {
+		String pickupLocationCode, String requestorHostLmsCode) {
 
 		return PlacePatronRequestCommand.builder()
 			.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
-				.context(pickupLocationContext)
 				.code(pickupLocationCode)
 				.build())
 			.requestor(PlacePatronRequestCommand.Requestor.builder()

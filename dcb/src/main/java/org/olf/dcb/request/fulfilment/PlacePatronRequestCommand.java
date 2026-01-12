@@ -24,10 +24,6 @@ public class PlacePatronRequestCommand {
 		return getPickupLocation().getCode();
 	}
 
-	String getPickupLocationContext() {
-		return getPickupLocation().getContext();
-	}
-
 	String getRequestorLocalSystemCode() {
 		return getRequestor().getLocalSystemCode();
 	}
@@ -44,7 +40,6 @@ public class PlacePatronRequestCommand {
 	@Builder
 	@Value
 	public static class PickupLocation {
-		String context;
 		@NonNull String code;
 	}
 

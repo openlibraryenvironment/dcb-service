@@ -54,7 +54,7 @@ class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflight
 
 		// Act
 		final var command = placeRequestCommand("0f102b5a-e300-41c8-9aca-afd170e17921",
-			null, "requester-host-lms-code");
+                "requester-host-lms-code");
 
 		final var results = check(command);
 
@@ -66,7 +66,7 @@ class PickupLocationToAgencyMappingPreflightCheckTests extends AbstractPreflight
 	void shouldFailWhenPickupLocationIsNotMappedToAnAgency() {
 		// Act
 		final var command = placeRequestCommand("known-pickup-location",
-			"pickup-context", "requester-host-lms-code");
+                "requester-host-lms-code");
 
 		final var results = check(command);
 

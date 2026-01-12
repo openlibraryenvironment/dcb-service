@@ -35,7 +35,7 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 
 		// Act
 		final var command = placeRequestCommand("known-pickup-location",
-			"pickup-context", "requester-host-lms-code");
+                "requester-host-lms-code");
 
 		final var results = check(command);
 
@@ -50,7 +50,7 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 
 		// Act
 		final var command = placeRequestCommand(location.getId().toString(),
-			"pickup-context", "requester-host-lms-code");
+                "requester-host-lms-code");
 
 		final var results = check(command);
 
@@ -62,7 +62,7 @@ public class PickupLocationPreflightCheckTests extends AbstractPreflightCheckTes
 	void shouldFailWhenPickupLocationCodeIsNotRecognised() {
 		// Act
 		final var command = placeRequestCommand("unknown-pickup-location",
-			"pickup-context", "requester-host-lms-code");
+                "requester-host-lms-code");
 
 		final var results = check(command);
 
