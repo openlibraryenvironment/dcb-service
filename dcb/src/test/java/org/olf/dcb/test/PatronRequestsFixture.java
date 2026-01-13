@@ -26,11 +26,13 @@ public class PatronRequestsFixture {
 
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestsFixture supplierRequestsFixture;
+	private final InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture;
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
 
 	public void deleteAll() {
 		deleteAllAuditEntries();
 		supplierRequestsFixture.deleteAll();
+		inactiveSupplierRequestsFixture.deleteAll();
 		deleteAllPatronRequests();
 	}
 
