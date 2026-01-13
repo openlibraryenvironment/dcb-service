@@ -45,6 +45,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
@@ -76,6 +77,8 @@ class LiveAvailabilityApiTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private ConsortiumFixture consortiumFixture;
 
 	@Inject
 	private LiveAvailabilityApiClient liveAvailabilityApiClient;
@@ -106,6 +109,9 @@ class LiveAvailabilityApiTests {
 		clusterRecordFixture.deleteAll();
 		agencyFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
+		consortiumFixture.deleteAll();
+
+		consortiumFixture.createConsortium();
 	}
 
 	@Test

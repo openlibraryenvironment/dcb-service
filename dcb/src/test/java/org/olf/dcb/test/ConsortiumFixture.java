@@ -1,6 +1,14 @@
 package org.olf.dcb.test;
 
 import static java.util.UUID.randomUUID;
+import static org.olf.dcb.core.model.FunctionalSettingType.DENY_LIBRARY_MAPPING_EDIT;
+import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
+import static org.olf.dcb.core.model.FunctionalSettingType.PICKUP_ANYWHERE;
+import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
+import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
+import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_POLARIS;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import org.olf.dcb.core.model.Consortium;
@@ -14,29 +22,19 @@ import org.olf.dcb.storage.FunctionalSettingRepository;
 import org.olf.dcb.storage.LibraryGroupRepository;
 
 import jakarta.inject.Singleton;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton
+@RequiredArgsConstructor
 public class ConsortiumFixture {
 	private final LibraryGroupRepository libraryGroupRepository;
 	private final ConsortiumRepository consortiumRepository;
 	private final FunctionalSettingRepository functionalSettingRepository;
 	private final ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository;
 
-	public ConsortiumFixture(
-		LibraryGroupRepository libraryGroupRepository,
-		ConsortiumRepository consortiumRepository,
-		FunctionalSettingRepository functionalSettingRepository,
-		ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository) {
-		this.libraryGroupRepository = libraryGroupRepository;
-		this.consortiumRepository = consortiumRepository;
-		this.functionalSettingRepository = functionalSettingRepository;
-		this.consortiumFunctionalSettingRepository = consortiumFunctionalSettingRepository;
-	}
-
 	private final DataAccess dataAccess = new DataAccess();
-
 
 	/**
 	 * Deletes all consortium-related entities in the system.
@@ -95,6 +93,20 @@ public class ConsortiumFixture {
 
 	public void disableSetting(FunctionalSettingType settingType) {
 		createConsortiumWithFunctionalSetting(settingType, false);
+	}
+
+	public void enableAllSettings() {
+		final var consortium = createConsortium();
+
+		// TODO: Make this generic by enumerating all functional setting types
+		enableSetting(consortium, OWN_LIBRARY_BORROWING);
+		enableSetting(consortium, PICKUP_ANYWHERE);
+		enableSetting(consortium, RE_RESOLUTION);
+		enableSetting(consortium, SELECT_UNAVAILABLE_ITEMS);
+		enableSetting(consortium, TRIGGER_SUPPLIER_RENEWAL);
+		enableSetting(consortium, DENY_LIBRARY_MAPPING_EDIT);
+		enableSetting(consortium, VIRTUAL_PATRON_NAMES_VISIBLE);
+		enableSetting(consortium, VIRTUAL_PATRON_NAMES_POLARIS);
 	}
 
 	/**

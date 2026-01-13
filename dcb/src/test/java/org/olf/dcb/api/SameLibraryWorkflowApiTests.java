@@ -87,7 +87,7 @@ class SameLibraryWorkflowApiTests {
 	private static DataHostLms BORROWING_HOST_LMS;
 
 	@BeforeAll
-	void setUp(MockServerClient mockServerClient) {
+	void beforeAll(MockServerClient mockServerClient) {
 		setUpMockCredentials(mockServerClient);
 		setUpFixtures(mockServerClient);
 		defineAgencies();
@@ -95,19 +95,22 @@ class SameLibraryWorkflowApiTests {
 	}
 
 	@BeforeEach
-	void resetFixtures() {
+	void beforeEach() {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		eventLogFixture.deleteAll();
+		consortiumFixture.deleteAll();
+
+		consortiumFixture.enableAllSettings();
+
 		defineMappings();
 	}
 
 	@AfterAll
 	void tearDown() {
 		patronRequestApiClient.removeTokenFromValidTokens();
-		consortiumFixture.deleteAll();
 	}
 
 	@Test

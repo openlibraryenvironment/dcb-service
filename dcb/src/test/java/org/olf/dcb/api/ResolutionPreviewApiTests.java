@@ -39,6 +39,7 @@ import org.olf.dcb.request.workflow.PresentableItem;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -81,6 +82,8 @@ class ResolutionPreviewApiTests {
 	private AgencyFixture agencyFixture;
 	@Inject
 	private LocationFixture locationFixture;
+	@Inject
+	private ConsortiumFixture consortiumFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 
@@ -120,6 +123,9 @@ class ResolutionPreviewApiTests {
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
 		locationFixture.deleteAll();
+		consortiumFixture.deleteAll();
+
+		consortiumFixture.createConsortium();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, ITEM_LOCATION_CODE, supplyingAgencyCode);

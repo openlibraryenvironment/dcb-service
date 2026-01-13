@@ -32,6 +32,7 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.EventLogFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
@@ -61,6 +62,8 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	@Inject private AgencyFixture agencyFixture;
 	@Inject private LocationFixture locationFixture;
 	@Inject private EventLogFixture eventLogFixture;
+	@Inject private ConsortiumFixture consortiumFixture;
+
 	@Inject private PatronRequestApiClient patronRequestApiClient;
 	@Inject private AdminApiClient adminApiClient;
 	// Sierra API Fixtures
@@ -97,7 +100,7 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	private static DataHostLms PICKUP_HOST_LMS;
 
 	@BeforeAll
-	void setUp(MockServerClient mockServerClient) {
+	void beforeAll(MockServerClient mockServerClient) {
 		setUpMockCredentials(mockServerClient);
 		setUpFixtures(mockServerClient);
 		defineAgencies();
@@ -105,12 +108,15 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	}
 
 	@BeforeEach
-	void resetFixtures() {
+	void beforeEach() {
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		eventLogFixture.deleteAll();
+		consortiumFixture.deleteAll();
+
+		consortiumFixture.enableAllSettings();
 
 		defineMappings();
 	}

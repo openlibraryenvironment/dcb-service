@@ -9,8 +9,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
-import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
@@ -19,6 +17,8 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RECEIVED_AT_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.BORROWER_ROLE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.COMPLETED_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.CUSTOM_RESPONSE_TYPE;
@@ -42,10 +42,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
-import org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.EventLogFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
@@ -69,10 +69,12 @@ class DummyScenarioTests {
 	@Inject private AgencyFixture agencyFixture;
 	@Inject private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject private LocationFixture locationFixture;
-	@Inject private PatronRequestApiClient patronRequestApiClient;
 	@Inject private ClusterRecordFixture clusterRecordFixture;
 	@Inject private BibRecordFixture bibRecordFixture;
 	@Inject private EventLogFixture eventLogFixture;
+	@Inject private ConsortiumFixture consortiumFixture;
+
+	@Inject private PatronRequestApiClient patronRequestApiClient;
 
 	private static final String SUPPLYING_HOST_LMS_CODE = "dummy-tests-supplying-agency";
 	private static final String BORROWING_HOST_LMS_CODE = "dummy-tests-borrowing-agency";
@@ -102,6 +104,9 @@ class DummyScenarioTests {
 	@BeforeEach
 	void beforeEach() {
 		clearFixtures();
+
+		consortiumFixture.enableAllSettings();
+
 		defineMappings();
 	}
 
@@ -411,6 +416,7 @@ class DummyScenarioTests {
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		eventLogFixture.deleteAll();
+		consortiumFixture.deleteAll();
 	}
 
 	private UUID createClusterRecordWithOneAvailableItem() {

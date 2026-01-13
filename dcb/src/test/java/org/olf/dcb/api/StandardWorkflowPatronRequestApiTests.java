@@ -18,7 +18,14 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
-import static org.olf.dcb.core.model.PatronRequest.Status.*;
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasCode;
 import static org.olf.dcb.test.clients.ChecksFailure.Check.hasDescription;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
@@ -33,7 +40,11 @@ import java.util.UUID;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
@@ -45,6 +56,7 @@ import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.EventLogFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LocationFixture;
@@ -106,6 +118,8 @@ class StandardWorkflowPatronRequestApiTests {
 	private EventLogFixture eventLogFixture;
 	@Inject
 	private TrackingFixture trackingFixture;
+	@Inject
+	private ConsortiumFixture consortiumFixture;
 
 	@Inject
 	private PatronRequestApiClient patronRequestApiClient;
@@ -211,6 +225,9 @@ class StandardWorkflowPatronRequestApiTests {
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		eventLogFixture.deleteAll();
+		consortiumFixture.deleteAll();
+
+		consortiumFixture.enableAllSettings();
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
