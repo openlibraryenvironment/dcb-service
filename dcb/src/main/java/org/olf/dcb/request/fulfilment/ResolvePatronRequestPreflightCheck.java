@@ -18,12 +18,12 @@ import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeExcepti
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
-import org.olf.dcb.request.resolution.ManualItemSelection;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
-import org.olf.dcb.request.resolution.ResolutionParameters;
+import org.olf.dcb.request.workflow.exceptions.UnableToFindPickupLocationProblem;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
+import org.olf.dcb.request.workflow.exceptions.UnknownPickupLocationAgencyProblem;
 
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -54,7 +54,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		// being too coupled to a patron request
 		return Mono.just(command)
 			.zipWhen(this::mapToPatron)
-			.map(function(ResolvePatronRequestPreflightCheck::mapToParameters))
+			.flatMap(function(patronRequestResolutionService::resolutionParametersFor))
 			.doOnSuccess(patronRequest -> log.debug("Completed mapping to patron request: {}", patronRequest))
 			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Completed resolution: {}", resolution))
@@ -70,6 +70,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorResume(NoBibsForClusterRecordException.class, this::clusterRecordNotFound)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
+			.onErrorResume(UnableToFindPickupLocationProblem.class, this::unknownPickupLocation)
+			.onErrorResume(UnknownPickupLocationAgencyProblem.class, this::unknownPickupLocation)
 			.defaultIfEmpty(List.of(failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST",
 				"Failed due to empty reactive chain",
 				intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST"))));
@@ -98,42 +100,6 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			}));
 	}
 
-	private static ResolutionParameters mapToParameters(PlacePatronRequestCommand command, Patron patron) {
-		log.debug("mapToParameters({}, {})", command, patron);
-
-		return ResolutionParameters.builder()
-			.borrowingAgencyCode(getValueOrNull(patron, Patron::determineAgencyCode))
-			.borrowingHostLmsCode(getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
-			.bibClusterId(getValueOrNull(command, PlacePatronRequestCommand::getCitation,
-				PlacePatronRequestCommand.Citation::getBibClusterId))
-			.pickupLocationCode(getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode))
-			.manualItemSelection(mapManualItemSelection(getValueOrNull(command, PlacePatronRequestCommand::getItem)))
-			.build();
-	}
-
-	private static ManualItemSelection mapManualItemSelection(PlacePatronRequestCommand.Item item) {
-		if (item == null) {
-			return null;
-		}
-
-		final var id = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalId);
-		final var hostLmsCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getLocalSystemCode);
-		final var agencyCode = getValueOrNull(item, PlacePatronRequestCommand.Item::getAgencyCode);
-
-		if (id == null || hostLmsCode == null || agencyCode == null) {
-			log.warn("Possibly incomplete manually selected item: {}", item);
-
-			return null;
-		}
-
-		return ManualItemSelection.builder()
-			.isManuallySelected(true)
-			.localItemId(id)
-			.hostLmsCode(hostLmsCode)
-			.agencyCode(agencyCode)
-			.build();
-	}
-
 	private List<CheckResult> checkResolution(Resolution resolution) {
 		log.debug("checkResolution({})", resolution);
 
@@ -141,7 +107,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 		if (chosenItem == null) {
 			return List.of(failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST",
-				"Patron request for cluster record \"%s\" could not be resolved to an item".formatted(resolution.getBibClusterId()),
+				"Patron request for cluster record \"%s\" could not be resolved to an item"
+					.formatted(resolution.getBibClusterId()),
         intMessageService.getMessage("NO_ITEM_SELECTABLE_FOR_REQUEST"))
 			);
 		}
@@ -151,7 +118,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 	private Mono<List<CheckResult>> clusterRecordNotFound(CannotFindClusterRecordException error) {
 		return Mono.just(List.of(
-			failedUm("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found".formatted(getValueOrNull(error, CannotFindClusterRecordException::getClusterRecordId)),
+			failedUm("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
+					.formatted(getValueOrNull(error, CannotFindClusterRecordException::getClusterRecordId)),
         intMessageService.getMessage("CLUSTER_RECORD_NOT_FOUND")))
 		);
 	}
@@ -166,7 +134,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
 		return Mono.just(List.of(
-			failed("PATRON_NOT_FOUND", 
+			failed("PATRON_NOT_FOUND",
       error.getMessage(),
       "A borrower account could not be found using the information provided.",
       intMessageService.getMessage("PATRON_NOT_FOUND"))
@@ -178,7 +146,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 		return Mono.just(List.of(
 			failedUm("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
-				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency" .formatted(localPatronId, error.getHomeLibraryCode(), error.getSystemCode()),
+				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(localPatronId, error.getHomeLibraryCode(), error.getSystemCode()),
         intMessageService.getMessage("PATRON_NOT_ASSOCIATED_WITH_AGENCY")
       )));
 	}
@@ -194,7 +163,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 		return Mono.just(List.of(
 			failedUm("PATRON_TYPE_NOT_MAPPED",
-				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type".formatted(error.getLocalPatronType(), error.getHostLmsCode()),
+				"Local patron type \"%s\" from \"%s\" is not mapped to a DCB canonical patron type"
+					.formatted(error.getLocalPatronType(), error.getHostLmsCode()),
         intMessageService.getMessage("PATRON_TYPE_NOT_MAPPED"))
 		));
 	}
@@ -204,9 +174,23 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 		return Mono.just(List.of(
 			failedUm("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
-				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\"".formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()),
+				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
+					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()),
 				intMessageService.getMessage("LOCAL_PATRON_TYPE_IS_NON_NUMERIC")
       )
 		));
+	}
+
+	private Mono<List<CheckResult>> unknownPickupLocation(UnableToFindPickupLocationProblem error) {
+		return Mono.just(List.of(failedUm("UNKNOWN_PICKUP_LOCATION_CODE",
+			"\"%s\" is not a recognised pickup location code".formatted(error.getPickupLocationId()),
+			intMessageService.getMessage("UNKNOWN_PICKUP_LOCATION_CODE"))));
+	}
+
+	private Mono<List<CheckResult>> unknownPickupLocation(UnknownPickupLocationAgencyProblem error) {
+		return Mono.just(List.of(failedUm("UNKNOWN_PICKUP_LOCATION_AGENCY",
+			"Pickup location \"%s\" is not associated with a known agency"
+				.formatted(error.getPickupLocationId()),
+			intMessageService.getMessage("UNKNOWN_PICKUP_LOCATION_AGENCY"))));
 	}
 }

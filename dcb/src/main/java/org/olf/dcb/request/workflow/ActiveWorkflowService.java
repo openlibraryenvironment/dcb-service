@@ -29,7 +29,7 @@ public class ActiveWorkflowService {
 			return Mono.just(Tuples.of(resolution, patronRequest));
 		}
 
-		final var borrowingAgencyCode = getValueOrNull(resolution, Resolution::getBorrowingAgencyCode);
+		final var borrowingAgencyCode = getValueOrNull(resolution, Resolution::borrowingAgencyCode);
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 		final var itemAgencyCode = getValueOrNull(chosenItem, Item::getAgencyCode);
 

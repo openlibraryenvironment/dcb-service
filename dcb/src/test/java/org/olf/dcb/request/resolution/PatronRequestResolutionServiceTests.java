@@ -6,6 +6,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
@@ -21,6 +22,7 @@ import static org.olf.dcb.test.matchers.ResolutionMatchers.hasChosenItem;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasFilteredItems;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasFilteredItemsSize;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasNoChosenItem;
+import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
@@ -35,9 +37,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Location;
@@ -96,6 +100,7 @@ class PatronRequestResolutionServiceTests {
 	private DataHostLms cataloguingHostLms;
 
 	private String borrowingAgencyPickupLocationId;
+	private DataAgency borrowingAgency;
 
 	@BeforeAll
 	@SneakyThrows
@@ -143,10 +148,11 @@ class PatronRequestResolutionServiceTests {
 		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_CODE,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
-		final var borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
+		borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
 			BORROWING_AGENCY_CODE, hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
 
-		final var borrowingAgencyPickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+		final var borrowingAgencyPickupLocation = locationFixture.createPickupLocation(
+			borrowingAgency);
 
 		borrowingAgencyPickupLocationId = getValueOrNull(borrowingAgencyPickupLocation,
 			Location::getId, UUID::toString);
@@ -179,8 +185,6 @@ class PatronRequestResolutionServiceTests {
 			checkedOutItem(unavailableItemId, unavailableItemBarcode),
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
-
-
 
 		// Act
 		final var parameters = standardParametersFor(clusterRecord);
@@ -233,7 +237,8 @@ class PatronRequestResolutionServiceTests {
 		final var onlyAvailableItemBarcode = "25452553";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
+				ITEM_LOCATION_CODE)
 		));
 
 		// Act
@@ -242,6 +247,7 @@ class PatronRequestResolutionServiceTests {
 			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(getValueOrNull(borrowingAgency, DataAgency::getCode))
 			.excludedSupplyingAgencyCodes(emptyList())
 			.manualItemSelection(ManualItemSelection.builder()
 				.isManuallySelected(true)
@@ -296,6 +302,7 @@ class PatronRequestResolutionServiceTests {
 			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(BORROWING_AGENCY_CODE)
 			.excludedSupplyingAgencyCodes(emptyList())
 			.manualItemSelection(ManualItemSelection.builder()
 				.isManuallySelected(true)
@@ -336,6 +343,7 @@ class PatronRequestResolutionServiceTests {
 			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(BORROWING_AGENCY_CODE)
 			.excludedSupplyingAgencyCodes(emptyList())
 			.manualItemSelection(ManualItemSelection.builder()
 				.isManuallySelected(true)
@@ -607,6 +615,7 @@ class PatronRequestResolutionServiceTests {
 			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(BORROWING_AGENCY_CODE)
 			.excludedSupplyingAgencyCodes(List.of(SUPPLYING_AGENCY_CODE))
 			.build();
 
@@ -620,7 +629,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldTolerateUnknownBorrowingAgency() {
+	void shouldNotTolerateUnknownBorrowingAgency() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -644,22 +653,18 @@ class PatronRequestResolutionServiceTests {
 			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(null)
 			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 
-		final var resolution = resolve(parameters);
+		final var error = assertThrows(MissingParameterException.class,
+			() -> resolve(parameters));
 
 		// Assert
-		assertThat(resolution, allOf(
+		assertThat(error, allOf(
 			notNullValue(),
-			hasChosenItem(
-				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-				hasLocalId(onlyAvailableItemId),
-				hasBarcode(onlyAvailableItemBarcode),
-				hasLocalBibId(sourceRecordId),
-				hasLocationCode(ITEM_LOCATION_CODE),
-				hasAgencyCode(SUPPLYING_AGENCY_CODE)
-			)));
+			hasMessage("borrowingAgencyCode is missing.")
+		));
 	}
 
 	@Test
@@ -1161,6 +1166,7 @@ class PatronRequestResolutionServiceTests {
 			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
 			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(getValueOrNull(borrowingAgency, DataAgency::getCode))
 			.excludedSupplyingAgencyCodes(emptyList())
 			.build();
 	}

@@ -20,6 +20,7 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Citation;
@@ -585,6 +586,101 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		assertThat(results, containsInAnyOrder(
 			failedCheck("UNKNOWN_BORROWING_HOST_LMS",
 				"\"%s\" is not a recognised Host LMS".formatted(unknownHostLmsCode))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPickupLocationIsUnknown() {
+		// Arrange
+		final var localPatronId = definePatron("6784636");
+
+		// Act
+		final var unknownPickupLocationId = randomUUID().toString();
+
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(unknownPickupLocationId)
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("UNKNOWN_PICKUP_LOCATION_CODE",
+				"\"%s\" is not a recognised pickup location code".formatted(unknownPickupLocationId))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPickupLocationIsNotAssociatedWithAnAgency() {
+		// Arrange
+		final var localPatronId = definePatron("2917863");
+
+		// Act
+		final var pickupLocation = locationFixture.createPickupLocation(randomUUID(), "", "", null);
+
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("UNKNOWN_PICKUP_LOCATION_AGENCY",
+				"Pickup location \"%s\" is not associated with a known agency"
+					.formatted(pickupLocation.getId()))
+		));
+	}
+
+	@Test
+	void shouldFailWhenPickupLocationIsAssociatedWithAnUnknownAgency() {
+		// Arrange
+		final var localPatronId = definePatron("2917863");
+
+		// Act
+		final var pickupLocation = locationFixture.createPickupLocation(randomUUID(), "", "",
+			DataAgency.builder()
+				.id(randomUUID())
+				.build());
+
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(randomUUID())
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("UNKNOWN_PICKUP_LOCATION_AGENCY",
+				"Pickup location \"%s\" is not associated with a known agency"
+					.formatted(pickupLocation.getId()))
 		));
 	}
 

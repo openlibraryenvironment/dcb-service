@@ -6,7 +6,6 @@ import java.net.URI;
 import java.util.Map;
 
 import org.zalando.problem.AbstractThrowableProblem;
-import org.zalando.problem.StatusType;
 
 import lombok.EqualsAndHashCode;
 import lombok.Value;
@@ -16,7 +15,6 @@ import services.k_int.utils.ReactorUtils;
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class UnableToResolveAgencyProblem extends AbstractThrowableProblem {
-
 	String systemCode;
 	String homeLibraryCode;
 	String defaultAgencyCode;
@@ -31,15 +29,9 @@ public class UnableToResolveAgencyProblem extends AbstractThrowableProblem {
 	UnableToResolveAgencyProblem(String title, String detail,
 		String systemCode, String homeLibraryCode, String defaultAgencyCode) {
 
-		super(
-			URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/overview"),
-			title,
-			(StatusType)null,
-			detail,
-			null,
-			null,
-			determineParameters(systemCode, homeLibraryCode, defaultAgencyCode)
-		);
+		super(URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/overview"),
+			title, null, detail, null, null,
+			determineParameters(systemCode, homeLibraryCode, defaultAgencyCode));
 
 		this.systemCode = systemCode;
 		this.homeLibraryCode = homeLibraryCode;
@@ -55,5 +47,4 @@ public class UnableToResolveAgencyProblem extends AbstractThrowableProblem {
 			"defaultAgencyCode", getValue(defaultAgencyCode, "Unknown")
 		);
 	}
-
 }

@@ -10,22 +10,8 @@ import org.hamcrest.Matcher;
 
 public abstract class AbstractPreflightCheckTests {
 	protected static PlacePatronRequestCommand placeRequestCommand(
-		String pickupLocationCode, String requestorHostLmsCode) {
-
-		return PlacePatronRequestCommand.builder()
-			.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
-				.code(pickupLocationCode)
-				.build())
-			.requestor(PlacePatronRequestCommand.Requestor.builder()
-				.localSystemCode(requestorHostLmsCode)
-				.build())
-			.build();
-	}
-
-	protected static PlacePatronRequestCommand placeRequestCommand(
 		String pickupLocationCode, String requestorHostLmsCode,
-		String requestorLocalId, UUID citationBibClusterId)
-	{
+		String requestorLocalId, UUID citationBibClusterId) {
 
 		return PlacePatronRequestCommand.builder()
 			.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()

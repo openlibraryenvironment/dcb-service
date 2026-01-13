@@ -35,6 +35,7 @@ import static org.olf.dcb.test.matchers.ResolutionAuditMatchers.isNoSelectableIt
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -72,7 +73,6 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
-import org.olf.dcb.utils.PropertyAccessUtils;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
@@ -193,6 +193,8 @@ class ResolveNextSupplierTransitionTests {
 		final var patron = patronFixture.definePatron("265635", "home-library",
 			borrowingHostLms, borrowingAgency);
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
@@ -205,6 +207,7 @@ class ResolveNextSupplierTransitionTests {
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)
 			.localRequestStatus(HOLD_CONFIRMED)
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -246,6 +249,8 @@ class ResolveNextSupplierTransitionTests {
 		final var patron = patronFixture.definePatron("783174", "home-library",
 			borrowingHostLms, borrowingAgency);
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
@@ -253,6 +258,7 @@ class ResolveNextSupplierTransitionTests {
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)
 			.localRequestStatus(localRequestStatus)
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -287,6 +293,8 @@ class ResolveNextSupplierTransitionTests {
 		final var patron = patronFixture.definePatron("252556", "home-library",
 			borrowingHostLms, borrowingAgency);
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
@@ -294,6 +302,7 @@ class ResolveNextSupplierTransitionTests {
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(null)
 			.localRequestStatus(null)
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -372,12 +381,15 @@ class ResolveNextSupplierTransitionTests {
 		final var patron = patronFixture.definePatron("264535", "home-library",
 			null, null);
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
 			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -745,6 +757,8 @@ class ResolveNextSupplierTransitionTests {
 		final var patron = patronFixture.definePatron("365636", "home-library",
 			borrowingHostLms, borrowingAgency);
 
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
@@ -765,6 +779,7 @@ class ResolveNextSupplierTransitionTests {
 			.localItemId(null)
 			.localItemHostlmsCode(borrowingAgency.getCode())
 			.localItemAgencyCode(borrowingAgency.getCode())
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -863,7 +878,7 @@ class ResolveNextSupplierTransitionTests {
 
 		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
 
-		final var pickupLocationId = PropertyAccessUtils.getValueOrNull(
+		final var pickupLocationId = getValueOrNull(
 			pickupLocation, Location::getId, UUID::toString);
 
 		final var patron = patronFixture.definePatron("365636", "home-library",

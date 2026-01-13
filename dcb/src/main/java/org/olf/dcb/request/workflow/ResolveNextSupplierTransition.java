@@ -6,7 +6,6 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
-import static org.olf.dcb.request.resolution.ResolutionParameters.parametersFor;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -172,7 +171,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<Resolution> resolve(RequestWorkflowContext context, List<String> excludedAgencyCodes) {
-		return patronRequestResolutionService.resolve(parametersFor(getPatronRequestFromContext(context), excludedAgencyCodes))
+		return patronRequestResolutionService.resolutionParametersFor(getPatronRequestFromContext(context), excludedAgencyCodes)
+			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()));
 	}

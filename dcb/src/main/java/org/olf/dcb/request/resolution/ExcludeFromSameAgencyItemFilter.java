@@ -6,6 +6,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import java.util.function.Function;
 
 import org.olf.dcb.core.ConsortiumService;
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
@@ -27,7 +28,18 @@ public class ExcludeFromSameAgencyItemFilter implements ItemFilter {
 
 	private Mono<Boolean> excludeItemFromSameAgency(Item item, ItemFilterParameters parameters) {
 		final var borrowingAgencyCode = getValueOrNull(parameters,
-			ItemFilterParameters::getBorrowingAgencyCode);
+			ItemFilterParameters::borrowingAgencyCode);
+
+		if (borrowingAgencyCode == null) {
+			return Mono.error(new MissingParameterException("borrowingAgencyCode"));
+		}
+
+		final var pickupAgencyCode = getValueOrNull(parameters,
+			ItemFilterParameters::pickupAgencyCode);
+
+		if (pickupAgencyCode == null) {
+			return Mono.error(new MissingParameterException("pickupAgencyCode"));
+		}
 
 		return consortiumService.isEnabled(OWN_LIBRARY_BORROWING)
 			.map(enabled -> {

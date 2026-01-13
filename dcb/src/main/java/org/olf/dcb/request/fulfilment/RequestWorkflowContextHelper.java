@@ -6,6 +6,7 @@ import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.util.UUID;
 
@@ -21,6 +22,8 @@ import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.request.workflow.UnsupportedWorkflowProblem;
+import org.olf.dcb.request.workflow.exceptions.UnableToFindPickupLocationProblem;
+import org.olf.dcb.request.workflow.exceptions.UnknownPickupLocationAgencyProblem;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -280,24 +283,23 @@ public class RequestWorkflowContextHelper {
 		}
 
 		return locationService.findById(pickupSymbol)
+			.switchIfEmpty(raiseError(new UnableToFindPickupLocationProblem(pickupSymbol)))
 			.flatMap(pickupLocation -> {
 				// Set the local ID of the pickup location in the request context - in case we need it to specify
 				// pickup location when placing a hold etc.
 				ctx.setPickupLocation(pickupLocation);
-				ctx.setPickupLocationLocalId(pickupLocation.getLocalId());
+				ctx.setPickupLocationLocalId(getValueOrNull(pickupLocation, Location::getLocalId));
 
 				return getAgencyDirectlyFromLocation(pickupLocation);
 			})
-			// the Location row in the DB MUST be directly attached to an agency
+			.switchIfEmpty(Mono.error(new UnknownPickupLocationAgencyProblem(pickupSymbol)))
 			.flatMap(pickupAgency -> {
 				ctx.setPickupAgency(pickupAgency);
 				ctx.setPickupAgencyCode(getValueOrNull(pickupAgency, DataAgency::getCode));
 				ctx.setPickupSystemCode(getValueOrNull(pickupAgency, DataAgency::getHostLms, HostLms::getCode));
 
 				return this.setPickupSystemFrom(ctx);
-			})
-			.switchIfEmpty(Mono.error(new RuntimeException(
-				"No agency found for pickup location: %s".formatted(pickupSymbol))));
+			});
 	}
 
 	private Mono<RequestWorkflowContext> setPickupSystemFrom(RequestWorkflowContext ctx) {
@@ -311,9 +313,9 @@ public class RequestWorkflowContextHelper {
 
 	// If an agency has been directly attached to the location then return it by just walking the model
 	private Mono<DataAgency> getAgencyDirectlyFromLocation(Location l) {
-		return Mono.just(l.getAgency())
-			.flatMap ( agency -> Mono.just(agency.getId()) )
-			.flatMap ( agencyId -> Mono.from(agencyRepository.findById(agencyId)));
+		return Mono.justOrEmpty(l.getAgency())
+			.flatMap(agency -> Mono.just(agency.getId()))
+			.flatMap(agencyId -> Mono.from(agencyRepository.findById(agencyId)));
 	}
 
 	private Mono<RequestWorkflowContext> report(RequestWorkflowContext ctx) {

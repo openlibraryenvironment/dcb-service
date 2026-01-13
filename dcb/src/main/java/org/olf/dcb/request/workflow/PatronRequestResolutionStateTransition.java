@@ -5,7 +5,6 @@ import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
-import static org.olf.dcb.request.resolution.ResolutionParameters.parametersFor;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
@@ -78,7 +77,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	private Mono<Tuple2<Resolution, PatronRequest>> resolve(PatronRequest patronRequest) {
-		return patronRequestResolutionService.resolve(parametersFor(patronRequest, emptyList()))
+		return patronRequestResolutionService.resolutionParametersFor(patronRequest, emptyList())
+			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			.zipWith(Mono.just(patronRequest));

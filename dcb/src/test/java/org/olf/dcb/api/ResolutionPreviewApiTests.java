@@ -183,6 +183,7 @@ class ResolutionPreviewApiTests {
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
 				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.pickupAgencyCode(getValueOrNull(borrowingAgency, DataAgency::getCode))
 				.build());
 
 		// Assert

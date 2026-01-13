@@ -20,11 +20,11 @@ public class PlacePatronRequestCommand {
 	@Nullable Item item;
 	@Nullable Boolean isExpeditedRequest;
 
-	String getPickupLocationCode() {
+	 public String getPickupLocationCode() {
 		return getPickupLocation().getCode();
 	}
 
-	String getRequestorLocalSystemCode() {
+	 public String getRequestorLocalSystemCode() {
 		return getRequestor().getLocalSystemCode();
 	}
 
