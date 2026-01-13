@@ -365,15 +365,25 @@ public class PAPIClient {
 	public Mono<PatronSearchRow> patronSearch(String barcode) {
 
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
-		final var ccl = "PATNF=" + barcode;
-
-		log.debug("Using ccl: {} to search for virtual patron.", ccl);
 
 		AtomicInteger retryCount = new AtomicInteger(0);
 		final var findDelay = polarisConfig.getHoldFetchingDelay(5);
 		final var maxRetry = polarisConfig.getMaxHoldFetchingRetry(10);
 
-		return makePatronSearchRequest(path, ccl, findDelay)
+		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_POLARIS)
+			.map(enabled -> {
+				if (enabled) {
+					// If VIRTUAL_PATRON_NAMES_POLARIS is enabled, the first name will be a real name, not the barcode.
+					// Therefore we must search by barcode index (PATB) using the full prefixed barcode.
+					final var patronBarcodePrefix = polarisConfig.getPatronBarcodePrefix("DCB-");
+					return "PATB=\"" + patronBarcodePrefix + barcode + "\"";
+				} else {
+					// If disabled, the first name is the barcode (without prefix), so we search PATNF.
+					return "PATNF=" + barcode;
+				}
+			})
+			.doOnNext(ccl -> log.debug("Using ccl: {} to search for virtual patron.", ccl))
+			.flatMap(ccl -> makePatronSearchRequest(path, ccl, findDelay))
 			.retryWhen(Retry.max(maxRetry + 1)
 				.filter(throwable -> throwable instanceof FindVirtualPatronException && retryCount.get() < maxRetry)
 				.doBeforeRetry(retrySignal -> log.debug("Fetch virtual patron retry: {}", retryCount.incrementAndGet())));
