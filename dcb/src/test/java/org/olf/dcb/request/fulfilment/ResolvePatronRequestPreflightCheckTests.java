@@ -5,6 +5,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Citation;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.PickupLocation;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
@@ -27,6 +29,7 @@ import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.LocationFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
@@ -49,7 +52,6 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
 	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
 
-	private final String PICKUP_LOCATION_CODE = "pickup-location";
 	private final String ITEM_LOCATION_CODE = "item-location";
 
 	@Inject
@@ -68,11 +70,14 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private LocationFixture locationFixture;
 
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
 	private DataHostLms cataloguingHostLms;
+	private Location pickupLocation;
 
 	@BeforeAll
 	@SneakyThrows
@@ -98,27 +103,27 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
 
-		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, HOST_LMS_KEY,
-			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
+			HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
 	}
 
 	@BeforeEach
 	void beforeEach() {
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
+		locationFixture.deleteAll();
 		agencyFixture.deleteAll();
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, PICKUP_LOCATION_CODE, BORROWING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CATALOGUING_HOST_LMS_CODE, ITEM_LOCATION_CODE, SUPPLYING_AGENCY_CODE);
 
-		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, BORROWING_AGENCY_CODE,
-			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
+		final var borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
+			BORROWING_AGENCY_CODE, hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
 
 		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, SUPPLYING_AGENCY_CODE,
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
+
+		pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
 	}
 
 	@Test
@@ -156,7 +161,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecord.getId())
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -196,7 +201,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -250,7 +255,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -307,7 +312,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.localSystemCode(CIRCULATING_HOST_LMS_CODE)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -340,7 +345,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -382,7 +387,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -435,7 +440,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -476,7 +481,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.names(List.of("Bob"))
 				.build());
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
+			homeLibraryCode, BORROWING_AGENCY_CODE);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -488,7 +494,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -527,7 +533,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.names(List.of("Bob"))
 				.build());
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
+			homeLibraryCode, BORROWING_AGENCY_CODE);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -539,10 +546,9 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
-
 
 		final var results = check(command);
 
@@ -566,10 +572,10 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.localId("6545362")
 				.build())
 			.citation(Citation.builder()
-				.bibClusterId(UUID.randomUUID())
+				.bibClusterId(randomUUID())
 				.build())
 			.pickupLocation(PickupLocation.builder()
-				.code(PICKUP_LOCATION_CODE)
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
 				.build())
 			.build();
 
@@ -615,7 +621,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
 
-		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
 
 		return localPatronId;
 	}
