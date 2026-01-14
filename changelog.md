@@ -1,5 +1,22 @@
 # Changelog
 
+## Version 8.62.0
+
+### Additions
+* [General]
+	* Renewal prevention for Alma [DCB-1533]
+
+### Fixes
+* [General]
+	* Don't try and delete a missing pickup hold [DCB-2113]
+	* Place request at borrower when re-resolving from local to standard [DCB-2111]
+
+## Version 8.61.0
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+
 ## Version 8.60.0
 
 ### Additions
