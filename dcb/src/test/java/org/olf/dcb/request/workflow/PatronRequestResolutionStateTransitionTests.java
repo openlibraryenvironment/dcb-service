@@ -132,7 +132,6 @@ class PatronRequestResolutionStateTransitionTests {
 	private DataHostLms cataloguingHostLms;
 	private DataHostLms borrowingHostLms;
 	private DataAgency borrowingAgency;
-	private DataHostLms circulatingHostLms;
 
 	@BeforeAll
 	@SneakyThrows
@@ -159,7 +158,7 @@ class PatronRequestResolutionStateTransitionTests {
 		cataloguingHostLms = hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE,
 			HOST_LMS_KEY, HOST_LMS_SECRET, cataloguingHostLmsUrl, "item");
 
-		circulatingHostLms = hostLmsFixture.createSierraHostLms(
+		hostLmsFixture.createSierraHostLms(
 			CIRCULATING_HOST_LMS_CODE, HOST_LMS_KEY,
 			HOST_LMS_SECRET, "http://some-circulating-system", "item");
 

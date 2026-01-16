@@ -1092,6 +1092,55 @@ class PatronRequestResolutionServiceTests {
 		));
 	}
 
+	@Test
+	void shouldNotSelectItemFromBorrowingLibraryWhenPickupIsElsewhere() {
+		// Arrange
+
+		// Allow own library borrowing (otherwise will falsely exclude items anyway)
+		allowOwnLibraryBorrowing();
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = createClusterRecord(bibRecordId);
+
+		final var sourceRecordId = "264895";
+
+		bibRecordFixture.createBibRecord(bibRecordId,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE).getId(),
+			sourceRecordId, clusterRecord);
+
+		final var availableItemId = "362557";
+		final var availableItemBarcode = "862456475";
+
+		final var atBorrowingLibraryLocation = "borrowing-library-item-location";
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			BORROWING_HOST_LMS_CODE, atBorrowingLibraryLocation, BORROWING_AGENCY_CODE);
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(availableItemId, availableItemBarcode, atBorrowingLibraryLocation)
+		));
+
+		// Act
+		final var parameters = ResolutionParameters.builder()
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
+			.pickupLocationCode("")
+			.pickupAgencyCode("pickup-agency")
+			.excludedSupplyingAgencyCodes(emptyList())
+			.build();
+
+		final var resolution = resolve(parameters);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasNoChosenItem()
+		));
+
+	}
+
 	private Resolution resolve(ResolutionParameters parameters) {
 		return singleValueFrom(patronRequestResolutionService.resolve(parameters));
 	}
@@ -1177,6 +1226,10 @@ class PatronRequestResolutionServiceTests {
 
 	private void disallowUnavailableItems() {
 		defineSetting(SELECT_UNAVAILABLE_ITEMS, false);
+	}
+
+	private void allowOwnLibraryBorrowing() {
+		defineSetting(OWN_LIBRARY_BORROWING, true);
 	}
 
 	private void defineSetting(FunctionalSettingType settingType, boolean enabled) {

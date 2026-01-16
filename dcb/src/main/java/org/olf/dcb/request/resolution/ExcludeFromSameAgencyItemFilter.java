@@ -44,12 +44,25 @@ public class ExcludeFromSameAgencyItemFilter implements ItemFilter {
 		return consortiumService.isEnabled(OWN_LIBRARY_BORROWING)
 			.map(enabled -> {
 				if (enabled) {
+					// Pickup anywhere and expedited workflows
+					if (isPickupElsewhere(pickupAgencyCode, borrowingAgencyCode)) {
+						return itemIsFromElsewhere(item, borrowingAgencyCode);
+					}
+
 					return true;
 				}
 
-				final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
-
-				return itemAgencyCode != null && !itemAgencyCode.equals(borrowingAgencyCode);
+				return itemIsFromElsewhere(item, borrowingAgencyCode);
 			});
+	}
+
+	private static boolean isPickupElsewhere(String pickupAgencyCode, String borrowingAgencyCode) {
+		return !pickupAgencyCode.equals(borrowingAgencyCode);
+	}
+
+	private static boolean itemIsFromElsewhere(Item item, String borrowingAgencyCode) {
+		final var itemAgencyCode = getValueOrNull(item, Item::getAgencyCode);
+
+		return itemAgencyCode != null && isPickupElsewhere(itemAgencyCode, borrowingAgencyCode);
 	}
 }
