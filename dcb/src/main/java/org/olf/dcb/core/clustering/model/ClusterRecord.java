@@ -69,4 +69,7 @@ public class ClusterRecord {
 
 	@Nullable
 	private Boolean isDeleted;
+	
+	@Nullable
+	private Instant lastIndexed;
 }

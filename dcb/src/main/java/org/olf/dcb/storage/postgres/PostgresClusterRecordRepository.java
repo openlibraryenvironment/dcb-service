@@ -10,6 +10,7 @@ import org.olf.dcb.storage.ClusterRecordRepository;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.Join.Type;
@@ -163,5 +164,17 @@ public interface PostgresClusterRecordRepository extends
 	@NonNull
 	@SingleResult
 	Publisher<ClusterRecord> findById(@NotNull UUID id);
+
+	@Vetoed
+	@NonNull
+	@Override
+	@SingleResult
+	default Publisher<Long> updateLastIndexed(Collection<UUID> ids, Instant lastIndexed) {
+		return this.updateAllByIdInAndLastIndexedIsNullOrLastIndexedLessThan(ids, lastIndexed, lastIndexed);
+	}
+	
+	@NonNull
+	@SingleResult
+	Publisher<Long> updateAllByIdInAndLastIndexedIsNullOrLastIndexedLessThan(Collection<UUID> ids, Instant currentLastIndexed, Instant lastIndexed);
 }
 

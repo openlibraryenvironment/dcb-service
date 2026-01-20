@@ -265,7 +265,11 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			.flatMap(op -> processSingleOperation(op, processedTime)
 				.doOnSubscribe(_s -> {
 					int current = inFlight.incrementAndGet();
-					if (current > MAX_CONCURRENCY) {
+					// SO: Changing the below to +1. Reasoning is that the timing of onSubscribe and finally
+					// are such that this will pretty much always fail if we have MAX_CONCURRENCY items or more. The finally
+					// is fired AFTER downstream propagation so it isn't technically in flight in this operator
+					// but also hasn't decremented the count. Ideally this should be removed as it's really just noise.
+					if (current > (MAX_CONCURRENCY + 1)) {
 						log.warn("processChunk inFlight {} exceeds maxConcurrency {}", current, MAX_CONCURRENCY);
 					} else if (log.isDebugEnabled()) {
 						log.debug("processChunk inFlight {}", current);

@@ -24,12 +24,12 @@ import java.time.format.DateTimeParseException;
 // For a range: "latitude: [38 TO 50]"
 // For open upper bound:  "dateCreated:[2025-11-03T11:02:13.719454Z TO *]"
 // For open lower bound: "dateCreated:[* TO 2025-11-03T11:02:13.719454Z]"
-public class LuceneRangeQueryNodeBuilder<T> implements JpaQuerySpecificationBuilder<T, RangeQueryNode> {
+public class LuceneRangeQueryNodeBuilder<T> implements JpaQuerySpecificationBuilder<T, RangeQueryNode<?>> {
 
 	private static final Logger log = LoggerFactory.getLogger(LuceneRangeQueryNodeBuilder.class);
 
 	@Override
-	public QuerySpecification<T> build(RangeQueryNode rangeNode) throws Exception {
+	public QuerySpecification<T> build(RangeQueryNode<?> rangeNode) throws Exception {
 		String fieldName = rangeNode.getField().toString();
 
 		// Get the actual text values
