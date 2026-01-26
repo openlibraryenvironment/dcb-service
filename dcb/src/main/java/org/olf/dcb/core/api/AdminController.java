@@ -184,7 +184,7 @@ public class AdminController {
 		return Mono.just(result);
 	}
 
-	@Secured(SecurityRule.IS_ANONYMOUS)
+//	@Secured(SecurityRule.IS_ANONYMOUS)
 	@Post(uri = "/reindex{/operation}", produces = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<Object>> reindex(Optional<ReindexOp> operation) {
 		
