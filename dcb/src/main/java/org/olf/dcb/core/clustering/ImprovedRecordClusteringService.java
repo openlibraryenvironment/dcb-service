@@ -176,20 +176,8 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 	@Override
 	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<Page<UUID>> findNextPageUpdatedBefore(@NonNull Instant before, Pageable page) {
+	public Mono<Page<UUID>> findNext1000UpdatedBefore(@NonNull Instant before, Pageable page) {
 		return Mono.from(clusterRecords.findIdByDateUpdatedLessThanEqualsOrderByDateUpdated(before, page));
-	}
-
-	@Override
-	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<Page<UUID>> findNextPageIndexedBefore(@NonNull Instant before, Pageable page) {
-		return Mono.from(clusterRecords.findIdByLastIndexedIsNullOrLastIndexedLessThanOrderByDateUpdated(before, page));
-	}
-	
-	@Override
-	@Transactional(propagation = Propagation.MANDATORY)
-	public Mono<Long> updateLastIndexed(@NonNull Collection<UUID> ids, @NonNull Instant before) {
-		return Mono.from(clusterRecords.updateLastIndexed(ids, before));
 	}
 
 	@Override

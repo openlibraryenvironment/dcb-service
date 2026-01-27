@@ -41,7 +41,6 @@ import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -184,7 +183,6 @@ public class AdminController {
 		return Mono.just(result);
 	}
 
-//	@Secured(SecurityRule.IS_ANONYMOUS)
 	@Post(uri = "/reindex{/operation}", produces = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<Object>> reindex(Optional<ReindexOp> operation) {
 		

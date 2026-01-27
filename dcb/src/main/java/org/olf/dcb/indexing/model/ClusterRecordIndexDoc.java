@@ -110,10 +110,6 @@ public class ClusterRecordIndexDoc {
 		return getIdentifier("ISSN");
 	}
 	
-	public String getLastIndexed() {
-		return Objects.toString( cluster.getLastIndexed(), null );
-	}
-	
 	// Lets just add all the bibs
   public List<NestedBibIndexDoc> getMembers() {
   	return Stream.ofNullable(cluster.getBibs())

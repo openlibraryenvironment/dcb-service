@@ -1,8 +1,10 @@
 {
+  "aliases": {},
+  "mappings": {
     "dynamic_templates": [
       {
         "Nothing in selectedBib needs to be indexed": {
-          "path_match": "selectedBib",
+          "path_match": "selectedBib.*",
           "mapping": {
 			"enabled": false
           }
@@ -86,7 +88,7 @@
             }
           },
           "sourceSystemCode": {
-            "type": "keyword",
+            "type": "text",
             "fields": {
               "keyword": {
                 "type": "keyword",
@@ -121,8 +123,7 @@
             }
           },
           "bibNotes": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
+            "type": "text"
           },
           "content-type": {
             "properties": {
@@ -138,8 +139,7 @@
             }
           },
           "contents": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
+            "type": "text"
           },
           "dateOfPublication": {
             "type": "text",
@@ -202,8 +202,7 @@
             }
           },
           "notes": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
+            "type": "text"
           },
           "physical-description": {
             "properties": {
@@ -241,7 +240,6 @@
           },
           "series": {
             "type": "text",
-            "analyzer": "icu_folding_nopunc",
             "fields": {
               "keyword": {
                 "type": "keyword",
@@ -267,12 +265,10 @@
             }
           },
           "summary": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
+            "type": "text"
           },
           "title": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
+            "type": "text"
           }
         }
       },
@@ -306,7 +302,6 @@
       },
       "title": {
         "type": "text",
-        "analyzer": "icu_folding_nopunc",
         "fields": {
           "keyword": {
             "type": "keyword",
@@ -319,4 +314,93 @@
         "type": "long"
       }
     }
- }
+  },
+  "settings": {
+    "index": {
+      "refresh_interval": "30s",
+      "number_of_shards": "1",
+      "analysis": {
+        "filter": {
+          "dcb_stopwords_filter": {
+            "ignore_case": "true",
+            "type": "stop",
+            "stopwords": [
+              "_english_"
+            ]
+          }
+        },
+        "char_filter": {
+          "fold_multiple_whitespace": {
+            "flags": "",
+            "pattern": "\\s{2,}",
+            "type": "pattern_replace",
+            "replacement": " "
+          },
+          "spaces_for_punctuation": {
+            "flags": "",
+            "pattern": "[^\\w|\\s|\\-]",
+            "type": "pattern_replace",
+            "replacement": " "
+          }
+        },
+        "normalizer": {
+          "preserve_punctuation_normalizer": {
+            "filter": [
+              "asciifolding",
+              "trim"
+            ],
+            "type": "custom",
+            "char_filter": [
+              "fold_multiple_whitespace"
+            ]
+          },
+          "default_normalizer_lowercase": {
+            "filter": [
+              "asciifolding",
+              "trim",
+              "lowercase"
+            ],
+            "type": "custom",
+            "char_filter": [
+              "spaces_for_punctuation",
+              "fold_multiple_whitespace"
+            ]
+          },
+          "preserve_punctuation_normalizer_lowercase": {
+            "filter": [
+              "asciifolding",
+              "trim",
+              "lowercase"
+            ],
+            "type": "custom",
+            "char_filter": [
+              "fold_multiple_whitespace"
+            ]
+          },
+          "default_normalizer": {
+            "filter": [
+              "asciifolding",
+              "trim"
+            ],
+            "type": "custom",
+            "char_filter": [
+              "spaces_for_punctuation",
+              "fold_multiple_whitespace"
+            ]
+          }
+        },
+        "analyzer": {
+          "default": {
+            "filter": [
+              "lowercase",
+              "dcb_stopwords_filter"
+            ],
+            "tokenizer": "standard",
+            "type": "custom"
+          }
+        }
+      },
+      "number_of_replicas": "1"
+    }
+  }
+}

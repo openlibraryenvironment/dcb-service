@@ -26,9 +26,7 @@ public interface RecordClusteringService {
 
 	Mono<Void> softDeleteByIdInList(Collection<UUID> ids);
 
-	Mono<Page<UUID>> findNextPageUpdatedBefore(Instant before, Pageable page);
-	
-	Mono<Page<UUID>> findNextPageIndexedBefore(Instant before, Pageable page);
+	Mono<Page<UUID>> findNext1000UpdatedBefore(Instant before, Pageable page);
 
 	Flux<ClusterRecord> findAllByIdInListWithBibs(Collection<UUID> ids);
 
@@ -49,7 +47,5 @@ public interface RecordClusteringService {
 
 	@NonNull
 	Mono<Void> reprocessBibsWithNoCluster();
-
-	Mono<Long> updateLastIndexed(@NonNull Collection<UUID> ids, @NonNull Instant before);
 
 }

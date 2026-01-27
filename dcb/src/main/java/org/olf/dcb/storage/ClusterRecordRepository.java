@@ -62,26 +62,17 @@ public interface ClusterRecordRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Page<ClusterRecord>> findByDateUpdatedGreaterThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
-
+	
 	@SingleResult
 	@NonNull
 	Publisher<Page<UUID>> findIdByDateUpdatedLessThanEqualsOrderByDateUpdated(Instant i, @Valid Pageable pageable);
 	
-	@SingleResult
-	@NonNull
-	Publisher<Page<UUID>> findIdByLastIndexedIsNullOrLastIndexedLessThanOrderByDateUpdated(Instant i, @Valid Pageable pageable);
-
-	@Vetoed
-	@NonNull
-	@SingleResult
-	Publisher<Long> updateLastIndexed(Collection<UUID> ids, Instant lastIndexed);
-	
 	@NonNull
 	@Vetoed
 	Publisher<ClusterRecord> findAllByMatchPoints ( Collection<UUID> points );
-
-	@Vetoed
+	
 	@NonNull
+	@Vetoed
 	Publisher<ClusterRecord> findAllByDerivedTypeAndMatchPoints ( String derivedType, Collection<UUID> points );
 	
 	@Vetoed

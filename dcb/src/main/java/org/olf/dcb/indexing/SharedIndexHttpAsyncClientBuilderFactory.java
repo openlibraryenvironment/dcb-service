@@ -28,9 +28,9 @@ public class SharedIndexHttpAsyncClientBuilderFactory {
 	private static final Logger log = LoggerFactory.getLogger(SharedIndexHttpAsyncClientBuilderFactory.class);
 
 	@Bean
-	@Singleton
-	@Order( value = Ordered.HIGHEST_PRECEDENCE )
 	@Requires(bean = SharedIndexConfiguration.class)
+	@Order( value = Ordered.HIGHEST_PRECEDENCE )
+	@Singleton
 	HttpAsyncClientBuilder builder(SharedIndexConfiguration config, Environment env) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
 
 		var builder = HttpAsyncClientBuilder.create();

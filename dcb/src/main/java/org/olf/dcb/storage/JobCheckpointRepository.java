@@ -11,15 +11,12 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.json.tree.JsonNode;
 
 public interface JobCheckpointRepository {
-
-	@Vetoed
+	
 	@SingleResult
+	@Vetoed
 	Publisher<JsonNode> findCheckpointByJobId( @NonNull UUID jobId );
 
+	@SingleResult
 	@Vetoed
-	@SingleResult
 	Publisher<JsonNode> saveCheckpointForJobId( @NonNull UUID jobId, @Nullable JsonNode data);
-
-	@SingleResult
-	Publisher<Long> deleteById(@NonNull UUID jobId);
 }

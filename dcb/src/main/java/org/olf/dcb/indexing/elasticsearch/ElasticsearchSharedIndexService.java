@@ -1,7 +1,6 @@
 package org.olf.dcb.indexing.elasticsearch;
 
 import java.io.InputStream;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -10,12 +9,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.olf.dcb.core.clustering.RecordClusteringService;
-import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
+import org.olf.dcb.indexing.storage.SharedIndexQueueRepository;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch._types.AcknowledgedResponse;
 import co.elastic.clients.elasticsearch._types.Time;
-import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
@@ -32,17 +31,12 @@ import co.elastic.clients.elasticsearch.indices.DeleteIndexResponse;
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.elasticsearch.indices.IndexState;
-import co.elastic.clients.elasticsearch.indices.PutMappingRequest;
-import co.elastic.clients.elasticsearch.indices.PutMappingResponse;
-import co.elastic.clients.json.JsonData;
-import co.elastic.clients.json.JsonpMapper;
 import co.elastic.clients.transport.endpoints.BooleanResponse;
 import co.elastic.clients.util.ObjectBuilder;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.convert.ConversionService;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
-import jakarta.json.stream.JsonParser;
 import lombok.Setter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -55,6 +49,9 @@ import services.k_int.micronaut.PublisherTransformationService;
 @Singleton
 public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 
+	private static final String RESOURCE_SHARED_INDEX_FULL_SETTINGS_PREFIX = "sharedIndex/fullSettings-";
+	private static final String RESOURCE_SHARED_INDEX_POSTFIX = ".json";
+
 	private final Logger log = LoggerFactory.getLogger(ElasticsearchSharedIndexService.class);
 	
 	private final ElasticsearchAsyncClient client;
@@ -63,8 +60,8 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private final String indexName; 
 	private final int indexVersion; 
 	
-	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
-		super(recordClusteringService, pubs, conf);
+	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, SharedIndexQueueRepository sharedIndexQueueRepository, PublisherTransformationService pubs) {
+		super(recordClusteringService, sharedIndexQueueRepository, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();
@@ -90,65 +87,18 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			.then();
 	}
 	
-	private Mono<Void> createNewIndex() {
-		return createIndex()
-			.doOnNext(resp -> {
-				log.atInfo().log("Initialized index: {}", resp.index());
-			})
-			.onErrorMap( handleErrors("Error initializing shared index") )
-			.then();
-	}
-	
-	private Mono<Void> updateMappings() {
-		return createUpdateIndexMappings()
-			.doOnNext(resp -> {
-				log.atInfo().log("Initialized index: {}", realIndexName());
-			})
-			.onErrorMap( handleErrors("Error updating mappings for shared index") )
-			.then();
-	}
-	
-	private Mono<PutMappingResponse> createUpdateIndexMappings() {
-		try {
-			// Get hold of the mapper from the transport client
-			JsonpMapper mapper = client._transport().jsonpMapper();
-			// Now create the index
-			return Mono.fromFuture(
-				client.indices()
-					.putMapping(getTypeMappingsUpdate(mapper)));
-			
-		} catch (Throwable e) {
-			return Mono.error(new DcbError("Error when creating index", e));
-		}
-	}
-	
-	
-	private PutMappingRequest getTypeMappingsUpdate(JsonpMapper mapper) {
-  	
-  	// We can't modify the properties after they're built so we have no option but to manually copy them here :(
-  	final TypeMapping m = getTypeMappings(mapper);
-  	
-  	return PutMappingRequest.of( b -> b
-  		.index(realIndexName())
-  		.dateDetection(m.dateDetection())
-  		.dynamic(m.dynamic())
-  		.dynamicDateFormats(m.dynamicDateFormats())
-  		.dynamicTemplates(m.dynamicTemplates())
-  		.fieldNames(m.fieldNames())
-  		.numericDetection(m.numericDetection())
-  		.properties(m.properties())
-  		.routing(m.routing())
-  		.source(m.source()));
-	}
-	
 	@Override
 	public Mono<Void> initialize() {
 		
 		// Check for index.
 		// If not present then create.
-		return checkIndex()	
+		return checkIndex()
 			.map(BooleanResponse::value)
-			.flatMap( exists -> (exists ? updateMappings() : createNewIndex()) );
+			.filter(Boolean.FALSE::equals)
+			.flatMap( b_ -> createIndex() )
+			.doOnNext(resp -> log.atInfo().log("Initialized index: {}", resp.index()))
+			.onErrorMap( handleErrors("Error initializing shared index") )
+			.then();
 	}
 	
 	private Function<Throwable, Throwable> handleErrors ( final String message ) {
@@ -171,42 +121,23 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		}
 	}
 	
-	private TypeMapping getTypeMappings(JsonpMapper mapper) {
-		
-  	// Read the mappings and generate a TyypeMapping from them
-  	InputStream mappingsInputStream = getClass().getClassLoader().getResourceAsStream(RESOURCE_SHARED_INDEX_MAPPING_PREFIX + String.valueOf(indexVersion) + RESOURCE_SHARED_INDEX_POSTFIX);
-  	JsonParser mappingsParser = mapper.jsonProvider().createParser(mappingsInputStream);
-  	TypeMapping typeMapping = TypeMapping._DESERIALIZER.deserialize(mappingsParser, mapper);
-  	
-  	return typeMapping;
-	}
-	
-	private IndexSettings getIndexSettings(JsonpMapper mapper) {
-  	
-  	// Read the settings and generate an IndexSettings from them
-  	InputStream settingsInputStream = getClass().getClassLoader().getResourceAsStream(RESOURCE_SHARED_INDEX_SETTING_PREFIX + String.valueOf(indexVersion) + RESOURCE_SHARED_INDEX_POSTFIX);
-  	JsonParser settingsParser = mapper.jsonProvider().createParser(settingsInputStream);
-  	IndexSettings indexSettings = IndexSettings._DESERIALIZER.deserialize(settingsParser, mapper);
-  	
-  	return indexSettings;
-	}
-	
 	private Mono<CreateIndexResponse> createIndex() {
 		try {
 			// Get hold of the stream for the settings
-			JsonpMapper mapper = client._transport().jsonpMapper();
-			// Now create the index
+	    	InputStream fullSettingsInputStream = getClass().getClassLoader().getResourceAsStream(RESOURCE_SHARED_INDEX_FULL_SETTINGS_PREFIX + String.valueOf(indexVersion) + RESOURCE_SHARED_INDEX_POSTFIX);
+
+	    	// Now create the index
 			return Mono.fromFuture(
-					client.indices()
-						.create(ind -> ind
-							.index(realIndexName())
-							.aliases(indexName, aliasBuilder -> aliasBuilder.isWriteIndex(true))
-
-							.settings(getIndexSettings(mapper))
-							.mappings(getTypeMappings(mapper))));
-
+				client.indices()
+					.create(ind -> ind
+						.index( realIndexName() )
+						.aliases(indexName, aliasBuilder -> aliasBuilder.isWriteIndex(true))
+						.withJson(fullSettingsInputStream)
+					)
+			);
+			
 		} catch (Throwable e) {
-			return Mono.error(new DcbError("Error when creating index", e));
+			return Mono.error( new DcbError("Error when creating index", e) );
 		}
 	}
 	
@@ -380,38 +311,5 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	@Override
 	protected void rateThresholdOpenHook() {
 		disableRefresh().subscribe( res -> log.debug("Disabled refresh in Elasticsearch") );
-	}
-
-	@Override
-	public Mono<Void> deleteDocsIndexedBefore(Instant before) {
-		try {
-			return Mono.fromFuture(
-				client.deleteByQuery(deleteBy -> deleteBy
-					.index(realIndexName())
-					.query(q -> q
-						.bool(topLevel -> topLevel
-							.should(should -> should
-								.range( range -> range
-									.field( DOCUMENT_SHARED_INDEX_DATEFIELD )
-									.lt( JsonData.of( before.toString() ))
-								)
-							)
-							.should(should -> should
-								.bool( bool -> bool
-									.mustNot(mn -> mn
-										.exists(exists -> exists
-											.field(DOCUMENT_SHARED_INDEX_DATEFIELD)))
-								)
-							)
-						)
-					)
-				)
-			)
-				.doOnSuccess(data -> log.info("Deleted [{}] documents that were indexed before [{}]", data.deleted(), before))
-				.then();
-		} catch (Throwable e) {
-			return Mono.error( new DcbError("Error deleteing superfluous documents", e) );
-		}
-	
 	}
 }
