@@ -2153,13 +2153,38 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			+ ", \nSupplier Hostlms Code: " + supplierHostLmsCode;
 	}
 
-  @Override
-  public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
+	@Override
+	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
 		// https://stlouis-training.polarislibrary.com/Polaris.ApplicationServices/help/itemrecords/post_blocking_note
-    log.info("Polaris prevent renewal {}",prc);
-    return ApplicationServices.placeItemBlock(prc.getItemId(), Integer.valueOf(255),"A hold has been placed on this item by a patron at the owning library. Please do not renew")
-			.then();
-  }
+		log.info("Polaris prevent renewal {}", prc);
+
+		final Integer illLocationId = polarisConfig.getIllLocationId();
+		final String blockingNoteText = "A hold has been placed on this item by a patron at the owning library. Please do not renew";
+		final Integer createNewNoteId = 1; // Polaris only seems to accept 1 for this value, which is a bit weird. It doesn't like 255
+
+		// First, try and use the ILL location ID, if it is present.
+		// This is the same location ID that we use to create virtual items (see addItemRecord)
+		// Thus it is an important part of the Polaris config, and we can use it to avoid having to fetch the item.
+		return ApplicationServices.placeItemBlock(prc.getItemId(), createNewNoteId, blockingNoteText, illLocationId)
+			.doOnSuccess(v -> log.debug("Successfully placed blocking note using default ILL Location ID {}", illLocationId))
+			// If this doesn't work, we instead grab the actual item and thus its branch
+			.onErrorResume(error -> {
+				log.info("Failed to place block using ILL Location ID {}. Fetching item record to determine correct branch. Error: {}",
+					illLocationId, error.getMessage());
+				return ApplicationServices.itemrecords(prc.getItemId(), TRUE)
+					.flatMap(item -> {
+						Integer assignedBranchID = item.getAssignedBranchID();
+						log.debug("Retrying renewal prevention with actual AssignedBranchID {}", assignedBranchID);
+						// Retry with the confirmed branch ID
+						return ApplicationServices.placeItemBlock(
+							prc.getItemId(),
+							createNewNoteId,
+							blockingNoteText,
+							assignedBranchID
+						);
+					});
+			});
+	}
 
   public Mono<PingResponse> ping() {
     Instant start = Instant.now();
