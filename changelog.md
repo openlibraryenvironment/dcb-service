@@ -1,10 +1,30 @@
 # Changelog
 
+## Version 8.63.0
+
+### Additions
+* [General]
+	* Index job
+	* Disallow borrowing library item selection when picking up elsewhere DCB-2091
+
+### Changes
+* [Revert]
+	* Revert index changes.
+
+### References
+* [Reverts]
+	* Issue #a444d84b591f10bd6a6eafe403164041d2a0e993
+	* Issue #eb254db4315b9466f221949ebbc9c67fd0d22b70
+
 ## Version 8.62.0
 
 ### Additions
 * [General]
 	* Renewal prevention for Alma [DCB-1533]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
