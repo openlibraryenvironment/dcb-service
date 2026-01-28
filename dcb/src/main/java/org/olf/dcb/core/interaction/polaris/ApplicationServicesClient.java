@@ -899,6 +899,18 @@ class ApplicationServicesClient {
 		return URI_PARAMETERS + "/" + Arrays.stream(pathSegments).map(Object::toString).collect(Collectors.joining("/"));
 	}
 
+	private String createPathWithOrgOverride(Integer overrideOrgId, Object... pathSegments) {
+		// There are certain operations (such as posting a blocking note for renewal prevention) where we need to replace the org ID
+		// To ensure it matches that of the item itself
+		String params = URI_PARAMETERS;
+
+		if (overrideOrgId != null) {
+			params = params.replaceFirst("/polaris/\\d+/", "/polaris/" + overrideOrgId + "/");
+		}
+
+		return params + "/" + Arrays.stream(pathSegments).map(Object::toString).collect(Collectors.joining("/"));
+	}
+
 	private static MutableHttpRequest<WorkflowRequest> addBodyToRequest(
 		MutableHttpRequest<?> request, WorkflowRequest body) {
 
@@ -1119,9 +1131,8 @@ class ApplicationServicesClient {
 				}
 			});
 	}
-	public Mono<Void> placeItemBlock(String itemId, Integer noteId, String text) {
-
-		final var path = createPath("itemrecords", itemId, "blockingnote");
+	public Mono<Void> placeItemBlock(String itemId, Integer noteId, String text, Integer overrideOrgId) {
+		final var path = createPathWithOrgOverride(overrideOrgId, "itemrecords", itemId, "blockingnote");
 
 		final DtoItemRecordBlockingNote blockingNote = DtoItemRecordBlockingNote.builder()
 			.noteId(noteId)
@@ -1130,11 +1141,16 @@ class ApplicationServicesClient {
 
 		return createRequest(POST, path, uri -> {})
 			.map(request -> request.body(blockingNote))
-			.flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
-			.doOnSuccess(bool -> {
-				log.info("Placed item block {}", bool);
-			})
-			.then();
+			.flatMap(request -> client.retrieve(request, Argument.of(BlockingNoteResponse.class)))
+			.flatMap(response -> {
+				if (response.isSuccess()) {
+					log.debug("Successfully placed blocking note on item {}. Response: {}", itemId, response);
+					return Mono.empty();
+				} else {
+					log.error("Polaris returned failure for blocking note: {}", response.getMessage());
+					return Mono.error(new PolarisWorkflowException("Failed to place blocking note on item with ID "+itemId+", error message " + response.getMessage()+" and full response: "+response));
+				}
+			});
 	}
 
 
@@ -2448,6 +2464,21 @@ class ApplicationServicesClient {
 		private Integer noteId;
 		@JsonProperty("Text")
 		private String text;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class BlockingNoteResponse {
+		@JsonProperty("ItemRecordID")
+		private Integer itemRecordID;
+		@JsonProperty("Success")
+		private boolean success;
+		@JsonProperty("Message")
+		private String message;
+		@JsonProperty("Title")
+		private String title;
 	}
 
 	@Builder
