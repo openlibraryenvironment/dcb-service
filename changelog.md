@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 8.63.1
+
+### Fixes
+* [General]
+	* Possible fix for queue limit exhaustion with certain data
+
 ## Version 8.63.0
 
 ### Additions
@@ -8,6 +14,8 @@
 	* Disallow borrowing library item selection when picking up elsewhere DCB-2091
 
 ### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 * [Revert]
 	* Revert index changes.
 
