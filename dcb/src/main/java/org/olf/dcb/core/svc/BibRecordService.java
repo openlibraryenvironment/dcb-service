@@ -345,8 +345,8 @@ public class BibRecordService {
 					// Flag the need to reprocess the multiple sources. That should cause their bibs to obtain the direct link to the
 					// SourceReocrd instead.
 					return Flux.fromIterable( matches )
-						.flatMap( ambiguousSource -> sourceRecords.get().requireProcessing(ambiguousSource.getId())
-								.thenReturn( ambiguousSource ));
+						.concatMap( ambiguousSource -> sourceRecords.get().requireProcessing(ambiguousSource.getId())
+							.thenReturn( ambiguousSource ));
 				}
 		
 				return Flux.fromIterable(matches);
