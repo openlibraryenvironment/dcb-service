@@ -1224,7 +1224,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					final var fixedFields = Map.of(
 						61, FixedField.builder().label("DCB-" + itemType).value(itemType).build(),
 						88, FixedField.builder().label("REQUEST").value("&").build());
-
+					if (itemId == null) {
+						return Mono.error(new IllegalArgumentException("Cannot update hold request: item ID is null"));
+					}
 					final var itemPatch = ItemPatch.builder()
 						.barcodes(List.of(barcode))
 						.location(supplyingAgencyCode)
