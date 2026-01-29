@@ -11,6 +11,7 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Wor
 
 import java.util.List;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -39,7 +40,7 @@ public class MockPolarisFixture {
 	}
 
 	public void mockPapiStaffAuthentication() {
-		mock("POST", "/PAPIService/REST/protected/v1/1033/100/1/authenticator/staff", "test-staff-auth.json");
+		mock("POST", protectedPapiServicePath("/authenticator/staff"), "test-staff-auth.json");
 	}
 
 	public void mockAppServicesStaffAuthentication() {
@@ -47,16 +48,15 @@ public class MockPolarisFixture {
 	}
 
 	public void mockPatronAuthentication() {
-		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/authenticator/patron", "test-patron-auth.json");
+		mock("POST", publicPapiServicePath("/authenticator/patron"), "test-patron-auth.json");
 	}
 
 	public void mockCreatePatron() {
-		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron",
-			"create-patron.json");
+		mock("POST", publicPapiServicePath("/patron"), "create-patron.json");
 	}
 
 	public void mockCreatePatron(PAPIClient.PatronRegistrationCreateResult response) {
-		mock("POST", "/PAPIService/REST/public/v1/1033/100/1/patron",
+		mock("POST", publicPapiServicePath("/patron"),
 			response()
 				.withStatusCode(200)
 				.withBody(json(response)));
@@ -100,7 +100,7 @@ public class MockPolarisFixture {
 			.withHeader("Accept", "application/json")
 			.withHeader("host", host)
 			.withMethod("GET")
-			.withPath("/PAPIService/REST/protected/v1/1033/100/1/string/search/patrons/boolean*")
+			.withPath(protectedPapiServicePath("/string/search/patrons/boolean*"))
 			.withQueryStringParameter("q", "PATNF=" + firstMiddleLastName);
 	}
 
@@ -152,29 +152,34 @@ public class MockPolarisFixture {
 	}
 
 	public void mockCheckoutItemToPatron(String localPatronBarcode) {
-		mock("POST",
-			"/PAPIService/REST/public/v1/1033/100/1/patron/%s/itemsout".formatted(localPatronBarcode),
+		mock("POST", patronItemCheckOutPath(localPatronBarcode),
 			"itemcheckoutsuccess.json");
 	}
 
 	public void mockRenewalSuccess(String localPatronBarcode) {
-		mock("POST",
-			"/PAPIService/REST/public/v1/1033/100/1/patron/%s/itemsout".formatted(localPatronBarcode),
+		mock("POST", patronItemCheckOutPath(localPatronBarcode),
 			"renewal-success.json");
 	}
 
 	public void mockRenewalItemBlockedError(String localPatronBarcode) {
-		mock("POST",
-			"/PAPIService/REST/public/v1/1033/100/1/patron/%s/itemsout".formatted(localPatronBarcode),
+		mock("POST", patronItemCheckOutPath(localPatronBarcode),
 			"renewal-item-blocked.json");
 	}
 
+	private static String patronItemCheckOutPath(String localPatronBarcode) {
+		return publicPapiServicePath("/patron/%s/itemsout".formatted(localPatronBarcode));
+	}
+
 	public void mockGetItemsForBib(String bibId) {
-		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get.json");
+		mock("GET", itemsByBibIdPath(bibId), "items-get.json");
 	}
 
 	public void mockGetItemsForBibWithShelfLocations(String bibId) {
-		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/items/bibid/" + bibId, "items-get-with-shelf-locations.json");
+		mock("GET", itemsByBibIdPath(bibId), "items-get-with-shelf-locations.json");
+	}
+
+	private static String itemsByBibIdPath(String bibId) {
+		return protectedPapiServicePath("/string/synch/items/bibid/" + bibId);
 	}
 
 	public void mockGetItem(String itemId) {
@@ -289,7 +294,7 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetPagedBibs() {
-		mock("GET", "/PAPIService/REST/protected/v1/1033/100/1/string/synch/bibs/MARCXML/paged/*",
+		mock("GET", protectedPapiServicePath("/string/synch/bibs/MARCXML/paged/*"),
 			"bibs-slice-0-9.json");
 	}
 
@@ -326,7 +331,19 @@ public class MockPolarisFixture {
 	}
 
 	private static String patronByBarcodePath(String patronBarcode) {
-		return "/PAPIService/REST/public/v1/1033/100/1/patron/" + patronBarcode;
+		return publicPapiServicePath("/patron/" + patronBarcode);
+	}
+
+	private static String protectedPapiServicePath(String subPath) {
+		return papiServicePath("protected", subPath);
+	}
+
+	private static String publicPapiServicePath(String subPath) {
+		return papiServicePath("public", subPath);
+	}
+
+	private static String papiServicePath(String scope, String subPath) {
+		return "/PAPIService/REST/%s/v1/1033/100/1%s".formatted(scope, subPath);
 	}
 
 	private void mock(String method, String path, String jsonResourcePath) {
