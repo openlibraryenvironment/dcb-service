@@ -6,12 +6,13 @@ import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.*;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistration;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronSearchResult;
 import org.olf.dcb.test.TestResourceLoader;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import java.util.List;
 
-import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static java.util.Collections.emptyList;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
@@ -45,11 +46,11 @@ public class MockPolarisFixture {
 	}
 
 	public void mockCreatePatron() {
-		mockPost(publicPapiServicePath("/patron"), "create-patron.json");
+		mockPost(createPatronPath(), "create-patron.json");
 	}
 
 	public void mockCreatePatron(PAPIClient.PatronRegistrationCreateResult response) {
-		mockPost(publicPapiServicePath("/patron"), okJson(response));
+		mockPost(createPatronPath(), okJson(response));
 	}
 
 	public void mockUpdatePatron(String patronBarcode) {
@@ -57,25 +58,17 @@ public class MockPolarisFixture {
 	}
 
 	public void verifyUpdatePatron(String barcode, PatronRegistration expectedUpdate) {
-		mockServerClient.verify(request()
-			.withHeader("Accept", "application/json")
-			.withHeader("host", host)
-			.withMethod("PUT")
-			.withPath(patronByBarcodePath(barcode))
-			.withBody(json(expectedUpdate))
-		);
+		mockServerClient.verify(baselineRequest("PUT", patronByBarcodePath(barcode))
+			.withBody(json(expectedUpdate)));
 	}
 
 	public void mockPatronSearch(String firstMiddleLastName) {
-		mockServerClient.when(patronSearchRequest(firstMiddleLastName))
-			.respond(okJson(getResource("patron-search.json")));
+		mock(patronSearchRequest(firstMiddleLastName), okJson(getResource("patron-search.json")));
 	}
 
-	public void mockPatronSearchPapiError(String firstMiddleLastName,
-		int papiErrorCode, String errorMessage) {
-
-		mockServerClient.when(patronSearchRequest(firstMiddleLastName))
-			.respond(okJson(PAPIClient.PatronSearchResult.builder()
+	public void mockPatronSearchPapiError(String firstMiddleLastName, int papiErrorCode, String errorMessage) {
+		mock(patronSearchRequest(firstMiddleLastName),
+			okJson(PatronSearchResult.builder()
 				.papiErrorCode(papiErrorCode)
 				.ErrorMessage(errorMessage)
 				.build()));
@@ -86,11 +79,7 @@ public class MockPolarisFixture {
 	}
 
 	private HttpRequest patronSearchRequest(String firstMiddleLastName) {
-		return request()
-			.withHeader("Accept", "application/json")
-			.withHeader("host", host)
-			.withMethod("GET")
-			.withPath(protectedPapiServicePath("/string/search/patrons/boolean*"))
+		return baselineRequest("GET", protectedPapiServicePath("/string/search/patrons/boolean*"))
 			.withQueryStringParameter("q", "PATNF=" + firstMiddleLastName);
 	}
 
@@ -99,9 +88,7 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetPatronServerErrorResponse(String patronId) {
-		mockGet(patronByIdPath(patronId), HttpResponse.response()
-			.withStatusCode(500)
-			.withBody("Something went wrong"));
+		mockGet(patronByIdPath(patronId), serverError());
 	}
 
 	public void mockGetPatronByBarcode(String barcode) {
@@ -115,21 +102,15 @@ public class MockPolarisFixture {
 	}
 
 	public void mockGetPatronBlocksSummary(String patronId) {
-		String path = applicationServicesPath("/patrons/%s/blockssummary".formatted(patronId));
-
-		mockGet(path, okText("[]"));
+		mockGet(blocksSummaryPath(patronId), okText("[]"));
 	}
 
 	public void mockGetPatronBlocksSummaryNotFoundResponse(String patronId) {
-		String path = applicationServicesPath("/patrons/%s/blockssummary".formatted(patronId));
-
-		mockGet(path, notFoundResponse());
+		mockGet(blocksSummaryPath(patronId), notFoundResponse());
 	}
 
 	public void mockGetPatronBlocksSummaryServerErrorResponse(String patronId) {
-		String path = applicationServicesPath("/patrons/%s/blockssummary".formatted(patronId));
-
-		mockGet(path, HttpResponse.response().withStatusCode(INTERNAL_SERVER_ERROR.getCode()));
+		mockGet(blocksSummaryPath(patronId), serverError());
 	}
 
 	public void mockGetPatronBarcode(String patronId, String barcode) {
@@ -150,10 +131,6 @@ public class MockPolarisFixture {
 		mockPost(patronItemCheckOutPath(localPatronBarcode), "renewal-item-blocked.json");
 	}
 
-	private static String patronItemCheckOutPath(String localPatronBarcode) {
-		return publicPapiServicePath("/patron/%s/itemsout".formatted(localPatronBarcode));
-	}
-
 	public void mockGetItemsForBib(String bibId) {
 		mockGet(itemsByBibIdPath(bibId), "items-get.json");
 	}
@@ -162,45 +139,38 @@ public class MockPolarisFixture {
 		mockGet(itemsByBibIdPath(bibId), "items-get-with-shelf-locations.json");
 	}
 
-	private static String itemsByBibIdPath(String bibId) {
-		return protectedPapiServicePath("/string/synch/items/bibid/" + bibId);
-	}
-
 	public void mockGetItem(String itemId) {
-		mockGet(applicationServicesPath("/itemrecords/" + itemId), "item-by-id.json");
+		mockGet(getItemPath(itemId), "item-by-id.json");
 	}
 
 	public void mockGetItem(Integer itemId, ItemRecordFull expectedItem) {
-		mockGet(applicationServicesPath("/itemrecords/" + itemId), expectedItem);
+		mockGet(getItemPath(itemId), expectedItem);
 	}
 
 	public void mockGetItemWithNullRenewalCount(String itemId) {
-		mockGet(applicationServicesPath("/itemrecords/" + itemId),
-			"item-by-id-without-renewal-count.json");
+		mockGet(getItemPath(itemId), "item-by-id-without-renewal-count.json");
 	}
 
 	public void mockGetItemServerErrorResponse(String itemId) {
-		mockGet(applicationServicesPath("/itemrecords/" + itemId),
-			response()
-				.withStatusCode(500)
-				.withBody("Something went wrong"));
+		mockGet(getItemPath(itemId), serverError());
 	}
 
 	public void mockGetItemBarcode(String localItemId, String barcode) {
 		String body = "\"%s\"".formatted(barcode);
-		mockGet(applicationServicesPath("/barcodes/items/" + localItemId), okText(body));
+
+		mockGet(getItemByBarcodePath(localItemId), okText(body));
 	}
 
 	void mockPlaceHold() {
-		mockPost(applicationServicesPath("/workflow"), "successful-place-request.json");
+		mockPost(workflowPath(), "successful-place-request.json");
 	}
 
 	public void mockPlaceHoldUnsuccessful() {
-		mockPost(applicationServicesPath("/workflow"), "unsuccessful-place-request.json");
+		mockPost(workflowPath(), "unsuccessful-place-request.json");
 	}
 
 	void verifyPlaceHold(RequestExtensionData expectedRequest) {
-		mockServerClient.verify(baselineRequest("POST", applicationServicesPath("/workflow"))
+		mockServerClient.verify(baselineRequest("POST", workflowPath())
 			.withBody(json(WorkflowRequest.builder()
 				.workflowRequestType(5)
 				.txnBranchID(73)
@@ -215,15 +185,15 @@ public class MockPolarisFixture {
 	}
 
 	public void mockListPatronLocalHolds() {
-		mockGet(applicationServicesPath("/patrons/1/requests/local"), "listPatronLocalHolds.json");
+		mockGet(localRequestsPath(1), "listPatronLocalHolds.json");
 	}
 
 	public void mockListPatronLocalHolds(Integer patronId, SysHoldRequest expectedHold) {
-		mockGet(applicationServicesPath("/patrons/%s/requests/local".formatted(patronId)), List.of(expectedHold));
+		mockGet(localRequestsPath(patronId), List.of(expectedHold));
 	}
 
 	public void mockEmptyListPatronLocalHolds() {
-		mockGet(applicationServicesPath("/patrons/1/requests/local"), "emptyListPatronLocalHolds.json");
+		mockGet(localRequestsPath(1), emptyList());
 	}
 
 	public void mockGetHold(String holdId, LibraryHold responseBody) {
@@ -237,24 +207,20 @@ public class MockPolarisFixture {
 				.withBody(JsonBody.json(response)));
 	}
 
-	private static String getHoldPath(String holdId) {
-		return applicationServicesPath("/holds/" + holdId);
-	}
-
-	void mockCreateBib() {
-		mockPost(applicationServicesPath("/polaris/73/1/bibliographicrecords*"), "create-bib-resp.json");
+	public void mockCreateBib() {
+		mockPost(applicationServicesPath("/bibliographicrecords*"), "create-bib-resp.json");
 	}
 
 	public void mockCreateBibNotAuthorisedResponse() {
 		mockPost(applicationServicesPath("/bibliographicrecords*"), response().withStatusCode(401));
 	}
 
-	public void mockGetBib(String bibId) {
-		mockGet(applicationServicesPath("/bibliographicrecords/" + bibId + "*"), "get-bib.json");
+	public void mockGetBib(Integer bibId) {
+		mockGet(getBibPath(bibId), "get-bib.json");
 	}
 
 	public void mockGetBib(Integer bibId, BibliographicRecord expectedBib) {
-		mockGet(applicationServicesPath("/bibliographicrecords/" + bibId + "*"), expectedBib);
+		mockGet(getBibPath(bibId), expectedBib);
 	}
 
 	public void mockGetPagedBibs() {
@@ -262,15 +228,15 @@ public class MockPolarisFixture {
 	}
 
 	void mockStartWorkflow(String responsePath) {
-		mockPost(applicationServicesPath("/workflow"), responsePath);
+		mockPost(workflowPath(), responsePath);
 	}
 
 	void mockStartWorkflow(WorkflowResponse response) {
-		mockPost(applicationServicesPath("/workflow"), response);
+		mockPost(workflowPath(), response);
 	}
 
 	public void mockContinueWorkflow(String workflowId, String responsePath) {
-		mockPut(applicationServicesPath("/workflow/" + workflowId), responsePath);
+		mockPut(workflowPath() + "/" + workflowId, responsePath);
 	}
 
 	void mockGetMaterialTypes() {
@@ -281,12 +247,52 @@ public class MockPolarisFixture {
 		mockGet(applicationServicesPath("/itemstatuses"), "itemstatuses.json");
 	}
 
+	private static String patronItemCheckOutPath(String localPatronBarcode) {
+		return publicPapiServicePath("/patron/%s/itemsout".formatted(localPatronBarcode));
+	}
+
+	private static String itemsByBibIdPath(String bibId) {
+		return protectedPapiServicePath("/string/synch/items/bibid/" + bibId);
+	}
+
+	private static String getItemPath(Object itemId) {
+		return applicationServicesPath("/itemrecords/" + itemId);
+	}
+
+	private static String getItemByBarcodePath(String localItemId) {
+		return applicationServicesPath("/barcodes/items/" + localItemId);
+	}
+
+	private static String blocksSummaryPath(String patronId) {
+		return applicationServicesPath("/patrons/%s/blockssummary".formatted(patronId));
+	}
+
+	private static String localRequestsPath(Integer patronId) {
+		return applicationServicesPath("/patrons/%s/requests/local".formatted(patronId));
+	}
+
+	private static String getHoldPath(String holdId) {
+		return applicationServicesPath("/holds/" + holdId);
+	}
+
+	private static String getBibPath(Integer bibId) {
+		return applicationServicesPath("/bibliographicrecords/%s*".formatted(bibId));
+	}
+
 	private static String patronByIdPath(String patronId) {
 		return applicationServicesPath("/patrons/%s".formatted(patronId));
 	}
 
 	private static String patronByBarcodePath(String patronBarcode) {
 		return publicPapiServicePath("/patron/" + patronBarcode);
+	}
+
+	private static String workflowPath() {
+		return applicationServicesPath("/workflow");
+	}
+
+	private static String createPatronPath() {
+		return publicPapiServicePath("/patron");
 	}
 
 	private static String applicationServicesPath(String path) {
@@ -342,9 +348,7 @@ public class MockPolarisFixture {
 	}
 
 	private void mock(String method, String path, HttpResponse response) {
-		mockServerClient
-			.when(baselineRequest(method, path))
-			.respond(response);
+		mock(baselineRequest(method, path), response);
 	}
 
 	private HttpRequest baselineRequest(String method, String path) {
@@ -353,6 +357,12 @@ public class MockPolarisFixture {
 			.withHeader("host", host)
 			.withMethod(method)
 			.withPath(path);
+	}
+
+	private void mock(HttpRequest request, HttpResponse response) {
+		mockServerClient
+			.when(request)
+			.respond(response);
 	}
 
 	private static HttpResponse okJson(Object json) {
@@ -365,5 +375,11 @@ public class MockPolarisFixture {
 		return response()
 			.withStatusCode(200)
 			.withBody(body);
+	}
+
+	private static HttpResponse serverError() {
+		return response()
+			.withStatusCode(500)
+			.withBody("Something went wrong");
 	}
 }
