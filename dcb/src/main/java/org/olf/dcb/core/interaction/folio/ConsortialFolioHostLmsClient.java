@@ -973,10 +973,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var localItemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
 		final var localRequestId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalRequestId);
+		final var currentHoldCount = hostLmsItem.getHoldCount();
 
 		return getTransactionStatus(localRequestId)
 			.doOnSuccess(transactionStatus -> log.debug("got transaction {} status {}",  localRequestId, transactionStatus))
-			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus))
+			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus, currentHoldCount))
 			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
 	}
 
@@ -992,7 +993,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private static HostLmsItem mapToHostLmsItem(String itemId,
-		TransactionStatus transactionStatus) {
+		TransactionStatus transactionStatus, Integer existingHoldCount) {
 
 		if (itemId == null) {
 			log.warn("getItem returning HostLmsItem with a null item id.");
@@ -1000,12 +1001,23 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var rawLocalStatus = getValueOrNull(transactionStatus, TransactionStatus::getStatus);
 
+		int finalHoldCount = determineHoldCount(transactionStatus);
+
+		// In FOLIO, there is an odd disparity between what is reported in mod-dcb and what is reported from RTAC
+		// This block exists to check that, by comparing and verifying what is being returned.
+		// To ensure we do not miss a hold (DCB-2123)
+		if (finalHoldCount == 0 && existingHoldCount != null && existingHoldCount > 0) {
+			log.debug("mod-dcb reported 0 holds for item {}, falling back to count from holdings: {}",
+				itemId, existingHoldCount);
+			finalHoldCount = existingHoldCount;
+		}
+
 		return HostLmsItem.builder()
 			.localId(itemId)
 			.status(mapToItemStatus(rawLocalStatus))
 			.rawStatus(rawLocalStatus)
 			.renewalCount(getValue(transactionStatus, TransactionStatus::getRenewalCount, 0))
-			.holdCount(determineHoldCount(transactionStatus))
+			.holdCount(finalHoldCount)
 			.renewable(transactionStatus.getRenewable())
 			.build();
 	}
