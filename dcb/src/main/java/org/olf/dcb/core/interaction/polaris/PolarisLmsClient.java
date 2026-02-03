@@ -11,6 +11,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
@@ -79,6 +80,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
@@ -149,7 +151,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
-	private static final String DCB_BORROWING_FLOW = "DCB";
+	//  No longer needed as DCB_BORROWING_FLOW is the same as the default behaviour
+	//	private static final String DCB_BORROWING_FLOW = "DCB";
 	private static final String ILL_BORROWING_FLOW = "ILL";
 	private final PolarisConfig polarisConfig;
 	
@@ -218,21 +221,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters) {
 		// PUA - the borrower pickup location is outside the system so use the ILL location
 		// this is how we place supplier holds. Following the same pattern here
-		if (isFollowingWorkflow(parameters, PICKUP_ANYWHERE_WORKFLOW)) {
+		if (isFollowingWorkflow(parameters, PICKUP_ANYWHERE_WORKFLOW) || isFollowingWorkflow(parameters, EXPEDITED_WORKFLOW)) {
 			return placeHoldRequest(parameters, false);
 		}
 
-		final var borrowerLendingFlow = borrowerlendingFlow();
-		if (borrowerLendingFlow == null) {
-			return placeHoldRequest(parameters, TRUE);
+		final String borrowerLendingFlow = borrowerlendingFlow();
+		// If following the ILL flow, default to config refined location ID
+		if(borrowerLendingFlow == ILL_BORROWING_FLOW){
+			return placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 		}
 
-		return switch (borrowerLendingFlow) {
-			case DCB_BORROWING_FLOW -> placeHoldRequest(parameters, TRUE);
-			case ILL_BORROWING_FLOW -> placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
-			default -> placeHoldRequest(parameters, TRUE);
+		// Default response is the same as the DCB_BORROWING_FLOW
+		return placeHoldRequest(parameters, TRUE);
 		};
-	}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
@@ -340,7 +341,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	/**
 	 * Waits for a fixed delay and retries on failure.
 	 * @param patronLocalId
-	 * @return 
+	 * @return
 	 */
 	@Retryable(attempts = "2", delay = "2s")
 	protected <T> Mono<T> delayAndRetryTransformer ( Mono<T> targetFunction ) {
@@ -409,9 +410,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 * the agency code so we have a rough idea where the item is going
 	 */
 	private Mono<LocalRequest> placeHoldRequest(
-		PlaceHoldRequestParameters parameters, boolean isVirtualItem) {
+		PlaceHoldRequestParameters parameters, boolean isInternalPickupLocation) {
 
-		log.info("placeHoldRequest {} {}", parameters, isVirtualItem);
+		log.info("placeHoldRequest {} {}", parameters, isInternalPickupLocation);
 
 		// If this is a borrowing agency then we are placing a hold on a virtual item. The item should have been created
 		// with a home location of the declared ILL location. The pickup location should be the pickup location specified
@@ -425,9 +426,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				final var bib = tuple.getT1();
 				final var item = tuple.getT2();
 
-				String pickupLocation = getPickupLocation(parameters, isVirtualItem);
+				String pickupLocation = getPickupLocation(parameters, isInternalPickupLocation);
 
-				log.info("Derived pickup location for hold isVirtualItem={} : {}", isVirtualItem, pickupLocation);
+				log.info("Derived pickup location for hold isInternalPickupLocation={} : {}", isInternalPickupLocation, pickupLocation);
 
 				return HoldRequestParameters.builder()
 					.localPatronId(parameters.getLocalPatronId())
@@ -603,31 +604,30 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 	}
 
-	private String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isVirtualItem) {
+	// Passing the parameters along with if the location exists within the polaris system
+	private String getPickupLocation(PlaceHoldRequestParameters parameters, boolean isInternalPickupLocation) {
 		// Different systems will use different pickup locations - we default to passing through
 		// parameters.getPickupLocationCode
 
 		// This is the code passed through from the users selected pickup location
-		String pickup_location = parameters.getPickupLocationCode();
+		String pickupLocationCode = parameters.getPickupLocationCode();
 
-		// However - polaris as a pickup location actually needs to use the local ID of the pickup location
-		// So if we have a specific local ID, pass that down the chain instead.
-		if ( isVirtualItem && ( parameters.getPickupLocation() != null ) ) {
-			if ( parameters.getPickupLocation().getLocalId() != null )
-				log.debug("Overriding pickup location code with ID from selected record");
-				pickup_location = parameters.getPickupLocation().getLocalId();
-		}
-
-		// supplier requests need the pickup location to be set as ILL
-		if (isVirtualItem == FALSE) {
-			pickup_location = String.valueOf(polarisConfig.getIllLocationId());
-			if (pickup_location == null) {
+		// If location doesn't exist within the system, fallback to location ID defined in the config
+		if(!isInternalPickupLocation){
+			Integer illLocationId = polarisConfig.getIllLocationId();
+			if (illLocationId == null) {
 				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
 			}
-			return pickup_location;
 		}
 
-		return pickup_location;
+		// If location exists within the system, overwrite the location code
+		Location pickupLocation = parameters.getPickupLocation();
+		if (pickupLocation != null && pickupLocation.getLocalId() != null){
+			log.debug("Overriding pickup location code with ID from selected record");
+			return pickupLocation.getLocalId();
+		}
+
+		return pickupLocationCode;
 	}
 
 	private Mono<Tuple2<ApplicationServicesClient.BibliographicRecord, ApplicationServicesClient.ItemRecordFull>> getBibWithItem(
