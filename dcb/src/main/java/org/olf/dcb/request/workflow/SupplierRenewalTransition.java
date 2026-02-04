@@ -177,7 +177,8 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 		final var patronRequest = ctx.getPatronRequest();
 		return isStatusApplicable(patronRequest)
 			&& isLocalItemStatusApplicable(patronRequest)
-			&& isRenewalCountApplicable(patronRequest);
+			&& isRenewalCountApplicable(patronRequest)
+			&& isRenewalStatusApplicable(patronRequest);
 	}
 
 	private boolean isStatusApplicable(PatronRequest patronRequest) {
@@ -194,6 +195,11 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 		return localRenewalCount != null
 			&& localRenewalCount > 0
 			&& !Objects.equals(localRenewalCount, renewalCount);
+	}
+
+	// This is here so we don't try to do a supplier renewal when renewal is disallowed / unsupported
+	private boolean isRenewalStatusApplicable(PatronRequest patronRequest) {
+		return patronRequest.getRenewalStatus() != PatronRequest.RenewalStatus.DISALLOWED && patronRequest.getRenewalStatus() != PatronRequest.RenewalStatus.UNSUPPORTED;
 	}
 
 	@Override
