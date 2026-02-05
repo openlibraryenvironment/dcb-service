@@ -18,6 +18,7 @@ import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.IngestService;
+import org.olf.dcb.ingest.job.IngestJob;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.processing.ProcessingStep;
@@ -57,18 +58,20 @@ public class BibRecordService {
 	private final StatsService statsService;
 
 	private final MatchPointRepository matchPointRepository;
+	private final BeanProvider<IngestJob> ingest;
 
 
 	public BibRecordService(
 	  BibRepository bibRepo,
 	  BibIdentifierRepository bibIdentifierRepository,
-		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider, MatchPointRepository matchPointRepository, BeanProvider<SourceRecordService> sourceRecordService) {
+		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider, MatchPointRepository matchPointRepository, BeanProvider<SourceRecordService> sourceRecordService, BeanProvider<IngestJob> ingest) {
 		this.bibRepo = bibRepo;
 		this.bibIdentifierRepo = bibIdentifierRepository;
 		this.recordClusteringServiceProvider = recordClusteringServiceProvider;
 		this.sourceRecords = sourceRecordService;
 		this.statsService = statsService;
 		this.matchPointRepository = matchPointRepository;
+		this.ingest = ingest;
 	}
 
 	private BibRecord step1(final BibRecord bib, final IngestRecord imported) {
@@ -271,6 +274,18 @@ public class BibRecordService {
 				// If we match multiple sources... We should assume that they
 				// will be flagged for reprocessing and treat the bib as if we got a single source for now.
 				if (matchedSources.size() > 0) {
+					
+					// Matched 1 source only.
+					// if the bib has no uuid column then fix it here.
+					if (matchedSources.size() == 1 && bib.getSourceRecordUuid() == null) {
+						// Set the uuid source column, and save, return altered bib.
+						
+						return Mono.just( matchedSources.get(0).getId() )
+							.map( bib::setSourceRecordUuid )
+							.flatMap( this::saveOrUpdate );
+					}
+					
+					// Just return the original bib as none-orphaned.
 					return Mono.just(bib);
 				}
 				
@@ -319,6 +334,13 @@ public class BibRecordService {
 			.flatMap(this::deleteBibAndUpdateCluster);
 	}
 	
+	private Mono<SourceRecord> emitReachableBibFromSource(@NonNull UUID bibId, @NonNull SourceRecord sr) {
+		// Assumes that bib id is equal to ingest ID which it is at the time of writing.
+		return ingest.get().tryConvertToIngestRecord(sr)
+			.map(IngestRecord::getUuid)
+			.flatMap( irId -> bibId.toString().equalsIgnoreCase( irId.toString() ) ? Mono.just(sr) : Mono.empty());
+	}
+	
 	@Transactional(propagation = Propagation.MANDATORY)
 	public @NonNull	Flux<SourceRecord> findSourceRecordForBib(@NonNull BibRecord bibRecord) {
 		
@@ -337,19 +359,33 @@ public class BibRecordService {
 			.collectList()
 			.flatMapMany( matches -> {
 				
-				if (matches.size() > 1) {
-					// Multiple sources found because of the loose selection. Log the error.
-					log.warn("Performing source lookup for bib [{}] matched more than 1 [{}]. Reprocess sources",
-							bibRecord.getId(), matches.stream().map(SourceRecord::getId).toList() );
+				final UUID bibId = bibRecord.getId();
+				
+				log.info("Performing like-based, source lookup for bib [{}] matched [{}] results, [{}]",
+							bibRecord.getId(), matches.size(), matches.stream().map(SourceRecord::getId).toList() );
 					
-					// Flag the need to reprocess the multiple sources. That should cause their bibs to obtain the direct link to the
-					// SourceReocrd instead.
-					return Flux.fromIterable( matches )
-						.concatMap( ambiguousSource -> sourceRecords.get().requireProcessing(ambiguousSource.getId())
-							.thenReturn( ambiguousSource ));
-				}
+				return Flux.fromIterable( matches )
+					.flatMap( potentialSource -> emitReachableBibFromSource(bibId, potentialSource) )
+					.next()
+					.doOnSuccess( source -> {
+						if (source == null) {
+							log.info("Like query results for bib [{}] filtered down to 0", bibId);
+							return;
+						}
+						
+						log.info("Like query results for bib [{}] returning source [{}]", bibId, source.getId());
+					})
+					.flux();
+					
+					
+//					// Flag the need to reprocess the multiple sources. That should cause their bibs to obtain the direct link to the
+//					// SourceReocrd instead.
+//					return Flux.fromIterable( matches )
+//						.concatMap( ambiguousSource -> sourceRecords.get().requireProcessing(ambiguousSource.getId())
+//							.thenReturn( ambiguousSource ));
+//				}
 		
-				return Flux.fromIterable(matches);
+//				return Flux.fromIterable(matches);
 			});
 	}
 	

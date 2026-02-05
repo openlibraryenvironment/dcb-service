@@ -779,16 +779,16 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 
 					// Output a warning if we matched more than one source for a bib.
 					return bibRecords.findSourceRecordForBib(bib)
-							.collectList()
-							.map(hits -> {
-								if (hits.size() != 1) {
-									log.warn("Couldn't find single source record for bib [{}], found {} matches",
-											bib.getId(), hits.size());
-								}
+						.collectList()
+						.map(hits -> {
+							if (hits.size() != 1) {
+								log.warn("Couldn't find single source record for bib [{}], found {} matches",
+									bib.getId(), hits.size());
+							}
 
-								return hits;
-							})
-							.flatMapMany(Flux::fromIterable);
+							return hits;
+						})
+						.flatMapMany(Flux::fromIterable);
 				})
 
 				.map(SourceRecord::getId)

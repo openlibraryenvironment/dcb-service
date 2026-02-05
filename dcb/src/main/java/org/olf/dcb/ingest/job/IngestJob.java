@@ -169,7 +169,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	}
 	
 	@Transactional(readOnly = true)
-	protected Mono<SourceToIngestRecordConverter> getConverterForHostLms( @Nullable UUID hostLmsId ) {
+	public Mono<SourceToIngestRecordConverter> getConverterForHostLms( @Nullable UUID hostLmsId ) {
 		
 		final String hostLmsIdStr = hostLmsId.toString();
 		var conv = sourceRecConverterCache.get( hostLmsIdStr );
@@ -222,7 +222,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	}
 	
 	@NonNull
-	private Mono<IngestRecord> tryConvertToIngestRecord( @NonNull SourceRecord sourceRecord ) {
+	public Mono<IngestRecord> tryConvertToIngestRecord( @NonNull SourceRecord sourceRecord ) {
 		
 		try {
 			return getConverterForHostLms(sourceRecord.getHostLmsId())
@@ -258,25 +258,25 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
     int MAX_CONCURRENCY=32;
 		final int chunkSize = Optional.ofNullable(ijc.getData()).map(Collection::size).orElse(0);
 		final Instant chunkStart = Instant.now();
-		final AtomicInteger inFlight = new AtomicInteger();
+//		final AtomicInteger inFlight = new AtomicInteger();
 		log.info("Processing ingest chunk size={} maxConcurrency={}", chunkSize, MAX_CONCURRENCY);
 		return Flux.fromIterable( ijc.getData() )
-			.doOnRequest(req -> log.debug("processChunk demand={} currentInFlight={}", req, inFlight.get()))
+//			.doOnRequest(req -> log.debug("processChunk demand={} currentInFlight={}", req, inFlight.get()))
 			.flatMap(op -> processSingleOperation(op, processedTime)
-				.doOnSubscribe(_s -> {
-					int current = inFlight.incrementAndGet();
-					if (current > MAX_CONCURRENCY) {
-						log.warn("processChunk inFlight {} exceeds maxConcurrency {}", current, MAX_CONCURRENCY);
-					} else if (log.isDebugEnabled()) {
-						log.debug("processChunk inFlight {}", current);
-					}
-				})
-				.doFinally(signal -> {
-					int current = inFlight.decrementAndGet();
-					if (current == 0 && log.isDebugEnabled()) {
-						log.debug("processChunk inFlight drained");
-					}
-				})
+//				.doOnSubscribe(_s -> {
+//					int current = inFlight.incrementAndGet();
+//					if (current > MAX_CONCURRENCY) {
+//						log.warn("processChunk inFlight {} exceeds maxConcurrency {}", current, MAX_CONCURRENCY);
+//					} else if (log.isDebugEnabled()) {
+//						log.debug("processChunk inFlight {}", current);
+//					}
+//				})
+//				.doFinally(signal -> {
+//					int current = inFlight.decrementAndGet();
+//					if (current == 0 && log.isDebugEnabled()) {
+//						log.debug("processChunk inFlight drained");
+//					}
+//				})
 				// Do this error handling here as the mono is set to retry on exception.
 				.onErrorResume(err -> {
 					if ( err instanceof IllegalStateException && err.getMessage().contains("connection is closed"))

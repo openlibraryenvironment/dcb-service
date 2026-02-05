@@ -172,14 +172,6 @@ public class ClusterHousekeepingService {
 							return Mono.empty();
 						}));
 			}, 0)
-			.repeatWhen( completion -> completion.flatMap(
-				count -> {
-					if (count == 0) return Mono.empty();
-
-					log.info("Finished page of {}",count);
-					return Mono.delay(Duration.ofNanos(500))
-						.doOnNext( _l -> log.info("Resubscribe for more"));
-				}))
 			.count()
 			.map( count -> {
 				
@@ -194,6 +186,11 @@ public class ClusterHousekeepingService {
 				
 				return count;
 			})
+
+			.delayElement(Duration.ofMillis(500))
+			.repeat()
+			.takeUntil( count -> count == 0 )
+			.reduce(Long::sum)
 			.elapsed()
 			.transformDeferred( lockService.withLockOrEmpty(TASK_LOCK) )
 			.doOnSuccess( res -> {
