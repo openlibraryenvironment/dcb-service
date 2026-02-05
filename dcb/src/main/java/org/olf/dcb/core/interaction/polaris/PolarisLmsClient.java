@@ -618,7 +618,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			if (illLocationId == null) {
 				throw new IllegalArgumentException("Please add the config value 'ill-location-id' for polaris.");
 			}
-			pickupLocationCode = String.valueOf(illLocationId);
+			return String.valueOf(illLocationId);
 		}
 
 		// If location exists within the system, overwrite the location code
