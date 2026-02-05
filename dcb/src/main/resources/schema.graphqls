@@ -893,12 +893,13 @@ type BibRecord {
   contributesTo: ClusterRecord
   sourceSystemId: ID
   sourceRecordId: String
+	sourceRecordUuid: String
   sourceRecord: SourceRecord
   matchPoints: [MatchPoint]
 }
 
 """
-Used in ingest v1
+Used in ingest v1. Note that sourceRecordId is also legacy - source record UUID is the one for ingest v2 and later
 """
 
 type RawSource {
