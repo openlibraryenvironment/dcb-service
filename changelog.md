@@ -1,6 +1,20 @@
 # Changelog
 
+## Version 8.63.2
+
+### Changes
+* [Chore]
+	* Add source record UUID to schema
+
+### Fixes
+* [General]
+	* Don't trust mod-dcb hold count, verify against holdings [DCB-2123]
+
 ## Version 8.63.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
