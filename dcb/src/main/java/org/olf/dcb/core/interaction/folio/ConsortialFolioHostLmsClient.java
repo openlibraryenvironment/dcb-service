@@ -982,14 +982,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private static int determineHoldCount(TransactionStatus transactionStatus) {
-		return Optional.ofNullable(transactionStatus)
-			.map(TransactionStatus::getHoldCount)
-			.orElseGet(() ->
-				Optional.ofNullable(transactionStatus)
-					.map(TransactionStatus::getItem)
-					.map(TransactionStatus.Item::getHoldCount)
-					.orElse(0)
-			);
+		// In some situations, mod-dcb can throw us either a null item or a null transaction status
+		// This check and the one in getHoldCount should take care of it
+		if (transactionStatus == null) {
+			return 0;
+		}
+		return transactionStatus.getHoldCount();
 	}
 
 	private static HostLmsItem mapToHostLmsItem(String itemId,
