@@ -24,6 +24,8 @@ type Query {
 		roles(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): RolePage!
 		functionalSettings(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): FunctionalSettingPage!
 		alarms(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): AlarmPage!
+		patronRequestStatistics(startDate: String,endDate: String,borrowerCodes:[String] ,pickupCodes: [String],
+			statusCodes: [String], supplierCodes: [String], bibClusterId: ID): [DailyPatronRequestStat]!
 }
 
 type Mutation {
@@ -967,6 +969,15 @@ type Role {
 	name: String!
 	description: String
 	keycloakRole: String
+}
+
+type DailyPatronRequestStat {
+	dateCreated: String
+	count: Int
+	patronHostlmsCode: String
+	pickupLocationCode: String
+	statusCode: String
+	bibClusterId: ID
 }
 
 type CreateHostLmsResult {
