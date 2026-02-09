@@ -25,7 +25,7 @@ class TransactionStatus {
 
 	@Transient
 	Integer getHoldCount() {
-		return null;
+		return getValue(item, Item::getHoldCount, 0 );
 	}
 
 	@Transient
@@ -45,7 +45,7 @@ class TransactionStatus {
 	@Serdeable
 	static class Item {
 		RenewalInformation renewalInfo;
-		Integer holdCount; // This appears to be on the Item in some responses ...
+		Integer holdCount;
 	}
 
 	@Data
