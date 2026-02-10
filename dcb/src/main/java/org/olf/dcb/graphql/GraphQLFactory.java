@@ -61,6 +61,8 @@ public class GraphQLFactory {
 			DeleteConsortiumContactDataFetcher deleteConsortiumContactDataFetcher,
 			UpdateConsortialMaxLoansDataFetcher updateConsortialMaxLoansDataFetcher,
 			UpdateAgencyDataFetcher updateAgencyDataFetcher,
+			CreateHostLmsDataFetcher createHostLmsDataFetcher,
+			UpdateHostLmsDataFetcher updateHostLmsDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -135,7 +137,10 @@ public class GraphQLFactory {
 						.dataFetcher("createLibraryContact", createLibraryContactDataFetcher)
 						.dataFetcher("deleteLibraryContact", deleteLibraryContactDataFetcher)
 						.dataFetcher("updateConsortialMaxLoans", updateConsortialMaxLoansDataFetcher)
-						.dataFetcher("updateAgency", updateAgencyDataFetcher))
+						.dataFetcher("updateAgency", updateAgencyDataFetcher)
+						.dataFetcher("createHostLms", createHostLmsDataFetcher)
+						.dataFetcher("updateHostLms", updateHostLmsDataFetcher)
+				)
 			.type("Agency",
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())

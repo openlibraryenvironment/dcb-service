@@ -16,6 +16,7 @@ import io.micronaut.data.annotation.MappedProperty;
 import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.model.DataType;
+import io.micronaut.security.annotation.UpdatedBy;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -25,6 +26,7 @@ import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.audit.Auditable;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
 @Data
@@ -35,7 +37,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @AllArgsConstructor
 @Builder
 @Slf4j
-public class DataHostLms implements HostLms {
+public class DataHostLms implements HostLms, Auditable {
 
 	@NonNull
 	@Id
@@ -72,6 +74,19 @@ public class DataHostLms implements HostLms {
 	@Singular("clientConfig")
 	@TypeDef(type = JSON)
 	Map<String, Object> clientConfig;
+
+	@Nullable
+	@UpdatedBy
+	private String lastEditedBy;
+
+	@Nullable
+	private String reason;
+
+	@Nullable
+	private String changeCategory;
+
+	@Nullable
+	private String changeReferenceUrl;
 
 	@Override
 	@Transient
