@@ -105,6 +105,7 @@ public class GraphQLFactory {
 						.dataFetcher("roles", dataFetchers.getRolesDataFetcher())
 						.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsDataFetcher())
 						.dataFetcher("alarms", dataFetchers.getAlarmsDataFetcher())
+						.dataFetcher("patronRequestStatistics", dataFetchers.getPatronRequestStatsDataFetcher())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring

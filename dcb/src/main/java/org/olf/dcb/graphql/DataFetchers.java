@@ -1,5 +1,7 @@
 package org.olf.dcb.graphql;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -7,6 +9,7 @@ import java.util.stream.Collectors;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 
+import org.olf.dcb.core.api.serde.DailyPatronRequestStat;
 import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.clustering.model.*;
@@ -150,8 +153,8 @@ public class DataFetchers {
                         String direction = env.getArgument("orderBy");
 
                         
-                        if ( pageno == null ) pageno = Integer.valueOf(0);
-                        if ( pagesize == null ) pagesize = Integer.valueOf(10);
+                        if ( pageno == null ) pageno = 0;
+                        if ( pagesize == null ) pagesize = 10;
                         if ( order == null ) order = "name";
                         if ( direction == null ) direction = "ASC";
 
@@ -1102,6 +1105,44 @@ public class DataFetchers {
 			}
 
 			return Mono.from(postgresAlarmRepository.findAll(pageable)).toFuture();
+		};
+	}
+
+	private <T> List<T> sanitizeList(List<T> list) {
+		return (list != null && list.isEmpty()) ? null : list;
+	}
+
+	public DataFetcher<CompletableFuture<List<DailyPatronRequestStat>>> getPatronRequestStatsDataFetcher() {
+		return env -> {
+			// Handles date ranges, statuses, supplier codes, borrower codes etc
+			String startDateStr = env.getArgument("startDate");
+			String endDateStr = env.getArgument("endDate");
+
+			Instant startDate = startDateStr != null ? Instant.parse(startDateStr) : null;
+			Instant endDate = endDateStr != null ? Instant.parse(endDateStr) : null;
+
+			List<String> borrowerCodes = sanitizeList(env.getArgument("borrowerCodes"));
+			List<String> pickupCodes = sanitizeList(env.getArgument("pickupCodes"));
+			List<String> statusCodes = sanitizeList(env.getArgument("statusCodes"));
+			List<String> supplierCodes = sanitizeList(env.getArgument("supplierCodes"));
+
+			String bibClusterIdStr = env.getArgument("bibClusterId");
+			UUID bibClusterId = bibClusterIdStr != null ? UUID.fromString(bibClusterIdStr) : null;
+
+			if (supplierCodes != null) {
+				return Flux.from(postgresPatronRequestRepository.findDailySupplierStats(
+						startDate, endDate, supplierCodes, borrowerCodes, pickupCodes, statusCodes, bibClusterId
+					))
+					.collectList()
+					.toFuture();
+			} else {
+				// No supplier codes, no joins
+				return Flux.from(postgresPatronRequestRepository.findDailyBorrowerStats(
+						startDate, endDate, borrowerCodes, pickupCodes, statusCodes, bibClusterId
+					))
+					.collectList()
+					.toFuture();
+			}
 		};
 	}
 }
