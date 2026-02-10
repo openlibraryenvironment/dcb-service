@@ -57,6 +57,9 @@ type Mutation {
 		updateRole(input: UpdateRoleInput): Role!
 		updateConsortialMaxLoans(input: UpdateConsortialMaxLoansInput): Agency!
 		updateAgency(input: UpdateAgencyInput): Agency!
+	  createHostLms(input: CreateHostLmsInput!): CreateHostLmsResult
+		updateHostLms(input: UpdateHostLmsInput!): UpdateHostLmsResult
+
 }
 
 input AddAgencyToGroupCommand {
@@ -387,6 +390,28 @@ input UpdateAgencyInput {
 	latitude: Float
 	isSupplyingAgency: Boolean
 	isBorrowingAgency: Boolean
+}
+
+input CreateHostLmsInput {
+	code: String!
+	name: String
+	lmsClientClass: String!
+	ingestSourceClass: String
+	clientConfig: JSON
+	suppressionRulesetName: String
+	itemSuppressionRulesetName: String
+}
+
+input UpdateHostLmsInput {
+	id: ID!
+	name: String
+	lmsClientClass: String
+	ingestSourceClass: String
+	clientConfig: JSON
+	suppressionRulesetName: String
+	itemSuppressionRulesetName: String
+	reason: String
+	changeCategory: String
 }
 
 type ProcessState {
@@ -942,4 +967,18 @@ type Role {
 	name: String!
 	description: String
 	keycloakRole: String
+}
+
+type CreateHostLmsResult {
+	hostLms: HostLms
+	pingStatus: String
+	ingestStatus: String
+	warnings: [String]
+}
+
+type UpdateHostLmsResult {
+	hostLms: HostLms
+	pingStatus: String
+	ingestStatus: String
+	warnings: [String]
 }
