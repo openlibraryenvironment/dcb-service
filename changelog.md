@@ -1,9 +1,20 @@
 # Changelog
 
+## Version 8.64.0
+
+### Additions
+* [General]
+	* Add new data fetchers for creating and updating Host LMS [DCB-2124]
+
+### Fixes
+* [General]
+	* Simplify handling of mod-dcb hold count
+
 ## Version 8.63.2
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add source record UUID to schema
 
 ### Fixes
