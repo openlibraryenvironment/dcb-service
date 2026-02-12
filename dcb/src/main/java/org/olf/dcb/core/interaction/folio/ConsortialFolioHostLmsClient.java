@@ -942,6 +942,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		TransactionStatus transactionStatus) {
 
 		final var status = getValueOrNull(transactionStatus, TransactionStatus::getStatus);
+		final Integer holdCount = determineHoldCount(transactionStatus);
 
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
 		final var mappedStatus = switch(status) {
@@ -957,6 +958,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.localId(transactionId)
 			.status(mappedStatus)
 			.rawStatus(status)
+			.requestedItemHoldCount(holdCount)
 			.build();
 	}
 
