@@ -467,7 +467,8 @@ public class TrackingServiceV3 implements TrackingService {
     return ( 
       hasValueChanged(item.getStatus(), sr.getLocalItemStatus() ) ||
       hasValueChanged(item.getRenewable(), sr.getLocalRenewable() ) ||
-      hasValueChanged(item.getRenewalCount(), sr.getLocalRenewalCount() )
+      hasValueChanged(item.getRenewalCount(), sr.getLocalRenewalCount() ) ||
+			hasValueChanged(item.getHoldCount(), sr.getLocalHoldCount())
     );
   }
 
@@ -501,6 +502,10 @@ public class TrackingServiceV3 implements TrackingService {
 					// *Ian: Surely the next else block here is better dealt with by a new || condition here?
 					// I can't see any behaviour different if the condition matches?*
           //
+					if (item.getHoldCount() != null) {
+						sr.setLocalHoldCount(item.getHoldCount());
+					}
+
 					if ( hasSupplierItemChanged(sr, item) ) {
 						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
 						StateChange sc = supplierItemStatusChanged(sr, item);

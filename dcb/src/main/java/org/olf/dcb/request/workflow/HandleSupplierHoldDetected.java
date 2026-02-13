@@ -82,6 +82,7 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		return hostLmsService.getClientFor(supplierSystemCode)
 			.flatMap(client -> Mono.from(client.getItem(supplierItemId)))
 			.flatMap(freshItem -> {
+				log.info("Item coming back {}", freshItem);
 				int freshHoldCount = freshItem.getHoldCount() != null ? freshItem.getHoldCount() : 0;
 				// We set the new value, and, just to be sure, we persist it also.
 				// We should probably NOT do this if it's the same as the old hold count
@@ -136,7 +137,7 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 	 * And we need to make sure we allow the initial loan, as sometimes there is a delay*/
 	private static boolean shouldPreventRenewal(RequestWorkflowContext ctx) {
 		if (ctx.getSupplierRequest() != null) {
-			int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount().intValue() : 0;
+			int hold_count = ctx.getSupplierRequest().getLocalHoldCount() != null ? ctx.getSupplierRequest().getLocalHoldCount() : 0;
 			// When we reach LOANED, the following questions need to be asked
 			// Does the SUPPLIER item have a hold?
 			// If no, we should NOT prevent renewal
