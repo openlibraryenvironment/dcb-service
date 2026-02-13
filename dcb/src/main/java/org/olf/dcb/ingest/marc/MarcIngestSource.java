@@ -64,6 +64,15 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
   // \b((?:\d[\-\s]?){9}[\dXx]|(?:\d[\-\s]?){13}|\d{4}-\d{3}[\dXx])\b(?:\s+(.*))?
   final static Pattern REGEX_ISXN_VALUE = Pattern.compile("\\b((?:\\d[\\-\\s]?){9}[\\dXx]|(?:\\d[\\-\\s]?){13}|\\d{4}-\\d{3}[\\dXx])\\b(?:\\s+(.*))?");
+  final static Pattern REGEX_ISBN_FALLBACK = Pattern.compile(
+    "(?<!\\d)" +                                  // don't start in the middle of a number
+    "(" +
+      "(?:\\d[\\s\\-]*){9}[\\dXx]" +              // ISBN-10 (allow spaces/hyphens)
+      "|" +
+      "(?:\\d[\\s\\-]*){13}" +                    // ISBN-13 (allow spaces/hyphens)
+    ")" +
+    "(?!\\d)"                                     // don't end in the middle of a number
+  );
 
 	static Logger log = LoggerFactory.getLogger(MarcIngestSource.class);
 
@@ -552,10 +561,21 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	}
 
   private static String cleanIsxn(String v) {
+
     Matcher m = REGEX_ISXN_VALUE.matcher(v);
-    if ( m.matches() ) {
-      return m.group(1).replaceAll("[^\\dXx]","");
+    if (m.matches()) {
+		  return m.group(1).replaceAll("[^\\dXx]", "");
     }
+
+    // Conservative fallback: find the first plausible ISBN token anywhere in the string.
+    Matcher f = REGEX_ISBN_FALLBACK.matcher(v);
+    if (f.find()) {
+  		String cleaned = f.group(1).replaceAll("[^\\dXx]", "");
+	  	if (cleaned.length() == 10 || cleaned.length() == 13) {
+		  	return cleaned;
+      }
+    }
+
     return v;
   }
 
