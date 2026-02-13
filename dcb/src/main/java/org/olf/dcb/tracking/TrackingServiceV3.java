@@ -467,7 +467,8 @@ public class TrackingServiceV3 implements TrackingService {
     return ( 
       hasValueChanged(item.getStatus(), sr.getLocalItemStatus() ) ||
       hasValueChanged(item.getRenewable(), sr.getLocalRenewable() ) ||
-      hasValueChanged(item.getRenewalCount(), sr.getLocalRenewalCount() )
+      hasValueChanged(item.getRenewalCount(), sr.getLocalRenewalCount() ) ||
+			hasValueChanged(item.getHoldCount(), sr.getLocalHoldCount())
     );
   }
 
@@ -501,6 +502,10 @@ public class TrackingServiceV3 implements TrackingService {
 					// *Ian: Surely the next else block here is better dealt with by a new || condition here?
 					// I can't see any behaviour different if the condition matches?*
           //
+					if (item.getHoldCount() != null) {
+						sr.setLocalHoldCount(item.getHoldCount());
+					}
+
 					if ( hasSupplierItemChanged(sr, item) ) {
 						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
 						StateChange sc = supplierItemStatusChanged(sr, item);
@@ -550,6 +555,12 @@ public class TrackingServiceV3 implements TrackingService {
 		// successful completion.
 		return supplyingAgencyService.getRequest(sr.getHostLmsCode(), hostlmsRequest)
 			.flatMap( hold -> {
+				// For systems that populate hold counts on requests (i.e. FOLIO). Ignore otherwise and update as normal
+				if (hold.getRequestedItemHoldCount() != null)
+				{
+					sr.setLocalHoldCount(hold.getRequestedItemHoldCount());
+				}
+
 				if ( !hold.getStatus().equals(sr.getLocalStatus()) ) {
 					log.debug("TRACKING current request status: {}", hold);
 
@@ -562,7 +573,7 @@ public class TrackingServiceV3 implements TrackingService {
 				}
 				else {
 					log.debug("TRACKING - update supplier request counter {} {} {}",sr.getId(), sr.getLocalStatus(), sr.getLocalRequestStatusRepeat());
-					return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), hold.getRawStatus(), Instant.now(),
+					return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), hold.getRawStatus(), sr.getLocalHoldCount(), Instant.now(),
 								incrementRepeatCounter(sr.getLocalRequestStatusRepeat())))
 						.doOnNext(count -> log.debug("update count {}",count))
 						.thenReturn(sr);

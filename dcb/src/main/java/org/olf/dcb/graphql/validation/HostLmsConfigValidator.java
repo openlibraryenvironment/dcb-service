@@ -123,6 +123,12 @@ public class HostLmsConfigValidator {
 				warnings.add("Missing 'shelfLocationPolicyMap' in Polaris config. Defaults will be used.");
 			}
 		}
+		if (CLASS_FOLIO.equals(lmsClientClass))
+		{
+			if (!clientConfig.containsKey("folio-tenant")) {
+				warnings.add("Missing 'folio-tenant' in FOLIO config. ");
+			}
+		}
 
 		return warnings;
 	}

@@ -61,4 +61,9 @@ public class HostLmsRequest {
 	/** Once known, the local barcode of the item actually requested */
 	@Nullable
 	String requestedItemBarcode;
+
+	/** The hold count for the item requested. Only populate for LMS like FOLIO where the hold count is on the request. Never populate for others
+	 * This is needed so that tracking always picks up supplier holds for renewal prevention */
+	@Nullable
+	Integer requestedItemHoldCount;
 }

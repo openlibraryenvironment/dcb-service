@@ -71,7 +71,7 @@ public interface SupplierRequestRepository {
   Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 
-	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, @Nullable String localStatus, @Nullable String rawLocalStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
+	Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, @Nullable String localStatus, @Nullable String rawLocalStatus, @Nullable Integer localHoldCount, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
 	Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, @Nullable String localItemStatus, @Nullable String rawLocalItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 
 }
