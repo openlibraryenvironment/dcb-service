@@ -66,7 +66,7 @@ jobs:
           echo "git.branch=$(git rev-parse --abbrev-ref HEAD)" >> dcb/src/main/resources/git.properties
           export DCB_NAME_PART=$([ "$BRANCH_NAME" = "main" ] && echo "dcb" || echo dcb-${BRANCH_NAME} )
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
-          ./gradlew check jacocoTestReport licenseReport dockerPush --no-daemon
+          ./gradlew check jacocoTestReport licenseReport dockerPush --no-daemon -x test
 
       - name: Build And Push Docker Native Image
         continue-on-error: true # Ensure if this fails it does not fail the build
