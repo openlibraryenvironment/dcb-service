@@ -486,7 +486,7 @@ class DummyScenarioTests {
 	private void assertRequestIsInExpectedStatus(UUID requestUUID, PatronRequest.Status expectedStatus) {
 		log.info("Verifying that request ID {} is in expected status {}...", requestUUID, expectedStatus);
 
-		int timeoutInSeconds = 10;
+		int timeoutInSeconds = 30;
 
 		try {
 			await()

@@ -54,7 +54,7 @@ jobs:
           username: ${{ secrets.DOCKER_KINT_USERNAME }}
           password: ${{ secrets.DOCKER_KINT_PASSWORD }}
 
-      - name: Build And Push Docker Image
+      - name: Build And Push Docker Image - Release
         env:
           DOCKER_REPOSITORY_PATH: ${{ secrets.DOCKER_KINT_REPOSITORY_PATH }}
           DOCKER_REGISTRY_URL: ${{ secrets.DOCKER_KINT_REGISTRY_URL }}
