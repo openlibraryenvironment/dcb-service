@@ -58,7 +58,7 @@ jobs:
           echo "git.commit.id=$(git rev-parse HEAD)" >> dcb/src/main/resources/git.properties
           echo "git.branch=$(git rev-parse --abbrev-ref HEAD)" >> dcb/src/main/resources/git.properties
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/dcb" | sed -e 's#//#/#' -e 's#^/##'`
-          ./gradlew check jacocoTestReport dockerPushNative dockerPush --no-daemon -x test
+          ./gradlew check jacocoTestReport dockerPushNative dockerPush --no-daemon
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
