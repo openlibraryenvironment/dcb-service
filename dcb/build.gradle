@@ -152,6 +152,10 @@ dependencies {
 
 	implementation 'com.hazelcast:hazelcast'
 
+	// Keep Testcontainers compatible with Docker API >= 1.44 on current GitHub runners.
+	testRuntimeOnly(platform("org.testcontainers:testcontainers-bom:1.21.4"))
+	testResourcesService(platform("org.testcontainers:testcontainers-bom:1.21.4"))
+
 	// Tests
 	testAnnotationProcessor 'org.projectlombok:lombok'
 	testAnnotationProcessor "io.micronaut:micronaut-inject-java"
