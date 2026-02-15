@@ -21,7 +21,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       # Need to checkout everything to ensure we have the tag info we need.
       - uses: actions/checkout@v4
