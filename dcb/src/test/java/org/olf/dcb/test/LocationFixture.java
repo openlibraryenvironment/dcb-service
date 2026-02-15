@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.storage.LocationRepository;
+import org.olf.dcb.storage.LocationSymbolRepository;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -19,7 +20,13 @@ public class LocationFixture {
 	@Inject
 	private LocationRepository locationRepository;
 
+	@Inject
+	private LocationSymbolRepository locationSymbolRepository;
+
 	public void deleteAll() {
+		dataAccess.deleteAll(locationSymbolRepository.queryAll(),
+			symbol -> locationSymbolRepository.delete(symbol.getId()));
+
 		dataAccess.deleteAll(locationRepository.queryAll(),
 			mapping -> locationRepository.delete(mapping.getId()));
 	}

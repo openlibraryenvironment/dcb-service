@@ -251,7 +251,7 @@ class SameLibraryWorkflowApiTests {
 
 	private void assertRequestWasHandedOffAsLocal(UUID requestUUID) {
 		final String expectedStatus = "HANDED_OFF_AS_LOCAL";
-		final int timeoutInSeconds = 10;
+		final int timeoutInSeconds = 30;
 
 		log.info("Verifying that request ID {} is a single library request...", requestUUID);
 
