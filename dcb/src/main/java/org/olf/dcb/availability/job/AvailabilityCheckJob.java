@@ -215,7 +215,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		this.jobConfig = jobConfig;
 	}
 
-	private static BibAvailabilityCountBuilder getAvailabilityCountDefaults( BibRecord bib ) {
+	public static BibAvailabilityCountBuilder getAvailabilityCountDefaults( BibRecord bib ) {
 		
 		return BibAvailabilityCount.builder()
 			.hostLms( bib.getSourceSystemId() )

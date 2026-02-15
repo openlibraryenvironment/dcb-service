@@ -21,8 +21,7 @@ permissions:
 
 jobs:
   build:
-    # runs-on: ubuntu-latest
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       # Need to checkout everything to ensure we have the tag info we need.
       - uses: actions/checkout@v4
@@ -54,7 +53,15 @@ jobs:
           registry: ${{ secrets.DOCKER_KINT_REGISTRY_URL }}
           username: ${{ secrets.DOCKER_KINT_USERNAME }}
           password: ${{ secrets.DOCKER_KINT_PASSWORD }}
-
+      - name: Work around docker-java API negotiation (Docker 29.x)
+        run: |
+          echo "api.version=1.44" >> ~/.docker-java.properties
+      - name: Docker sanity
+        run: |
+          set -euxo pipefail
+          docker version
+          docker info
+          docker ps
       - name: Build And Push Docker Image - Release
         env:
           DOCKER_REPOSITORY_PATH: ${{ secrets.DOCKER_KINT_REPOSITORY_PATH }}

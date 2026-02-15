@@ -15,10 +15,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-@Builder
+@Builder(access = AccessLevel.PUBLIC)
 @Data
 @NoArgsConstructor(onConstructor_ = @Creator())
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PUBLIC)
 @Serdeable
 @MappedEntity
 @ExcludeFromGeneratedCoverageReport

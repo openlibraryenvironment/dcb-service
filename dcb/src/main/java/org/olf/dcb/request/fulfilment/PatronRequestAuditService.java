@@ -108,7 +108,7 @@ public class PatronRequestAuditService {
 	}
 
 	@Transactional
-	protected Mono<PatronRequestAudit> buildAndSaveAuditMessage(
+	public Mono<PatronRequestAudit> buildAndSaveAuditMessage(
 		PatronRequestAudit.PatronRequestAuditBuilder builder) {
 
 		final var pra = builder.build();
