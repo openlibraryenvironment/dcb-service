@@ -122,8 +122,8 @@ public interface BibRepository {
 
 	@Query(value = "select b.id as bibId, b.title as title, b.source_record_id as sourceRecordId, b.metadata_score as metadataScore, b.cluster_reason as clusterReason, h.code as sourceSystem from bib_record b, host_lms h where b.source_system_id = h.id and b.contributes_to = :clusterId", nativeQuery = true)
 	Publisher<MemberBib> findMemberBibsForCluster(@NonNull UUID clusterId);
-
 	
+	public Publisher<BibRecord> findTop1000ByContributesToIsNullAndSourceRecordUuidIsNull();
 
 	@Query(value = "select a.id as source_system_id, a.name as source_system_name, sq.total as record_count from ( select source_system_id id, count(*) total from bib_record group by source_system_id ) sq, host_lms a where sq.id = a.id", nativeQuery = true)
 	public Publisher<RecordCountSummary> getIngestReport();

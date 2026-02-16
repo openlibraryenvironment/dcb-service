@@ -9,12 +9,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.IngestService;
@@ -254,6 +255,33 @@ public class BibRecordService {
 				return idCount + matchPointCount;
 			}))
 			.thenReturn(bib);
+	}
+	
+	@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+	protected Mono<List<BibRecord>> getPageOfUnreachableBibs() {
+		return Flux.from( bibRepo.findTop1000ByContributesToIsNullAndSourceRecordUuidIsNull() )
+			.collectList()
+			.filter(Predicate.not( List::isEmpty ));
+	}
+	
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected Mono<Long> tidyPageOfBibs(List<BibRecord> bibs) {
+		final long initialSize = bibs.size();
+		return Flux.fromIterable( bibs )
+			
+			.concatMap( this::checkOrphanedBib )
+			.count()
+			// The number deleted is the difference between the count of reachable
+			// bibs and the original list size
+			.map( reachable -> (initialSize - reachable));
+	}
+	
+	public Mono<Long> tidyUnreachableBibs() {
+		return Mono.defer( this::getPageOfUnreachableBibs )
+			.expand( _records -> getPageOfUnreachableBibs() )
+			.concatMap( this::tidyPageOfBibs )
+			.reduce( Long::sum )
+			.doOnSuccess( total -> log.info( "Tidied [{}] unreachable bibs (No cluster or source)", Optional.ofNullable( total ).orElse(0L)));
 	}
 	
 	/**

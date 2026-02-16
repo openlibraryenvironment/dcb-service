@@ -690,10 +690,18 @@ public class ImprovedRecordClusteringService implements RecordClusteringService 
 	
 	@NonNull
 	@Override
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<Void> reprocessBibsWithNoCluster() {
-		return Mono.from( clusterRecords.reprocessOrphanedBibs() )
-			.doOnSuccess( num -> log.info("Flagged [{}] bibs with no cluster for reprocessing", num) )
+		
+		return Mono.defer( this::processReachableBibs )
+			.then( Mono.defer( bibRecords::tidyUnreachableBibs ) )
+			.then();
+	}
+
+	@NonNull
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected Mono<Void> processReachableBibs() {
+		return Mono.from( clusterRecords.reprocessOrphanedBibsWithSource() )
+			.doOnSuccess( num -> log.info("Flagged [{}] reachable bibs with no cluster for reprocessing", num) )
 			.then();
 	}
 

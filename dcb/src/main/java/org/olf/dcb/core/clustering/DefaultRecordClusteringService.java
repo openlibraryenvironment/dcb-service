@@ -665,7 +665,7 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 	@Override
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<Void> reprocessBibsWithNoCluster() {
-		return Mono.from( clusterRecords.reprocessOrphanedBibs() )
+		return Mono.from( clusterRecords.reprocessOrphanedBibsWithSource() )
 			.doOnSuccess( num -> log.info("Flagged [{}] bibs with no cluster for reprocessing", num) )
 			.then();
 	}

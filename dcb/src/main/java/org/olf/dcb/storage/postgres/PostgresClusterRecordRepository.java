@@ -102,7 +102,7 @@ public interface PostgresClusterRecordRepository extends
 				INNER JOIN bib_record ON bib_record.source_record_uuid = source_record.id
 			WHERE bib_record.contributes_to IS NULL
 				AND source_record.processing_state != 'PROCESSING_REQUIRED');""")
-	Publisher<Integer> reprocessOrphanedBibs();
+	Publisher<Integer> reprocessOrphanedBibsWithSource();
 	
 	@NonNull
 	@Override
