@@ -12,10 +12,12 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import org.olf.dcb.core.api.serde.PatronRequestSummary;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
@@ -148,5 +150,62 @@ public interface PatronRequestRepository {
                               'RECEIVED_AT_PICKUP', 'READY_FOR_PICKUP', 'LOANED', 'PICKUP_TRANSIT' )
     """, nativeQuery = true)
   public Publisher<Long> getActiveRequestCountForPatron(String hostLmsCode, String patronId);
+
+	// The following methods provide a limited patron request summary for a patron's active and all-time requests.
+	// This is intended for discovery services who cannot make use of the GraphQL APIs available
+	// And who need to provide a summary for patrons
+	@Query(value = """
+        SELECT 
+            pr.id, 
+            CAST(pr.status_code AS VARCHAR) as status, 
+            CAST(pr.next_expected_status AS VARCHAR) as next_expected_status, 
+            pr.elapsed_time_in_current_status as time_in_state, 
+            pr.error_message, 
+            cr.title as title, 
+            pr.pickup_location_code, 
+            pr.date_created, 
+            pr.date_updated
+        FROM patron_request pr
+        JOIN patron_identity pi ON pr.requesting_identity_id = pi.id
+        LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+        WHERE pr.patron_hostlms_code = :hostLmsCode 
+          AND pi.local_barcode LIKE CONCAT('%', :patronBarcode, '%')
+          AND pr.status_code IN (
+              'SUBMITTED_TO_DCB', 
+              'PATRON_VERIFIED', 
+              'RESOLVED', 
+              'REQUEST_PLACED_AT_SUPPLYING_AGENCY', 
+              'CONFIRMED', 
+              'REQUEST_PLACED_AT_BORROWING_AGENCY', 
+              'REQUEST_PLACED_AT_PICKUP_AGENCY', 
+              'RECEIVED_AT_PICKUP', 
+              'READY_FOR_PICKUP', 
+              'LOANED', 
+              'PICKUP_TRANSIT'
+          )
+        ORDER BY pr.date_updated DESC
+    """, nativeQuery = true)
+	Flux<PatronRequestSummary> findActiveRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
+
+	// While the active requests are most useful for the discovery services, all time data also has its use for consortial admins
+	@Query(value = """
+        SELECT 
+            pr.id, 
+            CAST(pr.status_code AS VARCHAR) as status, 
+            CAST(pr.next_expected_status AS VARCHAR) as next_expected_status, 
+            pr.elapsed_time_in_current_status as time_in_state, 
+            pr.error_message, 
+            cr.title as title, 
+            pr.pickup_location_code, 
+            pr.date_created, 
+            pr.date_updated
+        FROM patron_request pr
+        JOIN patron_identity pi ON pr.requesting_identity_id = pi.id
+        LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+        WHERE pr.patron_hostlms_code = :hostLmsCode 
+          AND pi.local_barcode LIKE CONCAT('%', :patronBarcode, '%')
+        ORDER BY pr.date_updated DESC
+    """, nativeQuery = true)
+	Flux<PatronRequestSummary> findAllRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
 
 }
