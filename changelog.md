@@ -1,10 +1,48 @@
 # Changelog
 
+## Version 8.65.0
+
+### Additions
+* [General]
+	* Experimental endpoint for displaying requests by patron barcode
+
+### Changes
+* [Chore]
+	* bump micronaut to 4.10.8
+	* bump micronaut to 4.9.4
+	* bump micronaut to 4.8.3
+	* bump micronaut to 4.7.6
+	* bump micronaut to 4.6.3 and document ADR usage for agents
+	* upgrade micronaut to 4.5.4 and define full-suite timeout policy
+	* reenable tests
+	* disable test for github tests
+	* updated
+	* folio-tenant should be optional in the Host LMS validator
+	* Add extra cases for ISxN cleanup to catch the 9999999999: case
+* [Merge]
+	* micronaut 4.10.8 upgrade
+	* micronaut 4.9.4 upgrade
+	* micronaut 4.8.3 upgrade
+* [Test]
+	* stabilize same-library workflow and location cleanup
+
+### Fixes
+* [Deps]
+	* upgrade testcontainers BOM to 2.0.3
+* [General]
+	* update workflow and Micronaut compatibility adjustments
+	* Fix a sporadic failure to catch item hold count update [DCB-1533]
+	* Make sure we always catch a FOLIO hold count update [DCB-1533]
+
 ## Version 8.64.0
 
 ### Additions
 * [General]
 	* Add new data fetchers for creating and updating Host LMS [DCB-2124]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
