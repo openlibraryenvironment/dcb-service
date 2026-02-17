@@ -26,6 +26,10 @@ public class LuceneFieldQueryNodeBuilder<T> implements JpaQuerySpecificationBuil
 		if ("supplyingAgencyCode".equals(fieldName)) {
 			return buildSupplyingAgencyCodeQuery(fieldText);
 		}
+		if ("patronBarcode".equals(fieldName)) {
+			return buildPatronBarcodeQuery(fieldText);
+		}
+
 
 		// Default behavior for regular fields
 		QuerySpecification<T> cb = (root, query, criteriaBuilder) -> {
@@ -42,5 +46,12 @@ public class LuceneFieldQueryNodeBuilder<T> implements JpaQuerySpecificationBuil
 			// May need ordering or selection to ensure we get the correct supplier request
 			return criteriaBuilder.equal(supplierRequestJoin.get("localAgency"), agencyCode);
 		};
+	}
+
+	private QuerySpecification<T> buildPatronBarcodeQuery(String barcode) {
+		return (root, query, criteriaBuilder) -> {
+			Join<Object, Object> identityJoin = root.join("requestingIdentity", JoinType.LEFT);
+			// LIKE used because barcodes are sometimes a little weird. To be reviewed
+			return criteriaBuilder.like(identityJoin.get("localBarcode"), "%" + barcode + "%");		};
 	}
 }

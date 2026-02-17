@@ -1,5 +1,6 @@
 package org.olf.dcb.core.api;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -20,6 +21,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.api.serde.PatronRequestSummary;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
@@ -30,6 +32,7 @@ import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingService;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
@@ -150,6 +153,29 @@ public class PatronRequestController {
 		return patronRequestService.placePatronRequestExpeditedCheckout(command)
 			.map(PatronRequestView::from);
 	}
+
+	// At first, this should only be for consortial administrators or other admin users.
+	// Gets requests by patron barcode and has modes for 'active' and 'all time'
+	// Useful for consortium admins and possibly also discovery services.
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR})
+	@Operation(
+		summary = "List Requests by Patron Barcode",
+		description = "Returns a list of patron requests associated with a specific barcode and Host LMS."
+	)
+	@Get(value = "/patrons/{hostLmsCode}/requests")
+	public Flux<PatronRequestSummary> getPatronRequestsByBarcode(
+		@Parameter(description = "The Host LMS Code") String hostLmsCode,
+		@Parameter(description = "The Patron's Barcode") @QueryValue String barcode,
+		@Parameter(description = "Filter mode: 'active' (default) or 'all'") @QueryValue(defaultValue = "active") @Nullable String mode) {
+
+
+		if ("all".equalsIgnoreCase(mode)) {
+			return patronRequestRepository.findAllRequestsForPatronByBarcode(hostLmsCode, barcode);
+		} else {
+			return patronRequestRepository.findActiveRequestsForPatronByBarcode(hostLmsCode, barcode);
+		}
+	}
+
 
 	@Error
 	public HttpResponse<ChecksFailure> onCheckFailure(PreflightCheckFailedException exception) {
