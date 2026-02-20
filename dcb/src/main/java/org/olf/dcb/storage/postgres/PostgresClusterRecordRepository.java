@@ -88,6 +88,7 @@ public interface PostgresClusterRecordRepository extends
 			LEFT JOIN source_record ON source_record.id = bib_record.source_record_uuid
 		WHERE (bib_record.source_record_uuid IS NULL OR process_version IS NULL OR process_version < :version)
 			AND (source_record.processing_state IS NULL OR source_record.processing_state != 'PROCESSING_REQUIRED')
+			AND constributes_to is not null
 		LIMIT :max;""")
 	Publisher<UUID> getClusterIdsWithOutdatedUnprocessedBibs( int version, int max );
 	
