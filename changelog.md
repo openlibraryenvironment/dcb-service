@@ -1,6 +1,16 @@
 # Changelog
 
+## Version 8.65.2
+
+### Fixes
+* [General]
+	* Catch typo in getClusterIdsWithOutdatedUnprocessedBibs SQL
+
 ## Version 8.65.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
