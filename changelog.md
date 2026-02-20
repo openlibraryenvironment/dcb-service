@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 8.65.1
+
+### Fixes
+* [General]
+	* Added contributes_to is not null to getClusterIdsWithOutdatedUnprocessedBibs
+	* Unreachable bib tidying
+	* return illLocationId
+	* Set pickupLocationCode
+
 ## Version 8.65.0
 
 ### Additions
@@ -8,6 +17,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* bump micronaut to 4.10.8
 	* bump micronaut to 4.9.4
 	* bump micronaut to 4.8.3
