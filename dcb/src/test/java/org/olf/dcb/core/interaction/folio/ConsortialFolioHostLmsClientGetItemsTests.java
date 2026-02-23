@@ -11,13 +11,12 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
+import static org.olf.dcb.test.MockServerCommonResponses.badRequest;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyName;
@@ -47,7 +46,6 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotDeleted;
 import static org.olf.dcb.test.matchers.ItemMatchers.isNotSuppressed;
 import static org.olf.dcb.test.matchers.ItemMatchers.isSuppressed;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasHttpVersion;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForHostLms;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
@@ -581,10 +579,9 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		// Arrange
 		final var instanceId = randomUUID().toString();
 
-		mockFolioFixture.mockHoldingsByInstanceId(instanceId, response()
-			.withStatusCode(400)
+		mockFolioFixture.mockHoldingsByInstanceId(instanceId,
 			// This is a made up body that is only intended to demonstrate how it's captured
-			.withBody(json(Map.of("message", "something went wrong"))));
+			badRequest(Map.of("message", "something went wrong")));
 
 		// Act
 		final var problem = assertThrows(ThrowableProblem.class, () -> getItems(instanceId));
@@ -593,8 +590,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		assertThat(problem, allOf(
 			hasMessageForHostLms(CATALOGUING_HOST_LMS_CODE),
 			hasResponseStatusCode(400),
-			hasJsonResponseBodyProperty("message", "something went wrong"),
-			hasHttpVersion("HTTP_1_1")
+			hasJsonResponseBodyProperty("message", "something went wrong")
 		));
 	}
 

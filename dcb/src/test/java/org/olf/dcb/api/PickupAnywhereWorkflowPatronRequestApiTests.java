@@ -8,7 +8,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture.COMMON_BIB_PATCH;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
@@ -44,6 +43,7 @@ import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -193,15 +193,15 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		BORROWING_HOST_LMS = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, TEST_KEY, TEST_SECRET, BORROWING_BASE_URL);
 		PICKUP_HOST_LMS = hostLmsFixture.createSierraHostLms(PICKUP_HOST_LMS_CODE, TEST_KEY, TEST_SECRET, PICKUP_BASE_URL);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-		sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
+		sierraBibsAPIFixture = sierraApiFixtureProvider.bibs(mockServerClient);
 
 		// Mocks for live availability
 		sierraItemsAPIFixture.itemsForBibId(COMMON_AVAILABLE_ITEM_LOCAL_ID, List.of(createSierraItem("1000002")));
 
 		// Mock borrowing side virtual records
-		sierraBibsAPIFixture.createPostBibsMock(COMMON_BIB_PATCH(), COMMON_VIRTUAL_BIB_ID);
+		sierraBibsAPIFixture.createPostBibsMock(createCommonBibPatch(), COMMON_VIRTUAL_BIB_ID);
 		sierraItemsAPIFixture.successResponseForCreateItem(COMMON_VIRTUAL_BIB_ID,
 			SUPPLYING_AGENCY_CODE, SUPPLYING_ITEM_BARCODE, COMMON_VIRTUAL_LOCAL_ITEM_ID);
 		sierraItemsAPIFixture.mockGetItemById(COMMON_VIRTUAL_LOCAL_ITEM_ID, createSierraItem("1000002"));
@@ -337,5 +337,12 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 				notNullValue(),
 				hasActiveWorkflow(PICKUP_ANYWHERE_WORKFLOW)
 		));
+	}
+
+	private BibPatch createCommonBibPatch() {
+		return BibPatch.builder()
+			.authors(List.of("Stafford Beer"))
+			.titles(List.of("Brain of the Firm"))
+			.build();
 	}
 }

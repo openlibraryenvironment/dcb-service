@@ -2,31 +2,25 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.http.HttpHeaderValues.AUTHORIZATION_PREFIX_BASIC;
 import static org.mockserver.matchers.Times.once;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.HttpStatusCode.UNAUTHORIZED_401;
-import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.NottableString.not;
 import static org.mockserver.model.NottableString.string;
+import static org.olf.dcb.test.MockServerCommonResponses.unauthorised;
 
 import java.util.Base64;
 import java.util.Map;
 
-import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
-import org.olf.dcb.test.TestResourceLoaderProvider;
+import org.olf.dcb.test.MockServer;
+import org.olf.dcb.test.MockServerCommonRequests;
 
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public class SierraLoginAPIFixture {
-	private final MockServerClient mockServer;
-	private final SierraMockServerRequests sierraMockServerRequests;
-	private final SierraMockServerResponses sierraMockServerResponses;
+	private static final String LOGIN_PATH = "/iii/sierra-api/v6/token";
 
-	public SierraLoginAPIFixture(MockServerClient mockServer, TestResourceLoaderProvider provider) {
-		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/token"),
-			new SierraMockServerResponses(provider.forBasePath("classpath:mock-responses/sierra/")));
-	}
+	private final MockServer mockServer;
+	private final MockServerCommonRequests mockServerCommonRequests;
 
 	public void successfulLoginFor(String key, String secret, String token) {
 		// Default to only allowing 1 login attempt
@@ -34,22 +28,23 @@ public class SierraLoginAPIFixture {
 	}
 
 	public void successfulLoginFor(String key, String secret, String token, Times times) {
-		mockServer.when(sierraMockServerRequests.post()
-			.withHeader("Authorization", basicAuthCredentials(key, secret)), times)
-			.respond(sierraMockServerResponses.jsonSuccess(json(
-				// Uses map because property names with underscores
-				// are harder to produce with serialisation
-				Map.of(
-					"access_token", token,
-					"token_type", "Bearer",
-					"expires_in", 3600))));
+		final var request = mockServerCommonRequests.post(LOGIN_PATH)
+			.withHeader("Authorization", basicAuthCredentials(key, secret));
+
+		// Uses map because property names with underscores
+		// are harder to produce with serialisation
+		Map<String, Object> responseBody = Map.of(
+			"access_token", token,
+			"token_type", "Bearer",
+			"expires_in", 3600);
+
+		mockServer.mock(request, responseBody, times);
 	}
 
 	public void failLoginsForAnyOtherCredentials(String key, String secret) {
 		// Any other login attempt should fail
-		mockServer.when(sierraMockServerRequests.post()
-			.withHeader(string("Authorization"), not(basicAuthCredentials(key, secret))))
-			.respond(response().withStatusCode(UNAUTHORIZED_401.code()));
+		mockServer.mock(mockServerCommonRequests.post(LOGIN_PATH)
+			.withHeader(string("Authorization"), not(basicAuthCredentials(key, secret))), unauthorised());
 	}
 
 	private static String basicAuthCredentials(String key, String secret) {

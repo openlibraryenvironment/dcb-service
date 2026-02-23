@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
+import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -27,6 +28,10 @@ public class LocalRequestMatchers {
 
 	public static Matcher<LocalRequest> hasLocalId() {
 		return hasProperty("localId", is(notNullValue()));
+	}
+
+	public static Matcher<LocalRequest> hasRequestedItemId(Integer expectedItemId) {
+		return hasRequestedItemId(convertIntegerToString(expectedItemId));
 	}
 
 	public static Matcher<LocalRequest> hasRequestedItemId(String expectedItemId) {

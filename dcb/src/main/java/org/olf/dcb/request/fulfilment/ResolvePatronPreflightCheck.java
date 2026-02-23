@@ -8,11 +8,10 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
-import org.olf.dcb.core.IntMessageService;
-
 import java.util.ArrayList;
 import java.util.List;
 
+import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.Patron;
@@ -25,22 +24,17 @@ import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
+@AllArgsConstructor
 @Requires(property = "dcb.requests.preflight-checks.resolve-patron.enabled", defaultValue = "true", notEquals = "false")
 public class ResolvePatronPreflightCheck implements PreflightCheck {
-
 	private final LocalPatronService localPatronService;
-  private final IntMessageService intMessageService;
-
-	public ResolvePatronPreflightCheck(LocalPatronService localPatronService,
-    IntMessageService intMessageService) {
-		this.localPatronService = localPatronService;
-    this.intMessageService = intMessageService;
-	}
+	private final IntMessageService intMessageService;
 
 	@Override
 	public Mono<List<CheckResult>> check(PlacePatronRequestCommand command) {

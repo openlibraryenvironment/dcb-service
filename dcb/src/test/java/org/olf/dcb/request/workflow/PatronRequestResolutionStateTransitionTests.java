@@ -138,11 +138,11 @@ class PatronRequestResolutionStateTransitionTests {
 	public void beforeAll(MockServerClient mockServerClient) {
 		log.info("beforeAll\n\n");
 
-		final String HOST_LMS_TOKEN = "resolution-system-token";
-		final String HOST_LMS_KEY = "resolution-system-key";
-		final String HOST_LMS_SECRET = "resolution-system-secret";
+		final var token = "resolution-system-token";
+		final var key = "resolution-system-key";
+		final var secret = "resolution-system-secret";
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
 
 		supplierRequestsFixture.deleteAll();
 		patronRequestsFixture.deleteAll();
@@ -150,25 +150,25 @@ class PatronRequestResolutionStateTransitionTests {
 
 		hostLmsFixture.deleteAll();
 
-		final String cataloguingHostLmsUrl = "https://resolution-tests.com";
+		final var cataloguingHostLmsUrl = "https://resolution-tests.com";
 
 		SierraTestUtils.mockFor(mockServerClient, cataloguingHostLmsUrl)
-			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
+			.setValidCredentials(key, secret, token, 60);
 
 		cataloguingHostLms = hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE,
-			HOST_LMS_KEY, HOST_LMS_SECRET, cataloguingHostLmsUrl, "item");
+			key, secret, cataloguingHostLmsUrl, "item");
 
 		hostLmsFixture.createSierraHostLms(
-			CIRCULATING_HOST_LMS_CODE, HOST_LMS_KEY,
-			HOST_LMS_SECRET, "http://some-circulating-system", "item");
+			CIRCULATING_HOST_LMS_CODE, key,
+			secret, "http://some-circulating-system", "item");
 
 		final var borrowingHostLmsUrl = "http://some-borrowing-system";
 
 		SierraTestUtils.mockFor(mockServerClient, borrowingHostLmsUrl)
-			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
+			.setValidCredentials(key, secret, token, 60);
 
 		borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
-			HOST_LMS_KEY, HOST_LMS_SECRET, borrowingHostLmsUrl, "item");
+			key, secret, borrowingHostLmsUrl, "item");
 	}
 
 	@BeforeEach

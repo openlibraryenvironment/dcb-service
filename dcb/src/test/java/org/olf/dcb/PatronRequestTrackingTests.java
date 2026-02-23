@@ -73,8 +73,8 @@ public class PatronRequestTrackingTests {
 		defineHostLms(BORROWING_HOST_LMS_CODE, "https://borrowing-agency-tracking-tests.com", mockServerClient);
 		defineHostLms(SUPPLYING_HOST_LMS_CODE, "https://supplying-agency-tracking-tests.com", mockServerClient);
 
-		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
+		this.sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
 	}
 
 	@BeforeEach

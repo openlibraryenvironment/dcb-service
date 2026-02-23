@@ -62,7 +62,7 @@ class SierraApiItemTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 
 		hostLmsFixture.deleteAll();
 

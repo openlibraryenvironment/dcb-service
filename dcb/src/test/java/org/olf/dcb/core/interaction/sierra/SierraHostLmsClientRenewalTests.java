@@ -1,7 +1,19 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasHttpVersion;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasMessageForRequest;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
+
 import org.hamcrest.CoreMatchers;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -10,18 +22,11 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.test.HostLmsFixture;
 import org.zalando.problem.ThrowableProblem;
+
+import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.*;
-import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
 
 @Slf4j
 @MockServerMicronautTest
@@ -45,10 +50,10 @@ class SierraHostLmsClientRenewalTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
 
-		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
+		final var sierraLoginFixture = sierraApiFixtureProvider.login(mockServerClient, null);
 
 		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
 

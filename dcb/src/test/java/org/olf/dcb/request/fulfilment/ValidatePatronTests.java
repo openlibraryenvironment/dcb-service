@@ -42,6 +42,7 @@ import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -86,7 +87,7 @@ public class ValidatePatronTests {
 
 		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
 	}
 
 	@BeforeEach
@@ -119,7 +120,7 @@ public class ValidatePatronTests {
 		var patronRequest = savePatronRequest(patron);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295",
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)
 				.homeLibraryCode(HOME_LIBRARY_CODE)
@@ -158,7 +159,7 @@ public class ValidatePatronTests {
 		var patronRequest = savePatronRequest(patron);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("248303",
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localId))
 				.patronType(15)
 				.barcodes(List.of("647647746"))
@@ -195,7 +196,7 @@ public class ValidatePatronTests {
 		var patronRequest = savePatronRequest(patron);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localId))
 				.patronType(15)
 				.homeLibraryCode(HOME_LIBRARY_CODE)
@@ -296,7 +297,7 @@ public class ValidatePatronTests {
 		var patronRequest = savePatronRequest(patron);
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localId))
 				.patronType(15)
 				.homeLibraryCode(HOME_LIBRARY_CODE)

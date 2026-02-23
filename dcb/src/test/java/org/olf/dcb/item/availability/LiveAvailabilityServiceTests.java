@@ -32,13 +32,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.UnknownHostLmsException;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.test.AgencyFixture;
@@ -105,7 +105,7 @@ class LiveAvailabilityServiceTests {
 		secondHostLms = hostLmsFixture.createSierraHostLms(SECOND_HOST_LMS_CODE,
 			SECOND_SYSTEM_KEY, SECOND_SYSTEM_SECRET, SECOND_HOST_LMS_BASE_URL, "item");
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 	}
 
 	@BeforeEach

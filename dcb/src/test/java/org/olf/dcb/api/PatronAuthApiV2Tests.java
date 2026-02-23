@@ -1,15 +1,19 @@
 package org.olf.dcb.api;
 
-import io.micronaut.core.annotation.Nullable;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.inject.Inject;
-import lombok.Builder;
-import lombok.Data;
-import org.junit.jupiter.api.*;
+import static io.micronaut.http.HttpStatus.OK;
+import static java.util.UUID.randomUUID;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockserver.model.JsonBody.json;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpResponse;
 import org.olf.dcb.core.api.serde.AgencyDTO;
@@ -20,18 +24,20 @@ import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.inject.Inject;
+import lombok.Builder;
+import lombok.Data;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.patrons.PatronValidation;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
-
-import java.util.List;
-
-import static io.micronaut.http.HttpStatus.OK;
-import static java.util.UUID.randomUUID;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockserver.model.JsonBody.json;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
@@ -68,7 +74,7 @@ public class PatronAuthApiV2Tests {
 		mockSierra = SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
 	}
 
 	@BeforeEach
@@ -104,7 +110,7 @@ public class PatronAuthApiV2Tests {
       .respond(HttpResponse.response().withStatusCode(200));
 
 		sierraPatronsAPIFixture.patronFoundResponse("b", "3100222227777",
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(22)
 				.names(List.of("Joe Bloggs"))

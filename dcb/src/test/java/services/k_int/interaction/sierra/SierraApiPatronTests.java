@@ -8,7 +8,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
@@ -32,6 +31,7 @@ import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -60,7 +60,7 @@ class SierraApiPatronTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
 
 		hostLmsFixture.deleteAll();
 
@@ -70,11 +70,13 @@ class SierraApiPatronTests {
 	@Test
 	void shouldReportErrorWhenCreatingAPatronRespondsWithBadRequest() {
 		// Arrange
+		final var patronId = "0987654321";
+
 		final var patronPatch = PatronPatch.builder()
-			.uniqueIds(List.of("0987654321"))
+			.uniqueIds(List.of(patronId))
 			.build();
 
-		sierraPatronsAPIFixture.postPatronErrorResponse("0987654321");
+		sierraPatronsAPIFixture.postPatronErrorResponse(patronId);
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
@@ -119,7 +121,7 @@ class SierraApiPatronTests {
 		var uniqueId = "1234567890";
 
 		sierraPatronsAPIFixture.patronFoundResponse("u", uniqueId,
-			Patron.builder()
+			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(22)
 				.names(List.of("Joe Bloggs"))
@@ -145,7 +147,7 @@ class SierraApiPatronTests {
 		var uniqueId = "6748687";
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId,
-			Patron.builder()
+			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)
 				.homeLibraryCode("testccc")

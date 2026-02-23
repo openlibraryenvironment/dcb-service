@@ -3,6 +3,7 @@ package org.olf.dcb.test.matchers;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
+import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.interaction.HostLmsRequest;
@@ -20,12 +21,20 @@ public class HostLmsRequestMatchers {
 		return hasProperty("status", is(nullValue()));
 	}
 
+	public static Matcher<HostLmsRequest> hasLocalId(Integer expectedId) {
+		return hasLocalId(expectedId.toString());
+	}
+
 	public static Matcher<HostLmsRequest> hasLocalId(String expectedId) {
 		return hasProperty("localId", is(expectedId));
 	}
 
 	public static Matcher<HostLmsRequest> hasNoLocalId() {
 		return hasProperty("localId", is(nullValue()));
+	}
+
+	public static Matcher<HostLmsRequest> hasRequestedItemId(Integer expectedId) {
+		return hasRequestedItemId(convertIntegerToString(expectedId));
 	}
 
 	public static Matcher<HostLmsRequest> hasRequestedItemId(String expectedId) {

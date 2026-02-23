@@ -99,7 +99,7 @@ class ConsortialFolioHostLmsClientUpdateRequestTests {
 		referenceValueMappingFixture.defineCanonicalToLocalItemTypeMapping(
 			HOST_LMS_CODE, "canonical-item-type", "local-item-type");
 
-		final String transactionId = UUID.randomUUID().toString();
+		final var transactionId = UUID.randomUUID().toString();
 
 		mockFolioFixture.mockUpdateTransaction(transactionId, response()
 			.withStatusCode(404)

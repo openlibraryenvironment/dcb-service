@@ -12,7 +12,6 @@
 <!--	<logger name="io.micronaut.http.client" level="TRACE"/>-->
 <!--	<logger name="io.micronaut.data.query" level="TRACE"/>-->
 <!--	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>-->
-<!--	<logger name="org.mockserver" level="TRACE"/>-->
 <!--	<logger name="org.olf.dcb.core.interaction.folio" level="TRACE"/>-->
 <!--	<logger name="org.olf.dcb.core.interaction.polaris" level="TRACE"/>-->
 <!--	<logger name="org.flywaydb" level="DEBUG"/>-->
@@ -31,6 +30,7 @@
 
 	<!-- Mock server is pretty noisy at the default info level -->
 	<logger name="org.mockserver" level="WARN"/>
+<!--	<logger name="org.mockserver" level="TRACE"/>-->
 
 	<root level="info">
 		<appender-ref ref="STDOUT"/>

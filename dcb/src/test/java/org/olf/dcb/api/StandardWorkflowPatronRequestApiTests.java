@@ -75,6 +75,7 @@ import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -149,10 +150,10 @@ class StandardWorkflowPatronRequestApiTests {
 		final var supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY, SECRET, SUPPLYING_BASE_URL);
 		final var borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BORROWING_BASE_URL);
 
-		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		this.sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
+		this.sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
 
-		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
+		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibs(mockServerClient);
 
 		sierraItemsAPIFixture.itemsForBibId("798472", List.of(SierraItem.builder()
 			.id("1000002")
@@ -182,7 +183,7 @@ class StandardWorkflowPatronRequestApiTests {
 		// Step 1: query the patrons on the hostlms with a successful resp of finding ONE patron
 		// Step 2: use the returned patron id to then get the patron by local id
 		sierraPatronsAPIFixture.patronsQueryFoundResponse(expectedUniqueId, "2745326");
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("2745326", SierraPatronsAPIFixture.Patron.builder()
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("2745326", SierraPatronRecord.builder()
 			.id(2745326)
 			.patronType(15)
 			.names(List.of("Joe Bloggs"))
@@ -481,8 +482,7 @@ class StandardWorkflowPatronRequestApiTests {
 
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold(KNOWN_PATRON_LOCAL_ID,
 			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + localBorrowingHoldId,
-			"Consortial Hold. tno=" + placedPatronRequest.getId(),
-			localBorrowingItemId);
+			"Consortial Hold. tno=" + placedPatronRequest.getId(), localBorrowingItemId);
 
 		sierraItemsAPIFixture.mockGetItemById(localBorrowingItemId,
 			SierraItem.builder()

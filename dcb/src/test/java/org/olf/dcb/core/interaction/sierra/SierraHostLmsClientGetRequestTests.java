@@ -37,7 +37,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class SierraHostLmsClientGetRequestTests {
 	private static final String HOST_LMS_CODE = "sierra-place-hold-tests";
-	private final String BASE_URL = "https://get-request-tests.com";
+	private static final String HOST = "get-request-tests.com";
+	private static final String BASE_URL = "https://" + HOST;
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -66,8 +67,8 @@ class SierraHostLmsClientGetRequestTests {
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "title");
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, HOST);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, HOST);
 	}
 
 	@Test

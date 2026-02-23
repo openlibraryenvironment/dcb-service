@@ -30,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.PatronData;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -47,6 +48,9 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class PolarisLmsClientGetPatronTests {
 	private static final String HOST_LMS_CODE = "polaris-get-patron";
 
+	private static final String HOST = "polaris-hostlms-tests.com";
+	private static final String BASE_URL = "https://" + HOST;
+
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
 
@@ -57,32 +61,26 @@ class PolarisLmsClientGetPatronTests {
 	@Inject
 	private AgencyFixture agencyFixture;
 
-	private MockServerClient mockServerClient;
 	private MockPolarisFixture mockPolarisFixture;
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
-		this.mockServerClient = mockServerClient;
-
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 
-		final var baseUrl = "https://polaris-hostlms-tests.com";
 		final var key = "polaris-hostlms-test-key";
 		final var secret = "polaris-hostlms-test-secret";
 		final var domain = "TEST";
 
 		hostLmsFixture.createPolarisHostLms(HOST_LMS_CODE, key,
-			secret, baseUrl, domain, key, secret);
+			secret, BASE_URL, domain, key, secret);
 
-		mockPolarisFixture = new MockPolarisFixture("polaris-hostlms-tests.com",
-			mockServerClient, testResourceLoaderProvider);
+		mockPolarisFixture = new MockPolarisFixture(HOST, mockServerClient,
+			testResourceLoaderProvider);
 	}
 
 	@BeforeEach
 	void beforeEach() {
-		mockServerClient.reset();
-
 		mockPolarisFixture.mockPapiStaffAuthentication();
 		mockPolarisFixture.mockAppServicesStaffAuthentication();
 
@@ -92,39 +90,33 @@ class PolarisLmsClientGetPatronTests {
 	@Test
 	void shouldBeAbleToFindPatronById() {
 		// Arrange
-		final var localId = "1255193";
-		final var barcode = "0077777777";
+		final var localId = "5736265";
+		final var barcode = "963856255";
 		final var organisationId = "39";
-		final var patronCodeId = "3";
+		final var patronCode = "3";
 
 		mockPolarisFixture.mockGetPatron(localId,
 			PatronData.builder()
 				.patronID((parseInt(localId)))
-				.patronCodeID(parseInt(patronCodeId))
+				.patronCodeID(parseInt(patronCode))
 				.barcode(barcode)
 				.organizationID(parseInt(organisationId))
 				.build());
 
-		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
-			PatronCirculationBlocksResult.builder()
-				.canPatronCirculate(true)
-				.build());
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode, circulationBlock(true));
 
 		final var canonicalPatronType = "UNDERGRADUATE";
 
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
-			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
+		definePatronTypeMapping(patronCode, canonicalPatronType);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var response = singleValueFrom(client.getPatronByIdentifier(localId));
+		final var patron = getPatronByIdentifier(localId);
 
 		// Assert
-		assertThat(response, allOf(
+		assertThat(patron, allOf(
 			notNullValue(),
 			hasLocalIds(localId),
-			hasLocalPatronType(patronCodeId),
+			hasLocalPatronType(patronCode),
 			hasCanonicalPatronType(canonicalPatronType),
 			hasLocalBarcodes(barcode),
 			hasHomeLibraryCode(organisationId),
@@ -138,7 +130,7 @@ class PolarisLmsClientGetPatronTests {
 	void shouldBeAbleToFindBlockedPatronById() {
 		// Arrange
 		final var localId = "673663";
-		final var barcode = "0077777777";
+		final var barcode = "71282756";
 		final var organisationId = "39";
 		final var patronCodeId = "3";
 
@@ -150,23 +142,15 @@ class PolarisLmsClientGetPatronTests {
 				.organizationID(parseInt(organisationId))
 				.build());
 
-		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
-			PatronCirculationBlocksResult.builder()
-				.canPatronCirculate(false)
-				.build());
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode, circulationBlock(false));
 
-		final var canonicalPatronType = "UNDERGRADUATE";
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
-			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
+		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var response = singleValueFrom(client.getPatronByLocalId(localId));
+		final var patron = getPatron(localId);
 
 		// Assert
-		assertThat(response, allOf(
+		assertThat(patron, allOf(
 			notNullValue(),
 			isBlocked()
 		));
@@ -176,7 +160,7 @@ class PolarisLmsClientGetPatronTests {
 	void shouldDefaultToNotBlocked() {
 		// Arrange
 		final var localId = "8264569";
-		final var barcode = "0077777777";
+		final var barcode = "936525732";
 		final var organisationId = "39";
 		final var patronCodeId = "3";
 
@@ -188,21 +172,15 @@ class PolarisLmsClientGetPatronTests {
 				.organizationID(parseInt(organisationId))
 				.build());
 
-		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
-			PatronCirculationBlocksResult.builder().build());
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode, circulationBlock(null));
 
-		final var canonicalPatronType = "UNDERGRADUATE";
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
-			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
+		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var response = singleValueFrom(client.getPatronByLocalId(localId));
+		final var patron = getPatron(localId);
 
 		// Assert
-		assertThat(response, allOf(
+		assertThat(patron, allOf(
 			notNullValue(),
 			isNotBlocked()
 		));
@@ -212,7 +190,7 @@ class PolarisLmsClientGetPatronTests {
 	void shouldFailWhenCirculationBlocksEndpointReturnsError() {
 		// Arrange
 		final var localId = "2769363";
-		final var barcode = "0077777777";
+		final var barcode = "096285231";
 		final var organisationId = "39";
 		final var patronCodeId = "3";
 
@@ -230,16 +208,11 @@ class PolarisLmsClientGetPatronTests {
 				.errorMessage("Something went wrong")
 				.build());
 
-		final var canonicalPatronType = "UNDERGRADUATE";
-
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
-			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", canonicalPatronType);
+		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		final var problem = assertThrows(CannotGetPatronBlocksProblem.class,
-			() -> singleValueFrom(client.getPatronByLocalId(localId)));
+			() -> getPatron(localId));
 
 		// Assert
 		assertThat(problem, allOf(
@@ -253,7 +226,7 @@ class PolarisLmsClientGetPatronTests {
 	void shouldFailWhenLocalPatronTypeCannotBeMappedToCanonical() {
 		// Arrange
 		final var localId = "1255193";
-		final var barcode = "0077777777";
+		final var barcode = "48275635";
 		final var organisationId = "39";
 		final var patronCodeId = "3";
 
@@ -266,10 +239,8 @@ class PolarisLmsClientGetPatronTests {
 				.build());
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
 		final var problem = assertThrows(NoPatronTypeMappingFoundException.class,
-			() -> singleValueFrom(client.getPatronByLocalId(localId)));
+			() -> getPatron(localId));
 
 		// Assert
 		assertThat(problem, allOf(
@@ -287,10 +258,7 @@ class PolarisLmsClientGetPatronTests {
 		mockPolarisFixture.mockGetPatronServerErrorResponse(localId);
 
 		// Act
-		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
-
-		final var problem = assertThrows(ThrowableProblem.class,
-			() -> singleValueFrom(client.getPatronByLocalId(localId)));
+		final var problem = assertThrows(ThrowableProblem.class, () -> getPatron(localId));
 
 		// Assert
 		assertThat(problem, allOf(
@@ -300,8 +268,35 @@ class PolarisLmsClientGetPatronTests {
 			hasTextResponseBody("Something went wrong"),
 			hasRequestMethod("GET"),
 			hasNoRequestBody(),
-			hasRequestUrl(
-				"https://polaris-hostlms-tests.com/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/6483613")
+			hasRequestUrl(patronUrl(localId))
 		));
+	}
+
+	private Patron getPatron(String localId) {
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		return singleValueFrom(client.getPatronByLocalId(localId));
+	}
+
+	private Patron getPatronByIdentifier(String localId) {
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		return singleValueFrom(client.getPatronByIdentifier(localId));
+	}
+
+	private static String patronUrl(String patronId) {
+		return "%s/polaris.applicationservices/api/v1/eng/20/polaris/73/1/patrons/%s"
+			.formatted(BASE_URL, patronId);
+	}
+
+	private static PatronCirculationBlocksResult circulationBlock(Boolean canPatronCirculate) {
+		return PatronCirculationBlocksResult.builder()
+			.canPatronCirculate(canPatronCirculate)
+			.build();
+	}
+
+	private void definePatronTypeMapping(String patronCode, String canonicalValue) {
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			parseLong(patronCode), parseLong(patronCode), "DCB", canonicalValue);
 	}
 }

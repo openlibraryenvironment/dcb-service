@@ -1,32 +1,29 @@
 package org.olf.dcb.core.interaction.folio;
 
-import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static org.mockserver.model.HttpRequest.request;
-import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.verify.VerificationTimes.never;
-import static org.mockserver.verify.VerificationTimes.once;
+import static org.olf.dcb.test.MockServerCommonResponses.created;
+import static org.olf.dcb.test.MockServerCommonResponses.noContent;
+import static org.olf.dcb.test.MockServerCommonResponses.ok;
+import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
-import org.mockserver.model.JsonBody;
+import org.olf.dcb.test.MockServer;
+import org.olf.dcb.test.MockServerCommonRequests;
 
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Value;
 
 public class MockFolioFixture {
-	private final MockServerClient mockServerClient;
-	private final String host;
-	private final String apiKey;
+	private final MockServer mockServer;
+	private final MockServerCommonRequests commonRequests;
 
 	public MockFolioFixture(MockServerClient mockServerClient, String host, String apiKey) {
-		this.mockServerClient = mockServerClient;
-		this.host = host;
-		this.apiKey = apiKey;
+		this.commonRequests = new MockServerCommonRequests(host, apiKey);
+		this.mockServer = new MockServer(mockServerClient, commonRequests);
 	}
 
 	void mockHoldingsByInstanceId(String instanceId, Holding... holdings) {
@@ -45,147 +42,94 @@ public class MockFolioFixture {
 	}
 
 	void mockHoldingsByInstanceId(String instanceId, OuterHoldings holdings) {
-		mockHoldingsByInstanceId(instanceId, json(holdings));
-	}
-
-	void mockHoldingsByInstanceId(String instanceId, JsonBody json) {
-		mockHoldingsByInstanceId(instanceId, response()
-			.withStatusCode(200)
-			.withBody(json));
+		mockHoldingsByInstanceId(instanceId, okJson(holdings));
 	}
 
 	void mockHoldingsByInstanceId(String instanceId, HttpResponse response) {
-		mockServerClient
-			.when(authorizedRequest("GET")
-				.withPath("/rtac")
-				.withQueryStringParameter("fullPeriodicals", "true")
-				.withQueryStringParameter("instanceIds", instanceId))
-			.respond(response);
+		mockServer.mock(commonRequests.get("/rtac")
+			.withQueryStringParameter("fullPeriodicals", "true")
+			.withQueryStringParameter("instanceIds", instanceId), response);
 	}
 
-	void mockPatronAuth(String barcode, User user) {
-		mockGetUsersWithQuery("barcode", barcode, user);
-
-		mockPatronVerify(response()
-			.withStatusCode(200));
-	}
-
-	private void mockPatronVerify(HttpResponse response) {
-		mockServerClient
-			.when(authorizedRequest("POST")
-				.withPath("/users/patron-pin/verify"))
-			.respond(response);
+	public void mockPatronPinVerify() {
+		mockServer.mockPost("/users/patron-pin/verify", ok());
 	}
 
 	public void mockGetUsersWithQuery(String queryField, String queryValue, User... users) {
-		mockServerClient
-			.when(authorizedRequest("GET")
-				.withPath("/users/users")
-				.withQueryStringParameter("query", queryField + "==\"" + queryValue + "\""))
-			.respond(response()
-				.withStatusCode(200)
-				.withBody(json(
-					UserCollection.builder()
-						.users(List.of(users))
-						.build())));
+		mockGetUsersWithQuery(queryField, queryValue, okJson(UserCollection.builder().users(List.of(users)).build()));
 	}
 
 	public void mockGetUsersWithQuery(String queryField, String queryValue, HttpResponse response) {
-		mockServerClient
-			.when(authorizedRequest("GET")
-				.withPath("/users/users")
-				.withQueryStringParameter("query", queryField + "==\"" + queryValue + "\""))
-			.respond(response);
+		mockServer.mockGet("/users/users", "query", queryField + "==\"" + queryValue + "\"", response);
 	}
 
 	void mockCreateTransaction(CreateTransactionResponse response) {
-		mockCreateTransaction(response()
-			.withStatusCode(201)
-			.withBody(json(response)));
+		mockCreateTransaction(created(response));
 	}
 
 	void mockCreateTransaction(HttpResponse response) {
-		// Have to remove previous expectations as there is no way to match specifically
-		mockServerClient.clear(createTransactionRequest());
-
-		mockServerClient
-			.when(createTransactionRequest())
-			.respond(response);
+		mockServer.replaceMock(commonRequests.post(createTransactionPath()), response);
 	}
 
-	void verifyCreateTransaction(CreateTransactionRequest request) {
-		mockServerClient.verify(createTransactionRequest()
-			.withBody(json(request)), once());
-	}
-
-	private HttpRequest createTransactionRequest() {
-		return authorizedRequest("POST")
-			// This has to be unspecific as the transaction ID is generated internally
-			.withPath("/dcbService/transactions/.*");
+	void verifyCreateTransaction(CreateTransactionRequest body) {
+		mockServer.verifyPost(createTransactionPath(), body);
 	}
 
 	public void mockGetTransactionStatus(String transactionId, String status) {
-		mockGetTransactionStatus(transactionId, response()
-			.withStatusCode(200)
-			.withBody(json(TransactionStatus.builder()
-				.status(status)
-				.build())));
+		mockGetTransactionStatus(transactionId, okJson(TransactionStatus.builder().status(status).build()));
 	}
 
 	public void mockGetTransactionStatus(String transactionId, HttpResponse response) {
-		mockServerClient
-			.when(authorizedRequest("GET")
-				.withPath("/dcbService/transactions/%s/status".formatted(transactionId)))
-			.respond(response);
+		mockServer.mockGet(getTransactionStatusPath(transactionId), response);
 	}
 
 	public void mockUpdateTransaction(String transactionId) {
-		mockUpdateTransaction(transactionId, response().withStatusCode(204));
+		mockUpdateTransaction(transactionId, noContent());
 	}
 
 	public void mockUpdateTransaction(String transactionId, HttpResponse response) {
-		mockServerClient.when(updateTransactionRequest(transactionId))
-			.respond(response);
+		mockServer.mockPut(updateTransactionPath(transactionId), response);
 	}
 
-	public void verifyUpdateTransaction(String transactionId,
-		UpdateTransactionRequest expectedRequest) {
-
-		mockServerClient.verify(updateTransactionRequest(transactionId)
-			.withBody(json(expectedRequest)), once());
+	public void verifyUpdateTransaction(String transactionId, UpdateTransactionRequest expectedRequest) {
+		mockServer.verifyPut(updateTransactionPath(transactionId), expectedRequest);
 	}
 
 	public void verifyNoUpdateTransaction(String transactionId) {
-		mockServerClient.verify(updateTransactionRequest(transactionId), never());
+		mockServer.verifyPutNever(updateTransactionPath(transactionId));
 	}
 
-	private HttpRequest updateTransactionRequest(String transactionId) {
-		return authorizedRequest("PUT")
-			.withPath("/dcbService/transactions/%s".formatted(transactionId));
+	void mockRenewTransaction(String transactionId, Object responseBody) {
+		mockServer.mockPut(renewTransactionPath(transactionId), responseBody);
 	}
 
 	void mockRenewTransaction(String transactionId, HttpResponse response) {
-		mockServerClient
-			.when(renewTransactionRequest(transactionId))
-			.respond(response);
+		mockServer.mock(renewTransactionRequest(transactionId), response);
 	}
 
 	public void verifyRenewTransaction(String transactionId) {
-		mockServerClient.verify(renewTransactionRequest(transactionId), once());
+		mockServer.verifyPut(renewTransactionPath(transactionId));
 	}
 
 	private HttpRequest renewTransactionRequest(String transactionId) {
-		return authorizedRequest("PUT")
-			.withPath("/dcbService/transactions/%s/renew".formatted(transactionId));
+		return commonRequests.put(renewTransactionPath(transactionId));
 	}
 
+	private static String createTransactionPath() {
+		// This has to be unspecific as the transaction ID is generated internally
+		return "/dcbService/transactions/.*";
+	}
 
-	private HttpRequest authorizedRequest(String method) {
-		return request()
-			.withMethod(method)
-			.withHeader("Host", host)
-			.withHeader("Authorization", apiKey)
-			.withHeader("Accept", APPLICATION_JSON);
+	private static String getTransactionStatusPath(String transactionId) {
+		return "/dcbService/transactions/%s/status".formatted(transactionId);
+	}
+
+	private static String updateTransactionPath(String transactionId) {
+		return "/dcbService/transactions/%s".formatted(transactionId);
+	}
+
+	private static String renewTransactionPath(String transactionId) {
+		return "/dcbService/transactions/%s/renew".formatted(transactionId);
 	}
 
 	@Serdeable

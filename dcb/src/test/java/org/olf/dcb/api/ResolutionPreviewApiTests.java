@@ -101,7 +101,7 @@ class ResolutionPreviewApiTests {
 		SierraTestUtils.mockFor(mockServerClient, HOST_LMS_BASE_URL)
 			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 
 		hostLmsFixture.deleteAll();
 

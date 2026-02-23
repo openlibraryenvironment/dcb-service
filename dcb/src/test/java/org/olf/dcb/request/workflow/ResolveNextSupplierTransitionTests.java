@@ -160,8 +160,8 @@ class ResolveNextSupplierTransitionTests {
 		previouslySupplyingHostLms = hostLmsFixture.createSierraHostLms(
 			PREVIOUSLY_SUPPLYING_HOST_LMS_CODE, "anything", "anything", "http://anywhere");
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
 	}
 
 	@BeforeEach

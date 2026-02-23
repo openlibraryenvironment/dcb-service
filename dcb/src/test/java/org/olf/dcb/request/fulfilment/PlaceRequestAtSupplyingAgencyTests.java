@@ -68,6 +68,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
@@ -141,8 +142,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 
 		// add patron type mappings
 		savePatronTypeMappings();
@@ -165,7 +166,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		final var WORKAROUND_LOCAL_ID = "1000003";
 		sierraPatronsAPIFixture.patronsQueryFoundResponse("872321@supplying-agency", WORKAROUND_LOCAL_ID);
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(WORKAROUND_LOCAL_ID,
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(22)
 				.names(List.of("Joe Bloggs"))
@@ -175,7 +176,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002",
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)
 				.homeLibraryCode("testccc")
@@ -235,7 +236,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.patronsQueryFoundResponse("32453@%s".formatted(SUPPLYING_AGENCY_CODE), "1000002");
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002",
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)
 				.homeLibraryCode("testccc")

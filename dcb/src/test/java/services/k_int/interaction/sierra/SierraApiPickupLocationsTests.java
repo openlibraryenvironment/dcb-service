@@ -19,7 +19,6 @@ import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPickupLocationsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
-import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -30,8 +29,6 @@ class SierraApiPickupLocationsTests {
 	private static final String HOST_LMS_CODE = "sierra-locations-api-tests";
 
 	@Inject
-	private HttpClient client;
-	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -40,19 +37,20 @@ class SierraApiPickupLocationsTests {
 	
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
-		final String TOKEN = "test-token";
-		final String BASE_URL = "https://pickup-locations-api-tests.com";
-		final String KEY = "pickup-locations-key";
-		final String SECRET = "pickup-locations-secret";
+		final var host = "pickup-locations-api-tests.com";
+		final var baseUrl = "https://" + host;
+		final var token = "test-token";
+		final var key = "pickup-locations-key";
+		final var secret = "pickup-locations-secret";
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, baseUrl)
+			.setValidCredentials(key, secret, token, 60);
 
-		sierraPickupLocationsFixture = sierraApiFixtureProvider.pickupLocationsFor(mockServerClient);
+		sierraPickupLocationsFixture = sierraApiFixtureProvider.pickupLocations(mockServerClient, host);
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, key, secret, baseUrl, "item");
 	}
 
 	@Test

@@ -1346,7 +1346,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class ILLRequestInfo {
+	public static class ILLRequestInfo {
 		@JsonProperty("ILLRequestID")
 		private Integer illRequestID;
 		@JsonProperty("PatronName")
@@ -1577,7 +1577,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class WorkflowResponse {
+	public static class WorkflowResponse {
 		public static final Integer CompletedSuccessfully = 1;
 		public static final Integer InputRequired = -3;
 		@JsonProperty("WorkflowRequestGuid")
@@ -1596,7 +1596,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class Prompt {
+	public static class Prompt {
 		// Prompt Identifiers
 		public static final Integer UpdateItemRecord = 8; // found as part of DCB-2024
 		public static final Integer FillsRequestTransferPrompt = 30;
@@ -1678,7 +1678,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class AnswerExtension {
+	public static class AnswerExtension {
 		@JsonProperty("Data")
 		private AnswerData answerData;
 	}
@@ -1687,7 +1687,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class AnswerData {
+	public static class AnswerData {
 		@JsonProperty("ItemRecord")
 		private ItemRecord itemRecord;
 		@JsonProperty("ILLRequestInfo")
@@ -1703,7 +1703,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class ItemRecord {
+	public static class ItemRecord {
 		@JsonProperty("ItemRecordID")
 		private Integer itemRecordID;
 		@JsonProperty("ItemStatusID")
@@ -1718,7 +1718,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class InformationMessage {
+	public static class InformationMessage {
 		@JsonProperty("Message")
 		private String message;
 		@JsonProperty("Title")

@@ -105,32 +105,33 @@ class PatronRequestResolutionServiceTests {
 	@BeforeAll
 	@SneakyThrows
 	public void beforeAll(MockServerClient mockServerClient) {
-		final String HOST_LMS_BASE_URL = "https://resolution-service-tests.com";
-		final String HOST_LMS_TOKEN = "resolution-system-token";
-		final String HOST_LMS_KEY = "resolution-system-key";
-		final String HOST_LMS_SECRET = "resolution-system-secret";
+		final var host = "resolution-service-tests.com";
+		final var baseUrl = "https://" + host;
+		final var token = "resolution-system-token";
+		final var key = "resolution-system-key";
+		final var secret = "resolution-system-secret";
 
-		SierraTestUtils.mockFor(mockServerClient, HOST_LMS_BASE_URL)
-			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, baseUrl)
+			.setValidCredentials(key, secret, token, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, host);
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, HOST_LMS_KEY,
-			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, key,
+			secret, baseUrl, "item");
 
 		cataloguingHostLms = hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE);
 
 		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, "",
 			"", "http://some-system", "item");
 
-		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, HOST_LMS_KEY,
-			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, key,
+			secret, baseUrl, "item");
 
 		// create a supplying host LMS that is on the same server as the borrower
-		hostLmsFixture.createSierraHostLms(SAME_SERVER_SUPPLYING_HOST_LMS_CODE, HOST_LMS_KEY,
-			HOST_LMS_SECRET, HOST_LMS_BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(SAME_SERVER_SUPPLYING_HOST_LMS_CODE, key,
+			secret, baseUrl, "item");
 	}
 
 	@BeforeEach

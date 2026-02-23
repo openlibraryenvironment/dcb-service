@@ -9,10 +9,10 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -106,9 +106,9 @@ class FinaliseRequestTransitionTests {
 
 		agencyFixture.defineAgency(PICKUP_AGENCY_CODE, "Pickup Agency", pickupHostLMS);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
+		sierraBibsAPIFixture = sierraApiFixtureProvider.bibs(mockServerClient, null);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 	}
 
 	@BeforeEach

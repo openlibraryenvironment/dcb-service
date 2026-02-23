@@ -194,7 +194,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
 			patronGroupName, "DCB", "canonical-patron-type");
 
-		mockFolioFixture.mockPatronAuth(barcode, User.builder()
+		final var user = User.builder()
 			.id("9c2e859d-e923-450d-85e3-b425cfa9f938")
 			.patronGroupName(patronGroupName)
 			.barcode(barcode)
@@ -204,7 +204,11 @@ class ConsortialFolioHostLmsClientPatronTests {
 				.middleName("Middle")
 				.build())
 			.blocked(false)
-			.build());
+			.build();
+
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode, user);
+
+		mockFolioFixture.mockPatronPinVerify();
 
 		// Act
 		final var verifiedPatron = singleValueFrom(client.patronAuth("BASIC/BARCODE+PIN", barcode, "1234"));

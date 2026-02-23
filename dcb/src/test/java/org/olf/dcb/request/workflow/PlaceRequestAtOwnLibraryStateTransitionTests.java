@@ -115,7 +115,7 @@ class PlaceRequestAtOwnLibraryStateTransitionTests {
 		supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE,
 			key, secret, supplyingHostLmsBaseUrl);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
 	}
 
 	@BeforeEach

@@ -162,8 +162,8 @@ class SameLibraryWorkflowApiTests {
 
 		BORROWING_HOST_LMS = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, TEST_KEY, TEST_SECRET, BORROWING_BASE_URL);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
 
 		// allow the borrowing agency and the item agency to be the same
 		consortiumFixture.createConsortiumWithFunctionalSetting(FunctionalSettingType.OWN_LIBRARY_BORROWING, true);

@@ -9,11 +9,11 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
-import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasStatusCode;
@@ -116,7 +116,7 @@ class CancelledPatronRequestTransitionTests {
 
 		pickupAgency = agencyFixture.defineAgency(PICKUP_AGENCY_CODE, "Pickup Agency", pickupHostLMS);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
 	}
 
 	@BeforeEach

@@ -1,17 +1,17 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.model.MediaType.APPLICATION_JSON;
 
 import org.mockserver.model.HttpRequest;
-import org.mockserver.model.RequestDefinition;
+import org.olf.dcb.test.MockServerCommonRequests;
 
 public class SierraMockServerRequests {
 	private final String basePath;
+	private final MockServerCommonRequests mockServerCommonRequests;
 
 	public SierraMockServerRequests(String basePath) {
 		this.basePath = basePath;
+		mockServerCommonRequests = new MockServerCommonRequests("", null);
 	}
 
 	public HttpRequest post() {
@@ -19,7 +19,7 @@ public class SierraMockServerRequests {
 	}
 
 	HttpRequest post(String subPath) {
-		return acceptsJson("POST", subPath);
+		return mockServerCommonRequests.post(basePath + subPath);
 	}
 
 	HttpRequest post(Object body) {
@@ -35,21 +35,14 @@ public class SierraMockServerRequests {
 	}
 
 	HttpRequest get(String subPath) {
-		return acceptsJson("GET", subPath);
+		return mockServerCommonRequests.get(basePath + subPath);
 	}
 
 	HttpRequest delete(String subPath) {
-		return acceptsJson("DELETE", subPath);
+		return mockServerCommonRequests.delete(basePath + subPath);
 	}
 
-	public RequestDefinition put(String subPath) {
-		return acceptsJson("PUT", subPath);
-	}
-
-	private HttpRequest acceptsJson(String method, String subPath) {
-		return request()
-			.withHeader("Accept", APPLICATION_JSON.toString())
-			.withMethod(method)
-			.withPath(basePath + subPath);
+	HttpRequest put(String subPath) {
+		return mockServerCommonRequests.put(basePath + subPath);
 	}
 }

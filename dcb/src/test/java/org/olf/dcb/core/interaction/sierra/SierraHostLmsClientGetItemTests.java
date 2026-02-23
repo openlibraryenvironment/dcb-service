@@ -2,13 +2,18 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
-import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.*;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasBarcode;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasLocalId;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasRawStatus;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasRenewalCount;
+import static org.olf.dcb.test.matchers.interaction.HostLmsItemMatchers.hasStatus;
 
 import java.time.Instant;
 import java.util.Map;
@@ -53,9 +58,9 @@ class SierraHostLmsClientGetItemTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
 
-		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
+		final var sierraLoginFixture = sierraApiFixtureProvider.login(mockServerClient);
 
 		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
 

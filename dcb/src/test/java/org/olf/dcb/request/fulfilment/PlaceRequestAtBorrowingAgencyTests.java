@@ -130,10 +130,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", sierraHostLms);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 
-		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibsApiFor(mockServerClient);
+		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibs(mockServerClient, null);
 
 		final var bibPatch = BibPatch.builder()
 			.authors(List.of("Stafford Beer"))
@@ -380,7 +380,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(localPatronId, "b", 7916921);
 
-		sierraPatronsAPIFixture.notFoundWhenGettingPatronRequests(localPatronId);
+		sierraPatronsAPIFixture.patronHoldNotFoundErrorResponse(localPatronId);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class,

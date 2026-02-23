@@ -24,8 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
-import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.Patron;
-import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture.PatronBlock;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -34,6 +32,8 @@ import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.patrons.Block;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
@@ -65,10 +65,10 @@ class SierraHostLmsClientPatronTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 
-		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
+		final var sierraLoginFixture = sierraApiFixtureProvider.login(mockServerClient, null);
 
 		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
 
@@ -92,13 +92,13 @@ class SierraHostLmsClientPatronTests {
 		final var barcode = "5472792742";
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
-			Patron.builder()
+			SierraPatronRecord.builder()
 				.id(parseInt(localPatronId))
 				.barcodes(List.of(barcode))
 				.names(List.of("first name", "middle name", "last name"))
 				.patronType(localPatronType)
 				.homeLibraryCode("home-library")
-				.blockInfo(PatronBlock.builder()
+				.blockInfo(Block.builder()
 					.code("a")
 					.build())
 				.build());

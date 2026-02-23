@@ -279,11 +279,8 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 		// Arrange
 		final var localTransactionId = randomUUID().toString();
 
-		mockFolioFixture.mockRenewTransaction(localTransactionId, response()
-			.withStatusCode(200)
-			.withBody(json(TransactionStatus.builder()
-				.status("ITEM_CHECKED_OUT")
-				.build())));
+		mockFolioFixture.mockRenewTransaction(localTransactionId,
+			TransactionStatus.builder().status("ITEM_CHECKED_OUT").build());
 
 		final var localItemId = randomUUID().toString();
 		final var localItemBarcode = "1357921";

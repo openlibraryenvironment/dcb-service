@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -30,7 +31,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -61,7 +61,8 @@ public class GeoDistanceTieBreakerTests {
 	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
 	private static final String PICKUP_LOCATION_CODE = "pickup-location";
 
-	private static final String HOST_LMS_BASE_URL = "https://resolution-service-tests.com";
+	private static final String HOST_LMS_HOST = "resolution-service-tests.com";
+	private static final String HOST_LMS_BASE_URL = "https://" + HOST_LMS_HOST;
 	private static final String HOST_LMS_TOKEN = "resolution-system-token";
 	private static final String HOST_LMS_KEY = "resolution-system-key";
 	private static final String HOST_LMS_SECRET = "resolution-system-secret";
@@ -85,7 +86,7 @@ public class GeoDistanceTieBreakerTests {
 		SierraTestUtils.mockFor(mockServerClient, HOST_LMS_BASE_URL)
 			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, HOST_LMS_HOST);
 
 		cleanupExistingData();
 		createHostLmsSystems();

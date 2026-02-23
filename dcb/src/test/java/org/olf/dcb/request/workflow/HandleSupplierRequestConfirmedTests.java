@@ -79,22 +79,23 @@ class HandleSupplierRequestConfirmedTests {
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
-		final String TOKEN = "test-token";
-		final String BASE_URL = "https://borrowing-agency-service-tests.com";
-		final String KEY = "borrowing-agency-service-key";
-		final String SECRET = "borrowing-agency-service-secret";
+		final var token = "test-token";
+		final var host = "borrowing-agency-service-tests.com";
+		final var baseUrl = "https://" + host;
+		final var key = "borrowing-agency-service-key";
+		final var secret = "borrowing-agency-service-secret";
 
 		hostLmsFixture.deleteAll();
 		agencyFixture.deleteAll();
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, baseUrl)
+			.setValidCredentials(key, secret, token, 60);
 
-		SUPPLYING_HOST_LMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
-			SECRET, BASE_URL, "title");
+		SUPPLYING_HOST_LMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, key,
+			secret, baseUrl, "title");
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, host);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, host);
 	}
 
 	@BeforeEach

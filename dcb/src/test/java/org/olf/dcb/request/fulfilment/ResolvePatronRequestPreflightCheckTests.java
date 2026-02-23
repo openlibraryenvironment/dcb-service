@@ -39,6 +39,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
@@ -91,8 +92,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		SierraTestUtils.mockFor(mockServerClient, HOST_LMS_BASE_URL)
 			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patronsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
 
 		hostLmsFixture.deleteAll();
 
@@ -420,7 +421,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.patronType(localPatronType)
 				.homeLibraryCode("home-library")
@@ -474,7 +475,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var homeLibraryCode = "home-library";
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.patronType(unmappedLocalPatronType)
 				.homeLibraryCode(homeLibraryCode)
@@ -527,7 +528,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var homeLibraryCode = "home-library";
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.homeLibraryCode(homeLibraryCode)
 				.barcodes(List.of("27536633"))
@@ -706,7 +707,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var localPatronType = 15;
 
 		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
-			SierraPatronsAPIFixture.Patron.builder()
+			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.patronType(localPatronType)
 				.homeLibraryCode(homeLibraryCode)

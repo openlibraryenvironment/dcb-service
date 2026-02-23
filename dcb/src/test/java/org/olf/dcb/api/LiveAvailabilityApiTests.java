@@ -88,20 +88,21 @@ class LiveAvailabilityApiTests {
 	@BeforeAll
 	@SneakyThrows
 	public void beforeAll(MockServerClient mockServerClient) {
-		final String TOKEN = "test-token";
-		final String BASE_URL = "https://live-availability-api-tests.com";
-		final String KEY = "live-availability-key";
-		final String SECRET = "live-availability-secret";
+		final var token = "test-token";
+		final var host = "live-availability-api-tests.com";
+		final var baseUrl = "https://" + host;
+		final var key = "live-availability-key";
+		final var secret = "live-availability-secret";
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+		SierraTestUtils.mockFor(mockServerClient, baseUrl)
+			.setValidCredentials(key, secret, token, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, host);
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
-		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE, key, secret, baseUrl, "item");
+		hostLmsFixture.createSierraHostLms(CIRCULATING_HOST_LMS_CODE, key, secret, baseUrl, "item");
 	}
 
 	@BeforeEach

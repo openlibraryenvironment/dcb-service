@@ -1,23 +1,23 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
-import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.mockserver.model.Delay.delay;
 import static org.mockserver.model.JsonBody.json;
-import static org.mockserver.verify.VerificationTimes.once;
+import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.badRequestError;
+import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.jsonLink;
+import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.noRecordsFound;
+import static org.olf.dcb.test.MockServerCommonResponses.noContent;
+import static org.olf.dcb.test.MockServerCommonResponses.okJson;
+import static org.olf.dcb.test.MockServerCommonResponses.unauthorised;
 import static org.olf.dcb.utils.CollectionUtils.mapList;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
-import org.mockserver.model.RequestDefinition;
-import org.mockserver.verify.VerificationTimes;
-import org.olf.dcb.test.TestResourceLoaderProvider;
+import org.olf.dcb.test.MockServer;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotNull;
@@ -27,7 +27,6 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.CheckoutResultSet;
 import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.items.Location;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
@@ -35,36 +34,27 @@ import services.k_int.interaction.sierra.items.Status;
 @Slf4j
 @AllArgsConstructor
 public class SierraItemsAPIFixture {
-	private final MockServerClient mockServer;
+	private final MockServer mockServer;
 	private final SierraMockServerRequests sierraMockServerRequests;
-	private final SierraMockServerResponses sierraMockServerResponses;
 
-	public SierraItemsAPIFixture(MockServerClient mockServer,
-		TestResourceLoaderProvider testResourceLoaderProvider) {
-
-		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/items"),
-			new SierraMockServerResponses(
-				testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/")));
+	public SierraItemsAPIFixture(MockServer mockServer) {
+		this(mockServer, new SierraMockServerRequests("/iii/sierra-api/v6/items"));
 	}
 
 	public void mockUpdateItem(String itemId) {
-		mockServer
-			.when(putItem(itemId))
-			.respond(sierraMockServerResponses.noContent());
+		mockServer.mock(putItem(itemId), noContent());
 	}
 
 	public void mockGetItemById(String id, org.olf.dcb.core.interaction.sierra.SierraItem item) {
-		mockGetItemById(id, sierraMockServerResponses.jsonSuccess(json(mapItem(item))));
+		mockGetItemById(id, okJson(json(mapItem(item))));
 	}
 
 	public void mockGetItemById(String id, HttpResponse response) {
-		mockServer.when(getItemById(id))
-			.respond(response);
+		mockServer.mock(getItemById(id), response);
 	}
 
 	public void mockGetItemByIdReturnNoRecordsFound(String id) {
-		mockServer.when(getItemById(id))
-			.respond(sierraMockServerResponses.noRecordsFound());
+		mockServer.mock(getItemById(id), noRecordsFound());
 	}
 
 	private HttpRequest getItemById(String id) {
@@ -76,25 +66,17 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void itemsForBibId(String bibId, List<org.olf.dcb.core.interaction.sierra.SierraItem> items, int millisecondDelay) {
-		mockServer.clear(getItemsForBib(bibId));
-
-		mockServer.when(getItemsForBib(bibId))
-			.respond(sierraMockServerResponses.jsonSuccess(json(
-				ItemResultSet.builder()
-					.start(0)
-					.total(items.size())
-					.entries(mapList(items, SierraItemsAPIFixture::mapItem))
-					.build()), delay(MILLISECONDS, millisecondDelay)));
+		mockServer.replaceMock(getItemsForBib(bibId), okJson(
+			ItemResultSet.builder()
+				.start(0)
+				.total(items.size())
+				.entries(mapList(items, SierraItemsAPIFixture::mapItem))
+				.build())
+			.withDelay(MILLISECONDS, millisecondDelay));
 	}
 
 	public String checkoutsForItem(String itemId) {
-		final var request = getItemCheckouts(itemId);
-
-		mockServer.clear(request);
-
-		mockServer.when(request)
-			.respond(sierraMockServerResponses
-				.jsonSuccess("items/sierra-get-item-checkouts-success.json"));
+		mockServer.replaceMock(getItemCheckouts(itemId), "items/sierra-get-item-checkouts-success.json");
 
 		// return needs to align with id of the json response
 		// E.g.,		"id": "https://catalog-test.wustl.edu/iii/sierra-api/v6/patrons/checkouts/1811242",
@@ -102,52 +84,32 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void checkoutsForItemWithMultiplePatronEntries(String itemId) {
-		final var request = getItemCheckouts(itemId);
-
-		mockServer.clear(request);
-
-		mockServer.when(request)
-			.respond(sierraMockServerResponses
-				.jsonSuccess("items/sierra-get-item-checkouts-multiple-patron-match.json"));
+		mockServer.replaceMock(getItemCheckouts(itemId),
+			"items/sierra-get-item-checkouts-multiple-patron-match.json");
 	}
 
 	public void checkoutsForItemWithNoPatronEntries(String itemId) {
-		final var request = getItemCheckouts(itemId);
-
-		mockServer.clear(request);
-
-		mockServer.when(request)
-			.respond(sierraMockServerResponses.jsonSuccess(json(
-				CheckoutResultSet.builder()
-					.entries(List.of())
-					.build()
-			)));
+		mockServer.replaceMock(getItemCheckouts(itemId), okJson(
+			CheckoutResultSet.builder()
+				.entries(List.of())
+				.build()
+			));
 	}
 
 	public void checkoutsForItemWithNoRecordsFound(String itemId) {
-		final var request = getItemCheckouts(itemId);
-
-		mockServer.clear(request);
-
-		mockServer.when(request)
-			.respond(sierraMockServerResponses.noRecordsFound());
+		mockServer.replaceMock(getItemCheckouts(itemId), noRecordsFound());
 	}
 
 	public void zeroItemsResponseForBibId(String bibId) {
-		mockServer.when(getItemsForBib(bibId))
-			.respond(sierraMockServerResponses.noRecordsFound());
+		mockServer.mock(getItemsForBib(bibId), noRecordsFound());
 	}
 
 	public void errorResponseForBibId(String bibId) {
-		mockServer.when(getItemsForBib(bibId))
-			.respond(sierraMockServerResponses.badRequestError());
+		mockServer.mock(getItemsForBib(bibId), badRequestError());
 	}
 
 	public void jsonErrorResponseForCreateItem() {
-		mockServer.clear(sierraMockServerRequests.post());
-
-		mockServer.when(sierraMockServerRequests.post())
-			.respond(sierraMockServerResponses.badRequestError());
+		mockServer.replaceMock(sierraMockServerRequests.post(), badRequestError());
 	}
 
 	public void successResponseForCreateItem(Integer bibId, String locationCode,
@@ -159,14 +121,8 @@ public class SierraItemsAPIFixture {
 			.barcodes(List.of(barcode))
 			.build();
 
-		mockServer
-			.when(sierraMockServerRequests.post()
-				.withBody(json(body)))
-			.respond(sierraMockServerResponses.jsonSuccess(json(
-				LinkResult.builder()
-					.link("https://sandbox.iii.com/iii/sierra-api/v6/items/" + itemId)
-					.build()
-			)));
+		mockServer.mock(sierraMockServerRequests.post().withBody(json(body)),
+			jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/items/" + itemId));
 	}
 
 	public void unauthorisedResponseForCreateItem(Integer bibId, String locationCode, String barcode) {
@@ -176,28 +132,18 @@ public class SierraItemsAPIFixture {
 			.barcodes(List.of(barcode))
 			.build();
 
-		mockServer
-			.when(sierraMockServerRequests.post()
-				.withBody(json(body)))
-			.respond(sierraMockServerResponses.unauthorised());
+		mockServer.mock(sierraMockServerRequests.post().withBody(json(body)), unauthorised());
 	}
 
 	public void mockDeleteItem(String itemId) {
-		deleteItem(itemId, sierraMockServerResponses.noContent());
-	}
-
-	private void deleteItem(String itemId, HttpResponse response) {
-		mockServer.clear(deleteItemRecord(itemId));
-
-		mockServer.when(deleteItemRecord(itemId))
-			.respond(response);
+		mockServer.replaceMock(deleteItemRecord(itemId), noContent());
 	}
 
 	private HttpRequest deleteItemRecord(String itemId) {
 		return sierraMockServerRequests.delete("/" + itemId);
 	}
 
-	private RequestDefinition putItem(String itemId) {
+	private HttpRequest putItem(String itemId) {
 		return sierraMockServerRequests.put("/" + itemId);
 	}
 
@@ -256,16 +202,7 @@ public class SierraItemsAPIFixture {
 	}
 
 	public void verifyUpdateItemRequestMade(String expectedItemId) {
-		verifyUpdateItemRequest(expectedItemId, once());
-	}
-
-	private void verifyUpdateItemRequest(String expectedItemId, VerificationTimes times) {
-		final var updateRequest = putItem(expectedItemId);
-
-		log.info("Update item requests recorded: {}",
-			asList(mockServer.retrieveRecordedRequests(updateRequest)));
-
-		mockServer.verify(updateRequest, times);
+		mockServer.verify(putItem(expectedItemId));
 	}
 
 	@Serdeable

@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import java.time.Instant;
 
@@ -85,6 +86,10 @@ public class ItemMatchers {
 
 	public static Matcher<Item> hasNoDueDate() {
 		return hasProperty("dueDate", is(nullValue()));
+	}
+
+	public static Matcher<Item> hasLocalBibId(Integer expectedLocalBibId) {
+		return hasLocalBibId(convertIntegerToString(expectedLocalBibId));
 	}
 
 	public static Matcher<Item> hasLocalBibId(String expectedLocalBibId) {

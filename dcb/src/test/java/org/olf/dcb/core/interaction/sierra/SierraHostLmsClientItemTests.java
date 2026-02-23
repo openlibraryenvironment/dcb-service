@@ -92,9 +92,9 @@ class SierraHostLmsClientItemTests {
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 60);
 
-		sierraItemsAPIFixture = sierraApiFixtureProvider.itemsApiFor(mockServerClient);
+		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 
-		final var sierraLoginFixture = sierraApiFixtureProvider.loginFixtureFor(mockServerClient);
+		final var sierraLoginFixture = sierraApiFixtureProvider.login(mockServerClient, null);
 
 		sierraLoginFixture.failLoginsForAnyOtherCredentials(KEY, SECRET);
 
