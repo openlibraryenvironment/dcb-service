@@ -284,8 +284,6 @@ public class PatronRequestResolutionService {
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
 		return Mono.justOrEmpty(resolution.getBibClusterId())
 			.flatMap(this::checkAvailability)
-			.onErrorMap(NoBibsForClusterRecordException.class,
-				error -> new UnableToResolvePatronRequest(error.getMessage()))
 			.map(AvailabilityReport::getItems)
 			.map(resolution::trackAllItems);
 	}

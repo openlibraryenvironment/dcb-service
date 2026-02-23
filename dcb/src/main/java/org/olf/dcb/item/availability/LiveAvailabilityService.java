@@ -19,12 +19,9 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.ItemStatus;
-import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
 import org.olf.dcb.request.resolution.ClusteredBib;
-import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.SharedIndexService;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -76,9 +73,7 @@ public class LiveAvailabilityService {
 	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId) {
 		return Mono.just(clusteredBibId)
 			.flatMap(sharedIndexService::findClusteredBib)
-			.flatMapIterable(ClusteredBib::getBibs)
-			.doOnNext(b -> log.trace( "Cluster has bib members"))
-			.switchIfEmpty(Mono.error(() -> new NoBibsForClusterRecordException(clusteredBibId)));
+			.flatMapIterable(ClusteredBib::getBibs);
 	}
 	
 	private boolean shouldCache(AvailabilityReport report) {

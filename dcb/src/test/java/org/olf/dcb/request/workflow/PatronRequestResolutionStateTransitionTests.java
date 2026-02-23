@@ -63,7 +63,6 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
-import org.olf.dcb.request.resolution.UnableToResolvePatronRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -486,7 +485,6 @@ class PatronRequestResolutionStateTransitionTests {
 			localItemBarcode, CIRCULATING_HOST_LMS_CODE);
 	}
 
-
 	@Test
 	void shouldExcludeItemWhenLocationIsNotMappedToAgency() {
 		// Arrange
@@ -587,7 +585,7 @@ class PatronRequestResolutionStateTransitionTests {
 	}
 
 	@Test
-	void shouldResolveToNoAvailableItemsWhenNoItemsToChooseFrom() {
+	void shouldResolveToNoSelectableItemsWhenNoItemsToChooseFrom() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -624,9 +622,7 @@ class PatronRequestResolutionStateTransitionTests {
 	}
 
 	@Test
-	void shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound() {
-		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - entering\n\n");
-
+	void shouldFailToResolveRequestWhenClusterRecordCannotBeFound() {
 		// Arrange
 		final var pickupLocationId = createPickupLocation();
 
@@ -668,12 +664,10 @@ class PatronRequestResolutionStateTransitionTests {
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
-
-		log.info("shouldFailToResolveVerifiedRequestWhenClusterRecordCannotBeFound - exiting\n\n");
 	}
 
 	@Test
-	void shouldFailToResolveVerifiedRequestWhenNoBibsForClusterRecord() {
+	void shouldResolveToNoSelectableItemsWhenNoBibsForClusterRecord() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), null);
 
@@ -692,27 +686,14 @@ class PatronRequestResolutionStateTransitionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		final var exception = assertThrows(UnableToResolvePatronRequest.class,
-			() -> resolve(patronRequest));
+		resolve(patronRequest);
 
 		// Assert
-		final var expectedErrorMessage = "Cluster record: \"" + clusterRecord.getId() + "\" has no bibs";
-
-		assertThat(exception, allOf(
-			notNullValue(),
-			hasMessage(expectedErrorMessage)
-		));
-
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 
-		assertThat(fetchedPatronRequest, allOf(
-			hasStatus(ERROR),
-			hasErrorMessage(expectedErrorMessage),
-			hasNoResolutionCount()
-		));
+		assertNoItemsSelectableResolution(fetchedPatronRequest);
 
-		assertThat("Should not find any supplier requests",
-			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
+		assertNoSupplierRequestsFor(patronRequest);
 	}
 
 	private Patron definePatron(String localId, String homeLibraryCode) {

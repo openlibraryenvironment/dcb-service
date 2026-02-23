@@ -40,7 +40,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
-import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -466,17 +465,18 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@Test
-	void shouldFailWhenClusterRecordHasNoContributingBibs() {
+	void shouldReportZeroItemsWhenClusterRecordHasNoContributingBibs() {
 		// Arrange
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), randomUUID());
 
 		// Act
-		final var exception = assertThrows(NoBibsForClusterRecordException.class,
-			() -> checkAvailability(clusterRecord));
+		final var report = checkAvailability(clusterRecord);
 
 		// Assert
-		assertThat(exception, hasMessage(
-			"Cluster record: \"" + clusterRecord.getId() + "\" has no bibs"));
+		assertThat(report, allOf(
+			hasNoItems(),
+			hasNoErrors()
+		));
 	}
 
 	@Test

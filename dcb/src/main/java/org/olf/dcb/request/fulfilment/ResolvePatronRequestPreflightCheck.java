@@ -18,7 +18,6 @@ import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeExcepti
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
-import org.olf.dcb.request.resolution.NoBibsForClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.workflow.exceptions.UnableToFindPickupLocationProblem;
@@ -67,7 +66,6 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorResume(CannotFindClusterRecordException.class, this::clusterRecordNotFound)
-			.onErrorResume(NoBibsForClusterRecordException.class, this::clusterRecordNotFound)
 			.onErrorReturn(UnknownHostLmsException.class, unknownHostLms(
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.onErrorResume(UnableToFindPickupLocationProblem.class, this::unknownPickupLocation)
@@ -122,14 +120,6 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 					.formatted(getValueOrNull(error, CannotFindClusterRecordException::getClusterRecordId)),
         intMessageService.getMessage("CLUSTER_RECORD_NOT_FOUND")))
 		);
-	}
-
-	private Mono<List<CheckResult>> clusterRecordNotFound(NoBibsForClusterRecordException error) {
-		return Mono.just(List.of(
-			failedUm("CLUSTER_RECORD_NOT_FOUND", "Cluster record \"%s\" cannot be found"
-				.formatted(getValueOrNull(error, NoBibsForClusterRecordException::getClusterRecordId)),
-        intMessageService.getMessage("CLUSTER_RECORD_NOT_FOUND"))
-		));
 	}
 
 	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
