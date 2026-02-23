@@ -3,6 +3,7 @@ package services.k_int.jobs;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -20,7 +21,6 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import services.k_int.jobs.JobChunkProcessor.ApplicableChunkTypes;
 
 /**
@@ -42,6 +42,26 @@ public class ReactiveJobRunnerService {
 	public ReactiveJobRunnerService(JobCheckpointRepository checkpoints, BeanContext context) {
 		this.checkpoints = checkpoints;
 		this.context = context;
+	}
+	
+	/**
+	 * Resets the job pointer for the supplied job 
+	 * @param job
+	 * @return Mono<Void>
+	 */
+	public Mono<Void> resetJob( @NonNull final Job<?> job) {
+		return resetJob( job.getId() );
+	}
+	
+	/**
+	 * Resets the job pointer for the supplied job Id
+	 * @param jobId
+	 * @return Mono<Void>
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Mono<Void> resetJob( @NonNull final UUID jobId ) {
+		return Mono.from( checkpoints.deleteById(jobId) )
+			.then();
 	}
 	
 	private <T extends JobChunk<?>> Predicate<BeanDefinition<JobChunkProcessor>> processorApplicableFor( final Class<T> type ) {

@@ -1,322 +1,325 @@
 {
-    "dynamic_templates": [
-      {
-        "Nothing in selectedBib needs to be indexed": {
-          "path_match": "selectedBib",
-          "mapping": {
-			"enabled": false
-          }
-        }
-      }
-    ],
-    "properties": {
-      "bibClusterId": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256,
-            "normalizer": "preserve_punctuation_normalizer"
-          }
-        }
-      },
-      "dateOfPublication": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "derivedType": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "isbn": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256,
-            "normalizer": "preserve_punctuation_normalizer"
-          }
-        }
-      },
-      "issn": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256,
-            "normalizer": "preserve_punctuation_normalizer"
-          }
-        }
-      },
-      "members": {
-        "properties": {
-          "bibId": {
-            "type": "keyword"
-          },
-          "primary": {
-            "type": "boolean"
-          },
-          "sourceRecordId": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "sourceSystem": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256,
-                "normalizer": "preserve_punctuation_normalizer"
-              }
-            }
-          },
-          "sourceSystemCode": {
-            "type": "keyword",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256,
-                "normalizer": "preserve_punctuation_normalizer_lowercase"
-              }
-            },
-            "eager_global_ordinals": true
-          },
-          "title": {
-            "type": "text"
-          }
-        }
-      },
-      "metadata": {
-        "properties": {
-          "agents": {
-            "properties": {
-              "label": {
-                "type": "text",
-                "fields": {
-                  "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256,
-                    "normalizer": "preserve_punctuation_normalizer"
-                  }
-                }
-              },
-              "subtype": {
-                "type": "keyword"
-              }
-            }
-          },
-          "bibNotes": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
-          },
-          "content-type": {
-            "properties": {
-              "label": {
-                "type": "text",
-                "fields": {
-                  "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                  }
-                }
-              }
-            }
-          },
-          "contents": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
-          },
-          "dateOfPublication": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "derivedType": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "edition": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "identifiers": {
-            "type": "nested",
-            "properties": {
-              "namespace": {
-                "type": "keyword"
-              },
-              "value": {
-                "type": "text"
-              }
-            }
-          },
-          "language": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "media-type": {
-            "properties": {
-              "label": {
-                "type": "text",
-                "fields": {
-                  "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256
-                  }
-                }
-              }
-            }
-          },
-          "notes": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
-          },
-          "physical-description": {
-            "properties": {
-              "label": {
-                "type": "text"
-              }
-            }
-          },
-          "placeOfPublication": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "publisher": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "recordStatus": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "series": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc",
-            "fields": {
-              "keyword": {
-                "type": "keyword",
-                "ignore_above": 256
-              }
-            }
-          },
-          "subjects": {
-            "properties": {
-              "label": {
-                "type": "text",
-                "fields": {
-                  "keyword": {
-                    "type": "keyword",
-                    "ignore_above": 256,
-                    "normalizer": "default_normalizer_lowercase"
-                  }
-                }
-              },
-              "subtype": {
-                "type": "keyword"
-              }
-            }
-          },
-          "summary": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
-          },
-          "title": {
-            "type": "text",
-            "analyzer": "icu_folding_nopunc"
-          }
-        }
-      },
-      "placeOfPublication": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "primaryAuthor": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256,
-            "normalizer": "default_normalizer_lowercase"
-          }
-        }
-      },
-      "publisher": {
-        "type": "text",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "title": {
-        "type": "text",
-        "analyzer": "icu_folding_nopunc",
-        "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256,
-            "normalizer": "preserve_punctuation_normalizer_lowercase"
-          }
-        }
-      },
-      "yearOfPublication": {
-        "type": "long"
-      }
-    }
- }
+	"dynamic_templates": [
+		{
+			"Nothing in selectedBib needs to be indexed": {
+				"path_match": "selectedBib",
+				"mapping": {
+					"enabled": false
+				}
+			}
+		}
+	],
+	"properties": {
+		"bibClusterId": {
+			"type": "text",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256,
+					"normalizer": "preserve_punctuation_normalizer"
+				}
+			}
+		},
+		"dateOfPublication": {
+			"type": "text",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256
+				}
+			}
+		},
+		"derivedType": {
+			"type": "text",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256
+				}
+			}
+		},
+		"isbn": {
+			"type": "text",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256,
+					"normalizer": "preserve_punctuation_normalizer"
+				}
+			}
+		},
+		"issn": {
+			"type": "text",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256,
+					"normalizer": "preserve_punctuation_normalizer"
+				}
+			}
+		},
+		"members": {
+			"properties": {
+				"bibId": {
+					"type": "keyword"
+				},
+				"primary": {
+					"type": "boolean"
+				},
+				"sourceRecordId": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"sourceSystem": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256,
+							"normalizer": "preserve_punctuation_normalizer"
+						}
+					}
+				},
+				"sourceSystemCode": {
+					"type": "keyword",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256,
+							"normalizer": "preserve_punctuation_normalizer_lowercase"
+						}
+					},
+					"eager_global_ordinals": true
+				},
+				"title": {
+					"type": "text"
+				}
+			}
+		},
+		"metadata": {
+			"properties": {
+				"agents": {
+					"properties": {
+						"label": {
+							"type": "text",
+							"fields": {
+								"keyword": {
+									"type": "keyword",
+									"ignore_above": 256,
+									"normalizer": "preserve_punctuation_normalizer"
+								}
+							}
+						},
+						"subtype": {
+							"type": "keyword"
+						}
+					}
+				},
+				"bibNotes": {
+					"type": "text"
+				},
+				"content-type": {
+					"properties": {
+						"label": {
+							"type": "text",
+							"fields": {
+								"keyword": {
+									"type": "keyword",
+									"ignore_above": 256
+								}
+							}
+						}
+					}
+				},
+				"contents": {
+					"type": "text"
+				},
+				"dateOfPublication": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"derivedType": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"edition": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"identifiers": {
+					"type": "nested",
+					"properties": {
+						"namespace": {
+							"type": "keyword"
+						},
+						"value": {
+							"type": "text"
+						}
+					}
+				},
+				"language": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"media-type": {
+					"properties": {
+						"label": {
+							"type": "text",
+							"fields": {
+								"keyword": {
+									"type": "keyword",
+									"ignore_above": 256
+								}
+							}
+						}
+					}
+				},
+				"notes": {
+					"type": "text",
+					"analyzer": "icu_folding_nopunc"
+				},
+				"physical-description": {
+					"properties": {
+						"label": {
+							"type": "text"
+						}
+					}
+				},
+				"placeOfPublication": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"publisher": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"recordStatus": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"series": {
+					"type": "text",
+					"fields": {
+						"keyword": {
+							"type": "keyword",
+							"ignore_above": 256
+						}
+					}
+				},
+				"subjects": {
+					"properties": {
+						"label": {
+							"type": "text",
+							"analyzer": "icu_folding_nopunc",
+							"fields": {
+								"keyword": {
+									"type": "keyword",
+									"ignore_above": 256,
+									"normalizer": "default_normalizer_lowercase"
+								}
+							}
+						},
+						"subtype": {
+							"type": "keyword"
+						}
+					}
+				},
+				"summary": {
+					"type": "text",
+					"analyzer": "icu_folding_nopunc"
+				},
+				"title": {
+					"type": "text",
+					"analyzer": "icu_folding_nopunc"
+				}
+			}
+		},
+		"placeOfPublication": {
+			"type": "text",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256
+				}
+			}
+		},
+		"primaryAuthor": {
+			"type": "text",
+			"analyzer": "icu_folding_nopunc",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256,
+					"normalizer": "default_normalizer_lowercase"
+				}
+			}
+		},
+		"publisher": {
+			"type": "text",
+			"analyzer": "icu_folding_nopunc",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256
+				}
+			}
+		},
+		"title": {
+			"type": "text",
+			"analyzer": "icu_folding_nopunc",
+			"fields": {
+				"keyword": {
+					"type": "keyword",
+					"ignore_above": 256,
+					"normalizer": "preserve_punctuation_normalizer_lowercase"
+				}
+			}
+		},
+		"yearOfPublication": {
+			"type": "long"
+		},
+		"lastIndexed": {
+			"type": "date"
+		}
+	}
+}

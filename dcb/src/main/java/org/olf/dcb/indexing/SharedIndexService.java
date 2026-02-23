@@ -1,5 +1,6 @@
 package org.olf.dcb.indexing;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,6 +11,7 @@ import org.reactivestreams.Publisher;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface SharedIndexService {
 	
@@ -26,7 +28,8 @@ public interface SharedIndexService {
 	void update( UUID clusterID );
 
 	void delete( UUID clusterID );
+	
+	Mono<Void> deleteDocsIndexedBefore( Instant before );
 
 	Publisher<List<IndexOperation<UUID, ClusterRecord>>> expandAndProcess(Flux<List<UUID>> idFlux);
-	
 }

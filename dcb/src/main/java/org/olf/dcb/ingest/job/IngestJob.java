@@ -9,7 +9,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.audit.ProcessAuditService;

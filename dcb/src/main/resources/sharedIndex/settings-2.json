@@ -1,98 +1,103 @@
 {
-    "index": {
-      "refresh_interval": "30s",
-      "number_of_shards": "1",
-      "analysis": {
-        "filter": {
-          "dcb_stopwords_filter": {
-            "ignore_case": "true",
-            "type": "stop",
-            "stopwords": [
-              "_english_"
-            ]
-          }
-        },
-        "char_filter": {
-          "fold_multiple_whitespace": {
-            "flags": "",
-            "pattern": "\\s{2,}",
-            "type": "pattern_replace",
-            "replacement": " "
-          },
-          "spaces_for_punctuation": {
-            "flags": "",
-            "pattern": "[^\\w|\\s|\\-]",
-            "type": "pattern_replace",
-            "replacement": " "
-          },
-          "no_punctuation": {
-            "type": "pattern_replace",
-            "pattern": "[\\p{P}\\p{S}]",
-            "replacement": ""
-          }   
-        },
-        "normalizer": {
-          "preserve_punctuation_normalizer": {
-            "filter": [
-              "asciifolding",
-              "trim"
-            ],
-            "type": "custom",
-            "char_filter": [
-              "fold_multiple_whitespace"
-            ]
-          },
-          "default_normalizer_lowercase": {
-            "filter": [
-              "asciifolding",
-              "trim",
-              "lowercase"
-            ],
-            "type": "custom",
-            "char_filter": [
-              "spaces_for_punctuation",
-              "fold_multiple_whitespace"
-            ]
-          },
-          "preserve_punctuation_normalizer_lowercase": {
-            "filter": [
-              "asciifolding",
-              "trim",
-              "lowercase"
-            ],
-            "type": "custom",
-            "char_filter": [
-              "fold_multiple_whitespace"
-            ]
-          },
-          "default_normalizer": {
-            "filter": [
-              "asciifolding",
-              "trim"
-            ],
-            "type": "custom",
-            "char_filter": [
-              "spaces_for_punctuation",
-              "fold_multiple_whitespace"
-            ]
-          }
-        },
-        "analyzer": {
-          "default": {
-            "filter": [
-              "lowercase",
-              "dcb_stopwords_filter"
-            ],
-      			"tokenizer": "standard",
-      			"type": "custom"
-          },
-          "icu_folding_nopunc": {
-            "char_filter": ["no_punctuation"],
-            "tokenizer": "icu_tokenizer",
-            "filter": ["icu_folding", "lowercase"]
-          }
-        }
-      },
-      "number_of_replicas": "1"
-    }
+	"index": {
+		"refresh_interval": "30s",
+		"number_of_shards": "1",
+		"analysis": {
+			"filter": {
+				"dcb_stopwords_filter": {
+					"ignore_case": "true",
+					"type": "stop",
+					"stopwords": [
+						"_english_"
+					]
+				}
+			},
+			"char_filter": {
+				"fold_multiple_whitespace": {
+					"flags": "",
+					"pattern": "\\s{2,}",
+					"type": "pattern_replace",
+					"replacement": " "
+				},
+				"spaces_for_punctuation": {
+					"flags": "",
+					"pattern": "[^\\w|\\s|\\-]",
+					"type": "pattern_replace",
+					"replacement": " "
+				},
+				"no_punctuation": {
+					"type": "pattern_replace",
+					"pattern": "[\\p{P}\\p{S}]",
+					"replacement": ""
+				}
+			},
+			"normalizer": {
+				"preserve_punctuation_normalizer": {
+					"filter": [
+						"asciifolding",
+						"trim"
+					],
+					"type": "custom",
+					"char_filter": [
+						"fold_multiple_whitespace"
+					]
+				},
+				"default_normalizer_lowercase": {
+					"filter": [
+						"asciifolding",
+						"trim",
+						"lowercase"
+					],
+					"type": "custom",
+					"char_filter": [
+						"spaces_for_punctuation",
+						"fold_multiple_whitespace"
+					]
+				},
+				"preserve_punctuation_normalizer_lowercase": {
+					"filter": [
+						"asciifolding",
+						"trim",
+						"lowercase"
+					],
+					"type": "custom",
+					"char_filter": [
+						"fold_multiple_whitespace"
+					]
+				},
+				"default_normalizer": {
+					"filter": [
+						"asciifolding",
+						"trim"
+					],
+					"type": "custom",
+					"char_filter": [
+						"spaces_for_punctuation",
+						"fold_multiple_whitespace"
+					]
+				}
+			},
+			"analyzer": {
+				"default": {
+					"filter": [
+						"lowercase",
+						"dcb_stopwords_filter"
+					],
+					"tokenizer": "standard",
+					"type": "custom"
+				},
+				"icu_folding_nopunc": {
+					"char_filter": [
+						"no_punctuation"
+					],
+					"tokenizer": "icu_tokenizer",
+					"filter": [
+						"icu_folding",
+						"lowercase"
+					]
+				}
+			}
+		},
+		"number_of_replicas": "1"
+	}
 }
