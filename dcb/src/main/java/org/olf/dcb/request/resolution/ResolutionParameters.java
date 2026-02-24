@@ -20,4 +20,5 @@ public class ResolutionParameters {
 	String pickupAgencyCode;
 	@Builder.Default List<String> excludedSupplyingAgencyCodes = emptyList();
 	ManualItemSelection manualItemSelection;
+	Boolean isExpeditedCheckout;
 }
