@@ -72,10 +72,7 @@ public class HostLmsConfigValidator {
 		List<String> missing = new ArrayList<>();
 		checkPresent(config, "base-url", missing);
 		checkPresent(config, "apikey", missing);
-		checkPresent(config, "folio-tenant", missing);
-		checkPresent(config, "user-base-url", missing);
 		checkPresent(config, "default-agency-code", missing);
-
 		throwIfMissing("Folio", missing);
 	}
 
@@ -127,6 +124,9 @@ public class HostLmsConfigValidator {
 		{
 			if (!clientConfig.containsKey("folio-tenant")) {
 				warnings.add("Missing 'folio-tenant' in FOLIO config. ");
+			}
+			if(!clientConfig.containsKey("user-base-url")) {
+				warnings.add("Missing 'user-base-url' in FOLIO config. ");
 			}
 		}
 

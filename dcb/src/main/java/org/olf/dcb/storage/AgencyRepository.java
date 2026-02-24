@@ -6,12 +6,15 @@ import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 
+import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.Location;
 import org.reactivestreams.Publisher;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import reactor.core.publisher.Mono;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -66,4 +69,11 @@ public interface AgencyRepository {
 	
 	@Query(value = "delete from agency where host_lms_id = :hostLmsId", nativeQuery = true)
 	Publisher<Void> deleteByHostLmsId(@NonNull UUID hostLmsId);
+
+	@SingleResult
+	@NonNull
+	default Publisher<DataAgency> saveOrUpdate(@Valid @NotNull @NonNull DataAgency agency) {
+		return Mono.from(this.existsById(agency.getId()))
+			.flux().concatMap(update -> Mono.from(update ? this.update(agency) : this.save(agency)));
+	}
 }

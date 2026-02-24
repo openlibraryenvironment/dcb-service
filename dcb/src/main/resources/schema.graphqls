@@ -232,6 +232,11 @@ input LibraryInput {
 	reason: String
 	changeCategory: String
 	changeReferenceUrl: String
+	isSupplyingAgency: Boolean
+	isBorrowingAgency: Boolean
+	maxConsortialLoans: Int
+	authProfile: String
+	hostLmsCode: String!
 }
 
 input LibraryGroupInput {

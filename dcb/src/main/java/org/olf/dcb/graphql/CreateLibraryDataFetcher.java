@@ -13,15 +13,14 @@ import java.util.concurrent.CompletableFuture;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.model.Agency;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.core.model.LibraryContact;
 import org.olf.dcb.core.model.Person;
 
 import org.olf.dcb.core.model.RoleName;
-import org.olf.dcb.storage.LibraryContactRepository;
-import org.olf.dcb.storage.LibraryRepository;
-import org.olf.dcb.storage.PersonRepository;
-import org.olf.dcb.storage.RoleRepository;
+import org.olf.dcb.storage.*;
 
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
@@ -35,18 +34,26 @@ import services.k_int.utils.UUIDUtils;
 @Slf4j
 public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<Library>> {
 
-	private LibraryRepository libraryRepository;
-	private LibraryContactRepository libraryContactRepository;
-	private PersonRepository personRepository;
-	private RoleRepository roleRepository;
-	private R2dbcOperations r2dbcOperations;
+	private final LibraryRepository libraryRepository;
+	private final LibraryContactRepository libraryContactRepository;
+	private final PersonRepository personRepository;
+	private final RoleRepository roleRepository;
+	private final AgencyRepository agencyRepository;
+	private final HostLmsRepository hostLmsRepository;
+	private final R2dbcOperations r2dbcOperations;
 
-	public CreateLibraryDataFetcher(LibraryRepository libraryRepository, PersonRepository personRepository,
-																	LibraryContactRepository libraryContactRepository, RoleRepository roleRepository,
+	public CreateLibraryDataFetcher(LibraryRepository libraryRepository,
+																	PersonRepository personRepository,
+																	LibraryContactRepository libraryContactRepository,
+																	RoleRepository roleRepository,
+																	AgencyRepository agencyRepository,
+																	HostLmsRepository hostLmsRepository,
 																	R2dbcOperations r2dbcOperations) {
 		this.libraryRepository = libraryRepository;
 		this.personRepository = personRepository;
 		this.roleRepository = roleRepository;
+		this.agencyRepository = agencyRepository;
+		this.hostLmsRepository = hostLmsRepository;
 		this.r2dbcOperations = r2dbcOperations;
 		this.libraryContactRepository = libraryContactRepository;
 	}
@@ -64,8 +71,8 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.orElse("User not detected");
 
 		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
-			log.warn("createConsortiumDataFetcher: Access denied for user {}: user does not have the required role to create a consortium.", userString);
-			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to create a consortium.");
+			log.warn("createLibraryDataFetcher: Access denied for user {}: user does not have the required role to create a library.", userString);
+			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to create a library.");
 		}
 
 		String agencyCode = input_map.containsKey("agencyCode") ?
@@ -82,7 +89,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			input_map.get("type").toString() : null;
 
 		Float latitude = input_map.containsKey("latitude") ?
-			Float.valueOf(input_map.get("longitude").toString()): null;
+			Float.valueOf(input_map.get("latitude").toString()) : null;
 		Float longitude = input_map.containsKey("longitude") ?
 			Float.valueOf(input_map.get("longitude").toString()) : null;
 
@@ -99,6 +106,17 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 		String targetLoanToBorrowRatio = input_map.containsKey("targetLoanToBorrowRatio") ?
 			input_map.get("targetLoanToBorrowRatio").toString() : null;
+
+		Boolean isSupplyingAgency = input_map.containsKey("isSupplyingAgency") ?
+			Boolean.valueOf(input_map.get("isSupplyingAgency").toString()) : null;
+		Boolean isBorrowingAgency = input_map.containsKey("isBorrowingAgency") ?
+			Boolean.valueOf(input_map.get("isBorrowingAgency").toString()) : null;
+		Integer maxLoansInput = input_map.containsKey("maxConsortialLoans") ?
+			Integer.parseInt(input_map.get("maxConsortialLoans").toString()): null;
+		String authProfile = input_map.containsKey("authProfile") ?
+			input_map.get("authProfile").toString() : null;
+		String hostLmsCode = input_map.containsKey("hostLmsCode") ?
+			input_map.get("hostLmsCode").toString() : null;
 
 		Library input = Library.builder()
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)
@@ -120,6 +138,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.changeCategory("New member")
 			.lastEditedBy(userString)
 			.build();
+
 		log.debug("getCreateLibraryDataFetcher {}/{}", input_map, input);
 
 		if (input.getId() == null) {
@@ -129,22 +148,84 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		}
 
 		log.debug("save or update library {}", input);
+		if (hostLmsCode == null) {
+			log.warn("createLibraryDataFetcher: You must provide a Host LMS code to create a library.");
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Please provide a valid Host LMS code.");
+		}
 
-		// Save the library first
-		return Mono.from(r2dbcOperations.withTransaction(status -> Mono.from(libraryRepository.saveOrUpdate(input))))
-			.flatMap(savedLibrary -> {
-				// Then associate contacts for the library.
-				Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
-					.flatMap(contactInput -> createPersonFromInput(contactInput, userString)
-						.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person))))
-					.collectList();
-				return contactsMono.flatMap(contacts -> {
-					return associateContactsWithLibrary(savedLibrary, (List<Person>) contacts)
-						.then(Mono.just(savedLibrary));
-				});
-			})
+		// Because we have both libraries and agencies to contend with, we need to create both a library AND its corresponding agency
+		// If the agency does not exist
+		// When we rationalise this, that won't be needed.
+		return Mono.from(r2dbcOperations.withTransaction(status ->
+				// Get the Host LMS - fail if not present
+				Mono.from(hostLmsRepository.findByCode(hostLmsCode))
+					.switchIfEmpty(Mono.error(new HttpStatusException(HttpStatus.BAD_REQUEST, "Invalid Host LMS Code: " + hostLmsCode)))
+					.flatMap(hostLms -> {
+						return Mono.from(agencyRepository.findOneByCode(agencyCode))
+							.flatMap(existingAgency -> {
+								boolean agencyUpdated = false;
+								// If there is an existing agency, update LMS link
+								if (existingAgency.getHostLms() == null || !existingAgency.getHostLms().getId().equals(hostLms.getId())) {
+									existingAgency.setHostLms(hostLms);
+									agencyUpdated = true;
+								}
+
+								// Standardise lat / longs, taking them from the agency
+								if (existingAgency.getLatitude() != null) {
+									input.setLatitude(existingAgency.getLatitude().floatValue());
+								}
+								if (existingAgency.getLongitude() != null) {
+									input.setLongitude(existingAgency.getLongitude().floatValue());
+								}
+
+								if (isSupplyingAgency != null && !isSupplyingAgency.equals(existingAgency.getIsSupplyingAgency())) {
+									existingAgency.setIsSupplyingAgency(isSupplyingAgency);
+									agencyUpdated = true;
+								}
+								if (isBorrowingAgency != null && !isBorrowingAgency.equals(existingAgency.getIsBorrowingAgency())) {
+									existingAgency.setIsBorrowingAgency(isBorrowingAgency);
+									agencyUpdated = true;
+								}
+
+								return agencyUpdated ? Mono.from(agencyRepository.saveOrUpdate(existingAgency)) : Mono.just(existingAgency);
+							})
+							.switchIfEmpty(Mono.defer(() -> {
+								// Create new Agency with the LMS we found
+								DataAgency newAgency = Agency.builder()
+									.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Agency:" + agencyCode))
+									.code(agencyCode)
+									.name(fullName)
+									.hostLms(hostLms)
+									.latitude(latitude != null ? latitude.doubleValue() : null)
+									.longitude(longitude != null ? longitude.doubleValue() : null)
+									.isSupplyingAgency(isSupplyingAgency != null ? isSupplyingAgency : Boolean.FALSE)
+									.isBorrowingAgency(isBorrowingAgency != null ? isBorrowingAgency : Boolean.FALSE)
+									.authProfile(authProfile)
+									.maxConsortialLoans(maxLoansInput)
+									.build();
+								return Mono.from(agencyRepository.saveOrUpdate(newAgency));
+							}));
+					})
+					.flatMap(agency -> {
+						// Link agency to library
+						input.setAgency(agency);
+						return Mono.from(libraryRepository.saveOrUpdate(input));
+					})
+					.flatMap(savedLibrary -> {
+						// 4. Associate contacts
+						Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
+							.flatMap(contactInput -> createPersonFromInput(contactInput, userString)
+								.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person))))
+							.collectList();
+						return contactsMono.flatMap(contacts -> {
+							return associateContactsWithLibrary(savedLibrary, (List<Person>) contacts)
+								.then(Mono.just(savedLibrary));
+						});
+					})
+			))
 			.toFuture();
 	}
+
 	private Mono<Person> createPersonFromInput(Map<String, Object> contactInput, String username) {
 		String roleString = contactInput.get("role").toString().trim().replace("-", "_");
 		// First validate the role name.
