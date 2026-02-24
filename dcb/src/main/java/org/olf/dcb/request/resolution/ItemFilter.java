@@ -6,5 +6,5 @@ import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
 public interface ItemFilter {
-	Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters);
+	Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters);
 }

@@ -177,13 +177,15 @@ class ResolutionPreviewApiTests {
 		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
 
 		// Act
+		final var borrowingAgencyCode = getValueOrNull(borrowingAgency, DataAgency::getCode);
+
 		final var resolutionPreview = resolutionApiClient.previewResolution(
 			ResolutionParameters.builder()
-				.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+				.borrowingAgencyCode(borrowingAgencyCode)
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
 				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
-				.pickupAgencyCode(getValueOrNull(borrowingAgency, DataAgency::getCode))
+				.pickupAgencyCode(borrowingAgencyCode)
 				.build());
 
 		// Assert
@@ -220,13 +222,16 @@ class ResolutionPreviewApiTests {
 
 		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
 
+		final var borrowingAgencyCode = getValueOrNull(borrowingAgency, DataAgency::getCode);
+
 		// Act
 		final var resolutionPreview = resolutionApiClient.previewResolution(
 			ResolutionParameters.builder()
-				.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+				.borrowingAgencyCode(borrowingAgencyCode)
 				.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
 				.bibClusterId(clusterRecord.getId())
 				.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.pickupAgencyCode(borrowingAgencyCode)
 				.build());
 
 		// Assert

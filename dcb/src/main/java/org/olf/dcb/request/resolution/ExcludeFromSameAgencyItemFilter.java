@@ -6,23 +6,20 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import java.util.function.Function;
 
 import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import reactor.core.publisher.Mono;
 
 @Singleton
+@AllArgsConstructor
 public class ExcludeFromSameAgencyItemFilter implements ItemFilter {
 	private final ConsortiumService consortiumService;
 
-	public ExcludeFromSameAgencyItemFilter(ConsortiumService consortiumService) {
-		this.consortiumService = consortiumService;
-	}
-
 	@Override
-	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
+	public Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters) {
 		return item -> excludeItemFromSameAgency(item, parameters);
 	}
 
@@ -30,16 +27,8 @@ public class ExcludeFromSameAgencyItemFilter implements ItemFilter {
 		final var borrowingAgencyCode = getValueOrNull(parameters,
 			ItemFilterParameters::borrowingAgencyCode);
 
-		if (borrowingAgencyCode == null) {
-			return Mono.error(new MissingParameterException("borrowingAgencyCode"));
-		}
-
 		final var pickupAgencyCode = getValueOrNull(parameters,
 			ItemFilterParameters::pickupAgencyCode);
-
-		if (pickupAgencyCode == null) {
-			return Mono.error(new MissingParameterException("pickupAgencyCode"));
-		}
 
 		return consortiumService.isEnabled(OWN_LIBRARY_BORROWING)
 			.map(enabled -> {

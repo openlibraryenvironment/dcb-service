@@ -6,23 +6,20 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import java.util.function.Function;
 
 import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.model.Item;
+import org.reactivestreams.Publisher;
 
 import jakarta.inject.Singleton;
-import org.reactivestreams.Publisher;
+import lombok.AllArgsConstructor;
 import reactor.core.publisher.Mono;
 
 @Singleton
+@AllArgsConstructor
 public class ExcludeSupplierPickupFilter implements ItemFilter {
 	private final ConsortiumService consortiumService;
 
-	public ExcludeSupplierPickupFilter(ConsortiumService consortiumService) {
-		this.consortiumService = consortiumService;
-	}
-
 	@Override
-	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
+	public Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters) {
 		return item -> excludeItemSupplierPickup(item, parameters);
 	}
 
@@ -31,10 +28,6 @@ public class ExcludeSupplierPickupFilter implements ItemFilter {
 		final String supplyingAgencyCode = getValueOrNull(item, Item::getAgencyCode);
 		final String borrowingAgencyCode = getValueOrNull(parameters, ItemFilterParameters::borrowingAgencyCode);
 		final Boolean isExpeditedCheckout = getValueOrNull(parameters, ItemFilterParameters::isExpeditedCheckout);
-
-		if (pickupAgencyCode == null) {
-			return Mono.error(new MissingParameterException("pickupAgencyCode"));
-		}
 
 		// Not sure what to do if supplying agency code is null
 		if (supplyingAgencyCode == null) {

@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 class AgencyExclusionItemFilter implements ItemFilter {
-	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
+	public Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters) {
 		return item -> Mono.just(filterItem(item, parameters));
 	}
 

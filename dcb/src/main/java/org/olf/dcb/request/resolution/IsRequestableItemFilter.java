@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 
 @Singleton
 public class IsRequestableItemFilter implements ItemFilter {
-	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
+	public Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters) {
 		return item -> Mono.just(item.getIsRequestable());
 	}
 }

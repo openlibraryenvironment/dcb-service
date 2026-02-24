@@ -9,16 +9,14 @@ import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton
+@AllArgsConstructor
 public class IncludeItemWithHoldsItemFilter implements ItemFilter {
 	private final ConsortiumService consortiumService;
-
-	public IncludeItemWithHoldsItemFilter(ConsortiumService consortiumService) {
-		this.consortiumService = consortiumService;
-	}
 
 	/**
 	 * Checks if an item with holds should be included in the resolution process.
@@ -26,8 +24,7 @@ public class IncludeItemWithHoldsItemFilter implements ItemFilter {
 	 * This method checks the consortium's functional setting for selecting unavailable items.
 	 * If the setting is enabled, items with holds are included. Otherwise, only items with no holds are included.
 	 */
-	public Function<Item, Publisher<Boolean>> predicate(
-		ItemFilterParameters parameters) {
+	public Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters) {
 		return item -> consortiumService.isEnabled(SELECT_UNAVAILABLE_ITEMS)
 			.map(enabled -> {
 				final boolean includeItem = enabled || item.hasNoHolds();

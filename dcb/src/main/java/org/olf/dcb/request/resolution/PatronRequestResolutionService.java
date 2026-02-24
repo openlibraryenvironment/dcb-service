@@ -20,6 +20,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
@@ -322,8 +323,22 @@ public class PatronRequestResolutionService {
 
 		log.debug("All items from live availability: {}", allItems);
 
+		// Validate parameters here as validating within each filter introduces
+		// non-deterministic behaviour based upon order the filters are applied
+		final var borrowingAgencyCode = getValueOrNull(resolution, ItemFilterParameters::borrowingAgencyCode);
+
+		if (borrowingAgencyCode == null) {
+			return Mono.error(new MissingParameterException("borrowingAgencyCode"));
+		}
+
+		final var pickupAgencyCode = getValueOrNull(resolution, ItemFilterParameters::pickupAgencyCode);
+
+		if (pickupAgencyCode == null) {
+			return Mono.error(new MissingParameterException("pickupAgencyCode"));
+		}
+
 		return Flux.fromIterable(allItems)
-			.filterWhen(itemFilter.predicate(resolution))
+			.filterWhen(itemFilter.filterItem(resolution))
 			.collectList()
 			.map(resolution::trackFilteredItems);
 	}

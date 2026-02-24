@@ -12,19 +12,17 @@ import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
+@AllArgsConstructor
 public class SameServerItemFilter implements ItemFilter {
 	private final HostLmsService hostLmsService;
 
-	public SameServerItemFilter(HostLmsService hostLmsService) {
-		this.hostLmsService = hostLmsService;
-	}
-
-	public Function<Item, Publisher<Boolean>> predicate(ItemFilterParameters parameters) {
+	public Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters) {
 		final var borrowingHostLmsCode = getValueOrNull(parameters,
 			ItemFilterParameters::borrowingHostLmsCode);
 
