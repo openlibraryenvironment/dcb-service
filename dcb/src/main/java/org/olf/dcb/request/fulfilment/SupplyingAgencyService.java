@@ -186,6 +186,9 @@ public class SupplyingAgencyService {
 								message = "Delete supplier hold request : Success (Fallback Cancel)";
 							} else if ("OK_DELETED".equals(deleteResult)) {
 								message = "Delete supplier hold request : Success (Deleted)";
+							}
+							else if ("OK_CLOSED".equals(deleteResult)) {
+									message = "Delete supplier hold request: mod-dcb transaction also closed";
 							} else {
 								// For the standard "OK" for systems where we don't need to have the fallback.
 								// This is the most common outcome.

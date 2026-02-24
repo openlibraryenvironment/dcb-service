@@ -1143,11 +1143,36 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return Mono.just("OK");
 	}
 
-  @Override
-  public Mono<String> deleteHold(DeleteCommand deleteCommand) {
-		log.info("Delete hold is not currently implemented for FOLIO");
-    return Mono.just("OK");
-  }
+
+	// This is currently limited by mod-dcb only supporting closing the transaction when it is already checked in
+	// If we would like to extend it to other states, we either need to add that in mod-dcb OR do a cancellation.
+	@Override
+	public Mono<String> deleteHold(DeleteCommand deleteCommand) {
+		log.info("Delete hold for FOLIO transaction: {}", deleteCommand.getRequestId());
+		String localRequestId = deleteCommand.getRequestId();
+
+		return getTransactionStatus(localRequestId)
+			.flatMap(txStatus -> {
+				String currentStatus = txStatus.getStatus();
+				log.debug("Current status for transaction {}: {}", localRequestId, currentStatus);
+
+				// If it's already closed don't try and close it again
+				if ("CLOSED".equals(currentStatus)) {
+					return Mono.just("OK");
+				}
+				return updateTransactionStatus(localRequestId, TransactionStatus.CLOSED)
+					.thenReturn("OK_CLOSED")
+					.onErrorResume(e -> {
+						log.error("Failed to CLOSE mod-dcb transaction {}. API does not support this transition from {}. Error: {}",
+							localRequestId, currentStatus, e.getMessage());
+						return Mono.just("OK_NOT_RESOLVED"); // Put a more specific message in here in future
+					});
+			})
+			.onErrorResume(TransactionNotFoundException.class, e -> {
+				log.warn("Transaction {} not found during cleanup, assuming deleted.", localRequestId);
+				return Mono.just("OK");
+			});
+	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
