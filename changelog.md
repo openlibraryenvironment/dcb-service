@@ -1,6 +1,25 @@
 # Changelog
 
+## Version 8.66.0
+
+### Additions
+* [General]
+	* Report zero items when cluster record has no bibs
+
+### Changes
+* [Chore]
+	* Improvements to the setup data fetchers [DCB-2124]
+
+### Fixes
+* [General]
+	* Improvements to clean-up for FOLIO libraries [DCB-2068]
+	* Prevent non walk-up or local supplier pickup [DCB-2092]
+
 ## Version 8.65.2
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
 
 ### Fixes
 * [General]
