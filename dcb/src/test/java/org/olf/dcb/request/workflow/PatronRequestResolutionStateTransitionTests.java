@@ -452,6 +452,7 @@ class PatronRequestResolutionStateTransitionTests {
 			.pickupLocationCode(pickupLocation.getIdAsString())
 			.status(PATRON_VERIFIED)
 			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.isExpeditedCheckout(true)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);

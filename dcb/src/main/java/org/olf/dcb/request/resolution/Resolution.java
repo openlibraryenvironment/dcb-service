@@ -102,4 +102,8 @@ public class Resolution implements ItemFilterParameters {
 	public String borrowingHostLmsCode() {
 		return getValueOrNull(parameters, ResolutionParameters::getBorrowingHostLmsCode);
 	}
+
+	public Boolean isExpeditedCheckout() {
+		return getValueOrNull(parameters, ResolutionParameters::getIsExpeditedCheckout);
+	}
 }
