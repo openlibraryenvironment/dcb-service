@@ -190,7 +190,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		// 
 		return clusters.updateLastIndexed(ids.toList(), lastIndexed)
 			.transform( ReactorUtils.withMonoLogging(log, mono -> mono
-				.doOnNext(Level.DEBUG, count -> log.debug("Updated [{}] last Indexed timestamps"))))
+				.doOnNext(Level.DEBUG, count -> log.debug("Updated [{}] last Indexed timestamps", count))))
 			.thenReturn(in);
 	}
 
