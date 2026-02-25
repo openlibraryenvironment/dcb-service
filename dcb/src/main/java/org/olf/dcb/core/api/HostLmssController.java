@@ -119,12 +119,14 @@ public class HostLmssController {
 			.flatMap( this::startBackgroundDataRemoval )
 			.defaultIfEmpty(HttpResponse.notFound());
 	}
-	
+
+	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
 	@Get("/importIngestDetails")
 	public Mono<List<Map<String, Object>>> getAllImportIngestDetails() {
 		return(hostLmsService.getAllImportIngestDetails());
 	}
 
+	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
 	@Get("/importIngestDetails/{id}")
 	public Mono<Map<String, Object>> getImportIngestDetails(UUID id) {
 		return(hostLmsService.getImportIngestDetails(id));
