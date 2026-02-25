@@ -39,14 +39,22 @@ public class CreateLibraryGroupDataFetcher implements DataFetcher<CompletableFut
 			.map(Object::toString)
 			.orElse("User not detected");
 
+		String reason = Optional.ofNullable(input_map.get("reason"))
+			.map(Object::toString)
+			.orElse("Creation of new group");
+		// Reason and category aren't surfaced in the UI for this operation. But there is a case for allowing them to be set via API
+		String changeCategory = Optional.ofNullable(input_map.get("reason"))
+			.map(Object::toString)
+			.orElse("Creation of new group");
+
 		LibraryGroup input = LibraryGroup.builder()
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)
 			.code(input_map.get("code").toString())
 			.name(input_map.get("name").toString())
 			.type(input_map.get("type").toString())
 			.lastEditedBy(userString)
-			.changeCategory("Initial setup")
-			.reason("Creation of new group").build();
+			.changeCategory(changeCategory)
+			.reason(reason).build();
 
 		log.debug("getCreateLibraryGroupDataFetcher {}/{}", input_map, input);
 
