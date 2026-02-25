@@ -38,7 +38,7 @@ class PAPIAuthFilter {
 	private PatronAuthToken patronAuthToken;
 	private final PolarisLmsClient client;
 	private final String URI_PARAMETERS;
-	private Boolean overrideMethod;
+	private Boolean isPublicMethod;
 	private final static DateTimeFormatter FORMATTER = DateTimeFormatter.RFC_1123_DATE_TIME
 			.withZone(ZoneId.of("UTC"));
 
@@ -49,22 +49,23 @@ class PAPIAuthFilter {
 	}
 
 	Mono<MutableHttpRequest<?>> ensureStaffAuth(MutableHttpRequest<?> request) {
-		overrideMethod = FALSE;
+		// By default, we assume any method requiring staff authentication is protected
+		isPublicMethod = FALSE;
 
 		return staffAuthentication(request, FALSE);
 	}
 
 	Mono<MutableHttpRequest<?>> ensurePatronAuth(MutableHttpRequest<?> request,
-		PAPIClient.PatronCredentials patronCredentials, Boolean override) {
+		PAPIClient.PatronCredentials patronCredentials, Boolean isRequestPublicMethod) {
+		// Since some methods requiring patron authentication can also be authenticated by staff, we require this to be declared alongside the request
+		isPublicMethod = isRequestPublicMethod;
 
-		overrideMethod = override;
-
-		return patronAuthentication(request, patronCredentials, override);
+		return patronAuthentication(request, patronCredentials, isRequestPublicMethod);
 	}
 
-	private Mono<MutableHttpRequest<?>> staffAuthentication(MutableHttpRequest<?> request, Boolean publicMethod) {
+	private Mono<MutableHttpRequest<?>> staffAuthentication(MutableHttpRequest<?> request, Boolean isRequestPublicMethod) {
 		return staffAuthenticator().doOnSuccess(newToken -> currentToken = newToken)
-			.map(validToken -> createStaffRequest(request, validToken, publicMethod))
+			.map(validToken -> createStaffRequest(request, validToken, isRequestPublicMethod))
 			.map(this::authorization);
 	}
 
@@ -76,14 +77,17 @@ class PAPIAuthFilter {
 
 			return createStaffAuthRequest(domain, username, password)
 				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)))
-				.onErrorMap(e -> new PAPIAuthException("Staff Auth Failed", e));
+				.doOnSuccess(authToken -> log.info("Auth token returned: {}", authToken))
+				.onErrorMap(e -> {
+					log.error("Staff Auth failed with error {}", e.toString());
+					return new PAPIAuthException("Staff Auth Failed", e);
+				});
 		});
 	}
 
 	private Mono<MutableHttpRequest<?>> patronAuthentication(MutableHttpRequest<?> request,
-		PAPIClient.PatronCredentials patronCredentials, Boolean override) {
-
-		if (override) {
+		PAPIClient.PatronCredentials patronCredentials, Boolean authenticatePatronAsStaff) {
+		if (authenticatePatronAsStaff) {
 			return staffAuthentication(request, TRUE);
 		}
 
@@ -106,12 +110,12 @@ class PAPIAuthFilter {
 	}
 
 	private MutableHttpRequest<?> createStaffRequest(MutableHttpRequest<?> request,
-		AuthToken authToken, Boolean publicMethod) {
+		AuthToken authToken, Boolean isRequestPublicMethod) {
 
 		final var token = authToken.getAccessToken();
 
-		// guard clause: we do not need to add the auth token to the request path on public methods
-		if (publicMethod) return request.header("X-PAPI-AccessToken", token);
+		// When using a public method as authenticated staff user, we need to add a custom header
+		if (isRequestPublicMethod) return request.header("X-PAPI-AccessToken", token);
 
 		final var path = request.getPath().replace(URI_PARAMETERS, URI_PARAMETERS + "/" + token);
 
@@ -165,7 +169,13 @@ class PAPIAuthFilter {
 	private String getAccessSecret(MutableHttpRequest<?> request) {
 		final var path = request.getPath();
 
-		if (overrideMethod) {
+		// Currently there is an instance in which the we can claim to be using a public method but still require staff auth
+		// This conditional ensures that when hitting staff auth endpoint we still dont pass an access key
+		if (isPublicMethod && path.contains("/authenticator/staff")) {
+			return "";
+		}
+
+		else if (isPublicMethod) {
 			return Optional.ofNullable(currentToken)
 				.map(AuthToken::getAccessSecret)
 				.orElse("");
@@ -195,7 +205,6 @@ class PAPIAuthFilter {
 
 	private String calculateApiSignature(String accessKey, String method,
 		String path, String date, String password) {
-
 		try {
 			final var mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
 			final var secretBytes = accessKey.getBytes();
@@ -208,7 +217,6 @@ class PAPIAuthFilter {
 			log.info("Encoding data: {}", data);
 
 			final var rawHmac = mac.doFinal(data.getBytes());
-
 			return Base64.getEncoder().encodeToString(rawHmac);
 		} catch (Exception e) {
 			// Handle any exceptions that might occur during the calculation
