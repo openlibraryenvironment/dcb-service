@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -45,6 +46,8 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -52,6 +55,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -665,6 +669,45 @@ class PatronRequestResolutionStateTransitionTests {
 			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
 
 		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+	}
+
+	@Test
+	void shouldTolerateDeletedClusterRecord() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var clusterRecord = ClusterRecord.builder()
+			.id(clusterRecordId)
+			.title("Brain of the Firm")
+			.isDeleted(true)
+			.build();
+
+		clusterRecordFixture.createClusterRecord(clusterRecord);
+
+		final var pickupLocationId = createPickupLocation();
+
+		final var patron = definePatron("86848", "757646");
+
+
+		var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.bibClusterId(clusterRecordId)
+			.pickupLocationCode(pickupLocationId)
+			.status(PATRON_VERIFIED)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		// Act
+		resolve(patronRequest);
+
+		// Assert
+		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertNoItemsSelectableResolution(fetchedPatronRequest);
+
+		assertNoSupplierRequestsFor(patronRequest);
 	}
 
 	@Test

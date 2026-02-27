@@ -1,5 +1,8 @@
 package org.olf.dcb.request.workflow;
 
+import static java.lang.Boolean.parseBoolean;
+import static java.time.Instant.now;
+import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.hasItem;
@@ -38,7 +41,9 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
@@ -50,6 +55,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.api.exceptions.MultipleConsortiumException;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -684,40 +690,30 @@ class ResolveNextSupplierTransitionTests {
 		assertThat(auditEntries, hasItem(isResolutionAuditEntry(newItemId, borrowingHostLms.getCode())));
 	}
 
-	@Test
-	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution() {
+	@ParameterizedTest
+	@ValueSource(strings = {"false", "true"})
+	void shouldCancelBorrowingRequestWhenNoItemSelectableDuringReResolution(String clusterRecordDeleted) {
 		enableReResolution();
 
 		final var sourceRecordId = "798475";
-		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
+
+		// Demonstrates tolerance for deleted cluster records without duplicating
+		// the whole definition of this test
+		// Boolean parsing is used to avoid value source type limitations
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId,
+			parseBoolean(clusterRecordDeleted));
 
 		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.code);
+
 		final var borrowingLocalRequestId = "3635625";
+
 		final var patronRequest = definePatronRequest(NOT_SUPPLIED_CURRENT_SUPPLIER,
 			borrowingLocalRequestId, clusterRecordId);
 
 		final var supplierRequest = saveSupplierRequest(patronRequest, hostLms.getCode(),
 			previouslySupplyingAgency);
 
-		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			SierraItem.builder()
-				.id("1000003")
-				.barcode("6565750674")
-				.callNumber("BL221 .C48")
-				.statusCode("-")
-				.dueDate(Instant.parse("2021-02-25T12:00:00Z")) // This item is not selectable
-				.itemType("999")
-				.locationCode("ab6")
-				.locationName("King 6th Floor")
-				.suppressed(false)
-				.deleted(false)
-				.build()));
-
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			supplyingHostLms.code, "ab6",  supplyingAgency.getCode());
-
-		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
-			supplyingHostLms.code, 999, 999, "BKM");
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, emptyList());
 
 		sierraPatronsAPIFixture.mockDeleteHold(borrowingLocalRequestId);
 
@@ -913,10 +909,22 @@ class ResolveNextSupplierTransitionTests {
 	}
 
 	private UUID defineClusterRecordWithSingleBib(String sourceRecordId) {
+		return defineClusterRecordWithSingleBib(sourceRecordId, false);
+	}
+
+	private UUID defineClusterRecordWithSingleBib(String sourceRecordId, boolean isDeleted) {
 		final var clusterRecordId = randomUUID();
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(
-			clusterRecordId, clusterRecordId);
+			ClusterRecord.builder()
+				.id(clusterRecordId)
+				.title("Brain of the Firm")
+				.selectedBib(clusterRecordId)
+				.bibs(Set.of())
+				.isDeleted(isDeleted)
+				.dateCreated(now())
+				.dateUpdated(now())
+				.build());
 
 		final var hostLms = hostLmsFixture.findByCode(supplyingHostLms.getCode());
 

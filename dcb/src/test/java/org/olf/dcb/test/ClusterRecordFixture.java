@@ -1,7 +1,7 @@
 package org.olf.dcb.test;
 
-import static java.lang.Boolean.FALSE;
 import static java.time.Instant.now;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.Set;
 import java.util.UUID;
@@ -10,7 +10,6 @@ import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.storage.ClusterRecordRepository;
 
 import jakarta.inject.Singleton;
-import reactor.core.publisher.Mono;
 
 @Singleton
 public class ClusterRecordFixture {
@@ -28,9 +27,22 @@ public class ClusterRecordFixture {
 	}
 
 	public ClusterRecord createClusterRecord(UUID clusterRecordId, UUID selectedBibId) {
-		return Mono.from(clusterRecordRepository.save(new ClusterRecord(clusterRecordId,
-				now(), now(), "Brain of the Firm", Set.of(), selectedBibId, FALSE, now())))
-			.block();
+		final var clusterRecord = ClusterRecord.builder()
+			.id(clusterRecordId)
+			.title("Brain of the Firm")
+			.selectedBib(selectedBibId)
+			.bibs(Set.of())
+			.isDeleted(false)
+			.dateCreated(now())
+			.dateUpdated(now())
+			.lastIndexed(now())
+			.build();
+
+		return createClusterRecord(clusterRecord);
+	}
+
+	public ClusterRecord createClusterRecord(ClusterRecord clusterRecord) {
+		return singleValueFrom(clusterRecordRepository.save(clusterRecord));
 	}
 
 	public void deleteAll() {
