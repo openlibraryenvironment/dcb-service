@@ -9,8 +9,6 @@ import io.micronaut.http.multipart.CompletedFileUpload;
 import io.micronaut.security.utils.SecurityService;
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.api.serde.LocationDTO;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
@@ -29,6 +27,7 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
+import io.micronaut.security.token.config.TokenConfigurationProperties;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -56,14 +55,17 @@ public class LocationController {
 
 	private DCBConfigurationService configurationService;
 
+	private final TokenConfigurationProperties tokenConfig;
+
 	private final SecurityService securityService;
 	public LocationController(LocationRepository locationRepository, AgencyRepository agencyRepository,
-			HostLmsRepository hostLmsRepository, DCBConfigurationService configurationService, SecurityService securityService) {
+			HostLmsRepository hostLmsRepository, DCBConfigurationService configurationService, SecurityService securityService, TokenConfigurationProperties tokenConfig) {
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
 		this.hostLmsRepository = hostLmsRepository;
 		this.configurationService = configurationService;
 		this.securityService = securityService;
+		this.tokenConfig = tokenConfig;
 
 	}
 
@@ -100,7 +102,9 @@ public class LocationController {
 	@Secured({RoleNames.CONSORTIUM_ADMIN, RoleNames.ADMINISTRATOR, RoleNames.LIBRARY_ADMIN})
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
 	public Mono<DCBConfigurationService.UploadedConfigImport> importLocations(CompletedFileUpload file, String code, String type, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
-		String username = (String) securityService.getAuthentication().get().getAttributes().get("preferred_username");
+		// Pulling this in from the token config to avoid the use of magic strings
+		// For future reference, if we want to use something other than Keycloak, will need to figure out how to configure these additional custom fields
+		String username = (String) securityService.getAuthentication().get().getAttributes().get(tokenConfig.getNameKey());
 		return configurationService.importConfiguration(type, "Location import", code, file, reason, changeCategory, changeReferenceUrl, username);
 	}
 

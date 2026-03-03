@@ -21,6 +21,7 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.multipart.CompletedFileUpload;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.token.config.TokenConfigurationProperties;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,10 +40,13 @@ public class UploadedMappingsController {
 
 	private SecurityService securityService;
 
-	public UploadedMappingsController(DCBConfigurationService configurationService, ReferenceValueMappingRepository referenceValueMappingRepository, SecurityService securityService) {
+	private TokenConfigurationProperties tokenConfig;
+
+	public UploadedMappingsController(DCBConfigurationService configurationService, ReferenceValueMappingRepository referenceValueMappingRepository, SecurityService securityService, TokenConfigurationProperties tokenConfig) {
 		this.configurationService = configurationService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.securityService = securityService;
+		this.tokenConfig = tokenConfig;
 	}
 
 	// This handles the return of an appropriate error + message when a file fails validation.
@@ -76,7 +80,9 @@ public class UploadedMappingsController {
 	// i.e. Reference value mappings of category ItemType
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
 	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String type, String category, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
-			String username = (String) securityService.getAuthentication().get().getAttributes().get("preferred_username");
+		// Pulling this in from the token config to avoid the use of magic strings
+		// For future reference, if we want to use something other than Keycloak, will need to figure out how to configure these additional custom fields
+		String username = (String) securityService.getAuthentication().get().getAttributes().get(tokenConfig.getNameKey());
 			return configurationService.importConfiguration(type, category, code, file, reason, changeCategory, changeReferenceUrl, username);
 	}
 }

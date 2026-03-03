@@ -7,6 +7,7 @@ import io.micronaut.context.annotation.Primary;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpResponse;
+import io.micronaut.security.token.config.TokenConfigurationProperties;
 import io.micronaut.security.utils.SecurityService;
 import jakarta.inject.Singleton;
 import org.reactivestreams.Publisher;
@@ -20,13 +21,18 @@ import java.util.Collection;
 public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCustomizer {
 	private final SecurityService securityService;
 
+	private final TokenConfigurationProperties tokenConfig;
+
 	private static Logger log = LoggerFactory.getLogger(GraphQLSecurityContextCustomizer.class);
 
 	// This is inspired by the official micronaut-graphql example here https://github.com/micronaut-projects/micronaut-graphql/blob/4.4.x/examples/jwt-security/src/main/java/example/graphql/RequestResponseCustomizer.java
 	// The idea is that we inject the security service here (where the security context is available), get the username and put it in GraphQL context,
 	// and then can access it from data fetchers where we previously could not.
 
-	public GraphQLSecurityContextCustomizer(SecurityService securityService) {
+	public GraphQLSecurityContextCustomizer(
+		TokenConfigurationProperties tokenConfig,
+		SecurityService securityService) {
+		this.tokenConfig = tokenConfig;
 		this.securityService = securityService;
 	}
 
@@ -46,7 +52,9 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 			securityService.getAuthentication().ifPresent(auth -> {
 				// Get the user info
 				String userID = auth.getName();
-				String prefName = (String) auth.getAttributes().get("preferred_username");
+				// Pulling this in from the token config to avoid the use of magic strings
+				// For future reference, if we want to use something other than Keycloak, will need to figure out how to configure these additional custom fields
+				String prefName = (String) auth.getAttributes().get(tokenConfig.getNameKey());
 				String email = (String) auth.getAttributes().get("email");
 				String name = (String) auth.getAttributes().get("name");
 
