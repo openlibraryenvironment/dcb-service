@@ -21,7 +21,6 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.multipart.CompletedFileUpload;
 import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.token.config.TokenConfigurationProperties;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,13 +39,10 @@ public class UploadedMappingsController {
 
 	private SecurityService securityService;
 
-	private TokenConfigurationProperties tokenConfig;
-
-	public UploadedMappingsController(DCBConfigurationService configurationService, ReferenceValueMappingRepository referenceValueMappingRepository, SecurityService securityService, TokenConfigurationProperties tokenConfig) {
+	public UploadedMappingsController(DCBConfigurationService configurationService, ReferenceValueMappingRepository referenceValueMappingRepository, SecurityService securityService) {
 		this.configurationService = configurationService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.securityService = securityService;
-		this.tokenConfig = tokenConfig;
 	}
 
 	// This handles the return of an appropriate error + message when a file fails validation.
