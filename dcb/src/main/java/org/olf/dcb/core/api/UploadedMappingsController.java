@@ -80,9 +80,7 @@ public class UploadedMappingsController {
 	// i.e. Reference value mappings of category ItemType
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
 	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String type, String category, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
-		// Pulling this in from the token config to avoid the use of magic strings
-		// For future reference, if we want to use something other than Keycloak, will need to figure out how to configure these additional custom fields
-		String username = (String) securityService.getAuthentication().get().getAttributes().get(tokenConfig.getNameKey());
+		String username = securityService.username().orElseThrow();
 			return configurationService.importConfiguration(type, category, code, file, reason, changeCategory, changeReferenceUrl, username);
 	}
 }

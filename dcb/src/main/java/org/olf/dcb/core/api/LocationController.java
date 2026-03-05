@@ -55,18 +55,14 @@ public class LocationController {
 
 	private DCBConfigurationService configurationService;
 
-	private final TokenConfigurationProperties tokenConfig;
-
 	private final SecurityService securityService;
 	public LocationController(LocationRepository locationRepository, AgencyRepository agencyRepository,
-			HostLmsRepository hostLmsRepository, DCBConfigurationService configurationService, SecurityService securityService, TokenConfigurationProperties tokenConfig) {
+			HostLmsRepository hostLmsRepository, DCBConfigurationService configurationService, SecurityService securityService) {
 		this.locationRepository = locationRepository;
 		this.agencyRepository = agencyRepository;
 		this.hostLmsRepository = hostLmsRepository;
 		this.configurationService = configurationService;
 		this.securityService = securityService;
-		this.tokenConfig = tokenConfig;
-
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -104,7 +100,7 @@ public class LocationController {
 	public Mono<DCBConfigurationService.UploadedConfigImport> importLocations(CompletedFileUpload file, String code, String type, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
 		// Pulling this in from the token config to avoid the use of magic strings
 		// For future reference, if we want to use something other than Keycloak, will need to figure out how to configure these additional custom fields
-		String username = (String) securityService.getAuthentication().get().getAttributes().get(tokenConfig.getNameKey());
+		String username = securityService.username().orElseThrow();
 		return configurationService.importConfiguration(type, "Location import", code, file, reason, changeCategory, changeReferenceUrl, username);
 	}
 
