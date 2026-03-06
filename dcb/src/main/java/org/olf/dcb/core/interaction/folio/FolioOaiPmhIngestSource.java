@@ -13,6 +13,7 @@ import io.micronaut.context.annotation.Replaces;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
 import io.micronaut.serde.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,7 +32,7 @@ public class FolioOaiPmhIngestSource extends FolioOaiPmhIngestSource2 {
 	public FolioOaiPmhIngestSource(
 			@Parameter("hostLms") HostLms hostLms,
 			RawSourceRepository rawSourceRepository,
-			HttpClient client,
+			@Client(configuration = FolioOaiClientConfig.class) HttpClient client,
 			ConversionService conversionService,
 			ProcessStateService processStateService,
 			R2dbcOperations r2dbcOperations,
