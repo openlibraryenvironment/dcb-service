@@ -76,7 +76,7 @@ public class UploadedMappingsController {
 	// i.e. Reference value mappings of category ItemType
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
 	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String type, String category, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
-			String username = (String) securityService.getAuthentication().get().getAttributes().get("preferred_username");
+		String username = securityService.username().orElseThrow();
 			return configurationService.importConfiguration(type, category, code, file, reason, changeCategory, changeReferenceUrl, username);
 	}
 }

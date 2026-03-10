@@ -9,8 +9,6 @@ import io.micronaut.http.multipart.CompletedFileUpload;
 import io.micronaut.security.utils.SecurityService;
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.api.serde.LocationDTO;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
@@ -64,7 +62,6 @@ public class LocationController {
 		this.hostLmsRepository = hostLmsRepository;
 		this.configurationService = configurationService;
 		this.securityService = securityService;
-
 	}
 
 	@Secured(SecurityRule.IS_ANONYMOUS)
@@ -100,7 +97,9 @@ public class LocationController {
 	@Secured({RoleNames.CONSORTIUM_ADMIN, RoleNames.ADMINISTRATOR, RoleNames.LIBRARY_ADMIN})
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
 	public Mono<DCBConfigurationService.UploadedConfigImport> importLocations(CompletedFileUpload file, String code, String type, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
-		String username = (String) securityService.getAuthentication().get().getAttributes().get("preferred_username");
+		// Pulling this in from the token config to avoid the use of magic strings
+		// For future reference, if we want to use something other than Keycloak, will need to figure out how to configure these additional custom fields
+		String username = securityService.username().orElseThrow();
 		return configurationService.importConfiguration(type, "Location import", code, file, reason, changeCategory, changeReferenceUrl, username);
 	}
 

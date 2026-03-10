@@ -26,7 +26,8 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 	// The idea is that we inject the security service here (where the security context is available), get the username and put it in GraphQL context,
 	// and then can access it from data fetchers where we previously could not.
 
-	public GraphQLSecurityContextCustomizer(SecurityService securityService) {
+	public GraphQLSecurityContextCustomizer(
+		SecurityService securityService) {
 		this.securityService = securityService;
 	}
 
@@ -44,9 +45,10 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 		return Mono.fromCallable(() -> {
 			GraphQLContext context = executionInput.getGraphQLContext();
 			securityService.getAuthentication().ifPresent(auth -> {
+				// For future reference, if we navigate away from keycloak this will break as another system may not have these fields
 				// Get the user info
-				String userID = auth.getName();
-				String prefName = (String) auth.getAttributes().get("preferred_username");
+				String prefName = auth.getName();
+				String userID = (String) auth.getAttributes().get("sub");
 				String email = (String) auth.getAttributes().get("email");
 				String name = (String) auth.getAttributes().get("name");
 

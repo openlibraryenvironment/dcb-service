@@ -30,6 +30,7 @@ micronaut:
   security:
     authentication: idtoken
     token:
+      name-key: preferred_username # This is used to overwrite the default use of the "sub" from authentication
       jwt:
         enabled: true
         signatures.jwks.keycloak:
