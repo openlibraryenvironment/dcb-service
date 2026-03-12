@@ -39,7 +39,7 @@ public class AlmaXmlGenerator {
 		return """
 			<?xml version="1.0" encoding="UTF-8"?>
 			<bib>
-			  <suppress_from_publishing>false</suppress_from_publishing>
+			  <suppress_from_publishing>true</suppress_from_publishing>
 			  <record>
 			    <leader>00000nam a2200000 a 4500</leader>
 			    <controlfield tag="001">DCB%s</controlfield>
@@ -98,6 +98,7 @@ public class AlmaXmlGenerator {
 		      <subfield code="a">%s</subfield>
 		    </datafield>
 		  </record>
+		  <suppress_from_publishing>true</suppress_from_publishing>
 		</holding>
 		""".formatted(
 			escapeXml(locationCode),

@@ -36,10 +36,10 @@ public class AlmaClientConfig {
 	private static final HostLmsPropertyDefinition USER_IDENTIFIER
 		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
 
-	// if the user doesn't have a homelibrary, this replaces it
-	// We can then use this to find the first OPEN location for their library
-	private static final HostLmsPropertyDefinition DEFAULT_PATRON_LOCATION_CODE
-		= stringPropertyDefinition("default-patron-location-code", "Default patron location code for this ALMA system", FALSE);
+	// Alma has no reliable way of getting a patron's home location.
+	// So we must create virtual items at a "DCB" location agreed with the Alma staff
+	private static final HostLmsPropertyDefinition VIRTUAL_ITEM_LOCATION_CODE = stringPropertyDefinition("virtual-item-location-code", "The location at which virtual items will be created", TRUE);
+	private static final HostLmsPropertyDefinition VIRTUAL_ITEM_LIBRARY_CODE = stringPropertyDefinition("virtual-item-library-code", "The library at which virtual items will be created", TRUE);
 
 	// Alma needs to define libraries that are outside the system. The way we do this is by having a DCB library/location
 	// that acts as all locations outside the system. This needs to be set up in Alma first but is the only way we can
@@ -86,10 +86,9 @@ public class AlmaClientConfig {
 		return DCB_SHARING_LIBRARY_CODE.getRequiredConfigValue(hostLms);
 	}
 
-	// We should move away from using this
-	String getDefaultPatronLocationCode(String defaultValue) {
-		return DEFAULT_PATRON_LOCATION_CODE.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
-	}
+	// This is the location virtual items will be created at.
+	String getVirtualItemLocationCode() { return VIRTUAL_ITEM_LOCATION_CODE.getRequiredConfigValue(hostLms);}
+	String getVirtualItemLibraryCode() { return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);}
 
 	List<HostLmsPropertyDefinition> getSettings() {
 		return List.of(
