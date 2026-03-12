@@ -66,6 +66,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
+import services.k_int.interaction.alma.AlmaCircDesk;
 import services.k_int.interaction.alma.AlmaLibraryResponse;
 import services.k_int.interaction.alma.AlmaLocation;
 import services.k_int.interaction.alma.types.AlmaBib;
@@ -342,137 +343,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				if ("CLOSED".equalsIgnoreCase(matchingLocations.get(0).getType().getValue())) {
 					log.warn("The ALMA location corresponding to the item location code is unavailable. Falling back to our default location.");
 					// Use default pickup location code to fetch the default location
-					return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
 				}
 				return Mono.just(matchingLocations.get(0));
-			});
-	}
-
-	public Mono<AlmaLocation> fetchLocationByCircDeskCode(String circDeskCode) {
-		return fetchLocations()
-			.flatMap(response -> {
-				List<AlmaLocation> locations = response.getLocations();
-				if (locations == null || locations.isEmpty()) {
-					throw Problem.builder()
-						.withTitle("No locations available in Alma configuration")
-						.withDetail("No locations were returned from Alma for host LMS: " + getHostLmsCode())
-						.with("hostLmsCode", getHostLmsCode())
-						.build();
-				}
-
-				List<AlmaLocation> matchingLocations = locations.stream()
-					.filter(loc -> loc.getCircDesk() != null &&
-						loc.getCircDesk().stream()
-							.anyMatch(cd -> circDeskCode.equals(cd.getCircDeskCode())))
-					.toList();
-
-				if (matchingLocations.isEmpty()) {
-					throw Problem.builder()
-						.withTitle("No matching locations found for circ desk code: " + circDeskCode)
-						.withDetail("Could not find any Alma locations with a circ desk matching the given code.")
-						.with("circDeskCode", circDeskCode)
-						.with("hostLmsCode", getHostLmsCode())
-						.build();
-				}
-
-				if (matchingLocations.size() > 1) {
-					log.info("Multiple locations have been found for this circulation desk. We will use the first one that is OPEN: failing that we will default to the default location.");
-					// Try and find an open location in the matching location
-					Optional<AlmaLocation> openLocation = matchingLocations.stream()
-						.filter(loc -> loc.getType() != null && "OPEN".equalsIgnoreCase(loc.getType().getValue()))
-						.findFirst();
-
-					if (openLocation.isPresent()) {
-						AlmaLocation selectedLocation = openLocation.get();
-						log.info("Prioritizing and selecting 'OPEN' location: {} at library {}", selectedLocation.getCode(), selectedLocation.getLibraryName());
-						return Mono.just(selectedLocation);
-					} else {
-						// Is a remote location available at this library- if so default to that
-						Optional<AlmaLocation> remoteLocation = matchingLocations.stream()
-							.filter(loc -> loc.getType() != null && "REMOTE".equalsIgnoreCase(loc.getType().getValue()))
-							.findFirst();
-						if (remoteLocation.isPresent())
-						{
-							log.info("Returning a REMOTE location because there are no OPEN locations.");
-							return Mono.just(remoteLocation.get());
-						}
-						else
-						{
-							log.warn("No 'OPEN' locations found among matches. Falling back to the default location for this system.");
-							return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
-						}
-
-					}
-					// Commenting out because I think we may be able to safely handle this situation, but I could be horribly wrong
-					//					throw Problem.builder()
-					//						.withTitle("Multiple locations found for circ desk code: " + circDeskCode)
-					//						.withDetail("Expected a single matching location, but found multiple.")
-					//						.with("circDeskCode", circDeskCode)
-					//						.with("hostLmsCode", getHostLmsCode())
-					//						.with("matchingLocationCodes", matchedLocationCodes)
-					//						.build();
-					//				}
-				}
-				return Mono.just(matchingLocations.get(0));
-			});
-	}
-
-	public Mono<AlmaLocation> fetchLocationByLibraryCode(String libraryCode) {
-		return client.retrieveLocations(libraryCode)
-			.flatMap(response -> {
-				List<AlmaLocation> locations = response.getLocations();
-				if (locations == null || locations.isEmpty()) {
-					throw Problem.builder()
-						.withTitle("No locations available for library: " + libraryCode)
-						.withDetail("No locations were returned from Alma for library code: " + libraryCode)
-						.with("libraryCode", libraryCode)
-						.with("hostLmsCode", getHostLmsCode())
-						.build();
-				}
-
-				if (libraryCode == null || libraryCode.isBlank()) {
-					throw Problem.builder()
-						.withTitle("Library code is blank or null")
-						.withDetail("Cannot search for locations with a blank or null library code.")
-						.with("libraryCode", libraryCode)
-						.with("hostLmsCode", getHostLmsCode())
-						.build();
-				}
-
-				// First, try to find an OPEN location
-				Optional<AlmaLocation> openLocation = locations.stream()
-					.filter(loc -> loc.getType() != null && "OPEN".equalsIgnoreCase(loc.getType().getValue()))
-					.findFirst();
-
-				if (openLocation.isPresent()) {
-					AlmaLocation selectedLocation = openLocation.get();
-					// Set the library code and name on the location for consistency
-					selectedLocation.setLibraryCode(libraryCode);
-					log.info("Found OPEN location: {} for library {}", selectedLocation.getCode(), libraryCode);
-					return Mono.just(selectedLocation);
-				}
-
-				// If no OPEN location found, try REMOTE as fallback
-				Optional<AlmaLocation> remoteLocation = locations.stream()
-					.filter(loc -> loc.getType() != null && "REMOTE".equalsIgnoreCase(loc.getType().getValue()))
-					.findFirst();
-
-				if (remoteLocation.isPresent()) {
-					AlmaLocation selectedLocation = remoteLocation.get();
-					selectedLocation.setLibraryCode(libraryCode);
-					log.info("No OPEN location found, using REMOTE location: {} for library {}",
-						selectedLocation.getCode(), libraryCode);
-					return Mono.just(selectedLocation);
-				}
-
-				// If neither OPEN nor REMOTE found, fall back to default location
-				log.warn("No OPEN or REMOTE locations found for library {}. Falling back to default location.", libraryCode);
-				return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
-			})
-			.onErrorResume(e -> {
-				log.error("Failed to fetch locations for library code {}: {}", libraryCode, e.getMessage());
-				// Fall back to default location on any error
-				return fetchLocationByLocationCode(config.getDefaultPatronLocationCode("GTMAIN"));
 			});
 	}
 
@@ -513,33 +385,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			})
 			.collectList()
 			.map(locations -> AlmaGroupedLocationResponse.builder().locations(locations).build());
-	}
-
-	private Mono<AlmaLocation> getSystemDependentPickupLocationCode(Location pickupLocation) {
-
-		if (pickupLocation.getHostSystem() == null || pickupLocation.getHostSystem().getId() == null) {
-			throw new IllegalArgumentException("Pickup location and its host system ID must not be null.");
-		}
-
-		final var pickupLocationHostLmsId = pickupLocation.getHostSystem().getId();
-		return hostLmsService.findById(pickupLocationHostLmsId)
-			.map(hostLms -> {
-
-				final var pickupLocationLmsClientClass = hostLms.getLmsClientClass();
-
-				if (pickupLocationLmsClientClass == null || pickupLocationLmsClientClass.isBlank()) {
-					throw new IllegalStateException("LMS client class is null or empty for host LMS with ID: " + pickupLocationHostLmsId);
-				}
-
-				final var pickupLocationCircuationDesk = config.getPickupCircDesk("DEFAULT_CIRC_DESK");
-				final var pickupLocationCode = pickupLocation.getCode();
-
-				final String systemDependentPickupLocationCode = pickupLocationLmsClientClass.equals("org.olf.dcb.core.interaction.alma.AlmaHostLmsClient")
-					? pickupLocationCode : pickupLocationCircuationDesk;
-
-				return systemDependentPickupLocationCode;
-			})
-			.flatMap(this::fetchLocationByCircDeskCode);
 	}
 
 	/** ToDo: This should be a default method I think */
@@ -975,20 +820,20 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String callNumber = "DCB_VIRTUAL_COLLECTION";
 		String holdingNote = "DCB Virtual holding record";
 
-		// The patron home location appears to be null for Alma - this fallback aims to cover that while we investigate
-		// As for Alma this is really the home library, so fall back to default if null
-		log.info("Create item for Alma with {}", cic);
-		String patronHomeLibraryCode = cic.getPatronHomeLocation() != null && !cic.getPatronHomeLocation().isBlank() ? cic.getPatronHomeLocation()  : (config.getDefaultPatronLocationCode("GENERAL"));
+		String targetLibraryCode = config.getVirtualItemLibraryCode();
+
+		log.info("Create item for Alma with {}. Targeting Library: {}", cic, targetLibraryCode);
 
 		AtomicReference<String> holdingId = new AtomicReference<>();
 
 		return Mono.zip(
-				fetchLocationByLocationCode(patronHomeLibraryCode),
+				checkOrCreateVirtualLocation(targetLibraryCode),
 				getMappedItemType(cic.getCanonicalItemType())
 			)
 			.flatMap(tuple -> {
 				AlmaLocation location = tuple.getT1();
 				String itemType = tuple.getT2();
+
 				String holdingXml = buildHoldingXml(location, callNumber, holdingNote);
 				AlmaItem item = buildAlmaItem(cic, location, policy, baseStatus, itemType);
 
@@ -1489,6 +1334,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private ItemStatus deriveItemStatus(AlmaItemData almaItem) {
 		// Extract base status, default to 0
 		// Note: this means that "item not in place" is considered UNKNOWN
+		// Should it be considered unavailable? We can possibly build in the description and process type also
 		String extracted_base_status = almaItem.getBaseStatus() != null ? almaItem.getBaseStatus().getValue() : "0";
 
 		return switch ( extracted_base_status ) {
@@ -1583,5 +1429,33 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			log.warn("getCode from hostLms returned NULL : {}",hostLms);
 		}
 		return result;
+	}
+
+	// If the location for DCB virtual items does not exist, create it
+	// This ensures we know where the virtual items are created, and that they are NOT ever included in regular discovery/circ
+	public Mono<AlmaLocation> checkOrCreateVirtualLocation(String libraryCode) {
+		final String locationCode = config.getVirtualItemLocationCode();
+		final String locationName = "DCB Virtual Holdings";
+		final String defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
+
+		return client.retrieveLocation(libraryCode, locationCode)
+			.onErrorResume(e -> {
+				log.info("Location {} not found in library {}. Attempting to create it via API...", locationCode, libraryCode);
+
+				AlmaLocation newLocation = AlmaLocation.builder()
+					.code(locationCode)
+					.name(locationName)
+					.type(CodeValuePair.builder().value("OPEN").build())
+					.suppressFromPublishing("true")
+					.circDesk(java.util.Collections.singletonList(
+						AlmaCircDesk.builder()
+							.circDeskCode(defaultCircDesk)
+							.build()
+					))
+					.build();
+
+				return client.createLocation(libraryCode, newLocation);
+			})
+			.doOnNext(loc -> loc.setLibraryCode(libraryCode));
 	}
 }

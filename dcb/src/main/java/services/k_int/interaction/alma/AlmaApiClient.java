@@ -350,4 +350,22 @@ public interface AlmaApiClient {
 			AlmaItem.class,
 			Map.of("op", "scan", "library", query.library(), "circ_desk", query.circ_desk()));
 	}
+
+	/**
+	 * Retrieve a specific Location within a Library.
+	 * <p>
+	 * API: GET /almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}
+	 */
+	default Mono<AlmaLocation> retrieveLocation(String libraryCode, String locationCode) {
+		return get("/almaws/v1/conf/libraries/" + libraryCode + "/locations/" + locationCode, AlmaLocation.class);
+	}
+
+	/**
+	 * Create a new Location within a Library.
+	 * <p>
+	 * API: POST /almaws/v1/conf/libraries/{libraryCode}/locations
+	 */
+	default Mono<AlmaLocation> createLocation(String libraryCode, AlmaLocation location) {
+		return post("/almaws/v1/conf/libraries/" + libraryCode + "/locations", location, AlmaLocation.class);
+	}
 }
