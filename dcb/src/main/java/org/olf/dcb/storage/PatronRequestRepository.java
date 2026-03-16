@@ -13,6 +13,8 @@ import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.olf.dcb.core.api.serde.PatronRequestSummary;
+import org.olf.dcb.core.api.serde.RequestedTitleStat;
+import org.olf.dcb.core.api.serde.TopRequestorStat;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -208,4 +210,79 @@ public interface PatronRequestRepository {
     """, nativeQuery = true)
 	Flux<PatronRequestSummary> findAllRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
 
+	@Query(
+		value = """
+			SELECT cr.title, COUNT(pr.id) AS request_count 
+			FROM patron_request pr
+			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			WHERE (:startDate IS NULL OR pr.date_created >= :startDate)
+			AND (:endDate IS NULL OR pr.date_created <= :endDate)
+			AND (:libraryCode IS NULL OR pr.patron_hostlms_code = :libraryCode)
+			GROUP BY cr.id, cr.title
+		""",
+		countQuery = """
+			SELECT count(*) FROM (
+			    SELECT 1
+			    FROM patron_request pr
+			    JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			    WHERE (:startDate IS NULL OR pr.date_created >= :startDate)
+			    AND (:endDate IS NULL OR pr.date_created <= :endDate)
+			    AND (:libraryCode IS NULL OR pr.patron_hostlms_code = :libraryCode)
+			    GROUP BY cr.id, cr.title
+			) AS count_query
+		""",
+		nativeQuery = true
+	)
+	Publisher<Page<RequestedTitleStat>> findMostRequestedTitles(@Nullable Instant startDate, @Nullable Instant endDate, @Nullable String libraryCode, Pageable pageable);
+
+	@Query(
+		value = """
+			SELECT 
+			    pi.local_barcode AS patron_barcode, 
+			    pr.patron_hostlms_code AS library_code, 
+			    COUNT(pr.id) AS active_request_count
+			FROM patron_request pr
+			JOIN patron_identity pi ON pr.patron_id = pi.patron_id
+			WHERE pi.home_identity = TRUE 
+			AND pr.status_code IN (
+			         'SUBMITTED_TO_DCB', 
+              'PATRON_VERIFIED', 
+              'RESOLVED', 
+              'REQUEST_PLACED_AT_SUPPLYING_AGENCY', 
+              'CONFIRMED', 
+              'REQUEST_PLACED_AT_BORROWING_AGENCY', 
+              'REQUEST_PLACED_AT_PICKUP_AGENCY', 
+              'RECEIVED_AT_PICKUP', 
+              'READY_FOR_PICKUP', 
+              'LOANED', 
+              'PICKUP_TRANSIT'
+       )			
+       AND (:libraryCode IS NULL OR pr.patron_hostlms_code = :libraryCode)
+			GROUP BY pi.local_barcode, pr.patron_hostlms_code
+		""",
+		countQuery = """
+			SELECT count(*) FROM (
+			    SELECT 1
+			    FROM patron_request pr
+			    JOIN patron_identity pi ON pr.patron_id = pi.patron_id
+			    WHERE pi.home_identity = TRUE
+					AND pr.status_code IN (
+			         'SUBMITTED_TO_DCB',
+              'PATRON_VERIFIED',
+              'RESOLVED',
+              'REQUEST_PLACED_AT_SUPPLYING_AGENCY',
+              'CONFIRMED',
+              'REQUEST_PLACED_AT_BORROWING_AGENCY',
+              'REQUEST_PLACED_AT_PICKUP_AGENCY',
+              'RECEIVED_AT_PICKUP',
+              'READY_FOR_PICKUP',
+              'LOANED',
+              'PICKUP_TRANSIT')
+       		AND (:libraryCode IS NULL OR pr.patron_hostlms_code = :libraryCode)
+			    GROUP BY pi.local_barcode, pr.patron_hostlms_code
+			) AS count_query
+		""",
+		nativeQuery = true
+	)
+	Publisher<Page<TopRequestorStat>> findTopRequestors(@Nullable String libraryCode, Pageable pageable);
 }
