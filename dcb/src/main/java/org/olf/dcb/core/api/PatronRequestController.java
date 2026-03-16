@@ -22,6 +22,8 @@ import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.serde.PatronRequestSummary;
+import org.olf.dcb.core.api.serde.RequestedTitleStat;
+import org.olf.dcb.core.api.serde.TopRequestorStat;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
@@ -36,6 +38,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -209,6 +212,26 @@ public class PatronRequestController {
 			log.debug("Missing values for patron requests");
 			return Mono.empty();
 		}
+	}
+
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/stats/top-requestors")
+	public Mono<Page<TopRequestorStat>> getTopRequestors(
+		@Nullable @QueryValue String libraryCode,
+		Pageable pageable) {
+
+		return Mono.from(patronRequestRepository.findTopRequestors(libraryCode, pageable));
+	}
+
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/stats/top-requested-titles")
+	public Mono<Page<RequestedTitleStat>> getMostRequestedTitles(
+		@Nullable @QueryValue Instant startDate,
+		@Nullable @QueryValue Instant endDate,
+		@Nullable @QueryValue String libraryCode,
+		Pageable pageable) {
+
+		return Mono.from(patronRequestRepository.findMostRequestedTitles(startDate, endDate, libraryCode, pageable));
 	}
 
 	@Value
