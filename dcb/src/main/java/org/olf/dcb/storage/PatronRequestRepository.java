@@ -218,6 +218,7 @@ public interface PatronRequestRepository {
 			WHERE (:startDate IS NULL OR pr.date_created >= :startDate)
 			AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			AND (:libraryCode IS NULL OR pr.patron_hostlms_code = :libraryCode)
+			AND cr.is_deleted IS NULL
 			GROUP BY cr.id, cr.title
 		""",
 		countQuery = """
@@ -228,6 +229,7 @@ public interface PatronRequestRepository {
 			    WHERE (:startDate IS NULL OR pr.date_created >= :startDate)
 			    AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			    AND (:libraryCode IS NULL OR pr.patron_hostlms_code = :libraryCode)
+			    AND cr.is_deleted IS NULL
 			    GROUP BY cr.id, cr.title
 			) AS count_query
 		""",
