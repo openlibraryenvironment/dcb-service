@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.dcb.item.availability.AvailabilityReport.ofItems;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Duration;
@@ -62,8 +63,8 @@ public class LiveAvailabilityService {
 			.expireAfterAccess(Duration.ofDays(1)) // Consider 24 hour old data to be stale enough for complete eviction
 			.build();
 
-	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId) {
-		return sharedIndexService.findClusteredBib(clusteredBibId, true)
+	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId, boolean includeDeleted) {
+		return sharedIndexService.findClusteredBib(clusteredBibId, includeDeleted)
 			.flatMapIterable(ClusteredBib::getBibs);
 	}
 	
@@ -132,9 +133,12 @@ public class LiveAvailabilityService {
 
 		final var commonTags = List.of(Tag.of("cluster", valueOf(clusteredBibId)));
 
+		final var includeDeletedClusterRecords = getValue(options,
+			AvailabilityOptions::includeDeletedClusterRecords, false);
+
 		return Mono.defer(() -> Mono.just(System.nanoTime()))
 			.flatMap(start -> Mono.just(clusteredBibId)
-				.flatMapMany(this::getClusterMembers)
+				.flatMapMany(id -> getClusterMembers(id, includeDeletedClusterRecords))
 				.flatMap(bib -> checkBibAvailabilityAtHost(bib, commonTags, options))
 				.doOnNext(b -> log.debug("Requestability check result == {}", b))
 				.reduce(emptyReport(), AvailabilityReport::combineReports)

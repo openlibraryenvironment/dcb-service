@@ -1,6 +1,7 @@
 package org.olf.dcb.item.availability;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 import static java.util.Optional.empty;
 import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.groupingBy;
@@ -11,6 +12,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.item.availability.AvailabilityOptions.ignoreCache;
 import static org.olf.dcb.item.availability.AvailabilityOptions.useCache;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasError;
@@ -22,6 +24,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasBarcode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasSourceHostLmsCode;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
@@ -453,13 +456,40 @@ class LiveAvailabilityServiceTests {
 	}
 
 	@Test
-	void shouldFailWhenCannotFindClusterRecordById() {
+	void shouldFailWhenClusterRecordDoesNotExist() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
 			() -> checkAvailability(clusterRecordId));
+
+		// Assert
+		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
+	}
+
+	@Test
+	void shouldFailWhenClusterRecordIsDeleted() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			ClusterRecord.builder()
+				.id(randomUUID())
+				.title("Deleted")
+				.selectedBib(bibRecordId)
+				.bibs(emptySet())
+				.isDeleted(true)
+				.build());
+
+		bibRecordFixture.createBibRecord(bibRecordId, firstHostLms.getId(),
+			"126463", clusterRecord);
+
+		final var clusterRecordId = getValueOrNull(clusterRecord, ClusterRecord::getId);
+
+		// Act
+		final var exception = assertThrows(CannotFindClusterRecordException.class,
+			() -> checkAvailability(clusterRecordId, ignoreCache(empty(), false)));
 
 		// Assert
 		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));
@@ -498,8 +528,11 @@ class LiveAvailabilityServiceTests {
 	}
 
 	private AvailabilityReport checkAvailability(UUID clusterRecordId) {
-		return singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId,
-			useCache(empty())));
+		return checkAvailability(clusterRecordId, useCache(empty()));
+	}
+
+	private AvailabilityReport checkAvailability(UUID clusterRecordId, AvailabilityOptions options) {
+		return singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId, options));
 	}
 
 	private AvailabilityReport checkAvailability(ClusterRecord clusterRecord) {

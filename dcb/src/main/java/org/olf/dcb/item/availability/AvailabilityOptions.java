@@ -11,21 +11,31 @@ import lombok.Builder;
 public record AvailabilityOptions(
 	Optional<Duration> timeout,
 	Optional<String> filters,
-	boolean ignoreCache) {
+	boolean ignoreCache,
+	boolean includeDeletedClusterRecords) {
 
-	public static AvailabilityOptions ignoreCache(Optional<Duration> timeout) {
+	public static class AvailabilityOptionsBuilder {
+		// Define defaults for builder (cannot use annotation with records)
+		AvailabilityOptionsBuilder() {
+			filters = applyAllFilters();
+			ignoreCache = false;
+			includeDeletedClusterRecords = true;
+		}
+	}
+
+	public static AvailabilityOptions ignoreCache(Optional<Duration> timeout,
+		boolean includeDeletedClusterRecords) {
+
 		return AvailabilityOptions.builder()
 			.timeout(timeout)
-			.filters(applyAllFilters())
 			.ignoreCache(true)
+			.includeDeletedClusterRecords(includeDeletedClusterRecords)
 			.build();
 	}
 
 	public static AvailabilityOptions useCache(Optional<Duration> timeout) {
 		return AvailabilityOptions.builder()
 			.timeout(timeout)
-			.filters(applyAllFilters())
-			.ignoreCache(false)
 			.build();
 	}
 
@@ -35,7 +45,6 @@ public record AvailabilityOptions(
 		return AvailabilityOptions.builder()
 			.timeout(ofNullable(timeout))
 			.filters(defaultedFilters)
-			.ignoreCache(false)
 			.build();
 	}
 
