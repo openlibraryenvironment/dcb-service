@@ -3,6 +3,7 @@ package org.olf.dcb.request.workflow;
 import static java.lang.Boolean.parseBoolean;
 import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.hasItem;
@@ -40,10 +41,7 @@ import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
-import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.hamcrest.Matcher;
@@ -214,6 +212,7 @@ class ResolveNextSupplierTransitionTests {
 			.localRequestId(borrowingLocalRequestId)
 			.localRequestStatus(HOLD_CONFIRMED)
 			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+			.bibClusterId(defineClusterRecordWithSingleBib("6927571"))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -257,6 +256,9 @@ class ResolveNextSupplierTransitionTests {
 
 		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
 
+		final var sourceRecordId = "3628678";
+		final var clusterRecordId = defineClusterRecordWithSingleBib(sourceRecordId);
+
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.patron(patron)
@@ -265,6 +267,7 @@ class ResolveNextSupplierTransitionTests {
 			.localRequestId(borrowingLocalRequestId)
 			.localRequestStatus(localRequestStatus)
 			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+			.bibClusterId(clusterRecordId)
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -309,6 +312,7 @@ class ResolveNextSupplierTransitionTests {
 			.localRequestId(null)
 			.localRequestStatus(null)
 			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+			.bibClusterId(defineClusterRecordWithSingleBib("2496936"))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -396,6 +400,7 @@ class ResolveNextSupplierTransitionTests {
 			.requestingIdentity(patron.getPatronIdentities().get(0))
 			.localRequestId(borrowingLocalRequestId)
 			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+			.bibClusterId(defineClusterRecordWithSingleBib("823753"))
 			.build();
 
 		patronRequestsFixture.savePatronRequest(patronRequest);
@@ -920,7 +925,7 @@ class ResolveNextSupplierTransitionTests {
 				.id(clusterRecordId)
 				.title("Brain of the Firm")
 				.selectedBib(clusterRecordId)
-				.bibs(Set.of())
+				.bibs(emptySet())
 				.isDeleted(isDeleted)
 				.dateCreated(now())
 				.dateUpdated(now())
