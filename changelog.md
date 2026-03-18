@@ -1,5 +1,24 @@
 # Changelog
 
+## Version 8.67.0
+
+### Additions
+* [General]
+	* Add new 'Top Requestors' and 'Top Requested Title' [DCB-2110]
+	* Indexing job
+
+### Changes
+* [Chore]
+	* Allow consortium administrators to see ingest progress
+* [Refactor]
+	* Removed unused Token config
+
+### Fixes
+* [General]
+	* Stop injecting TokenConfig where not needed
+	* Configured name key being used in token authentication factory
+	* Expedited check-out with Polaris Supplier causing Staff Auth failure [DCB-2128]
+
 ## Version 8.66.0
 
 ### Additions
@@ -8,6 +27,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Improvements to the setup data fetchers [DCB-2124]
 
 ### Fixes
