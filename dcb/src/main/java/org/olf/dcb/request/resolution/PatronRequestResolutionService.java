@@ -285,8 +285,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
-		return Mono.justOrEmpty(resolution.getBibClusterId())
-			.flatMap(this::checkAvailability)
+		return checkAvailability(getValueOrNull(resolution, Resolution::getBibClusterId))
 			.map(AvailabilityReport::getItems)
 			.map(resolution::trackAllItems);
 	}

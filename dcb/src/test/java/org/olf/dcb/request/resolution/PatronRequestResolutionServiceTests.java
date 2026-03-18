@@ -1139,7 +1139,25 @@ class PatronRequestResolutionServiceTests {
 			notNullValue(),
 			hasNoChosenItem()
 		));
+	}
 
+	@Test
+	void shouldNotTolerateNullClusterRecordId() {
+		// Act
+		final var parameters = ResolutionParameters.builder()
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.bibClusterId(null)
+			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(BORROWING_AGENCY_CODE)
+			.excludedSupplyingAgencyCodes(emptyList())
+			.build();
+
+		final var error = assertThrows(CannotFindClusterRecordException.class,
+			() -> resolve(parameters));
+
+		// Assert
+		assertThat(error, hasMessage("Cannot find cluster record for: null"));
 	}
 
 	private Resolution resolve(ResolutionParameters parameters) {

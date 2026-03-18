@@ -1,6 +1,5 @@
 package org.olf.dcb.request.workflow;
 
-import static java.time.Instant.now;
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -46,8 +45,6 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -652,10 +649,7 @@ class PatronRequestResolutionStateTransitionTests {
 		// Assert
 		final var expectedErrorMessage = "Cannot find cluster record for: " + clusterRecordId;
 
-		assertThat(exception, allOf(
-			notNullValue(),
-			hasMessage(expectedErrorMessage)
-		));
+		assertThat(exception, hasMessage(expectedErrorMessage));
 
 		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
 

@@ -21,6 +21,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
+import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.ClusteredBib;
 import org.olf.dcb.request.resolution.SharedIndexService;
 
@@ -142,6 +143,11 @@ public class LiveAvailabilityService {
 		Optional<Duration> timeout, Optional<String> filters, boolean ignoreCache) {
 
 		log.debug("getAvailableItems({})", clusteredBibId);
+
+		// Raise error early as null value fails later on
+		if (clusteredBibId == null) {
+			return Mono.error(new CannotFindClusterRecordException(null));
+		}
 
 		// This has to happen at the start of the process, in order for available items
 		// to get the same availability date
