@@ -20,6 +20,7 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
+import org.olf.dcb.request.resolution.ResolutionParameters;
 import org.olf.dcb.request.workflow.exceptions.UnableToFindPickupLocationProblem;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 import org.olf.dcb.request.workflow.exceptions.UnknownPickupLocationAgencyProblem;
@@ -53,7 +54,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		// being too coupled to a patron request
 		return Mono.just(command)
 			.zipWhen(this::mapToPatron)
-			.flatMap(function(patronRequestResolutionService::resolutionParametersFor))
+			.flatMap(function(this::determineResolutionParameters))
 			.doOnSuccess(patronRequest -> log.debug("Completed mapping to patron request: {}", patronRequest))
 			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Completed resolution: {}", resolution))
@@ -96,6 +97,12 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 					.patronIdentities(List.of(homeIdentity))
 					.build();
 			}));
+	}
+
+	private Mono<ResolutionParameters> determineResolutionParameters(
+		PlacePatronRequestCommand command, Patron patron) {
+
+		return patronRequestResolutionService.resolutionParametersFor(command, patron);
 	}
 
 	private List<CheckResult> checkResolution(Resolution resolution) {

@@ -6,6 +6,7 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
+import static org.olf.dcb.request.resolution.SharedIndexService.INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -30,6 +31,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.resolution.ResolutionAuditService;
+import org.olf.dcb.request.resolution.ResolutionParameters;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -171,10 +173,18 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<Resolution> resolve(RequestWorkflowContext context, List<String> excludedAgencyCodes) {
-		return patronRequestResolutionService.resolutionParametersFor(getPatronRequestFromContext(context), excludedAgencyCodes)
+		return determineParametersFor(context, excludedAgencyCodes)
 			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Re-resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error during re-resolution: {}", error.getMessage()));
+	}
+
+	private Mono<ResolutionParameters> determineParametersFor(
+		RequestWorkflowContext context, List<String> excludedAgencyCodes) {
+
+		return patronRequestResolutionService.resolutionParametersFor(
+			getPatronRequestFromContext(context), excludedAgencyCodes,
+				INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT);
 	}
 
 	private Mono<Tuple2<RequestWorkflowContext, List<String>>> findExcludedAgencyCodes(

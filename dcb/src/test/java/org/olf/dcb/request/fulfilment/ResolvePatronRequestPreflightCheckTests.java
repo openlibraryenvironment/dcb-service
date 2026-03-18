@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
@@ -357,6 +358,47 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		assertThat(results, containsInAnyOrder(
 			failedCheck("CLUSTER_RECORD_NOT_FOUND",
 				"Cluster record \"%s\" cannot be found".formatted(clusterRecordId))
+		));
+	}
+
+	@Test
+	void shouldTolerateDeletedClusterRecord() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+
+		final var clusterRecord = ClusterRecord.builder()
+			.id(clusterRecordId)
+			.title("Brain of the Firm")
+			.isDeleted(true)
+			.build();
+
+		clusterRecordFixture.createClusterRecord(clusterRecord);
+
+		final var localPatronId = "8726573";
+
+		definePatron(localPatronId);
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Patron request for cluster record \"%s\" could not be resolved to an item"
+					.formatted(clusterRecordId))
 		));
 	}
 

@@ -18,6 +18,8 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class SharedIndexService {
+	public static final Boolean INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT = true;
+
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final BibRepository bibRepository;
 
@@ -51,6 +53,7 @@ public class SharedIndexService {
 	}
 
 	public Mono<BibRecord> findSelectedBib(UUID clusterRecordId) {
+		// Include deleted cluster records to preserve previous behaviour
 		return findClusterRecord(clusterRecordId, true)
 			.flatMap(this::getSelectedBib);
 	}

@@ -1,6 +1,7 @@
 package org.olf.dcb.item.availability;
 
 import static java.util.Optional.ofNullable;
+import static org.olf.dcb.request.resolution.SharedIndexService.INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -19,7 +20,7 @@ public record AvailabilityOptions(
 		AvailabilityOptionsBuilder() {
 			filters = applyAllFilters();
 			ignoreCache = false;
-			includeDeletedClusterRecords = true;
+			includeDeletedClusterRecords = INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT;
 		}
 	}
 

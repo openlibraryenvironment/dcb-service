@@ -5,6 +5,7 @@ import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
+import static org.olf.dcb.request.resolution.SharedIndexService.INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
@@ -19,6 +20,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
 import org.olf.dcb.request.resolution.ResolutionAuditService;
+import org.olf.dcb.request.resolution.ResolutionParameters;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 
 import io.micronaut.context.BeanProvider;
@@ -77,11 +79,16 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	}
 
 	private Mono<Tuple2<Resolution, PatronRequest>> resolve(PatronRequest patronRequest) {
-		return patronRequestResolutionService.resolutionParametersFor(patronRequest, emptyList())
+		return determineParametersFor(patronRequest)
 			.flatMap(patronRequestResolutionService::resolve)
 			.doOnSuccess(resolution -> log.debug("Resolved to: {}", resolution))
 			.doOnError(error -> log.error("Error occurred during resolution: {}", error.getMessage()))
 			.zipWith(Mono.just(patronRequest));
+	}
+
+	private Mono<ResolutionParameters> determineParametersFor(PatronRequest patronRequest) {
+		return patronRequestResolutionService.resolutionParametersFor(patronRequest,
+			emptyList(), INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT);
 	}
 
 	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(

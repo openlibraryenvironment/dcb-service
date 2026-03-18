@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.dcb.item.availability.AvailabilityReport.ofItems;
+import static org.olf.dcb.request.resolution.SharedIndexService.INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -134,7 +135,7 @@ public class LiveAvailabilityService {
 		final var commonTags = List.of(Tag.of("cluster", valueOf(clusteredBibId)));
 
 		final var includeDeletedClusterRecords = getValue(options,
-			AvailabilityOptions::includeDeletedClusterRecords, false);
+			AvailabilityOptions::includeDeletedClusterRecords, INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT);
 
 		return Mono.defer(() -> Mono.just(System.nanoTime()))
 			.flatMap(start -> Mono.just(clusteredBibId)

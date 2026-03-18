@@ -17,7 +17,6 @@ import static reactor.core.publisher.Flux.fromIterable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -75,7 +74,7 @@ public class PatronRequestResolutionService {
 	}
 
 	public Mono<ResolutionParameters> resolutionParametersFor(PatronRequest patronRequest,
-		List<String> excludedSupplyingAgencyCodes) {
+		List<String> excludedSupplyingAgencyCodes, boolean includeDeletedClusterRecords) {
 
 		final var patron = getValueOrNull(patronRequest, PatronRequest::getPatron);
 
@@ -84,6 +83,7 @@ public class PatronRequestResolutionService {
 				.borrowingAgencyCode(getValueOrNull(patron, Patron::determineAgencyCode))
 				.borrowingHostLmsCode(getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode))
 				.bibClusterId(getValueOrNull(patronRequest, PatronRequest::getBibClusterId))
+				.includeDeletedClusterRecords(includeDeletedClusterRecords)
 				.pickupLocationCode(getValueOrNull(patronRequest, PatronRequest::getPickupLocationCode))
 				.pickupAgencyCode(pickupAgencyCode)
 				.excludedSupplyingAgencyCodes(excludedSupplyingAgencyCodes)
@@ -98,8 +98,8 @@ public class PatronRequestResolutionService {
 			);
 	}
 
-	public Mono<ResolutionParameters> resolutionParametersFor(PlacePatronRequestCommand command,
-		Patron patron) {
+	public Mono<ResolutionParameters> resolutionParametersFor(
+		PlacePatronRequestCommand command, Patron patron) {
 
 		log.debug("resolutionParametersFor({}, {})", command, patron);
 
@@ -286,14 +286,19 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
-		return checkAvailability(getValueOrNull(resolution, Resolution::getBibClusterId))
+		return checkAvailability(resolution)
 			.map(AvailabilityReport::getItems)
 			.map(resolution::trackAllItems);
 	}
 
-	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
-		return liveAvailabilityService.checkAvailability(clusteredBibId,
-			ignoreCache(of(timeout), true));
+	private Mono<AvailabilityReport> checkAvailability(Resolution resolution) {
+		final var clusterRecordId = getValueOrNull(resolution, Resolution::getBibClusterId);
+
+		final var includeDeletedClusterRecords = getValueOrNull(resolution,
+			Resolution::getIncludeDeletedClusterRecords);
+
+		return liveAvailabilityService.checkAvailability(clusterRecordId,
+			ignoreCache(of(timeout), includeDeletedClusterRecords));
 	}
 
 	private Mono<Resolution> sortItems(ResolutionSortOrder sortOrder, Resolution resolution) {

@@ -40,6 +40,10 @@ public class Resolution implements ItemFilterParameters {
 		return getValueOrNull(parameters, ResolutionParameters::getBibClusterId);
 	}
 
+	public Boolean getIncludeDeletedClusterRecords() {
+		return getValueOrNull(parameters, ResolutionParameters::getIncludeDeletedClusterRecords);
+	}
+
 	public Resolution trackAllItems(List<Item> allItems) {
 		return builder()
 			.parameters(parameters)
