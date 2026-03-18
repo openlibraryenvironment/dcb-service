@@ -1,13 +1,16 @@
 package org.olf.dcb.item.availability;
 
+import static java.lang.String.valueOf;
+import static java.util.Collections.emptyList;
+import static java.util.Optional.ofNullable;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.UnaryOperator.identity;
 import static org.olf.dcb.item.availability.AvailabilityReport.emptyReport;
 import static org.olf.dcb.item.availability.AvailabilityReport.ofItems;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +37,7 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 import io.micronaut.context.BeanProvider;
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -42,6 +46,7 @@ import services.k_int.utils.Functions;
 
 @Slf4j
 @Singleton
+@AllArgsConstructor()
 public class LiveAvailabilityService {
 	private final HostLmsService hostLmsService;
 	private final RequestableItemService requestableItemService;
@@ -57,20 +62,6 @@ public class LiveAvailabilityService {
 			.expireAfterAccess(Duration.ofDays(1)) // Consider 24 hour old data to be stale enough for complete eviction
 			.build();
 
-	public LiveAvailabilityService(HostLmsService hostLmsService,
-		RequestableItemService requestableItemService,
-		SharedIndexService sharedIndexService, 
-		MeterRegistry meterRegistry,
-		LocationService locationService, BeanProvider<AvailabilityCheckJob> availability) {
-
-		this.hostLmsService = hostLmsService;
-		this.requestableItemService = requestableItemService;
-		this.sharedIndexService = sharedIndexService;
-		this.meterRegistry = meterRegistry;
-		this.locationService = locationService;
-		this.availability = availability;
-	}
-	
 	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId) {
 		return Mono.just(clusteredBibId)
 			.flatMap(sharedIndexService::findClusteredBib)
@@ -100,7 +91,7 @@ public class LiveAvailabilityService {
 	}
 	
 	private Mono<AvailabilityReport> addValueToCache(@NonNull BibRecord bib, AvailabilityReport report) {
-		
+
 		return Mono.justOrEmpty(report)
 			// Attempt to update the counts from the data here.
 			.flatMap( ar -> tryAndUpdateCounts(bib, ar) )
@@ -116,33 +107,20 @@ public class LiveAvailabilityService {
 			.defaultIfEmpty(report);
 	}
 
-
-
-	public Mono<AvailabilityReport> checkAvailabilityNoCache(UUID clusteredBibId, Optional<Duration> timeout) {
-		return checkAvailability(clusteredBibId, timeout, Optional.of("all"), true );
-	}
-	
-	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
-		Optional<Duration> timeout) {
-
-		return checkAvailability(clusteredBibId, timeout, Optional.of("all"), false );
-	}
-	
-	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
-		Duration timeout, String filters) {
-
-		return checkAvailability(clusteredBibId, Optional.ofNullable(timeout),
-			Optional.ofNullable(filters), false);
-	}
-	
 	public Mono<AvailabilityReport> checkBibAvailability (BibRecord bib, Duration timeout, String filters) {
-		return checkBibAvailabilityAtHost(Optional.ofNullable(timeout), bib, Collections.emptyList(), Optional.ofNullable(filters), false);
-	}
-		
-	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
-		Optional<Duration> timeout, Optional<String> filters, boolean ignoreCache) {
+		final var options = AvailabilityOptions.builder()
+			.timeout(ofNullable(timeout))
+			.filters(ofNullable(filters))
+			.ignoreCache(false)
+			.build();
 
-		log.debug("getAvailableItems({})", clusteredBibId);
+		return checkBibAvailabilityAtHost(bib, emptyList(), options);
+	}
+
+	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
+		AvailabilityOptions options) {
+
+		log.debug("checkAvailability({}, {})", clusteredBibId, options);
 
 		// Raise error early as null value fails later on
 		if (clusteredBibId == null) {
@@ -153,12 +131,12 @@ public class LiveAvailabilityService {
 		// to get the same availability date
 		final var availabilityDateCalculator = new AvailabilityDateCalculator();
 
-		final List<Tag> commonTags = List.of(Tag.of("cluster", clusteredBibId.toString()));
+		final var commonTags = List.of(Tag.of("cluster", valueOf(clusteredBibId)));
 
 		return Mono.defer(() -> Mono.just(System.nanoTime()))
 			.flatMap(start -> Mono.just(clusteredBibId)
 				.flatMapMany(this::getClusterMembers)
-				.flatMap(b -> checkBibAvailabilityAtHost(timeout, b, commonTags, filters, ignoreCache))
+				.flatMap(bib -> checkBibAvailabilityAtHost(bib, commonTags, options))
 				.doOnNext(b -> log.debug("Requestability check result == {}", b))
 				.reduce(emptyReport(), AvailabilityReport::combineReports)
 				.flatMap(availabilityReport -> calculateFields(availabilityReport,
@@ -198,16 +176,14 @@ public class LiveAvailabilityService {
 	private static AvailabilityReport reportElapsedTime(AvailabilityReport report, Long start) {
 		final long elapsed = System.nanoTime() - start;
 
-		return report.toBuilder()
-			.timing(Tuples.of("total", elapsed))
-			.build();
+		return report.withTotalElapsedTime(elapsed);
 	}
 
-	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bibRecord, List<Tag> parentTags, Optional<String> filters, boolean ignoreCache) {
-		
+	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bibRecord,
+		List<Tag> parentTags, AvailabilityOptions options) {
+
 		return hostLmsService.getClientFor(bibRecord.getSourceSystemId())
-		  .flatMap(hostLms -> checkBibAvailabilityAtHost(timeout, bibRecord, parentTags, hostLms, filters, ignoreCache))
+		  .flatMap(hostLms -> checkBibAvailabilityAtHost(bibRecord, parentTags, hostLms, options))
 			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
 	
@@ -223,8 +199,12 @@ public class LiveAvailabilityService {
 		return item -> ( (filters.orElse("all").equalsIgnoreCase("none" ) ) || filterPredicate.test(item) );
 	}
 
-	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(
-		Optional<Duration> timeout, BibRecord bib, List<Tag> parentTags, HostLmsClient hostLms, Optional<String> filters, boolean ignoreCache) {
+	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bib,
+		List<Tag> parentTags, HostLmsClient hostLms, AvailabilityOptions options) {
+
+		final var timeout = getValueOrNull(options, AvailabilityOptions::timeout);
+		final var filters = getValueOrNull(options, AvailabilityOptions::filters);
+		final var ignoreCache = getValueOrNull(options, AvailabilityOptions::ignoreCache);
 
 		// Removing bib ID from metric as we need 1 entry per system and task rather one for every bib.
 		final List<Tag> commonTags = new ArrayList<>(List.of(Tag.of("lms", hostLms.getHostLmsCode())));
@@ -234,7 +214,7 @@ public class LiveAvailabilityService {
 		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )
 			.flatMap( start -> hostLms.getItems(bib)
 					.flatMapIterable(identity())
-					.flatMap( item -> memoizeLocationFromItem(item) )
+					.flatMap(this::memoizeLocationFromItem)
 					.filter(conditionallyFilter(filters, Item::notSuppressed))
 					.filter(conditionallyFilter(filters, Item::notDeleted))
 					.filter(conditionallyFilter(filters, Item::hasAgency))

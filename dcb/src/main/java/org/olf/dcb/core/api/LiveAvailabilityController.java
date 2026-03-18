@@ -4,6 +4,7 @@ import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.HttpResponse.serverError;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
+import static org.olf.dcb.item.availability.AvailabilityOptions.useCache;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -55,12 +56,12 @@ public class LiveAvailabilityController {
 		@Nullable @QueryValue("filters") final String filters) {
 		log.info("REST, getLiveAvailability: {} {}", clusteredBibId, filters);
 
-		return liveAvailabilityService.checkAvailability(clusteredBibId, timeout, ( filters != null ) ? filters : "all")
+		return liveAvailabilityService.checkAvailability(clusteredBibId, useCache(timeout, filters))
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId));
 	}
 
 	@Error
-	public HttpResponse<String> onCheckFailure(CannotFindClusterRecordException exception) {
+	public HttpResponse<String> onUnknownClusterRecord(CannotFindClusterRecordException exception) {
 		return badRequest(exception.getMessage());
 	}
 

@@ -1,11 +1,13 @@
 package org.olf.dcb.request.resolution;
 
 import static java.util.Collections.emptyList;
+import static java.util.Optional.of;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_INVALID_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_HOSTLMSCODE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NULL_LOCAL_ITEM_TYPE;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_UNEXPECTED_FAILURE;
+import static org.olf.dcb.item.availability.AvailabilityOptions.ignoreCache;
 import static org.olf.dcb.request.resolution.ResolutionSortOrder.CODE_AVAILABILITY_DATE;
 import static org.olf.dcb.request.resolution.ResolutionStep.applyOperationOnCondition;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -15,7 +17,6 @@ import static reactor.core.publisher.Flux.fromIterable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -291,7 +292,7 @@ public class PatronRequestResolutionService {
 	}
 
 	private Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId) {
-		return liveAvailabilityService.checkAvailabilityNoCache(clusteredBibId, Optional.of(timeout));
+		return liveAvailabilityService.checkAvailability(clusteredBibId, ignoreCache(of(timeout)));
 	}
 
 	private Mono<Resolution> sortItems(ResolutionSortOrder sortOrder, Resolution resolution) {

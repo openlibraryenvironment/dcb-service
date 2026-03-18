@@ -1,6 +1,7 @@
 package org.olf.dcb.item.availability;
 
 import static java.util.Collections.emptyList;
+import static java.util.Optional.empty;
 import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.groupingBy;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -10,6 +11,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.item.availability.AvailabilityOptions.useCache;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasError;
 import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasItems;
@@ -23,7 +25,6 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -498,7 +499,7 @@ class LiveAvailabilityServiceTests {
 
 	private AvailabilityReport checkAvailability(UUID clusterRecordId) {
 		return singleValueFrom(liveAvailabilityService.checkAvailability(clusterRecordId,
-			Optional.empty()));
+			useCache(empty())));
 	}
 
 	private AvailabilityReport checkAvailability(ClusterRecord clusterRecord) {
