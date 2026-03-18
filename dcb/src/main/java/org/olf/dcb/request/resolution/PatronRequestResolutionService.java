@@ -114,6 +114,7 @@ public class PatronRequestResolutionService {
 					getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode))
 				.bibClusterId(getValueOrNull(command, PlacePatronRequestCommand::getCitation,
 					PlacePatronRequestCommand.Citation::getBibClusterId))
+				.includeDeletedClusterRecords(false)
 				.pickupLocationCode(
 					getValueOrNull(command, PlacePatronRequestCommand::getPickupLocationCode))
 				.pickupAgencyCode(pickupAgencyCode)

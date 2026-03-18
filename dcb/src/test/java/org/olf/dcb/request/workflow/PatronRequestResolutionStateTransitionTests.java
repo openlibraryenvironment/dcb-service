@@ -45,6 +45,7 @@ import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -58,7 +59,6 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -647,26 +647,11 @@ class PatronRequestResolutionStateTransitionTests {
 			() -> resolve(patronRequest));
 
 		// Assert
-		final var expectedErrorMessage = "Cannot find cluster record for: " + clusterRecordId;
-
-		assertThat(exception, hasMessage(expectedErrorMessage));
-
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
-		assertThat(fetchedPatronRequest, allOf(
-			hasStatus(ERROR),
-			hasErrorMessage(expectedErrorMessage),
-			hasNoResolutionCount()
-		));
-
-		assertThat("Should not find any supplier requests",
-			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
-
-		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
+		assertUnknownClusterRecordFailure(exception, clusterRecordId, patronRequest);
 	}
 
 	@Test
-	void shouldTolerateDeletedClusterRecord() {
+	void shouldFailToResolveRequestWhenClusterRecordIsDeleted() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
@@ -694,14 +679,11 @@ class PatronRequestResolutionStateTransitionTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		// Act
-		resolve(patronRequest);
+		final var exception = assertThrows(CannotFindClusterRecordException.class,
+			() -> resolve(patronRequest));
 
 		// Assert
-		final var fetchedPatronRequest = patronRequestsFixture.findById(patronRequest.getId());
-
-		assertNoItemsSelectableResolution(fetchedPatronRequest);
-
-		assertNoSupplierRequestsFor(patronRequest);
+		assertUnknownClusterRecordFailure(exception, clusterRecordId, patronRequest);
 	}
 
 	@Test
@@ -756,6 +738,28 @@ class PatronRequestResolutionStateTransitionTests {
 		final var pickupLocation = locationFixture.createPickupLocation(agency);
 
 		return pickupLocation.getIdAsString();
+	}
+
+	private void assertUnknownClusterRecordFailure(
+		CannotFindClusterRecordException exception, UUID clusterRecordId,
+		PatronRequest patronRequest) {
+		final var expectedErrorMessage = "Cannot find cluster record for: " + clusterRecordId;
+
+		assertThat(exception, hasMessage(expectedErrorMessage));
+
+		final var fetchedPatronRequest = patronRequestsFixture.findById(
+			patronRequest.getId());
+
+		assertThat(fetchedPatronRequest, allOf(
+			hasStatus(ERROR),
+			hasErrorMessage(expectedErrorMessage),
+			hasNoResolutionCount()
+		));
+
+		assertThat("Should not find any supplier requests",
+			supplierRequestsFixture.findAllFor(patronRequest), hasSize(0));
+
+		assertUnsuccessfulTransitionAudit(fetchedPatronRequest, expectedErrorMessage);
 	}
 
 	private static void assertSuccessfulResolution(PatronRequest request, String expectedWorkflow) {
@@ -840,10 +844,6 @@ class PatronRequestResolutionStateTransitionTests {
 	}
 
 	private void allowOwnLibraryBorrowing() {
-		defineSetting(OWN_LIBRARY_BORROWING, true);
-	}
-
-	private void defineSetting(FunctionalSettingType settingType, boolean enabled) {
-		consortiumFixture.createConsortiumWithFunctionalSetting(settingType, enabled);
+		consortiumFixture.enableSetting(OWN_LIBRARY_BORROWING);
 	}
 }

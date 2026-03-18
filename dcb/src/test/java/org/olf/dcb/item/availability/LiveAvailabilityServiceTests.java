@@ -12,7 +12,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.olf.dcb.item.availability.AvailabilityOptions.ignoreCache;
 import static org.olf.dcb.item.availability.AvailabilityOptions.useCache;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.AvailabilityReportMatchers.hasError;
@@ -489,7 +488,7 @@ class LiveAvailabilityServiceTests {
 
 		// Act
 		final var exception = assertThrows(CannotFindClusterRecordException.class,
-			() -> checkAvailability(clusterRecordId, ignoreCache(empty(), false)));
+			() -> checkAvailability(clusterRecordId, useCache(empty())));
 
 		// Assert
 		assertThat(exception, hasMessage("Cannot find cluster record for: " + clusterRecordId));

@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -356,13 +358,12 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("CLUSTER_RECORD_NOT_FOUND",
-				"Cluster record \"%s\" cannot be found".formatted(clusterRecordId))
+			failedClusterRecordNotFoundCheck(clusterRecordId)
 		));
 	}
 
 	@Test
-	void shouldTolerateDeletedClusterRecord() {
+	void shouldFailWhenClusterRecordIsDeleted() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
@@ -396,9 +397,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		// Assert
 		assertThat(results, containsInAnyOrder(
-			failedCheck("NO_ITEM_SELECTABLE_FOR_REQUEST",
-				"Patron request for cluster record \"%s\" could not be resolved to an item"
-					.formatted(clusterRecordId))
+			failedClusterRecordNotFoundCheck(clusterRecordId)
 		));
 	}
 
@@ -764,5 +763,10 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 			BORROWING_HOST_LMS_CODE, homeLibraryCode, BORROWING_AGENCY_CODE);
 
 		return localPatronId;
+	}
+
+	private static Matcher<CheckResult> failedClusterRecordNotFoundCheck(UUID clusterRecordId) {
+		return failedCheck("CLUSTER_RECORD_NOT_FOUND",
+			"Cluster record \"%s\" cannot be found".formatted(clusterRecordId));
 	}
 }

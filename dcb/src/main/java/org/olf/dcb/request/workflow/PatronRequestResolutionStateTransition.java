@@ -5,7 +5,6 @@ import static java.util.UUID.randomUUID;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
-import static org.olf.dcb.request.resolution.SharedIndexService.INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT;
 import static reactor.function.TupleUtils.function;
 
 import java.util.List;
@@ -88,7 +87,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 
 	private Mono<ResolutionParameters> determineParametersFor(PatronRequest patronRequest) {
 		return patronRequestResolutionService.resolutionParametersFor(patronRequest,
-			emptyList(), INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT);
+			emptyList(), false);
 	}
 
 	private Mono<Tuple2<Resolution, PatronRequest>> auditResolution(

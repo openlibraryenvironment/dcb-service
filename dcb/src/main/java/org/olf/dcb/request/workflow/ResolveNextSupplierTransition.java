@@ -6,7 +6,6 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
-import static org.olf.dcb.request.resolution.SharedIndexService.INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -182,9 +181,9 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private Mono<ResolutionParameters> determineParametersFor(
 		RequestWorkflowContext context, List<String> excludedAgencyCodes) {
 
+		// Include deleted cluster records so that in-flight requests can continue
 		return patronRequestResolutionService.resolutionParametersFor(
-			getPatronRequestFromContext(context), excludedAgencyCodes,
-				INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT);
+			getPatronRequestFromContext(context), excludedAgencyCodes, true);
 	}
 
 	private Mono<Tuple2<RequestWorkflowContext, List<String>>> findExcludedAgencyCodes(

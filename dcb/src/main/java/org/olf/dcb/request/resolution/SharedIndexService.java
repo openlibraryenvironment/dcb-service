@@ -18,7 +18,7 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class SharedIndexService {
-	public static final Boolean INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT = true;
+	public static final Boolean INCLUDE_DELETED_CLUSTER_RECORDS_DEFAULT = false;
 
 	private final ClusterRecordRepository clusterRecordRepository;
 	private final BibRepository bibRepository;
