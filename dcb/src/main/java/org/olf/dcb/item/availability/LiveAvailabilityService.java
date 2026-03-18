@@ -63,8 +63,7 @@ public class LiveAvailabilityService {
 			.build();
 
 	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId) {
-		return Mono.just(clusteredBibId)
-			.flatMap(sharedIndexService::findClusteredBib)
+		return sharedIndexService.findClusteredBib(clusteredBibId, true)
 			.flatMapIterable(ClusteredBib::getBibs);
 	}
 	

@@ -2,6 +2,7 @@ package org.olf.dcb.request.resolution;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
@@ -27,10 +28,10 @@ public class SharedIndexService {
 		this.bibRepository = bibRepository;
 	}
 
-	public Mono<ClusteredBib> findClusteredBib(UUID clusterRecordId) {
-		log.debug("findClusteredBib({})", clusterRecordId);
+	public Mono<ClusteredBib> findClusteredBib(UUID clusterRecordId, boolean includeDeleted) {
+		log.debug("findClusteredBib({}, {})", clusterRecordId, includeDeleted);
 
-		return findClusterRecord(clusterRecordId)
+		return findClusterRecord(clusterRecordId, includeDeleted)
 			.zipWhen(this::findBibRecords, this::mapToClusteredBibWithBib);
 	}
 
@@ -50,7 +51,7 @@ public class SharedIndexService {
 	}
 
 	public Mono<BibRecord> findSelectedBib(UUID clusterRecordId) {
-		return findClusterRecord(clusterRecordId)
+		return findClusterRecord(clusterRecordId, true)
 			.flatMap(this::getSelectedBib);
 	}
 
@@ -59,8 +60,17 @@ public class SharedIndexService {
 			.switchIfEmpty(Mono.error(new CannotFindSelectedBibException(clusterRecord)));
 	}
 
-	private Mono<? extends ClusterRecord> findClusterRecord(UUID clusterRecordId) {
+	private Mono<? extends ClusterRecord> findClusterRecord(UUID clusterRecordId, boolean includeDeleted) {
 		return Mono.from(clusterRecordRepository.findOneById(clusterRecordId))
+			.filter(excludeDeleted(includeDeleted))
 			.switchIfEmpty(Mono.error(new CannotFindClusterRecordException(clusterRecordId)));
+	}
+
+	private static Predicate<ClusterRecord> excludeDeleted(boolean includeDeleted) {
+		if (includeDeleted) {
+			return clusterRecord -> true;
+		}
+
+		return Predicate.not(ClusterRecord::getIsDeleted);
 	}
 }

@@ -1,9 +1,9 @@
 package org.olf.dcb.test;
 
 import static java.time.Instant.now;
+import static java.util.Collections.emptySet;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.util.Set;
 import java.util.UUID;
 
 import org.olf.dcb.core.clustering.model.ClusterRecord;
@@ -31,7 +31,7 @@ public class ClusterRecordFixture {
 			.id(clusterRecordId)
 			.title("Brain of the Firm")
 			.selectedBib(selectedBibId)
-			.bibs(Set.of())
+			.bibs(emptySet())
 			.isDeleted(false)
 			.dateCreated(now())
 			.dateUpdated(now())
