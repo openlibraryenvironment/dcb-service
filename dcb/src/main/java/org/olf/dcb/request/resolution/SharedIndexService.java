@@ -74,6 +74,6 @@ public class SharedIndexService {
 			return clusterRecord -> true;
 		}
 		// Since we treat a cluster record as being deleted when isDeleted == true, null should mean the record is NOT deleted
-		return clusterRecord -> !Boolean.FALSE.equals(clusterRecord.getIsDeleted());
+		return clusterRecord -> Boolean.FALSE.equals(clusterRecord.getIsDeleted());
 	}
 }
