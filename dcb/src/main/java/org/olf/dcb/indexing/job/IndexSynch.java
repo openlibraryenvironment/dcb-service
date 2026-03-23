@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.error.DcbError;
+import org.olf.dcb.operations.OperationsService;
 import org.olf.dcb.indexing.SharedIndexService;
 import org.reactivestreams.Publisher;
 
@@ -60,7 +61,7 @@ public class IndexSynch implements Job<UUID>, JobChunkProcessor {
   private final ReactorFederatedLockService lockService;
 	private final RecordClusteringService clusters;
 	private final SharedIndexService indexer;
-	
+	private final OperationsService operationsService;
   private final ObjectMapper mapper;
   
   @Data
@@ -166,18 +167,23 @@ public class IndexSynch implements Job<UUID>, JobChunkProcessor {
 	
 	@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
-	@Scheduled(initialDelay = "20s")
+	@Scheduled(initialDelay = "20s", fixedDelay = "24h")
 	public void scheduleJob() {
 		buildIndexingStream()
-		
     	// Lock operator returns empty if not acquired
 		  .transformDeferred(lockService.withLockOrEmpty(JOB_ID))
-			.subscribeOn(Schedulers.boundedElastic())
 			.doOnSuccess( res -> {
 				if (res == null) {
-					log.info(getName() + "allready running (NOOP)");
+					log.info("{} already running (NOOP)", getName());
 				}
 			})
+			.transformDeferred( operationsService::subscribeOnlyOutsideOfficeHours )
+			.doOnSuccess( res -> {
+				if (res == null) {
+					log.info(JOB_NAME + " skipping as set to run outside office hours");
+				}
+			})
+			.subscribeOn( Schedulers.boundedElastic() )
 			.subscribe(
 				TupleUtils.consumer(this::jobSubscriber), this::errorSubscriber);
 	}
