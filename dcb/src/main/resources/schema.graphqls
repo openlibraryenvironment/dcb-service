@@ -913,6 +913,7 @@ type ClusterRecord {
   isDeleted: Boolean
   dateCreated: String
   dateUpdated: String
+	lastIndexed: String
   members: [BibRecord]
 }
 
