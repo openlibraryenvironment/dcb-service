@@ -5,6 +5,8 @@ import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
@@ -586,6 +588,29 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		return createRequest(GET,"/info/token")
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, Argument.of(TokenInfo.class)));
+	}
+
+	@Override
+	public Publisher<HttpStatus> itemCheckIn(String barcode) {
+
+		// Ideally we would also give a user name here.
+		// 204 IS SUCCESS. Don't map it
+		final var path = String.format("items/checkouts/%s", barcode);
+
+		return createRequest(DELETE, path).flatMap(this::ensureToken)
+			.flatMap(request -> doRetrieve(request, Argument.of(HttpStatus.class))
+				.flatMap(response -> {
+					// Check for 204 No Content
+					if (response == HttpStatus.NO_CONTENT) {
+						log.info("Successfully completed item check in for {}", barcode);
+						return Mono.just(response);
+					} else {
+						// Any other status code means it didn't work for whatever reason
+						log.warn("Unexpected status {} for item {} check in.",
+							response, barcode);
+						return Mono.just(response);
+					}
+				}));
 	}
 
 	@Override

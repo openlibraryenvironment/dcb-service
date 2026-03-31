@@ -1235,7 +1235,7 @@ class PolarisLmsClientTests {
 
 		// Assert
 		assertThat(problem, allOf(
-			hasProperty("title", is("Polaris ItemCheckoutPost failed")),
+			hasProperty("title", is("Polaris itemCheckoutPost failed")),
 			hasProperty("detail", is("The item cannot be checked out because the item is blocked."))
 		));
 	}

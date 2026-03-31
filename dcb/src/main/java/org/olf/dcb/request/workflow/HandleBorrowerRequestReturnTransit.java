@@ -3,14 +3,16 @@ package org.olf.dcb.request.workflow;
 import java.util.List;
 import java.util.Optional;
 
+import org.olf.dcb.core.interaction.CheckInItemCommand;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
-import org.olf.dcb.storage.PatronRequestRepository;
 
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -29,7 +31,8 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 @Singleton
 @Named("BorrowerRequestReturnTransit")
 public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTransition {
-	private final PatronRequestRepository patronRequestRepository;
+	private final HostLmsService hostLmsService;
+	private final PatronRequestAuditService patronRequestAuditService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.LOANED);
 	private static final List<String> possibleLocalItemStatus = List.of(
@@ -37,8 +40,9 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	private static final List<String> possibleSupplierLocalItemStatus = List.of(
 		HostLmsItem.ITEM_AVAILABLE);
 	
-	public HandleBorrowerRequestReturnTransit(PatronRequestRepository patronRequestRepository) {
-		this.patronRequestRepository = patronRequestRepository;
+	public HandleBorrowerRequestReturnTransit(HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService) {
+		this.hostLmsService = hostLmsService;
+		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
 	@Override
@@ -77,8 +81,17 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-		ctx.getPatronRequest().setStatus(PatronRequest.Status.RETURN_TRANSIT);
-		return Mono.just(ctx);
+		// This assumes that when using the PUA workflow, the item is returned to the pickup location
+		// Some work may need to be done in the future to account for if the item is returned to supplying/borrowing library
+		if(ctx.getPatronRequest().isUsingPickupAnywhereWorkflow()) {
+			return checkInAtBorrower(ctx)
+				// Explicitly set loaned on success to try and break out of the expedited checkout loop
+				.doOnSuccess(patronRequest -> ctx.getPatronRequest().setStatus(PatronRequest.Status.RETURN_TRANSIT))
+				.doOnError(error -> log.error("HandleBorrowerRequestReturnTransit attempt failed.", error));
+		} else {
+			ctx.getPatronRequest().setStatus(PatronRequest.Status.RETURN_TRANSIT);
+			return Mono.just(ctx);
+		}
 	}
 
 	@Override
@@ -113,5 +126,34 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	@Override
 	public List<DCBTransitionResult> getOutcomes() {
 		return List.of(new DCBTransitionResult("RETURNED","RETURN_TRANSIT"));
+	}
+
+	private Mono<RequestWorkflowContext> checkInAtBorrower(RequestWorkflowContext rwc) {
+		if (rwc.getPatronSystemCode() == null) {
+			log.error("Missing patron system code check-in at borrower.");
+			return Mono.error(new IllegalStateException("Cannot perform check-in at borrower: missing critical data."));
+		}
+
+		final PatronRequest patronRequest = rwc.getPatronRequest();
+		final SupplierRequest supplierRequest = rwc.getSupplierRequest();
+
+		final CheckInItemCommand command = CheckInItemCommand.builder()
+			.localRequestId(patronRequest.getLocalRequestId()) // The PATRONS's transaction ID
+			.itemId(patronRequest.getLocalItemId())
+			.itemBarcode(supplierRequest.getLocalItemBarcode())
+			.holdingId(patronRequest.getLocalHoldingId())
+			.bibId(patronRequest.getLocalBibId())
+			.build();
+
+		return hostLmsService.getClientFor(rwc.getPatronSystemCode())
+			.flatMap(hostLmsClient -> hostLmsClient.checkInItem(command))
+			.doOnSuccess(response -> log.debug("Successfully checked in item at borrower lms."))
+			.thenReturn(rwc)
+			.onErrorResume(error -> {
+				log.error("An error has occurred with the check-in at the borrowing library", error);
+				return patronRequestAuditService
+					.addAuditEntry(rwc.getPatronRequest(), "Check-in at borrowing library failed: " + error.getMessage())
+					.thenReturn(rwc);
+			});
 	}
 }

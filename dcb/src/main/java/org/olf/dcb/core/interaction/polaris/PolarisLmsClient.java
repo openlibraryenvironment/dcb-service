@@ -52,23 +52,7 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CheckoutItemCommand;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.DeleteCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRenewal;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PingResponse;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.PreventRenewalCommand;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
@@ -1773,9 +1757,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
     return Mono.just(TRUE);
   }
 
-  public boolean reflectPatronLoanAtSupplier() {
-    return true;
-  }
+	@Override
+	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand){
+		log.info("Check In Item({})", checkInItemCommand);
+
+		return PAPIService.itemCheckInPost(checkInItemCommand.getItemBarcode())
+			.map(itemCheckInResult -> "OK");
+	}
 
   @Override
   public Mono<String> deleteHold(DeleteCommand deleteCommand) {

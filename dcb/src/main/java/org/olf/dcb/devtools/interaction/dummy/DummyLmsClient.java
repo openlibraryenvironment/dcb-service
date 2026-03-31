@@ -394,6 +394,11 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.just("DUMMY");
 	}
 
+	public Mono<String> checkInItem(CheckInItemCommand checkIn) {
+		log.info("checkOutItemToPatron({})", checkIn);
+		return Mono.just("DUMMY");
+	}
+
 	public Mono<String> deleteItem(DeleteCommand deleteCommand) {
 		return Mono.just("DUMMY");
 	}

@@ -530,7 +530,6 @@ public class BorrowingAgencyService {
 		return raiseError(new DcbError("Can not get virtual records status with null HostLmsCode"));
 	}
 
-
 	public Mono<LocalRequest> placeSingularRequest(RequestWorkflowContext ctx) {
 
 		final var patronRequest = ctx.getPatronRequest();
