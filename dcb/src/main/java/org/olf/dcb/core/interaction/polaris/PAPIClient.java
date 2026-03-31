@@ -11,17 +11,12 @@ import static java.util.Collections.singletonList;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_POLARIS;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
-import static services.k_int.utils.ReactorUtils.raiseError;
 
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.HostLms;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
@@ -34,7 +29,6 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
-import org.olf.dcb.core.interaction.polaris.exceptions.ItemCheckoutException;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
 
@@ -53,7 +47,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
@@ -213,7 +206,7 @@ public class PAPIClient {
 			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new));
 	}
 
-	public Mono<ItemCheckoutResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
+	public Mono<ItemOperationResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 
@@ -231,24 +224,46 @@ public class PAPIClient {
 			.map(request -> request.body(body))
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemCheckoutResult.class)))
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemOperationResult.class)))
 			.doOnSuccess( r -> log.debug("Result of client.retrieve itemCheckoutPost {}",r) )
-			.map(this::checkForItemCheckOutError);
+			.map(result -> checkForItemOperationError(result, "itemCheckoutPost"));
 	}
 
-	private ItemCheckoutResult checkForItemCheckOutError(ItemCheckoutResult itemCheckoutResult) {
+	public Mono<ItemOperationResult> itemCheckInPost(String itemBarcode){
 
-		log.debug("checkForItemCheckOutError {}",itemCheckoutResult);
+		final var path = createPath(PROTECTED_PARAMETERS, "item", itemBarcode, "checkin");
+
+		log.info("itemCheckInPost: itemBarcode {}, path {}", itemBarcode, path);
+
+		final var body = ItemCheckInData.builder()
+			.logonBranchID(polarisConfig.getIllLocationId())
+			.logonWorkstationID(polarisConfig.getServicesWorkstationId())
+			.itemBarcode(itemBarcode)
+			.build();
+
+		log.debug("POLARIS itemCheckInPost {}",body);
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(body))
+			.flatMap(authFilter::ensureStaffAuth)
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemOperationResult.class)))
+			.doOnSuccess( r -> log.debug("Result of client.retrieve itemCheckInPost {}",r) )
+			.map(result -> checkForItemOperationError(result, "itemCheckInPost"));
+	}
+
+	private ItemOperationResult checkForItemOperationError(ItemOperationResult itemOperationResult, String operation){
+
+		log.debug("checkForItemOperationError {}", itemOperationResult);
 
 		// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
-		if (itemCheckoutResult.getPapiErrorCode() == 0) {
-			return itemCheckoutResult;
+		if (itemOperationResult.getPapiErrorCode() == 0) {
+			return itemOperationResult;
 		}
 
 		throw Problem.builder()
-			.withTitle("Polaris ItemCheckoutPost failed")
-			.withDetail(itemCheckoutResult.getErrorMessage() != null ? itemCheckoutResult.getErrorMessage() : "Error message was null")
-			.with("itemCheckoutResult", itemCheckoutResult)
+			.withTitle("Polaris " + operation + " failed")
+			.withDetail(itemOperationResult.getErrorMessage() != null ? itemOperationResult.getErrorMessage() : "Error message was null")
+			.with(operation, itemOperationResult)
 			.build();
 	}
 
@@ -532,6 +547,21 @@ public class PAPIClient {
 		private Integer logonWorkstationID;
 	}
 
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	static class ItemCheckInData {
+		@JsonProperty("ItemBarcode")
+		private String itemBarcode;
+		@JsonProperty("LogonBranchID")
+		private Integer logonBranchID;
+		@JsonProperty("LogonUserID")
+		private Integer logonUserID;
+		@JsonProperty("LogonWorkstationID")
+		private Integer logonWorkstationID;
+	}
+
 	interface PapiResult {
 		Integer getPapiErrorCode();
 		String getErrorMessage();
@@ -541,7 +571,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	public static class ItemCheckoutResult implements PapiResult {
+	public static class ItemOperationResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")

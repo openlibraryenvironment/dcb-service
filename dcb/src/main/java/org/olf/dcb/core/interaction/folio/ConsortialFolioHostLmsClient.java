@@ -38,35 +38,12 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.error.DcbError;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
-import org.olf.dcb.core.interaction.CheckoutItemCommand;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.DeleteCommand;
-import org.olf.dcb.core.interaction.FailedToGetItemsException;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRenewal;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.HttpResponsePredicates;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.interaction.PingResponse;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.PreventRenewalCommand;
-import org.olf.dcb.core.interaction.RelativeUriResolver;
-import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
-import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoItemTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -1135,6 +1112,24 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.thenReturn("OK")
 			.switchIfEmpty(Mono.error(() ->
 				new DcbError("Check out of " + itemId + " to " + patronBarcode + " at " + getHostLmsCode() + " failed")));
+	}
+
+	@Override
+	public Mono<String> checkInItem(CheckInItemCommand checkIn){
+		final String localRequestId = getValueOrNull(checkIn, CheckInItemCommand::getLocalRequestId);
+
+		if (localRequestId == null) {
+			return Mono.error(
+				new NullPointerException("cannot use null localRequestId to update transaction status"));
+		}
+
+		final String itemId = getValueOrNull(checkIn, CheckInItemCommand::getItemId);
+
+		// HandleBorrowerRequestReturnTransit
+		return updateTransactionStatus(localRequestId, TransactionStatus.ITEM_CHECKED_IN)
+			.thenReturn("OK")
+			.switchIfEmpty(Mono.error(() ->
+				new DcbError("Check in of " + itemId + " at " + getHostLmsCode() + " failed")));
 	}
 
 	@Override

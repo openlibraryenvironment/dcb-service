@@ -171,6 +171,9 @@ public interface SierraApiClient extends BasicAuthClient {
 	@Delete("/patrons/{id}")
 	Publisher<HttpStatus> deletePatron(String id);
 
+	@Delete("/items/checkouts}")
+	Publisher<HttpStatus> itemCheckIn(String id);
+
 	@SingleResult
 	Publisher<CheckoutResultSet> getItemCheckouts(final String itemId);
 

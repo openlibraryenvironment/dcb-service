@@ -19,25 +19,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.Bib;
-import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
-import org.olf.dcb.core.interaction.CheckoutItemCommand;
-import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.DeleteCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
-import org.olf.dcb.core.interaction.HostLmsRenewal;
-import org.olf.dcb.core.interaction.HostLmsRequest;
-import org.olf.dcb.core.interaction.LocalRequest;
-import org.olf.dcb.core.interaction.Patron;
-import org.olf.dcb.core.interaction.PingResponse;
-import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
-import org.olf.dcb.core.interaction.PreventRenewalCommand;
-import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
@@ -1164,6 +1148,30 @@ public class AlmaHostLmsClient implements HostLmsClient {
     log.debug("ALMA Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
     return Mono.just(Boolean.TRUE);
   }
+
+	@Override
+	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand){
+		final String bibId = checkInItemCommand.getBibId();
+		final String holdingsId = checkInItemCommand.getHoldingId();
+		final String itemId = checkInItemCommand.getItemId();
+
+		log.debug("Checking in item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
+
+		final String defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
+
+		return client.scanIn(new ScanInQuery(bibId, holdingsId, itemId, config.getVirtualItemLibraryCode(), defaultCircDesk))
+			.thenReturn("OK")
+			.doOnError(e -> {
+			AlmaErrorResponse almaError = extractAlmaErrors(e);
+			if (almaError != null) {
+				log.warn("Failed to check-in Alma item {}. Alma Error: {}",
+					itemId, almaError.toString());
+			} else {
+				log.warn("Failed to check-in Alma item {}. Non-Alma Error: {}",
+					itemId, e.getMessage(), e);
+			}
+		});
+	}
 
 	private Patron almaUserToPatron(AlmaUser almaUser) {
 		log.info("Alma user is {}", almaUser);

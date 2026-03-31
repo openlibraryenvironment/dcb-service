@@ -112,6 +112,8 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	// systems might take different ways to identify the patron
 	Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand);
 
+	Mono<String> checkInItem(CheckInItemCommand checkInItemCommand);
+
 	Mono<String> deleteItem(DeleteCommand deleteCommand);
 
 	Mono<String> deleteBib(String id);
@@ -143,7 +145,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	default boolean reflectPatronLoanAtSupplier() {
 		return true;
 	}
-	
+
 	@NonNull
 	String getClientId();
 	
