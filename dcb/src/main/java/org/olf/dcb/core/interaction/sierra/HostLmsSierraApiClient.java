@@ -585,7 +585,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
   @SingleResult
   public Publisher<TokenInfo> getTokenInfo() {
-		return createRequest(GET,"/info/token")
+		return createRequest(GET,"info/token")
 			.flatMap(this::ensureToken)
 			.flatMap(req -> doRetrieve(req, Argument.of(TokenInfo.class)));
 	}
