@@ -12,18 +12,7 @@ import static java.time.ZoneOffset.UTC;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Collections.singletonList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.BreakableDeletionLinks;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.BriefItemEntry;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmBibRecordDelete;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmItemBarcodeChanged;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmItemRecordDelete;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.DuplicateRecords;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ExceededTotalRequestLimit;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.FillsRequestTransferPrompt;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.LastCopyOrRecordOptions;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.NoDisplayInPAC;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.PromoteItemRequestToBib;
-import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.UpdateItemRecord;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Yes;
@@ -117,6 +106,7 @@ class ApplicationServicesClient {
 			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class)))
 			.flatMap(resp -> replyIfPromptMatches(resp, ExceededTotalRequestLimit, Continue))
 			.flatMap(resp -> replyIfPromptMatches(resp, PromoteItemRequestToBib, Continue))
+			.flatMap(resp -> replyIfPromptMatches(resp, DuplicateHoldRequests, Continue))
 			.map(this::validateWorkflowResponse)
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
@@ -1607,7 +1597,7 @@ class ApplicationServicesClient {
 		public static final Integer DuplicateRecords = 72;
 		public static final Integer ConfirmItemRecordDelete = 73;
 		public static final Integer BreakableDeletionLinks = 75; // found as part of DCB-1374
-		// public static final Integer DuplicateHoldRequests = 77;
+		public static final Integer DuplicateHoldRequests = 77;
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
 		public static final Integer PromoteItemRequestToBib = 88;
