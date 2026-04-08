@@ -1,5 +1,25 @@
 # Changelog
 
+## Version 8.68.0
+
+### Additions
+* [General]
+	* Exclude deleted cluster records from resolution
+
+### Changes
+* [Chore]
+	* Run index synch job daily, outside of office hours [DCB-2160]
+
+### Fixes
+* [PUA]
+	* Prevent Unresolved Check-out at Borrower library [DCB-1948]
+* [General]
+	* Fix duplicate holds error [DCB-2168]
+	* Seirra ping token URI
+	* Boolean logic
+	* Predicate logic
+	* Cluster record excludeDeleted
+
 ## Version 8.67.0
 
 ### Additions
@@ -9,6 +29,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Allow consortium administrators to see ingest progress
 * [Refactor]
 	* Removed unused Token config
