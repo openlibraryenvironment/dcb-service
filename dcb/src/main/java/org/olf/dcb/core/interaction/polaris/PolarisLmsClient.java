@@ -46,6 +46,7 @@ import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
+import io.micronaut.http.client.annotation.Client;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ConsortiumService;
@@ -144,8 +145,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final Pattern msDateRegex;
 
 	@Creator
-	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms, @Parameter("client") HttpClient client,
-									 ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
+	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms,
+									 @Client(configuration = PolarisClientConfig.class) HttpClient client, ProcessStateService processStateService, RawSourceRepository rawSourceRepository,
 									 ConversionService conversionService, ReferenceValueMappingService referenceValueMappingService,
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
@@ -217,7 +218,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// Default response is the same as the DCB_BORROWING_FLOW
 		return placeHoldRequest(parameters, TRUE);
-		};
+		}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters) {
@@ -322,17 +323,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.build();
 	}
 	
-	/**
-	 * Waits for a fixed delay and retries on failure.
-	 * @param patronLocalId
-	 * @return
-	 */
+
 	@Retryable(attempts = "2", delay = "2s")
 	protected <T> Mono<T> delayAndRetryTransformer ( Mono<T> targetFunction ) {
 		return Mono.delay(Duration.ofSeconds(2))
 			.then(targetFunction);
 	}
 
+	/**
+	 * Waits for a fixed delay and retries on failure.
+	 * @param patronLocalId ID of patron in Polaris
+	 * @param title Title of the requested item
+	 * @return Polaris ILL request ID or HoldRequestException if we can't get the hold
+	 */
 	private Mono<Integer> getILLRequestId(String patronLocalId, String title) {
 		
 		return Mono.just(patronLocalId)
