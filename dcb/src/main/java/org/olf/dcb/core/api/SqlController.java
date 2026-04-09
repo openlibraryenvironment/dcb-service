@@ -32,11 +32,13 @@ public class SqlController {
 		this.genericSelectService = genericSelectService;
 	}
 
+	@Secured({RoleNames.CONSORTIUM_ADMIN, RoleNames.ADMINISTRATOR})
 	@Get(uri = "/", produces = APPLICATION_JSON)
 	public Map<String, Object> executeNamedSql(@Parameter String name) {
 		return genericSelectService.selectNamed(name);
 	}
-	
+
+	@Secured(RoleNames.ADMINISTRATOR)
 	@Post(uri = "/", produces = APPLICATION_JSON)
 	public Map<String, Object> execute(@Body String sql) {
 		return genericSelectService.select(sql);
