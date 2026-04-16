@@ -9,6 +9,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.olf.dcb.core.IntMessageService;
@@ -124,6 +125,20 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			);
 		}
 
+		// Unfortunately it is possible in some LMS for a patron to have expired, but still pass all of the above checks
+		final var expiryDate = getValue(patron, Patron::getExpiryDate, null);
+		Date d = new Date();
+		log.info("Expiry date is {} and current date is {}",expiryDate, d);
+
+		if (expiryDate != null && expiryDate.before(d))
+		{
+			log.info("PATRON EXPIRED!");
+			eligibilityCheckResults.add(failedUm("PATRON_EXPIRED",
+				"Patron \"%s\" from \"%s\" has expired. Expiry date: \"%s\""
+					.formatted(localPatronId, hostLmsCode, expiryDate),
+				intMessageService.getMessage("PATRON_EXPIRED")));
+		}
+
 		return eligibilityCheckResults;
 	}
 
@@ -197,4 +212,12 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			intMessageService.getMessage("UNKNOWN_BORROWING_HOST_LMS")
 		));
 	}
+
+	// Check expiry
+
+	// Check fines?
+
+	// Anything else that will kill a request consistently
+
+
 }

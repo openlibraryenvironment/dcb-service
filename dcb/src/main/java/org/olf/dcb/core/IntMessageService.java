@@ -16,6 +16,7 @@ public class IntMessageService {
 		Map.entry("INVALID_PATRON_BARCODE", "The barcode provided is invalid."),
 		Map.entry("PATRON_INELIGIBLE", "This borrower account is ineligible for requesting."),
 		Map.entry("PATRON_BLOCKED", "This borrower account is unable to place requests at this time. Please contact your library for additional information."),
+		Map.entry("PATRON_EXPIRED", "This borrower account appears to have expired. Please contact your library for additional information."),
 		Map.entry("PATRON_INACTIVE", "This borrower account is inactive and unable to borrow. Please contact your library for additional information."),
 		Map.entry("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING", "Your library does not participate in the borrowing program. Please contact your library for additional information."),
 		Map.entry("PATRON_TYPE_NOT_MAPPED", "This borrower account type is not recognized. Please contact your library for assistance."),
