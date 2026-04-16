@@ -139,6 +139,16 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 				intMessageService.getMessage("PATRON_EXPIRED")));
 		}
 
+		final var deleted = getValue(patron, Patron::getIsDeleted, false);
+		// It is also technically possible in Sierra at least
+		// that a patron could be deleted, but Sierra will still return its record.
+		if (deleted) {
+			eligibilityCheckResults.add(failedUm("PATRON_DELETED",
+				"Patron \"%s\" from \"%s\" is marked as deleted in the local system".formatted(localPatronId, hostLmsCode),
+				intMessageService.getMessage("PATRON_DELETED"))
+			);
+		}
+
 		return eligibilityCheckResults;
 	}
 
