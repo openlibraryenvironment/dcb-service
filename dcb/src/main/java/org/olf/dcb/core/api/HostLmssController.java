@@ -131,4 +131,21 @@ public class HostLmssController {
 	public Mono<Map<String, Object>> getImportIngestDetails(UUID id) {
 		return(hostLmsService.getImportIngestDetails(id));
 	}
+
+	@Operation(
+		summary = "Find Item by Barcode",
+		description = "Queries a specific Host LMS for an item using its barcode."
+	)
+	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
+	@Get("/{code}/item/{barcode}")
+	public Mono<MutableHttpResponse<Object>> getItemByBarcode(String code, String barcode) {
+		log.debug("getItemByBarcode({}, {})", code, barcode);
+
+		return hostLmsService.getClientFor(code)
+			.flatMap(client -> client.getItemByBarcode(barcode))
+			.map(item -> HttpResponse.ok((Object) item))
+			.defaultIfEmpty(HttpResponse.notFound(
+				Map.of("message", "Item not found for barcode: '" + barcode + "' in Host LMS: '" + code + "'")
+			));
+	}
 }

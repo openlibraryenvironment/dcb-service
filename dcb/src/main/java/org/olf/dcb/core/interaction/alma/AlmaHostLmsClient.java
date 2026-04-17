@@ -1428,6 +1428,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	public HostLmsItem mapAlmaItemToHostLmsItem(AlmaItemData aid) {
 		return HostLmsItem.builder()
+			.localId(aid.getPid())
+			.barcode(aid.getBarcode())
+			.holdingId(aid.getHoldingData().getHoldingId())
+			.rawStatus(aid.getBaseStatus().getDesc())
+			.bibId(aid.getBibData().getMmsId())
+			.status(deriveItemStatus(aid).getCode().name())
+//			.holdCount()
 			.build();
 	}
 
@@ -1466,4 +1473,56 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			})
 			.doOnNext(loc -> loc.setLibraryCode(libraryCode));
 	}
+
+//	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
+//		log.debug("Fetching Alma item by barcode: {}", barcode);
+//
+//		return client.retrieveItemBarcodeOnly(barcode)
+//			.flatMap(item -> {
+//				if (item == null) {
+//					log.warn("No item found in Alma for barcode: {}", barcode);
+//					return Mono.empty();
+//				}
+//				return Mono.just(mapAlmaItemToHostLmsItem(item.getItemData()));
+//			})
+//			.doOnError(e -> log.error("Failed to fetch item by barcode {} from Alma: {}", barcode, e.getMessage()));
+//	}
+
+
+@Override
+public Mono<HostLmsItem> getItemByBarcode(String barcode) {
+	log.debug("Fetching Alma item by barcode: {}", barcode);
+
+	return client.retrieveItemBarcodeOnly(barcode)
+		.flatMap(item -> {
+			if (item == null || item.getItemData() == null) {
+				log.warn("No item found in Alma for barcode: {}", barcode);
+				return Mono.empty();
+			}
+
+			final AlmaItemData aid = item.getItemData();
+			final String bibId = item.getBibData() != null ? item.getBibData().getMmsId() : null;
+			final String holdingId = item.getHoldingData() != null ? item.getHoldingData().getHoldingId() : null;
+			final String itemId = aid.getPid();
+
+			return client.retrieveItemRequests(bibId, holdingId, itemId)
+				.map(requests -> (requests.getRecordCount() != null) ? requests.getRecordCount() : 0)
+				.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item barcode {}. Defaulting to 0. Error: {}", barcode, e.getMessage()))
+				.onErrorReturn(0)
+				.map(holdCount -> {
+
+					var returnHostLmsItem = HostLmsItem.builder()
+						.localId(itemId)
+						.barcode(aid.getBarcode())
+						.rawStatus(aid.getBaseStatus().getDesc())
+						.bibId(bibId)
+						.holdingId(holdingId)
+						.holdCount(holdCount)
+						.build();
+
+					return deriveItemStatusFromProcessType(returnHostLmsItem, item.getItemData());
+				});
+		})
+		.doOnError(e -> log.error("Failed to fetch item by barcode {} from Alma: {}", barcode, e.getMessage()));
+}
 }

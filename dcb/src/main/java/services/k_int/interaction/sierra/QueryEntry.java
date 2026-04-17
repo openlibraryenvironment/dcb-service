@@ -1,11 +1,14 @@
 package services.k_int.interaction.sierra;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.serde.annotation.Serdeable;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import java.util.List;
+
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 @Builder
 @Data
@@ -54,13 +57,19 @@ public class QueryEntry {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
+	@JsonInclude(NON_NULL)
 	public static class Expr {
 
 		@JsonProperty("op")
 		private String op;
 
+		// Used by patron query
 		@JsonProperty("operands")
 		private List<String> operands;
+
+		// Used by item barcode query
+		@JsonProperty("operand")
+		private String operand;
 	}
 
 	/*
@@ -90,6 +99,20 @@ public class QueryEntry {
 			.expr(QueryEntry.Expr.builder()
 				.op("equals")
 				.operands(List.of(uniqueId))
+				.build())
+			.build();
+	}
+
+	public static QueryEntry buildItemBarcodeQuery(String barcode) {
+		return QueryEntry.builder()
+			.target(
+				QueryEntry.Target.builder()
+					.record(QueryEntry.Target.Record.builder().type("item").build())
+					.field(QueryEntry.Target.Field.builder().tag("b").build())
+				.build())
+			.expr(QueryEntry.Expr.builder()
+				.op("equals")
+				.operand(barcode)
 				.build())
 			.build();
 	}

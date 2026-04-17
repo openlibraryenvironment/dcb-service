@@ -701,7 +701,12 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 	@Override
 	public @NonNull String getClientId() {
 		return "DUMMY_DEV_CLIENT";
-	} 
+	}
+
+	@Override
+	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
+		return null;
+	}
 
 	@Override
 	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {

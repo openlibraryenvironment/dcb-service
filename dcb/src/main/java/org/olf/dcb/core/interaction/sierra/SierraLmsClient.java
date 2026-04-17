@@ -104,13 +104,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuples;
-import services.k_int.interaction.sierra.CheckoutEntry;
-import services.k_int.interaction.sierra.CheckoutResultSet;
-import services.k_int.interaction.sierra.DateTimeRange;
-import services.k_int.interaction.sierra.FixedField;
-import services.k_int.interaction.sierra.QueryResultSet;
-import services.k_int.interaction.sierra.SierraApiClient;
-import services.k_int.interaction.sierra.VarField;
+import services.k_int.interaction.sierra.*;
 import services.k_int.interaction.sierra.bibs.BibParams;
 import services.k_int.interaction.sierra.bibs.BibParams.BibParamsBuilder;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -2081,7 +2075,34 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
     return "v1";
   }
 
-  public String getHostLmsCode() {
+	@Override
+	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
+		log.debug("Fetching Sierra item by barcode: {}", barcode);
+
+		final var queryEntry = QueryEntry.buildItemBarcodeQuery(barcode);
+
+		return Mono.from(client.itemsQuery(0, 1, queryEntry))
+			.flatMap(queryResultSet -> {
+				var entries = queryResultSet.getEntries();
+				if (entries == null || entries.isEmpty()) {
+					log.warn("No item found in Sierra for barcode: {}", barcode);
+					return Mono.empty();
+				}
+				// Annoyingly this just gets you the link
+				// So it has to be a two step process
+
+				String itemLink = entries.get(0).getLink();
+				String itemId = deRestify(itemLink);
+
+				log.debug("Extracted item ID {} for barcode {}", itemId, barcode);
+
+				// 4. Fetch the full item using our existing getItem method (which handles all the status mappings!)
+				return getItem(HostLmsItem.builder().localId(itemId).build());
+			})
+			.doOnError(e -> log.error("Failed to fetch item by barcode {} from Sierra: {}", barcode, e.getMessage()));
+	}
+
+	public String getHostLmsCode() {
     String result = lms.getCode();
     if ( result == null ) {
       log.warn("getCode from hostLms returned NULL : {}",lms);

@@ -5,8 +5,6 @@ import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
 import static org.olf.dcb.utils.DCBStringUtilities.toCsv;
 import static reactor.core.publisher.Mono.empty;
@@ -611,6 +609,22 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 						return Mono.just(response);
 					}
 				}));
+	}
+
+
+	@SingleResult
+	public Publisher<QueryResultSet> itemsQuery(Integer offset, Integer limit, QueryEntry queryEntry) {
+		// https://sandbox.iii.com/iii/sierra-api/swagger/index.html#!/items/Filter_the_records_by_a_query_in_JSON_format_post_11
+
+		Consumer<UriBuilder> uriBuilderConsumer = uri -> uri
+			.queryParam("offset", offset)
+			.queryParam("limit", limit);
+
+		return postRequest("items/query")
+			.map(req -> req.uri(uriBuilderConsumer))
+			.map(req -> req.body(queryEntry))
+			.flatMap(this::ensureToken)
+			.flatMap(req -> doRetrieve(req, Argument.of(QueryResultSet.class)));
 	}
 
 	@Override

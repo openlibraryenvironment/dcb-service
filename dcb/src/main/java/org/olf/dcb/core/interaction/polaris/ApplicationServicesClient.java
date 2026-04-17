@@ -1278,6 +1278,36 @@ class ApplicationServicesClient {
 			});
 	}
 
+	/**
+	 * Retrieves an item by either its ID or its barcode (using barcode parameter)
+	 */
+//	public Mono<ItemRecordFull> getItem(String identifier, boolean isBarcode) {
+//
+//		// See https://qa-polaris.polarislibrary.com/polaris.applicationservices/help/itemrecords/get_itemrecord
+//		// Append isBarcode if barcode supplied
+//		final var path = createPath("itemrecords", identifier + (isBarcode ? "?isBarcode=true" : ""));
+//
+//		return createRequest(GET, path, uri -> {})
+//			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class)));
+//	}
+
+	public Mono<ItemRecordFull> getItem(String identifier, boolean isBarcode) {
+		log.info("Fetching item. Identifier: {}, isBarcode: {}", identifier, isBarcode);
+
+		final var path = createPath("itemrecords", identifier);
+
+		return createRequest(GET, path, uri -> {
+			// If it's a barcode, pass the query parameter to tell Polaris
+			if (isBarcode) {
+				uri.queryParam("isBarcode", true);
+			}
+		})
+			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class), response -> response
+				// Assuming we want to handle not found as missing by default here
+				.onErrorResume(error -> handleItemNotFoundError(TRUE, identifier, error))
+			));
+	}
+
 	@Builder
 	@Data
 	@AllArgsConstructor

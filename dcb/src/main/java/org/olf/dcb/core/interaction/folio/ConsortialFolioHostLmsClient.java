@@ -1370,6 +1370,55 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(authorisedRequest(PUT, path));
   }
 
+	@Override
+	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
+		log.debug("Fetching FOLIO item by barcode: {}", barcode);
+
+		final var query = exactEqualityQuery("barcode", barcode);
+
+		final var request = authorisedRequest(GET, "/inventory/items")
+			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
+
+		// 3. Make the request and parse the JSON
+		return makeRequest(request, Argument.of(io.micronaut.json.tree.JsonNode.class))
+			.flatMap(node -> {
+				var items = node.get("items");
+
+				if (items == null || items.size() == 0) {
+					log.warn("No item found in FOLIO for barcode: {}", barcode);
+					return Mono.empty();
+				}
+
+				// Extract the first item from the results array
+				var item = items.values().iterator().next();
+				var id = item.get("id").getStringValue();
+				var fetchedBarcode = item.get("barcode") != null ? item.get("barcode").getStringValue() : barcode;
+
+				var statusNode = item.get("status");
+				var rawStatus = statusNode != null ? statusNode.get("name").getStringValue() : "Unknown";
+
+				return Mono.just(HostLmsItem.builder()
+					.localId(id)
+					.barcode(fetchedBarcode)
+					.rawStatus(rawStatus)
+					.status(mapFolioInventoryItemStatus(rawStatus))
+					.build());
+			})
+			.doOnError(e -> log.error("Failed to fetch item by barcode {} from FOLIO: {}", barcode, e.getMessage()));
+	}
+
+	// Maps FOLIO's internal inventory statuses to DCB's HostLmsItem constants
+	private String mapFolioInventoryItemStatus(String rawStatus) {
+		return switch (rawStatus) {
+			case "Available" -> HostLmsItem.ITEM_AVAILABLE;
+			case "Checked out" -> HostLmsItem.ITEM_LOANED;
+			case "In transit" -> HostLmsItem.ITEM_TRANSIT;
+			case "Awaiting pickup" -> HostLmsItem.ITEM_ON_HOLDSHELF;
+			case "Missing", "Declared lost" -> HostLmsItem.ITEM_MISSING;
+			default -> rawStatus;
+		};
+	}
+
   @Override
   public Mono<PingResponse> ping() {
 
@@ -1398,7 +1447,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			});
   }
 
-  public String getHostLmsCode() {
+	public String getHostLmsCode() {
     String result = hostLms.getCode();
     if ( result == null ) {
       log.warn("getCode from hostLms returned NULL : {}",hostLms);

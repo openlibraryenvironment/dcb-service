@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.CodeValuePair;
 import services.k_int.interaction.alma.types.WithAttr;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
@@ -150,4 +151,6 @@ public class AlmaItemData {
 	String retentionNote;
 	@JsonProperty("holding_data")
 	AlmaHolding holdingData;
+	@JsonProperty("bib_data")
+	AlmaBib bibData;
 }
