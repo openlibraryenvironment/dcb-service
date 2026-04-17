@@ -19,7 +19,6 @@ class PolarisItem {
 		CLAIM_RETURNED,
 		CLAIM_NEVER_HAD,
 		CLAIM_MISSING_PARTS,
-		LOST,
 		RETURNED_ILL,
 		NON_CIRCULATING,
 		WITHDRAWN,
@@ -43,7 +42,7 @@ class PolarisItem {
 				IN_TRANSIT -> HostLmsItem.ITEM_TRANSIT;
 			case ON_HOLD_SHELF -> HostLmsItem.ITEM_ON_HOLDSHELF;
 			case CHECKED_OUT -> HostLmsItem.ITEM_LOANED;
-			case MISSING -> HostLmsItem.ITEM_MISSING;
+			case LOST, MISSING -> HostLmsItem.ITEM_MISSING;
 			default -> checkUnhandledStatus(status);
 		},
 		Direction.HOST_LMS_TO_POLARIS, status -> switch (status) {

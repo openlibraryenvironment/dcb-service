@@ -786,10 +786,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsItem> getItem(HostLmsItem hostLmsItem) {
-		// Think it is this one
-
 		final var localItemId = hostLmsItem.getLocalId();
-		log.info("Getting item called!");
 
 		return parseLocalItemId(localItemId)
 			.flatMap(id -> ApplicationServices.itemrecords(id,TRUE))
@@ -2177,6 +2174,45 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					});
 			});
 	}
+
+	// DCB-2175
+	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
+		log.debug("Fetching Polaris item by barcode: {}", barcode);
+
+		return ApplicationServices.getItem(barcode, true)
+			.doOnSuccess(itemRecordFull -> log.debug("Got item: {}", itemRecordFull))
+			.flatMap(this::collectItemStatusName)
+			.map(itemRecord -> {
+				final var hostLmsStatus = mapItemStatus(POLARIS_TO_HOST_LMS, itemRecord.getItemStatusName());
+
+				final var renewalCount = Optional.of(itemRecord)
+					.map(ApplicationServicesClient.ItemRecordFull::getCirculationData)
+					.map(ApplicationServicesClient.CirculationData::getRenewalCount)
+					.orElse(0);
+
+				final var isAtRenewalLimit = Objects.equals(itemRecord.getBibInfo().getRenewals(), itemRecord.getBibInfo().getRenewalLimit());
+				// Set based on material type in Polaris. We need to first understand if we are at the renewal limit, and then understand if we are not renewable for another reason
+				// e.g. are we at the renewal limit, and can we even renew this item at all? (regardless of limit)
+				final var isItemRenewable = itemRecord.getBibInfo().getCanItemBeRenewed();
+				return HostLmsItem.builder()
+					.localId(String.valueOf(itemRecord.getItemRecordID()))
+					.status(hostLmsStatus)
+					.rawStatus(itemRecord.getItemStatusName())
+					// CH: Note that itemStatusName no longer appears to exist in Polaris API responses. No sign in docs of when this changed.
+					// As such we will need to re-work the above.
+					.barcode(itemRecord.getBarcode())
+					.renewalCount(renewalCount)
+					// If the item is renewable at the top level AND we're not at the renewal limit
+					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
+					.build();
+			})
+			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem )
+			.defaultIfEmpty(HostLmsItem.builder()
+				.barcode(barcode)
+				.status("MISSING")
+				.build());
+}
+
 
   public Mono<PingResponse> ping() {
     Instant start = Instant.now();

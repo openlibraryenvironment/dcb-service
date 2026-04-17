@@ -182,4 +182,8 @@ public interface SierraApiClient extends BasicAuthClient {
 
 	@SingleResult
 	Publisher<TokenInfo> getTokenInfo();
+
+	@SingleResult
+	@Post("/items/query")
+	Publisher<QueryResultSet> itemsQuery(final Integer offset, final Integer limit, final QueryEntry queryEntry);
 }

@@ -177,4 +177,7 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 			.map(intendedWorkflow::equals)
 			.orElse(false);
 	}
+
+	Mono<HostLmsItem> getItemByBarcode(String barcode);
+
 }
