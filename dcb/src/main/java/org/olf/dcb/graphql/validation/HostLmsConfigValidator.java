@@ -98,12 +98,7 @@ public class HostLmsConfigValidator {
 		if (!config.containsKey("item") || !(config.get("item") instanceof Map)) {
 			missing.add("item (object)");
 		}
-		if (!config.containsKey("shelfLocationPolicyMap") || !(config.get("shelfLocationPolicyMap") instanceof Map)) {
-			missing.add("item (object)");
-		}
-		if (!config.containsKey("services") || !(config.get("services") instanceof Map)) {
-			missing.add("item (object)");
-		}
+
 		throwIfMissing("Polaris", missing);
 	}
 
