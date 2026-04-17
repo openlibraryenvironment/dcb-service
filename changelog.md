@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 8.68.1
+
+### Changes
+* [Build]
+	* Bump micronaut version to 4.10.11
+* [Chore]
+	* Allow consortium administrators to access "named SQL" endpoint only
+
+### Fixes
+* [General]
+	* Fix Host LMS config validator for Polaris
+	* Catch deleted patrons in preflights [DCB-2174]
+	* Catch expired patrons in pre-flights [DCB-2174]
+	* Introduce Polaris timeout interval [DCB-2169]
+
 ## Version 8.68.0
 
 ### Additions
@@ -8,6 +23,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Run index synch job daily, outside of office hours [DCB-2160]
 
 ### Fixes
