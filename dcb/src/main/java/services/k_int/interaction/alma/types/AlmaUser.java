@@ -1,6 +1,7 @@
 package services.k_int.interaction.alma.types;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 
 import lombok.AllArgsConstructor;
@@ -41,4 +42,6 @@ public class AlmaUser {
 	@ToString.Include
 	@JsonProperty("user_identifier")
 	List<UserIdentifier> identifiers;
+	@Nullable
+	String expirationDate;
 }

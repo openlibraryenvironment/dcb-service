@@ -2194,6 +2194,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				// Set based on material type in Polaris. We need to first understand if we are at the renewal limit, and then understand if we are not renewable for another reason
 				// e.g. are we at the renewal limit, and can we even renew this item at all? (regardless of limit)
 				final var isItemRenewable = itemRecord.getBibInfo().getCanItemBeRenewed();
+				final String bibId = itemRecord.getBibInfo() != null && itemRecord.getBibInfo().getBibliographicRecordID() != null
+					? String.valueOf(itemRecord.getBibInfo().getBibliographicRecordID())
+					: null;
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
 					.status(hostLmsStatus)
@@ -2202,6 +2205,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					// As such we will need to re-work the above.
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
+					.bibId(bibId)
 					// If the item is renewable at the top level AND we're not at the renewal limit
 					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
 					.build();

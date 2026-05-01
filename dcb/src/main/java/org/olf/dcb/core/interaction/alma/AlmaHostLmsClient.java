@@ -7,6 +7,7 @@ import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -1222,9 +1223,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.localBarcodes(localBarcodes)
 			.uniqueIds(uniqueIds)
 			.localPatronType(almaUser.getUser_group().getValue())
+			.expiryDate(almaUser.getExpirationDate() != null ? Timestamp.valueOf(almaUser.getExpirationDate()): null)
 //	.localHomeLibraryCode(almaUser.get)
 			// .canonicalPatronType
-			// .expiryDate
 			// .localItemId
 			// .localItemLocationId
 			.isDeleted(Boolean.FALSE)

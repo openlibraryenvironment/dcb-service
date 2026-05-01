@@ -17,6 +17,11 @@ import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.patrons.Block;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
+import java.util.Date;
+
 @Slf4j
 @Singleton
 public class SierraPatronMapper {
@@ -30,6 +35,7 @@ public class SierraPatronMapper {
 		SierraPatronRecord patronRecord, String hostLmsCode) {
 
 		log.debug("sierraPatronToHostLmsPatron({})", patronRecord);
+		final var mappedExpiryDate = parseExpiryDate(patronRecord.getExpirationDate());
 
 		final var result = Patron.builder()
 			.localId(singletonList(convertIntegerToString(patronRecord.getId())))
@@ -40,6 +46,7 @@ public class SierraPatronMapper {
 			.isActive(true)
 			.isBlocked(isPatronBlocked(patronRecord))
 			.isDeleted(patronRecord.getDeleted() != null ? patronRecord.getDeleted() : false)
+			.expiryDate(mappedExpiryDate)
 			.build();
 
 		if (isEmpty(result.getLocalBarcodes())) {
@@ -72,5 +79,17 @@ public class SierraPatronMapper {
 				patron.getLocalPatronType(), patron.getFirstLocalId())
 			.map(patron::setCanonicalPatronType)
 			.defaultIfEmpty(patron);
+	}
+
+	private Date parseExpiryDate(String expirationDateStr) {
+		if (expirationDateStr != null && !expirationDateStr.trim().isEmpty()) {
+			try {
+				LocalDate localDate = LocalDate.parse(expirationDateStr);
+				return Date.from(localDate.atStartOfDay(ZoneId.of("UTC")).toInstant());
+			} catch (DateTimeParseException e) {
+				log.warn("Could not parse Sierra expiration date: {}. Patron will be mapped without an expiry date.", expirationDateStr);
+			}
+		}
+		return null;
 	}
 }

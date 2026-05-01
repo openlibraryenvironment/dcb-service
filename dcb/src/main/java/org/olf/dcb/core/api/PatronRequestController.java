@@ -29,9 +29,9 @@ import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
+import org.olf.dcb.request.fulfilment.WalkUpRequestCommand;
 import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
-import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingService;
 import reactor.core.publisher.Flux;
@@ -154,6 +154,20 @@ public class PatronRequestController {
 		log.info("REST, place patron request with expedited checkout: {}", command);
 
 		return patronRequestService.placePatronRequestExpeditedCheckout(command)
+			.map(PatronRequestView::from);
+	}
+
+	/**
+	 * A new version of walk-up requesting using the item barcode.
+	 * Separate API for now as this is in preview.
+	 */
+	@SingleResult
+	@Post(value = "/place/walkup", consumes = APPLICATION_JSON)
+	public Mono<PatronRequestView> placeWalkUpRequest(
+		@Body @Valid WalkUpRequestCommand command) {
+
+		log.debug("REST, place walk-up request for barcode {} at {}", command.getItemBarcode(), command.getItemHostLmsCode());
+		return patronRequestService.placeWalkUpRequest(command)
 			.map(PatronRequestView::from);
 	}
 

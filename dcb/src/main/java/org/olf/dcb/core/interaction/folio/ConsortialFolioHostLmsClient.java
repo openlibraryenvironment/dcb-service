@@ -1370,6 +1370,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return makeRequest(authorisedRequest(PUT, path));
   }
 
+	// A method to get items by barcode, using Inventory API to facilitate easier walk-up requests
 	@Override
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 		log.debug("Fetching FOLIO item by barcode: {}", barcode);
@@ -1379,7 +1380,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(GET, "/inventory/items")
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
-		// 3. Make the request and parse the JSON
 		return makeRequest(request, Argument.of(io.micronaut.json.tree.JsonNode.class))
 			.flatMap(node -> {
 				var items = node.get("items");
@@ -1389,7 +1389,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					return Mono.empty();
 				}
 
-				// Extract the first item from the results array
 				var item = items.values().iterator().next();
 				var id = item.get("id").getStringValue();
 				var fetchedBarcode = item.get("barcode") != null ? item.get("barcode").getStringValue() : barcode;
@@ -1397,12 +1396,23 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				var statusNode = item.get("status");
 				var rawStatus = statusNode != null ? statusNode.get("name").getStringValue() : "Unknown";
 
-				return Mono.just(HostLmsItem.builder()
-					.localId(id)
-					.barcode(fetchedBarcode)
-					.rawStatus(rawStatus)
-					.status(mapFolioInventoryItemStatus(rawStatus))
-					.build());
+				var holdingsRecordId = item.get("holdingsRecordId") != null ? item.get("holdingsRecordId").getStringValue() : null;
+				log.info("Item is {}", item);
+
+				// If we already have instance ID (unlikely) we don't have to go searching
+				var directInstanceIdNode = item.get("instanceId");
+				if (directInstanceIdNode != null && !directInstanceIdNode.isNull()) {
+					return Mono.just(buildHostLmsItem(id, fetchedBarcode, rawStatus, directInstanceIdNode.getStringValue()));
+				}
+
+				if (holdingsRecordId == null) {
+					log.warn("No holdingsRecordId found for item barcode: {} - cannot resolve Bib ID", barcode);
+					return Mono.just(buildHostLmsItem(id, fetchedBarcode, rawStatus, null));
+				}
+
+				return fetchInstanceIdFromInventory(holdingsRecordId)
+					.map(fetchedInstanceId -> buildHostLmsItem(id, fetchedBarcode, rawStatus, fetchedInstanceId))
+					.defaultIfEmpty(buildHostLmsItem(id, fetchedBarcode, rawStatus, null));
 			})
 			.doOnError(e -> log.error("Failed to fetch item by barcode {} from FOLIO: {}", barcode, e.getMessage()));
 	}
@@ -1417,6 +1427,41 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			case "Missing", "Declared lost" -> HostLmsItem.ITEM_MISSING;
 			default -> rawStatus;
 		};
+	}
+
+	private Mono<String> fetchInstanceIdFromInventory(String holdingsRecordId) {
+		log.debug("Fetching instance record via holdingsRecordId {} to resolve instanceId", holdingsRecordId);
+
+		final var query = exactEqualityQuery("holdingsRecords.id", holdingsRecordId);
+		final var request = authorisedRequest(GET, "/inventory/instances")
+			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
+
+		return makeRequest(request, Argument.of(io.micronaut.json.tree.JsonNode.class))
+			.flatMap(node -> {
+				var instances = node.get("instances");
+				if (instances != null && instances.size() > 0) {
+					var instance = instances.values().iterator().next();
+					var idNode = instance.get("id");
+					if (idNode != null && !idNode.isNull()) {
+						return Mono.just(idNode.getStringValue());
+					}
+				}
+				return Mono.empty();
+			})
+			.onErrorResume(e -> {
+				log.error("Failed to fetch instance for holding {} for instanceId resolution: {}", holdingsRecordId, e.getMessage());
+				return Mono.empty();
+			});
+	}
+
+	private HostLmsItem buildHostLmsItem(String localId, String barcode, String rawStatus, String instanceId) {
+		return HostLmsItem.builder()
+			.localId(localId)
+			.barcode(barcode)
+			.rawStatus(rawStatus)
+			.status(mapFolioInventoryItemStatus(rawStatus))
+			.bibId(instanceId)
+			.build();
 	}
 
   @Override

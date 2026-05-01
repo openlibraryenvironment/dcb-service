@@ -1788,6 +1788,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			: (deleted ? "MISSING" : "UNKNOWN");
 
 		final var renewalCount = determineLocalRenewalCount(item.getFixedFields());
+		// Sierra returns a list of bibIds. We typically just need the first one.
+		final String bibId = item.getBibIds() != null && item.getBibIds().length > 0
+			? item.getBibIds()[0]
+			: null;
 
 		return HostLmsItem.builder()
 			.localId(item.getId())
@@ -1796,8 +1800,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.rawStatus(getValue(status, Status::getCode, null))
 			.renewalCount(renewalCount)
 			.holdCount(item.getHoldCount())
+			.bibId(bibId)
 			.build();
 	}
+
+
 
 	private int determineLocalRenewalCount(Map<Integer, FixedField> fixedFields) {
 		// The number of times the item has been renewed by the patron who currently has the item checked out.
@@ -2096,7 +2103,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 				log.debug("Extracted item ID {} for barcode {}", itemId, barcode);
 
-				// 4. Fetch the full item using our existing getItem method (which handles all the status mappings!)
 				return getItem(HostLmsItem.builder().localId(itemId).build());
 			})
 			.doOnError(e -> log.error("Failed to fetch item by barcode {} from Sierra: {}", barcode, e.getMessage()));
