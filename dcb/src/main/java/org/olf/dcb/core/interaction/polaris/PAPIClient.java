@@ -783,7 +783,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class ItemGetResponse implements PapiResult {
+	public static class ItemGetResponse implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")

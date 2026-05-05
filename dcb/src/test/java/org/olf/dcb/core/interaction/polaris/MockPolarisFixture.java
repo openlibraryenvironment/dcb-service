@@ -23,6 +23,8 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExt
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetResponse;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistration;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronSearchResult;
@@ -168,12 +170,12 @@ public class MockPolarisFixture {
 		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "renewal-item-blocked.json");
 	}
 
-	public void mockGetItemsForBib(Integer bibId) {
-		mockServer.mockGet(paths.itemsByBibId(bibId), "items-get.json");
-	}
 
-	public void mockGetItemsForBibWithShelfLocations(Integer bibId) {
-		mockServer.mockGet(paths.itemsByBibId(bibId), "items-get-with-shelf-locations.json");
+	public void mockGetItemsForBib(Integer bibId, List<ItemGetRow> expectedItems) {
+		mockServer.mockGet(paths.itemsByBibId(bibId), okJson(
+			ItemGetResponse.builder()
+				.ItemGetRows(expectedItems)
+				.build()));
 	}
 
 	public void mockGetItem(Integer itemId, ItemRecordFull expectedItem) {

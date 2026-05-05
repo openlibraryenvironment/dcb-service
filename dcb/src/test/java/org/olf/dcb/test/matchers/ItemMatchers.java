@@ -1,5 +1,6 @@
 package org.olf.dcb.test.matchers;
 
+import static java.lang.String.valueOf;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -16,6 +17,10 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatusCode;
 
 public class ItemMatchers {
+	public static Matcher<Item> hasLocalId(Integer expectedId) {
+		return hasLocalId(valueOf(expectedId));
+	}
+
 	public static Matcher<Item> hasLocalId(String expectedId) {
 		return hasProperty("localId", is(expectedId));
 	}

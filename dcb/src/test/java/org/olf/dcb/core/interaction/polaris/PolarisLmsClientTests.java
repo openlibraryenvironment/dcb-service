@@ -2,12 +2,15 @@ package org.olf.dcb.core.interaction.polaris;
 
 import static java.lang.Integer.parseInt;
 import static java.lang.Long.parseLong;
+import static java.time.ZoneOffset.UTC;
 import static java.util.Collections.emptyList;
+import static java.util.Locale.ENGLISH;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
@@ -75,6 +78,10 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasNoLocalNam
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 import static services.k_int.utils.StringUtils.convertIntegerToString;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -103,6 +110,7 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHol
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
@@ -178,13 +186,28 @@ class PolarisLmsClientTests {
 		// Arrange
 		defineItemTypeRangeMapping();
 
-		// mock will return null shelf location so a fall back to the default agency will be used
 		agencyFixture.defineAgency("default-agency-code", "Default Agency",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
 		final var bibId = generateNumericLocalId();
+		final var itemId = generateNumericLocalId();
+		final var barcode = generateBarcode();
+		final var dueDate = generateDueDate(7);
+		final var callNumber = "E Bellini Mario";
 
-		mockPolarisFixture.mockGetItemsForBib(bibId);
+		mockPolarisFixture.mockGetItemsForBib(bibId, List.of(
+			ItemGetRow.builder()
+				.ItemRecordID(itemId)
+				.BibliographicRecordID(bibId)
+				.Barcode(barcode)
+				.MaterialType("Book")
+				.IsDisplayInPAC(true)
+				.CircStatus("Checked Out")
+				.DueDate(formatDueDate(dueDate))
+				.LocationID(15)
+				.CallNumber(callNumber)
+				.build()));
+
 		mockPolarisFixture.mockGetMaterialTypes();
 		mockPolarisFixture.mockGetItemStatuses();
 
@@ -192,21 +215,15 @@ class PolarisLmsClientTests {
 		final var items = getItems(bibId, CATALOGUING_HOST_LMS_CODE);
 
 		// Assert
-		assertThat(items, hasSize(3));
+		assertThat(items, hasSize(1));
 
-		final var specificItem = items.stream()
-			.filter(item -> "3512742".equals(item.getLocalId()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(specificItem, allOf(
-			notNullValue(),
-			ItemMatchers.hasLocalId("3512742"),
+		assertThat(items.get(0), allOf(
+			ItemMatchers.hasLocalId(itemId),
 			hasStatus(CHECKED_OUT),
-			hasDueDate("2023-10-14T23:59:00Z"),
+			hasDueDate(dueDate),
 			hasNoLocation(),
-			hasBarcode("3430470102"),
-			hasCallNumber("E Bellini Mario"),
+			hasBarcode(barcode),
+			hasCallNumber(callNumber),
 			hasLocalBibId(bibId),
 			hasLocalItemType("Book"),
 			hasLocalItemTypeCode("3"),
@@ -230,17 +247,31 @@ class PolarisLmsClientTests {
 		agencyFixture.defineAgency("mapped-agency-code", "Mapped Agency",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
-		// Note: 'Bestseller' is the returned shelf location from mock mockGetItemsForBibWithShelfLocations
-		// referenceValueMappingFixture.defineLocationToAgencyMapping(
-		// 	CIRCULATING_HOST_LMS_CODE, "Bestseller", "mapped-agency-code");
+		final var locationId = 15;
 
-		// Note - (II 25th Feb 2025) We should be mapping locationID to agency code and NOT shelving location.
-		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			CIRCULATING_HOST_LMS_CODE, "15", "mapped-agency-code");
+		referenceValueMappingFixture.defineLocationToAgencyMapping(CIRCULATING_HOST_LMS_CODE,
+			convertIntegerToString(locationId), "mapped-agency-code");
 
 		final var bibId = generateNumericLocalId();
+		final var itemId = generateNumericLocalId();
+		final var barcode = generateBarcode();
+		final var dueDate = generateDueDate(14);
+		final var callNumber = "E Bellini Mario";
 
-		mockPolarisFixture.mockGetItemsForBibWithShelfLocations(bibId);
+		mockPolarisFixture.mockGetItemsForBib(bibId, List.of(
+			ItemGetRow.builder()
+				.ItemRecordID(itemId)
+				.BibliographicRecordID(bibId)
+				.Barcode(barcode)
+				.MaterialType("Book")
+				.IsDisplayInPAC(true)
+				.CircStatus("Checked Out")
+				.DueDate(formatDueDate(dueDate))
+				.LocationID(locationId)
+				.ShelfLocation("Bestseller")
+				.CallNumber(callNumber)
+				.build()));
+
 		mockPolarisFixture.mockGetMaterialTypes();
 		mockPolarisFixture.mockGetItemStatuses();
 
@@ -248,33 +279,28 @@ class PolarisLmsClientTests {
 		final var items = getItems(bibId, CIRCULATING_HOST_LMS_CODE);
 
 		// Assert
-		assertThat(items, hasSize(3));
+		assertThat(items, hasSize(1));
 
-		final var specificItem = items.stream()
-			.filter(item -> "3512742".equals(item.getLocalId()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(specificItem, allOf(
-			notNullValue(),
-			ItemMatchers.hasLocalId("3512742"),
-			hasStatus(CHECKED_OUT),
-			hasDueDate("2023-10-14T23:59:00Z"),
-			hasLocation("Bestseller", "15"),
-			hasBarcode("3430470102"),
-			hasCallNumber("E Bellini Mario"),
-			hasLocalBibId(bibId),
-			hasLocalItemType("Book"),
-			hasLocalItemTypeCode("3"),
-			hasCanonicalItemType("loanable-item"),
-			hasZeroHoldCount(),
-			isNotSuppressed(),
-			isNotDeleted(),
-			hasAgencyCode("mapped-agency-code"),
-			hasAgencyName("Mapped Agency"),
-			hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-			hasSourceHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-			hasOwningContext(CIRCULATING_HOST_LMS_CODE)
+		assertThat(items.get(0),
+			allOf(
+				ItemMatchers.hasLocalId(itemId),
+				hasStatus(CHECKED_OUT),
+				hasDueDate(dueDate),
+				hasLocation("Bestseller", "15"),
+				hasBarcode(barcode),
+				hasCallNumber(callNumber),
+				hasLocalBibId(bibId),
+				hasLocalItemType("Book"),
+				hasLocalItemTypeCode("3"),
+				hasCanonicalItemType("loanable-item"),
+				hasZeroHoldCount(),
+				isNotSuppressed(),
+				isNotDeleted(),
+				hasAgencyCode("mapped-agency-code"),
+				hasAgencyName("Mapped Agency"),
+				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasSourceHostLmsCode(CIRCULATING_HOST_LMS_CODE),
+				hasOwningContext(CIRCULATING_HOST_LMS_CODE)
 		));
 	}
 
@@ -282,8 +308,23 @@ class PolarisLmsClientTests {
 	void shouldBeAbleToGetItemsByBibIdWithNoAgency() {
 		// Arrange
 		final var bibId = generateNumericLocalId();
+		final var itemId = generateNumericLocalId();
+		final var barcode = generateBarcode();
+		final var dueDate = generateDueDate(14);
+		final var callNumber = "E Bellini Mario";
 
-		mockPolarisFixture.mockGetItemsForBib(bibId);
+		mockPolarisFixture.mockGetItemsForBib(bibId, List.of(
+			ItemGetRow.builder()
+				.ItemRecordID(itemId)
+				.BibliographicRecordID(bibId)
+				.Barcode(barcode)
+				.MaterialType("Book")
+				.IsDisplayInPAC(true)
+				.CircStatus("Checked Out")
+				.DueDate(formatDueDate(dueDate))
+				.CallNumber(callNumber)
+				.build()));
+
 		mockPolarisFixture.mockGetMaterialTypes();
 		mockPolarisFixture.mockGetItemStatuses();
 
@@ -291,21 +332,16 @@ class PolarisLmsClientTests {
 		final var items = getItems(bibId, CIRCULATING_HOST_LMS_CODE);
 
 		// Assert
-		assertThat(items, hasSize(3));
+		assertThat(items, hasSize(1));
 
-		final var specificItem = items.stream()
-			.filter(item -> "3512742".equals(item.getLocalId()))
-			.findFirst()
-			.orElse(null);
-
-		assertThat(specificItem, allOf(
+		assertThat(items.get(0), allOf(
 			notNullValue(),
-			ItemMatchers.hasLocalId("3512742"),
+			ItemMatchers.hasLocalId(itemId),
 			hasStatus(CHECKED_OUT),
-			hasDueDate("2023-10-14T23:59:00Z"),
+			hasDueDate(dueDate),
 			hasNoLocation(),
-			hasBarcode("3430470102"),
-			hasCallNumber("E Bellini Mario"),
+			hasBarcode(barcode),
+			hasCallNumber(callNumber),
 			hasLocalBibId(bibId),
 			hasLocalItemType("Book"),
 			hasLocalItemTypeCode("3"),
@@ -1486,7 +1522,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void ShouldBeAbleToUpdateStatusOfAnExistingItem() {
+	void shouldBeAbleToUpdateStatusOfAnExistingItem() {
 		// Arrange
 		final var localItemId = generateNumericLocalId();
 
@@ -1504,7 +1540,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void ShouldBeAbleToUpdatePatronRequest() {
+	void shouldBeAbleToUpdatePatronRequest() {
 		// Arrange
 		final var itemId = generateNumericLocalId();
 		final var itemBarcode = generateBarcode();
@@ -1616,6 +1652,23 @@ class PolarisLmsClientTests {
 	private static String barcodeAsSerialisedList(String barcode) {
 		// Multiple barcodes may be formatted as a serialised list in a string
 		return "[%s]".formatted(barcode);
+	}
+
+	private static String formatDueDate(Instant dueDate) {
+		final var monthFirstFormatter = DateTimeFormatter.ofPattern(
+			"MMM d yyyy h:ma", ENGLISH)
+			.withZone(ZoneId.of("UTC"));
+
+		return monthFirstFormatter.format(dueDate);
+	}
+
+	private static Instant generateDueDate(int daysInFuture) {
+		return LocalDate.now(ZoneId.of("UTC"))
+			.atStartOfDay()
+			.plusDays(daysInFuture)
+			// One minute before midnight
+			.minusMinutes(1)
+			.toInstant(UTC);
 	}
 
 	private void mockGetItem(Integer itemId, String itemBarcode, Integer bibId) {
