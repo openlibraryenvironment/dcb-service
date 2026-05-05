@@ -1295,7 +1295,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return (materialTypes.isEmpty() ? ApplicationServices.listMaterialTypes().doOnNext(materialTypes::addAll)
 			: Mono.just(materialTypes))
 			.flatMapMany(Flux::fromIterable)
-			.filter(materialType -> itemGetRow.getMaterialType().equals(materialType.getDescription()))
+			.filter(materialType -> stringEquals(itemGetRow.getMaterialType(), materialType.getDescription()))
 			.map(materialType -> String.valueOf(materialType.getMaterialTypeID()))
 			.next()
 			.doOnSuccess(itemGetRow::setMaterialTypeID)
