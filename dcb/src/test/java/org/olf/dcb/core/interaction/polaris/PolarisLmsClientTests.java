@@ -10,7 +10,6 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
@@ -114,6 +113,7 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldReq
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
 import org.olf.dcb.core.interaction.polaris.PAPIAuthFilter.PatronAuthToken;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemOperationResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronValidateResult;
@@ -1231,7 +1231,11 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
 		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
 
-		mockPolarisFixture.mockCheckoutItemToPatron(patronBarcode);
+		mockPolarisFixture.mockItemCheckout(patronBarcode,
+			ItemOperationResult.builder()
+				.itemRecordID(convertIntegerToString(itemId))
+				.papiErrorCode(0)
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
@@ -1252,16 +1256,22 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToRenewItem() {
 		// Arrange
-		final var localItemId = "8142391";
-		final var localPatronId = "2198742";
-		final var localItemBarcode = "4678231";
-		final var localPatronBarcode = "9821734";
+		final var localItemId = convertIntegerToString(generateNumericLocalId());
+		final var localPatronId = convertIntegerToString(generateNumericLocalId());
+		final var localItemBarcode = generateBarcode();
+		final var localPatronBarcode = generateBarcode();
 
 		final var hostLmsRenewal = HostLmsRenewal.builder()
-			.localItemId(localItemId).localPatronId(localPatronId)
-			.localItemBarcode(localItemBarcode).localPatronBarcode(localPatronBarcode).build();
+			.localItemId(localItemId)
+			.localPatronId(localPatronId)
+			.localItemBarcode(localItemBarcode)
+			.localPatronBarcode(localPatronBarcode).build();
 
-		mockPolarisFixture.mockRenewalSuccess(localPatronBarcode);
+		mockPolarisFixture.mockItemCheckout(localPatronBarcode,
+			ItemOperationResult.builder()
+				.itemRecordID(localItemId)
+				.papiErrorCode(0)
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
@@ -1271,26 +1281,36 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response, allOf(
-			hasProperty("localItemId", is("8142391")),
-			hasProperty("localPatronId", is("2198742")),
-			hasProperty("localItemBarcode", is("4678231")),
-			hasProperty("localPatronBarcode", is("9821734"))
+			hasProperty("localItemId", is(localItemId)),
+			hasProperty("localPatronId", is(localPatronId)),
+			hasProperty("localItemBarcode", is(localItemBarcode)),
+			hasProperty("localPatronBarcode", is(localPatronBarcode))
 		));
 	}
 
 	@Test
 	void shouldTranslateRenewalErrorResponses() {
 		// Arrange
-		final var localItemId = "3519827";
-		final var localPatronId = "6584219";
-		final var localItemBarcode = "2756348";
-		final var localPatronBarcode = "9432198";
+		final var localItemId = convertIntegerToString(generateNumericLocalId());
+		final var localPatronId = convertIntegerToString(generateNumericLocalId());
+		final var localItemBarcode = generateBarcode();
+		final var localPatronBarcode = generateBarcode();
 
 		final var hostLmsRenewal = HostLmsRenewal.builder()
-			.localItemId(localItemId).localPatronId(localPatronId)
-			.localItemBarcode(localItemBarcode).localPatronBarcode(localPatronBarcode).build();
+			.localItemId(localItemId)
+			.localPatronId(localPatronId)
+			.localItemBarcode(localItemBarcode)
+			.localPatronBarcode(localPatronBarcode)
+			.build();
 
-		mockPolarisFixture.mockRenewalItemBlockedError(localPatronBarcode);
+		final var errorMessage = "The item cannot be checked out because the item is blocked.";
+
+		mockPolarisFixture.mockItemCheckout(localPatronBarcode,
+			ItemOperationResult.builder()
+				.itemRecordID(localItemId)
+				.papiErrorCode(6112)
+				.errorMessage(errorMessage)
+				.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
@@ -1300,7 +1320,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(problem, allOf(
 			hasProperty("title", is("Polaris itemCheckoutPost failed")),
-			hasProperty("detail", is("The item cannot be checked out because the item is blocked."))
+			hasProperty("detail", is(errorMessage))
 		));
 	}
 

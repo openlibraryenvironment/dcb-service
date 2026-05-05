@@ -22,6 +22,7 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowRe
 import org.olf.dcb.core.interaction.polaris.PAPIAuthFilter.PatronAuthToken;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetResponse;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemOperationResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistration;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronSearchResult;
@@ -171,16 +172,8 @@ public class MockPolarisFixture {
 			okText("\"%s\"".formatted(barcode)));
 	}
 
-	public void mockCheckoutItemToPatron(String localPatronBarcode) {
-		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "itemcheckoutsuccess.json");
-	}
-
-	public void mockRenewalSuccess(String localPatronBarcode) {
-		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "renewal-success.json");
-	}
-
-	public void mockRenewalItemBlockedError(String localPatronBarcode) {
-		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "renewal-item-blocked.json");
+	public void mockItemCheckout(String localPatronBarcode, ItemOperationResult response) {
+		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), response);
 	}
 
 	public void mockGetItemsForBib(Integer bibId, List<ItemGetRow> expectedItems) {

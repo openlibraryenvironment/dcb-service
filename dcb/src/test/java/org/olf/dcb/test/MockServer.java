@@ -53,10 +53,6 @@ public class MockServer {
 		mock(commonRequests.post(path).withBody(json(requestBody)), okJson(responseBody));
 	}
 
-	public void mockPost(String path, String jsonResourcePath) {
-		mock(commonRequests.post(path), okJson(getResource(jsonResourcePath)));
-	}
-
 	public void mockPut(String path, Object responseBody) {
 		mock(commonRequests.put(path), okJson(responseBody));
 	}
