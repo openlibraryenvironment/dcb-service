@@ -107,6 +107,7 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Circulatio
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecordFull;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.MaterialType;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
@@ -210,8 +211,8 @@ class PolarisLmsClientTests {
 				.CallNumber(callNumber)
 				.build()));
 
-		mockPolarisFixture.mockGetMaterialTypes();
-		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetMaterialTypes(List.of(bookMaterialType()));
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
 
 		// Act
 		final var items = getItems(bibId, CATALOGUING_HOST_LMS_CODE);
@@ -274,8 +275,8 @@ class PolarisLmsClientTests {
 				.CallNumber(callNumber)
 				.build()));
 
-		mockPolarisFixture.mockGetMaterialTypes();
-		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetMaterialTypes(List.of(bookMaterialType()));
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
 
 		// Act
 		final var items = getItems(bibId, CIRCULATING_HOST_LMS_CODE);
@@ -327,8 +328,8 @@ class PolarisLmsClientTests {
 				.CallNumber(callNumber)
 				.build()));
 
-		mockPolarisFixture.mockGetMaterialTypes();
-		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetMaterialTypes(List.of(bookMaterialType()));
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
 
 		// Act
 		final var items = getItems(bibId, CIRCULATING_HOST_LMS_CODE);
@@ -1203,12 +1204,11 @@ class PolarisLmsClientTests {
 		final var patronId = generateNumericLocalId();
 		final var patronBarcode = generateBarcode();
 
-		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
 
 		final var itemBarcode = generateBarcode();
 
 		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
-
 		mockItemWorkflow(generateNumericLocalId());
 
 		// checkout
@@ -1441,7 +1441,7 @@ class PolarisLmsClientTests {
 					.build())
 				.build());
 
-		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
 
 		// Act
 		final var localItem = getItem(localItemId);
@@ -1475,7 +1475,7 @@ class PolarisLmsClientTests {
 					.build())
 				.build());
 
-		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
 
 		// Act
 		final var localItem = getItem(localItemId);
@@ -1539,10 +1539,8 @@ class PolarisLmsClientTests {
 		final var localItemId = generateNumericLocalId();
 
 		mockGetItem(localItemId, generateBarcode(), generateNumericLocalId());
-
 		mockItemWorkflow(generateNumericLocalId());
-
-		mockPolarisFixture.mockGetItemStatuses();
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
 
 		// Act
 		final var response = updateItemStatus(localItemId);
@@ -1558,10 +1556,7 @@ class PolarisLmsClientTests {
 		final var itemBarcode = generateBarcode();
 
 		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
-
 		mockItemWorkflow(generateNumericLocalId());
-
-		mockPolarisFixture.mockGetItemStatuses();
 
 		final var holdId = generateNumericLocalId();
 
@@ -1772,5 +1767,30 @@ class PolarisLmsClientTests {
 
 	private static WorkflowResponse defaultWorkflowResponse() {
 		return WorkflowResponse.builder().build();
+	}
+
+	private static MaterialType bookMaterialType() {
+		return MaterialType.builder()
+			.materialTypeID(3)
+			.description("Book")
+			.build();
+	}
+
+	private static PolarisLmsClient.PolarisItemStatus checkedOutStatus() {
+		return PolarisLmsClient.PolarisItemStatus.builder()
+			.bannerText("Checked Out")
+			.description("Checked Out")
+			.itemStatusID(2)
+			.name("Out")
+			.build();
+	}
+
+	private static PolarisLmsClient.PolarisItemStatus availableStatus() {
+		return PolarisLmsClient.PolarisItemStatus.builder()
+			.bannerText("Available")
+			.description("Available")
+			.itemStatusID(1)
+			.name("In")
+			.build();
 	}
 }

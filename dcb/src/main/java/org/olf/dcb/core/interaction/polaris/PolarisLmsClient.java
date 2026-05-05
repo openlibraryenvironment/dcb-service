@@ -1702,7 +1702,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PolarisItemStatus {
+	public static class PolarisItemStatus {
 		@JsonProperty("BannerText")
 		private String bannerText;
 		@JsonProperty("Description")

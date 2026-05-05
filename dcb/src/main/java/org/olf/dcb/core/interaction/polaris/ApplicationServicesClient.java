@@ -1687,7 +1687,7 @@ class ApplicationServicesClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class MaterialType {
+	public static class MaterialType {
 		@JsonProperty("Description")
 		private String description;
 		@JsonProperty("MaterialTypeID")

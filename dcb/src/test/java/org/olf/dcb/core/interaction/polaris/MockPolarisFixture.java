@@ -297,11 +297,13 @@ public class MockPolarisFixture {
 			okJson(response), Times.once());
 	}
 
-	void mockGetMaterialTypes() {
-		mockServer.mockGet(paths.applicationServices("/materialtypes"), "materialtypes.json");
+	void mockGetMaterialTypes(List<ApplicationServicesClient.MaterialType> responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.applicationServices("/materialtypes")),
+			responseBody);
 	}
 
-	void mockGetItemStatuses() {
-		mockServer.mockGet(paths.applicationServices("/itemstatuses"), "itemstatuses.json");
+	void mockGetItemStatuses(List<PolarisLmsClient.PolarisItemStatus> responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.applicationServices("/itemstatuses")),
+			responseBody);
 	}
 }
