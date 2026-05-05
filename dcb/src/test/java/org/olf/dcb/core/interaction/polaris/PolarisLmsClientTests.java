@@ -110,9 +110,11 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHol
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
+import org.olf.dcb.core.interaction.polaris.PAPIAuthFilter.PatronAuthToken;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronValidateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
@@ -360,15 +362,25 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToAuthenticatePatron() {
 		// Arrange
-
-		// Values come from hardcoded mock responses
-		final var patronId = 1255192;
-		final var barcode = "0088888888";
+		final var patronId = generateNumericLocalId();
+		final var barcode = generateBarcode();
 		final var branchId = 39;
 		final var patronCodeId = 5;
 
-		mockPolarisFixture.mockPatronAuthentication();
-		mockPolarisFixture.mockGetPatronByBarcode(barcode);
+		// Secret and token taken from hardcoded examples previously used in tests
+		mockPolarisFixture.mockPatronAuthentication(PatronAuthToken.builder()
+			.accessSecret("$2a$10$0GyinbyF8WfXoi7Rod.jYug2MXs5PWzX.7oavrEZt5tE7RbLeinVe")
+			.accessToken("$2a$10$0GyinbyF8WfXoi7Rod.jYug2MXs5PWzX.7oavrEZt5tE7RbLeinVe")
+			.patronID(patronId)
+			.build());
+
+		mockPolarisFixture.mockGetPatronByBarcode(barcode, PatronValidateResult.builder()
+			.PatronID(patronId)
+			.Barcode(barcode)
+			.AssignedBranchID(branchId)
+			.PatronCodeID(patronCodeId)
+			.ValidPatron(true)
+			.build());
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);

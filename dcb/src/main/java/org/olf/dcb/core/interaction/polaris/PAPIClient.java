@@ -94,7 +94,7 @@ public class PAPIClient {
 			.build();
 
 		return createRequest(GET, path, uri -> {})
-			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE) )
+			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE))
 			.flatMap(request -> client.retrieve(request, Argument.of(PatronValidateResult.class)))
 			.filter(PatronValidateResult::getValidPatron)
 			.map(patronValidateResult -> Patron.builder()
@@ -866,7 +866,7 @@ public class PAPIClient {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class PatronValidateResult implements PapiResult {
+	public static class PatronValidateResult implements PapiResult {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")

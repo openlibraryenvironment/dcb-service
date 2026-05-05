@@ -23,12 +23,14 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExt
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
+import org.olf.dcb.core.interaction.polaris.PAPIAuthFilter.PatronAuthToken;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetResponse;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistration;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronSearchResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronUpdateResult;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronValidateResult;
 import org.olf.dcb.test.MockServer;
 import org.olf.dcb.test.MockServerCommonRequests;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -49,19 +51,34 @@ public class MockPolarisFixture {
 	}
 
 	public void mockPapiStaffAuthentication() {
-		mockServer.mockPost(paths.protectedPapiService("/authenticator/staff"), "test-staff-auth.json");
+		mockServer.mockPost(paths.protectedPapiService("/authenticator/staff"),
+			// Values taken from previously hard coded responses
+			PAPIAuthFilter.AuthToken.builder()
+				.papiErrorCode(0)
+				.accessToken("string")
+				.accessSecret("string")
+				.errorMessage("string")
+				.polarisUserID(0)
+				.branchID(0)
+				.authExpDate("2023-09-18T16:40:04.652Z")
+				.build());
 	}
 
 	public void mockAppServicesStaffAuthentication() {
-		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"), "auth-response.json");
+		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
+			// Values taken from previously hard coded responses
+			ApplicationServicesAuthFilter.AuthToken.builder()
+				.accessToken("fzB8NAopx8CEwSQI5HqpMCTQrjWm1e1x")
+				.accessSecret("C5UnM8pmim1hfZRQ")
+				.build());
 	}
 
-	public void mockPatronAuthentication() {
-		mockServer.mockPost(paths.publicPapiService("/authenticator/patron"), "test-patron-auth.json");
+	public void mockPatronAuthentication(PatronAuthToken responseBody) {
+		mockServer.mockPost(paths.publicPapiService("/authenticator/patron"), responseBody);
 	}
 
-	public void mockCreatePatron(PatronRegistrationCreateResult response) {
-		mockServer.replaceMock(commonRequests.post(paths.createPatron()), response);
+	public void mockCreatePatron(PatronRegistrationCreateResult responseBody) {
+		mockServer.replaceMock(commonRequests.post(paths.createPatron()), responseBody);
 	}
 
 	public void mockUpdatePatron(String patronBarcode) {
@@ -119,8 +136,8 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.patronById(patronId), serverError());
 	}
 
-	public void mockGetPatronByBarcode(String barcode) {
-		mockServer.mockGet(paths.patronByBarcode(barcode), "patron-by-barcode.json");
+	public void mockGetPatronByBarcode(String barcode, PatronValidateResult responseBody) {
+		mockServer.mockGet(paths.patronByBarcode(barcode), responseBody);
 	}
 
 	public void mockGetPatronCirculationBlocks(String barcode,
