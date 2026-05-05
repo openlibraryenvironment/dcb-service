@@ -109,6 +109,7 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecord
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.MaterialType;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExtensionData;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
 import org.olf.dcb.core.interaction.polaris.PAPIAuthFilter.PatronAuthToken;
@@ -618,7 +619,8 @@ class PolarisLmsClientTests {
 
 		mockGetBibId(bibId);
 
-		mockPolarisFixture.mockPlaceHold();
+		WorkflowResponse response = holdPlacedSuccessfully();
+		mockPolarisFixture.mockStartWorkflow(response);
 
 		final var patronId = generateNumericLocalId();
 		final var holdId = generateNumericLocalId();
@@ -671,7 +673,8 @@ class PolarisLmsClientTests {
 		mockGetItem(itemId, generateBarcode(), bibId);
 		mockGetBibId(bibId);
 
-		mockPolarisFixture.mockPlaceHold();
+		WorkflowResponse response = holdPlacedSuccessfully();
+		mockPolarisFixture.mockStartWorkflow(response);
 
 		final var holdId = generateNumericLocalId();
 		final var matchingNote = "DCB Testing PACDisplayNotes";
@@ -721,18 +724,16 @@ class PolarisLmsClientTests {
 			hasRequestedItemBarcode(itemBarcode)
 		));
 
-		mockPolarisFixture.verifyPlaceHold(
-			ApplicationServicesClient.RequestExtensionData.builder()
+		mockPolarisFixture.verifyWorkflow(placeRequestWorkflowRequest(
+			RequestExtensionData.builder()
 				.itemRecordID(itemId)
 				.patronID(patronId)
 				.pickupBranchID(pickupBranchId)
 				.origin(2)
 				.bibliographicRecordID(bibId)
 				.itemLevelHold(true)
-				.build());
+				.build()));
 	}
-
-
 
 	@Test
 	void shouldBeAbleToPlaceRequestAtPickupAgency() {
@@ -750,7 +751,8 @@ class PolarisLmsClientTests {
 
 		mockGetBibId(bibId);
 
-		mockPolarisFixture.mockPlaceHold();
+		WorkflowResponse response = holdPlacedSuccessfully();
+		mockPolarisFixture.mockStartWorkflow(response);
 
 		final var holdId = generateNumericLocalId();
 		final var matchingNote = "DCB Testing PACDisplayNotes";
@@ -801,7 +803,8 @@ class PolarisLmsClientTests {
 		mockGetItem(itemId, generateBarcode(), bibId);
 		mockGetBibId(bibId);
 
-		mockPolarisFixture.mockPlaceHold();
+		WorkflowResponse response = holdPlacedSuccessfully();
+		mockPolarisFixture.mockStartWorkflow(response);
 
 		final var holdId = generateNumericLocalId();
 		final var matchingNote = "DCB Testing PACDisplayNotes";
@@ -849,15 +852,15 @@ class PolarisLmsClientTests {
 			hasRequestedItemBarcode(itemBarcode)
 		));
 
-		mockPolarisFixture.verifyPlaceHold(
-			ApplicationServicesClient.RequestExtensionData.builder()
+		mockPolarisFixture.verifyWorkflow(placeRequestWorkflowRequest(
+			RequestExtensionData.builder()
 				.itemRecordID(itemId)
 				.patronID(patronId)
 				.pickupBranchID(ILL_LOCATION_ID)
 				.origin(2)
 				.bibliographicRecordID(bibId)
 				.itemLevelHold(true)
-				.build());
+				.build()));
 	}
 
 	@Test
@@ -871,7 +874,8 @@ class PolarisLmsClientTests {
 
 		mockGetBibId(bibId);
 
-		mockPolarisFixture.mockPlaceHold();
+		WorkflowResponse response = holdPlacedSuccessfully();
+		mockPolarisFixture.mockStartWorkflow(response);
 
 		final var patronId = generateNumericLocalId();
 
@@ -916,22 +920,34 @@ class PolarisLmsClientTests {
 
 		mockGetItem(itemId, generateBarcode(), bibId);
 		mockGetBibId(bibId);
-		mockPolarisFixture.mockPlaceHoldUnsuccessful();
+
+		// Values taken from previously hard coded response
+		WorkflowResponse response = WorkflowResponse.builder()
+			.workflowRequestGuid(randomUUID().toString())
+			.workflowStatus(-3)
+			.prompt(Prompt.builder()
+				.WorkflowPromptID(94)
+				.title("Serial Holds")
+				.message(
+					"You have selected a serial title. A request placed on the title will trap any available item.\nSelect one of the following:")
+				.build())
+			.build();
+		mockPolarisFixture.mockStartWorkflow(response);
 
 		// Act
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
+		final var parameters = PlaceHoldRequestParameters.builder()
+			.localPatronId(convertIntegerToString(patronId))
+			.localBibId(null)
+			.localItemId(convertIntegerToString(itemId))
+			.pickupLocationCode("5324532")
+			.note("No special note")
+			.patronRequestId(randomUUID().toString())
+			.build();
+
 		final var exception = assertThrows(ThrowableProblem.class,
-			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
-				PlaceHoldRequestParameters.builder()
-					.localPatronId(convertIntegerToString(patronId))
-					.localBibId(null)
-					.localItemId(convertIntegerToString(itemId))
-					.pickupLocationCode("5324532")
-					.note("No special note")
-					.patronRequestId(randomUUID().toString())
-					.build()
-			)));
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(parameters)));
 
 		// Assert
 		assertThat(exception, allOf(
@@ -1769,6 +1785,19 @@ class PolarisLmsClientTests {
 		return WorkflowResponse.builder().build();
 	}
 
+	private static WorkflowResponse holdPlacedSuccessfully() {
+		return WorkflowResponse.builder()
+			.workflowRequestGuid(randomUUID().toString())
+			.workflowStatus(1)
+			.informationMessages(List.of(
+				InformationMessage.builder()
+					.type(1)
+					.title("")
+					.message("The hold request has been created.")
+					.build()))
+			.build();
+	}
+
 	private static MaterialType bookMaterialType() {
 		return MaterialType.builder()
 			.materialTypeID(3)
@@ -1791,6 +1820,22 @@ class PolarisLmsClientTests {
 			.description("Available")
 			.itemStatusID(1)
 			.name("In")
+			.build();
+	}
+
+	private static ApplicationServicesClient.WorkflowRequest placeRequestWorkflowRequest(
+		RequestExtensionData extensionData) {
+
+		return ApplicationServicesClient.WorkflowRequest.builder()
+			.workflowRequestType(5)
+			.txnBranchID(73)
+			.txnUserID(1)
+			.txnWorkstationID(1)
+			// Cannot match on expiration date and notes because it is generated internally
+			.requestExtension(ApplicationServicesClient.RequestExtension.builder()
+				.workflowRequestExtensionType(9)
+				.data(extensionData)
+				.build())
 			.build();
 	}
 }

@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static java.util.UUID.randomUUID;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
@@ -15,11 +14,8 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecordFull;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExtension;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExtensionData;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
@@ -187,7 +183,6 @@ public class MockPolarisFixture {
 		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "renewal-item-blocked.json");
 	}
 
-
 	public void mockGetItemsForBib(Integer bibId, List<ItemGetRow> expectedItems) {
 		mockServer.mockGet(paths.itemsByBibId(bibId), okJson(
 			ItemGetResponse.builder()
@@ -206,38 +201,6 @@ public class MockPolarisFixture {
 	public void mockGetItemBarcode(Integer localItemId, String barcode) {
 		mockServer.mockGet(paths.getItemByBarcode(localItemId),
 			okText("\"%s\"".formatted(barcode)));
-	}
-
-	void mockPlaceHold() {
-		mockServer.replaceMock(commonRequests.post(paths.workflow()),
-			WorkflowResponse.builder()
-				.workflowRequestGuid(randomUUID().toString())
-				.workflowStatus(1)
-				.informationMessages(List.of(
-					InformationMessage.builder()
-						.type(1)
-						.title("")
-						.message("The hold request has been created.")
-						.build()))
-				.build());
-	}
-
-	public void mockPlaceHoldUnsuccessful() {
-		mockServer.replaceMock(commonRequests.post(paths.workflow()), "unsuccessful-place-request.json");
-	}
-
-	void verifyPlaceHold(RequestExtensionData expectedRequest) {
-		mockServer.verifyPost(paths.workflow(), WorkflowRequest.builder()
-			.workflowRequestType(5)
-			.txnBranchID(73)
-			.txnUserID(1)
-			.txnWorkstationID(1)
-			// Cannot match on expiration date and notes because it is generated internally
-			.requestExtension(RequestExtension.builder()
-				.workflowRequestExtensionType(9)
-				.data(expectedRequest)
-				.build())
-			.build());
 	}
 
 	public void mockListPatronLocalHolds(Integer patronId, SysHoldRequest hold) {
@@ -295,6 +258,10 @@ public class MockPolarisFixture {
 	public void mockContinueWorkflow(String workflowRequestId, WorkflowResponse response) {
 		mockServer.mock(commonRequests.put(paths.workflow() + "/" + workflowRequestId),
 			okJson(response), Times.once());
+	}
+
+	public void verifyWorkflow(WorkflowRequest expectedBody) {
+		mockServer.verifyPost(paths.workflow(), expectedBody);
 	}
 
 	void mockGetMaterialTypes(List<ApplicationServicesClient.MaterialType> responseBody) {
