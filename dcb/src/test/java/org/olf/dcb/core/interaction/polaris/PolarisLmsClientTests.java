@@ -29,6 +29,8 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Wor
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalId;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasRawStatus;
 import static org.olf.dcb.test.matchers.HostLmsRequestMatchers.hasStatus;
@@ -74,9 +76,7 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import java.util.List;
-import java.util.Random;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -182,7 +182,7 @@ class PolarisLmsClientTests {
 		agencyFixture.defineAgency("default-agency-code", "Default Agency",
 			hostLmsFixture.findByCode(CIRCULATING_HOST_LMS_CODE));
 
-		final var bibId = generateLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetItemsForBib(bibId);
 		mockPolarisFixture.mockGetMaterialTypes();
@@ -238,7 +238,7 @@ class PolarisLmsClientTests {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			CIRCULATING_HOST_LMS_CODE, "15", "mapped-agency-code");
 
-		final var bibId = generateLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetItemsForBibWithShelfLocations(bibId);
 		mockPolarisFixture.mockGetMaterialTypes();
@@ -281,7 +281,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToGetItemsByBibIdWithNoAgency() {
 		// Arrange
-		final var bibId = generateLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetItemsForBib(bibId);
 		mockPolarisFixture.mockGetMaterialTypes();
@@ -353,7 +353,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToFindVirtualPatron() {
 		// Arrange
-		final var localId = generateLocalId();
+		final var localId = generateNumericLocalId();
 		final var barcode = generateBarcode();
 		final var organisationId = "39";
 		final var patronCodeId = "3";
@@ -417,7 +417,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldTolerateNotFoundResponseFromPatronBlocksWhenFindingVirtualPatron() {
 		// Arrange
-		final var localId = generateLocalId();
+		final var localId = generateNumericLocalId();
 		final var barcode = generateBarcode();
 		final var organisationId = "39";
 		final var patronCodeId = "3";
@@ -478,7 +478,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldFailToFindVirtualPatronWhenPatronBlocksReturnServerError() {
 		// Arrange
-		final var localId = generateLocalId();
+		final var localId = generateNumericLocalId();
 		final var barcode = generateBarcode();
 
 		mockPolarisFixture.mockPatronSearch(barcode, barcode, localId);
@@ -561,9 +561,9 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToPlaceRequestAtSupplyingAgency() {
 		// Arrange
-		final var itemId = generateLocalId();
+		final var itemId = generateNumericLocalId();
 		final var itemBarcode = generateBarcode();
-		final var bibId = generateLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockGetItem(itemId, itemBarcode, bibId);
 
@@ -571,8 +571,8 @@ class PolarisLmsClientTests {
 
 		mockPolarisFixture.mockPlaceHold();
 
-		final var patronId = generateLocalId();
-		final var holdId = generateLocalId();
+		final var patronId = generateNumericLocalId();
+		final var holdId = generateNumericLocalId();
 		final var matchingNote = "DCB Testing PACDisplayNotes";
 
 		mockPolarisFixture.mockListPatronLocalHolds(patronId,
@@ -616,18 +616,18 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToPlaceRequestAtBorrowingAndPickupAgency() {
 		// Arrange
-		final var itemId = generateLocalId();
-		final var bibId = generateLocalId();
+		final var itemId = generateNumericLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockGetItem(itemId, generateBarcode(), bibId);
 		mockGetBibId(bibId);
 
 		mockPolarisFixture.mockPlaceHold();
 
-		final var holdId = generateLocalId();
+		final var holdId = generateNumericLocalId();
 		final var matchingNote = "DCB Testing PACDisplayNotes";
 
-		final var patronId = generateLocalId();
+		final var patronId = generateNumericLocalId();
 
 		mockPolarisFixture.mockListPatronLocalHolds(patronId,
 			SysHoldRequest.builder()
@@ -688,14 +688,14 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToPlaceRequestAtPickupAgency() {
 		// Arrange
-		final var itemId = generateLocalId();
-		final var patronId = generateLocalId();
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
 		final var itemBarcode = generateBarcode();
 
 		final var pickupLocationLocalId = "5324532";
 		final var pickupLocation = Location.builder().id(randomUUID()).localId(pickupLocationLocalId).build();
 
-		final var bibId = generateLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockGetItem(itemId, itemBarcode, bibId);
 
@@ -703,7 +703,7 @@ class PolarisLmsClientTests {
 
 		mockPolarisFixture.mockPlaceHold();
 
-		final var holdId = generateLocalId();
+		final var holdId = generateNumericLocalId();
 		final var matchingNote = "DCB Testing PACDisplayNotes";
 
 		mockPolarisFixture.mockListPatronLocalHolds(patronId,
@@ -746,18 +746,18 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToPlaceRequestAtBorrowingOnlyAgency() {
 		// Arrange
-		final Integer itemId = generateLocalId();
-		final Integer bibId = generateLocalId();
+		final Integer itemId = generateNumericLocalId();
+		final Integer bibId = generateNumericLocalId();
 
 		mockGetItem(itemId, generateBarcode(), bibId);
 		mockGetBibId(bibId);
 
 		mockPolarisFixture.mockPlaceHold();
 
-		final var holdId = generateLocalId();
+		final var holdId = generateNumericLocalId();
 		final var matchingNote = "DCB Testing PACDisplayNotes";
 
-		final var patronId = generateLocalId();
+		final var patronId = generateNumericLocalId();
 
 		mockPolarisFixture.mockListPatronLocalHolds(patronId,
 			SysHoldRequest.builder()
@@ -814,9 +814,9 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldFailToPlaceRequestAtSupplyingAgencyWhenMatchingHoldIsEmpty() {
 		// Arrange
-		final var itemId = generateLocalId();
+		final var itemId = generateNumericLocalId();
 		final var itemBarcode = generateBarcode();
-		final var bibId = generateLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockGetItem(itemId, itemBarcode, bibId);
 
@@ -824,14 +824,14 @@ class PolarisLmsClientTests {
 
 		mockPolarisFixture.mockPlaceHold();
 
-		final var patronId = generateLocalId();
+		final var patronId = generateNumericLocalId();
 
 		mockPolarisFixture.mockListPatronLocalHolds(patronId, List.of());
 
 		mockPolarisFixture.mockGetHold("3773060",
 			LibraryHold.builder()
 				.sysHoldStatus("In Processing")
-				.itemRecordID(generateLocalId())
+				.itemRecordID(generateNumericLocalId())
 				.itemBarcode(generateBarcode())
 				.build());
 
@@ -860,10 +860,10 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldFailToPlaceRequestAtSupplyingAgencyWhenCreatingTheHoldFails() {
 		// Arrange
-		final var itemId = generateLocalId();
-		final var bibId = generateLocalId();
+		final var itemId = generateNumericLocalId();
+		final var bibId = generateNumericLocalId();
 
-		final var patronId = generateLocalId();
+		final var patronId = generateNumericLocalId();
 
 		mockGetItem(itemId, generateBarcode(), bibId);
 		mockGetBibId(bibId);
@@ -894,9 +894,9 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldDetectRequestHasBeenConfirmed() {
 		// Arrange
-		final var localHoldId = generateLocalId();
+		final var localHoldId = generateNumericLocalId();
 
-		final var itemId = generateLocalId();
+		final var itemId = generateNumericLocalId();
 		final var barcode = generateBarcode();
 
 		mockPolarisFixture.mockGetHold(localHoldId,
@@ -922,7 +922,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldDetectRequestHasBeenCancelled() {
 		// Arrange
-		final var localHoldId = generateLocalId();
+		final var localHoldId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetHold(localHoldId,
 			LibraryHold.builder()
@@ -947,7 +947,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldHandleHoldRequestNotFound() {
 		// Arrange
-		final var localHoldId = generateLocalId();
+		final var localHoldId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetHoldNotFound(localHoldId, PolarisError.builder()
 			.errorCode(60028)
@@ -968,7 +968,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldDetectRequestIsReadyForPickup() {
 		// Arrange
-		final var localHoldId = generateLocalId();
+		final var localHoldId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetHold(localHoldId,
 			LibraryHold.builder()
@@ -994,7 +994,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldDetectRequestIsInTransit() {
 		// Arrange
-		final var localHoldId = generateLocalId();
+		final var localHoldId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetHold(localHoldId,
 			LibraryHold.builder()
@@ -1019,11 +1019,11 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToCreateVirtualPatron() {
 		// Arrange
-		final var itemId = generateLocalId();
+		final var itemId = generateNumericLocalId();
 
-		mockGetItem(itemId, generateBarcode(), generateLocalId());
+		mockGetItem(itemId, generateBarcode(), generateNumericLocalId());
 
-		final var patronId = generateLocalId();
+		final var patronId = generateNumericLocalId();
 
 		mockPolarisFixture.mockCreatePatron(
 			PatronRegistrationCreateResult.builder()
@@ -1056,9 +1056,9 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldFailWhenCreatingVirtualPatronReturnsNonZeroErrorCode() {
 		// Arrange
-		final var localItemId = generateLocalId();
+		final var localItemId = generateNumericLocalId();
 
-		mockGetItem(localItemId, generateBarcode(), generateLocalId());
+		mockGetItem(localItemId, generateBarcode(), generateNumericLocalId());
 
 		mockPolarisFixture.mockCreatePatron(PatronRegistrationCreateResult.builder()
 			.papiErrorCode(-3505)
@@ -1094,7 +1094,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToUpdateAnExistingPatron() {
 		// Arrange
-		final var patronId = generateLocalId();
+		final var patronId = generateNumericLocalId();
 		final var barcode = generateBarcode();
 
 		final var organisationId = "39";
@@ -1151,17 +1151,17 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToCheckOutAnItemToPatron() {
 		// Arrange
-		final var itemId = generateLocalId();
-		final var patronId = generateLocalId();
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
 		final var patronBarcode = generateBarcode();
 
 		mockPolarisFixture.mockGetItemStatuses();
 
 		final var itemBarcode = generateBarcode();
 
-		mockGetItem(itemId, itemBarcode, generateLocalId());
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
 
-		mockItemWorkflow(generateLocalId());
+		mockItemWorkflow(generateNumericLocalId());
 
 		// checkout
 		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
@@ -1243,7 +1243,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToCreateBib() {
 		// Arrange
-		final var bibId = generateLocalId();
+		final var bibId = generateNumericLocalId();
 
 		mockPolarisFixture.mockCreateBib(bibId);
 
@@ -1286,7 +1286,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToDeleteBib() {
 		// Arrange
-		final var localBibId = generateLocalId();
+		final var localBibId = generateNumericLocalId();
 
 		final var workflowRequestId = randomUUID().toString();
 
@@ -1305,7 +1305,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToCreateVirtualItem() {
 		// Arrange
-		final var itemId = generateLocalId();
+		final var itemId = generateNumericLocalId();
 
 		mockPolarisFixture.mockStartWorkflow(
 			WorkflowResponse.builder()
@@ -1374,7 +1374,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToGetAnItemById() {
 		// Arrange
-		final var localItemId = generateLocalId();
+		final var localItemId = generateNumericLocalId();
 		final var itemBarcode = generateBarcode();
 
 		mockPolarisFixture.mockGetItem(localItemId,
@@ -1388,7 +1388,7 @@ class PolarisLmsClientTests {
 				// Must have some bib info because logic for renewal checks
 				// does not tolerate this part of the response not being present
 				.bibInfo(BibInfo.builder()
-					.bibliographicRecordID(generateLocalId())
+					.bibliographicRecordID(generateNumericLocalId())
 					.canItemBeRenewed(false)
 					.build())
 				.build());
@@ -1411,7 +1411,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToDefaultRenewalCount() {
 		// Arrange
-		final var localItemId = generateLocalId();
+		final var localItemId = generateNumericLocalId();
 		final var barcode = generateBarcode();
 
 		mockPolarisFixture.mockGetItem(localItemId,
@@ -1422,7 +1422,7 @@ class PolarisLmsClientTests {
 				// Must have some bib info because logic for renewal checks
 				// does not tolerate this part of the response not being present
 				.bibInfo(BibInfo.builder()
-					.bibliographicRecordID(generateLocalId())
+					.bibliographicRecordID(generateNumericLocalId())
 					.canItemBeRenewed(false)
 					.build())
 				.build());
@@ -1445,7 +1445,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldFailToGetAnItemWhenUnexpectedResponseReceived() {
 		// Arrange
-		final var localItemId = generateLocalId();
+		final var localItemId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetItemServerErrorResponse(localItemId);
 
@@ -1470,7 +1470,7 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToDeleteAnExistingItem() {
 		// Arrange
-		final var localItemId = generateLocalId();
+		final var localItemId = generateNumericLocalId();
 		final var workflowRequestId = randomUUID().toString();
 
 		mockPolarisFixture.mockStartWorkflow(confirmItemDeleteWorkflowPrompt(workflowRequestId));
@@ -1488,11 +1488,11 @@ class PolarisLmsClientTests {
 	@Test
 	void ShouldBeAbleToUpdateStatusOfAnExistingItem() {
 		// Arrange
-		final var localItemId = generateLocalId();
+		final var localItemId = generateNumericLocalId();
 
-		mockGetItem(localItemId, generateBarcode(), generateLocalId());
+		mockGetItem(localItemId, generateBarcode(), generateNumericLocalId());
 
-		mockItemWorkflow(generateLocalId());
+		mockItemWorkflow(generateNumericLocalId());
 
 		mockPolarisFixture.mockGetItemStatuses();
 
@@ -1506,16 +1506,16 @@ class PolarisLmsClientTests {
 	@Test
 	void ShouldBeAbleToUpdatePatronRequest() {
 		// Arrange
-		final var itemId = generateLocalId();
+		final var itemId = generateNumericLocalId();
 		final var itemBarcode = generateBarcode();
 
-		mockGetItem(itemId, itemBarcode, generateLocalId());
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
 
-		mockItemWorkflow(generateLocalId());
+		mockItemWorkflow(generateNumericLocalId());
 
 		mockPolarisFixture.mockGetItemStatuses();
 
-		final var holdId = generateLocalId();
+		final var holdId = generateNumericLocalId();
 
 		mockPolarisFixture.mockGetHold(holdId,
 			LibraryHold.builder()
@@ -1707,13 +1707,5 @@ class PolarisLmsClientTests {
 
 	private static WorkflowResponse defaultWorkflowResponse() {
 		return WorkflowResponse.builder().build();
-	}
-
-	private static Integer generateLocalId() {
-		return new Random().nextInt(1000000);
-	}
-
-	private static @NonNull String generateBarcode() {
-		return String.valueOf(new Random().nextLong(1000000000));
 	}
 }
