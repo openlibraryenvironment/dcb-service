@@ -251,12 +251,16 @@ public class PAPIClient {
 			.map(result -> checkForItemOperationError(result, "itemCheckInPost"));
 	}
 
-	private ItemOperationResult checkForItemOperationError(ItemOperationResult itemOperationResult, String operation){
+	private ItemOperationResult checkForItemOperationError(
+		ItemOperationResult itemOperationResult, String operation) {
 
 		log.debug("checkForItemOperationError {}", itemOperationResult);
 
+		// Assume success when not present
+		final var errorCode = getValue(itemOperationResult, ItemOperationResult::getPapiErrorCode, 0);
+
 		// PAPI Error Codes: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1221124
-		if (itemOperationResult.getPapiErrorCode() == 0) {
+		if (errorCode == 0) {
 			return itemOperationResult;
 		}
 
