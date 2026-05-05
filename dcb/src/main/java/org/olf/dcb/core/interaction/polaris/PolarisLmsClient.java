@@ -12,6 +12,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
+import static services.k_int.utils.StringUtils.stringEquals;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
@@ -1327,14 +1328,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Mono<PolarisItemStatus> matchByName(List<PolarisItemStatus> list, String name) {
 		return Flux.fromIterable(list)
-			.filter(status -> name.equals(status.getName()))
+			.filter(status -> stringEquals(name, status.getName()))
 			.next() // Take the first matching item status
 			.switchIfEmpty(Mono.error(new IllegalArgumentException("No item status found with name: " + name)));
 	}
 
 	private Mono<PolarisItemStatus> matchByDescription(List<PolarisItemStatus> list, String description) {
 		return Flux.fromIterable(list)
-			.filter(status -> description.equals(status.getDescription()))
+			.filter(status -> stringEquals(description, status.getDescription()))
 			.next() // Take the first matching item status
 			.switchIfEmpty(Mono.error(new IllegalArgumentException("No item status found with description: " + description)));
 	}
