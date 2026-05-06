@@ -22,6 +22,7 @@ import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_BOOKS_LEADER;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.getNoteForStaff;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
@@ -155,19 +156,30 @@ class ApplicationServicesClient {
 	}
 
 	private static void validateWorkflowStatus(WorkflowResponse response) {
-		if (response.getWorkflowStatus() < CompletedSuccessfully) {
-			log.error("Polaris response: " + response);
+		final var workflowStatus = getValueOrNull(response, WorkflowResponse::getWorkflowStatus);
+
+		if (workflowStatus == null || workflowStatus < CompletedSuccessfully) {
+			log.error("Polaris response: {}", response);
+
+			final var prompt = getValueOrNull(response, WorkflowResponse::getPrompt);
+
+			final var title = getValue(prompt, Prompt::getTitle, "Response didn't have a title");
+			final var message = getValue(prompt, Prompt::getMessage, "No message");
+			final var informationalMessages = getValue(response, WorkflowResponse::getInformationMessages, "No messages");
+			final var promptId = getValue(prompt, Prompt::getWorkflowPromptID, "No prompt id");
+			final var status = getValue(workflowStatus,"No status");
+			final var workflowRequestId = getValue(response, WorkflowResponse::getWorkflowRequestGuid, "No guid");
 
 			throw Problem.builder()
 				.withType(ERR0210)
 				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
-				.withDetail(response.getPrompt() != null && response.getPrompt().getTitle() != null ? response.getPrompt().getTitle() : "Response didn't have a title")
-				.with("Message", response.getPrompt() != null && response.getPrompt().getMessage() != null ? response.getPrompt().getMessage() : "No message")
-				.with("Information messages", response.getInformationMessages() != null ? response.getInformationMessages() : "No messages")
-				.with("Workflow prompt ID", response.getPrompt().getWorkflowPromptID() != null ? response.getPrompt().getWorkflowPromptID() : "No prompt id")
+				.withDetail(title)
+				.with("Message", message)
+				.with("Information messages", informationalMessages)
+				.with("Workflow prompt ID", promptId)
 				.with("Workflow doc", "https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview")
-				.with("Workflow status", response.getWorkflowStatus() != null ? response.getWorkflowStatus() : "No status")
-				.with("Workflow request GUID", response.getWorkflowRequestGuid() != null ? response.getWorkflowRequestGuid() : "No guid")
+				.with("Workflow status", status)
+				.with("Workflow request GUID", workflowRequestId)
 				.with("Full response", response)
 				.build();
 		}
