@@ -1,11 +1,28 @@
 # Changelog
 
+## Version 8.69.0
+
+### Additions
+* [General]
+	* Walk-up requesting using item barcode [DCB-2142]
+	* Support searching for an item by barcode [DCB-2175]
+
+### Changes
+* [Chore]
+	* Update wording in new pre-flights
+	* Update release.yml to explicitly use GraalVM Community Edition
+
+### Fixes
+* [General]
+	* Improve patron handling expiry checks [DCB-2174]
+
 ## Version 8.68.1
 
 ### Changes
 * [Build]
 	* Bump micronaut version to 4.10.11
 * [Chore]
+	* Changelog - Generate the changelog
 	* Allow consortium administrators to access "named SQL" endpoint only
 
 ### Fixes
