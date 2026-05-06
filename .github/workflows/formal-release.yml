@@ -38,7 +38,7 @@ jobs:
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: '17'
-          distribution: 'graalvm'
+          distribution: 'graalvm-community'
           components: 'native-image'
       # - name: Install Native Image
       #   run: gu install native-image
