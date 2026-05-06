@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 8.69.1
+
+### Changes
+* [Chore]
+	* Also update formal-release.yml to explicitly use GraalVM Community Edition
+
 ## Version 8.69.0
 
 ### Additions
@@ -9,6 +15,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Update wording in new pre-flights
 	* Update release.yml to explicitly use GraalVM Community Edition
 
