@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -901,7 +902,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				log.debug("findVirtualPatron, patron id successfully extracted: {}", localPatronId);
 				return localPatronId;
 			})
-			.flatMap(this::getPatronByLocalId);
+			.flatMap(this::getPatronByLocalId)
+			.flatMap(this::checkAndUpdateExpiryIfNeeded);
 	}
 
 	@Override
@@ -2116,4 +2118,45 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
     return result;
   }
 
+	// Yes, this shouldn't be needed in Sierra in the short to medium term (as we create with 10 year expiry)
+	// It's here for consistency and in case someone either changes the virtual patron expiry
+	// or has a local policy that does so
+	// and to stop us having all the patrons expire at once in 10 yrs
+	private Mono<Patron> checkAndUpdateExpiryIfNeeded(Patron patron) {
+		if (patron.getExpiryDate() == null) {
+			log.warn("Patron {} has no expiration date. Cannot check expiry.", patron.getFirstLocalId());
+			return Mono.just(patron);
+		}
+
+		final var now = LocalDateTime.now(ZoneOffset.UTC);
+		final var expiryThreshold = now.plusDays(30);
+		// Convert java.util.Date to LocalDateTime for comparison
+		final var patronExpiryDateTime = new java.sql.Timestamp(patron.getExpiryDate().getTime()).toLocalDateTime();
+
+		if (patronExpiryDateTime.isBefore(expiryThreshold)) {
+			log.debug("Sierra Patron {} expiry date {} is within 30 days. Updating.", patron.getFirstLocalId(), patronExpiryDateTime);
+
+			final var newExpiryLocalDateTime = now.plusDays(120);
+			final var df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+			final String patronExpirationDate = newExpiryLocalDateTime.format(df);
+
+			final var patronPatch = PatronPatch.builder()
+				.expirationDate(patronExpirationDate)
+				.build();
+
+			// Update in Sierra and then mutate the local object on success
+			return Mono.from(client.updatePatron(Long.valueOf(patron.getFirstLocalId()), patronPatch))
+				.map(success -> {
+					log.debug("Successfully updated Sierra patron {} expiry date to {}", patron.getFirstLocalId(), newExpiryLocalDateTime);
+					patron.setExpiryDate(java.sql.Timestamp.valueOf(newExpiryLocalDateTime));
+					return patron;
+				})
+				.onErrorResume(e -> {
+					log.warn("Failed to update Sierra patron {} expiry date: {}", patron.getFirstLocalId(), e.getMessage());
+					return Mono.just(patron); // Continue with existing patron if update fails
+				});
+		}
+
+		return Mono.just(patron);
+	}
 }
