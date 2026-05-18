@@ -582,7 +582,7 @@ class ApplicationServicesClient {
 							.assignedBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.owningBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
 							.homeBranchID( isInterLibraryLoanBranchIfNotNull(interLibraryLoanBranch, patronHomeBranch) )
-							.renewalLimit(polarisConfig.getItemRenewalLimit())
+							.renewalLimit(getItemRenewalLimit(canonicalItemType))
 							.fineCodeID(polarisConfig.getItemFindCodeId())
 							.itemRecordHistoryActionID(polarisConfig.getItemHistoryActionId())
 							.loanPeriodCodeID(getItemLoanPeriodCodeId(canonicalItemType))
@@ -617,6 +617,10 @@ class ApplicationServicesClient {
 		return loanPeriodCodeId;
 	}
 
+	private Integer getItemRenewalLimit(String canonicalItemType) {
+		log.debug("Determining the renewal limit for canonical item type {}", canonicalItemType);
+		return "CIRCAV".equals(canonicalItemType) ? polarisConfig.getItemAvRenewalLimit() : polarisConfig.getItemRenewalLimit();
+	}
 	private static String useBarcodeWithPrefix(CreateItemCommand createItemCommand, String barcodePrefix) {
 		return (barcodePrefix != null && !barcodePrefix.equals("")
 			? useItemBarcodePrefix(barcodePrefix)

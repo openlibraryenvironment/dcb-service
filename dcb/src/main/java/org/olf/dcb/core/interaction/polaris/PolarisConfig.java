@@ -237,6 +237,14 @@ public class PolarisConfig {
 		return valueWithDefault(this.holdFetchingMaxRetry, Integer.class, defaultMaxRetry);
 	}
 
+	public Integer getItemAvRenewalLimit()
+	{
+		final var value = getNestedProperty(getItem(), ItemConfig::getRenewalLimit);
+		return requiredValue("AV item Renewal Limit", value, Integer.class);
+	}
+
+
+
 	@Data
 	@NoArgsConstructor
 	@Serdeable
@@ -279,6 +287,8 @@ public class PolarisConfig {
 	public static class ItemConfig {
 		@JsonProperty("renewal-limit")
 		private Object renewalLimit;
+		@JsonProperty("av-renewal-limit")
+		private Object avRenewalLimit;
 		@JsonProperty("fine-code-id")
 		private Object fineCodeId;
 		@JsonProperty("history-action-id")
