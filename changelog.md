@@ -1,9 +1,22 @@
 # Changelog
 
+## Version 8.70.0
+
+### Additions
+* [General]
+	* Auto-update expiring Sierra virtual patrons [DCB-2070]
+
+### Changes
+* [Chore]
+	* API for triggering manual re-resolution
+	* Polaris AV renewal limit [DCB-2197]
+	* Update delete Host LMS method
+
 ## Version 8.69.1
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Also update formal-release.yml to explicitly use GraalVM Community Edition
 
 ## Version 8.69.0
