@@ -13,6 +13,7 @@ import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import org.olf.dcb.tracking.TrackingService;
 import reactor.core.publisher.Mono;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
@@ -30,6 +31,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
@@ -51,17 +53,20 @@ public class SupplierRequestController {
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final RequestWorkflowContextHelper ctxHelper;
+	private final TrackingService trackingService;
 
 	public SupplierRequestController(
 		SupplierRequestService supplierRequestService,
 		SupplyingAgencyService supplyingAgencyService,
 		SupplierRequestRepository supplierRequestRepository,
-		RequestWorkflowContextHelper ctxHelper
+		RequestWorkflowContextHelper ctxHelper,
+		TrackingService trackingService
 	) {
 		this.supplierRequestService = supplierRequestService;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.ctxHelper = ctxHelper;
+		this.trackingService = trackingService;
 	}
 
 	// ==== DTOs ====
@@ -222,6 +227,52 @@ public class SupplierRequestController {
 				error(HttpStatus.INTERNAL_SERVER_ERROR, request, "ACTIVE_TOGGLE_ERROR",
 					"Unexpected error toggling active flag", e.getMessage())
 			));
+	}
+
+
+	/**
+	 * Skips the current supplier and forces re-resolution.
+	 * This cancels the remote hold and immediately triggers the tracking service to evaluate the transition.
+	 * This is for if a library sits on a request and it doesn't get past REQUEST_PLACED_AT_SUPPLYING_AGENCY
+	 */
+	@Secured(CONSORTIUM_ADMIN)
+	@SingleResult
+	@Operation(
+		summary = "Skip current supplier (trigger re-resolution)",
+		description = """
+            Cancels the hold at the current supplier and forces a tracking update so the system \
+            detects the cancellation and moves to the next supplier in the resolution chain.
+            """
+	)
+	@Post(uri="/{supplierRequestId}/skip", produces = APPLICATION_JSON)
+	public Mono<MutableHttpResponse<Object>> skipSupplierAndReResolve(
+		@Parameter(name="supplierRequestId", in=ParameterIn.PATH, required = true) @NotNull UUID supplierRequestId,
+		HttpRequest<?> request
+	) {
+		return Mono.from(supplierRequestRepository.findById(supplierRequestId))
+			.flatMap(sr -> ctxHelper.fetchWorkflowContext(sr.getPatronRequest().getId())
+				.flatMap(supplyingAgencyService::cancelHold)
+				// Now we force the tracking service to register the cancellation immediately
+				// Thus triggering re-resolution
+				// NOTE: this treats the RE_RESOLUTION functional setting as referring to automatic re-resolution only
+				.flatMap(ctx -> trackingService.forceUpdate(sr.getPatronRequest().getId()))
+				.thenReturn(ok(Map.of(
+					"supplierRequestId", sr.getId(),
+					"patronRequestId", sr.getPatronRequest().getId(),
+					"message", "The supplier hold cancelled and re-resolution triggered. Re-resolution will now try and find a new supplier."
+				)))
+			)
+			.switchIfEmpty(Mono.defer(() -> Mono.just(
+				error(HttpStatus.NOT_FOUND, request, "SR_NOT_FOUND",
+					"SupplierRequest not found: " + supplierRequestId, null)
+			)))
+			.onErrorResume(e -> {
+				log.error("Failed to skip supplier for SR {}: {}", supplierRequestId, e.getMessage(), e);
+				return Mono.just(
+					error(HttpStatus.INTERNAL_SERVER_ERROR, request, "SKIP_FAILED",
+						"Unexpected error during supplier skip", e.getMessage())
+				);
+			});
 	}
 
 	// ==== helpers ====
