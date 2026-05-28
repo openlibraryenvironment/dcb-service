@@ -79,6 +79,15 @@ public class PolarisConfig {
 		return valueWithDefault(useNewBibChunkIngest, Boolean.class, false);
 	}
 
+	/**
+	 * Handling of the "double delete" policy
+	 * If enabled then we can "hard delete" records such as virtual items
+	 * Otherwise default to the "soft delete" approach to records
+	 */
+	@JsonProperty("enableDoubleDelete")
+	private Boolean enableDoubleDelete;
+	public Boolean isDoubleDeleteEnabled() { return valueWithDefault(enableDoubleDelete, Boolean.class, false); }
+
 	public String getBaseUrl() {
 
 		return requiredValue("Base Url", this.baseUrl, String.class);
