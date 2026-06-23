@@ -23,6 +23,44 @@ import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.interaction.HttpProtocolToLogMessageMapper.toLogOutput;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpectedResponseProblem;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.AUTH_PROFILE_BASIC_BARCODE_PIN;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.FOLIO_INVENTORY_STATUS_AVAILABLE;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.FOLIO_INVENTORY_STATUS_AWAITING_PICKUP;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.FOLIO_INVENTORY_STATUS_CHECKED_OUT;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.FOLIO_INVENTORY_STATUS_DECLARED_LOST;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.FOLIO_INVENTORY_STATUS_IN_TRANSIT;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.FOLIO_INVENTORY_STATUS_MISSING;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.FOLIO_SERVICE_POINT_PREFIX;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.MAPPING_DCB;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.MAPPING_ITEM_TYPE;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.MAPPING_PATRON_TYPE;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_DCB_TRANSACTION;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_DCB_TRANSACTION_BLOCK_RENEWAL;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_DCB_TRANSACTION_RENEW;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_DCB_TRANSACTION_STATUS;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_INVENTORY_INSTANCES;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_INVENTORY_ITEMS;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_PATRON_PIN_VERIFY;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_PROXY_HEALTH;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_RTAC;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_USERS;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_ERROR;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_OK;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_CLOSED;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_NOT_RESOLVED;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_BORROWER;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_BORROWING_PICKUP;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_LENDER;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_PICKUP;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.STATUS_MISSING;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.AWAITING_PICKUP;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.CANCELLED;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.CLOSED;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.CREATED;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.ITEM_CHECKED_IN;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.ITEM_CHECKED_OUT;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.OPEN;
 import static org.olf.dcb.core.interaction.folio.CqlQuery.exactEqualityQuery;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
@@ -172,7 +210,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<OuterHoldings> getHoldings(String instanceId) {
-		final var request = authorisedRequest(GET, "/rtac")
+		final var request = authorisedRequest(GET, PATH_RTAC)
 			.uri(uriBuilder -> uriBuilder
 				.queryParam("instanceIds", instanceId)
 				// Full periodicals refers to items, without this parameter holdings will be returned instead of items
@@ -279,16 +317,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				if (namesVisible) {
 					patronBuilder.localNames(parameters.getLocalNames());
 				}
-				final var request = authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+				final var request = authorisedRequest(POST, PATH_DCB_TRANSACTION.formatted(transactionId))
 					.body(CreateTransactionRequest.builder()
-						.role("LENDER")
+						.role(ROLE_LENDER)
 						.item(CreateTransactionRequest.Item.builder()
 							.id(parameters.getLocalItemId())
 							.barcode(parameters.getLocalItemBarcode())
 							.build())
 						.patron(patronBuilder.build())
 						.pickup(CreateTransactionRequest.Pickup.builder()
-							.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
+							.servicePointId(dnsUUID(FOLIO_SERVICE_POINT_PREFIX + agencyCode).toString())
 							.servicePointName(servicePointName)
 							.libraryCode(libraryCode)
 							.build())
@@ -433,9 +471,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			if (namesVisible) {
 				patronBuilder.localNames(parameters.getLocalNames());
 			}
-			return authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+			return authorisedRequest(POST, PATH_DCB_TRANSACTION.formatted(transactionId))
 				.body(CreateTransactionRequest.builder()
-					.role("BORROWING-PICKUP")
+					.role(ROLE_BORROWING_PICKUP)
 					.item(CreateTransactionRequest.Item.builder()
 						.id(itemId)
 						.title(parameters.getTitle())
@@ -472,9 +510,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var itemBarcode = getRequiredParameter("supplyingLocalItemBarcode",
 			parameters, PlaceHoldRequestParameters::getSupplyingLocalItemBarcode);
 
-		return Mono.just(authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+		return Mono.just(authorisedRequest(POST, PATH_DCB_TRANSACTION.formatted(transactionId))
 				.body(CreateTransactionRequest.builder()
-					.role("BORROWING-PICKUP")
+					.role(ROLE_BORROWING_PICKUP)
 					.selfBorrowing(true)
 					.item(CreateTransactionRequest.Item.builder()
 						.id(itemId)
@@ -504,9 +542,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var servicePointName = getValueOrNull(parameters.getPickupLocation(), Location::getPrintLabel);
 
 		return findLocalItemType(parameters.getCanonicalItemType())
-			.map(localItemType -> authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+			.map(localItemType -> authorisedRequest(POST, PATH_DCB_TRANSACTION.formatted(transactionId))
 				.body(CreateTransactionRequest.builder()
-					.role("BORROWER")
+					.role(ROLE_BORROWER)
 					.item(CreateTransactionRequest.Item.builder()
 						.id(itemId)
 						.title(parameters.getTitle())
@@ -518,7 +556,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.barcode(firstBarcodeInList)
 						.build())
 					.pickup(CreateTransactionRequest.Pickup.builder()
-						.servicePointId(dnsUUID("FolioServicePoint:" + agencyCode).toString())
+						.servicePointId(dnsUUID(FOLIO_SERVICE_POINT_PREFIX + agencyCode).toString())
 						.servicePointName(servicePointName)
 						.libraryCode(libraryCode)
 						.build())
@@ -552,9 +590,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			if (namesVisible) {
 				patronBuilder.localNames(parameters.getLocalNames());
 			}
-			return authorisedRequest(POST, "/dcbService/transactions/" + transactionId)
+			return authorisedRequest(POST, PATH_DCB_TRANSACTION.formatted(transactionId))
 				.body(CreateTransactionRequest.builder()
-					.role("PICKUP")
+					.role(ROLE_PICKUP)
 					.item(CreateTransactionRequest.Item.builder()
 						.id(itemId)
 						.title(parameters.getTitle())
@@ -619,7 +657,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		// Because mappings from host systems TO canonical types are M:1 we can't use reciprocal mappings, so always
 		// look for an explict DCB:ItemType:CIRC -> FOLIO1234:ItemType:book mapping
-		return referenceValueMappingService.findMapping("ItemType", "DCB", canonicalItemType, "ItemType", getHostLmsCode())
+		return referenceValueMappingService.findMapping(MAPPING_ITEM_TYPE, MAPPING_DCB, canonicalItemType, MAPPING_ITEM_TYPE, getHostLmsCode())
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new NoItemTypeMappingFoundException(
 				"Unable to map canonical item type \"" + canonicalItemType + "\" to a item type on Host LMS: \"" + getHostLmsCode() + "\"",
@@ -632,7 +670,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			return Mono.empty();
 		}
 
-		return referenceValueMappingService.findMapping("patronType", "DCB", canonicalPatronType, "patronType", getHostLmsCode())
+		return referenceValueMappingService.findMapping(MAPPING_PATRON_TYPE, MAPPING_DCB, canonicalPatronType, MAPPING_PATRON_TYPE, getHostLmsCode())
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
 				"Unable to map canonical patron type \"" + canonicalPatronType + "\" to a patron type on Host LMS: \"" + getHostLmsCode() + "\"",
@@ -646,8 +684,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			return Mono.empty();
 		}
 
-		return referenceValueMappingService.findMapping("patronType",
-				hostLmsCode, localPatronType, "patronType", "DCB")
+		return referenceValueMappingService.findMapping(MAPPING_PATRON_TYPE,
+				hostLmsCode, localPatronType, MAPPING_PATRON_TYPE, MAPPING_DCB)
 			.map(ReferenceValueMapping::getToValue)
 			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
 				"Unable to map patron type \"" + localPatronType + "\" on Host LMS: \"" + hostLmsCode + "\" to canonical value",
@@ -731,7 +769,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private Mono<UserCollection> findUsers(CqlQuery query) {
 		// Duplication in path due to way edge-users is namespaced
-		final var request = authorisedRequest(GET, "/users/users")
+		final var request = authorisedRequest(GET, PATH_USERS)
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(UserCollection.class));
@@ -806,7 +844,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var transactionId = getValueOrThrow(hostLmsRenewal,
 			HostLmsRenewal::getLocalRequestId, () -> new RuntimeException("Cannot renew transaction without a transaction ID"));
 
-		final var path = "/dcbService/transactions/%s/renew".formatted(transactionId);
+		final var path = PATH_DCB_TRANSACTION_RENEW.formatted(transactionId);
 
 		return makeRequest(authorisedRequest(PUT, path))
 			.then(Mono.just(hostLmsRenewal));
@@ -828,7 +866,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var supplyingAgencyCode = getValueOrThrow(localRequest, LocalRequest::getSupplyingAgencyCode,
 			() -> new MissingParameterException("supplying agency code"));
 
-		final var path = "/dcbService/transactions/%s".formatted(localRequestId);
+		final var path = PATH_DCB_TRANSACTION.formatted(localRequestId);
 
 		return findLocalItemType(canonicalItemType)
 			.map(localItemType -> authorisedRequest(PUT, path)
@@ -879,7 +917,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private Mono<Patron> verifyPatronPin(Patron patron, String pin) {
 		final var localID = patron.getLocalId().stream().findFirst().orElseThrow();
-		final var request = authorisedRequest(POST, "/users/patron-pin/verify")
+		final var request = authorisedRequest(POST, PATH_PATRON_PIN_VERIFY)
 			.body(VerifyPatron.builder().id(localID).pin(pin).build());
 
 		return makeRequest(request, VOID)
@@ -887,7 +925,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Boolean isValidAuthProfile(String authProfile) {
-		return authProfile.equals("BASIC/BARCODE+PIN");
+		return authProfile.equals(AUTH_PROFILE_BASIC_BARCODE_PIN);
 	}
 
 	/**
@@ -923,8 +961,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		// Based upon the statuses defined in https://github.com/folio-org/mod-dcb/blob/master/src/main/resources/swagger.api/schemas/transactionStatus.yaml
 		final var mappedStatus = switch(status) {
-			case "CREATED" -> HOLD_CONFIRMED;
-			case "CANCELLED" -> HOLD_CANCELLED;
+			case CREATED -> HOLD_CONFIRMED;
+			case CANCELLED -> HOLD_CANCELLED;
 			// Some statuses are expected but do not map to any request status
 			// Due to mod-dcb using a single transaction status to represent both
 			// Pass both recognised but unhandled and unrecognised statuses without mapping
@@ -942,7 +980,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static HostLmsRequest missingHostLmsRequest(String localRequestId) {
 		return HostLmsRequest.builder()
 			.localId(localRequestId)
-			.status("MISSING")
+			.status(STATUS_MISSING)
 			.build();
 	}
 
@@ -1004,13 +1042,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return switch (transactionStatus) {
 			// When the item is returned back to the supplying agency, the transaction is closed
 			// The Host LMS reactions use the available local item status to represent the item becoming available again at the end
-			case "CLOSED" -> ITEM_AVAILABLE;
-			case "AWAITING_PICKUP" -> ITEM_ON_HOLDSHELF;
-			case "ITEM_CHECKED_OUT" -> ITEM_LOANED;
+			case CLOSED -> ITEM_AVAILABLE;
+			case AWAITING_PICKUP -> ITEM_ON_HOLDSHELF;
+			case ITEM_CHECKED_OUT -> ITEM_LOANED;
 			// OPEN is considered a trigger for pickup transit
-			case "OPEN",
+			case OPEN,
 				// This is needed to trigger the return to the lending agency workflow action
-				"ITEM_CHECKED_IN" -> ITEM_TRANSIT;
+				ITEM_CHECKED_IN -> ITEM_TRANSIT;
 			// Some statuses are expected but do not map to any item status
 			// Due to mod-dcb using a single transaction status to represent both
 			// Pass both recognised but unhandled and unrecognised statuses without mapping
@@ -1021,7 +1059,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static Mono<HostLmsItem> missingHostLmsItem(String itemId) {
 		return Mono.just(HostLmsItem.builder()
 			.localId(itemId)
-			.status("MISSING")
+			.status(STATUS_MISSING)
 			.build());
 	}
 
@@ -1032,7 +1070,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				new NullPointerException("Cannot use transaction id: "+localRequestId+" to fetch transaction status."));
 		}
 
-		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
+		final var path = PATH_DCB_TRANSACTION_STATUS.formatted(localRequestId);
 
 		return makeRequest(authorisedRequest(GET, path), Argument.of(TransactionStatus.class),
 			response -> response.
@@ -1040,7 +1078,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<TransactionStatus> updateTransactionStatus(String localRequestId, String status) {
-		final var path = "/dcbService/transactions/%s/status".formatted(localRequestId);
+		final var path = PATH_DCB_TRANSACTION_STATUS.formatted(localRequestId);
 
 		return makeRequest(authorisedRequest(PUT, path)
 				.body(TransactionStatus.builder()
@@ -1056,13 +1094,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var toStatus = mapToTransactionStatus(crs);
 
 		// Don't send a request if we don't have a crs translation
-		if (toStatus.equals("OK")) {
+		if (toStatus.equals(RESULT_OK)) {
 			// Still progress the workflow
 			return Mono.just(toStatus);
 		}
 
 		return updateTransactionStatus(localRequestId, toStatus)
-			.thenReturn("OK")
+			.thenReturn(RESULT_OK)
 			;
 	}
 
@@ -1091,7 +1129,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static String unimplementedTransactionStatusMapping(CanonicalItemState crs) {
 		log.warn("Update item status requested for {} and we don't have a folio translation for that", crs);
 
-		return "OK";
+		return RESULT_OK;
 	}
 
 	@Override
@@ -1109,7 +1147,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		// HandleBorrowerItemLoaned
 		return updateTransactionStatus(localRequestId, TransactionStatus.ITEM_CHECKED_OUT)
-			.thenReturn("OK")
+			.thenReturn(RESULT_OK)
 			.switchIfEmpty(Mono.error(() ->
 				new DcbError("Check out of " + itemId + " to " + patronBarcode + " at " + getHostLmsCode() + " failed")));
 	}
@@ -1127,7 +1165,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		// HandleBorrowerRequestReturnTransit
 		return updateTransactionStatus(localRequestId, TransactionStatus.ITEM_CHECKED_IN)
-			.thenReturn("OK")
+			.thenReturn(RESULT_OK)
 			.switchIfEmpty(Mono.error(() ->
 				new DcbError("Check in of " + itemId + " at " + getHostLmsCode() + " failed")));
 	}
@@ -1135,7 +1173,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> deleteItem(DeleteCommand deleteCommand) {
 		log.info("Delete virtual item is not currently implemented for FOLIO");
-		return Mono.just("OK");
+		return Mono.just(RESULT_OK);
 	}
 
 
@@ -1152,27 +1190,27 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				log.debug("Current status for transaction {}: {}", localRequestId, currentStatus);
 
 				// If it's already closed don't try and close it again
-				if ("CLOSED".equals(currentStatus)) {
-					return Mono.just("OK");
+				if (CLOSED.equals(currentStatus)) {
+					return Mono.just(RESULT_OK);
 				}
 				return updateTransactionStatus(localRequestId, TransactionStatus.CLOSED)
-					.thenReturn("OK_CLOSED")
+					.thenReturn(RESULT_OK_CLOSED)
 					.onErrorResume(e -> {
 						log.error("Failed to CLOSE mod-dcb transaction {}. API does not support this transition from {}. Error: {}",
 							localRequestId, currentStatus, e.getMessage());
-						return Mono.just("OK_NOT_RESOLVED"); // Put a more specific message in here in future
+						return Mono.just(RESULT_OK_NOT_RESOLVED); // Put a more specific message in here in future
 					});
 			})
 			.onErrorResume(TransactionNotFoundException.class, e -> {
 				log.warn("Transaction {} not found during cleanup, assuming deleted.", localRequestId);
-				return Mono.just("OK");
+				return Mono.just(RESULT_OK);
 			});
 	}
 
 	@Override
 	public Mono<String> deleteBib(String id) {
 		log.info("Delete virtual bib is not currently implemented for FOLIO");
-		return Mono.just("OK");
+		return Mono.just(RESULT_OK);
 	}
 
   public Mono<String> deletePatron(String id) {
@@ -1365,7 +1403,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		// This endpoint was introduced after Sunflower SP3, in its own special deployment
 		// This will set the renewal count to maximum
-		final var path = "/dcbService/transactions/%s/block-renewal".formatted(prc.getRequestId());
+		final var path = PATH_DCB_TRANSACTION_BLOCK_RENEWAL.formatted(prc.getRequestId());
 		// If we get 404 it suggests this endpoint isn't supported. Revert to previous behaviour
 		return makeRequest(authorisedRequest(PUT, path));
   }
@@ -1377,7 +1415,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var query = exactEqualityQuery("barcode", barcode);
 
-		final var request = authorisedRequest(GET, "/inventory/items")
+		final var request = authorisedRequest(GET, PATH_INVENTORY_ITEMS)
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(io.micronaut.json.tree.JsonNode.class))
@@ -1420,11 +1458,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	// Maps FOLIO's internal inventory statuses to DCB's HostLmsItem constants
 	private String mapFolioInventoryItemStatus(String rawStatus) {
 		return switch (rawStatus) {
-			case "Available" -> HostLmsItem.ITEM_AVAILABLE;
-			case "Checked out" -> HostLmsItem.ITEM_LOANED;
-			case "In transit" -> HostLmsItem.ITEM_TRANSIT;
-			case "Awaiting pickup" -> HostLmsItem.ITEM_ON_HOLDSHELF;
-			case "Missing", "Declared lost" -> HostLmsItem.ITEM_MISSING;
+			case FOLIO_INVENTORY_STATUS_AVAILABLE -> HostLmsItem.ITEM_AVAILABLE;
+			case FOLIO_INVENTORY_STATUS_CHECKED_OUT -> HostLmsItem.ITEM_LOANED;
+			case FOLIO_INVENTORY_STATUS_IN_TRANSIT -> HostLmsItem.ITEM_TRANSIT;
+			case FOLIO_INVENTORY_STATUS_AWAITING_PICKUP -> HostLmsItem.ITEM_ON_HOLDSHELF;
+			case FOLIO_INVENTORY_STATUS_MISSING, FOLIO_INVENTORY_STATUS_DECLARED_LOST -> HostLmsItem.ITEM_MISSING;
 			default -> rawStatus;
 		};
 	}
@@ -1433,7 +1471,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		log.debug("Fetching instance record via holdingsRecordId {} to resolve instanceId", holdingsRecordId);
 
 		final var query = exactEqualityQuery("holdingsRecords.id", holdingsRecordId);
-		final var request = authorisedRequest(GET, "/inventory/instances")
+		final var request = authorisedRequest(GET, PATH_INVENTORY_INSTANCES)
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(io.micronaut.json.tree.JsonNode.class))
@@ -1467,7 +1505,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
   @Override
   public Mono<PingResponse> ping() {
 
-		Publisher<HttpResponse<Void>> responsePublisher = httpClient.exchange(rootUri+"/_/proxy/health", Void.class);
+		Publisher<HttpResponse<Void>> responsePublisher = httpClient.exchange(rootUri + PATH_PROXY_HEALTH, Void.class);
     Instant start = Instant.now();
 
 		return Mono.from(responsePublisher)
@@ -1479,13 +1517,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				if (response.getStatus().getCode() == 200) {
 					return Mono.just(PingResponse.builder()
 			      .target(getHostLmsCode())
-			      .status("OK")
+			      .status(PING_STATUS_OK)
 	          .pingTime(Duration.between(start, Instant.now()))
 			      .build());
 				} else {
 					return Mono.just(PingResponse.builder()
 			      .target(getHostLmsCode())
-			      .status("ERROR")
+			      .status(PING_STATUS_ERROR)
 	          .pingTime(Duration.between(start, Instant.now()))
 			      .build());
 				}
