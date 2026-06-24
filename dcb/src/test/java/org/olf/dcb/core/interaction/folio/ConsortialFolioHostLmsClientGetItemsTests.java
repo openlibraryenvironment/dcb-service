@@ -11,6 +11,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ITEM_STATUSES;
 import static org.olf.dcb.core.interaction.shared.NumericItemTypeMapper.UNKNOWN_NO_MAPPING_FOUND;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -527,35 +528,12 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 		// Arrange
 		final var instanceId = randomUUID().toString();
 
-		final var folioItemStatuses = List.of(
-			"Aged to lost",
-			"Available",
-			"Awaiting pickup",
-			"Awaiting delivery",
-			"Checked out",
-			"Claimed returned",
-			"Declared lost",
-			"In process",
-			"In process (non-requestable)",
-			"In transit",
-			"Intellectual item",
-			"Long missing",
-			"Lost and paid",
-			"Missing",
-			"On order",
-			"Paged",
-			"Restricted",
-			"Order closed",
-			"Unavailable",
-			"Unknown",
-			"Withdrawn");
-
 		final var holdingsRecordWithoutStatementStatus = "Multi";
 		final var holdingsRecordWithStatementStatus = "Some holdings statement";
 
 		final var allExampleHoldings = new ArrayList<Holding>();
 
-		folioItemStatuses.forEach(folioItemStatus ->
+		ITEM_STATUSES.forEach(folioItemStatus ->
 			allExampleHoldings.add(exampleHolding().status(folioItemStatus).build()));
 
 		allExampleHoldings.add(exampleHolding().status(holdingsRecordWithoutStatementStatus).build());
@@ -571,7 +549,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 
 		// As this is based upon the count, this could be a brittle check
 		assertThat("Should only include items based upon holdings with FOLIO item status",
-			items, hasSize(folioItemStatuses.size()));
+			items, hasSize(ITEM_STATUSES.size()));
 	}
 
 	@Test

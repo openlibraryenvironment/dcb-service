@@ -1,8 +1,7 @@
 package org.olf.dcb.core.interaction.folio;
 
-import lombok.experimental.UtilityClass;
+import java.util.List;
 
-@UtilityClass
 final class ConsortialFolioClientConstants {
 
 	// DCB transaction roles
@@ -53,4 +52,27 @@ final class ConsortialFolioClientConstants {
 	static final String PATH_INVENTORY_ITEMS = "/inventory/items";
 	static final String PATH_INVENTORY_INSTANCES = "/inventory/instances";
 	static final String PATH_PROXY_HEALTH = "/_/proxy/health";
+
+	static final List<String> ITEM_STATUSES = List.of(
+		"Aged to lost",
+		FOLIO_INVENTORY_STATUS_AVAILABLE,
+		FOLIO_INVENTORY_STATUS_AWAITING_PICKUP,
+		"Awaiting delivery",
+		FOLIO_INVENTORY_STATUS_CHECKED_OUT,
+		"Claimed returned",
+		FOLIO_INVENTORY_STATUS_DECLARED_LOST,
+		"In process",
+		"In process (non-requestable)",
+		FOLIO_INVENTORY_STATUS_IN_TRANSIT,
+		"Intellectual item",
+		"Long missing",
+		"Lost and paid",
+		FOLIO_INVENTORY_STATUS_MISSING,
+		"On order",
+		"Paged",
+		"Restricted",
+		"Order closed",
+		"Unavailable",
+		"Unknown",
+		"Withdrawn");
 }

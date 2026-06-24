@@ -54,6 +54,7 @@ import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_LENDER;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_PICKUP;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.STATUS_MISSING;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ITEM_STATUSES;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.AWAITING_PICKUP;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CANCELLED;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CLOSED;
@@ -130,29 +131,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		= urlPropertyDefinition("base-url", "Base URL of the FOLIO system", TRUE);
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
 		= stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE);
-
-	private static final List<String> itemStatuses = List.of(
-		"Aged to lost",
-		"Available",
-		"Awaiting pickup",
-		"Awaiting delivery",
-		"Checked out",
-		"Claimed returned",
-		"Declared lost",
-		"In process",
-		"In process (non-requestable)",
-		"In transit",
-		"Intellectual item",
-		"Long missing",
-		"Lost and paid",
-		"Missing",
-		"On order",
-		"Paged",
-		"Restricted",
-		"Order closed",
-		"Unavailable",
-		"Unknown",
-		"Withdrawn");
 
 	private final HostLms hostLms;
 
@@ -289,7 +267,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			// For more information on the flow inside RTAC - https://github.com/folio-org/mod-rtac/blob/3e7f25445ff79b60690fa2025f3a426d9e57fd21/src/main/java/org/folio/mappers/FolioToRtacMapper.java#L112
 			//
 			// Holdings without a status should be tolerated
-			.filter(holdings -> itemStatuses.contains(getValue(holdings, Holding::getStatus, "Unknown")))
+			.filter(holdings -> ITEM_STATUSES.contains(getValue(holdings, Holding::getStatus, "Unknown")))
 			.flatMap(holding -> consortialFolioItemMapper.mapHoldingToItem(holding,
 				outerHoldings.getInstanceId(), getHostLmsCode()));
 	}
