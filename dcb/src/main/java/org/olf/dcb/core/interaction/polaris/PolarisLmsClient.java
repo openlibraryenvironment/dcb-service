@@ -10,13 +10,14 @@ import static org.olf.dcb.core.interaction.polaris.MarcConverter.convertToMarcRe
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.AVAILABLE;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 import static org.olf.dcb.core.interaction.polaris.PolarisItem.mapItemStatus;
-import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
+import static services.k_int.utils.StringUtils.stringEquals;
 
 import java.io.IOException;
 import java.net.URI;
@@ -41,21 +42,37 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.client.annotation.Client;
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
-import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
+import org.olf.dcb.core.interaction.CheckInItemCommand;
+import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.HostLmsRenewal;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PingResponse;
+import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
+import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibInfo;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.CirculationData;
+import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecordFull;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -91,7 +108,13 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonArray;
@@ -322,7 +345,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.requestedItemBarcode( illRequestInfo.getItemBarcode() )
 				.build();
 	}
-	
 
 	@Retryable(attempts = "2", delay = "2s")
 	protected <T> Mono<T> delayAndRetryTransformer ( Mono<T> targetFunction ) {
@@ -618,8 +640,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return pickupLocationCode;
 	}
 
-	private Mono<Tuple2<ApplicationServicesClient.BibliographicRecord, ApplicationServicesClient.ItemRecordFull>> getBibWithItem(
+	private Mono<Tuple2<BibliographicRecord, ItemRecordFull>> getBibWithItem(
 		PlaceHoldRequestParameters parameters) {
+
 		return getBibIdFromItemId(parameters.getLocalItemId())
 			.flatMap(this::getBib)
 			.zipWith(ApplicationServices.itemrecords(parameters.getLocalItemId(), FALSE));
@@ -627,7 +650,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
-
 		final var localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
 
 		log.info("getRequest({})", localRequestId);
@@ -796,15 +818,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.map(itemRecord -> {
 				final var hostLmsStatus = mapItemStatus(POLARIS_TO_HOST_LMS, itemRecord.getItemStatusName());
 
-				final var renewalCount = Optional.of(itemRecord)
-					.map(ApplicationServicesClient.ItemRecordFull::getCirculationData)
-					.map(ApplicationServicesClient.CirculationData::getRenewalCount)
-					.orElse(0);
+				final var renewalCount = getValue(itemRecord, ItemRecordFull::getCirculationData,
+					CirculationData::getRenewalCount, 0);
 
-				final var isAtRenewalLimit = Objects.equals(itemRecord.getBibInfo().getRenewals(), itemRecord.getBibInfo().getRenewalLimit());
+				final var bibInfo = getValueOrNull(itemRecord, ItemRecordFull::getBibInfo);
+
+				final var renewals = getValueOrNull(bibInfo, BibInfo::getRenewals);
+				final var renewalLimit = getValueOrNull(bibInfo, BibInfo::getRenewalLimit);
+
+				final var isAtRenewalLimit = Objects.equals(renewals, renewalLimit);
+
 				// Set based on material type in Polaris. We need to first understand if we are at the renewal limit, and then understand if we are not renewable for another reason
 				// e.g. are we at the renewal limit, and can we even renew this item at all? (regardless of limit)
-				final var isItemRenewable = itemRecord.getBibInfo().getCanItemBeRenewed();
+				final var isItemRenewable = getValue(bibInfo, BibInfo::getCanItemBeRenewed, false);
 
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
@@ -818,7 +844,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
 					.build();
 			})
-			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem )
+			.flatMap(this::enrichWithCombinedNumberOfHoldsOnItem)
 			.defaultIfEmpty(HostLmsItem.builder()
 				.localId(localItemId)
 				.status("MISSING")
@@ -975,9 +1001,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.just(localItemId);
 	}
 
-	private ApplicationServicesClient.ItemRecordFull validate(
-		String knownId, ApplicationServicesClient.ItemRecordFull item) {
-
+	private ItemRecordFull validate(String knownId, ItemRecordFull item) {
 		final var fetchedId = String.valueOf(item.getItemRecordID());
 
 		if (Objects.equals(knownId, fetchedId) &&
@@ -991,9 +1015,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		throw new IllegalArgumentException("Fetched record wasn't validated.");
 	}
 
-	private Mono<ApplicationServicesClient.ItemRecordFull> collectItemStatusName(
-		ApplicationServicesClient.ItemRecordFull itemRecord) {
-
+	private Mono<ItemRecordFull> collectItemStatusName(ItemRecordFull itemRecord) {
 		final var description = itemRecord.getItemStatusDescription();
 
 		return fetchItemStatusObjectBy(SearchType.DESCRIPTION, description)
@@ -1096,11 +1118,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<String> validateCreatePatronResult(
-		PAPIClient.PatronRegistrationCreateResult result, Patron patron) {
+		PatronRegistrationCreateResult result, Patron patron) {
 
-		final var errorCode = result.getPapiErrorCode();
+		// Assume success if no error code present
+		final var errorCode = getValue(result, PatronRegistrationCreateResult::getPapiErrorCode, 0);
 
-		// Perform a test on result.papiErrorCode
 		if (errorCode != 0) {
 			final var errorMessage = result.getErrorMessage();
 
@@ -1280,7 +1302,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return checkHoldStatus(value);
 	}
 
-	private Mono<ApplicationServicesClient.BibliographicRecord> getBib(String localBibId) {
+	private Mono<BibliographicRecord> getBib(String localBibId) {
 		return ApplicationServices.getBibliographicRecordByID(localBibId);
 	}
 
@@ -1294,7 +1316,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return (materialTypes.isEmpty() ? ApplicationServices.listMaterialTypes().doOnNext(materialTypes::addAll)
 			: Mono.just(materialTypes))
 			.flatMapMany(Flux::fromIterable)
-			.filter(materialType -> itemGetRow.getMaterialType().equals(materialType.getDescription()))
+			.filter(materialType -> stringEquals(itemGetRow.getMaterialType(), materialType.getDescription()))
 			.map(materialType -> String.valueOf(materialType.getMaterialTypeID()))
 			.next()
 			.doOnSuccess(itemGetRow::setMaterialTypeID)
@@ -1327,14 +1349,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	private Mono<PolarisItemStatus> matchByName(List<PolarisItemStatus> list, String name) {
 		return Flux.fromIterable(list)
-			.filter(status -> name.equals(status.getName()))
+			.filter(status -> stringEquals(name, status.getName()))
 			.next() // Take the first matching item status
 			.switchIfEmpty(Mono.error(new IllegalArgumentException("No item status found with name: " + name)));
 	}
 
 	private Mono<PolarisItemStatus> matchByDescription(List<PolarisItemStatus> list, String description) {
 		return Flux.fromIterable(list)
-			.filter(status -> description.equals(status.getDescription()))
+			.filter(status -> stringEquals(description, status.getDescription()))
 			.next() // Take the first matching item status
 			.switchIfEmpty(Mono.error(new IllegalArgumentException("No item status found with description: " + description)));
 	}
@@ -1701,7 +1723,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	static class PolarisItemStatus {
+	public static class PolarisItemStatus {
 		@JsonProperty("BannerText")
 		private String bannerText;
 		@JsonProperty("Description")
@@ -2186,14 +2208,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				final var hostLmsStatus = mapItemStatus(POLARIS_TO_HOST_LMS, itemRecord.getItemStatusName());
 
 				final var renewalCount = Optional.of(itemRecord)
-					.map(ApplicationServicesClient.ItemRecordFull::getCirculationData)
-					.map(ApplicationServicesClient.CirculationData::getRenewalCount)
+					.map(ItemRecordFull::getCirculationData)
+					.map(CirculationData::getRenewalCount)
 					.orElse(0);
 
 				final var isAtRenewalLimit = Objects.equals(itemRecord.getBibInfo().getRenewals(), itemRecord.getBibInfo().getRenewalLimit());
 				// Set based on material type in Polaris. We need to first understand if we are at the renewal limit, and then understand if we are not renewable for another reason
 				// e.g. are we at the renewal limit, and can we even renew this item at all? (regardless of limit)
 				final var isItemRenewable = itemRecord.getBibInfo().getCanItemBeRenewed();
+				final String bibId = itemRecord.getBibInfo() != null && itemRecord.getBibInfo().getBibliographicRecordID() != null
+					? String.valueOf(itemRecord.getBibInfo().getBibliographicRecordID())
+					: null;
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
 					.status(hostLmsStatus)
@@ -2202,6 +2227,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					// As such we will need to re-work the above.
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
+					.bibId(bibId)
 					// If the item is renewable at the top level AND we're not at the renewal limit
 					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
 					.build();

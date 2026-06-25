@@ -5,21 +5,21 @@ import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static reactor.function.TupleUtils.function;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronService.PatronId;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.core.HostLmsService;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -39,13 +39,17 @@ public class PatronRequestService {
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final BeanProvider<PatronRequestAuditService> patronRequestAuditService;
+	private final HostLmsService hostLmsService;
+	private final BibRepository bibRepository;
 
 	public PatronRequestService(PatronRequestRepository patronRequestRepository,
 		PatronRequestWorkflowService requestWorkflow, PatronService patronService,
 		FindOrCreatePatronService findOrCreatePatronService,
 		PatronRequestPreflightChecksService preflightChecksService,
 		PatronRequestAuditRepository patronRequestAuditRepository, 
-		BeanProvider<PatronRequestAuditService> patronRequestAuditService) {
+		BeanProvider<PatronRequestAuditService> patronRequestAuditService,
+															HostLmsService hostLmsService,
+															BibRepository bibRepository) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflow = requestWorkflow;
@@ -54,6 +58,8 @@ public class PatronRequestService {
 		this.preflightChecksService = preflightChecksService;
 		this.patronRequestAuditRepository = patronRequestAuditRepository;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.hostLmsService = hostLmsService;
+		this.bibRepository = bibRepository;
 	}
 
 	public Mono<? extends PatronRequest> placePatronRequest(
@@ -122,6 +128,78 @@ public class PatronRequestService {
 			.flatMap(savedPatronRequest -> recordRequestPayloadAudit(savedPatronRequest, command))
 			.doOnSuccess(requestWorkflow::initiate)
 			.doOnError(e -> log.error("Placing expedited request {} failed", command, e));
+	}
+
+	public Mono<? extends PatronRequest> placeWalkUpRequest(
+		WalkUpRequestCommand command) {
+
+		// All we know at this point:
+		// Host LMS of the item (same as patron's Host LMS, provided as a code)
+		// Patron barcode
+		// Item barcode
+
+		return hostLmsService.getClientFor(command.getItemHostLmsCode()) // Get the item by barcode, and get its bib ID.
+			.flatMap(client ->
+				client.getItemByBarcode(command.getItemBarcode())
+					.switchIfEmpty(Mono.error(new IllegalArgumentException("ITEM_NOT_FOUND: item not found for barcode: " + command.getItemBarcode())))
+
+					.flatMap(hostLmsItem -> {
+						UUID sourceSystemId = client.getHostLms().getId();
+						if (!Objects.equals(hostLmsItem.getStatus(), HostLmsItem.ITEM_AVAILABLE))
+						{
+							return Mono.error(new IllegalStateException("ITEM_NOT_AVAILABLE: The item " + hostLmsItem.getLocalId() + " is not available! Status is "+hostLmsItem.getStatus()));
+						}
+						// We assume that the bib ID on the item is the source record ID
+						// Possible returns
+						// ITEM_NOT_FOUND: not found in the ILS
+						// ITEM_NOT_FOUND_IN_SHARED_INDEX: Not found in DCB
+						// ITEM_NOT_AVAILABLE: Found, but not available.
+						// ITEM_AVAILABLE: Found and available. Can only be confirmed after we find a bib and a non-deleted cluster too.
+						// CLUSTER_DELETED: The corresponding cluster record has been deleted, and thus we cannot place a request for its item.
+						return Mono.from(bibRepository.findBySourceSystemIdAndSourceRecordId(sourceSystemId, hostLmsItem.getBibId()))
+							.switchIfEmpty(Mono.error(new IllegalStateException("ITEM_NOT_FOUND_IN_SHARED_INDEX: item not found in DCB for local bibId: " + hostLmsItem.getBibId() + " in system: " + command.getItemHostLmsCode() + " for item "+hostLmsItem.getLocalId())))
+							.flatMap(bibRecord -> {
+								// But of course we need our cluster record
+								if (bibRecord.getContributesTo() == null || bibRecord.getContributesTo().getId() == null) {
+									return Mono.error(new IllegalStateException("BibRecord " + bibRecord.getId() + " has no cluster!"));
+								}
+								// We should also check if it's deleted, too.
+								UUID resolvedBibClusterId = bibRecord.getContributesTo().getId();
+
+								boolean isClusterDeleted = Boolean.TRUE.equals(bibRecord.getContributesTo().getIsDeleted());
+
+								if(isClusterDeleted) {
+									return Mono.error(new IllegalStateException("CLUSTER_DELETED: The cluster record " + resolvedBibClusterId + " is deleted. Walk up is not possible!"));
+								}
+
+								// Once we have our cluster, we can build our command
+								// For walk up we know we can use the supplying agency code, which should be sent with the payload
+								// Supplier and pickup are the same.
+								// Borrower is ALWAYS different, or it'd be a local request.
+								var placeCommand = PlacePatronRequestCommand.builder()
+									.requestor(PlacePatronRequestCommand.Requestor.builder()
+										.localId(command.getPatronLocalId())
+										.localSystemCode(command.getPatronHostLmsCode())
+										.agencyCode(command.getPatronAgencyCode())
+										.build())
+									.item(PlacePatronRequestCommand.Item.builder()
+										.localId(hostLmsItem.getLocalId())
+										.localSystemCode(command.getItemHostLmsCode())
+										.agencyCode(command.getItemAgencyCode())
+										.build())
+									.citation(PlacePatronRequestCommand.Citation.builder()
+										.bibClusterId(resolvedBibClusterId)
+										.build())
+									.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
+										.code(command.getPickupLocationCode())
+										.build())
+									.description("Walk-up request for barcode: " + command.getItemBarcode())
+									.isExpeditedRequest(true)
+									.build();
+								return placePatronRequestExpeditedCheckout(placeCommand);
+							});
+					})
+			);
 	}
 
 	private static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(

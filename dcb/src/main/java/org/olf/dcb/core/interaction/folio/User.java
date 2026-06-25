@@ -16,6 +16,7 @@ public class User {
 	@Nullable User.PersonalDetails personal;
 	@Nullable Boolean blocked;
 	@Nullable Boolean active;
+	@Nullable String expirationDate;
 
 	@Serdeable
 	@Builder

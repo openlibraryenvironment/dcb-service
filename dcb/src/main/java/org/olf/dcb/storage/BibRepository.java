@@ -184,4 +184,9 @@ where bi.owner_id = br.id and
 		String value
 	) {
 	};
+
+	@NonNull
+	@SingleResult
+	Publisher<BibRecord> findBySourceSystemIdAndSourceRecordId(@NonNull UUID sourceSystemId, @NonNull String sourceRecordId);
+
 }

@@ -214,6 +214,7 @@ public class HostLmsService implements IngestSourcesProvider {
       .then( Mono.defer(() -> deleteAllHostLmsBibs( id )))
 			.then( Mono.defer(() -> deleteAllRawSourceRecords(id)) )
 			.then( Mono.defer(() -> deleteAllSourceRecords(id)) )
+			.then( Mono.defer(() -> Mono.from(hostLmsRepository.delete(id))) )
 			.thenReturn(id);
 		
 		// Need to fetch all bibs, soft delete them and then expunge the source records from the database.

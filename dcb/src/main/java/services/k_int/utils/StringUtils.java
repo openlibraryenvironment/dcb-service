@@ -40,6 +40,17 @@ public interface StringUtils {
 			: value.toString();
 	}
 
+	/**
+	 * Null safe string equality
+	 * Named stringEquals rather than equals to avoid conflicts with other methods
+	 * @param first first string value to compare
+	 * @param second second string value to compare
+	 * @return true if equal, false otherwise
+	 */
+	static boolean stringEquals(String first, String second) {
+		return org.apache.commons.lang3.StringUtils.equals(first, second);
+	}
+
 	interface Functions {
 		static Function<String, String> formatAs(String pattern) {
 			return (String subject) -> String.format(pattern, subject);

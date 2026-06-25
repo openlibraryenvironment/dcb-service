@@ -28,6 +28,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCredentials;
 import org.olf.dcb.core.interaction.polaris.exceptions.PAPIAuthException;
 import reactor.core.publisher.Mono;
 
@@ -56,7 +58,7 @@ class PAPIAuthFilter {
 	}
 
 	Mono<MutableHttpRequest<?>> ensurePatronAuth(MutableHttpRequest<?> request,
-		PAPIClient.PatronCredentials patronCredentials, Boolean isRequestPublicMethod) {
+		PatronCredentials patronCredentials, Boolean isRequestPublicMethod) {
 		// Since some methods requiring patron authentication can also be authenticated by staff, we require this to be declared alongside the request
 		isPublicMethod = isRequestPublicMethod;
 
@@ -86,7 +88,8 @@ class PAPIAuthFilter {
 	}
 
 	private Mono<MutableHttpRequest<?>> patronAuthentication(MutableHttpRequest<?> request,
-		PAPIClient.PatronCredentials patronCredentials, Boolean authenticatePatronAsStaff) {
+		PatronCredentials patronCredentials, Boolean authenticatePatronAsStaff) {
+
 		if (authenticatePatronAsStaff) {
 			return staffAuthentication(request, TRUE);
 		}
@@ -102,7 +105,7 @@ class PAPIAuthFilter {
 			.map(token -> authorization(request));
 	}
 
-	private Mono<PatronAuthToken> patronAuthenticator(PAPIClient.PatronCredentials patronCredentials) {
+	private Mono<PatronAuthToken> patronAuthenticator(PatronCredentials patronCredentials) {
 		return Mono.defer(() -> createPatronAuthRequest(patronCredentials)
 			.flatMap(request -> client.exchange(request, PatronAuthToken.class, TRUE))
 			.map(HttpResponse::body))
@@ -137,7 +140,7 @@ class PAPIAuthFilter {
 	}
 
 	private Mono<MutableHttpRequest<?>> createPatronAuthRequest(
-		PAPIClient.PatronCredentials patronCredentials) {
+		PatronCredentials patronCredentials) {
 
 		final var patronAuthUri = "/PAPIService/REST/public" + URI_PARAMETERS + "/authenticator/patron";
 
@@ -232,7 +235,7 @@ class PAPIAuthFilter {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class PatronAuthToken {
+	public static class PatronAuthToken {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
@@ -261,7 +264,7 @@ class PAPIAuthFilter {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class AuthToken {
+	public static class AuthToken {
 		@JsonProperty("PAPIErrorCode")
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")

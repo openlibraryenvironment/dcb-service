@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static java.util.UUID.randomUUID;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
@@ -15,18 +14,20 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.InformationMessage;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecordFull;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExtension;
-import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.RequestExtensionData;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.SysHoldRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowRequest;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse;
+import org.olf.dcb.core.interaction.polaris.PAPIAuthFilter.PatronAuthToken;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetResponse;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemOperationResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistration;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronSearchResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronUpdateResult;
+import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronValidateResult;
 import org.olf.dcb.test.MockServer;
 import org.olf.dcb.test.MockServerCommonRequests;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -47,19 +48,34 @@ public class MockPolarisFixture {
 	}
 
 	public void mockPapiStaffAuthentication() {
-		mockServer.mockPost(paths.protectedPapiService("/authenticator/staff"), "test-staff-auth.json");
+		mockServer.mockPost(paths.protectedPapiService("/authenticator/staff"),
+			// Values taken from previously hard coded responses
+			PAPIAuthFilter.AuthToken.builder()
+				.papiErrorCode(0)
+				.accessToken("string")
+				.accessSecret("string")
+				.errorMessage("string")
+				.polarisUserID(0)
+				.branchID(0)
+				.authExpDate("2023-09-18T16:40:04.652Z")
+				.build());
 	}
 
 	public void mockAppServicesStaffAuthentication() {
-		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"), "auth-response.json");
+		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
+			// Values taken from previously hard coded responses
+			ApplicationServicesAuthFilter.AuthToken.builder()
+				.accessToken("fzB8NAopx8CEwSQI5HqpMCTQrjWm1e1x")
+				.accessSecret("C5UnM8pmim1hfZRQ")
+				.build());
 	}
 
-	public void mockPatronAuthentication() {
-		mockServer.mockPost(paths.publicPapiService("/authenticator/patron"), "test-patron-auth.json");
+	public void mockPatronAuthentication(PatronAuthToken responseBody) {
+		mockServer.mockPost(paths.publicPapiService("/authenticator/patron"), responseBody);
 	}
 
-	public void mockCreatePatron(PatronRegistrationCreateResult response) {
-		mockServer.replaceMock(commonRequests.post(paths.createPatron()), response);
+	public void mockCreatePatron(PatronRegistrationCreateResult responseBody) {
+		mockServer.replaceMock(commonRequests.post(paths.createPatron()), responseBody);
 	}
 
 	public void mockUpdatePatron(String patronBarcode) {
@@ -117,8 +133,8 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.patronById(patronId), serverError());
 	}
 
-	public void mockGetPatronByBarcode(String barcode) {
-		mockServer.mockGet(paths.patronByBarcode(barcode), "patron-by-barcode.json");
+	public void mockGetPatronByBarcode(String barcode, PatronValidateResult responseBody) {
+		mockServer.mockGet(paths.patronByBarcode(barcode), responseBody);
 	}
 
 	public void mockGetPatronCirculationBlocks(String barcode,
@@ -156,24 +172,15 @@ public class MockPolarisFixture {
 			okText("\"%s\"".formatted(barcode)));
 	}
 
-	public void mockCheckoutItemToPatron(String localPatronBarcode) {
-		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "itemcheckoutsuccess.json");
+	public void mockItemCheckout(String localPatronBarcode, ItemOperationResult response) {
+		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), response);
 	}
 
-	public void mockRenewalSuccess(String localPatronBarcode) {
-		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "renewal-success.json");
-	}
-
-	public void mockRenewalItemBlockedError(String localPatronBarcode) {
-		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), "renewal-item-blocked.json");
-	}
-
-	public void mockGetItemsForBib(Integer bibId) {
-		mockServer.mockGet(paths.itemsByBibId(bibId), "items-get.json");
-	}
-
-	public void mockGetItemsForBibWithShelfLocations(Integer bibId) {
-		mockServer.mockGet(paths.itemsByBibId(bibId), "items-get-with-shelf-locations.json");
+	public void mockGetItemsForBib(Integer bibId, List<ItemGetRow> expectedItems) {
+		mockServer.mockGet(paths.itemsByBibId(bibId), okJson(
+			ItemGetResponse.builder()
+				.ItemGetRows(expectedItems)
+				.build()));
 	}
 
 	public void mockGetItem(Integer itemId, ItemRecordFull expectedItem) {
@@ -187,38 +194,6 @@ public class MockPolarisFixture {
 	public void mockGetItemBarcode(Integer localItemId, String barcode) {
 		mockServer.mockGet(paths.getItemByBarcode(localItemId),
 			okText("\"%s\"".formatted(barcode)));
-	}
-
-	void mockPlaceHold() {
-		mockServer.replaceMock(commonRequests.post(paths.workflow()),
-			WorkflowResponse.builder()
-				.workflowRequestGuid(randomUUID().toString())
-				.workflowStatus(1)
-				.informationMessages(List.of(
-					InformationMessage.builder()
-						.type(1)
-						.title("")
-						.message("The hold request has been created.")
-						.build()))
-				.build());
-	}
-
-	public void mockPlaceHoldUnsuccessful() {
-		mockServer.replaceMock(commonRequests.post(paths.workflow()), "unsuccessful-place-request.json");
-	}
-
-	void verifyPlaceHold(RequestExtensionData expectedRequest) {
-		mockServer.verifyPost(paths.workflow(), WorkflowRequest.builder()
-			.workflowRequestType(5)
-			.txnBranchID(73)
-			.txnUserID(1)
-			.txnWorkstationID(1)
-			// Cannot match on expiration date and notes because it is generated internally
-			.requestExtension(RequestExtension.builder()
-				.workflowRequestExtensionType(9)
-				.data(expectedRequest)
-				.build())
-			.build());
 	}
 
 	public void mockListPatronLocalHolds(Integer patronId, SysHoldRequest hold) {
@@ -278,11 +253,17 @@ public class MockPolarisFixture {
 			okJson(response), Times.once());
 	}
 
-	void mockGetMaterialTypes() {
-		mockServer.mockGet(paths.applicationServices("/materialtypes"), "materialtypes.json");
+	public void verifyWorkflow(WorkflowRequest expectedBody) {
+		mockServer.verifyPost(paths.workflow(), expectedBody);
 	}
 
-	void mockGetItemStatuses() {
-		mockServer.mockGet(paths.applicationServices("/itemstatuses"), "itemstatuses.json");
+	void mockGetMaterialTypes(List<ApplicationServicesClient.MaterialType> responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.applicationServices("/materialtypes")),
+			responseBody);
+	}
+
+	void mockGetItemStatuses(List<PolarisLmsClient.PolarisItemStatus> responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.applicationServices("/itemstatuses")),
+			responseBody);
 	}
 }

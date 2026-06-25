@@ -134,7 +134,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		{
 			log.info("PATRON EXPIRED!");
 			eligibilityCheckResults.add(failedUm("PATRON_EXPIRED",
-				"Patron \"%s\" from \"%s\" has expired. Expiry date: \"%s\""
+				"This patron \"%s\" from \"%s\" has expired. Please see a librarian. Expiry date: \"%s\""
 					.formatted(localPatronId, hostLmsCode, expiryDate),
 				intMessageService.getMessage("PATRON_EXPIRED")));
 		}
@@ -144,7 +144,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		// that a patron could be deleted, but Sierra will still return its record.
 		if (deleted) {
 			eligibilityCheckResults.add(failedUm("PATRON_DELETED",
-				"Patron \"%s\" from \"%s\" is marked as deleted in the local system".formatted(localPatronId, hostLmsCode),
+				"Patron \"%s\" from \"%s\" appears to have been deleted in the local system. Please see a librarian."
+					.formatted(localPatronId, hostLmsCode),
 				intMessageService.getMessage("PATRON_DELETED"))
 			);
 		}
@@ -223,11 +224,8 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		));
 	}
 
-	// Check expiry
-
-	// Check fines?
-
-	// Anything else that will kill a request consistently
-
+	// There may be scope here to address other things that would kill a request instantly, such as fines.
+	// This is helpful to avoid requests going straight to error.
+	// But we must be conscious that we don't have much time in pre-flights.
 
 }

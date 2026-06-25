@@ -4,7 +4,6 @@ import static io.micronaut.http.HttpHeaders.AUTHORIZATION;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
-import java.time.Instant;
 import java.util.Base64;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -88,7 +87,7 @@ class ApplicationServicesAuthFilter {
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class AuthToken {
+	public static class AuthToken {
 		@JsonProperty("SiteDomain")
 		private String siteDomain;
 		@JsonProperty("UserDomain")
@@ -105,18 +104,13 @@ class ApplicationServicesAuthFilter {
 		private String ermsNetworkAddress;
 		@JsonProperty("DataSource")
 		private String dataSource;
-
-		public boolean isExpired() {
-			Instant authExpInstant = Instant.parse(authExpDate);
-			return authExpInstant.isBefore(Instant.now());
-		}
 	}
 
 	@Builder
 	@Data
 	@AllArgsConstructor
 	@Serdeable
-	private static class PolarisUser {
+	public static class PolarisUser {
 		@JsonProperty("PolarisUserID")
 		private Integer polarisUserID;
 		@JsonProperty("OrganizationID")

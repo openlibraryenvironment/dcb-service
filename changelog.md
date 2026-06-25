@@ -1,11 +1,48 @@
 # Changelog
 
+## Version 8.70.0
+
+### Additions
+* [General]
+	* Auto-update expiring Sierra virtual patrons [DCB-2070]
+
+### Changes
+* [Chore]
+	* API for triggering manual re-resolution
+	* Polaris AV renewal limit [DCB-2197]
+	* Update delete Host LMS method
+
+## Version 8.69.1
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Also update formal-release.yml to explicitly use GraalVM Community Edition
+
+## Version 8.69.0
+
+### Additions
+* [General]
+	* Walk-up requesting using item barcode [DCB-2142]
+	* Support searching for an item by barcode [DCB-2175]
+
+### Changes
+* [Chore]
+	* Changelog - Generate the changelog
+	* Update wording in new pre-flights
+	* Update release.yml to explicitly use GraalVM Community Edition
+
+### Fixes
+* [General]
+	* Improve patron handling expiry checks [DCB-2174]
+
 ## Version 8.68.1
 
 ### Changes
 * [Build]
 	* Bump micronaut version to 4.10.11
 * [Chore]
+	* Changelog - Generate the changelog
 	* Allow consortium administrators to access "named SQL" endpoint only
 
 ### Fixes
