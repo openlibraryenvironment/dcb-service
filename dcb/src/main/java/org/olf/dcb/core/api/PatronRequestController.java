@@ -76,10 +76,16 @@ public class PatronRequestController {
 		this.trackingService = trackingService;
 	}
 	
-	public PatronRequest ensureValidStateForTransition( final PatronRequest patronRequest ) {
+	public PatronRequest ensureValidStateForCleanupTransition( final PatronRequest patronRequest ) {
 		return switch (patronRequest.getStatus()) {
-			// we want to be able to clean up errored requests, so am removing this for now
+			// we want to be able to clean up errored requests, so I am removing this for now
 			// case ERROR -> throw new IllegalStateException("Cannot transition errored requests");
+
+			// In order to block the API when items are "out" we need to error on any patron requests which are in this state
+			case PICKUP_TRANSIT -> throw new IllegalStateException("Cannot transition requests where item is in PICKUP_TRANSIT");
+			case RECEIVED_AT_PICKUP -> throw new IllegalStateException("Cannot transition requests where item is in RECEIVED_AT_PICKUP");
+			case LOANED -> throw new IllegalStateException("Cannot transition requests where item is in LOANED");
+			case RETURN_TRANSIT -> throw new IllegalStateException("Cannot transition requests where item is in RETURN_TRANSIT");
 			case CANCELLED -> throw new IllegalStateException("Cannot transition cancelled requests");
 
 			default -> patronRequest;
@@ -103,7 +109,7 @@ public class PatronRequestController {
 
 		return patronRequestService
 			.findById( patronRequestId )
-			.map( this::ensureValidStateForTransition )
+			.map( this::ensureValidStateForCleanupTransition )
 			.zipWhen( (req) -> Mono.just(cleanupPatronRequestTransition))
 			.flatMap( TupleUtils.function(workflowService::progressUsing )) // Note: progressUsing can return an empty mono
 			.doOnSuccess(pr -> log.info("Successful cleanup for patron request {}", patronRequestId))
