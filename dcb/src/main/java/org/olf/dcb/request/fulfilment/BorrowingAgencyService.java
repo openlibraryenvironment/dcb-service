@@ -109,9 +109,25 @@ public class BorrowingAgencyService {
 		final var patronRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPatronRequest);
 		final var hostLmsCode = getValueOrNull(patronRequest, PatronRequest::getPatronHostlmsCode);
 
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("hostLmsCode", getValue(hostLmsCode, "No value present"));
+		auditData.put("patronRequest", patronRequest != null ? "Exists" : "No value present");
+
 		log.info("WORKFLOW cleanUp {}", patronRequest);
 
 		if (hostLmsCode != null && patronRequest != null) {
+
+			if( patronRequest.getStatus() == PatronRequest.Status.PICKUP_TRANSIT ||
+				patronRequest.getStatus() == PatronRequest.Status.RECEIVED_AT_PICKUP ||
+				patronRequest.getStatus() == PatronRequest.Status.LOANED ) {
+
+				final var message = "Borrower cleanup : Patron request status prevents complete request cleanup";
+
+				return Mono.from(hostLmsService.getClientFor(hostLmsCode))
+					.flatMap(client -> deleteRequestIfPresent(client, patronRequest) )
+					.flatMap(client -> patronRequestAuditService.addAuditEntry(patronRequest, message, auditData))
+					.thenReturn(requestWorkflowContext);
+			}
 			return Mono.from(hostLmsService.getClientFor(hostLmsCode))
 				// note: order of requests are important
 				.flatMap(client -> deleteRequestIfPresent(client, patronRequest) )
@@ -121,9 +137,6 @@ public class BorrowingAgencyService {
 		}
 
 		final var message = "Borrower cleanup : Skipped";
-		final var auditData = new HashMap<String, Object>();
-		auditData.put("hostLmsCode", getValue(hostLmsCode, "No value present"));
-		auditData.put("patronRequest", patronRequest != null ? "Exists" : "No value present");
 		return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
 			.flatMap(audit -> Mono.just(requestWorkflowContext));
 	}
