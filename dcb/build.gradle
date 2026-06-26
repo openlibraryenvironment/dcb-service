@@ -298,11 +298,19 @@ tasks {
 
 	dockerfileNative {
 		label(labels)
-                // graalArch.set(org.apache.tools.ant.taskdefs.condition.Os.isArch("aarch64") ? "aarch64" : "amd64")
-                // graalArch.set("x64")
-                // graalArch.set("compatibility")
-                // Apparently graal defaults to x86-64-v3 - dev server is v2 so targetting v2
-                // graalArch.set("x86-64-v2")
+		jdkVersion.set("25")
+		useCopyLink.set(false)
+		graalArch.set("x64")
+
+		doLast {
+			def dockerfileFile = destFile.get().asFile
+			def original = dockerfileFile.text
+			def collapsedConfigDirs = original
+				.replaceAll('(?m)^RUN mkdir /home/app/config-dirs$\\R(?:^RUN mkdir -p /home/app/config-dirs/[^\\r\\n]+$\\R)+', '')
+				.replaceAll('(?m)^(?:COPY config-dirs/[^\\r\\n]+ /home/app/config-dirs/[^\\r\\n]+$\\R)+', 'COPY config-dirs /home/app/config-dirs\n')
+
+			dockerfileFile.text = collapsedConfigDirs
+		}
 	}
 
 	boolean isPre = project.hasProperty('versionPreRelease') && !project.property('versionPreRelease').equals('unspecified') &&
@@ -348,6 +356,29 @@ tasks {
 
 	dockerBuildNative {
 		images = nativeImageNames
+	}
+
+	project.tasks.register('dockerfileSpikeNative', com.bmuschko.gradle.docker.tasks.image.Dockerfile) {
+		dependsOn 'nativeCompile'
+		destFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.spike'))
+		from('cgr.dev/chainguard/wolfi-base:latest')
+		workingDir('/app')
+		copyFile('dcb', '/app/application')
+		exposePort(8080)
+		label(labels)
+		entryPoint('/app/application')
+	}
+
+	project.tasks.register('dockerBuildSpikeNative', com.bmuschko.gradle.docker.tasks.image.DockerBuildImage) {
+		dependsOn 'dockerfileSpikeNative'
+		inputDir.set(layout.buildDirectory.dir('native/nativeCompile'))
+		dockerFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.spike'))
+		images.set(nativeImageNames)
+	}
+
+	project.tasks.register('dockerPushSpikeNative', com.bmuschko.gradle.docker.tasks.image.DockerPushImage) {
+		dependsOn 'dockerBuildSpikeNative'
+		images.set(nativeImageNames)
 	}
 
 
@@ -397,7 +428,7 @@ graalvmNative {
             buildArgs.add('--verbose')
             buildArgs.add('-march=x86-64-v2')
             buildArgs.add('-H:+AddAllCharsets')
-            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j.LoggerFactory,org.slf4j.helpers.SubstituteServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider,ch.qos.logback,kotlin.coroutines.intrinsics.CoroutineSingletons')
+            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,ch.qos.logback,kotlin.coroutines.intrinsics.CoroutineSingletons')
             buildArgs.add('--add-opens=java.base/java.nio=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED')
