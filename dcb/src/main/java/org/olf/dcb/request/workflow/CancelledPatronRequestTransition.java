@@ -102,6 +102,10 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> cancelSupplierRequest() {
 		return ctx -> {
+			if (isDeclarativeSupplierRequest(ctx)) {
+				return auditUnsupportedDeclarativeSupplierCleanup(ctx,
+					"Declarative supplier cancellation is not implemented; skipping imperative supplier cleanup.");
+			}
 
 			final var localRequestStatus = extractFromSupplierReq(ctx, SupplierRequest::getLocalStatus, "LocalStatus");
 
@@ -161,6 +165,11 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> verifySupplierCancellation() {
 		return ctx -> {
+			if (isDeclarativeSupplierRequest(ctx)) {
+				return auditUnsupportedDeclarativeSupplierCleanup(ctx,
+					"Declarative supplier cancellation verification is not implemented; skipping imperative supplier verification.");
+			}
+
 			final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
 			final var result = getName() + " : verification result";
 
@@ -222,6 +231,33 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 
 	private static Boolean isRequestCancelled(String status) {
 		return HOLD_CANCELLED.equals(status) || HOLD_MISSING.equals(status);
+	}
+
+	private Mono<RequestWorkflowContext> auditUnsupportedDeclarativeSupplierCleanup(
+		RequestWorkflowContext ctx,
+		String message) {
+
+		final var auditData = new HashMap<String, Object>();
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		auditData.put("supplierProtocol",
+			getValue(supplierRequest, SupplierRequest::getProtocol, "Unknown"));
+		auditData.put("supplierHostLmsCode",
+			getValue(supplierRequest, SupplierRequest::getHostLmsCode, "Unknown"));
+		auditData.put("supplierRequestId",
+			getValue(supplierRequest, SupplierRequest::getLocalId, "Unknown"));
+
+		return patronRequestAuditService.addAuditEntry(
+				ctx.getPatronRequest(),
+				message,
+				auditData)
+			.thenReturn(ctx);
+	}
+
+	private static boolean isDeclarativeSupplierRequest(RequestWorkflowContext ctx) {
+		final var protocol = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest,
+			SupplierRequest::getProtocol);
+
+		return protocol != null && !protocol.isBlank();
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> updatePatronRequestStatus() {

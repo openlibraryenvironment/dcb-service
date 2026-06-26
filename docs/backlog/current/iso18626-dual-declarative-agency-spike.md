@@ -861,6 +861,13 @@ Work:
 Expected result: unsupported production behaviours fail visibly rather than
 performing incorrect imperative cleanup.
 
+Spike guard adopted: when an in-flight supplier request carries declarative
+protocol evidence, cancellation cleanup audits that declarative supplier
+cancellation and verification are not implemented and skips the imperative
+supplier hold cancellation/verification calls. Production cancellation or
+compensation for ISO18626 remains a follow-up capability, not an implicit
+fallback to host-LMS imperative cleanup.
+
 ## Minimal Code Touch List
 
 Expected primary production files:
