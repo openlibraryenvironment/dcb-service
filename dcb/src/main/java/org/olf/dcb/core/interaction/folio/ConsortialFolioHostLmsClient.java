@@ -1396,39 +1396,18 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(GET, PATH_INVENTORY_ITEMS)
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
-		return makeRequest(request, Argument.of(io.micronaut.json.tree.JsonNode.class))
-			.flatMap(node -> {
-				var items = node.get("items");
-
-				if (items == null || items.size() == 0) {
+		return makeRequest(request, Argument.of(InventoryItemCollection.class))
+			.<HostLmsItem>flatMap(itemsCollection -> {
+				if (isEmpty(itemsCollection.getItems())) {
 					log.warn("No item found in FOLIO for barcode: {}", barcode);
 					return Mono.empty();
 				}
 
-				var item = items.values().iterator().next();
-				var id = item.get("id").getStringValue();
-				var fetchedBarcode = item.get("barcode") != null ? item.get("barcode").getStringValue() : barcode;
-
-				var statusNode = item.get("status");
-				var rawStatus = statusNode != null ? statusNode.get("name").getStringValue() : "Unknown";
-
-				var holdingsRecordId = item.get("holdingsRecordId") != null ? item.get("holdingsRecordId").getStringValue() : null;
-				log.info("Item is {}", item);
-
-				// If we already have instance ID (unlikely) we don't have to go searching
-				var directInstanceIdNode = item.get("instanceId");
-				if (directInstanceIdNode != null && !directInstanceIdNode.isNull()) {
-					return Mono.just(buildHostLmsItem(id, fetchedBarcode, rawStatus, directInstanceIdNode.getStringValue()));
+				var item = itemsCollection.getItems().iterator().next();
+				if (item.getBarcode() == null) {
+					item.setBarcode(barcode);
 				}
-
-				if (holdingsRecordId == null) {
-					log.warn("No holdingsRecordId found for item barcode: {} - cannot resolve Bib ID", barcode);
-					return Mono.just(buildHostLmsItem(id, fetchedBarcode, rawStatus, null));
-				}
-
-				return fetchInstanceIdFromInventory(holdingsRecordId)
-					.map(fetchedInstanceId -> buildHostLmsItem(id, fetchedBarcode, rawStatus, fetchedInstanceId))
-					.defaultIfEmpty(buildHostLmsItem(id, fetchedBarcode, rawStatus, null));
+				return buildHostLmsItem(item);
 			})
 			.doOnError(e -> log.error("Failed to fetch item by barcode {} from FOLIO: {}", barcode, e.getMessage()));
 	}
@@ -1445,6 +1424,24 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		};
 	}
 
+	private Mono<HostLmsItem> buildHostLmsItem(InventoryItem item) {
+		log.info("Item is {}", item);
+
+		var id = item.getId();
+		var barcode = item.getBarcode();
+		var rawStatus = item.getStatus() != null ? item.getStatus().getName() : "Unknown";
+		var holdingsRecordId = item.getHoldingsRecordId();
+
+		if (holdingsRecordId == null) {
+			log.warn("No holdingsRecordId found for item barcode: {} - cannot resolve Bib ID", barcode);
+			return Mono.just(buildHostLmsItem(id, barcode, rawStatus, null));
+		}
+
+		return fetchInstanceIdFromInventory(holdingsRecordId)
+			.map(fetchedInstanceId -> buildHostLmsItem(id, barcode, rawStatus, fetchedInstanceId))
+			.defaultIfEmpty(buildHostLmsItem(id, barcode, rawStatus, null));
+	}
+
 	private Mono<String> fetchInstanceIdFromInventory(String holdingsRecordId) {
 		log.debug("Fetching instance record via holdingsRecordId {} to resolve instanceId", holdingsRecordId);
 
@@ -1452,17 +1449,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(GET, PATH_INVENTORY_INSTANCES)
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
-		return makeRequest(request, Argument.of(io.micronaut.json.tree.JsonNode.class))
-			.flatMap(node -> {
-				var instances = node.get("instances");
-				if (instances != null && instances.size() > 0) {
-					var instance = instances.values().iterator().next();
-					var idNode = instance.get("id");
-					if (idNode != null && !idNode.isNull()) {
-						return Mono.just(idNode.getStringValue());
-					}
+		return makeRequest(request, Argument.of(InventoryInstanceCollection.class))
+			.<String>flatMap(instanceCollection -> {
+				if (isEmpty(instanceCollection.getInstances())) {
+					log.warn("No instance found in FOLIO for holdingsRecordId: {}", holdingsRecordId);
+					return Mono.empty();
 				}
-				return Mono.empty();
+				var instance = instanceCollection.getInstances().iterator().next();
+				return Mono.just(instance.getId());
 			})
 			.onErrorResume(e -> {
 				log.error("Failed to fetch instance for holding {} for instanceId resolution: {}", holdingsRecordId, e.getMessage());
