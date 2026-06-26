@@ -153,7 +153,7 @@ publishSpikeDockerImage:
     - export DOCKER_IMAGE="docker.libsdev.k-int.com/knowledgeintegration/dcb2-imp-spike"
     - echo "Publishing $DOCKER_IMAGE"
     - ./gradlew -x test dockerPush
-    - ./gradlew -x test dockerPushSpikeNative
+    - ./gradlew -x test -PspikeNativeQuickBuild=true dockerPushSpikeNative
   cache:
     key: "$CI_COMMIT_REF_NAME"
     policy: pull
