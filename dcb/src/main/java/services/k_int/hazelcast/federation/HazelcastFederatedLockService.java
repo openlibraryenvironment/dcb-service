@@ -46,7 +46,7 @@ public class HazelcastFederatedLockService implements FederatedLockService {
     }
 	}
 	
-	private void releaseLockIfOwned( @NonNull FencedLock lock ) {
+	private void releaseLockIfOwned( FencedLock lock ) {
 		if (!lock.isLockedByCurrentThread()) {
 			
 			// Not owned by this thread.

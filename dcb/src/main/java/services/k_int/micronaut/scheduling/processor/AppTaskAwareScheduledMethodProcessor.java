@@ -1,13 +1,12 @@
 package services.k_int.micronaut.scheduling.processor;
 
-import java.util.Optional;
-
 import org.olf.dcb.core.AppConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.BeanContext;
 import io.micronaut.context.annotation.Replaces;
+import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.inject.BeanDefinition;
 import io.micronaut.inject.ExecutableMethod;
@@ -17,6 +16,7 @@ import jakarta.inject.Singleton;
 
 @Singleton
 @Replaces(bean = ScheduledMethodProcessor.class)
+@ReflectiveAccess
 public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcessor {
 
 	private static Logger log = LoggerFactory.getLogger(AppTaskAwareScheduledMethodProcessor.class);
@@ -24,7 +24,7 @@ public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcess
 	private final AppConfig config;
 
 	public AppTaskAwareScheduledMethodProcessor(BeanContext beanContext, 
-                Optional<ConversionService> conversionService,
+                ConversionService conversionService,
                 TaskExceptionHandler<?, ?> taskExceptionHandler, 
                 AppConfig appConfig) {
 		super(beanContext, conversionService, taskExceptionHandler);
@@ -33,7 +33,7 @@ public class AppTaskAwareScheduledMethodProcessor extends ScheduledMethodProcess
 	}
 
 	@Override
-	public void process(BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+	public <B> void process(BeanDefinition<B> beanDefinition, ExecutableMethod<B, ?> method) {
 
 		// If the task is an AppTask AND Enabled is set to false AND either the skipped list is NULL OR the skipped list contains this class
 		if ( method.hasAnnotation(AppTask.class) && !config.getScheduledTasks().isEnabled() ) {

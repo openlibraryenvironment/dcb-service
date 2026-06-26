@@ -158,7 +158,7 @@ public class PolarisItemMapper {
     };
   }
 
-	private Mono<Item> enrichItemWithAgencyUsingLocationId(@NonNull ItemGetRow itemGetRow, @NonNull Item item, @NonNull String hostLmsCode) {
+	private Mono<Item> enrichItemWithAgencyUsingLocationId(ItemGetRow itemGetRow, Item item, String hostLmsCode) {
 		return locationToAgencyMappingService.dataAgencyFromMappedExternal(hostLmsCode, "Location", itemGetRow.getLocationID().toString())
 			.map(item::setAgency)
 			.switchIfEmpty(Mono.defer(() -> {
@@ -212,8 +212,8 @@ public class PolarisItemMapper {
 			.build();
 	}
 
-	private boolean deriveItemSuppressedFlag(@NonNull ItemGetRow itemGetRow,
-		@NonNull Optional<ObjectRuleset> itemSuppressionRules, List<String> decisionLog) {
+	private boolean deriveItemSuppressedFlag(ItemGetRow itemGetRow,
+		Optional<ObjectRuleset> itemSuppressionRules, List<String> decisionLog) {
 
 		// do we display in pac? if false we need true for suppression
 		// if display in pac is set to true then suppression is false

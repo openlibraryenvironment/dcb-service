@@ -1,6 +1,6 @@
 package services.k_int.integration.opensearch;
 
-import org.apache.http.HttpHost;
+import org.apache.hc.core5.http.HttpHost;
 
 public interface OpenSearchearchSettings {
 
@@ -12,6 +12,6 @@ public interface OpenSearchearchSettings {
 	/**
 	 * Default OpenSearch host.
 	 */
-	HttpHost DEFAULT_HOST = new HttpHost("127.0.0.1", 9200, "http");
+	HttpHost DEFAULT_HOST = new HttpHost("http", "127.0.0.1", 9200);
 
 }

@@ -8,7 +8,7 @@ buildscript {
 
 plugins {
   id "io.micronaut.graalvm" version "$micronautGradleVersion"
-	id("com.github.johnrengelman.shadow") version "8.1.1"
+	id("com.gradleup.shadow") version "9.3.0"
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
 	id("io.micronaut.test-resources") version "$micronautGradleVersion"
@@ -17,7 +17,7 @@ plugins {
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
   // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
-  id "com.gorylenko.gradle-git-properties" version "2.5.0"
+  id "com.gorylenko.gradle-git-properties" version "4.0.1"
   id('com.jaredsburrows.license') version '0.9.8'
 }
 
@@ -29,7 +29,7 @@ repositories {
 }
 
 ext {
-  BASE_IMAGE = project.findProperty('BASE_IMAGE') ?: 'eclipse-temurin:21-jre-alpine'
+  BASE_IMAGE = project.findProperty('BASE_IMAGE') ?: 'eclipse-temurin:25-jre-alpine'
 }
 
 
@@ -50,7 +50,6 @@ dependencies {
 	annotationProcessor('io.micronaut:micronaut-graal')
   annotationProcessor("io.micronaut.micrometer:micronaut-micrometer-annotation")
 
-	compileOnly("org.graalvm.nativeimage:svm")
 	compileOnly("io.micronaut:micronaut-inject-java")
 
 
@@ -94,8 +93,12 @@ dependencies {
 
 	// These are needed to address critical CVEs that block deployment
 	implementation("io.netty:netty-handler")
+	implementation("org.apache.httpcomponents:httpasyncclient")
+	implementation("org.apache.httpcomponents:httpclient")
 	implementation("org.apache.httpcomponents.client5:httpclient5")
 	implementation("commons-beanutils:commons-beanutils")
+	implementation("com.fasterxml.jackson.core:jackson-databind")
+	implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-xml")
 	
 	implementation 'info.debatty:java-string-similarity'
 
@@ -111,9 +114,9 @@ dependencies {
 
 	//data
 	implementation("io.micronaut.r2dbc:micronaut-r2dbc-core")
+	implementation("io.micronaut.data:micronaut-data-connection-jdbc")
 	implementation("io.micronaut.data:micronaut-data-processor")
 	implementation("io.micronaut.data:micronaut-data-r2dbc")
-	implementation("io.micronaut.data:micronaut-data-jdbc")
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
 	// Introduced in DCB-1302 because of this issue https://github.com/micronaut-projects/micronaut-security/issues/1468
 	implementation("io.micrometer:context-propagation")
@@ -153,6 +156,7 @@ dependencies {
 	implementation 'com.hazelcast:hazelcast'
 
 	// Keep Testcontainers compatible with Docker API >= 1.44 on current GitHub runners.
+	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.3"))
 	testRuntimeOnly(platform("org.testcontainers:testcontainers-bom:2.0.3"))
 	testResourcesService(platform("org.testcontainers:testcontainers-bom:2.0.3"))
 
@@ -193,7 +197,7 @@ dependencies {
 
 	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
 
-	testRuntimeOnly("org.testcontainers:postgresql")
+	testRuntimeOnly("org.testcontainers:testcontainers-postgresql:2.0.5")
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
 	implementation("com.graphql-java:graphql-java-extended-scalars" )
@@ -230,14 +234,18 @@ run {
 }
 
 java {
-	sourceCompatibility = JavaVersion.toVersion("17")
-	targetCompatibility = JavaVersion.toVersion("17")
+	sourceCompatibility = JavaVersion.toVersion("25")
+	targetCompatibility = JavaVersion.toVersion("25")
 }
 
 micronaut {
 	runtime("netty")
 	testRuntime("junit5")
-	version "4.4.3"
+	version micronautVersion
+	testResources {
+		inferClasspath.set(false)
+		additionalModules.addAll("jdbc-postgresql", "r2dbc-postgresql", "r2dbc-pool")
+	}
 	processing {
 		incremental(true)
 		annotations("org.olf.dcb.*", "services.k_int.*")
@@ -253,6 +261,10 @@ micronaut {
 //      deduceEnvironment = false
 //      optimizeNetty = true
 //  }
+}
+
+tasks.matching { it.name == "inspectRuntimeClasspath" || it.name == "inspectTestRuntimeClasspath" }.configureEach {
+	dependsOn(tasks.named("generateGitProperties"))
 }
 
 final Set<String> jacocoExcludes = [
@@ -404,6 +416,7 @@ tasks.withType(ShadowJar) {
 }
 
 tasks.withType(Test).configureEach {
+    maxHeapSize = '2g'
     jvmArgs '--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED',
             '--add-opens=java.base/java.lang=ALL-UNNAMED',
             '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
@@ -411,58 +424,6 @@ tasks.withType(Test).configureEach {
             '--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED',
             '-Dio.netty.leakDetectionLevel=paranoid'
 }
-
-def oderedAnnotationDeps = new HashMap<String, Integer>()
-
-configurations.annotationProcessor { ap ->
-	ap.incoming.afterResolve { resolution ->
-
-		println ap.name
-		int count = 0
-    resolution.resolutionResult.allComponents.each	{ comp ->
-    	comp.dependencies.each { dependency ->
-
-    		if (ResolvedDependencyResult.class.isAssignableFrom( dependency.getClass() )) {
-    			ResolvedDependencyResult resDep = dependency as ResolvedDependencyResult
-    			final String key = "${resDep.selected}";
-    			if (oderedAnnotationDeps.containsKey( key )) return;
-
-	    	  //println dependency
-	      	oderedAnnotationDeps[key] = count++
-      	}
-      }
-    }
-    // println oderedAnnotationDeps
-  }
-}
-
-eclipse {
-  factorypath {
-  	file {
-	  	whenMerged { fp ->
-
-	  	  final String regex = '^.*\\/([^\\.\\/]+(\\.[^\\.\\/]+)+)\\/([^\\/]+)\\/(\\d+[^\\/]+)\\/.*$'
-	  	  final String subst = '$1:$3:$4';
-
-				// Change the enties
-				List entries = fp.getEntries().sort { s1, s2 ->
-				  final String sub1 = s1.canonicalPath.replaceAll( regex, subst )
-				  final String sub2 = s2.canonicalPath.replaceAll( regex, subst )
-
-					int val1 = oderedAnnotationDeps.get( sub1 ) ?: Integer.MAX_VALUE
-					int val2 = oderedAnnotationDeps.get( sub2 ) ?: Integer.MAX_VALUE
-
-					val1 <=> val2
-				}
-
-				fp.getEntries().each { fpent ->
-					println fpent
-				}
-			}
-		}
-  }
-}
-
 
 licenseReport {
   // Generate reports

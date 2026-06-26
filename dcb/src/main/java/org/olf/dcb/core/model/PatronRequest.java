@@ -332,14 +332,14 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 		return this;
 	}
 
-	private void decidePreviousStatus() {
+	void decidePreviousStatus() {
 		// set current status to previous
 		if (this.status != null) {
 			this.previousStatus = this.status;
 		}
 	}
 
-	private void decideOutOfSequenceFlag(Status status) {
+	void decideOutOfSequenceFlag(Status status) {
 		// An ERROR status will always be treated as out of sequence
 		if (this.status == Status.ERROR || status == Status.ERROR) {
 			this.outOfSequenceFlag = Boolean.TRUE;
@@ -545,8 +545,7 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 		return isUsingWorkflow(LOCAL_WORKFLOW);
 	}
 
-	@Transient
-	private boolean isUsingWorkflow(String intendedWorkflow) {
+	boolean isUsingWorkflow(String intendedWorkflow) {
 		return intendedWorkflow.equals(activeWorkflow);
 	}
 }

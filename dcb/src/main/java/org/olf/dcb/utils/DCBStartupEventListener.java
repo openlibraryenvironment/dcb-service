@@ -289,7 +289,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	}
 
 	@PreDestroy
-	private void preDestroy() {
+	void preDestroy() {
 		try {
 			log.info("preDestroy");
 			IMap<String,Map<String,String>> dcbNodeInfo = hazelcastInstance.getMap("DCBNodes");

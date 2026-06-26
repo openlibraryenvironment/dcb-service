@@ -86,7 +86,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 
 
 	@jakarta.annotation.PostConstruct
-	private void init() {
+	void init() {
 		log.info("IngestService::init - providers:{}",sourceProviders.toString());
 	}
 

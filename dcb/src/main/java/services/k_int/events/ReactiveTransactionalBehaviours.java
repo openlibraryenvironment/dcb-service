@@ -52,8 +52,7 @@ public class ReactiveTransactionalBehaviours {
 		return true;
 	}
 	
-	@NonNull
-	private static ConcurrentLinkedQueue<Runnable> getSideEffectQueueFor(@NonNull final ReactiveTransactionStatus<?> status) {
+	private static ConcurrentLinkedQueue<Runnable> getSideEffectQueueFor(final ReactiveTransactionStatus<?> status) {
 		ConcurrentLinkedQueue<Runnable> queue = sideEffects.computeIfAbsent(status, _s -> new ConcurrentLinkedQueue<>());
 		
 		// Create the listener for this transaction.

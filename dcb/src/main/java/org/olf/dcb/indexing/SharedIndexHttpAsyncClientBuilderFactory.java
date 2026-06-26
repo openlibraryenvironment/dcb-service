@@ -4,12 +4,14 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.hc.client5.http.auth.AuthScope;
+import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
+import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
+import org.apache.hc.client5.http.ssl.TrustAllStrategy;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +39,13 @@ public class SharedIndexHttpAsyncClientBuilderFactory {
 		
 		if (env.getActiveNames().contains(TRUST_ALL_CERTS)) {
 			// We can turn OFF cert varification
-			builder.setSSLContext(new SSLContextBuilder().loadTrustMaterial(null, TrustAllStrategy.INSTANCE).build());
+			var tlsStrategy = ClientTlsStrategyBuilder.create()
+				.setSslContext(new SSLContextBuilder().loadTrustMaterial(null, TrustAllStrategy.INSTANCE).build())
+				.buildAsync();
+
+			builder.setConnectionManager(PoolingAsyncClientConnectionManagerBuilder.create()
+				.setTlsStrategy(tlsStrategy)
+				.build());
 
 			final String warningBanner =
 					"********************* WARNING ********************\n"
@@ -51,7 +59,7 @@ public class SharedIndexHttpAsyncClientBuilderFactory {
 		if (config.username().isEmpty() || config.password().isEmpty()) return builder;
 		
 		final BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-		credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(config.username().get(), config.password().get()));
+		credentialsProvider.setCredentials(new AuthScope(null, -1), new UsernamePasswordCredentials(config.username().get(), config.password().get().toCharArray()));
 
 		
 		return builder.setDefaultCredentialsProvider(credentialsProvider);
