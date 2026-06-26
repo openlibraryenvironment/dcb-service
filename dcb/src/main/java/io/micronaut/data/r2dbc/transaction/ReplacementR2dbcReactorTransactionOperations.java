@@ -78,6 +78,12 @@ public class ReplacementR2dbcReactorTransactionOperations
 	}
 
 	@Override
+	public boolean managesTransaction(ReactiveTransactionStatus<Connection> status) {
+		return status instanceof DefaultReactiveTransactionStatus<?> defaultStatus
+			&& defaultStatus.transactionOperations == this;
+	}
+
+	@Override
 	public final TransactionDefinition getTransactionDefinition(ContextView contextView) {
 		ReactiveTransactionStatus<Connection> status = getTransactionStatus(contextView);
 		return status == null ? null : status.getTransactionDefinition();
@@ -128,7 +134,7 @@ public class ReplacementR2dbcReactorTransactionOperations
 			TransactionalCallback<Connection, T> handler) {
 		return connectionOperations.withConnectionFlux(definition.getConnectionDefinition(), connectionStatus -> {
 			DefaultReactiveTransactionStatus<Connection> txStatus = new DefaultReactiveTransactionStatus<>(connectionStatus,
-					true, definition);
+					true, definition, this);
 			return executeTransactionFlux(txStatus, handler);
 		});
 	}
@@ -163,7 +169,7 @@ public class ReplacementR2dbcReactorTransactionOperations
 			Function<ReactiveTransactionStatus<Connection>, Mono<T>> handler) {
 		return connectionOperations.withConnectionMono(definition.getConnectionDefinition(),
 				connectionStatus -> executeTransactionMono(
-						new DefaultReactiveTransactionStatus<>(connectionStatus, true, definition), handler));
+						new DefaultReactiveTransactionStatus<>(connectionStatus, true, definition, this), handler));
 	}
 
 	/**
@@ -322,8 +328,7 @@ public class ReplacementR2dbcReactorTransactionOperations
 		return doCommit(status);
 	}
 
-	@NonNull
-	private Publisher<Void> doCommit(@NonNull DefaultReactiveTransactionStatus<Connection> status) {
+	private Publisher<Void> doCommit(DefaultReactiveTransactionStatus<Connection> status) {
 		Flux<Void> op;
 		try {
 			if (status.isRollbackOnly()) {
@@ -341,9 +346,8 @@ public class ReplacementR2dbcReactorTransactionOperations
 		return op.as(flux -> doFinish(flux, status));
 	}
 
-	@NonNull
-	private Publisher<Void> doRollback(@NonNull DefaultReactiveTransactionStatus<Connection> status,
-			@NonNull Throwable throwable) {
+	private Publisher<Void> doRollback(DefaultReactiveTransactionStatus<Connection> status,
+			Throwable throwable) {
 		if (log.isWarnEnabled()) {
 			log.warn("Rolling back transaction on error: " + throwable.getMessage(), throwable);
 		}
@@ -378,17 +382,14 @@ public class ReplacementR2dbcReactorTransactionOperations
 		}).then();
 	}
 
-	@NonNull
-	private Context addTxStatus(@NonNull Context context, @NonNull ReactiveTransactionStatus<Connection> status) {
+	private Context addTxStatus(Context context, ReactiveTransactionStatus<Connection> status) {
 		return ReactorPropagation.addContextElement(context, new ReactiveTransactionPropagatedContext<>(this, status));
 	}
 
-	@NonNull
 	private NoTransactionException expectedTransaction() {
 		return new NoTransactionException("Expected an existing transaction, but none was found in the Reactive context.");
 	}
 
-	@NonNull
 	private TransactionUsageException propagationNotSupported(TransactionDefinition.Propagation propagationBehavior) {
 		return new TransactionUsageException(
 				"Found an existing transaction but propagation behaviour doesn't support it: " + propagationBehavior);
@@ -409,14 +410,16 @@ public class ReplacementR2dbcReactorTransactionOperations
 		private final ConnectionStatus<C> connectionStatus;
 		private final boolean isNew;
 		private final TransactionDefinition transactionDefinition;
+		private final ReactiveTransactionOperations<?> transactionOperations;
 		private boolean rollbackOnly;
 		private boolean completed;
 
 		public DefaultReactiveTransactionStatus(ConnectionStatus<C> connectionStatus, boolean isNew,
-				TransactionDefinition transactionDefinition) {
+				TransactionDefinition transactionDefinition, ReactiveTransactionOperations<?> transactionOperations) {
 			this.connectionStatus = connectionStatus;
 			this.isNew = isNew;
 			this.transactionDefinition = transactionDefinition;
+			this.transactionOperations = transactionOperations;
 		}
 
 		@Override
@@ -547,7 +550,7 @@ public class ReplacementR2dbcReactorTransactionOperations
 		}
 
 		private void doSubscribe(Subscriber<? super T> actualSubscriber,
-				@Nullable CoreSubscriber<? super T> coreSubscriber) {
+				CoreSubscriber<? super T> coreSubscriber) {
 			actualPublisher.subscribe(new CoreSubscriber<>() {
 
 				Subscription actualSubscription;

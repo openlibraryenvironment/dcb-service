@@ -200,14 +200,14 @@ public class ObjectRuleset implements Predicate<AnnotatedObject> {
 			return matches;
 		}
 		
-		private static <T> Optional<T> resolvePropertyPath(@Nullable Object t, @NonNull String path, Class<T> type, ObjectMapper objectMapper) { 
+		private static <T> Optional<T> resolvePropertyPath(Object t, String path, Class<T> type, ObjectMapper objectMapper) {
 			return Optional.ofNullable(t)
 				.flatMap( obj -> resolvePropertyPath(obj, path, objectMapper) )
 				.map( ObjectRulesetCondition::unwrapJsonScalarValues )
 				.map( obj -> ConversionService.SHARED.convertRequired(obj, type) );
 		}
 		
-		private static Optional<Object> resolvePropertyPath(@NonNull Object t, @NonNull String path, ObjectMapper objectMapper) {
+		private static Optional<Object> resolvePropertyPath(Object t, String path, ObjectMapper objectMapper) {
 			
 			var parts = REGEX_DOT.split(path);
 			

@@ -362,7 +362,7 @@ public class BibRecordService {
 			.flatMap(this::deleteBibAndUpdateCluster);
 	}
 	
-	private Mono<SourceRecord> emitReachableBibFromSource(@NonNull UUID bibId, @NonNull SourceRecord sr) {
+	private Mono<SourceRecord> emitReachableBibFromSource(UUID bibId, SourceRecord sr) {
 		// Assumes that bib id is equal to ingest ID which it is at the time of writing.
 		return ingest.get().tryConvertToIngestRecord(sr)
 			.map(IngestRecord::getUuid)

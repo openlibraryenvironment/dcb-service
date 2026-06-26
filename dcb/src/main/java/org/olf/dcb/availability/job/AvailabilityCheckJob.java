@@ -11,12 +11,10 @@ import java.util.function.Function;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.olf.dcb.availability.job.AvailabilityCheckChunk.AvailabilityCheckChunkBuilder;
-import org.olf.dcb.availability.job.BibAvailabilityCount.BibAvailabilityCountBuilder;
 import org.olf.dcb.availability.job.BibAvailabilityCount.Status;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
@@ -24,7 +22,6 @@ import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.indexing.SharedIndexService;
@@ -134,10 +131,11 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		if ( data.isEmpty() ) {
 			if ( errors.isEmpty() ) {
 				// No errors and no items... 0 availability.
-				return Flux.just(getAvailabilityCountDefaults( bib )
-					.count( 0 )
-					.mappingResult("LMS adapter gave empty response for [%s], please consult the logs.".formatted(bib.getId()))
-					.build());
+				return Flux.just(availabilityCount(
+					bib,
+					null,
+					0,
+					"LMS adapter gave empty response for [%s], please consult the logs.".formatted(bib.getId())));
 			}
 			
 			String combinedErrors =  errors.stream()
@@ -150,10 +148,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			}
 			
 			// Errors but no data.
-			return Flux.just(getAvailabilityCountDefaults( bib )
-				.count( 0 )
-				.mappingResult(combinedErrors)
-				.build());
+			return Flux.just(availabilityCount(bib, null, 0, combinedErrors));
 		}
 		
 		// Collate location codes from the items as counts
@@ -179,11 +174,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		}
 		
 		// Convert the map into a flux of items.
-		return Flux.fromIterable( locationCounts.entrySet() )
-			.map( entry -> getAvailabilityCountDefaults( bib )
-				.remoteLocationCode( entry.getKey() )
-				.count( entry.getValue() )
-				.build());
+			return Flux.fromIterable( locationCounts.entrySet() )
+			.map( entry -> availabilityCount(bib, entry.getKey(), entry.getValue(), null));
 	}
 	
 	private final LiveAvailabilityService liveAvailabilityService;
@@ -215,12 +207,20 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		this.jobConfig = jobConfig;
 	}
 
-	public static BibAvailabilityCountBuilder getAvailabilityCountDefaults( BibRecord bib ) {
-		
+	static BibAvailabilityCount availabilityCount(
+		BibRecord bib,
+		String remoteLocationCode,
+		int count,
+		String mappingResult) {
+
 		return BibAvailabilityCount.builder()
 			.hostLms( bib.getSourceSystemId() )
 			.bibId( bib.getId() )
-			.status( Status.UNMAPPED );
+			.remoteLocationCode(remoteLocationCode)
+			.count(count)
+			.mappingResult(mappingResult)
+			.status( Status.UNMAPPED )
+			.build();
 	}
 	
 	private Mono<BibAvailabilityCount> doSave( BibAvailabilityCount bac ) {
@@ -412,21 +412,6 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		log.error("Error during import job", t);
 	}
 	
-	private AvailabilityCheckChunkBuilder defaultChunkBuilder() {
-		
-		final boolean transitionedIntoOfficeHours = operations.getOfficeHours().isInsideHours();
-		if (transitionedIntoOfficeHours)
-			log.debug("Making this the last chunk as we've entered office hours");
-		
-		return AvailabilityCheckChunk.builder()
-			.jobId(getId())
-			.lastChunk( transitionedIntoOfficeHours ) // Default this chunk to last if we have gone into outside hours.
-			.checkpoint(JsonBuilder.obj(o -> o
-				.key("runStarted", vals -> vals.str(Instant.now().toString()))
-				.key("lastFetched", vals -> vals.str(Instant.now().toString()))));
-		
-	}
-	
 	private static AvailabilityCheckChunk chunkPostProcess(AvailabilityCheckChunk chunk) {
 		
 		if (!chunk.getData().isEmpty()) return chunk;
@@ -457,7 +442,18 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			.flatMapMany( TupleUtils.function( bibRecordService::findMissingAvailability ))
 			.collectList()
 			.flatMapIterable( Function.identity() )
-			.reduceWith( this::defaultChunkBuilder, (builder, item) -> builder.dataEntry(item) )
+				.reduceWith( () -> {
+					final boolean transitionedIntoOfficeHours = operations.getOfficeHours().isInsideHours();
+					if (transitionedIntoOfficeHours)
+						log.debug("Making this the last chunk as we've entered office hours");
+
+					return AvailabilityCheckChunk.builder()
+						.jobId(getId())
+						.lastChunk( transitionedIntoOfficeHours ) // Default this chunk to last if we have gone into outside hours.
+						.checkpoint(JsonBuilder.obj(o -> o
+							.key("runStarted", vals -> vals.str(Instant.now().toString()))
+							.key("lastFetched", vals -> vals.str(Instant.now().toString()))));
+				}, (builder, item) -> builder.dataEntry(item) )
 			.map( AvailabilityCheckChunkBuilder::build )
 			
 			// Temporarily adding a 50ms delay - steve to review

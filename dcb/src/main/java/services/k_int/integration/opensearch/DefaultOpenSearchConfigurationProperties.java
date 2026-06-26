@@ -2,10 +2,10 @@ package services.k_int.integration.opensearch;
 
 import java.util.Collections;
 
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpHost;
 import org.opensearch.client.NodeSelector;
 import org.opensearch.client.RestClientBuilder;
 

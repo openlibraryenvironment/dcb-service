@@ -51,7 +51,7 @@ public class SierraItemMapper {
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 	}
 	
-	private boolean deriveItemSuppressedFlag( @NonNull SierraItem item, @NonNull Optional<ObjectRuleset> itemSuppressionRules) {
+	private boolean deriveItemSuppressedFlag( SierraItem item, Optional<ObjectRuleset> itemSuppressionRules) {
 		
 		List<String> decisionLog = new ArrayList<String>();
 		if ( Boolean.TRUE.equals(item.getSuppressed()) ) return true;
@@ -119,7 +119,6 @@ public class SierraItemMapper {
 			.build();
 	}
 
-	@Nullable
 	private Instant parsedDueDate(SierraItem result) {
 		return Optional.ofNullable(result.getStatus())
 			.map(Status::getDuedate)

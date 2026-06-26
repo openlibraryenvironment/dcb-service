@@ -2,8 +2,8 @@ package services.k_int.integration.opensearch.convert;
 
 import java.util.Optional;
 
-import org.apache.http.Header;
-import org.apache.http.message.BasicHeader;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.message.BasicHeader;
 import org.opensearch.client.RestClientBuilder;
 
 import io.micronaut.context.annotation.Requires;

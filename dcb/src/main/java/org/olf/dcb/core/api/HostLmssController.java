@@ -91,7 +91,7 @@ public class HostLmssController {
 			});
 	}
 	
-	private Mono<MutableHttpResponse<Object>> startBackgroundDataRemoval( final @NonNull DataHostLms hostLms ) {
+	private Mono<MutableHttpResponse<Object>> startBackgroundDataRemoval( final DataHostLms hostLms ) {
 		hostLmsService.deleteHostLmsData( hostLms )
 			.subscribe(
 				lms -> log.info("Successfully removed data for hostLms [{}]", lms),

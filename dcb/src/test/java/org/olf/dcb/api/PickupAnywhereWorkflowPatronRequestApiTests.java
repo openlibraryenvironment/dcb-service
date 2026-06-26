@@ -340,7 +340,10 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	}
 
 	private BibPatch createCommonBibPatch() {
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
+
 		return BibPatch.builder()
+			.fixedFields(fixedFields)
 			.authors(List.of("Stafford Beer"))
 			.titles(List.of("Brain of the Firm"))
 			.build();

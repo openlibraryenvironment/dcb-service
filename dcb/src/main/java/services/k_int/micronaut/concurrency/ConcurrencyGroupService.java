@@ -36,11 +36,11 @@ public class ConcurrencyGroupService {
 		log.info("Created concurrency groups: {}", allGroups);
 	}
 	
-	private static String getKeyFromConcurrencyGroupAware( @NonNull ConcurrencyGroupAware groupAware ) {
+	private static String getKeyFromConcurrencyGroupAware( ConcurrencyGroupAware groupAware ) {
 		return groupAware.getConcurrencyGroupKey();
 	}
 	
-	private Integer getConcurrencyLimitFromConcurrencyGroupAware( @NonNull String groupKey ) {
+	private Integer getConcurrencyLimitFromConcurrencyGroupAware( String groupKey ) {
 		return Objects.requireNonNullElseGet(allGroups.get(groupKey), () -> {
 				log.warn("Concurrency group key [{}] requested but hasn't been configured. Default to using [{}]", groupKey, ConcurrencyGroup.DEFAULT_GROUP_KEY);
 				return allGroups.get(ConcurrencyGroup.DEFAULT_GROUP_KEY);

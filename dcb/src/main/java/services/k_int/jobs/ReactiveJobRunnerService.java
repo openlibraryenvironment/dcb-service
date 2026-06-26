@@ -71,7 +71,6 @@ public class ReactiveJobRunnerService {
 		};
 	}
 	
-	@NonNull
 	private <T extends JobChunk<?>> JobChunkProcessor getProcessorForChunkType( Class<T> type ) {
 		if (processorsCache.containsKey(type)) {
 			var theBean = processorsCache.get(type);

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 
@@ -25,11 +26,9 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.Decoder;
 import io.micronaut.serde.Encoder;
-import io.micronaut.serde.LimitingStream;
 import io.micronaut.serde.Serde;
 import io.micronaut.serde.SerdeRegistry;
 import io.micronaut.serde.config.SerdeConfiguration;
-import io.micronaut.serde.jackson.JacksonDecoder;
 import jakarta.inject.Singleton;
 
 @Requires(classes = Record.class)
@@ -366,9 +365,116 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 
 	@Override
 	public Record deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JacksonException {
-		
-		Decoder decoder = JacksonDecoder.create(p, LimitingStream.limitsFromConfiguration(serdeConfiguration));
-		final Argument<Record> type = Argument.of(Record.class);
-		return this.deserialize(decoder, registry.newDecoderContext(Record.class), type);
+		Record record = factory.newRecord();
+		decodeRecordTree(p.readValueAsTree(), record);
+		return record;
+	}
+
+	private void decodeRecordTree(JsonNode root, Record record) {
+		if (root == null || !root.isObject()) {
+			return;
+		}
+
+		JsonNode leader = root.get(KEY_LEADER);
+		if (leader != null && leader.isTextual() && StringUtils.isNotEmpty(leader.asText())) {
+			record.setLeader(factory.newLeader(leader.asText()));
+		}
+
+		JsonNode fields = root.get(KEY_FIELDS);
+		if (fields != null && fields.isArray()) {
+			fields.forEach(field -> decodeFieldTree(field, record));
+		}
+
+		decodeRepeatedControlFieldTree(root.get(KEY_CONTROLFIELD), record);
+		decodeRepeatedDataFieldTree(root.get(KEY_DATAFIELD), record);
+	}
+
+	private void decodeFieldTree(JsonNode field, Record record) {
+		if (field == null || !field.isObject()) {
+			return;
+		}
+
+		field.properties().forEach(entry -> {
+			String tag = entry.getKey();
+			JsonNode value = entry.getValue();
+
+			if (REGEX_CTRLFIELD.matcher(tag).matches() && value != null && !value.isNull()) {
+				record.addVariableField(factory.newControlField(tag, value.asText()));
+			} else if (REGEX_DATAFIELD.matcher(tag).matches() && value != null && value.isObject()) {
+				record.addVariableField(dataFieldFromTree(tag, value));
+			}
+		});
+	}
+
+	private void decodeRepeatedControlFieldTree(JsonNode controlField, Record record) {
+		if (controlField == null || !controlField.isObject()) {
+			return;
+		}
+
+		JsonNode tag = controlField.get(KEY_TAG);
+		JsonNode data = controlField.get(KEY_VALUE_INDICATOR);
+		if (tag != null && tag.isTextual()) {
+			record.addVariableField(factory.newControlField(tag.asText(), data == null || data.isNull() ? null : data.asText()));
+		}
+	}
+
+	private void decodeRepeatedDataFieldTree(JsonNode dataField, Record record) {
+		if (dataField == null || !dataField.isObject()) {
+			return;
+		}
+
+		JsonNode tag = dataField.get(KEY_TAG);
+		if (tag != null && tag.isTextual()) {
+			record.addVariableField(dataFieldFromTree(tag.asText(), dataField));
+		}
+	}
+
+	private DataField dataFieldFromTree(String tag, JsonNode fieldData) {
+		DataField df = factory.newDataField();
+		df.setTag(tag);
+
+		JsonNode indicator1 = fieldData.get(KEY_INDICATOR_1);
+		if (indicator1 != null && indicator1.isTextual()) {
+			df.setIndicator1(firstCharOrSpace(indicator1.asText()));
+		}
+
+		JsonNode indicator2 = fieldData.get(KEY_INDICATOR_2);
+		if (indicator2 != null && indicator2.isTextual()) {
+			df.setIndicator2(firstCharOrSpace(indicator2.asText()));
+		}
+
+		JsonNode subfields = fieldData.get(KEY_SUBFIELDS);
+		if (subfields != null && subfields.isArray()) {
+			subfields.forEach(subfield -> decodeSubfieldTree(subfield, df));
+		}
+
+		JsonNode repeatedSubfield = fieldData.get(KEY_SUBFIELD);
+		if (repeatedSubfield != null && repeatedSubfield.isObject()) {
+			JsonNode code = repeatedSubfield.get(KEY_CODE);
+			JsonNode data = repeatedSubfield.get(KEY_VALUE_INDICATOR);
+			if (code != null && code.isTextual()) {
+				df.addSubfield(factory.newSubfield(firstCharOrSpace(code.asText()), data == null || data.isNull() ? null : data.asText()));
+			}
+		}
+
+		return df;
+	}
+
+	private void decodeSubfieldTree(JsonNode subfield, DataField df) {
+		if (subfield == null || !subfield.isObject()) {
+			return;
+		}
+
+		subfield.properties().forEach(entry -> {
+			String code = entry.getKey();
+			if (StringUtils.isNotEmpty(code)) {
+				JsonNode value = entry.getValue();
+				df.addSubfield(factory.newSubfield(code.charAt(0), value == null || value.isNull() ? null : value.asText()));
+			}
+		});
+	}
+
+	private char firstCharOrSpace(String value) {
+		return StringUtils.isNotEmpty(value) ? value.charAt(0) : ' ';
 	}
 }

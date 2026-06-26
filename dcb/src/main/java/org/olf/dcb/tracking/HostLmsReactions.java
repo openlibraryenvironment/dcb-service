@@ -49,7 +49,7 @@ public class HostLmsReactions {
 	}
 
 	@jakarta.annotation.PostConstruct
-	private void init() {
+	void init() {
 		log.info("HostLmsReactions::init");
 		// for (WorkflowAction w : allWorkflowActions) {
 		//	log.info("Workflow action: {}", w);
@@ -167,4 +167,3 @@ public class HostLmsReactions {
 				.thenReturn(context);
 		}
 	}
-

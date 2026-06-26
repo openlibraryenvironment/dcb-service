@@ -62,7 +62,7 @@ public class ConfigurationService implements Runnable {
 	}
 
 	@jakarta.annotation.PostConstruct
-	private void init() {
+	void init() {
 		log.info("ConfigurationService::init - providers:{}", sourceProviders.toString());
 	}
 

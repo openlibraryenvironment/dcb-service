@@ -70,8 +70,8 @@ public class DcbSensitiveEndpointRule extends SensitiveEndpointRule {
 		return checkIpOrRole(request, authentication, method);
 	}
 	
-	private Publisher<SecurityRuleResult> checkIpOrRole (@NonNull HttpRequest<?> request,
-			@Nullable Authentication authentication, @NonNull ExecutableMethod<?, ?> method) {
+	private Publisher<SecurityRuleResult> checkIpOrRole (HttpRequest<?> request,
+			Authentication authentication, ExecutableMethod<?, ?> method) {
 			// Ip rules only reject elements not in the list, and allow the rest of the chain to continue.
 			// We want to essentially reverse this behaviour, and ALLOW immediately if the ipRule returns "unknown"
 			// and then check the roles instead.
@@ -82,7 +82,7 @@ public class DcbSensitiveEndpointRule extends SensitiveEndpointRule {
 				.flatMap( TupleUtils.curry(authentication, this::handleReturnFromIpRule) );
 	}
 	
-	private Mono<SecurityRuleResult> handleReturnFromIpRule(@Nullable Authentication authentication, SecurityRuleResult ipResult) {
+	private Mono<SecurityRuleResult> handleReturnFromIpRule(Authentication authentication, SecurityRuleResult ipResult) {
 		
 		return switch ( ipResult ) {
 		

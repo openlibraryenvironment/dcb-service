@@ -1,5 +1,5 @@
 package services.k_int.integration.opensearch;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
 import org.opensearch.client.RestClient;
 
 import io.micronaut.context.annotation.Bean;

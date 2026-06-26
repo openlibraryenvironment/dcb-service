@@ -241,7 +241,7 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
 	@Scheduled(initialDelay = "20s", fixedDelay = "2m")
-	protected void scheduleSourceRecordJob() {
+	public void scheduleSourceRecordJob() {
 
     log.info("Attempting to schedule source record job");
 		
@@ -262,7 +262,7 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 
 	private Optional<String> interruption = Optional.empty();
 	
-	private void generateInterrupt( @NonNull String reason ) {
+	private void generateInterrupt( String reason ) {
 		interruption = Optional.of( reason );
 	}
 	

@@ -22,6 +22,7 @@ import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -55,6 +56,7 @@ import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
@@ -135,7 +137,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		final var sierraBibsAPIFixture = sierraApiFixtureProvider.bibs(mockServerClient, null);
 
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
+
 		final var bibPatch = BibPatch.builder()
+			.fixedFields(fixedFields)
 			.authors(List.of("Stafford Beer"))
 			.titles(List.of("Brain of the Firm"))
 			.build();

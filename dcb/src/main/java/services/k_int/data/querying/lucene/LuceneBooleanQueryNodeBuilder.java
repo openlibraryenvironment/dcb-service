@@ -22,7 +22,7 @@ public class LuceneBooleanQueryNodeBuilder<T> implements JpaQuerySpecificationBu
 		AND, OR
 	}
 	
-	private Junction getJunction( @NonNull BooleanQueryNode boolQuery ) {
+	private Junction getJunction( BooleanQueryNode boolQuery ) {
 		Class<? extends BooleanQueryNode> typeClass = boolQuery.getClass();
 		if (AndQueryNode.class.isAssignableFrom(typeClass)) {
 			return Junction.AND;

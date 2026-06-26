@@ -310,7 +310,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 					client.indices()
 					.getSettings( ind -> ind
 						.index( indexName )))
-				.map( GetIndicesSettingsResponse::result )
+				.map( GetIndicesSettingsResponse::settings )
         // Direct get of indexName will break when using an alias because although we can get indexname/_settings, the actual key
         // returned will be the name of the real index so with -1 -2 -3 appended. Because of this we get the first value - due to the
         // parameter above we should only get back the single actual index representing the alias.
@@ -410,8 +410,9 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 						.bool(topLevel -> topLevel
 							.should(should -> should
 								.range( range -> range
-									.field( DOCUMENT_SHARED_INDEX_DATEFIELD )
-									.lt( JsonData.of( before.toString() ))
+									.date(date -> date
+										.field( DOCUMENT_SHARED_INDEX_DATEFIELD )
+										.lt( before.toString() ))
 								)
 							)
 							.should(should -> should

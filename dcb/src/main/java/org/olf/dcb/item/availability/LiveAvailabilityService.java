@@ -64,7 +64,7 @@ public class LiveAvailabilityService {
 			.expireAfterAccess(Duration.ofDays(1)) // Consider 24 hour old data to be stale enough for complete eviction
 			.build();
 
-	private Flux<BibRecord> getClusterMembers(@NonNull UUID clusteredBibId, boolean includeDeleted) {
+	private Flux<BibRecord> getClusterMembers(UUID clusteredBibId, boolean includeDeleted) {
 		return sharedIndexService.findClusteredBib(clusteredBibId, includeDeleted)
 			.flatMapIterable(ClusteredBib::getBibs);
 	}
@@ -76,7 +76,7 @@ public class LiveAvailabilityService {
 		return report.getErrors().size() < 1;
 	}
 	
-	private Mono<AvailabilityReport> tryAndUpdateCounts( @NonNull BibRecord bib, @NonNull AvailabilityReport report ) {
+	private Mono<AvailabilityReport> tryAndUpdateCounts( BibRecord bib, AvailabilityReport report ) {
 		
 		if (!availability.isPresent() ) {
 			// Not present. i.e. During tests
@@ -91,7 +91,7 @@ public class LiveAvailabilityService {
 			.doOnError( e -> log.warn("Error updating counts from returned data in live lookup"));
 	}
 	
-	private Mono<AvailabilityReport> addValueToCache(@NonNull BibRecord bib, AvailabilityReport report) {
+	private Mono<AvailabilityReport> addValueToCache(BibRecord bib, AvailabilityReport report) {
 
 		return Mono.justOrEmpty(report)
 			// Attempt to update the counts from the data here.

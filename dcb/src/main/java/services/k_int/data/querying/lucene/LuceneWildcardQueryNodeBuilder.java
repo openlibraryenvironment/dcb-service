@@ -43,7 +43,7 @@ public class LuceneWildcardQueryNodeBuilder<T> implements JpaQuerySpecificationB
 			Path<String> path = root.get(fieldName);
 			Expression<String> strExp = criteriaBuilder.literal(fieldText);
 			
-			return ((AbstractCriteriaBuilder)criteriaBuilder).ilikeString(path, strExp);
+			return ((AbstractCriteriaBuilder)criteriaBuilder).ilike(path, strExp);
 		};
 		return cb;
 	}

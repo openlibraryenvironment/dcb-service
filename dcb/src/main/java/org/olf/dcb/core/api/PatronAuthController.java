@@ -113,7 +113,7 @@ public class PatronAuthController {
 		// If we are able to infer a DCB agency code from the data returned from the patron, store it here
 		String inferredAgencyCode;
 
-		private boolean isValid() {
+		boolean isValid() {
 			return VALID.equals(status);
 		}
 	}

@@ -57,7 +57,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	@Serdeable
 	record Identity(String localId, String hostLmsCode, Boolean homeIdentity) {
 
-		private static Identity from(PatronIdentity patronIdentity) {
+		static Identity from(PatronIdentity patronIdentity) {
 			return new Identity(patronIdentity.getLocalId(), patronIdentity.getHostLms().code,
 				patronIdentity.getHomeIdentity());
 		}
@@ -71,7 +71,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	@Serdeable
 	record SupplierRequest(UUID id, Item item, String hostLmsCode,
 		String status, String localHoldId, String localHoldStatus) {
-		private static SupplierRequest from(
+		static SupplierRequest from(
 			org.olf.dcb.core.model.SupplierRequest supplierRequest) {
 
 			return new SupplierRequest(supplierRequest.getId(),
@@ -84,7 +84,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 				supplierRequest.getLocalStatus());
 		}
 
-		private static List<SupplierRequest> fromList(
+		static List<SupplierRequest> fromList(
 			List<org.olf.dcb.core.model.SupplierRequest> supplierRequests) {
 
 			return supplierRequests.stream()

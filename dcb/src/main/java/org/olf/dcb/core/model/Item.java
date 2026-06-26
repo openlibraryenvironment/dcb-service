@@ -158,7 +158,7 @@ public class Item implements Comparable<Item> {
 			.compare(this, other);
 	}
 
-	private Comparator<Item> CompareByLocationCodeThenCallNumber() {
+	Comparator<Item> CompareByLocationCodeThenCallNumber() {
 		return comparing(Item::getLocationCode, nullsLast(naturalOrder()))
 			.thenComparing(Item::getCallNumber, nullsLast(naturalOrder()));
 	}

@@ -105,8 +105,7 @@ public class DataHostLms implements HostLms, Auditable {
 		return getTypeFromName(ingestSourceClass);
 	}
 
-	@Nullable
-	private Class<?> getTypeFromName(@Nullable String name) {
+	Class<?> getTypeFromName(@Nullable String name) {
 		if (name == null) {
 			return null;
 		}

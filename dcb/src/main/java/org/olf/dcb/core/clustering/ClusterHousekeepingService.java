@@ -150,7 +150,7 @@ public class ClusterHousekeepingService {
 
 	@AppTask
 	@Scheduled(initialDelay = "10s")
-	protected void reprocess() {
+	public void reprocess() {
 		
 		if (completed) {
 			// NOOP

@@ -108,7 +108,6 @@ public class StateModelService {
         return(result);
     }
 
-    @SuppressWarnings("unchecked")
 	private void buildLinks(
     	List<LinkSource> links,
     	PatronRequestStateTransition transition,
