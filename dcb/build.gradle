@@ -427,6 +427,7 @@ graalvmNative {
         		// quickBuild = true
             if (project.hasProperty('spikeNativeQuickBuild')) {
                 quickBuild = true
+                buildArgs.add('-H:Optimize=0')
             }
             buildArgs.add('--verbose')
             buildArgs.add('-march=x86-64-v2')
