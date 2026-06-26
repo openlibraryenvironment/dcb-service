@@ -1,4 +1,4 @@
-# NCIP Support Exploration 1
+# Non-Imperative Host Interaction Support
 
 ## Context
 
@@ -22,10 +22,37 @@ recipe:
 That is a valid strategy for the currently live integrations, but it is not the
 only plausible way to place a borrowing-side request.
 
-NCIP-style systems may expose a coarser `RequestItem` operation. In that model,
-DCB does not need to coordinate a series of lower-level host operations. Instead,
+Non-imperative host interactions may expose a coarser operation, specifically an
+ISO18626 request message for the current integration target. In that model, DCB
+does not need to coordinate a series of lower-level host operations. Instead,
 DCB declares the desired request to the host system and the host performs the
-request atomically.
+internal choreography.
+
+This note was previously framed as an NCIP-specific exploration. The renamed
+scope is broader and the concrete protocol target is ISO18626. NCIP remains a
+useful comparison point for future non-imperative integrations, but it is not
+the protocol this first design should optimize around.
+
+The concrete dual-agency ISO18626 spike is tracked separately in
+`docs/backlog/current/iso18626-dual-declarative-agency-spike.md`.
+
+## Terminology And Scope
+
+`Imperative` means DCB controls the host interaction step-by-step. The current
+virtual-record borrowing flow is imperative because DCB creates host artifacts
+and then places a hold against those artifacts.
+
+`Non-imperative` means DCB describes the desired lifecycle outcome and lets the
+host system choose how to fulfil it. The host may still be procedural internally,
+but DCB is not orchestrating each lower-level step.
+
+`Declarative` is used below as the strategy name for this non-imperative
+request-placement style. That name is useful at the DCB strategy layer, while
+the ISO18626 protocol should remain below it as a transport or adapter choice.
+
+The scope is capability-specific. A host may support non-imperative borrowing
+placement while still requiring imperative cleanup, special tracking, or normal
+circulation commands for checkout and return.
 
 ## Current Modelling Issue
 
@@ -40,9 +67,9 @@ operations, such as creating bibs and items, and role-oriented operations, such
 as placing holds at the borrowing, pickup, or supplying agency.
 
 `BorrowingAgencyService` then assumes the imperative virtual-record strategy and
-orchestrates the host calls itself. That makes NCIP `RequestItem` awkward: it is
-not just another primitive call, it is a different strategy for achieving the
-same DCB milestone.
+orchestrates the host calls itself. That makes ISO18626 awkward: it is not just
+another primitive call, it is a different strategy for achieving the same DCB
+milestone.
 
 The borrowing placement step is only the first visible instance of this issue.
 The same pattern appears throughout the request lifecycle. Workflow transitions,
@@ -69,8 +96,8 @@ The stable model should remain the DCB request workflow. States such as
 `REQUEST_PLACED_AT_BORROWING_AGENCY`, `REQUEST_PLACED_AT_PICKUP_AGENCY`,
 `READY_FOR_PICKUP`, `LOANED`, `RETURN_TRANSIT`, and `FINALISED` are business
 states. They should not encode whether a host interaction was performed through
-virtual records, NCIP `RequestItem`, polling, a circulation command, or some
-other host-specific mechanism.
+virtual records, a declarative request message, polling, a circulation command,
+or some other host-specific mechanism.
 
 Below that state machine, introduce a request lifecycle interaction layer. This
 layer should be responsible for resolving and executing capabilities such as:
@@ -94,7 +121,7 @@ Workflow transition
   -> lifecycle service
     -> capability resolver
       -> selected strategy
-        -> HostLmsClient / NCIP client / other adapter
+        -> HostLmsClient / protocol client / other adapter
     -> canonical result
   -> projector updates PatronRequest/SupplierRequest
 ```
@@ -109,11 +136,12 @@ capability whose responsibility is:
 > patron's host system, and return canonical evidence of what was placed.
 
 Existing integrations would use an imperative virtual-record placement strategy.
-NCIP integrations would use a declarative `RequestItem` placement strategy.
+Non-imperative integrations would use a declarative request-placement strategy
+implemented through an ISO18626 adapter for the current target protocol.
 
 The workflow transition should remain focused on the business milestone. It
 should not know whether placement was achieved by creating virtual records and a
-hold, or by issuing a single NCIP request.
+hold, or by issuing a single request declaration.
 
 The same rule should apply to later lifecycle steps. A transition should express
 "cancel the supplier-side request", "track the borrowing-side request", or "loan
@@ -163,10 +191,10 @@ The existing `PatronRequest.local*`, `PatronRequest.pickup*`, and
 but they should be treated as projections from richer lifecycle evidence rather
 than as the canonical representation of every integration model.
 
-This distinction is important for NCIP because the host may return request
-evidence without creating DCB-owned virtual bib/item records. It is also
-important for any future host integration that cannot support the same polling,
-cleanup, or cancellation shape as the current implementations.
+This distinction is important for non-imperative integrations because the host
+may return request evidence without creating DCB-owned virtual bib/item records.
+It is also important for any future host integration that cannot support the same
+polling, cleanup, or cancellation shape as the current implementations.
 
 ## Lifecycle Capabilities
 
@@ -221,6 +249,208 @@ existing services and host-client calls. New host styles can then be introduced
 as additional strategies rather than by adding more branching to workflow
 transitions.
 
+## Non-Imperative Lifecycle Implications
+
+Borrowing placement is the useful first pressure point, but it should not be
+treated as an isolated special case. Once DCB stops assuming that it created a
+virtual bib, virtual item, and host hold, several later operations need clearer
+contracts.
+
+### Placement Evidence
+
+An imperative placement result can usually provide:
+
+- local request id
+- local bib id
+- local item id
+- local item status
+- virtual artifact flags
+
+A non-imperative placement result may only provide:
+
+- host request id
+- host correlation id
+- raw request status
+- selected supplier or item evidence
+- protocol-specific response reference
+
+Both are valid if the result makes the evidence explicit. The projector should
+only populate existing `PatronRequest.local*` fields when the returned evidence
+really has that meaning.
+
+### Tracking
+
+Current tracking often assumes DCB can poll known local request and item
+identifiers. A non-imperative placement may require a different tracking mode:
+
+- poll by host request id
+- poll by protocol correlation id
+- consume event-style updates
+- track only coarse request state until the host exposes item-level evidence
+
+Tracking should therefore depend on placement evidence and host capability, not
+on a blanket assumption that local virtual item ids exist.
+
+The live code currently matches the imperative model. `TrackingServiceV3` is a
+scheduled service that selects due requests from `PatronRequest.nextScheduledPoll`
+and then asks each relevant host system whether the stored request or item state
+has changed. Borrowing-system tracking calls `getRequest(...)` and `getItem(...)`
+through `HostLmsClient`, compares the returned state with `PatronRequest.local*`
+fields, and publishes a tracking event when it detects a difference. Supplier
+and pickup tracking follow the same broad pattern against their respective local
+request and item evidence.
+
+That is a polling model even though detected changes are then represented as
+events inside DCB. The remote-system question is effectively:
+
+```text
+Given the request/item evidence DCB already has, has anything changed yet?
+```
+
+For declarative protocols, the triggering question can be inverted:
+
+```text
+Given this incoming protocol message, which DCB request changed and what
+canonical lifecycle evidence does the message carry?
+```
+
+For the ISO18626 integration, DCB should treat inbound ISO18626 response/status
+messages as lifecycle tracking input rather than as a reason to keep polling for
+the same evidence. The ISO18626 adapter should own the exact message vocabulary
+and partner profile details; the workflow should only see canonical lifecycle
+evidence.
+
+### Blocking Scheduled Polling For Event-Driven Requests
+
+The smallest reliable blocker for scheduled polling is already present:
+`PatronRequest.nextScheduledPoll`.
+
+The scheduled tracking run calls `findScheduledChecks()`, whose query selects
+only requests where `next_scheduled_poll < now()` and `is_too_long = false`.
+The database index for this path is also filtered to rows where
+`next_scheduled_poll IS NOT NULL`. Therefore, setting `nextScheduledPoll` to
+`null` prevents the automatic polling worker from selecting the request at all.
+
+Use that existing field as the immediate control point, but do not make
+transitions know protocol details. Add a small tracking policy/capability
+resolver above scheduling:
+
+```java
+enum TrackingMode {
+  SCHEDULED_POLL,
+  EVENT_DRIVEN,
+  HYBRID
+}
+
+interface RequestTrackingPolicy {
+  TrackingMode modeFor(RequestWorkflowContext context);
+
+  default boolean schedulesAutomaticPolls(RequestWorkflowContext context) {
+    return modeFor(context) != TrackingMode.EVENT_DRIVEN;
+  }
+}
+```
+
+Then keep `PatronRequestWorkflowService.scheduleNextCheck(...)` as the only
+initial integration point:
+
+```java
+private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
+  final var patronRequest = ctx.getPatronRequest();
+
+  if (!requestTrackingPolicy.schedulesAutomaticPolls(ctx)) {
+    patronRequest.setNextScheduledPoll(null);
+    return Mono.from(patronRequestRepository.saveOrUpdate(patronRequest))
+      .map(ctx::setPatronRequest);
+  }
+
+  final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
+  patronRequest.setNextScheduledPoll(
+    duration.map(value -> Instant.now().plus(value)).orElse(null));
+
+  return Mono.from(patronRequestRepository.saveOrUpdate(patronRequest))
+    .map(ctx::setPatronRequest);
+}
+```
+
+The first implementation of `RequestTrackingPolicy` should always return
+`SCHEDULED_POLL`. That makes the code path live but behaviourally identical for
+all current systems. Declarative hosts can later opt into `EVENT_DRIVEN` per
+host, role, and operation.
+
+Manual tracking should be considered separately from automatic scheduled
+polling. It can remain available as a diagnostic or recovery action even for
+event-driven requests, but it should be explicit that manual tracking is not the
+normal lifecycle driver for those requests.
+
+### Inbound Message Handling
+
+Event-driven protocols still need to feed the same DCB workflow engine. The
+inbound protocol endpoint should translate protocol-specific messages into a
+canonical tracking command or snapshot:
+
+```java
+class InboundLifecycleMessage {
+  String protocol;
+  LifecycleRole role;
+  LifecycleOperation operation;
+  String hostLmsCode;
+  String hostRequestId;
+  String correlationId;
+  String status;
+  String rawStatus;
+  String itemId;
+  String itemBarcode;
+  Instant messageTimestamp;
+  Object rawMessageReference;
+}
+```
+
+The handler shape should be:
+
+```text
+protocol controller / listener
+  -> protocol parser and verifier
+  -> request correlation resolver
+  -> canonical lifecycle event projector
+  -> PatronRequest/SupplierRequest update
+  -> PatronRequestWorkflowService.progressUsing(...)
+  -> protocol acknowledgement
+```
+
+The correlation resolver should use the strongest available identifier first:
+DCB patron request id, DCB-supplied protocol correlation id, host request id, and
+then any agreed protocol-specific reference. The handler must be idempotent
+because inbound protocol messages may be retried by the sender. A repeated
+message should update audit/counters if useful, but it should not duplicate
+state transitions or recreate artifacts.
+
+### Cancellation And Cleanup
+
+Cleanup currently has to consider artifacts DCB may have created in the host
+system. For non-imperative placement, DCB may not own any host bib or item
+artifacts. Cleanup may become:
+
+- cancel the declared request
+- close or suppress host-created request artifacts
+- do nothing because the host owns the lifecycle
+- record that cleanup is unsupported or externally managed
+
+The placement result should therefore carry enough information to decide the
+cleanup mode later. Do not infer cleanup obligations from the strategy name
+alone.
+
+### Checkout, Renewal, And Return
+
+Non-imperative placement does not automatically imply non-imperative circulation.
+A host may accept declarative request placement but still require ordinary
+circulation commands for receive, checkout, renewal, return, and prevent-renewal
+actions.
+
+Those operations should be extracted only when there is real variation to
+support. The immediate goal is to prevent borrowing placement from encoding
+assumptions that later lifecycle steps cannot rely on.
+
 ## Concrete First Slice
 
 The conceptual model above should not be implemented as a broad rewrite. The
@@ -266,6 +496,66 @@ handle the internal choreography.
 This interface should be deliberately smaller than the final lifecycle model. It
 gives the transition an application-level strategy to call without forcing the
 whole codebase to adopt a new abstraction at once.
+
+The strategy interface can be added to the live codebase with effectively no
+operational blast radius if the only registered implementation is the existing
+imperative behaviour and resolver defaults are unconditional.
+
+The important constraint is that activation must be explicit. Missing
+configuration should always mean:
+
+```text
+placement strategy: imperative
+tracking mode: scheduled-poll
+protocol adapter: none
+```
+
+That lets the new abstraction exist in production while every current host keeps
+using the exact same host calls, persisted fields, scheduled polling, audit
+flow, and workflow transitions.
+
+### Transparent Activation Shape
+
+Add the new behaviour in layers, with each layer defaulting to the existing
+imperative path:
+
+1. Add strategy interfaces and resolvers whose default answer is the current
+   imperative implementation.
+2. Add tracking policy with default `SCHEDULED_POLL`.
+3. Add declarative strategy classes, but do not select them from default config.
+4. Add inbound protocol endpoints/listeners, but reject or ignore messages for
+   hosts that are not explicitly configured for event-driven handling.
+5. Activate by host and capability only after configuration exists.
+
+For example:
+
+```yaml
+capabilities:
+  borrowing-agency-request:
+    strategy: declarative
+    protocol: iso18626
+  borrower-tracking:
+    mode: event-driven
+    protocol: iso18626
+```
+
+Absent that configuration, the resolver should behave as if the host had:
+
+```yaml
+capabilities:
+  borrowing-agency-request:
+    strategy: imperative
+  borrower-tracking:
+    mode: scheduled-poll
+```
+
+This gives the new code a production runtime path without changing current
+system behaviour. It also gives support teams one clear activation lever: host
+capability configuration. There should be no protocol sniffing, client-type
+inspection, or fallback from an explicitly configured declarative mode to the
+imperative path. If a host asks for declarative/event-driven behaviour and the
+matching strategy or protocol adapter is unavailable, fail fast as a
+misconfiguration.
 
 ### 2. Introduce a borrowing agency request result
 
@@ -314,8 +604,8 @@ public class ImperativeBorrowingAgencyRequestStrategy
 }
 ```
 
-At this stage there is no NCIP implementation and no behavioural change. The
-existing implementation is simply being named as one strategy.
+At this stage there is no declarative implementation and no behavioural change.
+The existing implementation is simply being named as one strategy.
 
 ### 4. Add a projector
 
@@ -409,9 +699,8 @@ BorrowingAgencyRequestStrategyResolver:
   role + operation + borrowing host capability -> strategy
 ```
 
-The service should not inspect Java client types or know about protocols such as
-NCIP or ISO18626. It should only know that the borrower-side request needs to be
-placed or revised.
+The service should not inspect Java client types or know about ISO18626. It
+should only know that the borrower-side request needs to be placed or revised.
 
 ### 7. Make resolver selection configurable
 
@@ -423,16 +712,8 @@ borrowing-agency-request:
   strategy: imperative
 ```
 
-A declarative host can later opt into the declarative strategy and specify the
-transport/protocol used by that strategy:
-
-```yaml
-borrowing-agency-request:
-  strategy: declarative
-  protocol: ncip
-```
-
-or:
+A declarative host can later opt into the declarative strategy and specify
+ISO18626 as the transport/protocol used by that strategy:
 
 ```yaml
 borrowing-agency-request:
@@ -489,8 +770,8 @@ rather than silently falling back to the imperative strategy.
 ### 8. Add declarative implementations
 
 Once the seam, result, projector, and resolver are all live, add a declarative
-strategy. NCIP and ISO18626 should sit below that as transports or protocol
-adapters, not as top-level lifecycle strategies.
+strategy. ISO18626 should sit below that as a transport or protocol adapter, not
+as a top-level lifecycle strategy.
 
 ```java
 public class DeclarativeBorrowingAgencyRequestStrategy
@@ -521,20 +802,6 @@ interface DeclarativeRequestTransport {
 ```
 
 ```java
-class NcipRequestItemTransport implements DeclarativeRequestTransport {
-  public String protocol() {
-    return "ncip";
-  }
-
-  public Mono<DeclarativeRequestResult> send(DeclarativeRequest request) {
-    // Translate the DCB declarative request into NCIP RequestItem.
-    // Submit RequestItem.
-    // Return protocol-neutral declarative result.
-  }
-}
-```
-
-```java
 class Iso18626RequestTransport implements DeclarativeRequestTransport {
   public String protocol() {
     return "iso18626";
@@ -559,10 +826,10 @@ imperative
 declarative
 ```
 
-NCIP and ISO18626 are transport/protocol choices inside the declarative
-strategy. They should not leak into the workflow transition. The workflow
-chooses role and operation; host capability configuration chooses the strategy
-and protocol; the selected strategy handles remote-system mechanics.
+ISO18626 is a transport/protocol choice inside the declarative strategy. It
+should not leak into the workflow transition. The workflow chooses role and
+operation; host capability configuration chooses the strategy and protocol; the
+selected strategy handles remote-system mechanics.
 
 ### Suggested PR sequence
 
@@ -577,7 +844,7 @@ This can be delivered as several small, mergeable changes:
 4. Add the resolver, still selecting only the imperative strategy.
 5. Add config-based resolver selection with default legacy behaviour.
 6. Add the declarative borrowing-agency request strategy behind config.
-7. Add NCIP `RequestItem` and ISO18626 as declarative transports.
+7. Add ISO18626 as the declarative transport.
 8. Extract borrower tracking when declarative integrations need different
    tracking semantics.
 9. Extract borrower cleanup/cancellation when declarative integrations need different cleanup or
@@ -640,8 +907,8 @@ existing behaviour.
 
    Selection should be based on role and host capability/configuration, not on a
    broad host LMS inheritance hierarchy. Existing systems select the imperative
-   strategy. Declarative systems select the declarative strategy, with NCIP or
-   ISO18626 chosen beneath that as the protocol adapter.
+   strategy. ISO18626 systems select the declarative strategy, with ISO18626
+   chosen beneath that as the protocol adapter.
 
    "Above `HostLmsClient`" means the workflow should ask for a capability that
    performs the DCB use case, not for a raw host client and then decide which
@@ -681,7 +948,7 @@ existing behaviour.
 
    A declarative implementation would be another strategy at the same level. It
    would use a protocol transport beneath it, but the workflow would not see the
-   NCIP- or ISO18626-specific operation.
+   ISO18626-specific operation.
 
    ```java
    class DeclarativeBorrowingAgencyRequestStrategy
@@ -725,9 +992,9 @@ existing behaviour.
      .map(result -> borrowingAgencyRequestProjector.apply(ctx, result));
    ```
 
-   This is different from asking `HostLmsClient` whether it supports
-   `RequestItem` and branching inside `BorrowingAgencyService`. The resolver is
-   choosing an application strategy. `HostLmsClient` remains the lower-level
+   This is different from asking `HostLmsClient` whether it supports ISO18626
+   request placement and branching inside `BorrowingAgencyService`. The resolver
+   is choosing an application strategy. `HostLmsClient` remains the lower-level
    adapter used by strategies that need it.
 
    Capability selection could initially be simple and configuration-driven:
@@ -798,12 +1065,12 @@ existing behaviour.
 
    These models should express DCB-level facts: patron identity, pickup
    location, supplier item evidence, selected bib/work, transaction note, and
-   patron request id. They should not be NCIP DTOs and should not be tied to
+   patron request id. They should not be ISO18626 DTOs and should not be tied to
    `PlaceHoldRequestParameters`.
 
    Request commands, tracking commands, cleanup commands, and circulation
    commands should all describe what DCB is trying to accomplish. Translation
-   into Sierra, Polaris, FOLIO, Alma, NCIP, or another protocol should happen
+   into Sierra, Polaris, FOLIO, Alma, ISO18626, or another protocol should happen
    inside the selected strategy.
 
 5. Move workflow transitions up a level.
@@ -820,8 +1087,7 @@ existing behaviour.
    ```
 
    The transition should not know whether request handling means `createBib`,
-   `createItem`, `placeHoldRequestAtBorrowingAgency`, NCIP `RequestItem`, or an
-   ISO18626 request.
+   `createItem`, `placeHoldRequestAtBorrowingAgency`, or an ISO18626 request.
 
 6. Make downstream operations capability-aware.
 
@@ -879,13 +1145,13 @@ implementation details and would make the borrowing workflow harder to reason
 about.
 
 Similarly, avoid adding lifecycle-specific branches directly to transitions such
-as "if NCIP then do this, else call `HostLmsClient`". That would spread protocol
-knowledge across the workflow engine and make every later lifecycle operation
-harder to change.
+as "if this protocol then do this, else call `HostLmsClient`". That would spread
+protocol knowledge across the workflow engine and make every later lifecycle
+operation harder to change.
 
-Avoid making NCIP integrations pretend they created virtual bibs or items if
-they did not. That would leak false assumptions into cleanup, cancellation,
-tracking, and audit.
+Avoid making non-imperative integrations pretend they created virtual bibs or
+items if they did not. That would leak false assumptions into cleanup,
+cancellation, tracking, and audit.
 
 Avoid creating one universal "declarative host LMS" abstraction. The distinction
 belongs at the capability level. A single host may be declarative for request
@@ -903,9 +1169,10 @@ placement, tracking, cancellation, cleanup, checkout, renewal, and other host
 interactions.
 
 Borrowing placement can be the first extraction, choosing between the current
-imperative virtual-record choreography and declarative NCIP `RequestItem`.
-Subsequent lifecycle steps can adopt the same pattern as real variation appears.
+imperative virtual-record choreography and declarative request placement through
+ISO18626. Subsequent lifecycle steps can adopt the same pattern as real
+variation appears.
 
-This preserves existing live integrations while allowing NCIP and other host
+This preserves existing live integrations while allowing non-imperative host
 styles to fit the model naturally instead of being forced through low-level
 virtual-record assumptions across the whole request lifecycle.

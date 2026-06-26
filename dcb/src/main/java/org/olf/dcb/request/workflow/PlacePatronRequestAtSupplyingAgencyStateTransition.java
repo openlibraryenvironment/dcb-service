@@ -8,7 +8,7 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestStrategyService;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -17,16 +17,16 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class PlacePatronRequestAtSupplyingAgencyStateTransition implements PatronRequestStateTransition {
-	private final SupplyingAgencyService supplyingAgencyService;
+	private final SupplyingAgencyRequestStrategyService supplyingAgencyRequestStrategyService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.RESOLVED);
 	
 	public PlacePatronRequestAtSupplyingAgencyStateTransition(
-		SupplyingAgencyService supplierRequestService,
+		SupplyingAgencyRequestStrategyService supplyingAgencyRequestStrategyService,
 		PatronRequestAuditService patronRequestAuditService) {
 
-		this.supplyingAgencyService = supplierRequestService;
+		this.supplyingAgencyRequestStrategyService = supplyingAgencyRequestStrategyService;
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
@@ -43,11 +43,11 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 
 		log.debug("PlacePatronRequestAtSupplyingAgencyStateTransition firing for {}", ctx.getPatronRequest());
 
-		// Note: supplyingAgencyService.placePatronRequestAtSupplyingAgency will eventually call PatronRequest::placedAtSupplyingAgency
+		// Note: the default strategy delegates to SupplyingAgencyService, which will eventually call PatronRequest::placedAtSupplyingAgency
 
-		return supplyingAgencyService.placePatronRequestAtSupplyingAgency(ctx.getPatronRequest())
-			.doOnSuccess(pr -> {
-				log.debug("Placed patron request to supplier: pr={}", pr);
+		return supplyingAgencyRequestStrategyService.place(ctx)
+			.doOnSuccess(updatedContext -> {
+				log.debug("Placed patron request to supplier: pr={}", updatedContext.getPatronRequest());
 				ctx.getWorkflowMessages().add("Placed patron request to supplier");
 				addAuditDetail(ctx);
 			})

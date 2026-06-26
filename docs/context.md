@@ -180,6 +180,11 @@ These integrations cover things like:
 This is one of the trickier parts of the service because business behavior emerges from both DCB’s
 workflow and the capabilities or quirks of the target LMS.
 
+For the current design exploration around host interactions that do not fit the
+virtual-record choreography, see `docs/non-imperative-support.md`. That note
+frames ISO18626 support beneath role-specific lifecycle capabilities rather than
+as workflow-level protocol branches.
+
 ## API Surface
 
 DCB exposes several different interfaces.
