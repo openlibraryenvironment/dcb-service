@@ -152,9 +152,8 @@ publishSpikeDockerImage:
     - cp ./config.json ~/.docker/config.json
     - export DOCKER_IMAGE="docker.libsdev.k-int.com/knowledgeintegration/dcb2-imp-spike"
     - echo "Publishing $DOCKER_IMAGE"
-    - ./gradlew -x test nativeCompile
-    - ./gradlew -x test dockerPushNative
     - ./gradlew -x test dockerPush
+    - ./gradlew -x test dockerPushNative || echo "Native image publish failed; JVM Docker image was published"
   cache:
     key: "$CI_COMMIT_REF_NAME"
     policy: pull
