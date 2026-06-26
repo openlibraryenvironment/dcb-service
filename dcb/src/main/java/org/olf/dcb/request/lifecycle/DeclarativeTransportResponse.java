@@ -1,6 +1,6 @@
-package org.olf.dcb.request.lifecycle.iso18626;
+package org.olf.dcb.request.lifecycle;
 
-public record Iso18626TransportResponse(
+public record DeclarativeTransportResponse(
 	String remoteRequestId,
 	String status,
 	String rawStatus,
