@@ -30,6 +30,7 @@ public class BorrowingAgencyRequestProjector {
 			.setLocalRequestId(result.localRequestId())
 			.setLocalRequestStatus(result.localRequestStatus())
 			.setRawLocalRequestStatus(result.rawLocalRequestStatus())
+			.setProtocol(result.protocol())
 			.setStatus(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 
 		if (result.createdVirtualBib()) {

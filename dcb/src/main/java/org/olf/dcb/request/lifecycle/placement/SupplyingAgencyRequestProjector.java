@@ -43,5 +43,6 @@ public class SupplyingAgencyRequestProjector {
 			result.rawLocalRequestStatus(),
 			result.localItemId(),
 			result.localItemBarcode());
+		supplierRequest.setProtocol(result.protocol());
 	}
 }
