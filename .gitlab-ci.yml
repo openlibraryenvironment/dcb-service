@@ -1,0 +1,155 @@
+image:
+  name: docker.libsdev.k-int.com/knowledgeintegration/ki-graalvm-java:25
+  pull_policy: if-not-present
+
+default:
+  services:
+    - name: docker:24.0.9-dind
+      pull_policy: if-not-present
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  DOCKER_HOST: "tcp://localhost:2375/"
+  DOCKER_TLS_CERTDIR: ""
+  # The conventional-git Gradle plugin walks tag ancestry while the build is
+  # being configured, so shallow CI checkouts can fail before any task runs.
+  GIT_DEPTH: "0"
+  GIT_FETCH_EXTRA_FLAGS: "--tags --prune --quiet"
+
+before_script:
+  - GRADLE_USER_HOME="$(pwd)/.gradle"
+  - export GRADLE_USER_HOME
+
+stages:
+  - build
+  - deploy
+
+before_script:
+  - echo `pwd` # debug
+  - echo "$CI_BUILD_NAME, $CI_BUILD_REF_NAME $CI_BUILD_STAGE $CI_JOB_ID" # debug
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+cache:
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+build:
+  tags:
+    - ki-onprem
+  stage: build
+  script:
+    # NEXUS_USER and NEXUS_PASS come from CI/CD Variables and are only added to builds of PROTECTED branches
+    - echo "NEXUS_USER $NEXUS_USER"
+    - echo "NEXUS_PASS $NEXUS_PASS"
+    - ./gradlew --no-daemon --build-cache clean -x test build assemble
+  artifacts:
+    paths:
+      - ki-console-api/build/libs/*.jar
+      - ki-console-api/build/libs/*.war
+    expire_in: 1 week
+  only:
+    - release
+    - uat
+    - main
+    - ./gradlew --build-cache assemble
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build
+      - .gradle
+
+dockerLogin:
+  stage: build
+  only:
+    - main
+    - tags
+  tags:
+    - ki-onprem
+  image: 
+    name: docker:latest
+    pull_policy: if-not-present
+  script:
+    - docker login docker.libsdev.k-int.com --username "$NEXUS_USER" --password "$NEXUS_PASS"
+    - cp ~/.docker/config.json ./config.json
+  artifacts:
+    paths:
+      - config.json
+
+build-native-image:
+  stage: deploy
+  only:
+    - main
+    - tags
+  tags:
+    - ki-onprem
+  script: 
+    - mkdir ~/.docker
+    - cp ./config.json ~/.docker/config.json
+    - ./gradlew -x test nativeCompile
+    - ./gradlew -x test dockerPushNative
+    - ./gradlew -x test dockerPush
+    - ls ki-console-api/build/native/nativeCompile
+  artifacts:
+    paths:
+      - ki-console-api/build/native/nativeCompile/ki-console-api
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - build
+      - .gradle
+
+spikeDockerLogin:
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "spike/iso18626-declarative-dual-agency" && $PUBLISH_SPIKE_DOCKER == "true"'
+      when: on_success
+    - when: never
+  tags:
+    - ki-onprem
+  image:
+    name: docker:latest
+    pull_policy: if-not-present
+  script:
+    - docker login docker.libsdev.k-int.com --username "$NEXUS_USER" --password "$NEXUS_PASS"
+    - cp ~/.docker/config.json ./config.json
+  artifacts:
+    paths:
+      - config.json
+
+publishSpikeDockerImage:
+  stage: deploy
+  needs:
+    - job: spikeDockerLogin
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "spike/iso18626-declarative-dual-agency" && $PUBLISH_SPIKE_DOCKER == "true"'
+      when: manual
+    - when: never
+  tags:
+    - ki-onprem
+  script:
+    - mkdir -p ~/.docker
+    - cp ./config.json ~/.docker/config.json
+    - export DOCKER_IMAGE="docker.libsdev.k-int.com/knowledgeintegration/dcb2-imp-spike"
+    - echo "Publishing $DOCKER_IMAGE"
+    - ./gradlew -x test nativeCompile
+    - ./gradlew -x test dockerPushNative
+    - ./gradlew -x test dockerPush
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - build
+      - .gradle
+
+#test:
+#  stage: test
+#  script:
+#    - cd mtcpmgt
+#    - ./gradlew check
+
+after_script:
+  - echo "End CI"
