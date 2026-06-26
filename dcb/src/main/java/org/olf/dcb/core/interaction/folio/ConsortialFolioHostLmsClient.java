@@ -1397,13 +1397,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(InventoryItemCollection.class))
-			.flatMap(itemsCollection -> {
+			.<HostLmsItem>flatMap(itemsCollection -> {
 				if (isEmpty(itemsCollection.getItems())) {
 					log.warn("No item found in FOLIO for barcode: {}", barcode);
 					return Mono.empty();
 				}
 
-				var item = itemsCollection.getItems().getFirst();
+				var item = itemsCollection.getItems().iterator().next();
 				if (item.getBarcode() == null) {
 					item.setBarcode(barcode);
 				}
@@ -1450,12 +1450,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
 
 		return makeRequest(request, Argument.of(InventoryInstanceCollection.class))
-			.flatMap(instanceCollection -> {
+			.<String>flatMap(instanceCollection -> {
 				if (isEmpty(instanceCollection.getInstances())) {
 					log.warn("No instance found in FOLIO for holdingsRecordId: {}", holdingsRecordId);
 					return Mono.empty();
 				}
-				var instance = instanceCollection.getInstances().getFirst();
+				var instance = instanceCollection.getInstances().iterator().next();
 				return Mono.just(instance.getId());
 			})
 			.onErrorResume(e -> {
