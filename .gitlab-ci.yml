@@ -118,8 +118,29 @@ buildSpike:
       - build
       - .gradle
 
+spikeDockerLogin:
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "spike/iso18626-declarative-dual-agency"'
+      when: manual
+    - when: never
+  tags:
+    - ki-onprem
+  image:
+    name: docker:latest
+    pull_policy: if-not-present
+  script:
+    - docker login docker.libsdev.k-int.com --username "$NEXUS_USER" --password "$NEXUS_PASS"
+    - cp ~/.docker/config.json ./config.json
+  artifacts:
+    paths:
+      - config.json
+
 publishSpikeDockerImage:
   stage: deploy
+  needs:
+    - job: spikeDockerLogin
+      artifacts: true
   rules:
     - if: '$CI_COMMIT_BRANCH == "spike/iso18626-declarative-dual-agency"'
       when: manual
@@ -128,7 +149,7 @@ publishSpikeDockerImage:
     - ki-onprem
   script:
     - mkdir -p ~/.docker
-    - docker login docker.libsdev.k-int.com --username "$NEXUS_USER" --password "$NEXUS_PASS"
+    - cp ./config.json ~/.docker/config.json
     - export DOCKER_IMAGE="docker.libsdev.k-int.com/knowledgeintegration/dcb2-imp-spike"
     - echo "Publishing $DOCKER_IMAGE"
     - ./gradlew -x test nativeCompile
