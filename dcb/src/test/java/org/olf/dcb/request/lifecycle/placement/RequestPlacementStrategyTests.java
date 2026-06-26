@@ -1,9 +1,11 @@
 package org.olf.dcb.request.lifecycle.placement;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,8 +17,13 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.lifecycle.LifecycleCapabilitiesConfiguration;
+import org.olf.dcb.request.lifecycle.LifecycleCapabilityConfigurationException;
+import org.olf.dcb.request.lifecycle.LifecycleCapabilityResolver;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
+import org.olf.dcb.request.lifecycle.TrackingMode;
 
 import reactor.core.publisher.Mono;
 
@@ -24,7 +31,8 @@ class RequestPlacementStrategyTests {
 	@Test
 	void supplyingResolverDefaultsToImperativeStrategy() {
 		final var imperativeStrategy = mock(ImperativeSupplyingAgencyRequestStrategy.class);
-		final var resolver = new SupplyingAgencyRequestStrategyResolver(imperativeStrategy);
+		final var resolver = new SupplyingAgencyRequestStrategyResolver(
+			imperativeStrategy, defaultCapabilityResolver());
 		final var context = new RequestWorkflowContext();
 
 		final var strategy = resolver.resolve(context, LifecycleOperation.PLACE_REQUEST);
@@ -35,13 +43,117 @@ class RequestPlacementStrategyTests {
 	@Test
 	void borrowingResolverDefaultsToImperativeStrategyForPlaceAndRevise() {
 		final var imperativeStrategy = mock(ImperativeBorrowingAgencyRequestStrategy.class);
-		final var resolver = new BorrowingAgencyRequestStrategyResolver(imperativeStrategy);
+		final var resolver = new BorrowingAgencyRequestStrategyResolver(
+			imperativeStrategy, defaultCapabilityResolver());
 		final var context = new RequestWorkflowContext();
 
 		assertThat(resolver.resolve(context, LifecycleOperation.PLACE_REQUEST),
 			sameInstance(imperativeStrategy));
 		assertThat(resolver.resolve(context, LifecycleOperation.REVISE_REQUEST),
 			sameInstance(imperativeStrategy));
+	}
+
+	@Test
+	void capabilityResolverDefaultsMissingConfigToImperativeAndScheduledPoll() {
+		final var resolver = defaultCapabilityResolver();
+
+		assertThat(resolver.placementStrategy(LifecycleRole.SUPPLIER),
+			is(StrategyType.IMPERATIVE));
+		assertThat(resolver.placementStrategy(LifecycleRole.BORROWER),
+			is(StrategyType.IMPERATIVE));
+		assertThat(resolver.trackingMode(LifecycleRole.SUPPLIER),
+			is(TrackingMode.SCHEDULED_POLL));
+		assertThat(resolver.trackingMode(LifecycleRole.BORROWER),
+			is(TrackingMode.SCHEDULED_POLL));
+	}
+
+	@Test
+	void explicitImperativeConfigSelectsImperativeStrategy() {
+		final var configuration = new LifecycleCapabilitiesConfiguration();
+		configuration.getSupplyingAgencyRequest()
+			.setStrategy(StrategyType.IMPERATIVE);
+		configuration.getBorrowingAgencyRequest()
+			.setStrategy(StrategyType.IMPERATIVE);
+		final var resolver = new LifecycleCapabilityResolver(configuration);
+
+		assertThat(resolver.placementStrategy(LifecycleRole.SUPPLIER),
+			is(StrategyType.IMPERATIVE));
+		assertThat(resolver.placementStrategy(LifecycleRole.BORROWER),
+			is(StrategyType.IMPERATIVE));
+	}
+
+	@Test
+	void declarativeIso18626ConfigSelectsDeclarativeStrategy() {
+		final var configuration = new LifecycleCapabilitiesConfiguration();
+		configuration.getSupplyingAgencyRequest()
+			.setStrategy(StrategyType.DECLARATIVE);
+		configuration.getSupplyingAgencyRequest()
+			.setProtocol("iso18626");
+		final var resolver = new LifecycleCapabilityResolver(configuration);
+
+		assertThat(resolver.placementStrategy(LifecycleRole.SUPPLIER),
+			is(StrategyType.DECLARATIVE));
+	}
+
+	@Test
+	void declarativeConfigWithoutProtocolFailsFast() {
+		final var configuration = new LifecycleCapabilitiesConfiguration();
+		configuration.getSupplyingAgencyRequest()
+			.setStrategy(StrategyType.DECLARATIVE);
+		final var resolver = new LifecycleCapabilityResolver(configuration);
+
+		final var error = assertThrows(
+			LifecycleCapabilityConfigurationException.class,
+			() -> resolver.placementStrategy(LifecycleRole.SUPPLIER));
+
+		assertThat(error.getMessage(), containsString("explicit protocol"));
+	}
+
+	@Test
+	void explicitDeclarativePlacementFailsWhenNoDeclarativeStrategyIsAvailable() {
+		final var configuration = new LifecycleCapabilitiesConfiguration();
+		configuration.getSupplyingAgencyRequest()
+			.setStrategy(StrategyType.DECLARATIVE);
+		configuration.getSupplyingAgencyRequest()
+			.setProtocol("iso18626");
+		final var resolver = new SupplyingAgencyRequestStrategyResolver(
+			mock(ImperativeSupplyingAgencyRequestStrategy.class),
+			new LifecycleCapabilityResolver(configuration));
+
+		final var error = assertThrows(
+			LifecycleCapabilityConfigurationException.class,
+			() -> resolver.resolve(new RequestWorkflowContext(),
+				LifecycleOperation.PLACE_REQUEST));
+
+		assertThat(error.getMessage(),
+			containsString("declarative request strategy is not available"));
+	}
+
+	@Test
+	void eventDrivenTrackingRequiresProtocol() {
+		final var configuration = new LifecycleCapabilitiesConfiguration();
+		configuration.getSupplierTracking()
+			.setMode(TrackingMode.EVENT_DRIVEN);
+		final var resolver = new LifecycleCapabilityResolver(configuration);
+
+		final var error = assertThrows(
+			LifecycleCapabilityConfigurationException.class,
+			() -> resolver.trackingMode(LifecycleRole.SUPPLIER));
+
+		assertThat(error.getMessage(), containsString("explicit protocol"));
+	}
+
+	@Test
+	void eventDrivenIso18626TrackingCanBeSelected() {
+		final var configuration = new LifecycleCapabilitiesConfiguration();
+		configuration.getSupplierTracking()
+			.setMode(TrackingMode.EVENT_DRIVEN);
+		configuration.getSupplierTracking()
+			.setProtocol("iso18626");
+		final var resolver = new LifecycleCapabilityResolver(configuration);
+
+		assertThat(resolver.trackingMode(LifecycleRole.SUPPLIER),
+			is(TrackingMode.EVENT_DRIVEN));
 	}
 
 	@Test
@@ -222,5 +334,10 @@ class RequestPlacementStrategyTests {
 		assertThat(patronRequest.getLocalRequestStatus(), is("ACCEPTED"));
 		assertThat(patronRequest.getLocalBibId(), nullValue());
 		assertThat(patronRequest.getLocalItemId(), nullValue());
+	}
+
+	private static LifecycleCapabilityResolver defaultCapabilityResolver() {
+		return new LifecycleCapabilityResolver(
+			new LifecycleCapabilitiesConfiguration());
 	}
 }
