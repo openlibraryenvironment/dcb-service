@@ -122,7 +122,7 @@ spikeDockerLogin:
   stage: build
   rules:
     - if: '$CI_COMMIT_BRANCH == "spike/iso18626-declarative-dual-agency"'
-      when: manual
+      when: on_success
     - when: never
   tags:
     - ki-onprem
