@@ -101,6 +101,23 @@ build-native-image:
       - build
       - .gradle
 
+buildSpike:
+  tags:
+    - ki-onprem
+  stage: build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "spike/iso18626-declarative-dual-agency"'
+      when: on_success
+    - when: never
+  script:
+    - ./gradlew --no-daemon --build-cache clean -x test build assemble
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build
+      - .gradle
+
 publishSpikeDockerImage:
   stage: deploy
   rules:
