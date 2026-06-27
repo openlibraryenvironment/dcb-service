@@ -12,18 +12,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
-import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
-import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
-import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleCapabilitiesConfiguration;
 import org.olf.dcb.request.lifecycle.LifecycleCapabilityConfigurationException;
 import org.olf.dcb.request.lifecycle.LifecycleCapabilityResolver;
@@ -31,8 +26,6 @@ import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.request.lifecycle.TrackingMode;
-import org.olf.dcb.request.lifecycle.iso18626.Iso18626BorrowingRequestStrategy;
-import org.olf.dcb.request.lifecycle.iso18626.Iso18626SupplyingRequestStrategy;
 
 import reactor.core.publisher.Mono;
 
@@ -92,12 +85,12 @@ class RequestPlacementStrategyTests {
 	}
 
 	@Test
-	void declarativeIso18626ConfigSelectsDeclarativeStrategy() {
+	void declarativeConfigWithProtocolSelectsDeclarativeStrategy() {
 		final var configuration = new LifecycleCapabilitiesConfiguration();
 		configuration.getSupplyingAgencyRequest()
 			.setStrategy(StrategyType.DECLARATIVE);
 		configuration.getSupplyingAgencyRequest()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var resolver = new LifecycleCapabilityResolver(configuration);
 
 		assertThat(resolver.placementStrategy(LifecycleRole.SUPPLIER),
@@ -124,7 +117,7 @@ class RequestPlacementStrategyTests {
 		configuration.getSupplyingAgencyRequest()
 			.setStrategy(StrategyType.DECLARATIVE);
 		configuration.getSupplyingAgencyRequest()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var resolver = new SupplyingAgencyRequestStrategyResolver(
 			mock(ImperativeSupplyingAgencyRequestStrategy.class),
 			List.of(),
@@ -145,10 +138,10 @@ class RequestPlacementStrategyTests {
 		configuration.getSupplyingAgencyRequest()
 			.setStrategy(StrategyType.DECLARATIVE);
 		configuration.getSupplyingAgencyRequest()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var declarativeStrategy = mock(SupplyingAgencyRequestStrategy.class);
 		when(declarativeStrategy.type()).thenReturn(StrategyType.DECLARATIVE);
-		when(declarativeStrategy.supportsProtocol("iso18626")).thenReturn(true);
+		when(declarativeStrategy.supportsProtocol("ncip-v202")).thenReturn(true);
 		when(declarativeStrategy.supports(any())).thenReturn(true);
 		final var resolver = new SupplyingAgencyRequestStrategyResolver(
 			mock(ImperativeSupplyingAgencyRequestStrategy.class),
@@ -167,10 +160,10 @@ class RequestPlacementStrategyTests {
 		configuration.getBorrowingAgencyRequest()
 			.setStrategy(StrategyType.DECLARATIVE);
 		configuration.getBorrowingAgencyRequest()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var declarativeStrategy = mock(BorrowingAgencyRequestStrategy.class);
 		when(declarativeStrategy.type()).thenReturn(StrategyType.DECLARATIVE);
-		when(declarativeStrategy.supportsProtocol("iso18626")).thenReturn(true);
+		when(declarativeStrategy.supportsProtocol("ncip-v202")).thenReturn(true);
 		when(declarativeStrategy.supports(any())).thenReturn(true);
 		final var resolver = new BorrowingAgencyRequestStrategyResolver(
 			mock(ImperativeBorrowingAgencyRequestStrategy.class),
@@ -224,12 +217,12 @@ class RequestPlacementStrategyTests {
 	}
 
 	@Test
-	void eventDrivenIso18626TrackingCanBeSelected() {
+	void eventDrivenTrackingWithProtocolCanBeSelected() {
 		final var configuration = new LifecycleCapabilitiesConfiguration();
 		configuration.getSupplierTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getSupplierTracking()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var resolver = new LifecycleCapabilityResolver(configuration);
 
 		assertThat(resolver.trackingMode(LifecycleRole.SUPPLIER),
@@ -296,82 +289,6 @@ class RequestPlacementStrategyTests {
 		assertThat(result.patronRequest(), sameInstance(patronRequest));
 		verify(borrowingAgencyService).updatePatronRequestAtBorrowingAgency(
 			context);
-	}
-
-	@Test
-	void isoSupplyingStrategySendsDeclarativeRequestAndReturnsCanonicalEvidence() {
-		final var patronRequestId = UUID.randomUUID();
-		final var transport = new CapturingTransport(new DeclarativeTransportResponse(
-			"supplier-remote-request-1",
-			"PLACED",
-			"placed",
-			"raw-message-1"));
-		final var strategy = new Iso18626SupplyingRequestStrategy(transport);
-		final var supplierRequest = new SupplierRequest()
-			.setHostLmsCode("supplier-host")
-			.setLocalAgency("supplier-agency");
-		final var context = new RequestWorkflowContext()
-			.setPatronRequest(new PatronRequest().setId(patronRequestId))
-			.setSupplierRequest(supplierRequest);
-
-		final var result = singleValueFrom(strategy.place(context));
-		final var request = transport.onlyRequest();
-
-		assertThat(request.protocol(), is("iso18626"));
-		assertThat(request.role(), is(LifecycleRole.SUPPLIER));
-		assertThat(request.operation(), is(LifecycleOperation.PLACE_REQUEST));
-		assertThat(request.hostLmsCode(), is("supplier-host"));
-		assertThat(request.agencyCode(), is("supplier-agency"));
-		assertThat(request.correlationId(),
-			is(patronRequestId + ":SUPPLIER"));
-		assertThat(result.role(), is(LifecycleRole.SUPPLIER));
-		assertThat(result.protocol(), is("iso18626"));
-		assertThat(result.correlationId(),
-			is(patronRequestId + ":SUPPLIER"));
-		assertThat(result.remoteRequestId(), is("supplier-remote-request-1"));
-		assertThat(result.status(), is("PLACED"));
-		assertThat(result.rawStatus(), is("placed"));
-		assertThat(result.rawMessageReference(), is("raw-message-1"));
-		assertThat(result.localRequestId(), is("supplier-remote-request-1"));
-		assertThat(result.localItemId(), nullValue());
-		assertThat(result.localItemBarcode(), nullValue());
-	}
-
-	@Test
-	void isoBorrowingStrategySendsDeclarativeRequestWithoutVirtualArtifacts() {
-		final var patronRequestId = UUID.randomUUID();
-		final var transport = new CapturingTransport(new DeclarativeTransportResponse(
-			"borrower-remote-request-1",
-			"PLACED",
-			"placed",
-			"raw-message-2"));
-		final var strategy = new Iso18626BorrowingRequestStrategy(transport);
-		final var context = new RequestWorkflowContext()
-			.setPatronAgencyCode("borrower-agency")
-			.setPatronRequest(new PatronRequest()
-				.setId(patronRequestId)
-				.setPatronHostlmsCode("borrower-host"));
-
-		final var result = singleValueFrom(strategy.place(context));
-		final var request = transport.onlyRequest();
-
-		assertThat(request.protocol(), is("iso18626"));
-		assertThat(request.role(), is(LifecycleRole.BORROWER));
-		assertThat(request.operation(), is(LifecycleOperation.PLACE_REQUEST));
-		assertThat(request.hostLmsCode(), is("borrower-host"));
-		assertThat(request.agencyCode(), is("borrower-agency"));
-		assertThat(request.correlationId(),
-			is(patronRequestId + ":BORROWER"));
-		assertThat(result.role(), is(LifecycleRole.BORROWER));
-		assertThat(result.protocol(), is("iso18626"));
-		assertThat(result.correlationId(),
-			is(patronRequestId + ":BORROWER"));
-		assertThat(result.remoteRequestId(), is("borrower-remote-request-1"));
-		assertThat(result.localRequestId(), is("borrower-remote-request-1"));
-		assertThat(result.createdVirtualBib(), is(false));
-		assertThat(result.createdVirtualItem(), is(false));
-		assertThat(result.localBibId(), nullValue());
-		assertThat(result.localItemId(), nullValue());
 	}
 
 	@Test
@@ -495,27 +412,5 @@ class RequestPlacementStrategyTests {
 	private static LifecycleCapabilityResolver defaultCapabilityResolver() {
 		return new LifecycleCapabilityResolver(
 			new LifecycleCapabilitiesConfiguration());
-	}
-
-	private static class CapturingTransport implements DeclarativeRequestTransport {
-		private final DeclarativeTransportResponse response;
-		private final List<DeclarativeTransportRequest> requests = new ArrayList<>();
-
-		CapturingTransport(DeclarativeTransportResponse response) {
-			this.response = response;
-		}
-
-		@Override
-		public Mono<DeclarativeTransportResponse> send(
-			DeclarativeTransportRequest request) {
-
-			requests.add(request);
-			return Mono.just(response);
-		}
-
-		DeclarativeTransportRequest onlyRequest() {
-			assertThat(requests.size(), is(1));
-			return requests.getFirst();
-		}
 	}
 }

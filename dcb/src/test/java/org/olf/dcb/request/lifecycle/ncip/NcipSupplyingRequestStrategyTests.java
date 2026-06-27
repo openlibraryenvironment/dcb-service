@@ -57,7 +57,7 @@ class NcipSupplyingRequestStrategyTests {
 
 		assertThat(strategy.type(), is(StrategyType.DECLARATIVE));
 		assertThat(strategy.supportsProtocol(NcipProtocol.PROTOCOL), is(true));
-		assertThat(strategy.supportsProtocol("iso18626"), is(false));
+		assertThat(strategy.supportsProtocol("other-protocol"), is(false));
 		assertThat(request.protocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(request.role(), is(LifecycleRole.SUPPLIER));
 		assertThat(request.operation(), is(LifecycleOperation.PLACE_REQUEST));

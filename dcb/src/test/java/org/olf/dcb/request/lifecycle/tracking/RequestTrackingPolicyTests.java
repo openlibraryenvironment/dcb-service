@@ -27,7 +27,7 @@ class RequestTrackingPolicyTests {
 		configuration.getSupplierTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getSupplierTracking()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var policy = policyFor(configuration);
 
 		assertThat(policy.schedulesAutomaticPolls(contextIn(
@@ -40,7 +40,7 @@ class RequestTrackingPolicyTests {
 		configuration.getSupplierTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getSupplierTracking()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var policy = policyFor(configuration);
 
 		assertThat(policy.schedulesAutomaticPolls(contextIn(
@@ -53,11 +53,11 @@ class RequestTrackingPolicyTests {
 		configuration.getSupplierTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getSupplierTracking()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		configuration.getBorrowerTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getBorrowerTracking()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var policy = policyFor(configuration);
 
 		assertThat(policy.schedulesAutomaticPolls(contextIn(
@@ -70,11 +70,11 @@ class RequestTrackingPolicyTests {
 		configuration.getSupplierTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getSupplierTracking()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		configuration.getBorrowerTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getBorrowerTracking()
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var policy = policyFor(configuration);
 
 		assertThat(policy.schedulesAutomaticPolls(contextIn(

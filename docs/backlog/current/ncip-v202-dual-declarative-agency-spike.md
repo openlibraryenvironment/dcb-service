@@ -9,7 +9,7 @@ Branch: `spike/iso18626-declarative-dual-agency`
 This item supersedes the ISO18626 protocol leaf from
 `docs/backlog/done/iso18626-dual-declarative-agency-spike.md`.
 
-Next dev slice: Slice 7, Inbound NCIP Controller.
+Next dev slice: none. Spike implementation slices are complete.
 
 Blocking questions: none through Slice 6. Slice 7 can proceed using the
 controller decisions below. Status mapping remains message-specific.
@@ -324,7 +324,7 @@ Acceptance:
 
 ### Slice 7: Inbound NCIP Controller
 
-Status: next.
+Status: done.
 
 - Add NCIP inbound controller inside the NCIP adapter package.
 - Receive `NCIPMessage`.
@@ -344,7 +344,7 @@ Acceptance:
 
 ### Slice 8: Dual Declarative Happy Path
 
-Status: pending.
+Status: done.
 
 - Rewrite the dual declarative spike test around NCIP.
 - Prove supplier `RequestItem` precedes borrower `AcceptItem`.
@@ -357,7 +357,7 @@ Acceptance:
 
 ### Slice 9: Remove ISO18626 Leaf
 
-Status: pending.
+Status: done.
 
 - Delete or disable ISO18626 adapter classes and tests.
 - Remove ISO18626 activation examples from the active spike.

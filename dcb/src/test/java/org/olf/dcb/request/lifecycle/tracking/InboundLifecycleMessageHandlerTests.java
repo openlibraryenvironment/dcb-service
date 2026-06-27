@@ -39,7 +39,7 @@ class InboundLifecycleMessageHandlerTests {
 			.thenReturn(Mono.just(supplierRequest));
 
 		final var result = handler.handle(new InboundLifecycleMessage(
-			"iso18626",
+			"ncip-v202",
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
 			"supplier-host",
@@ -58,7 +58,7 @@ class InboundLifecycleMessageHandlerTests {
 		assertThat(supplierRequest.getRawLocalStatus(), is("confirmed"));
 		assertThat(supplierRequest.getLocalItemId(), is("supplier-item"));
 		assertThat(supplierRequest.getLocalItemBarcode(), is("supplier-barcode"));
-		assertThat(supplierRequest.getProtocol(), is("iso18626"));
+		assertThat(supplierRequest.getProtocol(), is("ncip-v202"));
 		verify(dependencies.patronRequestWorkflowService()).progressUsing(context);
 	}
 
@@ -75,7 +75,7 @@ class InboundLifecycleMessageHandlerTests {
 			.thenReturn(Mono.just(patronRequest));
 
 		handler.handle(new InboundLifecycleMessage(
-			"iso18626",
+			"ncip-v202",
 			LifecycleRole.BORROWER,
 			LifecycleOperation.PLACE_REQUEST,
 			"borrower-host",
@@ -92,7 +92,7 @@ class InboundLifecycleMessageHandlerTests {
 			is("borrower-remote-request"));
 		assertThat(patronRequest.getLocalRequestStatus(), is("PLACED"));
 		assertThat(patronRequest.getRawLocalRequestStatus(), is("placed"));
-		assertThat(patronRequest.getProtocol(), is("iso18626"));
+		assertThat(patronRequest.getProtocol(), is("ncip-v202"));
 		assertThat(patronRequest.getLocalItemId(), nullValue());
 		verify(dependencies.patronRequestWorkflowService()).progressUsing(context);
 	}
@@ -111,7 +111,7 @@ class InboundLifecycleMessageHandlerTests {
 			.saveOrUpdate(supplierRequest))
 			.thenReturn(Mono.just(supplierRequest));
 		final var message = new InboundLifecycleMessage(
-			"iso18626",
+			"ncip-v202",
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
 			"supplier-host",

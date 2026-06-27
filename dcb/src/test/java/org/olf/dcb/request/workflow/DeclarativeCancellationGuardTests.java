@@ -45,7 +45,7 @@ class DeclarativeCancellationGuardTests {
 			.setHostLmsCode("supplier-host")
 			.setLocalId("supplier-remote-request")
 			.setLocalStatus("PLACED")
-			.setProtocol("iso18626");
+			.setProtocol("ncip-v202");
 		final var context = new RequestWorkflowContext()
 			.setPatronRequest(patronRequest)
 			.setSupplierRequest(supplierRequest);

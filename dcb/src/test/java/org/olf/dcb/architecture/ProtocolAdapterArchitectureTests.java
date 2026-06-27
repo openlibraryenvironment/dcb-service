@@ -16,10 +16,6 @@ class ProtocolAdapterArchitectureTests {
 	private static final List<ProtocolAdapterBoundary> PROTOCOL_BOUNDARIES
 		= List.of(
 			new ProtocolAdapterBoundary(
-				"ISO18626",
-				"iso18626",
-				List.of("Iso18626", "ISO18626")),
-			new ProtocolAdapterBoundary(
 				"NCIP",
 				"ncip",
 				List.of("Ncip", "NCIP")));

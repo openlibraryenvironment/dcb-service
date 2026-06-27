@@ -1,7 +1,8 @@
-package org.olf.dcb.request.lifecycle.iso18626;
+package org.olf.dcb.request.lifecycle.ncip;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -38,7 +40,6 @@ import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestProjector;
 import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestStrategyService;
 import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestStrategyResolver;
 import org.olf.dcb.request.lifecycle.tracking.DefaultRequestTrackingPolicy;
-import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessage;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageHandler;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageIdempotencyGuard;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -46,24 +47,32 @@ import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import reactor.core.publisher.Mono;
 
-class Iso18626DualDeclarativeAgencySpikeTests {
+class NcipDualDeclarativeAgencySpikeTests {
 	@Test
-	void supplierAndBorrowerCanBothUseDeclarativeEventDrivenPath() {
+	void supplierAndBorrowerCanBothUseDeclarativeEventDrivenNcipPath() {
 		final var configuration = dualDeclarativeConfiguration();
 		final var capabilityResolver = new LifecycleCapabilityResolver(configuration);
 		final var trackingPolicy = new DefaultRequestTrackingPolicy(
 			capabilityResolver);
 		final var transport = new RoleAwareTransport();
 		final var patronRequestId = UUID.randomUUID();
+		final var bibClusterId = UUID.randomUUID();
 		final var patronRequest = new PatronRequest()
 			.setId(patronRequestId)
+			.setBibClusterId(bibClusterId)
 			.setPatronHostlmsCode("borrower-host")
+			.setRequestingIdentity(new PatronIdentity()
+				.setLocalId("borrower-patron")
+				.setLocalBarcode("borrower-barcode"))
 			.setStatus(PatronRequest.Status.RESOLVED);
 		final var supplierRequest = new SupplierRequest()
 			.setHostLmsCode("supplier-host")
 			.setLocalAgency("supplier-agency");
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
+			.setPatronHomeIdentity(new PatronIdentity()
+				.setLocalId("home-patron")
+				.setLocalBarcode("home-barcode"))
 			.setPatronRequest(patronRequest)
 			.setSupplierRequest(supplierRequest);
 		final var supplierPlacement = supplyingPlacementService(
@@ -71,29 +80,30 @@ class Iso18626DualDeclarativeAgencySpikeTests {
 		final var borrowerPlacement = borrowingPlacementService(
 			capabilityResolver, transport);
 		final var inboundHandler = inboundHandlerFor(context);
+		final var inboundMapper = new NcipInboundMessageMapper();
 
 		supplierPlacement.place(context).block();
 		assertThat(patronRequest.getStatus(),
 			is(PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 		assertThat(supplierRequest.getLocalId(), is("supplier-remote-request"));
 		assertThat(supplierRequest.getLocalStatus(), is("PLACED"));
-		assertThat(supplierRequest.getProtocol(), is("iso18626"));
+		assertThat(supplierRequest.getProtocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(trackingPolicy.schedulesAutomaticPolls(context), is(false));
 		assertThat(patronRequest.getNextScheduledPoll(), nullValue());
 
-		inboundHandler.handle(new InboundLifecycleMessage(
-			"iso18626",
+		inboundHandler.handle(inboundMapper.map(new NcipInboundMessage(
+			"RequestItemResponse",
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
 			"supplier-host",
 			"supplier-remote-request",
 			patronRequestId + ":SUPPLIER",
 			"CONFIRMED",
-			"confirmed",
+			"RequestItemResponse",
 			"supplier-item",
 			"supplier-barcode",
 			Instant.parse("2026-06-26T12:10:00Z"),
-			"supplier-confirmation-message")).block();
+			"supplier-confirmation-message"))).block();
 		assertThat(supplierRequest.getLocalStatus(), is("CONFIRMED"));
 		assertThat(supplierRequest.getLocalItemId(), is("supplier-item"));
 		assertThat(patronRequest.getStatus(), is(PatronRequest.Status.CONFIRMED));
@@ -108,32 +118,40 @@ class Iso18626DualDeclarativeAgencySpikeTests {
 		assertThat(trackingPolicy.schedulesAutomaticPolls(context), is(false));
 		assertThat(patronRequest.getNextScheduledPoll(), nullValue());
 
-		inboundHandler.handle(new InboundLifecycleMessage(
-			"iso18626",
+		inboundHandler.handle(inboundMapper.map(new NcipInboundMessage(
+			"AcceptItemResponse",
 			LifecycleRole.BORROWER,
 			LifecycleOperation.PLACE_REQUEST,
 			"borrower-host",
 			"borrower-remote-request",
 			patronRequestId + ":BORROWER",
 			"CONFIRMED",
-			"confirmed",
+			"AcceptItemResponse",
 			null,
 			null,
 			Instant.parse("2026-06-26T12:11:00Z"),
-			"borrower-confirmation-message")).block();
+			"borrower-confirmation-message"))).block();
 		assertThat(patronRequest.getLocalRequestStatus(), is("CONFIRMED"));
-		assertThat(patronRequest.getProtocol(), is("iso18626"));
+		assertThat(patronRequest.getProtocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(patronRequest.getNextScheduledPoll(), nullValue());
 		assertThat(transport.roles(), contains(
 			LifecycleRole.SUPPLIER,
 			LifecycleRole.BORROWER));
+		assertThat(transport.messageKinds(), contains(
+			NcipProtocol.REQUEST_ITEM,
+			NcipProtocol.ACCEPT_ITEM));
+		assertThat(transport.payloads().getFirst(), containsString("<RequestItem"));
+		assertThat(transport.payloads().get(1), containsString("<AcceptItem"));
+		assertThat(transport.payloads().get(1),
+			containsString("<ItemIdentifierValue>supplier-item</ItemIdentifierValue>"));
 	}
 
 	private static SupplyingAgencyRequestStrategyService supplyingPlacementService(
 		LifecycleCapabilityResolver capabilityResolver,
 		DeclarativeRequestTransport transport) {
 
-		final var strategy = new Iso18626SupplyingRequestStrategy(transport);
+		final var strategy = new NcipSupplyingRequestStrategy(
+			transport, new NcipPayloadBuilder());
 		final var resolver = new SupplyingAgencyRequestStrategyResolver(
 			mock(ImperativeSupplyingAgencyRequestStrategy.class),
 			List.of(strategy),
@@ -147,7 +165,8 @@ class Iso18626DualDeclarativeAgencySpikeTests {
 		LifecycleCapabilityResolver capabilityResolver,
 		DeclarativeRequestTransport transport) {
 
-		final var strategy = new Iso18626BorrowingRequestStrategy(transport);
+		final var strategy = new NcipBorrowingRequestStrategy(
+			transport, new NcipPayloadBuilder());
 		final var resolver = new BorrowingAgencyRequestStrategyResolver(
 			mock(ImperativeBorrowingAgencyRequestStrategy.class),
 			List.of(strategy),
@@ -203,19 +222,19 @@ class Iso18626DualDeclarativeAgencySpikeTests {
 		configuration.getSupplyingAgencyRequest()
 			.setStrategy(StrategyType.DECLARATIVE);
 		configuration.getSupplyingAgencyRequest()
-			.setProtocol("iso18626");
+			.setProtocol(NcipProtocol.PROTOCOL);
 		configuration.getBorrowingAgencyRequest()
 			.setStrategy(StrategyType.DECLARATIVE);
 		configuration.getBorrowingAgencyRequest()
-			.setProtocol("iso18626");
+			.setProtocol(NcipProtocol.PROTOCOL);
 		configuration.getSupplierTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getSupplierTracking()
-			.setProtocol("iso18626");
+			.setProtocol(NcipProtocol.PROTOCOL);
 		configuration.getBorrowerTracking()
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getBorrowerTracking()
-			.setProtocol("iso18626");
+			.setProtocol(NcipProtocol.PROTOCOL);
 		return configuration;
 	}
 
@@ -237,6 +256,18 @@ class Iso18626DualDeclarativeAgencySpikeTests {
 		List<LifecycleRole> roles() {
 			return requests.stream()
 				.map(DeclarativeTransportRequest::role)
+				.toList();
+		}
+
+		List<String> messageKinds() {
+			return requests.stream()
+				.map(DeclarativeTransportRequest::messageKind)
+				.toList();
+		}
+
+		List<String> payloads() {
+			return requests.stream()
+				.map(DeclarativeTransportRequest::payload)
 				.toList();
 		}
 
