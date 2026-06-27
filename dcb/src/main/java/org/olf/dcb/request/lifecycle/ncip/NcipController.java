@@ -68,8 +68,13 @@ public class NcipController {
 	private MutableHttpResponse<String> successResponseFor(
 		NcipInboundMessage message) {
 
+		if (NcipProtocol.REQUEST_ITEM_RESPONSE.equals(message.messageKind())
+			|| NcipProtocol.ACCEPT_ITEM_RESPONSE.equals(message.messageKind())) {
+			return HttpResponse.noContent();
+		}
+
 		return xmlResponse(switch (message.messageKind()) {
-			case "ItemShipped" -> responseBuilder.itemShippedResponse();
+			case NcipProtocol.ITEM_SHIPPED -> responseBuilder.itemShippedResponse();
 			default -> responseBuilder.problem(
 				"Unsupported NCIP message: " + message.messageKind());
 		});
@@ -80,7 +85,7 @@ public class NcipController {
 		Throwable error) {
 
 		return xmlResponse(switch (message.messageKind()) {
-			case "ItemShipped" -> responseBuilder.itemShippedProblem(
+			case NcipProtocol.ITEM_SHIPPED -> responseBuilder.itemShippedProblem(
 				messageFrom(error));
 			default -> responseBuilder.problem(messageFrom(error));
 		});

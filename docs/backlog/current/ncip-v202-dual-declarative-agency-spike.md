@@ -9,10 +9,9 @@ Branch: `spike/iso18626-declarative-dual-agency`
 This item supersedes the ISO18626 protocol leaf from
 `docs/backlog/done/iso18626-dual-declarative-agency-spike.md`.
 
-Next dev slice: none. Spike implementation slices are complete.
+Current spike state: Slice 12 done. Production follow-ons remain.
 
-Blocking questions: none through Slice 6. Slice 7 can proceed using the
-controller decisions below. Status mapping remains message-specific.
+Blocking questions: none. Status mapping remains message-specific.
 
 ## Goal
 
@@ -111,6 +110,54 @@ repository now contains the NCIP schema at `src/xsd/ncip_v2_02.xsd`, including
 8. Existing `PatronRequest` and `SupplierRequest` fields remain compatibility
    projections, not the canonical protocol model.
 
+9. Inbound NCIP `RequestItemResponse` and `AcceptItemResponse` success messages
+   are placement evidence. They map to DCB local status `CONFIRMED` so existing
+   supplier-confirmation workflow guards can advance without core workflow
+   changes.
+
+10. Inbound response messages must include `ResponseHeader/FromAgencyId/AgencyId`.
+    The value is treated as the peer Host LMS code.
+
+11. For this spike, inbound response messages must echo the DCB role-specific
+    request correlation id in `RequestId/RequestIdentifierValue`, for example
+    `{patronRequestId}:SUPPLIER`. Separating remote request id from correlation
+    id remains future work.
+
+12. `ItemShipped` receives an NCIP `ItemShippedResponse`. Inbound
+    `RequestItemResponse` and `AcceptItemResponse` receive HTTP 204 because NCIP
+    does not define a response-to-a-response message.
+
+13. Outbound NCIP calls use Host LMS scoped config key `ncip-endpoint-url`.
+    This is deliberately separate from existing imperative `base-url` config.
+
+14. The spike includes a partial `ORSApplianceHostLMS` adapter. It implements
+    supplier `RequestItem` and borrower `AcceptItem` placement only. Wider
+    `HostLmsClient` method coverage should grow by lifecycle slice.
+
+15. `HostLmsClient` is the natural plugin point for black-box DCB request tests
+    today. Its broad method surface is architectural debt, but not a reason to
+    keep NCIP outside the Host LMS model.
+
+16. Extract capability interfaces only when a real caller is moved to depend on
+    that capability. The first likely capabilities are
+    `CanPlaceSupplyingAgencyRequest` and `CanPlaceBorrowingAgencyRequest`.
+    Do not pre-create speculative tracking, cancellation, patron, item, or bib
+    capability interfaces.
+
+17. Capability detection must be GraalVM-safe. Use direct Java interface checks
+    (`instanceof CanPlaceSupplyingAgencyRequest`) and static references, not
+    reflection, annotation introspection, or dynamic method lookup.
+
+18. A base Host LMS adapter class that returns `Mono.empty()` for unsupported
+    reactive methods is acceptable. This keeps partial adapters small and
+    avoids accidental `null` returns.
+
+19. Full discovery-facing workflow tests are deferred until the NCIP adapter
+    implements the surrounding Host LMS methods that DCB calls before/after
+    placement, for example patron, bib, item, preflight, and tracking methods.
+    Current higher-level coverage proves HostLmsService wiring and outbound
+    NCIP HTTP calls.
+
 ## Boundary Decisions To Confirm
 
 These are production/profile decisions. They should be made explicit during the
@@ -184,8 +231,10 @@ Accepted controller decisions:
 - Authentication: out of scope for this spike, but required before production
   use for inbound and outbound NCIP.
 - Partner resolution: NCIP `AgencyId` values correlate with DCB Host LMS codes.
-- Initial Host LMS use case: `ORSApplianceHostLMS`, implemented as a Host LMS
-  adapter using NCIP and normal Host LMS configuration idioms.
+- Initial Host LMS use case: ORS appliance integration using NCIP and normal
+  Host LMS scoped configuration. A partial placement-only
+  `ORSApplianceHostLMS` exists; full lifecycle coverage is a production
+  follow-on.
 - Response shape: follow NCIP message-specific responses. Start with
   `ItemShippedResponse`.
 - Invalid XML: return NCIP `Problem`.
@@ -230,7 +279,8 @@ For each inbound message, answer:
 
 2. Workflow packages must not import NCIP classes.
 
-3. Host LMS adapters must not import NCIP declarative lifecycle classes.
+3. Non-NCIP Host LMS adapters must not import NCIP declarative lifecycle
+   classes. An NCIP-backed Host LMS adapter may live inside the NCIP package.
 
 4. Lifecycle abstractions must not depend on NCIP.
 
@@ -367,6 +417,87 @@ Acceptance:
 
 - No production code depends on `iso18626`.
 - NCIP is the only active declarative protocol leaf.
+
+### Slice 10: Inbound NCIP Response Messages
+
+Status: done.
+
+- Map inbound `RequestItemResponse` to supplier placement evidence.
+- Map inbound `AcceptItemResponse` to borrower placement evidence.
+- Reject NCIP `Problem` response payloads instead of projecting success.
+- Return HTTP 204 for accepted response messages.
+- Keep response parsing and status mapping inside the NCIP adapter.
+
+Acceptance:
+
+- `RequestItemResponse` and `AcceptItemResponse` validate against the XSD.
+- Both messages project protocol `ncip-v202` and status `CONFIRMED`.
+- Workflow code remains NCIP-free.
+
+### Slice 11: Outbound NCIP HTTP Transport
+
+Status: done.
+
+- Add concrete `DeclarativeRequestTransport` for protocol `ncip-v202`.
+- Resolve the target Host LMS by `hostLmsCode`.
+- Read peer endpoint from Host LMS config key `ncip-endpoint-url`.
+- POST NCIP XML as `application/xml`.
+- Accept NCIP XML responses.
+- Map `RequestItemResponse` and `AcceptItemResponse` back to
+  `DeclarativeTransportResponse`.
+- Reject mismatched response message kind, lifecycle role, or correlation id.
+
+Acceptance:
+
+- Supplier `RequestItem` is posted to the configured NCIP endpoint.
+- Borrower `AcceptItem` is posted to the configured NCIP endpoint.
+- Missing endpoint config fails before any HTTP call.
+- Tests prove the HTTP endpoint is called.
+- Protocol-specific transport stays inside the NCIP adapter package.
+
+### Slice 12: ORS Appliance NCIP Host LMS Placement Adapter
+
+Status: done.
+
+- Add placement capability interfaces:
+  `CanPlaceSupplyingAgencyRequest` and `CanPlaceBorrowingAgencyRequest`.
+- Make `HostLmsClient` extend those capabilities without changing existing
+  clients.
+- Add `AbstractHostLmsClient` with `Mono.empty()` defaults for unsupported
+  methods.
+- Add partial `ORSApplianceHostLMS` inside the NCIP package.
+- Implement supplier `RequestItem` and borrower `AcceptItem` placement.
+- Add Host LMS fixture support for `ncip-endpoint-url`.
+- Add context-level tests proving `HostLmsService` creates the adapter and real
+  Micronaut HTTP POSTs reach `/ncip/v2_02`.
+
+Acceptance:
+
+- Existing Host LMS implementations compile unchanged.
+- NCIP adapter exposes only the placement methods needed by this slice.
+- Tests prove endpoint calls can be observed through MockServer.
+- Full workflow tests remain deferred until wider Host LMS lifecycle coverage
+  exists.
+
+## Remaining Production Follow-ons
+
+- Add inbound and outbound authentication.
+- Grow `ORSApplianceHostLMS` method coverage by lifecycle slice.
+- Consider a longer-term split of `HostLmsClient` into narrower capability
+  interfaces so NCIP and other adapters can implement only honest capabilities.
+- When extracting capability interfaces, extract only the interface needed by
+  the caller being changed. Start with placement capability interfaces; defer
+  tracking/cancellation/patron/item/bib capabilities until those paths are in
+  scope.
+- Move real callers to narrower capability interfaces only when there is a
+  concrete lifecycle change needing it.
+- Add discovery/API-facing black-box tests once the adapter can cover the
+  required Host LMS lifecycle calls.
+- Separate remote NCIP request ids from DCB correlation ids if partner profiles
+  do not echo DCB `RequestId` values.
+- Add partner/profile-specific status mapping once real NCIP examples are
+  available.
+- Persist raw NCIP XML or external message ids if audit/replay requires it.
 
 ## Definition Of Done
 

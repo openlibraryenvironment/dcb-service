@@ -54,7 +54,7 @@ class NcipInboundMessageMapperTests {
 			"borrower-host",
 			"borrower-remote-request",
 			"patron-request-id:BORROWER",
-			"ACCEPTED",
+			"CONFIRMED",
 			"AcceptItemResponse",
 			null,
 			null,
@@ -65,7 +65,7 @@ class NcipInboundMessageMapperTests {
 		assertThat(message.role(), is(LifecycleRole.BORROWER));
 		assertThat(message.hostRequestId(), is("borrower-remote-request"));
 		assertThat(message.correlationId(), is("patron-request-id:BORROWER"));
-		assertThat(message.status(), is("ACCEPTED"));
+		assertThat(message.status(), is("CONFIRMED"));
 		assertThat(message.rawStatus(), is("AcceptItemResponse"));
 		assertThat(message.rawMessageReference(), is("raw-message-2"));
 	}

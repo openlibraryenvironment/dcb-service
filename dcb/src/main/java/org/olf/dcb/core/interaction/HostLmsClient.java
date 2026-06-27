@@ -19,7 +19,10 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import reactor.core.publisher.Mono;
 
-public interface HostLmsClient extends Comparable<HostLmsClient> {
+public interface HostLmsClient
+	extends Comparable<HostLmsClient>,
+		CanPlaceSupplyingAgencyRequest,
+		CanPlaceBorrowingAgencyRequest {
 	Mono<HostLmsRenewal> renew(@NonNull HostLmsRenewal hostLmsRenewal);
 
 	Mono<LocalRequest> updateHoldRequest(@NonNull LocalRequest localRequest);
@@ -75,10 +78,6 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 	 * hold we will not know the barcode and id of the item held until the downstream system has selected an item.
 	 * implementers need to take care to return the id and barcode of the ultimately selected item once it is known.
 	 */
-	Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters parameters);
-
-	Mono<LocalRequest> placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters parameters);
-
 	Mono<LocalRequest> placeHoldRequestAtPickupAgency(PlaceHoldRequestParameters parameters);
 
 	Mono<LocalRequest> placeHoldRequestAtLocalAgency(PlaceHoldRequestParameters parameters);

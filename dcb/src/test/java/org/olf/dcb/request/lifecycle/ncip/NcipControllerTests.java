@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -74,6 +75,56 @@ class NcipControllerTests {
 		assertDoesNotThrow(() -> validator.validate(response.body()));
 	}
 
+	@Test
+	void acceptsRequestItemResponseAndReturnsNoContent() {
+		final var handler = mock(InboundLifecycleMessageHandler.class);
+		when(handler.handle(any())).thenReturn(Mono.just(new RequestWorkflowContext()));
+		final var controller = controllerWith(handler);
+
+		final var response = controller.receive(validRequestItemResponse()).block();
+
+		assertThat(response.getStatus(), is(HttpStatus.NO_CONTENT));
+
+		final var messageCaptor = ArgumentCaptor.forClass(
+			InboundLifecycleMessage.class);
+		verify(handler).handle(messageCaptor.capture());
+
+		final var message = messageCaptor.getValue();
+		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
+		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.hostLmsCode(), is("supplier-host"));
+		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
+		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
+		assertThat(message.status(), is("CONFIRMED"));
+		assertThat(message.rawStatus(), is(NcipProtocol.REQUEST_ITEM_RESPONSE));
+		assertThat(message.itemId(), is("item-1"));
+	}
+
+	@Test
+	void acceptsAcceptItemResponseAndReturnsNoContent() {
+		final var handler = mock(InboundLifecycleMessageHandler.class);
+		when(handler.handle(any())).thenReturn(Mono.just(new RequestWorkflowContext()));
+		final var controller = controllerWith(handler);
+
+		final var response = controller.receive(validAcceptItemResponse()).block();
+
+		assertThat(response.getStatus(), is(HttpStatus.NO_CONTENT));
+
+		final var messageCaptor = ArgumentCaptor.forClass(
+			InboundLifecycleMessage.class);
+		verify(handler).handle(messageCaptor.capture());
+
+		final var message = messageCaptor.getValue();
+		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
+		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.hostLmsCode(), is("borrower-host"));
+		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
+		assertThat(message.correlationId(), is("request-1:BORROWER"));
+		assertThat(message.status(), is("CONFIRMED"));
+		assertThat(message.rawStatus(), is(NcipProtocol.ACCEPT_ITEM_RESPONSE));
+		assertThat(message.itemId(), is("item-1"));
+	}
+
 	private static NcipController controllerWith(
 		InboundLifecycleMessageHandler handler) {
 
@@ -110,6 +161,57 @@ class NcipControllerTests {
 			      </ElectronicAddress>
 			    </ShippingInformation>
 			  </ItemShipped>
+			</NCIPMessage>
+			""";
+	}
+
+	static String validRequestItemResponse() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <RequestItemResponse>
+			    <ResponseHeader>
+			      <FromAgencyId>
+			        <AgencyId>supplier-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb-host</AgencyId>
+			      </ToAgencyId>
+			    </ResponseHeader>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:SUPPLIER</RequestIdentifierValue>
+			    </RequestId>
+			    <ItemId>
+			      <ItemIdentifierValue>item-1</ItemIdentifierValue>
+			    </ItemId>
+			    <UserId>
+			      <UserIdentifierValue>user-1</UserIdentifierValue>
+			    </UserId>
+			    <RequestType>Hold</RequestType>
+			    <RequestScopeType>Bibliographic Item</RequestScopeType>
+			  </RequestItemResponse>
+			</NCIPMessage>
+			""";
+	}
+
+	static String validAcceptItemResponse() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <AcceptItemResponse>
+			    <ResponseHeader>
+			      <FromAgencyId>
+			        <AgencyId>borrower-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb-host</AgencyId>
+			      </ToAgencyId>
+			    </ResponseHeader>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:BORROWER</RequestIdentifierValue>
+			    </RequestId>
+			    <ItemId>
+			      <ItemIdentifierValue>item-1</ItemIdentifierValue>
+			    </ItemId>
+			  </AcceptItemResponse>
 			</NCIPMessage>
 			""";
 	}

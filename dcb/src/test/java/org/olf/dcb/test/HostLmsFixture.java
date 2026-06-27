@@ -17,6 +17,7 @@ import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.devtools.interaction.dummy.DummyLmsClient;
 import org.olf.dcb.ingest.IngestSource;
+import org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS;
 import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.core.annotation.Nullable;
@@ -175,6 +176,16 @@ public class HostLmsFixture {
 
 		return createHostLms(randomUUID(), code, DummyLmsClient.class,
 			Optional.of(DummyLmsClient.class), clientConfig);
+	}
+
+	public DataHostLms createORSApplianceHostLms(
+		String code,
+		String ncipEndpointUrl) {
+
+		return createHostLms(randomUUID(), code, ORSApplianceHostLMS.class,
+			Optional.empty(), Map.of(
+				ORSApplianceHostLMS.NCIP_ENDPOINT_URL_KEY,
+				ncipEndpointUrl));
 	}
 
 	private String generateBaseUrl(String code) {

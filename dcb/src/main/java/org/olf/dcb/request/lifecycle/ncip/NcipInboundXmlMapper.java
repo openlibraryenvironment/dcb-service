@@ -13,6 +13,8 @@ import org.w3c.dom.Element;
 
 @Prototype
 public class NcipInboundXmlMapper {
+	private static final String CONFIRMED_STATUS = "CONFIRMED";
+
 	public NcipInboundMessage map(String xml) {
 		final var document = parse(xml);
 		final var message = firstElementChild(document.getDocumentElement())
@@ -20,7 +22,11 @@ public class NcipInboundXmlMapper {
 				"NCIPMessage does not contain a message payload"));
 
 		return switch (message.getLocalName()) {
-			case "ItemShipped" -> itemShipped(message, xml);
+			case NcipProtocol.ITEM_SHIPPED -> itemShipped(message, xml);
+			case NcipProtocol.REQUEST_ITEM_RESPONSE -> requestItemResponse(
+				message, xml);
+			case NcipProtocol.ACCEPT_ITEM_RESPONSE -> acceptItemResponse(
+				message, xml);
 			default -> throw new NcipProblemException(
 				"Unsupported NCIP message: " + message.getLocalName());
 		};
@@ -35,7 +41,7 @@ public class NcipInboundXmlMapper {
 		final var dateShipped = requiredText(itemShipped, "DateShipped");
 
 		return new NcipInboundMessage(
-			"ItemShipped",
+			NcipProtocol.ITEM_SHIPPED,
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
 			requiredAgencyId(itemShipped, "FromAgencyId"),
@@ -47,6 +53,73 @@ public class NcipInboundXmlMapper {
 			null,
 			Instant.parse(dateShipped),
 			"ncip:ItemShipped:%s".formatted(Integer.toHexString(xml.hashCode())));
+	}
+
+	private static NcipInboundMessage requestItemResponse(
+		Element response,
+		String xml) {
+
+		rejectProblem(response, NcipProtocol.REQUEST_ITEM_RESPONSE);
+
+		final var requestId = requiredText(
+			response, "RequestIdentifierValue");
+
+		return new NcipInboundMessage(
+			NcipProtocol.REQUEST_ITEM_RESPONSE,
+			LifecycleRole.SUPPLIER,
+			LifecycleOperation.PLACE_REQUEST,
+			requiredResponseAgencyId(response),
+			requestId,
+			requestId,
+			CONFIRMED_STATUS,
+			NcipProtocol.REQUEST_ITEM_RESPONSE,
+			optionalText(response, "ItemIdentifierValue").orElse(null),
+			null,
+			null,
+			rawMessageReference(NcipProtocol.REQUEST_ITEM_RESPONSE, xml));
+	}
+
+	private static NcipInboundMessage acceptItemResponse(
+		Element response,
+		String xml) {
+
+		rejectProblem(response, NcipProtocol.ACCEPT_ITEM_RESPONSE);
+
+		final var requestId = requiredText(
+			response, "RequestIdentifierValue");
+
+		return new NcipInboundMessage(
+			NcipProtocol.ACCEPT_ITEM_RESPONSE,
+			LifecycleRole.BORROWER,
+			LifecycleOperation.PLACE_REQUEST,
+			requiredResponseAgencyId(response),
+			requestId,
+			requestId,
+			CONFIRMED_STATUS,
+			NcipProtocol.ACCEPT_ITEM_RESPONSE,
+			optionalText(response, "ItemIdentifierValue").orElse(null),
+			null,
+			null,
+			rawMessageReference(NcipProtocol.ACCEPT_ITEM_RESPONSE, xml));
+	}
+
+	private static String requiredResponseAgencyId(Element response) {
+		final var responseHeader = firstDescendant(response, "ResponseHeader")
+			.orElseThrow(() -> new NcipProblemException(
+				response.getLocalName() + " requires ResponseHeader"));
+
+		return requiredAgencyId(responseHeader, "FromAgencyId");
+	}
+
+	private static void rejectProblem(Element response, String messageKind) {
+		final var problem = firstDescendant(response, "Problem");
+
+		if (problem.isPresent()) {
+			throw new NcipProblemException("%s contains Problem: %s".formatted(
+				messageKind,
+				optionalText(problem.get(), "ProblemDetail")
+					.orElse("No problem detail supplied")));
+		}
 	}
 
 	private static String requiredAgencyId(Element element, String agencyElementName) {
@@ -79,6 +152,12 @@ public class NcipInboundXmlMapper {
 		}
 
 		return Optional.of((Element) nodes.item(0));
+	}
+
+	private static String rawMessageReference(String messageKind, String xml) {
+		return "ncip:%s:%s".formatted(
+			messageKind,
+			Integer.toHexString(xml.hashCode()));
 	}
 
 	private static Optional<Element> firstElementChild(Element element) {
