@@ -60,9 +60,3 @@ dcb:
   requestability:
     location:
       filtering: false
-      
-test-resources:
-  containers:
-    postgres:
-      image-name: "postgres:18"
-      command: ["postgres", "-N", "200"]

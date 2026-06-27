@@ -39,7 +39,7 @@ public class HazelcastProvidersFactory {
 	private boolean environmentSpecificConfigCandidate(String envName) {
 
 		return switch (envName) {
-		case Environment.KUBERNETES, Environment.DEVELOPMENT -> true;
+		case Environment.KUBERNETES, Environment.DEVELOPMENT, Environment.TEST -> true;
 
 		default -> false;
 		};

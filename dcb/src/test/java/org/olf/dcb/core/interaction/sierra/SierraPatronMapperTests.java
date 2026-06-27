@@ -29,7 +29,7 @@ import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.patrons.Block;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 
-@MicronautTest
+@MicronautTest(contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 class SierraPatronMapperTests {
 	private final static String HOST_LMS_CODE = "sierra-patron-mapping";
 	private final static int MAPPED_LOCAL_PATRON_TYPE = 23;

@@ -11,7 +11,6 @@ plugins {
 	id("com.gradleup.shadow") version "9.3.0"
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
-	id("io.micronaut.test-resources") version "$micronautGradleVersion"
 	// id("io.micronaut.aot") version "$micronautGradleVersion"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
@@ -125,16 +124,7 @@ dependencies {
 
 	runtimeOnly("org.postgresql:postgresql")
 
-	// Without this dependency, testcontainer injection seems not to happen at all.
-	// Wonder if this is because the bean that uses PG is a r2dbc service
 	runtimeOnly("org.postgresql:r2dbc-postgresql")
-
-
-		// testRuntimeOnly("io.micronaut.testresources:micronaut-test-resources-client")
-
-	// Uncommmenting this dependency results in
-	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
-	//
 	runtimeOnly("io.r2dbc:r2dbc-pool")
 
 	implementation("io.micronaut.flyway:micronaut-flyway")
@@ -156,9 +146,8 @@ dependencies {
 	implementation 'com.hazelcast:hazelcast'
 
 	// Keep Testcontainers compatible with Docker API >= 1.44 on current GitHub runners.
-	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.3"))
-	testRuntimeOnly(platform("org.testcontainers:testcontainers-bom:2.0.3"))
-	testResourcesService(platform("org.testcontainers:testcontainers-bom:2.0.3"))
+	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
+	testRuntimeOnly(platform("org.testcontainers:testcontainers-bom:2.0.5"))
 
 	// Tests
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -195,9 +184,7 @@ dependencies {
 	testImplementation('org.awaitility:awaitility')
 	testImplementation('io.projectreactor:reactor-test')
 
-	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
-
-	testRuntimeOnly("org.testcontainers:testcontainers-postgresql:2.0.5")
+	testImplementation("org.testcontainers:testcontainers-postgresql")
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
 	implementation("com.graphql-java:graphql-java-extended-scalars" )
@@ -242,10 +229,6 @@ micronaut {
 	runtime("netty")
 	testRuntime("junit5")
 	version micronautVersion
-	testResources {
-		inferClasspath.set(false)
-		additionalModules.addAll("jdbc-postgresql", "r2dbc-postgresql", "r2dbc-pool")
-	}
 	processing {
 		incremental(true)
 		annotations("org.olf.dcb.*", "services.k_int.*")

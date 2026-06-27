@@ -6,6 +6,6 @@ import java.lang.annotation.RetentionPolicy;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 
 @Retention(RetentionPolicy.RUNTIME)
-@MicronautTest
+@MicronautTest(contextBuilder = DcbTestContainerContextBuilder.class)
 public @interface DcbTest {
 }

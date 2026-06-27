@@ -23,7 +23,7 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 
-@MicronautTest
+@MicronautTest(contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 class UserToPatronConverterTests {
 	@Inject
 	private ConversionService conversionService;

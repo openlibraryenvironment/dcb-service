@@ -21,7 +21,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
 @MockServerMicronautTest
-@MicronautTest(transactional = false, rebuildContext = true)
+@MicronautTest(transactional = false, rebuildContext = true, contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 @TestInstance(PER_CLASS)
 class PolarisIngestTests {
 	private static final String HOST_LMS_CODE = "ingest-service-service-tests";

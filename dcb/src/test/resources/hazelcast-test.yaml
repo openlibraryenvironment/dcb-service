@@ -1,0 +1,16 @@
+hazelcast:
+  cluster-name: dcb-service-test-cluster
+  network:
+    join:
+      multicast:
+        enabled: false
+      tcp-ip:
+        enabled: false
+      auto-detection:
+        enabled: false
+  properties:
+    hazelcast.logging.type: slf4j
+    hazelcast.phone.home.enabled: false
+    hazelcast.shutdownhook.enabled: false
+    hazelcast.graceful.shutdown.max.wait: 1
+    hazelcast.logging.shutdown: false

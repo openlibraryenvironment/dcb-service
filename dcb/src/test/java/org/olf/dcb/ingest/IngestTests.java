@@ -31,7 +31,7 @@ import services.k_int.micronaut.PublisherTransformation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, rebuildContext = true)
+@MicronautTest(transactional = false, rebuildContext = true, contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 @TestInstance(PER_CLASS)
 @Slf4j
 class IngestTests {

@@ -176,9 +176,6 @@ r2dbc:
     default:
       enabled: true
       dialect: POSTGRES
-      # https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/
-      # Specify db-type so test resources knows what to provision
-      # db-type: postgresql
       db-type: postgres
       reconnect: true
       # url: ${DB_URL:`r2dbc:postgresql://localhost:5432/postgres`}
