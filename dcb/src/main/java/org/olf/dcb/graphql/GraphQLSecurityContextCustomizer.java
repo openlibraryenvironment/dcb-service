@@ -13,7 +13,12 @@ import org.reactivestreams.Publisher;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import reactor.core.publisher.Mono;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 @Singleton
 @Primary
@@ -45,29 +50,91 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 		return Mono.fromCallable(() -> {
 			GraphQLContext context = executionInput.getGraphQLContext();
 			securityService.getAuthentication().ifPresent(auth -> {
-				// For future reference, if we navigate away from keycloak this will break as another system may not have these fields
-				// Get the user info
 				String prefName = auth.getName();
-				String userID = (String) auth.getAttributes().get("sub");
-				String email = (String) auth.getAttributes().get("email");
-				String name = (String) auth.getAttributes().get("name");
-
-				// Get the roles (assuming roles are stored in the "roles" attribute)
-				// We are suppressing this warning because we know the roles we're getting from the security service will be in an acceptable format.
-				@SuppressWarnings("unchecked")
-				Collection<String> roles = (Collection<String>) auth.getAttributes().get("roles");
+				Map<String, Object> attributes = auth.getAttributes();
+				String userID = stringAttribute(attributes, "sub").orElse(prefName);
+				String email = stringAttribute(attributes, "email").orElse(null);
+				String name = stringAttribute(attributes, "name")
+					.or(() -> stringAttribute(attributes, "preferred_username"))
+					.orElse(prefName);
+				Collection<String> roles = rolesFrom(auth.getRoles(), attributes);
 
 				// Log the userID and roles
 				log.debug("Roles: {}, Username: {}, Email: {}, User ID: {}", roles, prefName, email, userID);
 
-				// Store them in the GraphQL context
-				context.put("currentUser", userID);
-				context.put("userName", prefName);
-				context.put("userEmail", email);
-				context.put("userFullName", name);
+				putIfPresent(context, "currentUser", userID);
+				putIfPresent(context, "userName", prefName);
+				putIfPresent(context, "userEmail", email);
+				putIfPresent(context, "userFullName", name);
 				context.put("roles", roles);
 			});
 			return executionInput;
 		});
+	}
+
+	private static Optional<String> stringAttribute(Map<String, Object> attributes, String name) {
+		return Optional.ofNullable(attributes.get(name))
+			.filter(String.class::isInstance)
+			.map(String.class::cast);
+	}
+
+	private static void putIfPresent(GraphQLContext context, String key, Object value) {
+		if (value != null) {
+			context.put(key, value);
+		}
+	}
+
+	static Collection<String> rolesFrom(Collection<String> authenticationRoles, Map<String, Object> attributes) {
+		Set<String> roles = new LinkedHashSet<>();
+		addRoles(roles, authenticationRoles);
+		addRoles(roles, attributes.get("roles"));
+		addRolesFromMap(roles, attributes.get("realm_access"));
+		addResourceAccessRoles(roles, attributes.get("resource_access"));
+		addZitadelProjectRoles(roles, attributes);
+		return new ArrayList<>(roles);
+	}
+
+	private static void addRoles(Set<String> roles, Object value) {
+		if (value instanceof Collection<?> collection) {
+			collection.stream()
+				.filter(String.class::isInstance)
+				.map(String.class::cast)
+				.forEach(roles::add);
+		}
+		else if (value instanceof String role) {
+			roles.add(role);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void addRolesFromMap(Set<String> roles, Object value) {
+		if (value instanceof Map<?, ?> map) {
+			addRoles(roles, ((Map<String, Object>) map).get("roles"));
+		}
+	}
+
+	private static void addResourceAccessRoles(Set<String> roles, Object value) {
+		if (value instanceof Map<?, ?> resourceAccess) {
+			resourceAccess.values().forEach(resource -> addRolesFromMap(roles, resource));
+		}
+	}
+
+	private static void addZitadelProjectRoles(Set<String> roles, Map<String, Object> attributes) {
+		attributes.entrySet().stream()
+			.filter(entry -> entry.getKey().startsWith("urn:zitadel:iam:org:project"))
+			.filter(entry -> entry.getKey().endsWith(":roles") || entry.getKey().equals("urn:zitadel:iam:org:project:roles"))
+			.forEach(entry -> addZitadelRoleClaim(roles, entry.getValue()));
+	}
+
+	private static void addZitadelRoleClaim(Set<String> roles, Object value) {
+		if (value instanceof Map<?, ?> map) {
+			map.keySet().stream()
+				.filter(String.class::isInstance)
+				.map(String.class::cast)
+				.forEach(roles::add);
+		}
+		else {
+			addRoles(roles, value);
+		}
 	}
 }
