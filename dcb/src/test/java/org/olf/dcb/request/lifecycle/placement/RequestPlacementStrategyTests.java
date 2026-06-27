@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -147,6 +148,8 @@ class RequestPlacementStrategyTests {
 			.setProtocol("iso18626");
 		final var declarativeStrategy = mock(SupplyingAgencyRequestStrategy.class);
 		when(declarativeStrategy.type()).thenReturn(StrategyType.DECLARATIVE);
+		when(declarativeStrategy.supportsProtocol("iso18626")).thenReturn(true);
+		when(declarativeStrategy.supports(any())).thenReturn(true);
 		final var resolver = new SupplyingAgencyRequestStrategyResolver(
 			mock(ImperativeSupplyingAgencyRequestStrategy.class),
 			List.of(declarativeStrategy),
@@ -167,6 +170,8 @@ class RequestPlacementStrategyTests {
 			.setProtocol("iso18626");
 		final var declarativeStrategy = mock(BorrowingAgencyRequestStrategy.class);
 		when(declarativeStrategy.type()).thenReturn(StrategyType.DECLARATIVE);
+		when(declarativeStrategy.supportsProtocol("iso18626")).thenReturn(true);
+		when(declarativeStrategy.supports(any())).thenReturn(true);
 		final var resolver = new BorrowingAgencyRequestStrategyResolver(
 			mock(ImperativeBorrowingAgencyRequestStrategy.class),
 			List.of(declarativeStrategy),
@@ -176,6 +181,32 @@ class RequestPlacementStrategyTests {
 			LifecycleOperation.PLACE_REQUEST);
 
 		assertThat(strategy, sameInstance(declarativeStrategy));
+	}
+
+	@Test
+	void explicitDeclarativePlacementSelectsStrategyForConfiguredProtocol() {
+		final var configuration = new LifecycleCapabilitiesConfiguration();
+		configuration.getSupplyingAgencyRequest()
+			.setStrategy(StrategyType.DECLARATIVE);
+		configuration.getSupplyingAgencyRequest()
+			.setProtocol("ncip-v202");
+		final var isoStrategy = mock(SupplyingAgencyRequestStrategy.class);
+		when(isoStrategy.type()).thenReturn(StrategyType.DECLARATIVE);
+		when(isoStrategy.supportsProtocol("ncip-v202")).thenReturn(false);
+		when(isoStrategy.supports(any())).thenReturn(true);
+		final var ncipStrategy = mock(SupplyingAgencyRequestStrategy.class);
+		when(ncipStrategy.type()).thenReturn(StrategyType.DECLARATIVE);
+		when(ncipStrategy.supportsProtocol("ncip-v202")).thenReturn(true);
+		when(ncipStrategy.supports(any())).thenReturn(true);
+		final var resolver = new SupplyingAgencyRequestStrategyResolver(
+			mock(ImperativeSupplyingAgencyRequestStrategy.class),
+			List.of(isoStrategy, ncipStrategy),
+			new LifecycleCapabilityResolver(configuration));
+
+		final var strategy = resolver.resolve(new RequestWorkflowContext(),
+			LifecycleOperation.PLACE_REQUEST);
+
+		assertThat(strategy, sameInstance(ncipStrategy));
 	}
 
 	@Test

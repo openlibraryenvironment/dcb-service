@@ -11,5 +11,9 @@ public interface SupplyingAgencyRequestStrategy {
 		return true;
 	}
 
+	default boolean supportsProtocol(String protocol) {
+		return true;
+	}
+
 	Mono<SupplyingAgencyRequestResult> place(RequestWorkflowContext context);
 }

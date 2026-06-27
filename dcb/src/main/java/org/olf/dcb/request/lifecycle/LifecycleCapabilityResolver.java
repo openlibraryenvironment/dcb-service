@@ -28,6 +28,16 @@ public class LifecycleCapabilityResolver {
 		return strategy;
 	}
 
+	public String placementProtocol(LifecycleRole role) {
+		final var capability = switch (role) {
+			case SUPPLIER -> configuration.getSupplyingAgencyRequest();
+			case BORROWER -> configuration.getBorrowingAgencyRequest();
+			case PICKUP -> new LifecycleCapabilitiesConfiguration.PlacementCapability();
+		};
+
+		return capability != null ? capability.getProtocol() : null;
+	}
+
 	public TrackingMode trackingMode(LifecycleRole role) {
 		final var capability = switch (role) {
 			case SUPPLIER -> configuration.getSupplierTracking();

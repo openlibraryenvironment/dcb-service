@@ -32,6 +32,11 @@ public class Iso18626SupplyingRequestStrategy
 	}
 
 	@Override
+	public boolean supportsProtocol(String protocol) {
+		return PROTOCOL.equals(protocol);
+	}
+
+	@Override
 	public Mono<SupplyingAgencyRequestResult> place(
 		RequestWorkflowContext context) {
 

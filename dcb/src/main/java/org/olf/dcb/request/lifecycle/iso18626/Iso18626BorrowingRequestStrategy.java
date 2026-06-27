@@ -33,6 +33,11 @@ public class Iso18626BorrowingRequestStrategy
 	}
 
 	@Override
+	public boolean supportsProtocol(String protocol) {
+		return PROTOCOL.equals(protocol);
+	}
+
+	@Override
 	public Mono<BorrowingAgencyRequestResult> place(
 		RequestWorkflowContext context) {
 

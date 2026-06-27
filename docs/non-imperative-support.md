@@ -22,19 +22,17 @@ recipe:
 That is a valid strategy for the currently live integrations, but it is not the
 only plausible way to place a borrowing-side request.
 
-Non-imperative host interactions may expose a coarser operation, specifically an
-ISO18626 request message for the current integration target. In that model, DCB
-does not need to coordinate a series of lower-level host operations. Instead,
-DCB declares the desired request to the host system and the host performs the
-internal choreography.
+Non-imperative host interactions may expose a coarser operation, such as an NCIP
+v2.02 request message. In that model, DCB does not need to coordinate a series
+of lower-level host operations. Instead, DCB declares the desired request to the
+host system and the host performs the internal choreography.
 
-This note was previously framed as an NCIP-specific exploration. The renamed
-scope is broader and the concrete protocol target is ISO18626. NCIP remains a
-useful comparison point for future non-imperative integrations, but it is not
-the protocol this first design should optimize around.
+This note was previously pivoted from NCIP to ISO18626. The current direction is
+to pivot back to NCIP v2.02 for the concrete protocol leaf, while retaining the
+protocol-neutral declarative lifecycle architecture.
 
-The concrete dual-agency ISO18626 spike is tracked separately in
-`docs/backlog/current/iso18626-dual-declarative-agency-spike.md`.
+The active NCIP v2.02 spike is tracked in
+`docs/backlog/current/ncip-v202-dual-declarative-agency-spike.md`.
 
 ## Terminology And Scope
 

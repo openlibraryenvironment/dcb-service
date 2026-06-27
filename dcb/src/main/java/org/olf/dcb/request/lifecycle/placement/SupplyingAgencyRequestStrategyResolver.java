@@ -38,20 +38,32 @@ public class SupplyingAgencyRequestStrategyResolver {
 			return imperativeStrategy;
 		}
 
-		return declarativeStrategy();
+		return declarativeStrategy(
+			capabilityResolver.placementProtocol(LifecycleRole.SUPPLIER),
+			context);
 	}
 
-	private SupplyingAgencyRequestStrategy declarativeStrategy() {
-		if (declarativeStrategies.size() == 1) {
-			return declarativeStrategies.getFirst();
+	private SupplyingAgencyRequestStrategy declarativeStrategy(
+		String protocol,
+		RequestWorkflowContext context) {
+
+		final var matchingStrategies = declarativeStrategies.stream()
+			.filter(strategy -> strategy.supportsProtocol(protocol))
+			.filter(strategy -> strategy.supports(context))
+			.toList();
+
+		if (matchingStrategies.size() == 1) {
+			return matchingStrategies.getFirst();
 		}
 
-		if (declarativeStrategies.isEmpty()) {
+		if (matchingStrategies.isEmpty()) {
 			throw new LifecycleCapabilityConfigurationException(
-				"Supplying agency declarative request strategy is not available");
+				"Supplying agency declarative request strategy is not available for protocol "
+					+ protocol);
 		}
 
 		throw new LifecycleCapabilityConfigurationException(
-			"Multiple supplying agency declarative request strategies are available");
+			"Multiple supplying agency declarative request strategies are available for protocol "
+				+ protocol);
 	}
 }

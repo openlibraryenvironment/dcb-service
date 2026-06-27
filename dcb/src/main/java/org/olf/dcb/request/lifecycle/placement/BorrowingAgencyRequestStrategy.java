@@ -11,6 +11,10 @@ public interface BorrowingAgencyRequestStrategy {
 		return true;
 	}
 
+	default boolean supportsProtocol(String protocol) {
+		return true;
+	}
+
 	Mono<BorrowingAgencyRequestResult> place(RequestWorkflowContext context);
 
 	Mono<BorrowingAgencyRequestResult> revise(RequestWorkflowContext context);
