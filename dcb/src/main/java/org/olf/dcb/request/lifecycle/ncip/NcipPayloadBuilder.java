@@ -66,6 +66,30 @@ public class NcipPayloadBuilder {
 		return toXml(document);
 	}
 
+	public String lookupUser(NcipLookupUserPayload payload) {
+		final var document = newDocument();
+		final var lookupUser = message(document, "LookupUser");
+
+		if (payload.hasSecret()) {
+			lookupUser.appendChild(authenticationInput(
+				document,
+				"Username",
+				payload.userIdentifierValue()));
+			lookupUser.appendChild(authenticationInput(
+				document,
+				"Password",
+				payload.secret()));
+		}
+		else {
+			lookupUser.appendChild(userId(
+				document,
+				payload.agencyId(),
+				payload.userIdentifierValue()));
+		}
+
+		return toXml(document);
+	}
+
 	private static Element message(Document document, String messageName) {
 		final var message = element(document, "NCIPMessage");
 		message.setAttributeNS(NCIP_NAMESPACE, "version", NCIP_VERSION);
@@ -78,13 +102,46 @@ public class NcipPayloadBuilder {
 	}
 
 	private static Element userId(Document document, String userIdentifierValue) {
+		return userId(document, null, userIdentifierValue);
+	}
+
+	private static Element userId(
+		Document document,
+		String agencyId,
+		String userIdentifierValue) {
+
 		final var userId = element(document, "UserId");
+		if (hasText(agencyId)) {
+			userId.appendChild(value(document, "AgencyId", agencyId));
+		}
 		userId.appendChild(value(
 			document,
 			"UserIdentifierValue",
 			userIdentifierValue));
 
 		return userId;
+	}
+
+	private static Element authenticationInput(
+		Document document,
+		String inputType,
+		String data) {
+
+		final var authenticationInput = element(document, "AuthenticationInput");
+		authenticationInput.appendChild(value(
+			document,
+			"AuthenticationInputData",
+			data));
+		authenticationInput.appendChild(value(
+			document,
+			"AuthenticationDataFormatType",
+			"Text"));
+		authenticationInput.appendChild(value(
+			document,
+			"AuthenticationInputType",
+			inputType));
+
+		return authenticationInput;
 	}
 
 	private static Element itemId(Document document, String itemIdentifierValue) {

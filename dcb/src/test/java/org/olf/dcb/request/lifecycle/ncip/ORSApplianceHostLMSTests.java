@@ -5,11 +5,20 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.client.HttpClient;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.AbstractHostLmsClient;
 import org.olf.dcb.core.interaction.CanPlaceBorrowingAgencyRequest;
@@ -104,6 +113,56 @@ class ORSApplianceHostLMSTests {
 	}
 
 	@Test
+	void authenticatesPatronUsingNcipLookupUserAuthenticationInput() {
+		final var httpClient = mock(HttpClient.class);
+		final var client = clientWith(
+			new CapturingTransport(response("remote-request")),
+			httpClient);
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(validLookupUserResponse())));
+
+		final var patron = singleValueFrom(client.patronAuth(
+			"BASIC/BARCODE+PIN",
+			"rincewind",
+			"RW"));
+
+		final var requestCaptor = org.mockito.ArgumentCaptor.forClass(HttpRequest.class);
+		verify(httpClient).exchange(requestCaptor.capture(), eq(Argument.of(String.class)));
+		final var body = (String) requestCaptor.getValue().getBody(String.class).orElseThrow();
+
+		assertThat(body, containsString("<LookupUser"));
+		assertThat(body, containsString("<AuthenticationInputType>Username</AuthenticationInputType>"));
+		assertThat(body, containsString("<AuthenticationInputData>rincewind</AuthenticationInputData>"));
+		assertThat(body, containsString("<AuthenticationInputType>Password</AuthenticationInputType>"));
+		assertThat(body, containsString("<AuthenticationInputData>RW</AuthenticationInputData>"));
+		assertDoesNotThrow(() -> validator.validate(body));
+		assertThat(patron.getFirstLocalId(), is("rincewind-user-0001"));
+		assertThat(patron.getLocalNames(), is(List.of("Rincewind")));
+		assertThat(patron.getLocalHomeLibraryCode(), is("unseen-main"));
+	}
+
+	@Test
+	void looksUpPatronByUsernameUsingNcipLookupUserUserId() {
+		final var httpClient = mock(HttpClient.class);
+		final var client = clientWith(
+			new CapturingTransport(response("remote-request")),
+			httpClient);
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(validLookupUserResponse())));
+
+		final var patron = singleValueFrom(client.getPatronByUsername("rincewind"));
+
+		final var requestCaptor = org.mockito.ArgumentCaptor.forClass(HttpRequest.class);
+		verify(httpClient).exchange(requestCaptor.capture(), eq(Argument.of(String.class)));
+		final var body = (String) requestCaptor.getValue().getBody(String.class).orElseThrow();
+
+		assertThat(body, containsString("<LookupUser"));
+		assertThat(body, containsString("<UserIdentifierValue>rincewind</UserIdentifierValue>"));
+		assertDoesNotThrow(() -> validator.validate(body));
+		assertThat(patron.getFirstLocalId(), is("rincewind-user-0001"));
+	}
+
+	@Test
 	void baseHostLmsClientReturnsEmptyForUnsupportedMethods() {
 		final var client = new BaseOnlyClient(hostLms());
 
@@ -114,10 +173,18 @@ class ORSApplianceHostLMSTests {
 	private static ORSApplianceHostLMS clientWith(
 		DeclarativeRequestTransport transport) {
 
+		return clientWith(transport, mock(HttpClient.class));
+	}
+
+	private static ORSApplianceHostLMS clientWith(
+		DeclarativeRequestTransport transport,
+		HttpClient httpClient) {
+
 		return new ORSApplianceHostLMS(
 			hostLms(),
 			transport,
-			new NcipPayloadBuilder());
+			new NcipPayloadBuilder(),
+			httpClient);
 	}
 
 	private static DataHostLms hostLms() {
@@ -126,8 +193,39 @@ class ORSApplianceHostLMSTests {
 			.name("ORS Host")
 			.clientConfig(Map.of(
 				ORSApplianceHostLMS.NCIP_ENDPOINT_URL_KEY,
-				"https://ors.example.org/ncip/v2_02"))
+				"https://ors.example.org/ncip/v2_02",
+				"default-agency-code",
+				"ors-unseen"))
 			.build();
+	}
+
+	private static String validLookupUserResponse() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <LookupUserResponse>
+			    <ResponseHeader>
+			      <FromAgencyId>
+			        <AgencyId>ors-unseen</AgencyId>
+			      </FromAgencyId>
+			    </ResponseHeader>
+			    <UserId>
+			      <AgencyId>ors-unseen</AgencyId>
+			      <UserIdentifierValue>rincewind-user-0001</UserIdentifierValue>
+			    </UserId>
+			    <UserOptionalFields>
+			      <NameInformation>
+			        <PersonalNameInformation>
+			          <UnstructuredPersonalUserName>Rincewind</UnstructuredPersonalUserName>
+			        </PersonalNameInformation>
+			      </NameInformation>
+			      <UserPrivilege>
+			        <AgencyId>unseen-main</AgencyId>
+			        <AgencyUserPrivilegeType>Patron</AgencyUserPrivilegeType>
+			      </UserPrivilege>
+			    </UserOptionalFields>
+			  </LookupUserResponse>
+			</NCIPMessage>
+			""";
 	}
 
 	private static DeclarativeTransportResponse response(String remoteRequestId) {
