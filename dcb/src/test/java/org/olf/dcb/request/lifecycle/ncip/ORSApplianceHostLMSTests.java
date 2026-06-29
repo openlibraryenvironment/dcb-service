@@ -173,6 +173,27 @@ class ORSApplianceHostLMSTests {
 	}
 
 	@Test
+	void looksUpPatronByIdentifierUsingNcipLookupUserUserId() {
+		final var httpClient = mock(HttpClient.class);
+		final var client = clientWith(
+			new CapturingTransport(response("remote-request")),
+			httpClient);
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(validLookupUserResponse())));
+
+		final var patron = singleValueFrom(client.getPatronByIdentifier("rincewind-user-0001"));
+
+		final var requestCaptor = org.mockito.ArgumentCaptor.forClass(HttpRequest.class);
+		verify(httpClient).exchange(requestCaptor.capture(), eq(Argument.of(String.class)));
+		final var body = (String) requestCaptor.getValue().getBody(String.class).orElseThrow();
+
+		assertThat(body, containsString("<LookupUser"));
+		assertThat(body, containsString("<UserIdentifierValue>rincewind-user-0001</UserIdentifierValue>"));
+		assertDoesNotThrow(() -> validator.validate(body));
+		assertThat(patron.getFirstLocalId(), is("rincewind-user-0001"));
+	}
+
+	@Test
 	void getsItemsUsingNcipLookupItemSet() {
 		final var httpClient = mock(HttpClient.class);
 		final var agencyRepository = mock(AgencyRepository.class);

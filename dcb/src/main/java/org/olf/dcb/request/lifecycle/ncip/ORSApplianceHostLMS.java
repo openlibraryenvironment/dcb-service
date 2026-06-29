@@ -167,10 +167,19 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	}
 
 	@Override
+	public Mono<Patron> getPatronByIdentifier(String identifier) {
+		return lookupUserByIdentifier(identifier);
+	}
+
+	@Override
 	public Mono<Patron> getPatronByUsername(String username) {
+		return lookupUserByIdentifier(username);
+	}
+
+	private Mono<Patron> lookupUserByIdentifier(String identifier) {
 		final var payload = payloadBuilder.lookupUser(new NcipLookupUserPayload(
 			getDefaultAgencyCode(),
-			username,
+			identifier,
 			null));
 
 		return postLookupUser(payload)
