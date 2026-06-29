@@ -15,6 +15,7 @@ import org.w3c.dom.Element;
 public class NcipInboundXmlMapper {
 	private static final String CONFIRMED_STATUS = "CONFIRMED";
 	private static final String MISSING_STATUS = "MISSING";
+	private static final String PLACED_STATUS = "PLACED";
 
 	public NcipInboundMessage map(String xml) {
 		final var document = parse(xml);
@@ -24,6 +25,8 @@ public class NcipInboundXmlMapper {
 
 		return switch (message.getLocalName()) {
 			case NcipProtocol.ITEM_SHIPPED -> itemShipped(message, xml);
+			case NcipProtocol.ITEM_REQUESTED -> itemRequested(message, xml);
+			case NcipProtocol.CANCEL_REQUEST_ITEM -> cancelRequestItem(message, xml);
 			case NcipProtocol.REQUEST_ITEM_RESPONSE -> requestItemResponse(
 				message, xml);
 			case NcipProtocol.ACCEPT_ITEM_RESPONSE -> acceptItemResponse(
@@ -66,6 +69,10 @@ public class NcipInboundXmlMapper {
 		final var problemDetail = problem
 			.flatMap(element -> optionalText(element, "ProblemDetail"));
 
+		final var status = problem.isPresent()
+			? MISSING_STATUS
+			: requestItemResponseStatus(response);
+
 		return new NcipInboundMessage(
 			NcipProtocol.REQUEST_ITEM_RESPONSE,
 			LifecycleRole.SUPPLIER,
@@ -73,14 +80,73 @@ public class NcipInboundXmlMapper {
 			requiredResponseAgencyId(response),
 			requestId,
 			requestId,
-			problem.isPresent() ? MISSING_STATUS : CONFIRMED_STATUS,
+			status,
 			problemDetail
 				.map(detail -> NcipProtocol.REQUEST_ITEM_RESPONSE + ":Problem:" + detail)
-				.orElse(NcipProtocol.REQUEST_ITEM_RESPONSE),
+				.orElse(CONFIRMED_STATUS.equals(status)
+					? NcipProtocol.REQUEST_ITEM_RESPONSE
+					: NcipProtocol.REQUEST_ITEM_RESPONSE + ":" + status),
 			optionalText(response, "ItemIdentifierValue").orElse(null),
 			null,
 			null,
 			rawMessageReference(NcipProtocol.REQUEST_ITEM_RESPONSE, xml));
+	}
+
+	private static NcipInboundMessage itemRequested(Element itemRequested, String xml) {
+		final var requestId = requiredText(itemRequested, "RequestIdentifierValue");
+		final var itemId = optionalText(itemRequested, "ItemIdentifierValue")
+			.or(() -> optionalTextAnyNamespace(itemRequested, "SelectedItemBarcode"))
+			.orElse(null);
+
+		return new NcipInboundMessage(
+			NcipProtocol.ITEM_REQUESTED,
+			LifecycleRole.SUPPLIER,
+			LifecycleOperation.PLACE_REQUEST,
+			requiredInitiatingAgencyId(itemRequested),
+			requestId,
+			requestId,
+			CONFIRMED_STATUS,
+			NcipProtocol.ITEM_REQUESTED,
+			itemId,
+			itemId,
+			null,
+			rawMessageReference(NcipProtocol.ITEM_REQUESTED, xml));
+	}
+
+	private static NcipInboundMessage cancelRequestItem(
+		Element cancelRequestItem,
+		String xml) {
+
+		final var requestId = requiredText(cancelRequestItem, "RequestIdentifierValue");
+		final var itemId = optionalText(cancelRequestItem, "ItemIdentifierValue").orElse(null);
+		final var reason = optionalTextAnyNamespace(cancelRequestItem, "ReasonCode")
+			.or(() -> optionalTextAnyNamespace(cancelRequestItem, "ProblemDetail"))
+			.or(() -> optionalTextAnyNamespace(cancelRequestItem, "ProcessingNote"))
+			.orElse("NOT_SUPPLIED");
+
+		return new NcipInboundMessage(
+			NcipProtocol.CANCEL_REQUEST_ITEM,
+			LifecycleRole.SUPPLIER,
+			LifecycleOperation.PLACE_REQUEST,
+			requiredInitiatingAgencyId(cancelRequestItem),
+			requestId,
+			requestId,
+			MISSING_STATUS,
+			NcipProtocol.CANCEL_REQUEST_ITEM + ":" + reason,
+			itemId,
+			itemId,
+			null,
+			rawMessageReference(NcipProtocol.CANCEL_REQUEST_ITEM, xml));
+	}
+
+	private static String requestItemResponseStatus(Element response) {
+		// Fallback Host profiles use a minimal RequestItemResponse as ACK only.
+		// Full NCIP hold-placement responses still carry UserId/RequestType and remain CONFIRMED.
+		if (firstDescendant(response, "UserId").isEmpty()
+			|| firstDescendant(response, "RequestType").isEmpty()) {
+			return PLACED_STATUS;
+		}
+		return CONFIRMED_STATUS;
 	}
 
 	private static NcipInboundMessage acceptItemResponse(
@@ -115,6 +181,14 @@ public class NcipInboundXmlMapper {
 		return requiredAgencyId(responseHeader, "FromAgencyId");
 	}
 
+	private static String requiredInitiatingAgencyId(Element message) {
+		final var initiationHeader = firstDescendant(message, "InitiationHeader")
+			.orElseThrow(() -> new NcipProblemException(
+				message.getLocalName() + " requires InitiationHeader"));
+
+		return requiredAgencyId(initiationHeader, "FromAgencyId");
+	}
+
 	private static void rejectProblem(Element response, String messageKind) {
 		final var problem = firstDescendant(response, "Problem");
 
@@ -142,6 +216,22 @@ public class NcipInboundXmlMapper {
 
 	private static Optional<String> optionalText(Element element, String name) {
 		return firstDescendant(element, name)
+			.map(Element::getTextContent)
+			.map(String::trim)
+			.filter(value -> !value.isBlank());
+	}
+
+	private static Optional<String> optionalTextAnyNamespace(
+		Element element,
+		String name) {
+
+		final var nodes = element.getElementsByTagNameNS("*", name);
+
+		if (nodes.getLength() == 0) {
+			return Optional.empty();
+		}
+
+		return Optional.of((Element) nodes.item(0))
 			.map(Element::getTextContent)
 			.map(String::trim)
 			.filter(value -> !value.isBlank());

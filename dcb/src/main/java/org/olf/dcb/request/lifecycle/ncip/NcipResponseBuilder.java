@@ -23,9 +23,39 @@ public class NcipResponseBuilder {
 		return toXml(document);
 	}
 
+	public String itemRequestedResponse() {
+		final var document = newDocument();
+		message(document, NcipProtocol.ITEM_REQUESTED_RESPONSE);
+
+		return toXml(document);
+	}
+
+	public String cancelRequestItemResponse() {
+		final var document = newDocument();
+		message(document, NcipProtocol.CANCEL_REQUEST_ITEM_RESPONSE);
+
+		return toXml(document);
+	}
+
 	public String itemShippedProblem(String detail) {
 		final var document = newDocument();
 		final var response = message(document, "ItemShippedResponse");
+		response.appendChild(problem(document, detail));
+
+		return toXml(document);
+	}
+
+	public String itemRequestedProblem(String detail) {
+		final var document = newDocument();
+		final var response = message(document, NcipProtocol.ITEM_REQUESTED_RESPONSE);
+		response.appendChild(problem(document, detail));
+
+		return toXml(document);
+	}
+
+	public String cancelRequestItemProblem(String detail) {
+		final var document = newDocument();
+		final var response = message(document, NcipProtocol.CANCEL_REQUEST_ITEM_RESPONSE);
 		response.appendChild(problem(document, detail));
 
 		return toXml(document);

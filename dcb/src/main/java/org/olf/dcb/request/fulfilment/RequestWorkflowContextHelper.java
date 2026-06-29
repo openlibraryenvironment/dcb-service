@@ -392,22 +392,15 @@ public class RequestWorkflowContextHelper {
 			.map(pr::setActiveWorkflow)
 			.map(rwc::setPatronRequest);
 
-		// Resolvers for the clients. We need this because sometimes we have nulls (Our tests need changing!)
-		final Mono<HostLmsClient> resolveLenderLms = Mono.justOrEmpty(rwc.getLenderAgency())
-			.switchIfEmpty( Mono.just(lenderAc)
-				.map( agencyRepository::findOneByCode )
-				.flatMap( Mono::from ))
-			.map(Agency::getHostLms)
-			.cast(HostLms.class)
-			.flatMap( hostLmsService::getClientFor );
+		// Micronaut Data can materialise relation objects with only their id populated.
+		// Calling HostLmsService with that partial HostLms loses the client class and
+		// reports "Host LMS null". Resolve via the agency host_lms_id FK instead so
+		// this comparison uses a fully loaded HostLms row.
+		final Mono<HostLmsClient> resolveLenderLms = resolveHostLmsClientForAgency(
+			"lender", lenderAc, rwc.getLenderAgency());
 
-		final Mono<HostLmsClient> resolvePickupLms = Mono.justOrEmpty(rwc.getPickupAgency())
-			.switchIfEmpty( Mono.just(pickupAc)
-				.map( agencyRepository::findOneByCode )
-				.flatMap( Mono::from ))
-			.map(Agency::getHostLms)
-			.cast(HostLms.class)
-			.flatMap( hostLmsService::getClientFor );
+		final Mono<HostLmsClient> resolvePickupLms = resolveHostLmsClientForAgency(
+			"pickup", pickupAc, rwc.getPickupAgency());
 
 		return Mono.zip(resolveLenderLms, resolvePickupLms) // Empty sources will complete to error...
 
@@ -415,12 +408,75 @@ public class RequestWorkflowContextHelper {
 			.map( _systems -> rwc.setPatronRequest( pr.setActiveWorkflow(LOCAL_WORKFLOW) ))
 
 			.onErrorResume( e -> {
-				log.warn("Error when attempting to compare the lender and pickup systems...", e);
-				return defaultResolution;
+				final var message = "DCB-WORKFLOW-HOSTLMS-FK-RESOLUTION: failed to compare lender and pickup Host LMS clients; falling back to agency-code workflow default. "
+					+ e.getMessage();
+				log.warn(message, e);
+				rwc.getWorkflowMessages().add(message);
+				return patronRequestAuditService.addAuditEntry(pr, message)
+					.onErrorResume(auditError -> {
+						log.warn("Unable to audit workflow Host LMS FK resolution failure for patron request {}",
+							getValueOrNull(pr, PatronRequest::getId), auditError);
+						return Mono.empty();
+					})
+					.then(defaultResolution);
 			})
 
 			// Empty means the systems did not match, just default.
 			.switchIfEmpty(defaultResolution);
 	}
-}
 
+	private Mono<HostLmsClient> resolveHostLmsClientForAgency(String role,
+		String agencyCode, Agency agency) {
+
+		return resolveWorkflowAgency(role, agencyCode, agency)
+			.flatMap(resolvedAgency -> Mono.from(
+					agencyRepository.findHostLmsIdById(resolvedAgency.getId()))
+				.switchIfEmpty(Mono.error(new WorkflowHostLmsResolutionException(role,
+					resolvedAgency.getCode(), "agency has no host_lms_id")))
+				.flatMap(hostLmsService::getClientFor)
+				.onErrorMap(error -> error instanceof WorkflowHostLmsResolutionException
+					? error
+					: new WorkflowHostLmsResolutionException(role,
+						resolvedAgency.getCode(),
+						"could not resolve Host LMS client from agency host_lms_id", error)));
+	}
+
+	private Mono<Agency> resolveWorkflowAgency(String role, String agencyCode,
+		Agency agency) {
+
+		if (agency != null) {
+			return Mono.just(agency);
+		}
+
+		if (agencyCode == null || agencyCode.isBlank()) {
+			return Mono.error(new WorkflowHostLmsResolutionException(role,
+				agencyCode, "agency code is missing"));
+		}
+
+		return Mono.from(agencyRepository.findOneByCode(agencyCode))
+			.cast(Agency.class)
+			.switchIfEmpty(Mono.error(new WorkflowHostLmsResolutionException(role,
+				agencyCode, "agency was not found")));
+	}
+
+	private static class WorkflowHostLmsResolutionException extends RuntimeException {
+		WorkflowHostLmsResolutionException(String role, String agencyCode,
+			String message) {
+
+			super(formatMessage(role, agencyCode, message));
+		}
+
+		WorkflowHostLmsResolutionException(String role, String agencyCode,
+			String message, Throwable cause) {
+
+			super(formatMessage(role, agencyCode, message), cause);
+		}
+
+		private static String formatMessage(String role, String agencyCode,
+			String message) {
+
+			return "workflow %s agency Host LMS FK resolution failed for agencyCode=%s: %s"
+				.formatted(role, agencyCode, message);
+		}
+	}
+}

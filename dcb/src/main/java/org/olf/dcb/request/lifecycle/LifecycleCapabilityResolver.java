@@ -1,7 +1,9 @@
 package org.olf.dcb.request.lifecycle;
 
 import io.micronaut.context.annotation.Prototype;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Prototype
 public class LifecycleCapabilityResolver {
 	private final LifecycleCapabilitiesConfiguration configuration;
@@ -20,9 +22,13 @@ public class LifecycleCapabilityResolver {
 		};
 
 		final var strategy = defaultPlacementStrategy(capability);
+		final var protocol = capability != null ? capability.getProtocol() : null;
+
+		log.info("DCB-LIFECYCLE-CAPABILITY: role={} placementStrategy={} protocol={}",
+			role, strategy, protocol);
 
 		if (strategy == StrategyType.DECLARATIVE) {
-			requireProtocol(role, capability.getProtocol(), "placement");
+			requireProtocol(role, protocol, "placement");
 		}
 
 		return strategy;

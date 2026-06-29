@@ -79,6 +79,96 @@ class NcipInboundXmlMapperTests {
 	}
 
 	@Test
+	void mapsItemRequestedToSupplierConfirmedEvidence() {
+		final var message = new NcipInboundXmlMapper().map("""
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" xmlns:openrs="https://openrs.org/ncip/fallback-host" ncip:version="2.02">
+			  <ItemRequested>
+			    <InitiationHeader>
+			      <FromAgencyId>
+			        <AgencyId>supplier-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb</AgencyId>
+			      </ToAgencyId>
+			    </InitiationHeader>
+			    <UserId>
+			      <UserIdentifierValue>user-1</UserIdentifierValue>
+			    </UserId>
+			    <BibliographicId>
+			      <BibliographicRecordId>
+			        <BibliographicRecordIdentifier>bib-1</BibliographicRecordIdentifier>
+			        <AgencyId>supplier-host</AgencyId>
+			      </BibliographicRecordId>
+			    </BibliographicId>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:SUPPLIER</RequestIdentifierValue>
+			    </RequestId>
+			    <RequestType>Hold</RequestType>
+			    <RequestScopeType>Bibliographic Item</RequestScopeType>
+			    <Ext>
+			      <openrs:FallbackHostSelectedItem>
+			        <openrs:SelectedItemBarcode>item-1</openrs:SelectedItemBarcode>
+			      </openrs:FallbackHostSelectedItem>
+			    </Ext>
+			  </ItemRequested>
+			</NCIPMessage>
+			""");
+
+		assertThat(message.messageKind(), is(NcipProtocol.ITEM_REQUESTED));
+		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.operation(), is(LifecycleOperation.PLACE_REQUEST));
+		assertThat(message.hostLmsCode(), is("supplier-host"));
+		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
+		assertThat(message.status(), is("CONFIRMED"));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_REQUESTED));
+		assertThat(message.itemBarcode(), is("item-1"));
+	}
+
+	@Test
+	void mapsCancelRequestItemToSupplierMissingEvidence() {
+		final var message = new NcipInboundXmlMapper().map("""
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" xmlns:openrs="https://openrs.org/ncip/fallback-host" ncip:version="2.02">
+			  <CancelRequestItem>
+			    <InitiationHeader>
+			      <FromAgencyId>
+			        <AgencyId>supplier-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb</AgencyId>
+			      </ToAgencyId>
+			    </InitiationHeader>
+			    <UserId>
+			      <UserIdentifierValue>user-1</UserIdentifierValue>
+			    </UserId>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:SUPPLIER</RequestIdentifierValue>
+			    </RequestId>
+			    <ItemId>
+			      <ItemIdentifierValue>item-1</ItemIdentifierValue>
+			    </ItemId>
+			    <RequestType>Hold</RequestType>
+			    <RequestScopeType>Bibliographic Item</RequestScopeType>
+			    <Ext>
+			      <openrs:FallbackHostCancelReason>
+			        <openrs:ReasonCode>NOT_ON_SHELF</openrs:ReasonCode>
+			        <openrs:ProcessingNote>Fallback Host not supplied</openrs:ProcessingNote>
+			      </openrs:FallbackHostCancelReason>
+			    </Ext>
+			  </CancelRequestItem>
+			</NCIPMessage>
+			""");
+
+		assertThat(message.messageKind(), is(NcipProtocol.CANCEL_REQUEST_ITEM));
+		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.operation(), is(LifecycleOperation.PLACE_REQUEST));
+		assertThat(message.hostLmsCode(), is("supplier-host"));
+		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
+		assertThat(message.status(), is("MISSING"));
+		assertThat(message.rawStatus(), is("CancelRequestItem:NOT_ON_SHELF"));
+		assertThat(message.itemBarcode(), is("item-1"));
+	}
+
+	@Test
 	void mapsAcceptItemResponseXmlToBorrowerPlacementEvidence() {
 		final var message = new NcipInboundXmlMapper().map(
 			NcipControllerTests.validAcceptItemResponse());

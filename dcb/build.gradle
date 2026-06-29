@@ -220,6 +220,13 @@ run {
 	])
 }
 
+tasks.named('processResources') {
+	from("$rootDir/src/xsd") {
+		include 'ncip_v2_02.xsd'
+		into 'schemas'
+	}
+}
+
 java {
 	sourceCompatibility = JavaVersion.toVersion("25")
 	targetCompatibility = JavaVersion.toVersion("25")

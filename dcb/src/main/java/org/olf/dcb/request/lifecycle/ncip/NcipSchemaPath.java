@@ -10,6 +10,13 @@ public final class NcipSchemaPath {
 
 	public static Path schemaPath() {
 		final var workingDirectory = Paths.get("").toAbsolutePath();
+		final var packagedSchema = workingDirectory.resolve(
+			"resources/schemas/ncip_v2_02.xsd");
+
+		if (Files.exists(packagedSchema)) {
+			return packagedSchema;
+		}
+
 		final var repositorySchema = workingDirectory.resolve(
 			"src/xsd/ncip_v2_02.xsd");
 

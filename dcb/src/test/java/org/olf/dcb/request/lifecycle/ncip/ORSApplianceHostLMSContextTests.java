@@ -58,9 +58,9 @@ class ORSApplianceHostLMSContextTests {
 
 		assertThat(client, instanceOf(ORSApplianceHostLMS.class));
 		assertThat(placedRequest.getLocalId(), is("request-1:SUPPLIER"));
-		assertThat(placedRequest.getLocalStatus(), is("CONFIRMED"));
+		assertThat(placedRequest.getLocalStatus(), is("PLACED"));
 		assertThat(placedRequest.getRawLocalStatus(),
-			is(NcipProtocol.REQUEST_ITEM_RESPONSE));
+			is(NcipProtocol.REQUEST_ITEM_RESPONSE + ":PLACED"));
 		assertThat(recordedRequests.length, is(1));
 		assertThat(recordedRequests[0].getBodyAsString(),
 			containsString("<RequestItem"));
