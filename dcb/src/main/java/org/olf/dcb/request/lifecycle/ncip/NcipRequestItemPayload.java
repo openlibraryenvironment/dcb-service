@@ -4,6 +4,7 @@ public record NcipRequestItemPayload(
 	String userIdentifierValue,
 	String bibliographicRecordIdentifier,
 	String bibliographicRecordAgencyId,
+	String itemIdentifierValue,
 	String requestIdentifierValue,
 	String requestType,
 	String requestScopeType) {

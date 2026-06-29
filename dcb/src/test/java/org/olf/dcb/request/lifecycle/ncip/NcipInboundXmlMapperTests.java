@@ -46,6 +46,39 @@ class NcipInboundXmlMapperTests {
 	}
 
 	@Test
+	void mapsRequestItemResponseProblemToSupplierMissingEvidence() {
+		final var message = new NcipInboundXmlMapper().map("""
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <RequestItemResponse>
+			    <ResponseHeader>
+			      <FromAgencyId>
+			        <AgencyId>supplier-host</AgencyId>
+			      </FromAgencyId>
+			    </ResponseHeader>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:SUPPLIER</RequestIdentifierValue>
+			    </RequestId>
+			    <Problem>
+			      <ProblemType>Processing Error</ProblemType>
+			      <ProblemDetail>Fallback Host not supplied: NOT_ON_SHELF</ProblemDetail>
+			    </Problem>
+			  </RequestItemResponse>
+			</NCIPMessage>
+			""");
+
+		assertThat(message.messageKind(),
+			is(NcipProtocol.REQUEST_ITEM_RESPONSE));
+		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.operation(), is(LifecycleOperation.PLACE_REQUEST));
+		assertThat(message.hostLmsCode(), is("supplier-host"));
+		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
+		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
+		assertThat(message.status(), is("MISSING"));
+		assertThat(message.rawStatus(),
+			is("RequestItemResponse:Problem:Fallback Host not supplied: NOT_ON_SHELF"));
+	}
+
+	@Test
 	void mapsAcceptItemResponseXmlToBorrowerPlacementEvidence() {
 		final var message = new NcipInboundXmlMapper().map(
 			NcipControllerTests.validAcceptItemResponse());

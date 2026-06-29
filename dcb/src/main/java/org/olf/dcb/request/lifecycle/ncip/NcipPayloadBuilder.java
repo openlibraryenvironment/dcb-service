@@ -28,6 +28,9 @@ public class NcipPayloadBuilder {
 			document,
 			payload.bibliographicRecordIdentifier(),
 			payload.bibliographicRecordAgencyId()));
+		if (hasText(payload.itemIdentifierValue())) {
+			requestItem.appendChild(itemId(document, payload.itemIdentifierValue()));
+		}
 		requestItem.appendChild(requestId(
 			document,
 			payload.requestIdentifierValue()));
@@ -40,6 +43,16 @@ public class NcipPayloadBuilder {
 			"RequestScopeType",
 			payload.requestScopeType()));
 
+		return toXml(document);
+	}
+
+	public String lookupItemSet(NcipLookupItemSetPayload payload) {
+		final var document = newDocument();
+		final var lookupItemSet = message(document, "LookupItemSet");
+		lookupItemSet.appendChild(bibliographicId(
+			document,
+			payload.bibliographicRecordIdentifier(),
+			payload.bibliographicRecordAgencyId()));
 		return toXml(document);
 	}
 

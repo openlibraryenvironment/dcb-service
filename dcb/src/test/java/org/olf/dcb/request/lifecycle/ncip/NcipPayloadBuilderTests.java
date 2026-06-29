@@ -25,6 +25,7 @@ class NcipPayloadBuilderTests {
 			"patron-123",
 			"bib-456",
 			"supplier-agency",
+			"item-456",
 			"request-789:SUPPLIER",
 			"Hold",
 			"Item"));
@@ -38,7 +39,19 @@ class NcipPayloadBuilderTests {
 		assertThat(xml, containsString("<RequestItem"));
 		assertThat(xml, containsString("<UserIdentifierValue>patron-123</UserIdentifierValue>"));
 		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
+		assertThat(xml, containsString("<ItemIdentifierValue>item-456</ItemIdentifierValue>"));
 		assertThat(xml, containsString("<RequestIdentifierValue>request-789:SUPPLIER</RequestIdentifierValue>"));
+	}
+
+	@Test
+	void buildsValidLookupItemSetPayload() {
+		final var xml = builder.lookupItemSet(new NcipLookupItemSetPayload(
+			"bib-456",
+			"supplier-agency"));
+
+		assertDoesNotThrow(() -> validator.validate(xml));
+		assertThat(xml, containsString("<LookupItemSet"));
+		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
 	}
 
 	@Test

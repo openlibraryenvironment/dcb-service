@@ -59,6 +59,7 @@ public class NcipSupplyingRequestStrategy
 			userIdentifierValueFor(context),
 			bibliographicRecordIdentifierFor(patronRequest),
 			agencyCode != null ? agencyCode : hostLmsCode,
+			supplierRequest != null ? supplierRequest.getLocalItemId() : null,
 			correlationId,
 			REQUEST_TYPE,
 			REQUEST_SCOPE_TYPE));

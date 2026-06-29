@@ -15,6 +15,7 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -25,12 +26,18 @@ import org.olf.dcb.core.interaction.CanPlaceBorrowingAgencyRequest;
 import org.olf.dcb.core.interaction.CanPlaceSupplyingAgencyRequest;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.storage.AgencyRepository;
+import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
 
 class ORSApplianceHostLMSTests {
@@ -60,6 +67,7 @@ class ORSApplianceHostLMSTests {
 					.patronRequestId("request-1")
 					.localPatronBarcode("patron-1")
 					.localBibId("bib-1")
+					.localItemId("item-1")
 					.supplyingAgencyCode("supplier-agency")
 					.build()));
 		final var request = transport.onlyRequest();
@@ -74,6 +82,8 @@ class ORSApplianceHostLMSTests {
 			containsString("<UserIdentifierValue>patron-1</UserIdentifierValue>"));
 		assertThat(request.payload(),
 			containsString("<BibliographicRecordIdentifier>bib-1</BibliographicRecordIdentifier>"));
+		assertThat(request.payload(),
+			containsString("<ItemIdentifierValue>item-1</ItemIdentifierValue>"));
 		assertDoesNotThrow(() -> validator.validate(request.payload()));
 		assertThat(localRequest.getLocalId(), is("supplier-remote"));
 		assertThat(localRequest.getLocalStatus(), is("CONFIRMED"));
@@ -163,6 +173,97 @@ class ORSApplianceHostLMSTests {
 	}
 
 	@Test
+	void getsItemsUsingNcipLookupItemSet() {
+		final var httpClient = mock(HttpClient.class);
+		final var agencyRepository = mock(AgencyRepository.class);
+		final var locationRepository = mock(LocationRepository.class);
+		final var client = clientWith(
+			new CapturingTransport(response("remote-request")),
+			httpClient,
+			agencyRepository,
+			locationRepository);
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(validLookupItemSetResponse())));
+		DataHostLms hostLms = hostLms();
+		DataAgency agency = DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("ors-unseen")
+			.name("The Unseen University")
+			.hostLms(DataHostLms.builder().id(UUID.randomUUID()).build())
+			.isSupplyingAgency(true)
+			.build();
+		Location location = Location.builder()
+			.id(UUID.randomUUID())
+			.code("UNSEEN-MAIN-1")
+			.name("Unseen Main Library")
+			.type("PICKUP")
+			.hostSystem(hostLms)
+			.agency(agency)
+			.isPickup(true)
+			.build();
+		when(agencyRepository.findOneByCode("ors-unseen"))
+			.thenReturn(Mono.just(agency));
+		when(locationRepository.findOneByCode("UNSEEN-MAIN-1"))
+			.thenReturn(Mono.just(location));
+
+		final var items = singleValueFrom(client.getItems(BibRecord.builder()
+			.sourceRecordId("uu-fhs-0001")
+			.build()));
+
+		final var requestCaptor = org.mockito.ArgumentCaptor.forClass(HttpRequest.class);
+		verify(httpClient).exchange(requestCaptor.capture(), eq(Argument.of(String.class)));
+		final var body = (String) requestCaptor.getValue().getBody(String.class).orElseThrow();
+
+		assertThat(body, containsString("<LookupItemSet"));
+		assertThat(body, containsString("<BibliographicRecordIdentifier>uu-fhs-0001</BibliographicRecordIdentifier>"));
+		assertDoesNotThrow(() -> validator.validate(body));
+		assertThat(items.size(), is(1));
+		assertThat(items.getFirst().getLocalId(), is("UU-FHS-0001"));
+		assertThat(items.getFirst().getLocalBibId(), is("uu-fhs-0001"));
+		assertThat(items.getFirst().getBarcode(), is("UU-FHS-0001"));
+		assertThat(items.getFirst().getLocation().getCode(), is("UNSEEN-MAIN-1"));
+		assertThat(items.getFirst().getAgencyCode(), is("ors-unseen"));
+		assertThat(items.getFirst().getHostLmsCode(), is("ors-host"));
+		assertThat(items.getFirst().getStatus().getCode(), is(ItemStatusCode.AVAILABLE));
+		assertThat(items.getFirst().getCanonicalItemType(), is("CIRC"));
+	}
+
+	@Test
+	void getsItemsUsingNcipLookupItemSetWhenLocationIsNotConfiguredInDcb() {
+		final var httpClient = mock(HttpClient.class);
+		final var agencyRepository = mock(AgencyRepository.class);
+		final var locationRepository = mock(LocationRepository.class);
+		final var client = clientWith(
+			new CapturingTransport(response("remote-request")),
+			httpClient,
+			agencyRepository,
+			locationRepository);
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(validLookupItemSetResponse())));
+		DataAgency agency = DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("ors-unseen")
+			.name("The Unseen University")
+			.hostLms(DataHostLms.builder().id(UUID.randomUUID()).code("ors-host").build())
+			.isSupplyingAgency(true)
+			.build();
+		when(agencyRepository.findOneByCode("ors-unseen"))
+			.thenReturn(Mono.just(agency));
+		when(locationRepository.findOneByCode("UNSEEN-MAIN-1"))
+			.thenReturn(Mono.empty());
+
+		final var items = singleValueFrom(client.getItems(BibRecord.builder()
+			.sourceRecordId("uu-fhs-0001")
+			.build()));
+
+		assertThat(items.size(), is(1));
+		assertThat(items.getFirst().getLocalId(), is("UU-FHS-0001"));
+		assertThat(items.getFirst().getLocation().getCode(), is("UNSEEN-MAIN-1"));
+		assertThat(items.getFirst().getLocation().getName(), is("UNSEEN-MAIN-1"));
+		assertThat(items.getFirst().getAgencyCode(), is("ors-unseen"));
+	}
+
+	@Test
 	void baseHostLmsClientReturnsEmptyForUnsupportedMethods() {
 		final var client = new BaseOnlyClient(hostLms());
 
@@ -180,11 +281,26 @@ class ORSApplianceHostLMSTests {
 		DeclarativeRequestTransport transport,
 		HttpClient httpClient) {
 
+		return clientWith(
+			transport,
+			httpClient,
+			mock(AgencyRepository.class),
+			mock(LocationRepository.class));
+	}
+
+	private static ORSApplianceHostLMS clientWith(
+		DeclarativeRequestTransport transport,
+		HttpClient httpClient,
+		AgencyRepository agencyRepository,
+		LocationRepository locationRepository) {
+
 		return new ORSApplianceHostLMS(
 			hostLms(),
 			transport,
 			new NcipPayloadBuilder(),
-			httpClient);
+			httpClient,
+			agencyRepository,
+			locationRepository);
 	}
 
 	private static DataHostLms hostLms() {
@@ -224,6 +340,50 @@ class ORSApplianceHostLMSTests {
 			      </UserPrivilege>
 			    </UserOptionalFields>
 			  </LookupUserResponse>
+			</NCIPMessage>
+			""";
+	}
+
+	private static String validLookupItemSetResponse() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <LookupItemSetResponse>
+			    <ResponseHeader>
+			      <FromAgencyId>
+			        <AgencyId>ors-unseen</AgencyId>
+			      </FromAgencyId>
+			    </ResponseHeader>
+			    <BibInformation>
+			      <BibliographicId>
+			        <BibliographicRecordId>
+			          <BibliographicRecordIdentifier>uu-fhs-0001</BibliographicRecordIdentifier>
+			          <AgencyId>ors-unseen</AgencyId>
+			        </BibliographicRecordId>
+			      </BibliographicId>
+			      <HoldingsSet>
+			        <ItemInformation>
+			          <ItemId>
+			            <ItemIdentifierValue>UU-FHS-0001</ItemIdentifierValue>
+			          </ItemId>
+			          <ItemOptionalFields>
+			            <CirculationStatus>Available</CirculationStatus>
+			            <ItemDescription>
+			              <CallNumber>PRATCHETT COLOUR</CallNumber>
+			            </ItemDescription>
+			            <Location>
+			              <LocationType>Permanent Location</LocationType>
+			              <LocationName>
+			                <LocationNameInstance>
+			                  <LocationNameLevel>1</LocationNameLevel>
+			                  <LocationNameValue>UNSEEN-MAIN-1</LocationNameValue>
+			                </LocationNameInstance>
+			              </LocationName>
+			            </Location>
+			          </ItemOptionalFields>
+			        </ItemInformation>
+			      </HoldingsSet>
+			    </BibInformation>
+			  </LookupItemSetResponse>
 			</NCIPMessage>
 			""";
 	}

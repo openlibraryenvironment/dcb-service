@@ -14,6 +14,7 @@ import org.w3c.dom.Element;
 @Prototype
 public class NcipInboundXmlMapper {
 	private static final String CONFIRMED_STATUS = "CONFIRMED";
+	private static final String MISSING_STATUS = "MISSING";
 
 	public NcipInboundMessage map(String xml) {
 		final var document = parse(xml);
@@ -59,10 +60,11 @@ public class NcipInboundXmlMapper {
 		Element response,
 		String xml) {
 
-		rejectProblem(response, NcipProtocol.REQUEST_ITEM_RESPONSE);
-
 		final var requestId = requiredText(
 			response, "RequestIdentifierValue");
+		final var problem = firstDescendant(response, "Problem");
+		final var problemDetail = problem
+			.flatMap(element -> optionalText(element, "ProblemDetail"));
 
 		return new NcipInboundMessage(
 			NcipProtocol.REQUEST_ITEM_RESPONSE,
@@ -71,8 +73,10 @@ public class NcipInboundXmlMapper {
 			requiredResponseAgencyId(response),
 			requestId,
 			requestId,
-			CONFIRMED_STATUS,
-			NcipProtocol.REQUEST_ITEM_RESPONSE,
+			problem.isPresent() ? MISSING_STATUS : CONFIRMED_STATUS,
+			problemDetail
+				.map(detail -> NcipProtocol.REQUEST_ITEM_RESPONSE + ":Problem:" + detail)
+				.orElse(NcipProtocol.REQUEST_ITEM_RESPONSE),
 			optionalText(response, "ItemIdentifierValue").orElse(null),
 			null,
 			null,
