@@ -320,6 +320,7 @@ class ORSApplianceHostLMSTests {
 			transport,
 			new NcipPayloadBuilder(),
 			httpClient,
+			ncipIdentityConfiguration(),
 			agencyRepository,
 			locationRepository);
 	}
@@ -331,9 +332,18 @@ class ORSApplianceHostLMSTests {
 			.clientConfig(Map.of(
 				ORSApplianceHostLMS.NCIP_ENDPOINT_URL_KEY,
 				"https://ors.example.org/ncip/v2_02",
+				NcipHostLmsConfiguration.NCIP_SYSTEM_ID_KEY,
+				"ors-host-system",
 				"default-agency-code",
 				"ors-unseen"))
 			.build();
+	}
+
+	private static NcipIdentityConfiguration ncipIdentityConfiguration() {
+		final var configuration = new NcipIdentityConfiguration();
+		configuration.setSystemId("dcb-system");
+		configuration.setAgencyId("dcb-agency");
+		return configuration;
 	}
 
 	private static String validLookupUserResponse() {

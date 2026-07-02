@@ -6,14 +6,20 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -39,7 +45,10 @@ class NcipSupplyingRequestStrategyTests {
 			"placed",
 			"raw-message-1"));
 		final var strategy = new NcipSupplyingRequestStrategy(
-			transport, new NcipPayloadBuilder());
+			transport,
+			new NcipPayloadBuilder(),
+			hostLmsService(),
+			ncipIdentityConfiguration());
 		final var supplierRequest = new SupplierRequest()
 			.setHostLmsCode("supplier-host")
 			.setLocalAgency("supplier-agency");
@@ -66,6 +75,8 @@ class NcipSupplyingRequestStrategyTests {
 		assertThat(request.correlationId(), is(patronRequestId + ":SUPPLIER"));
 		assertThat(request.messageKind(), is(NcipProtocol.REQUEST_ITEM));
 		assertThat(request.payload(), containsString("<RequestItem"));
+		assertThat(request.payload(), containsString("<FromSystemId>dcb-system</FromSystemId>"));
+		assertThat(request.payload(), containsString("<ToSystemId>supplier-host-system</ToSystemId>"));
 		assertThat(request.payload(),
 			containsString("<UserIdentifierValue>patron-barcode</UserIdentifierValue>"));
 		assertThat(request.payload(),
@@ -102,6 +113,25 @@ class NcipSupplyingRequestStrategyTests {
 
 		throw new IllegalStateException(
 			"Could not find NCIP schema from " + workingDirectory);
+	}
+
+	private static HostLmsService hostLmsService() {
+		final var hostLmsService = mock(HostLmsService.class);
+		when(hostLmsService.findByCode(anyString()))
+			.thenAnswer(invocation -> Mono.just(DataHostLms.builder()
+				.code(invocation.getArgument(0))
+				.clientConfig(Map.of(
+					NcipHostLmsConfiguration.ENDPOINT_URL_KEY, "https://example.org/ncip",
+					NcipHostLmsConfiguration.NCIP_SYSTEM_ID_KEY, invocation.getArgument(0) + "-system"))
+				.build()));
+		return hostLmsService;
+	}
+
+	private static NcipIdentityConfiguration ncipIdentityConfiguration() {
+		final var configuration = new NcipIdentityConfiguration();
+		configuration.setSystemId("dcb-system");
+		configuration.setAgencyId("dcb-agency");
+		return configuration;
 	}
 
 	private static class CapturingTransport implements DeclarativeRequestTransport {

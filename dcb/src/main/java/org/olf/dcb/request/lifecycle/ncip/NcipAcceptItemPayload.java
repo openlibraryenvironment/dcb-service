@@ -1,12 +1,16 @@
 package org.olf.dcb.request.lifecycle.ncip;
 
 public record NcipAcceptItemPayload(
+	NcipParty party,
 	String requestIdentifierValue,
 	String requestedActionType,
 	String userIdentifierValue,
 	String itemIdentifierValue) {
 
 	public NcipAcceptItemPayload {
+		if (party == null) {
+			throw new IllegalArgumentException("party is required");
+		}
 		requireText(requestIdentifierValue, "requestIdentifierValue");
 		requireText(requestedActionType, "requestedActionType");
 	}

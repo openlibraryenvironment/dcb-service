@@ -222,7 +222,7 @@ run {
 
 tasks.named('processResources') {
 	from("$rootDir/src/xsd") {
-		include 'ncip_v2_02.xsd'
+		include '*.xsd'
 		into 'schemas'
 	}
 }

@@ -75,7 +75,8 @@ public class NcipController {
 
 		return xmlResponse(switch (message.messageKind()) {
 			case NcipProtocol.ITEM_REQUESTED -> responseBuilder.itemRequestedResponse();
-			case NcipProtocol.CANCEL_REQUEST_ITEM -> responseBuilder.cancelRequestItemResponse();
+			case NcipProtocol.CANCEL_REQUEST_ITEM -> responseBuilder.cancelRequestItemResponse(
+				message.hostRequestId());
 			case NcipProtocol.ITEM_SHIPPED -> responseBuilder.itemShippedResponse();
 			default -> responseBuilder.problem(
 				"Unsupported NCIP message: " + message.messageKind());

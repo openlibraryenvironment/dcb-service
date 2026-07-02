@@ -3,6 +3,8 @@ package org.olf.dcb.request.lifecycle.ncip;
 import io.micronaut.context.annotation.Prototype;
 import java.util.Optional;
 import java.util.UUID;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
@@ -23,13 +25,21 @@ public class NcipSupplyingRequestStrategy
 
 	private final DeclarativeRequestTransport transport;
 	private final NcipPayloadBuilder payloadBuilder;
+	private final HostLmsService hostLmsService;
+	private final NcipHostLmsConfiguration hostLmsConfiguration;
+	private final NcipIdentityConfiguration ncipIdentityConfiguration;
 
 	public NcipSupplyingRequestStrategy(
 		DeclarativeRequestTransport transport,
-		NcipPayloadBuilder payloadBuilder) {
+		NcipPayloadBuilder payloadBuilder,
+		HostLmsService hostLmsService,
+		NcipIdentityConfiguration ncipIdentityConfiguration) {
 
 		this.transport = transport;
 		this.payloadBuilder = payloadBuilder;
+		this.hostLmsService = hostLmsService;
+		this.hostLmsConfiguration = new NcipHostLmsConfiguration();
+		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
 	}
 
 	@Override
@@ -55,16 +65,21 @@ public class NcipSupplyingRequestStrategy
 		final var agencyCode = supplierRequest != null
 			? supplierRequest.getLocalAgency()
 			: context.getLenderAgencyCode();
-		final var payload = payloadBuilder.requestItem(new NcipRequestItemPayload(
-			userIdentifierValueFor(context),
-			bibliographicRecordIdentifierFor(patronRequest),
-			agencyCode != null ? agencyCode : hostLmsCode,
-			supplierRequest != null ? supplierRequest.getLocalItemId() : null,
-			correlationId,
-			REQUEST_TYPE,
-			REQUEST_SCOPE_TYPE));
+		final var toAgencyId = firstTextOrNull(agencyCode, hostLmsCode);
 
-		return transport.send(new DeclarativeTransportRequest(
+		return hostLmsService.findByCode(hostLmsCode)
+			.switchIfEmpty(Mono.error(new IllegalArgumentException(
+				"Cannot create NCIP RequestItem without HostLMS " + hostLmsCode)))
+			.map(hostLms -> payloadBuilder.requestItem(new NcipRequestItemPayload(
+				party(context, hostLms, toAgencyId),
+				userIdentifierValueFor(context),
+				bibliographicRecordIdentifierFor(patronRequest),
+				toAgencyId,
+				supplierRequest != null ? supplierRequest.getLocalItemId() : null,
+				correlationId,
+				REQUEST_TYPE,
+				REQUEST_SCOPE_TYPE)))
+			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
 				LifecycleRole.SUPPLIER,
 				LifecycleOperation.PLACE_REQUEST,
@@ -72,7 +87,7 @@ public class NcipSupplyingRequestStrategy
 				agencyCode,
 				correlationId,
 				NcipProtocol.REQUEST_ITEM,
-				payload))
+				payload)))
 			.map(response -> new SupplyingAgencyRequestResult(
 				patronRequest,
 				supplierRequest,
@@ -89,6 +104,18 @@ public class NcipSupplyingRequestStrategy
 				response.status(),
 				response.rawStatus(),
 				response.rawMessageReference()));
+	}
+
+	private NcipParty party(
+		RequestWorkflowContext context,
+		HostLms hostLms,
+		String toAgencyId) {
+
+		return new NcipParty(
+			firstText(context.getPatronAgencyCode(), ncipIdentityConfiguration.getAgencyId()),
+			toAgencyId,
+			ncipIdentityConfiguration.getSystemId(),
+			hostLmsConfiguration.ncipSystemIdFor(hostLms));
 	}
 
 	private static String userIdentifierValueFor(RequestWorkflowContext context) {
@@ -136,5 +163,25 @@ public class NcipSupplyingRequestStrategy
 
 	private static boolean hasText(String value) {
 		return value != null && !value.isBlank();
+	}
+
+	private static String firstText(String... values) {
+		for (final var value : values) {
+			if (hasText(value)) {
+				return value;
+			}
+		}
+
+		throw new IllegalArgumentException("Expected at least one non-blank value");
+	}
+
+	private static String firstTextOrNull(String... values) {
+		for (final var value : values) {
+			if (hasText(value)) {
+				return value;
+			}
+		}
+
+		return null;
 	}
 }

@@ -48,7 +48,7 @@ public class NcipInboundXmlMapper {
 			NcipProtocol.ITEM_SHIPPED,
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
-			requiredAgencyId(itemShipped, "FromAgencyId"),
+			requiredInitiatingPeerId(itemShipped),
 			requestId,
 			requestId,
 			"SHIPPED",
@@ -77,7 +77,7 @@ public class NcipInboundXmlMapper {
 			NcipProtocol.REQUEST_ITEM_RESPONSE,
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
-			requiredResponseAgencyId(response),
+			requiredResponsePeerId(response),
 			requestId,
 			requestId,
 			status,
@@ -102,7 +102,7 @@ public class NcipInboundXmlMapper {
 			NcipProtocol.ITEM_REQUESTED,
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
-			requiredInitiatingAgencyId(itemRequested),
+			requiredInitiatingPeerId(itemRequested),
 			requestId,
 			requestId,
 			CONFIRMED_STATUS,
@@ -128,7 +128,7 @@ public class NcipInboundXmlMapper {
 			NcipProtocol.CANCEL_REQUEST_ITEM,
 			LifecycleRole.SUPPLIER,
 			LifecycleOperation.PLACE_REQUEST,
-			requiredInitiatingAgencyId(cancelRequestItem),
+			requiredInitiatingPeerId(cancelRequestItem),
 			requestId,
 			requestId,
 			MISSING_STATUS,
@@ -162,7 +162,7 @@ public class NcipInboundXmlMapper {
 			NcipProtocol.ACCEPT_ITEM_RESPONSE,
 			LifecycleRole.BORROWER,
 			LifecycleOperation.PLACE_REQUEST,
-			requiredResponseAgencyId(response),
+			requiredResponsePeerId(response),
 			requestId,
 			requestId,
 			CONFIRMED_STATUS,
@@ -173,20 +173,22 @@ public class NcipInboundXmlMapper {
 			rawMessageReference(NcipProtocol.ACCEPT_ITEM_RESPONSE, xml));
 	}
 
-	private static String requiredResponseAgencyId(Element response) {
+	private static String requiredResponsePeerId(Element response) {
 		final var responseHeader = firstDescendant(response, "ResponseHeader")
 			.orElseThrow(() -> new NcipProblemException(
 				response.getLocalName() + " requires ResponseHeader"));
 
-		return requiredAgencyId(responseHeader, "FromAgencyId");
+		return optionalSystemId(responseHeader, "FromSystemId")
+			.orElseGet(() -> requiredAgencyId(responseHeader, "FromAgencyId"));
 	}
 
-	private static String requiredInitiatingAgencyId(Element message) {
+	private static String requiredInitiatingPeerId(Element message) {
 		final var initiationHeader = firstDescendant(message, "InitiationHeader")
 			.orElseThrow(() -> new NcipProblemException(
 				message.getLocalName() + " requires InitiationHeader"));
 
-		return requiredAgencyId(initiationHeader, "FromAgencyId");
+		return optionalSystemId(initiationHeader, "FromSystemId")
+			.orElseGet(() -> requiredAgencyId(initiationHeader, "FromAgencyId"));
 	}
 
 	private static void rejectProblem(Element response, String messageKind) {
@@ -206,6 +208,13 @@ public class NcipInboundXmlMapper {
 				"NCIP message requires " + agencyElementName));
 
 		return requiredText(agencyElement, "AgencyId");
+	}
+
+	private static Optional<String> optionalSystemId(Element element, String systemElementName) {
+		return firstDescendant(element, systemElementName)
+			.map(Element::getTextContent)
+			.map(String::trim)
+			.filter(value -> !value.isBlank());
 	}
 
 	private static String requiredText(Element element, String name) {

@@ -23,6 +23,7 @@ public class NcipPayloadBuilder {
 		final var document = newDocument();
 		final var requestItem = message(document, "RequestItem");
 
+		requestItem.appendChild(initiationHeader(document, payload.party()));
 		requestItem.appendChild(userId(document, payload.userIdentifierValue()));
 		requestItem.appendChild(bibliographicId(
 			document,
@@ -49,6 +50,7 @@ public class NcipPayloadBuilder {
 	public String lookupItemSet(NcipLookupItemSetPayload payload) {
 		final var document = newDocument();
 		final var lookupItemSet = message(document, "LookupItemSet");
+		lookupItemSet.appendChild(initiationHeader(document, payload.party()));
 		lookupItemSet.appendChild(bibliographicId(
 			document,
 			payload.bibliographicRecordIdentifier(),
@@ -60,6 +62,7 @@ public class NcipPayloadBuilder {
 		final var document = newDocument();
 		final var acceptItem = message(document, "AcceptItem");
 
+		acceptItem.appendChild(initiationHeader(document, payload.party()));
 		acceptItem.appendChild(requestId(
 			document,
 			payload.requestIdentifierValue()));
@@ -83,6 +86,9 @@ public class NcipPayloadBuilder {
 		final var document = newDocument();
 		final var lookupUser = message(document, "LookupUser");
 
+		if (payload.party() != null) {
+			lookupUser.appendChild(initiationHeader(document, payload.party()));
+		}
 		if (payload.hasSecret()) {
 			lookupUser.appendChild(authenticationInput(
 				document,
@@ -112,6 +118,25 @@ public class NcipPayloadBuilder {
 		message.appendChild(payload);
 
 		return payload;
+	}
+
+	private static Element initiationHeader(Document document, NcipParty party) {
+		final var header = element(document, "InitiationHeader");
+		header.appendChild(systemId(document, "FromSystemId", party.fromSystemId()));
+		header.appendChild(agencyId(document, "FromAgencyId", party.fromAgencyId()));
+		header.appendChild(systemId(document, "ToSystemId", party.toSystemId()));
+		header.appendChild(agencyId(document, "ToAgencyId", party.toAgencyId()));
+		return header;
+	}
+
+	private static Element agencyId(Document document, String wrapperName, String agencyId) {
+		final var wrapper = element(document, wrapperName);
+		wrapper.appendChild(value(document, "AgencyId", agencyId));
+		return wrapper;
+	}
+
+	private static Element systemId(Document document, String wrapperName, String systemId) {
+		return value(document, wrapperName, systemId);
 	}
 
 	private static Element userId(Document document, String userIdentifierValue) {

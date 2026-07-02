@@ -49,6 +49,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	private final NcipPayloadBuilder payloadBuilder;
 	private final HttpClient httpClient;
 	private final NcipHostLmsConfiguration hostLmsConfiguration;
+	private final NcipIdentityConfiguration ncipIdentityConfiguration;
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
 
@@ -58,6 +59,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		DeclarativeRequestTransport transport,
 		NcipPayloadBuilder payloadBuilder,
 		@Client("/") HttpClient httpClient,
+		NcipIdentityConfiguration ncipIdentityConfiguration,
 		AgencyRepository agencyRepository,
 		LocationRepository locationRepository) {
 
@@ -66,13 +68,16 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		this.payloadBuilder = payloadBuilder;
 		this.httpClient = httpClient;
 		this.hostLmsConfiguration = new NcipHostLmsConfiguration();
+		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
 		this.agencyRepository = agencyRepository;
 		this.locationRepository = locationRepository;
 	}
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(NcipHostLmsConfiguration.ENDPOINT_URL);
+		return List.of(
+			NcipHostLmsConfiguration.ENDPOINT_URL,
+			NcipHostLmsConfiguration.NCIP_SYSTEM_ID);
 	}
 
 	@Override
@@ -82,7 +87,14 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		final var correlationId = correlationIdFor(
 			parameters,
 			LifecycleRole.SUPPLIER);
+		final var supplyingAgencyCode = firstText(
+			parameters.getSupplyingAgencyCode(),
+			getDefaultAgencyCode(),
+			getHostLmsCode());
 		final var payload = payloadBuilder.requestItem(new NcipRequestItemPayload(
+			party(
+				ncipIdentityConfiguration.getAgencyId(),
+				supplyingAgencyCode),
 			firstText(
 				parameters.getLocalPatronBarcode(),
 				parameters.getLocalPatronId(),
@@ -91,7 +103,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 				parameters.getLocalBibId(),
 				parameters.getSupplyingLocalBibId(),
 				parameters.getPatronRequestId()),
-			firstText(parameters.getSupplyingAgencyCode(), getHostLmsCode()),
+			supplyingAgencyCode,
 			firstTextOrNull(
 				parameters.getLocalItemId(),
 				parameters.getSupplyingLocalItemId(),
@@ -116,7 +128,9 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		final var correlationId = correlationIdFor(
 			parameters,
 			LifecycleRole.BORROWER);
+		final var borrowingAgencyCode = firstText(getDefaultAgencyCode(), getHostLmsCode());
 		final var payload = payloadBuilder.acceptItem(new NcipAcceptItemPayload(
+			party(ncipIdentityConfiguration.getAgencyId(), borrowingAgencyCode),
 			correlationId,
 			REQUESTED_ACTION_TYPE,
 			firstText(
@@ -144,6 +158,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			bibRecord.getId() != null ? bibRecord.getId().toString() : null);
 		final var agencyCode = firstText(getDefaultAgencyCode(), getHostLmsCode());
 		final var payload = payloadBuilder.lookupItemSet(new NcipLookupItemSetPayload(
+			party(ncipIdentityConfiguration.getAgencyId(), agencyCode),
 			bibliographicRecordIdentifier,
 			agencyCode));
 
@@ -158,6 +173,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		String secret) {
 
 		final var payload = payloadBuilder.lookupUser(new NcipLookupUserPayload(
+			party(ncipIdentityConfiguration.getAgencyId(), getDefaultAgencyCode()),
 			getDefaultAgencyCode(),
 			patronPrinciple,
 			secret));
@@ -178,6 +194,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 
 	private Mono<Patron> lookupUserByIdentifier(String identifier) {
 		final var payload = payloadBuilder.lookupUser(new NcipLookupUserPayload(
+			party(ncipIdentityConfiguration.getAgencyId(), getDefaultAgencyCode()),
 			getDefaultAgencyCode(),
 			identifier,
 			null));
@@ -208,6 +225,14 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			.map(response -> response.getBody()
 				.orElseThrow(() -> new NcipProblemException(
 					"NCIP LookupItemSetResponse body is empty")));
+	}
+
+	private NcipParty party(String fromAgencyId, String toAgencyId) {
+		return new NcipParty(
+			fromAgencyId,
+			toAgencyId,
+			ncipIdentityConfiguration.getSystemId(),
+			hostLmsConfiguration.ncipSystemIdFor(getHostLms()));
 	}
 
 	private Mono<LocalRequest> send(

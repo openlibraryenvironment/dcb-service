@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	targetNamespace="https://openrs.org/ncip/fallback-host"
+	xmlns="https://openrs.org/ncip/fallback-host"
+	elementFormDefault="qualified"
+	attributeFormDefault="unqualified">
+
+	<xs:element name="FallbackHostSelectedItem">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="SelectedItemBarcode" type="xs:string"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+	<xs:element name="FallbackHostCancelReason">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="ReasonCode" type="xs:string"/>
+				<xs:element name="ProcessingNote" type="xs:string" minOccurs="0"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

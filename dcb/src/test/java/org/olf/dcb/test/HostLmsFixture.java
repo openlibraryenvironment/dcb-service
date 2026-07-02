@@ -196,7 +196,9 @@ public class HostLmsFixture {
 		return createHostLms(randomUUID(), code, ORSApplianceHostLMS.class,
 			Optional.empty(), Map.of(
 				ORSApplianceHostLMS.NCIP_ENDPOINT_URL_KEY,
-				ncipEndpointUrl));
+				ncipEndpointUrl,
+				"ncipSystemId",
+				code + "-system"));
 	}
 
 	private String generateBaseUrl(String code) {

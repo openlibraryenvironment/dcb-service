@@ -101,6 +101,62 @@ class NcipControllerTests {
 	}
 
 	@Test
+	void acceptsItemRequestedAndReturnsItemRequestedResponse() {
+		final var handler = mock(InboundLifecycleMessageHandler.class);
+		when(handler.handle(any())).thenReturn(Mono.just(new RequestWorkflowContext()));
+		final var controller = controllerWith(handler);
+
+		final var response = controller.receive(validItemRequested()).block();
+
+		assertThat(response.getContentType().orElseThrow(),
+			is(MediaType.APPLICATION_XML_TYPE));
+		assertThat(response.body(), containsString("<ItemRequestedResponse"));
+		assertDoesNotThrow(() -> validator.validate(response.body()));
+
+		final var messageCaptor = ArgumentCaptor.forClass(
+			InboundLifecycleMessage.class);
+		verify(handler).handle(messageCaptor.capture());
+
+		final var message = messageCaptor.getValue();
+		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
+		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.hostLmsCode(), is("supplier-host"));
+		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
+		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
+		assertThat(message.status(), is("CONFIRMED"));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_REQUESTED));
+		assertThat(message.itemId(), is("item-1"));
+	}
+
+	@Test
+	void acceptsCancelRequestItemAndReturnsCancelRequestItemResponse() {
+		final var handler = mock(InboundLifecycleMessageHandler.class);
+		when(handler.handle(any())).thenReturn(Mono.just(new RequestWorkflowContext()));
+		final var controller = controllerWith(handler);
+
+		final var response = controller.receive(validCancelRequestItem()).block();
+
+		assertThat(response.getContentType().orElseThrow(),
+			is(MediaType.APPLICATION_XML_TYPE));
+		assertThat(response.body(), containsString("<CancelRequestItemResponse"));
+		assertDoesNotThrow(() -> validator.validate(response.body()));
+
+		final var messageCaptor = ArgumentCaptor.forClass(
+			InboundLifecycleMessage.class);
+		verify(handler).handle(messageCaptor.capture());
+
+		final var message = messageCaptor.getValue();
+		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
+		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.hostLmsCode(), is("supplier-host"));
+		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
+		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
+		assertThat(message.status(), is("MISSING"));
+		assertThat(message.rawStatus(), is(NcipProtocol.CANCEL_REQUEST_ITEM + ":NOT_ON_SHELF"));
+		assertThat(message.itemId(), is("item-1"));
+	}
+
+	@Test
 	void acceptsAcceptItemResponseAndReturnsNoContent() {
 		final var handler = mock(InboundLifecycleMessageHandler.class);
 		when(handler.handle(any())).thenReturn(Mono.just(new RequestWorkflowContext()));
@@ -189,6 +245,76 @@ class NcipControllerTests {
 			    <RequestType>Hold</RequestType>
 			    <RequestScopeType>Bibliographic Item</RequestScopeType>
 			  </RequestItemResponse>
+			</NCIPMessage>
+			""";
+	}
+
+	static String validItemRequested() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" xmlns:openrs="https://openrs.org/ncip/fallback-host" ncip:version="2.02">
+			  <ItemRequested>
+			    <InitiationHeader>
+			      <FromAgencyId>
+			        <AgencyId>supplier-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb-host</AgencyId>
+			      </ToAgencyId>
+			    </InitiationHeader>
+			    <UserId>
+			      <UserIdentifierValue>user-1</UserIdentifierValue>
+			    </UserId>
+			    <BibliographicId>
+			      <BibliographicRecordId>
+			        <BibliographicRecordIdentifier>bib-1</BibliographicRecordIdentifier>
+			        <AgencyId>supplier-host</AgencyId>
+			      </BibliographicRecordId>
+			    </BibliographicId>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:SUPPLIER</RequestIdentifierValue>
+			    </RequestId>
+			    <RequestType>Hold</RequestType>
+			    <RequestScopeType>Bibliographic Item</RequestScopeType>
+			    <Ext>
+			      <openrs:FallbackHostSelectedItem>
+			        <openrs:SelectedItemBarcode>item-1</openrs:SelectedItemBarcode>
+			      </openrs:FallbackHostSelectedItem>
+			    </Ext>
+			  </ItemRequested>
+			</NCIPMessage>
+			""";
+	}
+
+	static String validCancelRequestItem() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" xmlns:openrs="https://openrs.org/ncip/fallback-host" ncip:version="2.02">
+			  <CancelRequestItem>
+			    <InitiationHeader>
+			      <FromAgencyId>
+			        <AgencyId>supplier-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb-host</AgencyId>
+			      </ToAgencyId>
+			    </InitiationHeader>
+			    <UserId>
+			      <UserIdentifierValue>user-1</UserIdentifierValue>
+			    </UserId>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:SUPPLIER</RequestIdentifierValue>
+			    </RequestId>
+			    <ItemId>
+			      <ItemIdentifierValue>item-1</ItemIdentifierValue>
+			    </ItemId>
+			    <RequestType>Hold</RequestType>
+			    <RequestScopeType>Bibliographic Item</RequestScopeType>
+			    <Ext>
+			      <openrs:FallbackHostCancelReason>
+			        <openrs:ReasonCode>NOT_ON_SHELF</openrs:ReasonCode>
+			        <openrs:ProcessingNote>Fallback Host not supplied</openrs:ProcessingNote>
+			      </openrs:FallbackHostCancelReason>
+			    </Ext>
+			  </CancelRequestItem>
 			</NCIPMessage>
 			""";
 	}

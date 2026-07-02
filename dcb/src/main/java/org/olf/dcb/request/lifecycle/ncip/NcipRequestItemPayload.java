@@ -1,6 +1,7 @@
 package org.olf.dcb.request.lifecycle.ncip;
 
 public record NcipRequestItemPayload(
+	NcipParty party,
 	String userIdentifierValue,
 	String bibliographicRecordIdentifier,
 	String bibliographicRecordAgencyId,
@@ -10,6 +11,9 @@ public record NcipRequestItemPayload(
 	String requestScopeType) {
 
 	public NcipRequestItemPayload {
+		if (party == null) {
+			throw new IllegalArgumentException("party is required");
+		}
 		requireText(userIdentifierValue, "userIdentifierValue");
 		requireText(bibliographicRecordIdentifier, "bibliographicRecordIdentifier");
 		requireText(bibliographicRecordAgencyId, "bibliographicRecordAgencyId");

@@ -31,8 +31,14 @@ public class NcipResponseBuilder {
 	}
 
 	public String cancelRequestItemResponse() {
+		return cancelRequestItemResponse("UNKNOWN");
+	}
+
+	public String cancelRequestItemResponse(String requestIdentifierValue) {
 		final var document = newDocument();
-		message(document, NcipProtocol.CANCEL_REQUEST_ITEM_RESPONSE);
+		final var response = message(document, NcipProtocol.CANCEL_REQUEST_ITEM_RESPONSE);
+		response.appendChild(requestId(document, requestIdentifierValue));
+		response.appendChild(userId(document, "UNKNOWN"));
 
 		return toXml(document);
 	}
@@ -101,6 +107,21 @@ public class NcipResponseBuilder {
 		element.setTextContent(value);
 
 		return element;
+	}
+
+	private static Element requestId(Document document, String requestIdentifierValue) {
+		final var requestId = element(document, "RequestId");
+		requestId.appendChild(value(
+			document,
+			"RequestIdentifierValue",
+			requestIdentifierValue));
+		return requestId;
+	}
+
+	private static Element userId(Document document, String userIdentifierValue) {
+		final var userId = element(document, "UserId");
+		userId.appendChild(value(document, "UserIdentifierValue", userIdentifierValue));
+		return userId;
 	}
 
 	private static Element element(Document document, String name) {

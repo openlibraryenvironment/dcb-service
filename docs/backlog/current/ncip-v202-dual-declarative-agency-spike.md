@@ -9,7 +9,7 @@ Branch: `spike/iso18626-declarative-dual-agency`
 This item supersedes the ISO18626 protocol leaf from
 `docs/backlog/done/iso18626-dual-declarative-agency-spike.md`.
 
-Current spike state: Slice 12 done. Production follow-ons remain.
+Current spike state: SystemId/directory return-routing slice done. Production follow-ons remain.
 
 Blocking questions: none. Status mapping remains message-specific.
 
@@ -129,6 +129,10 @@ repository now contains the NCIP schema at `src/xsd/ncip_v2_02.xsd`, including
 
 13. Outbound NCIP calls use Host LMS scoped config key `ncip-endpoint-url`.
     This is deliberately separate from existing imperative `base-url` config.
+
+13a. Outbound NCIP party identity uses configured `dcb.ncip.system-id`,
+     `dcb.ncip.agency-id`, and Host LMS `ncip-system-id`. DCB treats agency ids
+     and system ids as separate values.
 
 14. The spike includes a partial `ORSApplianceHostLMS` adapter. It implements
     supplier `RequestItem` and borrower `AcceptItem` placement only. Wider
@@ -498,6 +502,15 @@ Acceptance:
 - Add partner/profile-specific status mapping once real NCIP examples are
   available.
 - Persist raw NCIP XML or external message ids if audit/replay requires it.
+
+## 2026-07-02 SystemId Slice
+
+- DCB emits NCIP `FromSystemId`, `ToSystemId`, `FromAgencyId`, and `ToAgencyId`.
+- DCB inbound NCIP reads peer `FromSystemId` where present.
+- HostLMS NCIP system id config is `ncip-system-id`; legacy `ncipSystemId` is
+  accepted for compatibility.
+- Local QA passed after clean start with ORS-Appliance resolving the DCB return
+  endpoint from directory data, not hard-coded ORS config.
 
 ## Definition Of Done
 

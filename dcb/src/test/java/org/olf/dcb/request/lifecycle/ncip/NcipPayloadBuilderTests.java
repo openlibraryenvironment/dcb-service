@@ -22,6 +22,7 @@ class NcipPayloadBuilderTests {
 	@Test
 	void buildsValidRequestItemPayload() {
 		final var xml = builder.requestItem(new NcipRequestItemPayload(
+			party(),
 			"patron-123",
 			"bib-456",
 			"supplier-agency",
@@ -37,6 +38,8 @@ class NcipPayloadBuilderTests {
 		assertThat(document.getDocumentElement().getLocalName(),
 			equalTo("NCIPMessage"));
 		assertThat(xml, containsString("<RequestItem"));
+		assertThat(xml, containsString("<FromSystemId"));
+		assertThat(xml, containsString("<FromSystemId>dcb-system</FromSystemId>"));
 		assertThat(xml, containsString("<UserIdentifierValue>patron-123</UserIdentifierValue>"));
 		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
 		assertThat(xml, containsString("<ItemIdentifierValue>item-456</ItemIdentifierValue>"));
@@ -46,6 +49,7 @@ class NcipPayloadBuilderTests {
 	@Test
 	void buildsValidLookupItemSetPayload() {
 		final var xml = builder.lookupItemSet(new NcipLookupItemSetPayload(
+			party(),
 			"bib-456",
 			"supplier-agency"));
 
@@ -57,6 +61,7 @@ class NcipPayloadBuilderTests {
 	@Test
 	void buildsValidAcceptItemPayload() {
 		final var xml = builder.acceptItem(new NcipAcceptItemPayload(
+			party(),
 			"request-789:BORROWER",
 			"Accept For Loan",
 			"patron-123",
@@ -85,6 +90,14 @@ class NcipPayloadBuilderTests {
 		catch (Exception e) {
 			throw new IllegalArgumentException("Could not parse NCIP XML", e);
 		}
+	}
+
+	private static NcipParty party() {
+		return new NcipParty(
+			"borrower-agency",
+			"supplier-agency",
+			"dcb-system",
+			"supplier-system");
 	}
 
 	private static Path schemaPath() {

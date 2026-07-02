@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -14,8 +15,11 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -151,14 +155,22 @@ class NcipDualDeclarativeAgencySpikeTests {
 		DeclarativeRequestTransport transport) {
 
 		final var strategy = new NcipSupplyingRequestStrategy(
-			transport, new NcipPayloadBuilder());
+			transport,
+			new NcipPayloadBuilder(),
+			hostLmsService(),
+			ncipIdentityConfiguration());
 		final var resolver = new SupplyingAgencyRequestStrategyResolver(
 			mock(ImperativeSupplyingAgencyRequestStrategy.class),
 			List.of(strategy),
 			capabilityResolver);
+		final var supplierRequestRepository = mock(SupplierRequestRepository.class);
+		when(supplierRequestRepository.saveOrUpdate(any(SupplierRequest.class)))
+			.thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
 		return new SupplyingAgencyRequestStrategyService(
-			resolver, new SupplyingAgencyRequestProjector());
+			resolver,
+			new SupplyingAgencyRequestProjector(),
+			supplierRequestRepository);
 	}
 
 	private static BorrowingAgencyRequestStrategyService borrowingPlacementService(
@@ -166,7 +178,10 @@ class NcipDualDeclarativeAgencySpikeTests {
 		DeclarativeRequestTransport transport) {
 
 		final var strategy = new NcipBorrowingRequestStrategy(
-			transport, new NcipPayloadBuilder());
+			transport,
+			new NcipPayloadBuilder(),
+			hostLmsService(),
+			ncipIdentityConfiguration());
 		final var resolver = new BorrowingAgencyRequestStrategyResolver(
 			mock(ImperativeBorrowingAgencyRequestStrategy.class),
 			List.of(strategy),
@@ -235,6 +250,25 @@ class NcipDualDeclarativeAgencySpikeTests {
 			.setMode(TrackingMode.EVENT_DRIVEN);
 		configuration.getBorrowerTracking()
 			.setProtocol(NcipProtocol.PROTOCOL);
+		return configuration;
+	}
+
+	private static HostLmsService hostLmsService() {
+		final var hostLmsService = mock(HostLmsService.class);
+		when(hostLmsService.findByCode(anyString()))
+			.thenAnswer(invocation -> Mono.just(DataHostLms.builder()
+				.code(invocation.getArgument(0))
+				.clientConfig(Map.of(
+					NcipHostLmsConfiguration.ENDPOINT_URL_KEY, "https://example.org/ncip",
+					NcipHostLmsConfiguration.NCIP_SYSTEM_ID_KEY, invocation.getArgument(0) + "-system"))
+				.build()));
+		return hostLmsService;
+	}
+
+	private static NcipIdentityConfiguration ncipIdentityConfiguration() {
+		final var configuration = new NcipIdentityConfiguration();
+		configuration.setSystemId("dcb-system");
+		configuration.setAgencyId("dcb-agency");
 		return configuration;
 	}
 

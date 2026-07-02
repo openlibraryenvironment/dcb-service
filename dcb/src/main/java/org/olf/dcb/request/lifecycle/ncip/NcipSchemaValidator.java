@@ -19,6 +19,7 @@ public class NcipSchemaValidator {
 			final var schemaFactory = SchemaFactory.newInstance(
 				XMLConstants.W3C_XML_SCHEMA_NS_URI);
 			schemaFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+			schemaFactory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "file");
 
 			this.schema = schemaFactory.newSchema(schemaPath.toFile());
 		}

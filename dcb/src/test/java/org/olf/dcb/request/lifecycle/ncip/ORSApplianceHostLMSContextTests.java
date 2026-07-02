@@ -15,9 +15,12 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
+import io.micronaut.context.annotation.Property;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
+@Property(name = "dcb.ncip.system-id", value = "dcb-host")
+@Property(name = "dcb.ncip.agency-id", value = "dcb-host")
 class ORSApplianceHostLMSContextTests {
 	private static final String HOST_LMS_CODE = "ors-ncip-host";
 	private static final String NCIP_HOST = "ors-ncip.example.org";

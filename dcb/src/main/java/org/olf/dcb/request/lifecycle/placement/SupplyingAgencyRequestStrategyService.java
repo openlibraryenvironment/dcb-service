@@ -3,6 +3,7 @@ package org.olf.dcb.request.lifecycle.placement;
 import io.micronaut.context.annotation.Prototype;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
+import org.olf.dcb.storage.SupplierRequestRepository;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -11,13 +12,16 @@ import reactor.core.publisher.Mono;
 public class SupplyingAgencyRequestStrategyService {
 	private final SupplyingAgencyRequestStrategyResolver strategyResolver;
 	private final SupplyingAgencyRequestProjector projector;
+	private final SupplierRequestRepository supplierRequestRepository;
 
 	public SupplyingAgencyRequestStrategyService(
 		SupplyingAgencyRequestStrategyResolver strategyResolver,
-		SupplyingAgencyRequestProjector projector) {
+		SupplyingAgencyRequestProjector projector,
+		SupplierRequestRepository supplierRequestRepository) {
 
 		this.strategyResolver = strategyResolver;
 		this.projector = projector;
+		this.supplierRequestRepository = supplierRequestRepository;
 	}
 
 	public Mono<RequestWorkflowContext> place(RequestWorkflowContext context) {
@@ -39,6 +43,22 @@ public class SupplyingAgencyRequestStrategyService {
 						patronRequest != null ? patronRequest.getId() : null,
 						supplierRequest != null ? supplierRequest.getId() : null,
 						strategy.type()))))
-			.map(result -> projector.apply(context, result));
+			.map(result -> projector.apply(context, result))
+			.flatMap(this::persistSupplierRequest);
+	}
+
+	private Mono<RequestWorkflowContext> persistSupplierRequest(
+		RequestWorkflowContext context) {
+
+		if (context.getSupplierRequest() == null) {
+			return Mono.just(context);
+		}
+
+		return Mono.from(supplierRequestRepository.saveOrUpdate(
+				context.getSupplierRequest()))
+			.map(saved -> {
+				context.setSupplierRequest(saved);
+				return context;
+			});
 	}
 }
