@@ -116,12 +116,11 @@ public class BorrowingAgencyService {
 		log.info("WORKFLOW cleanUp {}", patronRequest);
 
 		if (hostLmsCode != null && patronRequest != null) {
+			final String localItemStatus = patronRequest.getLocalItemStatus() != null ? patronRequest.getLocalItemStatus() : "";
 
-			if( patronRequest.getStatus() == PatronRequest.Status.PICKUP_TRANSIT ||
-				patronRequest.getStatus() == PatronRequest.Status.RECEIVED_AT_PICKUP ||
-				patronRequest.getStatus() == PatronRequest.Status.LOANED ) {
+			if(localItemStatus.equals("TRANSIT") || localItemStatus.equals("LOANED")) {
 
-				final var message = "Borrower cleanup : Patron request status prevents complete request cleanup";
+				final String message = "Borrower cleanup : Local item status" + localItemStatus + "prevents complete request cleanup";
 
 				return Mono.from(hostLmsService.getClientFor(hostLmsCode))
 					.flatMap(client -> deleteRequestIfPresent(client, patronRequest) )
