@@ -34,6 +34,7 @@ import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.request.lifecycle.ncip.NcipProtocol;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
@@ -461,6 +462,56 @@ class HandleSupplierRequestConfirmedTests {
 			hasLocalStatus(HOLD_CONFIRMED),
 			hasLocalItemId(updatedLocalSupplyingItemId),
 			hasLocalItemBarcode(originalLocalItemBarcode)
+		));
+	}
+
+	@Test
+	void shouldProgressNcipSupplierRequestToConfirmedWithoutVirtualIdentity() {
+		// Arrange
+		final var patron = Patron.builder()
+			.id(randomUUID())
+			.build();
+
+		patronFixture.savePatron(patron);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		final var localSupplyingHoldId = patronRequest.getId() + ":SUPPLIER";
+		final var suppliedItem = "HOG-FHS-POSD-0001";
+
+		supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localStatus(HOLD_CONFIRMED)
+				.localId(localSupplyingHoldId)
+				.localItemId(suppliedItem)
+				.localItemBarcode(suppliedItem)
+				.patronRequest(patronRequest)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.protocol(NcipProtocol.PROTOCOL)
+				.build());
+
+		// Act
+		final var updatedPatronRequest = confirmRequestPlacedAtSupplyingAgency(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			notNullValue(),
+			hasStatus(CONFIRMED)
+		));
+
+		final var updatedSupplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+		assertThat(updatedSupplierRequest, allOf(
+			hasLocalStatus(HOLD_CONFIRMED),
+			hasLocalItemId(suppliedItem),
+			hasLocalItemBarcode(suppliedItem)
 		));
 	}
 

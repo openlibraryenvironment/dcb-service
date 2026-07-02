@@ -16,6 +16,7 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.lifecycle.ncip.NcipProtocol;
 import org.olf.dcb.request.resolution.SupplierRequestService;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
@@ -63,6 +64,10 @@ public class HandleSupplierRequestConfirmed extends AbstractPatronRequestStateTr
 		final var patronRequest = ctx.getPatronRequest();
 		final var requestId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
 		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
+		if (supplierPatronId == null && NcipProtocol.PROTOCOL.equals(supplierRequest.getProtocol())) {
+			ctx.getWorkflowMessages().add("Confirmed NCIP supplier request without supplier-side virtual patron refresh");
+			return Mono.just(ctx.setPatronRequest(patronRequest.setStatus(CONFIRMED)));
+		}
 		final var hostlmsRequest = HostLmsRequest.builder().localId(requestId).localPatronId(supplierPatronId).build();
 
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
