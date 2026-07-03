@@ -9,9 +9,11 @@ import jakarta.inject.Singleton;
 import java.net.URI;
 import java.util.Objects;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthorizationService;
 import reactor.core.publisher.Mono;
 
 @Singleton
@@ -21,29 +23,34 @@ public class NcipDeclarativeRequestTransport
 	private final HttpClient httpClient;
 	private final NcipInboundXmlMapper inboundXmlMapper;
 	private final NcipHostLmsConfiguration hostLmsConfiguration;
+	private final NcipPeerAuthorizationService peerAuthorizationService;
 
 	public NcipDeclarativeRequestTransport(
 		HostLmsService hostLmsService,
 		@Client("/") HttpClient httpClient,
-		NcipInboundXmlMapper inboundXmlMapper) {
+		NcipInboundXmlMapper inboundXmlMapper,
+		NcipPeerAuthorizationService peerAuthorizationService) {
 
 		this(
 			hostLmsService,
 			httpClient,
 			inboundXmlMapper,
-			new NcipHostLmsConfiguration());
+			new NcipHostLmsConfiguration(),
+			peerAuthorizationService);
 	}
 
 	NcipDeclarativeRequestTransport(
 		HostLmsService hostLmsService,
 		HttpClient httpClient,
 		NcipInboundXmlMapper inboundXmlMapper,
-		NcipHostLmsConfiguration hostLmsConfiguration) {
+		NcipHostLmsConfiguration hostLmsConfiguration,
+		NcipPeerAuthorizationService peerAuthorizationService) {
 
 		this.hostLmsService = hostLmsService;
 		this.httpClient = httpClient;
 		this.inboundXmlMapper = inboundXmlMapper;
 		this.hostLmsConfiguration = hostLmsConfiguration;
+		this.peerAuthorizationService = peerAuthorizationService;
 	}
 
 	@Override
@@ -61,15 +68,17 @@ public class NcipDeclarativeRequestTransport
 		}
 
 		return hostLmsService.findByCode(request.hostLmsCode())
-			.map(hostLmsConfiguration::endpointUriFor)
-			.flatMap(endpoint -> post(endpoint, request))
+			.flatMap(hostLms -> post(hostLms, request))
 			.map(responseXml -> toTransportResponse(request, responseXml));
 	}
 
-	private Mono<String> post(URI endpoint, DeclarativeTransportRequest request) {
-		final var httpRequest = HttpRequest.POST(endpoint, request.payload())
+	private Mono<String> post(HostLms hostLms, DeclarativeTransportRequest request) {
+		final var endpoint = hostLmsConfiguration.endpointUriFor(hostLms);
+		final var httpRequest = peerAuthorizationService.authorize(
+			HttpRequest.POST(endpoint, request.payload())
 			.contentType(MediaType.APPLICATION_XML_TYPE)
-			.accept(MediaType.APPLICATION_XML_TYPE);
+			.accept(MediaType.APPLICATION_XML_TYPE),
+			hostLms);
 
 		return Mono.from(httpClient.exchange(
 				httpRequest,

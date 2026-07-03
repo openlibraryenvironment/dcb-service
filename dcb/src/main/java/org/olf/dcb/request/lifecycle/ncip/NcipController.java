@@ -3,12 +3,14 @@ package org.olf.dcb.request.lifecycle.ncip;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthGuard;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageHandler;
 import reactor.core.publisher.Mono;
 
@@ -19,36 +21,56 @@ public class NcipController {
 	private final NcipInboundXmlMapper inboundXmlMapper;
 	private final NcipResponseBuilder responseBuilder;
 	private final NcipSchemaValidator schemaValidator;
+	private final NcipPeerAuthGuard peerAuthGuard;
 
 	public NcipController(
 		InboundLifecycleMessageHandler inboundLifecycleMessageHandler,
 		NcipInboundXmlMapper inboundXmlMapper,
-		NcipResponseBuilder responseBuilder) {
+		NcipResponseBuilder responseBuilder,
+		NcipPeerAuthGuard peerAuthGuard) {
 
 		this(
 			inboundLifecycleMessageHandler,
 			inboundXmlMapper,
 			responseBuilder,
-			new NcipSchemaValidator(NcipSchemaPath.schemaPath()));
+			new NcipSchemaValidator(NcipSchemaPath.schemaPath()),
+			peerAuthGuard);
 	}
 
 	NcipController(
 		InboundLifecycleMessageHandler inboundLifecycleMessageHandler,
 		NcipInboundXmlMapper inboundXmlMapper,
 		NcipResponseBuilder responseBuilder,
-		NcipSchemaValidator schemaValidator) {
+		NcipSchemaValidator schemaValidator,
+		NcipPeerAuthGuard peerAuthGuard) {
 
 		this.inboundLifecycleMessageHandler = inboundLifecycleMessageHandler;
 		this.inboundXmlMapper = inboundXmlMapper;
 		this.responseBuilder = responseBuilder;
 		this.schemaValidator = schemaValidator;
+		this.peerAuthGuard = peerAuthGuard;
 	}
 
 	@Post(consumes = {
 		MediaType.APPLICATION_XML,
 		MediaType.TEXT_XML
 	}, produces = MediaType.APPLICATION_XML)
-	public Mono<MutableHttpResponse<String>> receive(@Body String xml) {
+	public Mono<MutableHttpResponse<String>> receive(
+		HttpRequest<?> request,
+		@Body String xml) {
+
+		return receive(request, xml, true);
+	}
+
+	Mono<MutableHttpResponse<String>> receive(@Body String xml) {
+		return receive(HttpRequest.POST("/ncip/v2_02", xml), xml, false);
+	}
+
+	private Mono<MutableHttpResponse<String>> receive(
+		HttpRequest<?> request,
+		String xml,
+		boolean enforcePeerAuth) {
+
 		final NcipInboundMessage ncipMessage;
 
 		try {
@@ -57,6 +79,13 @@ public class NcipController {
 		}
 		catch (RuntimeException e) {
 			return Mono.just(xmlResponse(responseBuilder.problem(messageFrom(e))));
+		}
+
+		if (enforcePeerAuth) {
+			final var authProblem = peerAuthGuard.problem(request, ncipMessage);
+			if (authProblem.isPresent()) {
+				return Mono.just(authProblem.get());
+			}
 		}
 
 		return inboundLifecycleMessageHandler.handle(

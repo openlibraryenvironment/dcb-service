@@ -9,12 +9,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.k_int.peerauth.service.PeerBindingValidator;
+import com.k_int.peerauth.service.PeerTokenVerifier;
 import io.micronaut.http.HttpStatus;
+import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.DcbPeerAuthProperties;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthGuard;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessage;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageHandler;
 import reactor.core.publisher.Mono;
@@ -181,6 +186,33 @@ class NcipControllerTests {
 		assertThat(message.itemId(), is("item-1"));
 	}
 
+	@Test
+	void rejectsPeerAuthEnabledRequestWithoutBearerToken() {
+		final var handler = mock(InboundLifecycleMessageHandler.class);
+		final var properties = new DcbPeerAuthProperties();
+		properties.setEnabled(true);
+		final var ncip = new DcbPeerAuthProperties.Ncip();
+		ncip.setEnabled(true);
+		properties.setNcip(ncip);
+		final var controller = new NcipController(
+			handler,
+			new NcipInboundXmlMapper(),
+			new NcipResponseBuilder(),
+			new NcipSchemaValidator(NcipSchemaPath.schemaPath()),
+			new NcipPeerAuthGuard(
+				properties,
+				mock(PeerTokenVerifier.class),
+				mock(PeerBindingValidator.class),
+				new NcipResponseBuilder()));
+
+		final var response = controller.receive(
+			HttpRequest.POST("/ncip/v2_02", validItemShipped()),
+			validItemShipped()).block();
+
+		assertThat(response.getStatus(), is(HttpStatus.UNAUTHORIZED));
+		assertThat(response.body(), containsString("Missing peer bearer token"));
+	}
+
 	private static NcipController controllerWith(
 		InboundLifecycleMessageHandler handler) {
 
@@ -188,7 +220,16 @@ class NcipControllerTests {
 			handler,
 			new NcipInboundXmlMapper(),
 			new NcipResponseBuilder(),
-			new NcipSchemaValidator(NcipSchemaPath.schemaPath()));
+			new NcipSchemaValidator(NcipSchemaPath.schemaPath()),
+			disabledPeerAuthGuard());
+	}
+
+	private static NcipPeerAuthGuard disabledPeerAuthGuard() {
+		return new NcipPeerAuthGuard(
+			new DcbPeerAuthProperties(),
+			mock(PeerTokenVerifier.class),
+			mock(PeerBindingValidator.class),
+			new NcipResponseBuilder());
 	}
 
 	static String validItemShipped() {

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import com.k_int.peerauth.service.PeerTokenSigner;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -26,6 +27,8 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.DcbPeerAuthProperties;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthorizationService;
 import reactor.core.publisher.Mono;
 
 class NcipDeclarativeRequestTransportTests {
@@ -128,7 +131,15 @@ class NcipDeclarativeRequestTransportTests {
 			hostLmsService,
 			httpClient,
 			new NcipInboundXmlMapper(),
-			new NcipHostLmsConfiguration());
+			new NcipHostLmsConfiguration(),
+			disabledPeerAuthorizationService());
+	}
+
+	private static NcipPeerAuthorizationService disabledPeerAuthorizationService() {
+		return new NcipPeerAuthorizationService(
+			new DcbPeerAuthProperties(),
+			mock(PeerTokenSigner.class),
+			ncipIdentityConfiguration());
 	}
 
 	private static DataHostLms hostLms(String code) {
@@ -139,5 +150,12 @@ class NcipDeclarativeRequestTransportTests {
 			"https://%s.example.org/ncip/v2_02".formatted(code.split("-")[0])));
 
 		return hostLms;
+	}
+
+	private static NcipIdentityConfiguration ncipIdentityConfiguration() {
+		final var configuration = new NcipIdentityConfiguration();
+		configuration.setSystemId("dcb-system");
+		configuration.setAgencyId("dcb-agency");
+		return configuration;
 	}
 }

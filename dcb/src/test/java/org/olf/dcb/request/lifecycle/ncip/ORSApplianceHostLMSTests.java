@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import com.k_int.peerauth.service.PeerTokenSigner;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,8 @@ import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.DcbPeerAuthProperties;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthorizationService;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
@@ -322,7 +325,15 @@ class ORSApplianceHostLMSTests {
 			httpClient,
 			ncipIdentityConfiguration(),
 			agencyRepository,
-			locationRepository);
+			locationRepository,
+			disabledPeerAuthorizationService());
+	}
+
+	private static NcipPeerAuthorizationService disabledPeerAuthorizationService() {
+		return new NcipPeerAuthorizationService(
+			new DcbPeerAuthProperties(),
+			mock(PeerTokenSigner.class),
+			ncipIdentityConfiguration());
 	}
 
 	private static DataHostLms hostLms() {

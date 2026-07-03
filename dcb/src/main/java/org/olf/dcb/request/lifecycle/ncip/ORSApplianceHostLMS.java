@@ -31,6 +31,7 @@ import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthorizationService;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
@@ -52,6 +53,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	private final NcipIdentityConfiguration ncipIdentityConfiguration;
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
+	private final NcipPeerAuthorizationService peerAuthorizationService;
 
 	@Creator
 	public ORSApplianceHostLMS(
@@ -61,7 +63,8 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		@Client("/") HttpClient httpClient,
 		NcipIdentityConfiguration ncipIdentityConfiguration,
 		AgencyRepository agencyRepository,
-		LocationRepository locationRepository) {
+		LocationRepository locationRepository,
+		NcipPeerAuthorizationService peerAuthorizationService) {
 
 		super(hostLms);
 		this.transport = transport;
@@ -71,6 +74,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
 		this.agencyRepository = agencyRepository;
 		this.locationRepository = locationRepository;
+		this.peerAuthorizationService = peerAuthorizationService;
 	}
 
 	@Override
@@ -205,9 +209,11 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 
 	private Mono<String> postLookupUser(String payload) {
 		final var endpoint = hostLmsConfiguration.endpointUriFor(getHostLms());
-		final var request = HttpRequest.POST(endpoint, payload)
+		final var request = peerAuthorizationService.authorize(
+			HttpRequest.POST(endpoint, payload)
 			.contentType(MediaType.APPLICATION_XML_TYPE)
-			.accept(MediaType.APPLICATION_XML_TYPE);
+			.accept(MediaType.APPLICATION_XML_TYPE),
+			getHostLms());
 
 		return Mono.from(httpClient.exchange(request, Argument.of(String.class)))
 			.map(response -> response.getBody()
@@ -217,9 +223,11 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 
 	private Mono<String> postLookupItemSet(String payload) {
 		final var endpoint = hostLmsConfiguration.endpointUriFor(getHostLms());
-		final var request = HttpRequest.POST(endpoint, payload)
+		final var request = peerAuthorizationService.authorize(
+			HttpRequest.POST(endpoint, payload)
 			.contentType(MediaType.APPLICATION_XML_TYPE)
-			.accept(MediaType.APPLICATION_XML_TYPE);
+			.accept(MediaType.APPLICATION_XML_TYPE),
+			getHostLms());
 
 		return Mono.from(httpClient.exchange(request, Argument.of(String.class)))
 			.map(response -> response.getBody()
