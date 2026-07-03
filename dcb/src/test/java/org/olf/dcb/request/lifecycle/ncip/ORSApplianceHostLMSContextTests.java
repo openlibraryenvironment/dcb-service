@@ -54,6 +54,7 @@ class ORSApplianceHostLMSContextTests {
 					.patronRequestId("request-1")
 					.localPatronBarcode("patron-1")
 					.localBibId("bib-1")
+					.requestingAgencyCode("borrower-agency")
 					.supplyingAgencyCode("supplier-agency")
 					.build()));
 
@@ -67,6 +68,8 @@ class ORSApplianceHostLMSContextTests {
 		assertThat(recordedRequests.length, is(1));
 		assertThat(recordedRequests[0].getBodyAsString(),
 			containsString("<RequestItem"));
+		assertThat(recordedRequests[0].getBodyAsString(),
+			containsString("<AgencyId>borrower-agency</AgencyId>"));
 		assertThat(recordedRequests[0].getBodyAsString(),
 			containsString("<UserIdentifierValue>patron-1</UserIdentifierValue>"));
 		assertThat(recordedRequests[0].getBodyAsString(),
@@ -86,6 +89,7 @@ class ORSApplianceHostLMSContextTests {
 				PlaceHoldRequestParameters.builder()
 					.patronRequestId("request-1")
 					.localPatronBarcode("patron-1")
+					.requestingAgencyCode("borrower-agency")
 					.supplyingLocalItemId("item-1")
 					.build()));
 

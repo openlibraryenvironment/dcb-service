@@ -48,7 +48,8 @@ class NcipSupplyingRequestStrategyTests {
 			transport,
 			new NcipPayloadBuilder(),
 			hostLmsService(),
-			ncipIdentityConfiguration());
+			ncipIdentityConfiguration(),
+			addressResolver());
 		final var supplierRequest = new SupplierRequest()
 			.setHostLmsCode("supplier-host")
 			.setLocalAgency("supplier-agency");
@@ -132,6 +133,12 @@ class NcipSupplyingRequestStrategyTests {
 		configuration.setSystemId("dcb-system");
 		configuration.setAgencyId("dcb-agency");
 		return configuration;
+	}
+
+	private static NcipAddressResolver addressResolver() {
+		return new NcipAddressResolver(
+			mock(org.olf.dcb.storage.AgencyRepository.class),
+			mock(HostLmsService.class));
 	}
 
 	private static class CapturingTransport implements DeclarativeRequestTransport {

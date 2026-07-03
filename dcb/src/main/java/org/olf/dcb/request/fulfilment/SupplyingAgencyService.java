@@ -367,6 +367,7 @@ public class SupplyingAgencyService {
 					.pickupNote(dcb_default_pickup_note)
 					.note(note)
 					.patronRequestId(patronRequest.getId().toString())
+					.requestingAgencyCode(context.getPatronAgencyCode())
 					// It is common in III systems to want the pickup location at the supplying library
 					// to be set to the location where the item currently resides.
 					.supplyingLocalItemLocation(supplierRequest.getLocalItemLocationCode())

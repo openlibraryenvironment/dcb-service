@@ -47,7 +47,8 @@ class NcipBorrowingRequestStrategyTests {
 			transport,
 			new NcipPayloadBuilder(),
 			hostLmsService(),
-			ncipIdentityConfiguration());
+			ncipIdentityConfiguration(),
+			addressResolver());
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
 			.setPatronRequest(new PatronRequest()
@@ -132,6 +133,12 @@ class NcipBorrowingRequestStrategyTests {
 		configuration.setSystemId("dcb-system");
 		configuration.setAgencyId("dcb-agency");
 		return configuration;
+	}
+
+	private static NcipAddressResolver addressResolver() {
+		return new NcipAddressResolver(
+			mock(org.olf.dcb.storage.AgencyRepository.class),
+			mock(HostLmsService.class));
 	}
 
 	private static class CapturingTransport implements DeclarativeRequestTransport {

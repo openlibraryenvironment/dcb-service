@@ -26,20 +26,21 @@ public class NcipSupplyingRequestStrategy
 	private final DeclarativeRequestTransport transport;
 	private final NcipPayloadBuilder payloadBuilder;
 	private final HostLmsService hostLmsService;
-	private final NcipHostLmsConfiguration hostLmsConfiguration;
 	private final NcipIdentityConfiguration ncipIdentityConfiguration;
+	private final NcipAddressResolver addressResolver;
 
 	public NcipSupplyingRequestStrategy(
 		DeclarativeRequestTransport transport,
 		NcipPayloadBuilder payloadBuilder,
 		HostLmsService hostLmsService,
-		NcipIdentityConfiguration ncipIdentityConfiguration) {
+		NcipIdentityConfiguration ncipIdentityConfiguration,
+		NcipAddressResolver addressResolver) {
 
 		this.transport = transport;
 		this.payloadBuilder = payloadBuilder;
 		this.hostLmsService = hostLmsService;
-		this.hostLmsConfiguration = new NcipHostLmsConfiguration();
 		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
+		this.addressResolver = addressResolver;
 	}
 
 	@Override
@@ -65,20 +66,26 @@ public class NcipSupplyingRequestStrategy
 		final var agencyCode = supplierRequest != null
 			? supplierRequest.getLocalAgency()
 			: context.getLenderAgencyCode();
-		final var toAgencyId = firstTextOrNull(agencyCode, hostLmsCode);
 
 		return hostLmsService.findByCode(hostLmsCode)
 			.switchIfEmpty(Mono.error(new IllegalArgumentException(
 				"Cannot create NCIP RequestItem without HostLMS " + hostLmsCode)))
-			.map(hostLms -> payloadBuilder.requestItem(new NcipRequestItemPayload(
-				party(context, hostLms, toAgencyId),
-				userIdentifierValueFor(context),
-				bibliographicRecordIdentifierFor(patronRequest),
-				toAgencyId,
-				supplierRequest != null ? supplierRequest.getLocalItemId() : null,
-				correlationId,
-				REQUEST_TYPE,
-				REQUEST_SCOPE_TYPE)))
+			.flatMap(hostLms -> {
+				final var toAgencyId = addressResolver.agencyIdForHost(hostLms);
+				return addressResolver.agencyIdForLocalAgencyCode(
+						context.getPatronAgencyCode(),
+						ncipIdentityConfiguration.getAgencyId())
+					.map(fromAgencyId -> payloadBuilder.requestItem(new NcipRequestItemPayload(
+						party(hostLms, fromAgencyId, toAgencyId),
+						fromAgencyId,
+						userIdentifierValueFor(context),
+						bibliographicRecordIdentifierFor(patronRequest),
+						toAgencyId,
+						supplierRequest != null ? supplierRequest.getLocalItemId() : null,
+						correlationId,
+						REQUEST_TYPE,
+						REQUEST_SCOPE_TYPE)));
+			})
 			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
 				LifecycleRole.SUPPLIER,
@@ -107,15 +114,15 @@ public class NcipSupplyingRequestStrategy
 	}
 
 	private NcipParty party(
-		RequestWorkflowContext context,
 		HostLms hostLms,
+		String fromAgencyId,
 		String toAgencyId) {
 
 		return new NcipParty(
-			firstText(context.getPatronAgencyCode(), ncipIdentityConfiguration.getAgencyId()),
+			fromAgencyId,
 			toAgencyId,
 			ncipIdentityConfiguration.getSystemId(),
-			hostLmsConfiguration.ncipSystemIdFor(hostLms));
+			addressResolver.systemIdForHost(hostLms));
 	}
 
 	private static String userIdentifierValueFor(RequestWorkflowContext context) {
@@ -163,16 +170,6 @@ public class NcipSupplyingRequestStrategy
 
 	private static boolean hasText(String value) {
 		return value != null && !value.isBlank();
-	}
-
-	private static String firstText(String... values) {
-		for (final var value : values) {
-			if (hasText(value)) {
-				return value;
-			}
-		}
-
-		throw new IllegalArgumentException("Expected at least one non-blank value");
 	}
 
 	private static String firstTextOrNull(String... values) {

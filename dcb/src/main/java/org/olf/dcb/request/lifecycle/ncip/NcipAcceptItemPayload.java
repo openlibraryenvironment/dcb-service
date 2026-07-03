@@ -4,6 +4,7 @@ public record NcipAcceptItemPayload(
 	NcipParty party,
 	String requestIdentifierValue,
 	String requestedActionType,
+	String userAgencyId,
 	String userIdentifierValue,
 	String itemIdentifierValue) {
 

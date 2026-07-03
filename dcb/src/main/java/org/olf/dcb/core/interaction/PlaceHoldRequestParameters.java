@@ -26,6 +26,7 @@ public class PlaceHoldRequestParameters {
 	String pickupNote;
 	String note;
 	String patronRequestId;
+	String requestingAgencyCode;
 	String supplyingAgencyCode;
 	String supplyingLocalBibId;
 	String supplyingLocalItemId;

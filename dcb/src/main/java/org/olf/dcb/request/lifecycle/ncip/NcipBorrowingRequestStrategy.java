@@ -26,20 +26,21 @@ public class NcipBorrowingRequestStrategy
 	private final DeclarativeRequestTransport transport;
 	private final NcipPayloadBuilder payloadBuilder;
 	private final HostLmsService hostLmsService;
-	private final NcipHostLmsConfiguration hostLmsConfiguration;
 	private final NcipIdentityConfiguration ncipIdentityConfiguration;
+	private final NcipAddressResolver addressResolver;
 
 	public NcipBorrowingRequestStrategy(
 		DeclarativeRequestTransport transport,
 		NcipPayloadBuilder payloadBuilder,
 		HostLmsService hostLmsService,
-		NcipIdentityConfiguration ncipIdentityConfiguration) {
+		NcipIdentityConfiguration ncipIdentityConfiguration,
+		NcipAddressResolver addressResolver) {
 
 		this.transport = transport;
 		this.payloadBuilder = payloadBuilder;
 		this.hostLmsService = hostLmsService;
-		this.hostLmsConfiguration = new NcipHostLmsConfiguration();
 		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
+		this.addressResolver = addressResolver;
 	}
 
 	@Override
@@ -76,16 +77,32 @@ public class NcipBorrowingRequestStrategy
 			? patronRequest.getPatronHostlmsCode()
 			: null;
 		final var agencyCode = context.getPatronAgencyCode();
+		final var supplyingAgencyCode = Optional.ofNullable(context)
+			.map(RequestWorkflowContext::getSupplierRequest)
+			.map(SupplierRequest::getResolvedAgency)
+			.map(org.olf.dcb.core.model.Agency::getCode)
+			.orElseGet(context::getLenderAgencyCode);
 
 		return hostLmsService.findByCode(hostLmsCode)
 			.switchIfEmpty(Mono.error(new IllegalArgumentException(
 				"Cannot create NCIP AcceptItem without HostLMS " + hostLmsCode)))
-			.map(hostLms -> payloadBuilder.acceptItem(new NcipAcceptItemPayload(
-				party(hostLms, agencyCode),
-				correlationId,
-				REQUESTED_ACTION_TYPE,
-				userIdentifierValueFor(context),
-				itemIdentifierValueFor(context))))
+			.flatMap(hostLms -> {
+				final var toAgencyId = addressResolver.agencyIdForHost(hostLms);
+				return Mono.zip(
+						addressResolver.agencyIdForLocalAgencyCode(
+							supplyingAgencyCode,
+							ncipIdentityConfiguration.getAgencyId()),
+						addressResolver.agencyIdForLocalAgencyCode(
+							agencyCode,
+							toAgencyId))
+					.map(tuple -> payloadBuilder.acceptItem(new NcipAcceptItemPayload(
+						party(hostLms, tuple.getT1(), toAgencyId),
+						correlationId,
+						REQUESTED_ACTION_TYPE,
+						tuple.getT2(),
+						userIdentifierValueFor(context),
+						itemIdentifierValueFor(context))));
+			})
 			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
 				LifecycleRole.BORROWER,
@@ -117,13 +134,14 @@ public class NcipBorrowingRequestStrategy
 
 	private NcipParty party(
 		HostLms hostLms,
+		String fromAgencyId,
 		String toAgencyId) {
 
 		return new NcipParty(
-			ncipIdentityConfiguration.getAgencyId(),
-			firstText(toAgencyId, ncipIdentityConfiguration.getAgencyId()),
+			fromAgencyId,
+			toAgencyId,
 			ncipIdentityConfiguration.getSystemId(),
-			hostLmsConfiguration.ncipSystemIdFor(hostLms));
+			addressResolver.systemIdForHost(hostLms));
 	}
 
 	private static String userIdentifierValueFor(RequestWorkflowContext context) {
@@ -186,13 +204,4 @@ public class NcipBorrowingRequestStrategy
 		return value != null && !value.isBlank();
 	}
 
-	private static String firstText(String... values) {
-		for (final var value : values) {
-			if (hasText(value)) {
-				return value;
-			}
-		}
-
-		throw new IllegalArgumentException("Expected at least one non-blank value");
-	}
 }

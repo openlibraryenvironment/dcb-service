@@ -51,6 +51,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	private final HttpClient httpClient;
 	private final NcipHostLmsConfiguration hostLmsConfiguration;
 	private final NcipIdentityConfiguration ncipIdentityConfiguration;
+	private final NcipAddressResolver addressResolver;
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
 	private final NcipPeerAuthorizationService peerAuthorizationService;
@@ -62,6 +63,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		NcipPayloadBuilder payloadBuilder,
 		@Client("/") HttpClient httpClient,
 		NcipIdentityConfiguration ncipIdentityConfiguration,
+		NcipAddressResolver addressResolver,
 		AgencyRepository agencyRepository,
 		LocationRepository locationRepository,
 		NcipPeerAuthorizationService peerAuthorizationService) {
@@ -72,6 +74,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		this.httpClient = httpClient;
 		this.hostLmsConfiguration = new NcipHostLmsConfiguration();
 		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
+		this.addressResolver = addressResolver;
 		this.agencyRepository = agencyRepository;
 		this.locationRepository = locationRepository;
 		this.peerAuthorizationService = peerAuthorizationService;
@@ -81,7 +84,8 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return List.of(
 			NcipHostLmsConfiguration.ENDPOINT_URL,
-			NcipHostLmsConfiguration.NCIP_SYSTEM_ID);
+			NcipHostLmsConfiguration.NCIP_SYSTEM_ID,
+			NcipHostLmsConfiguration.NCIP_AGENCY_ID);
 	}
 
 	@Override
@@ -91,38 +95,38 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		final var correlationId = correlationIdFor(
 			parameters,
 			LifecycleRole.SUPPLIER);
-		final var supplyingAgencyCode = firstText(
-			parameters.getSupplyingAgencyCode(),
-			getDefaultAgencyCode(),
-			getHostLmsCode());
-		final var payload = payloadBuilder.requestItem(new NcipRequestItemPayload(
-			party(
-				ncipIdentityConfiguration.getAgencyId(),
-				supplyingAgencyCode),
-			firstText(
-				parameters.getLocalPatronBarcode(),
-				parameters.getLocalPatronId(),
-				parameters.getPatronRequestId()),
-			firstText(
-				parameters.getLocalBibId(),
-				parameters.getSupplyingLocalBibId(),
-				parameters.getPatronRequestId()),
-			supplyingAgencyCode,
-			firstTextOrNull(
-				parameters.getLocalItemId(),
-				parameters.getSupplyingLocalItemId(),
-				parameters.getLocalItemBarcode(),
-				parameters.getSupplyingLocalItemBarcode()),
-			correlationId,
-			REQUEST_TYPE,
-			REQUEST_SCOPE_TYPE));
+		final var supplyingAgencyId = addressResolver.agencyIdForHost(getHostLms());
 
-		return send(
-			parameters,
-			LifecycleRole.SUPPLIER,
-			NcipProtocol.REQUEST_ITEM,
-			correlationId,
-			payload);
+		return addressResolver.agencyIdForLocalAgencyCode(
+				parameters.getRequestingAgencyCode(),
+				ncipIdentityConfiguration.getAgencyId())
+			.flatMap(requestingAgencyId -> send(
+				parameters,
+				LifecycleRole.SUPPLIER,
+				NcipProtocol.REQUEST_ITEM,
+				correlationId,
+				payloadBuilder.requestItem(new NcipRequestItemPayload(
+					party(
+						requestingAgencyId,
+						supplyingAgencyId),
+					requestingAgencyId,
+					firstText(
+						parameters.getLocalPatronBarcode(),
+						parameters.getLocalPatronId(),
+						parameters.getPatronRequestId()),
+					firstText(
+						parameters.getLocalBibId(),
+						parameters.getSupplyingLocalBibId(),
+						parameters.getPatronRequestId()),
+					supplyingAgencyId,
+					firstTextOrNull(
+						parameters.getLocalItemId(),
+						parameters.getSupplyingLocalItemId(),
+						parameters.getLocalItemBarcode(),
+						parameters.getSupplyingLocalItemBarcode()),
+					correlationId,
+					REQUEST_TYPE,
+					REQUEST_SCOPE_TYPE))));
 	}
 
 	@Override
@@ -132,27 +136,34 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		final var correlationId = correlationIdFor(
 			parameters,
 			LifecycleRole.BORROWER);
-		final var borrowingAgencyCode = firstText(getDefaultAgencyCode(), getHostLmsCode());
-		final var payload = payloadBuilder.acceptItem(new NcipAcceptItemPayload(
-			party(ncipIdentityConfiguration.getAgencyId(), borrowingAgencyCode),
-			correlationId,
-			REQUESTED_ACTION_TYPE,
-			firstText(
-				parameters.getLocalPatronBarcode(),
-				parameters.getLocalPatronId(),
-				parameters.getPatronRequestId()),
-			firstText(
-				parameters.getSupplyingLocalItemId(),
-				parameters.getLocalItemId(),
-				parameters.getSupplyingLocalItemBarcode(),
-				parameters.getLocalItemBarcode())));
+		final var borrowingAgencyId = addressResolver.agencyIdForHost(getHostLms());
 
-		return send(
-			parameters,
-			LifecycleRole.BORROWER,
-			NcipProtocol.ACCEPT_ITEM,
-			correlationId,
-			payload);
+		return Mono.zip(
+				addressResolver.agencyIdForLocalAgencyCode(
+					parameters.getSupplyingAgencyCode(),
+					ncipIdentityConfiguration.getAgencyId()),
+				addressResolver.agencyIdForLocalAgencyCode(
+					parameters.getRequestingAgencyCode(),
+					borrowingAgencyId))
+			.flatMap(tuple -> send(
+				parameters,
+				LifecycleRole.BORROWER,
+				NcipProtocol.ACCEPT_ITEM,
+				correlationId,
+				payloadBuilder.acceptItem(new NcipAcceptItemPayload(
+					party(tuple.getT1(), borrowingAgencyId),
+					correlationId,
+					REQUESTED_ACTION_TYPE,
+					tuple.getT2(),
+					firstText(
+						parameters.getLocalPatronBarcode(),
+						parameters.getLocalPatronId(),
+						parameters.getPatronRequestId()),
+					firstText(
+						parameters.getSupplyingLocalItemId(),
+						parameters.getLocalItemId(),
+						parameters.getSupplyingLocalItemBarcode(),
+						parameters.getLocalItemBarcode())))));
 	}
 
 	@Override
@@ -240,7 +251,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			fromAgencyId,
 			toAgencyId,
 			ncipIdentityConfiguration.getSystemId(),
-			hostLmsConfiguration.ncipSystemIdFor(getHostLms()));
+			addressResolver.systemIdForHost(getHostLms()));
 	}
 
 	private Mono<LocalRequest> send(

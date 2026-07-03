@@ -22,6 +22,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.AbstractHostLmsClient;
 import org.olf.dcb.core.interaction.CanPlaceBorrowingAgencyRequest;
 import org.olf.dcb.core.interaction.CanPlaceSupplyingAgencyRequest;
@@ -71,6 +72,7 @@ class ORSApplianceHostLMSTests {
 					.localPatronBarcode("patron-1")
 					.localBibId("bib-1")
 					.localItemId("item-1")
+					.requestingAgencyCode("borrower-agency")
 					.supplyingAgencyCode("supplier-agency")
 					.build()));
 		final var request = transport.onlyRequest();
@@ -81,6 +83,8 @@ class ORSApplianceHostLMSTests {
 		assertThat(request.correlationId(), is("request-1:SUPPLIER"));
 		assertThat(request.messageKind(), is(NcipProtocol.REQUEST_ITEM));
 		assertThat(request.payload(), containsString("<RequestItem"));
+		assertThat(request.payload(),
+			containsString("<FromAgencyId><AgencyId>borrower-agency</AgencyId></FromAgencyId>"));
 		assertThat(request.payload(),
 			containsString("<UserIdentifierValue>patron-1</UserIdentifierValue>"));
 		assertThat(request.payload(),
@@ -104,6 +108,7 @@ class ORSApplianceHostLMSTests {
 				PlaceHoldRequestParameters.builder()
 					.patronRequestId("request-1")
 					.localPatronBarcode("patron-1")
+					.requestingAgencyCode("borrower-agency")
 					.supplyingLocalItemId("item-1")
 					.build()));
 		final var request = transport.onlyRequest();
@@ -114,6 +119,8 @@ class ORSApplianceHostLMSTests {
 		assertThat(request.correlationId(), is("request-1:BORROWER"));
 		assertThat(request.messageKind(), is(NcipProtocol.ACCEPT_ITEM));
 		assertThat(request.payload(), containsString("<AcceptItem"));
+		assertThat(request.payload(),
+			containsString("<AgencyId>borrower-agency</AgencyId>"));
 		assertThat(request.payload(),
 			containsString("<RequestIdentifierValue>request-1:BORROWER</RequestIdentifierValue>"));
 		assertThat(request.payload(),
@@ -324,6 +331,7 @@ class ORSApplianceHostLMSTests {
 			new NcipPayloadBuilder(),
 			httpClient,
 			ncipIdentityConfiguration(),
+			new NcipAddressResolver(agencyRepository, mock(HostLmsService.class)),
 			agencyRepository,
 			locationRepository,
 			disabledPeerAuthorizationService());

@@ -23,6 +23,7 @@ class NcipPayloadBuilderTests {
 	void buildsValidRequestItemPayload() {
 		final var xml = builder.requestItem(new NcipRequestItemPayload(
 			party(),
+			"borrower-agency",
 			"patron-123",
 			"bib-456",
 			"supplier-agency",
@@ -40,6 +41,7 @@ class NcipPayloadBuilderTests {
 		assertThat(xml, containsString("<RequestItem"));
 		assertThat(xml, containsString("<FromSystemId"));
 		assertThat(xml, containsString("<FromSystemId>dcb-system</FromSystemId>"));
+		assertThat(xml, containsString("<AgencyId>borrower-agency</AgencyId>"));
 		assertThat(xml, containsString("<UserIdentifierValue>patron-123</UserIdentifierValue>"));
 		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
 		assertThat(xml, containsString("<ItemIdentifierValue>item-456</ItemIdentifierValue>"));
@@ -64,6 +66,7 @@ class NcipPayloadBuilderTests {
 			party(),
 			"request-789:BORROWER",
 			"Accept For Loan",
+			"borrower-agency",
 			"patron-123",
 			"item-456"));
 

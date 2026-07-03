@@ -24,7 +24,7 @@ public class NcipPayloadBuilder {
 		final var requestItem = message(document, "RequestItem");
 
 		requestItem.appendChild(initiationHeader(document, payload.party()));
-		requestItem.appendChild(userId(document, payload.userIdentifierValue()));
+		requestItem.appendChild(userId(document, payload.userAgencyId(), payload.userIdentifierValue()));
 		requestItem.appendChild(bibliographicId(
 			document,
 			payload.bibliographicRecordIdentifier(),
@@ -72,7 +72,7 @@ public class NcipPayloadBuilder {
 			payload.requestedActionType()));
 
 		if (hasText(payload.userIdentifierValue())) {
-			acceptItem.appendChild(userId(document, payload.userIdentifierValue()));
+			acceptItem.appendChild(userId(document, payload.userAgencyId(), payload.userIdentifierValue()));
 		}
 
 		if (hasText(payload.itemIdentifierValue())) {

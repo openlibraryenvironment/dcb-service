@@ -2,6 +2,7 @@ package org.olf.dcb.request.lifecycle.ncip;
 
 public record NcipRequestItemPayload(
 	NcipParty party,
+	String userAgencyId,
 	String userIdentifierValue,
 	String bibliographicRecordIdentifier,
 	String bibliographicRecordAgencyId,

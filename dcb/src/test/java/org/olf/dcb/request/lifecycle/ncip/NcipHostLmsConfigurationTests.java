@@ -34,6 +34,21 @@ class NcipHostLmsConfigurationTests {
 	}
 
 	@Test
+	void defaultsNcipAgencyIdToNcipSystemId() {
+		assertThat(configuration.ncipAgencyIdFor(hostLms(Map.of(
+			"ncip-system-id", "ors:hogwarts"))),
+			is("ors:hogwarts"));
+	}
+
+	@Test
+	void acceptsKebabCaseNcipAgencyId() {
+		assertThat(configuration.ncipAgencyIdFor(hostLms(Map.of(
+			"ncip-system-id", "ors:hogwarts-system",
+			"ncip-agency-id", "ors:hogwarts"))),
+			is("ors:hogwarts"));
+	}
+
+	@Test
 	void rejectsMissingNcipSystemId() {
 		final var error = assertThrows(IllegalArgumentException.class,
 			() -> configuration.ncipSystemIdFor(hostLms(Map.of())));
