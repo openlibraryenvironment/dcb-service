@@ -11,6 +11,9 @@ This item supersedes the ISO18626 protocol leaf from
 
 Current spike state: SystemId/directory return-routing slice done. Production follow-ons remain.
 
+Related architecture backlog:
+`docs/backlog/current/inbound-lifecycle-convergence.md`.
+
 Blocking questions: none. Status mapping remains message-specific.
 
 ## Goal
