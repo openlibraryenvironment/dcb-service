@@ -73,4 +73,50 @@ class NcipInboundMessageMapperTests {
 		assertThat(message.rawStatus(), is("AcceptItemResponse"));
 		assertThat(message.rawMessageReference(), is("raw-message-2"));
 	}
+
+	@Test
+	void mapsBorrowerItemReceivedToCanonicalItemEvidence() {
+		final var mapper = new NcipInboundMessageMapper();
+
+		final var message = mapper.map(new NcipInboundMessage(
+			NcipProtocol.ITEM_RECEIVED,
+			LifecycleRole.BORROWER,
+			LifecycleOperation.PLACE_REQUEST,
+			"borrower-host",
+			"borrower-remote-request",
+			"patron-request-id:BORROWER",
+			"RECEIVED",
+			NcipProtocol.ITEM_RECEIVED,
+			"item-1",
+			"barcode-1",
+			null,
+			"raw-message-3"));
+
+		assertThat(message.resource(), is(LifecycleEvidenceResource.ITEM));
+		assertThat(message.status(), is(HostLmsItem.ITEM_RECEIVED));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_RECEIVED));
+	}
+
+	@Test
+	void mapsBorrowerItemCheckedInToCanonicalHoldShelfEvidence() {
+		final var mapper = new NcipInboundMessageMapper();
+
+		final var message = mapper.map(new NcipInboundMessage(
+			NcipProtocol.ITEM_CHECKED_IN,
+			LifecycleRole.BORROWER,
+			LifecycleOperation.PLACE_REQUEST,
+			"borrower-host",
+			"borrower-remote-request",
+			"patron-request-id:BORROWER",
+			"CHECKED_IN",
+			NcipProtocol.ITEM_CHECKED_IN,
+			"item-1",
+			"barcode-1",
+			null,
+			"raw-message-4"));
+
+		assertThat(message.resource(), is(LifecycleEvidenceResource.ITEM));
+		assertThat(message.status(), is(HostLmsItem.ITEM_ON_HOLDSHELF));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_CHECKED_IN));
+	}
 }

@@ -18,7 +18,21 @@ public class NcipResponseBuilder {
 
 	public String itemShippedResponse() {
 		final var document = newDocument();
-		message(document, "ItemShippedResponse");
+		message(document, NcipProtocol.ITEM_SHIPPED_RESPONSE);
+
+		return toXml(document);
+	}
+
+	public String itemReceivedResponse() {
+		final var document = newDocument();
+		message(document, NcipProtocol.ITEM_RECEIVED_RESPONSE);
+
+		return toXml(document);
+	}
+
+	public String itemCheckedInResponse() {
+		final var document = newDocument();
+		message(document, NcipProtocol.ITEM_CHECKED_IN_RESPONSE);
 
 		return toXml(document);
 	}
@@ -45,7 +59,23 @@ public class NcipResponseBuilder {
 
 	public String itemShippedProblem(String detail) {
 		final var document = newDocument();
-		final var response = message(document, "ItemShippedResponse");
+		final var response = message(document, NcipProtocol.ITEM_SHIPPED_RESPONSE);
+		response.appendChild(problem(document, detail));
+
+		return toXml(document);
+	}
+
+	public String itemReceivedProblem(String detail) {
+		final var document = newDocument();
+		final var response = message(document, NcipProtocol.ITEM_RECEIVED_RESPONSE);
+		response.appendChild(problem(document, detail));
+
+		return toXml(document);
+	}
+
+	public String itemCheckedInProblem(String detail) {
+		final var document = newDocument();
+		final var response = message(document, NcipProtocol.ITEM_CHECKED_IN_RESPONSE);
 		response.appendChild(problem(document, detail));
 
 		return toXml(document);

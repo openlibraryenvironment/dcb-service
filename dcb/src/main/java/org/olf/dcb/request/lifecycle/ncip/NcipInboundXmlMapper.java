@@ -3,6 +3,7 @@ package org.olf.dcb.request.lifecycle.ncip;
 import io.micronaut.context.annotation.Prototype;
 import java.io.ByteArrayInputStream;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -25,6 +26,8 @@ public class NcipInboundXmlMapper {
 
 		return switch (message.getLocalName()) {
 			case NcipProtocol.ITEM_SHIPPED -> itemShipped(message, xml);
+			case NcipProtocol.ITEM_RECEIVED -> itemReceived(message, xml);
+			case NcipProtocol.ITEM_CHECKED_IN -> itemCheckedIn(message, xml);
 			case NcipProtocol.ITEM_REQUESTED -> itemRequested(message, xml);
 			case NcipProtocol.CANCEL_REQUEST_ITEM -> cancelRequestItem(message, xml);
 			case NcipProtocol.REQUEST_ITEM_RESPONSE -> requestItemResponse(
@@ -90,6 +93,50 @@ public class NcipInboundXmlMapper {
 			null,
 			null,
 			rawMessageReference(NcipProtocol.REQUEST_ITEM_RESPONSE, xml));
+	}
+
+	private static NcipInboundMessage itemReceived(Element itemReceived, String xml) {
+		final var requestId = requiredText(itemReceived, "RequestIdentifierValue");
+		final var dateReceived = requiredText(itemReceived, "DateReceived");
+		final var orientation = initiationOrientation(itemReceived);
+
+		return new NcipInboundMessage(
+			NcipProtocol.ITEM_RECEIVED,
+			roleFor(requestId),
+			LifecycleOperation.PLACE_REQUEST,
+			requiredInitiatingPeerId(itemReceived),
+			requestId,
+			requestId,
+			"RECEIVED",
+			NcipProtocol.ITEM_RECEIVED,
+			requiredText(itemReceived, "ItemIdentifierValue"),
+			requiredText(itemReceived, "ItemIdentifierValue"),
+			Instant.parse(dateReceived),
+			rawMessageReference(NcipProtocol.ITEM_RECEIVED, xml),
+			orientation);
+	}
+
+	private static NcipInboundMessage itemCheckedIn(Element itemCheckedIn, String xml) {
+		final var requestId = optionalTextAnyNamespace(itemCheckedIn, "RequestIdentifierValue")
+			.orElseThrow(() -> new NcipProblemException(
+				"ItemCheckedIn requires openrs RequestIdentifierValue"));
+		final var itemId = requiredText(itemCheckedIn, "ItemIdentifierValue");
+		final var orientation = initiationOrientation(itemCheckedIn);
+
+		return new NcipInboundMessage(
+			NcipProtocol.ITEM_CHECKED_IN,
+			roleFor(requestId),
+			LifecycleOperation.PLACE_REQUEST,
+			requiredInitiatingPeerId(itemCheckedIn),
+			requestId,
+			requestId,
+			"CHECKED_IN",
+			NcipProtocol.ITEM_CHECKED_IN,
+			itemId,
+			itemId,
+			null,
+			rawMessageReference(NcipProtocol.ITEM_CHECKED_IN, xml),
+			orientation);
 	}
 
 	private static NcipInboundMessage itemRequested(Element itemRequested, String xml) {
@@ -171,6 +218,23 @@ public class NcipInboundXmlMapper {
 			null,
 			null,
 			rawMessageReference(NcipProtocol.ACCEPT_ITEM_RESPONSE, xml));
+	}
+
+	private static LifecycleRole roleFor(String requestId) {
+		if (requestId != null && requestId.endsWith(":BORROWER")) {
+			return LifecycleRole.BORROWER;
+		}
+		return LifecycleRole.SUPPLIER;
+	}
+
+	private static Map<String, Object> initiationOrientation(Element message) {
+		final var initiationHeader = firstDescendant(message, "InitiationHeader");
+		if (initiationHeader.isEmpty()) {
+			return Map.of();
+		}
+		return Map.of(
+			"fromAgencyId", requiredAgencyId(initiationHeader.get(), "FromAgencyId"),
+			"toAgencyId", requiredAgencyId(initiationHeader.get(), "ToAgencyId"));
 	}
 
 	private static String requiredResponsePeerId(Element response) {

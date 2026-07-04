@@ -194,6 +194,60 @@ class NcipControllerTests {
 	}
 
 	@Test
+	void acceptsItemReceivedAndReturnsItemReceivedResponse() {
+		final var handler = mock(InboundLifecycleMessageHandler.class);
+		when(handler.handle(any())).thenReturn(Mono.just(new RequestWorkflowContext()));
+		final var controller = controllerWith(handler);
+
+		final var response = controller.receive(validItemReceived()).block();
+
+		assertThat(response.body(), containsString("<ItemReceivedResponse"));
+		assertDoesNotThrow(() -> validator.validate(response.body()));
+
+		final var messageCaptor = ArgumentCaptor.forClass(
+			InboundLifecycleMessage.class);
+		verify(handler).handle(messageCaptor.capture());
+
+		final var message = messageCaptor.getValue();
+		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.resource(), is(LifecycleEvidenceResource.ITEM));
+		assertThat(message.hostLmsCode(), is("borrower-host"));
+		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
+		assertThat(message.status(), is(HostLmsItem.ITEM_RECEIVED));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_RECEIVED));
+		assertThat(message.itemId(), is("item-1"));
+		assertThat(message.protocolProperties().get("fromAgencyId"), is("borrower-host"));
+		assertThat(message.protocolProperties().get("toAgencyId"), is("dcb-host"));
+	}
+
+	@Test
+	void acceptsItemCheckedInAndReturnsItemCheckedInResponse() {
+		final var handler = mock(InboundLifecycleMessageHandler.class);
+		when(handler.handle(any())).thenReturn(Mono.just(new RequestWorkflowContext()));
+		final var controller = controllerWith(handler);
+
+		final var response = controller.receive(validItemCheckedIn()).block();
+
+		assertThat(response.body(), containsString("<ItemCheckedInResponse"));
+		assertDoesNotThrow(() -> validator.validate(response.body()));
+
+		final var messageCaptor = ArgumentCaptor.forClass(
+			InboundLifecycleMessage.class);
+		verify(handler).handle(messageCaptor.capture());
+
+		final var message = messageCaptor.getValue();
+		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.resource(), is(LifecycleEvidenceResource.ITEM));
+		assertThat(message.hostLmsCode(), is("borrower-host"));
+		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
+		assertThat(message.status(), is(HostLmsItem.ITEM_ON_HOLDSHELF));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_CHECKED_IN));
+		assertThat(message.itemId(), is("item-1"));
+		assertThat(message.protocolProperties().get("fromAgencyId"), is("borrower-host"));
+		assertThat(message.protocolProperties().get("toAgencyId"), is("dcb-host"));
+	}
+
+	@Test
 	void rejectsPeerAuthEnabledRequestWithoutBearerToken() {
 		final var handler = mock(InboundLifecycleMessageHandler.class);
 		final var properties = new DcbPeerAuthProperties();
@@ -288,11 +342,69 @@ class NcipControllerTests {
 			      <ItemIdentifierValue>item-1</ItemIdentifierValue>
 			    </ItemId>
 			    <UserId>
+			      <AgencyId>borrower-host</AgencyId>
 			      <UserIdentifierValue>user-1</UserIdentifierValue>
 			    </UserId>
 			    <RequestType>Hold</RequestType>
 			    <RequestScopeType>Bibliographic Item</RequestScopeType>
 			  </RequestItemResponse>
+			</NCIPMessage>
+			""";
+	}
+
+	static String validItemReceived() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <ItemReceived>
+			    <InitiationHeader>
+			      <FromAgencyId>
+			        <AgencyId>borrower-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb-host</AgencyId>
+			      </ToAgencyId>
+			    </InitiationHeader>
+			    <ItemId>
+			      <ItemIdentifierValue>item-1</ItemIdentifierValue>
+			    </ItemId>
+			    <UserId>
+			      <AgencyId>borrower-host</AgencyId>
+			      <UserIdentifierValue>user-1</UserIdentifierValue>
+			    </UserId>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:BORROWER</RequestIdentifierValue>
+			    </RequestId>
+			    <DateReceived>2026-06-26T12:05:00Z</DateReceived>
+			  </ItemReceived>
+			</NCIPMessage>
+			""";
+	}
+
+	static String validItemCheckedIn() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <ItemCheckedIn>
+			    <InitiationHeader>
+			      <FromAgencyId>
+			        <AgencyId>borrower-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb-host</AgencyId>
+			      </ToAgencyId>
+			    </InitiationHeader>
+			    <UserId>
+			      <AgencyId>borrower-host</AgencyId>
+			      <UserIdentifierValue>user-1</UserIdentifierValue>
+			    </UserId>
+			    <ItemId>
+			      <ItemIdentifierValue>item-1</ItemIdentifierValue>
+			    </ItemId>
+			    <Ext>
+			      <RequestId>
+			        <RequestIdentifierValue>request-1:BORROWER</RequestIdentifierValue>
+			      </RequestId>
+			    </Ext>
+			  </ItemCheckedIn>
 			</NCIPMessage>
 			""";
 	}

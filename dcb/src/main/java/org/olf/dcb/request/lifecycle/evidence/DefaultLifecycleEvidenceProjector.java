@@ -266,6 +266,9 @@ public class DefaultLifecycleEvidenceProjector
 		auditData.put("itemBarcode", evidence.itemBarcode());
 		auditData.put("messageTimestamp", evidence.messageTimestamp());
 		auditData.put("rawMessageReference", evidence.rawMessageReference());
+		if (evidence.trackingProperties() != null) {
+			auditData.putAll(evidence.trackingProperties());
+		}
 
 		return patronRequestAuditService.addAuditEntry(
 				context.getPatronRequest(),

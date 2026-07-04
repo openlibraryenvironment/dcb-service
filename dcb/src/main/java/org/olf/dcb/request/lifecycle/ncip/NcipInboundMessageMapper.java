@@ -21,20 +21,26 @@ public class NcipInboundMessageMapper {
 			message.itemId(),
 			message.itemBarcode(),
 			message.messageTimestamp(),
-			message.rawMessageReference());
+			message.rawMessageReference(),
+			message.protocolProperties());
 	}
 
 	private static LifecycleEvidenceResource resourceFor(
 		NcipInboundMessage message) {
 
 		return NcipProtocol.ITEM_SHIPPED.equals(message.messageKind())
+			|| NcipProtocol.ITEM_RECEIVED.equals(message.messageKind())
+			|| NcipProtocol.ITEM_CHECKED_IN.equals(message.messageKind())
 			? LifecycleEvidenceResource.ITEM
 			: LifecycleEvidenceResource.REQUEST;
 	}
 
 	private static String statusFor(NcipInboundMessage message) {
-		return NcipProtocol.ITEM_SHIPPED.equals(message.messageKind())
-			? HostLmsItem.ITEM_TRANSIT
-			: message.status();
+		return switch (message.messageKind()) {
+			case NcipProtocol.ITEM_SHIPPED -> HostLmsItem.ITEM_TRANSIT;
+			case NcipProtocol.ITEM_RECEIVED -> HostLmsItem.ITEM_RECEIVED;
+			case NcipProtocol.ITEM_CHECKED_IN -> HostLmsItem.ITEM_ON_HOLDSHELF;
+			default -> message.status();
+		};
 	}
 }

@@ -13,6 +13,11 @@ public final class NcipProtocol {
 	public static final String CANCEL_REQUEST_ITEM = "CancelRequestItem";
 	public static final String CANCEL_REQUEST_ITEM_RESPONSE = "CancelRequestItemResponse";
 	public static final String ITEM_SHIPPED = "ItemShipped";
+	public static final String ITEM_SHIPPED_RESPONSE = "ItemShippedResponse";
+	public static final String ITEM_RECEIVED = "ItemReceived";
+	public static final String ITEM_RECEIVED_RESPONSE = "ItemReceivedResponse";
+	public static final String ITEM_CHECKED_IN = "ItemCheckedIn";
+	public static final String ITEM_CHECKED_IN_RESPONSE = "ItemCheckedInResponse";
 
 	private NcipProtocol() {
 	}

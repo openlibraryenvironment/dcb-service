@@ -107,6 +107,8 @@ public class NcipController {
 			case NcipProtocol.CANCEL_REQUEST_ITEM -> responseBuilder.cancelRequestItemResponse(
 				message.hostRequestId());
 			case NcipProtocol.ITEM_SHIPPED -> responseBuilder.itemShippedResponse();
+			case NcipProtocol.ITEM_RECEIVED -> responseBuilder.itemReceivedResponse();
+			case NcipProtocol.ITEM_CHECKED_IN -> responseBuilder.itemCheckedInResponse();
 			default -> responseBuilder.problem(
 				"Unsupported NCIP message: " + message.messageKind());
 		});
@@ -122,6 +124,10 @@ public class NcipController {
 			case NcipProtocol.CANCEL_REQUEST_ITEM -> responseBuilder.cancelRequestItemProblem(
 				messageFrom(error));
 			case NcipProtocol.ITEM_SHIPPED -> responseBuilder.itemShippedProblem(
+				messageFrom(error));
+			case NcipProtocol.ITEM_RECEIVED -> responseBuilder.itemReceivedProblem(
+				messageFrom(error));
+			case NcipProtocol.ITEM_CHECKED_IN -> responseBuilder.itemCheckedInProblem(
 				messageFrom(error));
 			default -> responseBuilder.problem(messageFrom(error));
 		});

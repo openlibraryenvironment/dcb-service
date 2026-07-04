@@ -29,6 +29,46 @@ class NcipInboundXmlMapperTests {
 	}
 
 	@Test
+	void mapsItemReceivedXmlToBorrowerItemEvidence() {
+		final var message = new NcipInboundXmlMapper().map(
+			NcipControllerTests.validItemReceived());
+
+		assertThat(message.messageKind(), is(NcipProtocol.ITEM_RECEIVED));
+		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.operation(), is(LifecycleOperation.PLACE_REQUEST));
+		assertThat(message.hostLmsCode(), is("borrower-host"));
+		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
+		assertThat(message.correlationId(), is("request-1:BORROWER"));
+		assertThat(message.status(), is("RECEIVED"));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_RECEIVED));
+		assertThat(message.itemId(), is("item-1"));
+		assertThat(message.itemBarcode(), is("item-1"));
+		assertThat(message.messageTimestamp(),
+			is(Instant.parse("2026-06-26T12:05:00Z")));
+		assertThat(message.protocolProperties().get("fromAgencyId"), is("borrower-host"));
+		assertThat(message.protocolProperties().get("toAgencyId"), is("dcb-host"));
+	}
+
+	@Test
+	void mapsItemCheckedInXmlToBorrowerItemEvidence() {
+		final var message = new NcipInboundXmlMapper().map(
+			NcipControllerTests.validItemCheckedIn());
+
+		assertThat(message.messageKind(), is(NcipProtocol.ITEM_CHECKED_IN));
+		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.operation(), is(LifecycleOperation.PLACE_REQUEST));
+		assertThat(message.hostLmsCode(), is("borrower-host"));
+		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
+		assertThat(message.correlationId(), is("request-1:BORROWER"));
+		assertThat(message.status(), is("CHECKED_IN"));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_CHECKED_IN));
+		assertThat(message.itemId(), is("item-1"));
+		assertThat(message.itemBarcode(), is("item-1"));
+		assertThat(message.protocolProperties().get("fromAgencyId"), is("borrower-host"));
+		assertThat(message.protocolProperties().get("toAgencyId"), is("dcb-host"));
+	}
+
+	@Test
 	void mapsRequestItemResponseXmlToSupplierPlacementEvidence() {
 		final var message = new NcipInboundXmlMapper().map(
 			NcipControllerTests.validRequestItemResponse());

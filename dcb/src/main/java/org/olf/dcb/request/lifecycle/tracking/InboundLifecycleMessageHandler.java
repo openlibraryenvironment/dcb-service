@@ -32,6 +32,15 @@ public class InboundLifecycleMessageHandler {
 			message.itemId(),
 			message.itemBarcode(),
 			message.messageTimestamp(),
-			message.rawMessageReference()));
+			message.rawMessageReference(),
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			message.protocolProperties()));
 	}
 }
