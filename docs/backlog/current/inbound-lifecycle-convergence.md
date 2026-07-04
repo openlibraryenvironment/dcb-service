@@ -340,8 +340,8 @@ legacy names may still be carried for audit compatibility.
 
 ## Known Follow-Up Work
 
-- Complete V4 parity for supplier item, borrower request, borrower virtual
-  item, pickup request, and pickup item scenarios.
+- V4 projection parity for supplier request, supplier item, borrower request,
+  borrower virtual item, pickup request, and pickup item is covered by tests.
 - Keep scheduled tracking behind `TrackingScheduler`. V3 and V4 must remain
   unscheduled `TrackingService` implementations so `@AppTask` skip/enable
   semantics apply once, regardless of selected implementation.
@@ -354,8 +354,9 @@ legacy names may still be carried for audit compatibility.
   not require synchronous workflow completion for every service.
 - Defer new retry semantics unless the current workflow/polling behaviour is
   insufficient for the next slice.
-- Add broader transit cascade coverage for `ItemShipped -> TRANSIT ->
-  HandleSupplierInTransit`.
+- Transit cascade coverage now proves `ItemShipped -> TRANSIT` reaches
+  `HandleSupplierInTransit` and updates borrower/pickup systems for
+  pickup-anywhere.
 
 ### Decision 4: NCIP Acknowledgement Semantics
 
@@ -738,6 +739,13 @@ This work needs two explicit reviews before production adoption:
   to state, raw status, correlation, and protocol reference.
 - Existing admin-facing state-change audit wording and data keys are preserved
   where possible. New protocol details are additive.
+- V4 polling projection parity is proven for the V3 polling observation shapes:
+  supplier request, supplier item, borrower request, borrower virtual item,
+  pickup request, and pickup item.
+- The lifecycle projector dispatches on canonical lifecycle fields, not V3
+  tracking resource names.
+- Existing `Handle...` workflow transitions remain the application reaction
+  layer for DCB request state changes and side effects.
 - Tests prove imperative tracking and NCIP inbound evidence both reach the same
   projector or explicitly documented equivalent path.
 - Existing imperative host behaviour remains default and unchanged.

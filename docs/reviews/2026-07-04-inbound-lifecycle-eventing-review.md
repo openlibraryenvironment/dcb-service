@@ -42,19 +42,20 @@ evidence over state already persisted by the existing imperative flow.
 3. `ItemShipped` was a known gap and now has first-slice coverage.
 
    NCIP `ItemShipped` now maps to supplier item `TRANSIT` evidence before
-   ingestion. Transit cascade behaviour still needs broader workflow-level
-   coverage.
+   ingestion. Workflow-level coverage now proves `HandleSupplierInTransit`
+   updates borrower and pickup systems for pickup-anywhere transit.
 
 4. Retry semantics are unclear for event-driven flows.
 
    Polling can re-trigger workflow on later polls. Event-driven NCIP suppresses
    scheduled polling, so failed downstream cascades need explicit retry handling.
 
-5. Admin transaction history is protected for V4 supplier confirmation.
+5. Admin transaction history is protected for V4 polling projections.
 
-   V4 supplier confirmation preserves the existing polling audit brief and
-   legacy keys. NCIP records still use `Inbound lifecycle message projected.`
-   with protocol/correlation details.
+   V4 supplier request, supplier item, borrower request, borrower virtual item,
+   pickup request, and pickup item projections preserve the existing polling
+   audit brief and legacy keys. NCIP records still use
+   `Inbound lifecycle message projected.` with protocol/correlation details.
 
 6. V4 is not yet default.
 
