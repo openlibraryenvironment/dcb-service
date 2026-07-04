@@ -58,6 +58,21 @@ class TrackingBoundaryArchitectureTests {
 		assertThat(source, not(containsString("processOnStartup")));
 	}
 
+	@Test
+	void lifecycleProjectorMustNotDispatchOnTrackingResourceTypeStrings()
+		throws IOException {
+
+		final var source = Files.readString(Path.of(
+			sourcePath("src/main/java/org/olf/dcb/request/lifecycle/evidence/DefaultLifecycleEvidenceProjector.java")));
+
+		assertThat(source, not(containsString("case \"SupplierRequest\"")));
+		assertThat(source, not(containsString("case \"PatronRequest\"")));
+		assertThat(source, not(containsString("case \"BorrowerVirtualItem\"")));
+		assertThat(source, not(containsString("case \"SupplierItem\"")));
+		assertThat(source, not(containsString("case \"PickupRequest\"")));
+		assertThat(source, not(containsString("case \"PickupItem\"")));
+	}
+
 	private static String trackingServiceV4Source() {
 		return sourcePath("src/main/java/org/olf/dcb/tracking/TrackingServiceV4.java");
 	}

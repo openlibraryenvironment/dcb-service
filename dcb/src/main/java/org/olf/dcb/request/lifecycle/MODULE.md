@@ -25,7 +25,13 @@ Owns lifecycle strategy selection and protocol-neutral lifecycle evidence.
 ## Boundary Rules
 
 - Projection updates peer evidence fields on `PatronRequest`/`SupplierRequest`.
+- Projection dispatches on canonical lifecycle fields: role, resource,
+  operation, and status.
+- Polling resource names such as `SupplierItem` and `PickupRequest` are legacy
+  compatibility metadata. They must not define lifecycle projection decisions.
 - DCB request state changes remain in `request.workflow` `Handle...`
   transitions.
+- `Handle...` transitions are the application reaction layer that turns
+  projected peer state into DCB workflow progression.
 - Polling may call the projector directly; reactive inbound callers should use
   the ingestor so workflow progression is triggered.

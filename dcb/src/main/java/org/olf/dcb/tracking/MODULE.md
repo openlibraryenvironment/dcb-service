@@ -30,6 +30,9 @@ evidence.
 ## Boundary Rules
 
 - `StateChange` belongs to polling internals.
+- Tracking resource names are V3 compatibility metadata. They may be used by
+  tracking adapters and legacy audit preservation, but not as lifecycle
+  projection dispatch keys.
 - Shared projection/audit belongs to `LifecycleEvidenceProjector`.
 - `TrackingScheduler` owns scheduling. `TrackingServiceV3` and
   `TrackingServiceV4` must remain unscheduled implementations selected through

@@ -70,6 +70,8 @@ extension points, or constraints need more detail than this overview.
   wraps it for reactive inbound messages and then runs workflow progression.
   Polling may use the projector directly because `TrackingService` already runs
   workflow progression after checking all systems.
+  Projection is based on canonical lifecycle fields such as role, resource,
+  operation, and status. Polling resource names are compatibility metadata only.
 
 - Host LMS support: implement or extend `HostLmsClient` capability slices.
 - Protocol support: add protocol adapters below `request.lifecycle.<protocol>`
@@ -99,6 +101,8 @@ workflow transitions.
 ## Boundary Rules
 
 - DCB request state changes belong in `Handle...` workflow transitions.
+- `Handle...` workflow transitions are the application reaction layer. They
+  consume projected peer state and decide what DCB should do next.
 - Incoming notifications update peer evidence, not DCB request state directly.
 - Polling and reactive inbound messages should converge at the lifecycle
   evidence boundary before projection, audit, and workflow progression.

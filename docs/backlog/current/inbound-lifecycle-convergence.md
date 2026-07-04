@@ -318,6 +318,26 @@ Do not rewrite existing polling audit messages in Phase 1. New lifecycle
 metadata must be additive. Any change to admin-facing audit vocabulary needs
 separate review with the admin applications.
 
+### Decision 4: Handle Transitions Remain The Reaction Layer
+
+Status: accepted for Phase 1.
+
+Do not introduce a parallel application-event handler hierarchy in this phase.
+Existing `Handle...` workflow transitions remain the layer that turns projected
+peer state into DCB request progression and side effects. Polling and inbound
+protocol messages should both project peer state, then allow workflow
+progression to invoke the existing handlers.
+
+### Decision 5: Tracking Resource Types Are Compatibility Metadata
+
+Status: accepted for Phase 1.
+
+The V3 resource names `SupplierRequest`, `SupplierItem`,
+`BorrowerVirtualItem`, `PatronRequest`, `PickupRequest`, and `PickupItem`
+belong to polling compatibility. `LifecycleEvidenceProjector` must dispatch on
+canonical lifecycle fields instead: role, resource, operation, and status. The
+legacy names may still be carried for audit compatibility.
+
 ## Known Follow-Up Work
 
 - Complete V4 parity for supplier item, borrower request, borrower virtual
