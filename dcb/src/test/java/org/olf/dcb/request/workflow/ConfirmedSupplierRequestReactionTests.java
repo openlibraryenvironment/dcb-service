@@ -22,6 +22,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 import org.olf.dcb.tracking.HostLmsReactions;
+import org.olf.dcb.tracking.LifecycleEvidenceTrackingEventSink;
 import org.olf.dcb.tracking.model.StateChange;
 
 import jakarta.inject.Inject;
@@ -29,7 +30,10 @@ import jakarta.inject.Inject;
 @DcbTest
 class ConfirmedSupplierRequestReactionTests {
 	@Inject
-    HostLmsReactions hostLmsReactions;
+	    HostLmsReactions hostLmsReactions;
+
+	@Inject
+	    LifecycleEvidenceTrackingEventSink lifecycleEvidenceTrackingEventSink;
 
 	@Inject
 	PatronRequestsFixture patronRequestsFixture;
@@ -70,6 +74,57 @@ class ConfirmedSupplierRequestReactionTests {
 
 		// Act
 		singleValueFrom(hostLmsReactions.onTrackingEvent(
+			StateChange.builder()
+				.resourceType("SupplierRequest")
+				.resource(supplierRequest)
+				.resourceId(supplierRequest.getId().toString())
+				.fromState(HOLD_PLACED)
+				.toState(HOLD_CONFIRMED)
+				.patronRequestId(patronRequest.getId())
+				.build()));
+
+		// Assert
+		final var updatedSupplierRequest = supplierRequestsFixture.findById(supplierRequestId);
+
+		assertThat(updatedSupplierRequest, allOf(
+			notNullValue(),
+			hasLocalStatus("CONFIRMED")
+		));
+
+		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest), allOf(
+			notNullValue(),
+			hasBriefDescription("to %s from %s - SupplierRequest(%s)".formatted("CONFIRMED", "PLACED", supplierRequestId.toString())),
+			hasAuditDataProperty("patronRequestId", patronRequest.getId().toString()),
+			hasAuditDataProperty("source", "POLLING"),
+			hasAuditDataProperty("role", "SUPPLIER"),
+			hasAuditDataProperty("resource", "REQUEST"),
+			hasAuditDataProperty("resourceType", "SupplierRequest"),
+			hasAuditDataProperty("resourceId", supplierRequestId.toString()),
+			hasAuditDataProperty("fromState", "PLACED"),
+			hasAuditDataProperty("toState", "CONFIRMED")
+		));
+	}
+
+	@Test
+	void lifecycleEvidenceSinkShouldPreserveSupplierRequestConfirmedAuditShape() {
+		// Arrange
+		final var patronRequest = patronRequestsFixture.savePatronRequest(
+			PatronRequest.builder()
+				.id(UUID.randomUUID())
+				.build());
+
+		final var supplierRequestId = UUID.randomUUID();
+
+		final var supplierRequest = supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(supplierRequestId)
+				.hostLmsCode("supplying-host-lms")
+				.localItemId("5729624")
+				.patronRequest(patronRequest)
+				.build());
+
+		// Act
+		singleValueFrom(lifecycleEvidenceTrackingEventSink.onTrackingEvent(
 			StateChange.builder()
 				.resourceType("SupplierRequest")
 				.resource(supplierRequest)

@@ -25,6 +25,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.evidence.DefaultLifecycleEvidenceIngestor;
+import org.olf.dcb.request.lifecycle.evidence.DefaultLifecycleEvidenceProjector;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceIdempotencyGuard;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
@@ -230,13 +231,16 @@ class InboundLifecycleMessageHandlerTests {
 		when(patronRequestWorkflowService.progressUsing(context))
 			.thenReturn(Mono.just(context));
 
-		final var ingestor = new DefaultLifecycleEvidenceIngestor(
-			patronRequestRepository,
-			supplierRequestRepository,
-			requestWorkflowContextHelper,
-			patronRequestWorkflowService,
-			patronRequestAuditService,
-			new LifecycleEvidenceIdempotencyGuard());
+			final var projector = new DefaultLifecycleEvidenceProjector(
+				patronRequestRepository,
+				supplierRequestRepository,
+				requestWorkflowContextHelper,
+				patronRequestAuditService);
+
+			final var ingestor = new DefaultLifecycleEvidenceIngestor(
+				projector,
+				patronRequestWorkflowService,
+				new LifecycleEvidenceIdempotencyGuard());
 
 		return new HandlerDependencies(
 			patronRequestRepository,

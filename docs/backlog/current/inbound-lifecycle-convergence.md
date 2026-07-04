@@ -76,6 +76,22 @@ NCIP inbound path. Polling still needs to be adapted into that same boundary.
 Polling audit rows now carry additive lifecycle metadata (`source`, `role`,
 `resource`) while preserving the existing state-change audit message and keys.
 
+The second implementation slice splits the boundary into:
+
+```text
+LifecycleEvidenceProjector
+  -> project peer evidence
+  -> write audit row
+
+LifecycleEvidenceIngestor
+  -> LifecycleEvidenceProjector
+  -> PatronRequestWorkflowService.progressUsing(...)
+```
+
+Reactive inbound messages use the ingestor because the message arrival is the
+workflow trigger. `TrackingServiceV4` uses the projector directly because
+tracking already runs workflow progression after checking all systems.
+
 Implementation lesson: the existing placement pivot is also a coupling point.
 The imperative supplying-agency strategy delegates to `SupplyingAgencyService`,
 which already persists supplier request evidence. The lifecycle wrapper must not
@@ -109,10 +125,10 @@ RequestItemResponse / ItemRequested
   -> PatronRequest.status = CONFIRMED
 ```
 
-But the implementation has a separate NCIP projection path. It does not use the
-same tracking event vocabulary as polling. The first implementation slice routes
-NCIP through `LifecycleEvidenceIngestor`; polling convergence remains follow-up
-work.
+`TrackingServiceV3` still uses `StateChange` and `HostLmsReactions`.
+`TrackingServiceV4` is opt-in with `dcb.tracking.service=v4` and maps polling
+`StateChange` records into lifecycle evidence projection. NCIP inbound uses
+`InboundLifecycleMessageHandler` as an adapter into `LifecycleEvidenceIngestor`.
 
 ### Retry Semantics
 
@@ -263,14 +279,14 @@ state-change keys remain unchanged.
    Reuses current tracking event projection, but may force NCIP evidence into a
    model designed for polling diffs.
 
-3. Introduce a lifecycle evidence ingestion boundary.
+3. Introduce a lifecycle evidence projection/ingestion boundary.
 
-   Both `TrackingServiceV3` and protocol adapters emit canonical lifecycle
-   evidence. One projector updates `PatronRequest` or `SupplierRequest`, audits,
-   and invokes workflow progression.
+   Protocol adapters emit canonical lifecycle evidence through
+   `LifecycleEvidenceIngestor`. `TrackingServiceV4` maps polling `StateChange`
+   records to lifecycle evidence and calls `LifecycleEvidenceProjector`.
 
-   This is the selected Phase 1 direction for NCIP inbound evidence. Polling
-   adaptation remains follow-up work.
+   This is the selected Phase 1 direction. V3 remains default until V4 parity is
+   proven.
 
 ## Decision Log / ADR Notes
 
@@ -304,28 +320,77 @@ separate review with the admin applications.
 
 ## Known Follow-Up Work
 
-- Adapt polling into `LifecycleEvidenceIngestor` or a clearly documented
-  adapter so polling and NCIP share the same projection path.
+- Complete V4 parity for supplier item, borrower request, borrower virtual
+  item, pickup request, and pickup item scenarios.
+- Keep scheduled tracking behind `TrackingScheduler`. V3 and V4 must remain
+  unscheduled `TrackingService` implementations so `@AppTask` skip/enable
+  semantics apply once, regardless of selected implementation.
 - Keep the protocol-adapter architecture guard green as inbound protocols are
   added.
-- Decide NCIP acknowledgement semantics: after parse, after projection, or after
-  workflow progression.
-- Define retry semantics for failed workflow progression after inbound evidence.
+- Add lifecycle-boundary architecture tests in layers so new protocol, polling,
+  and Host LMS integrations cannot bypass the public lifecycle ports.
+- Define per-service NCIP acknowledgement semantics. Default direction:
+  acknowledge when the call is received, accepted, and transactionally safe; do
+  not require synchronous workflow completion for every service.
+- Defer new retry semantics unless the current workflow/polling behaviour is
+  insufficient for the next slice.
 - Add broader transit cascade coverage for `ItemShipped -> TRANSIT ->
   HandleSupplierInTransit`.
 
 ### Decision 4: NCIP Acknowledgement Semantics
 
-Status: unresolved.
+Status: direction set; per-message details still need design.
 
-Decide whether NCIP inbound requests are acknowledged:
+Treat NCIP acknowledgement primarily as:
 
-- after parse/authentication only
-- after evidence projection
-- after workflow progression
+```text
+received, accepted, and transactionally safe
+```
 
-This affects retry behaviour, peer expectations, and whether a workflow cascade
-failure should produce an NCIP problem response.
+not always:
+
+```text
+the downstream DCB workflow operation has fully completed
+```
+
+Synchronous completion may be allowed where natural and safe, but it must not be
+mandatory for all inbound messages. Different NCIP services may have different
+implications, so define acknowledgement semantics per service/profile where
+needed.
+
+Open design detail: define what "transactionally safe" means for Phase 2. It
+may mean evidence projected to the current model, or it may require a durable
+inbox if asynchronous processing is introduced.
+
+### Decision 5: Retry Semantics Are Deferred Unless Needed
+
+Status: accepted for next stage.
+
+Do not introduce new retry semantics unless the existing workflow/polling model
+cannot support the next slice. Avoid subverting or duplicating the current
+polling loop. The next stage should make inbound evidence use the same workflow
+mechanisms as polling before designing a new retry system.
+
+### Decision 6: Durable Inbox Requires Design Approval
+
+Status: accepted.
+
+Phase 2 remains schema-cautious. A durable inbound evidence inbox is allowed only
+with explicit design approval. The design must justify why persistence is
+needed, what is stored, how replay works, how it interacts with current polling,
+and how architecture tests ensure all inbound lifecycle traffic passes through
+the approved mechanism.
+
+### Strategic Direction
+
+Long term, DCB should become a workflow and coordination engine that talks to
+NCIP2-compliant endpoints. Existing concrete Host LMS integrations should move
+out into separate out-of-band processes per host system over time.
+
+The current NCIP-to-ORS-Appliance work is the proof path for that model. The
+transition must be incremental and must not break existing Sierra, Polaris,
+FOLIO, Alma, or other Host LMS implementations while those implementations
+remain in-process.
 
 ## Preferred Direction
 
@@ -354,28 +419,34 @@ changed, not how DCB learned about it:
 Target shape:
 
 ```text
-TrackingServiceV3
+TrackingServiceV4
   -> detects host state change
+  -> StateChangeLifecycleEvidenceMapper
   -> LifecycleEvidence
-  -> LifecycleEvidenceIngestor
+  -> LifecycleEvidenceProjector
 
 NcipController
   -> validates and parses NCIP
   -> LifecycleEvidence
   -> LifecycleEvidenceIngestor
 
-LifecycleEvidenceIngestor
-  -> idempotency / replay policy
+LifecycleEvidenceProjector
   -> evidence projection
   -> coherent audit
+
+LifecycleEvidenceIngestor
+  -> idempotency / replay policy
+  -> LifecycleEvidenceProjector
   -> PatronRequestWorkflowService.progressUsing(...)
 ```
 
 The important boundary is:
 
 ```text
-NCIP and polling differ only before LifecycleEvidenceIngestor.
-After that, projection, audit, workflow, and retry rules are shared.
+NCIP and polling differ before canonical LifecycleEvidence.
+After that, projection and audit rules are shared.
+Workflow progression is caller-specific: reactive inbound progresses in the
+ingestor; polling progresses once after all polling checks.
 ```
 
 This should be introduced carefully. Do not churn working host LMS integrations.
@@ -392,6 +463,40 @@ One possible approach is to introduce a new tracking implementation, for example
 matches prior practice around `TrackingServiceV3` and allows the old tracking
 implementation to remain available during migration.
 
+Alternative: adapt `HostLmsReactions` in place. This means keeping
+`TrackingServiceV3` as the selected tracking service, but changing its reaction
+component so `StateChange` records are translated into `LifecycleEvidence` and
+passed to `LifecycleEvidenceIngestor`. This is smaller, but has a larger
+behavioural blast radius because the existing tracking service immediately uses
+the new projection path.
+
+Preferred next-stage direction: inventory current tracking/reaction coupling,
+then decide whether to add `TrackingServiceV4` for a cleaner backout path or
+adapt `HostLmsReactions` only where the change is demonstrably low risk.
+
+Decision update: use `TrackingServiceV4` for polling convergence. V4 should be
+introduced opt-in first, with `TrackingServiceV3` remaining the default until
+parity is proven. V4 may become the default in this iteration only after the
+parity gates below pass.
+
+The V4 migration path is:
+
+1. Add a `StateChange -> LifecycleEvidence` adapter inside the tracking module.
+   `StateChange` remains a polling implementation detail and must not leak past
+   the lifecycle evidence boundary. Done for the initial slice.
+2. Add characterization tests for current `HostLmsReactions` behaviour before
+   replacing any reaction path. Done for supplier confirmation.
+3. Add `TrackingServiceV4` behind explicit Micronaut selection/configuration.
+   Done with `dcb.tracking.service=v4`; V3 remains default.
+4. Prove V3/V4 parity for representative supplier request, supplier item,
+   borrower request, borrower virtual item, pickup request, and pickup item
+   state changes.
+5. Preserve existing audit brief descriptions and exact legacy audit data keys.
+   Lifecycle metadata may be additive only. Done for supplier confirmation.
+6. Keep Host LMS adapters untouched.
+7. Switch V4 to default only after focused parity tests, full suite, and local
+   smoke pass.
+
 Keep the backout simple:
 
 - old tracking service remains selectable
@@ -404,15 +509,16 @@ Keep the backout simple:
 - Define the canonical inbound evidence model.
 - Decide whether `StateChange` is sufficient or should become an implementation
   detail of imperative tracking.
-- Confirm whether the existing tracking event path is the convergence point, or
-  whether a new lifecycle evidence ingestion boundary should replace it.
+- Treat `StateChange` as an implementation detail of imperative polling. It
+  should be hidden inside tracking before the public lifecycle boundary.
+- Confirm the exact V3/V4 Micronaut selection rule and default-switch plan.
 - Define the audit vocabulary for lifecycle evidence so admin apps can explain
   state changes consistently across imperative and declarative paths.
-- Define retry semantics for event-driven evidence when downstream workflow
-  side effects fail.
-- Decide NCIP acknowledgement semantics: after parse, after projection, or after
-  workflow progression.
-- Decide where idempotency belongs.
+- Define retry semantics for event-driven evidence only if the current
+  workflow/polling behaviour is insufficient.
+- Decide per-message NCIP acknowledgement semantics.
+- Decide where idempotency belongs. Do not introduce a durable inbox without
+  explicit schema/design approval.
 - Decide where raw protocol references and replay/audit metadata belong.
 - Decide whether protocol acknowledgement happens before or after projection and
   workflow progression.
@@ -492,12 +598,15 @@ Add tests around the new boundary instead:
 
 1. Convergence tests.
 
-   - Polling-detected supplier request state change creates lifecycle evidence
-     and reaches the ingestor.
+   - V4 polling-detected supplier request state change creates lifecycle
+     evidence and reaches the ingestor.
    - NCIP `RequestItemResponse` creates equivalent lifecycle evidence and
      reaches the same ingestor.
    - Both paths produce the same projected supplier evidence and workflow
      progression.
+   - V3 and V4 produce equivalent request evidence, workflow outcomes, and audit
+     rows for representative current polling scenarios before V4 becomes the
+     default.
 
 2. Transit cascade tests.
 
@@ -528,20 +637,59 @@ Add tests around the new boundary instead:
 
 ## Architecture Tests
 
-Add ArchUnit or equivalent checks:
+Add ArchUnit or equivalent checks in layers. Avoid one large brittle rule set;
+each rule should protect a boundary we have already made explicit.
+
+### Stage 1: Protocol Boundaries
+
+Current/near-term rules:
 
 - `..request.lifecycle.ncip..` may depend on lifecycle evidence APIs.
 - `..tracking..` may depend on lifecycle evidence APIs.
 - `..request.workflow..` must not depend on `..request.lifecycle.ncip..`.
 - `..request.fulfilment..` must not depend on `..request.lifecycle.ncip..`.
 - `..core.model..` must not depend on `..request.lifecycle.ncip..`.
+- Protocol-named production code should stay inside protocol adapter packages,
+  except for explicitly reviewed protocol-neutral docs/config/test fixtures.
+
+### Stage 2: Inbound Lifecycle Boundaries
+
+Rules to add as polling convergence lands:
+
+- Inbound protocol controllers/mappers may call `LifecycleEvidenceIngestor`.
+- Inbound protocol packages must not call workflow transitions directly.
+- Inbound protocol packages must not call `PatronRequestWorkflowService`
+  directly.
 - Protocol packages must not call request repositories directly for lifecycle
   evidence projection.
-- Protocol packages must not call `PatronRequestWorkflowService` directly.
+- New inbound protocols must map messages to lifecycle evidence, not create a
+  new projection path.
 - Only lifecycle evidence ingestion/projection code updates request evidence
   fields from inbound messages.
 - `PatronRequest.status` changes caused by lifecycle evidence must happen in
   workflow transitions, not protocol adapters.
+
+### Stage 3: Host LMS Adapter Access
+
+Rules to add after checking existing legitimate exceptions:
+
+- Workflow and lifecycle orchestration code must not depend on concrete Host LMS
+  adapter packages such as Sierra, Polaris, FOLIO, or Alma.
+- Concrete Host LMS clients remain leaf implementations reached through
+  `HostLmsService`, lifecycle strategy interfaces, or other approved ports.
+- Tests that intentionally exercise concrete adapters remain in adapter or
+  integration-test packages.
+
+### Stage 4: Placement and Tracking Ownership
+
+Rules to add once ownership is documented:
+
+- Imperative placement strategies may delegate to existing imperative services,
+  but must not re-project stale pre-call evidence over persisted Host LMS
+  results.
+- Polling and inbound evidence must converge before workflow progression.
+- Any direct evidence projection outside the lifecycle evidence boundary must be
+  either removed or explicitly documented as a temporary adapter.
 
 ## Required Reviews
 
@@ -575,6 +723,8 @@ This work needs two explicit reviews before production adoption:
 - Existing imperative host behaviour remains default and unchanged.
 - Existing external-system contract tests remain valid unless an intentional
   contract change is reviewed.
+- `TrackingServiceV4` is introduced behind explicit selection first; V3 remains
+  selectable until V4 parity and smoke proof are complete.
 - NCIP-specific classes remain below `org.olf.dcb.request.lifecycle.ncip`.
 - `ARCHITECTURE.md` and any affected `MODULE.md` files are updated.
 - The two required reviews are completed or explicitly deferred.

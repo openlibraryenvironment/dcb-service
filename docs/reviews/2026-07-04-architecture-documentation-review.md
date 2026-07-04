@@ -29,17 +29,15 @@ Covered documents:
    `ARCHITECTURE.md` and `AGENTS.md` both state that database schema changes
    need explicit approval.
 
-4. Module-level docs are not yet present.
+4. Initial module-level docs are present.
 
-   This is acceptable for the first step. `MODULE.md` files should be added only
-   where local rules are useful.
+   Initial `MODULE.md` files now exist for `request.lifecycle` and `tracking`.
+   More should be added only where local rules are useful.
 
 ## Recommended MODULE.md Candidates
 
 - `request.workflow`
-- `request.lifecycle`
 - `request.lifecycle.ncip`
-- `tracking`
 - `core.interaction`
 - `storage`
 
@@ -63,4 +61,3 @@ Each `MODULE.md` should stay short and answer:
 
 Documentation approach is suitable as a starting model. Next step is to add
 targeted `MODULE.md` files as architecture-sensitive modules are changed.
-

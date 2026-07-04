@@ -36,6 +36,7 @@ import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.request.lifecycle.TrackingMode;
 import org.olf.dcb.request.lifecycle.evidence.DefaultLifecycleEvidenceIngestor;
+import org.olf.dcb.request.lifecycle.evidence.DefaultLifecycleEvidenceProjector;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceIdempotencyGuard;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestProjector;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestStrategyService;
@@ -226,12 +227,15 @@ class NcipDualDeclarativeAgencySpikeTests {
 				return Mono.just(context);
 			});
 
-		final var ingestor = new DefaultLifecycleEvidenceIngestor(
+		final var projector = new DefaultLifecycleEvidenceProjector(
 			patronRequestRepository,
 			supplierRequestRepository,
 			contextHelper,
+			auditService);
+
+		final var ingestor = new DefaultLifecycleEvidenceIngestor(
+			projector,
 			workflowService,
-			auditService,
 			new LifecycleEvidenceIdempotencyGuard());
 
 		return new InboundLifecycleMessageHandler(ingestor);

@@ -9,12 +9,13 @@ in focused docs or module notes.
 - `storage`: repository interfaces and persistence adapters.
 - `request.workflow`: DCB request state machine transitions.
 - `request.fulfilment`: request orchestration and host-facing fulfilment work.
-- `request.lifecycle`: lifecycle strategy and evidence boundaries.
+- `request.lifecycle`: lifecycle strategy and evidence boundaries. See
+  `dcb/src/main/java/org/olf/dcb/request/lifecycle/MODULE.md`.
 - `request.lifecycle.placement`: imperative/declarative placement strategy
   selection and placement result projection.
 - `request.lifecycle.ncip`: NCIP protocol adapter.
 - `tracking`: scheduled polling, host-state change detection, and tracking
-  event projection.
+  evidence adaptation. See `dcb/src/main/java/org/olf/dcb/tracking/MODULE.md`.
 - `core.interaction`: host LMS client contracts and implementations.
 - `core.api` and `graphql`: external HTTP/GraphQL APIs.
 - `ingest`, `indexing`, `availability`: bibliographic and availability data
@@ -62,8 +63,13 @@ extension points, or constraints need more detail than this overview.
   polling or protocol inbound message
     -> canonical lifecycle evidence
     -> evidence projection and audit
-    -> workflow progression
+    -> workflow progression when the caller is reactive
   ```
+
+  `LifecycleEvidenceProjector` owns projection/audit. `LifecycleEvidenceIngestor`
+  wraps it for reactive inbound messages and then runs workflow progression.
+  Polling may use the projector directly because `TrackingService` already runs
+  workflow progression after checking all systems.
 
 - Host LMS support: implement or extend `HostLmsClient` capability slices.
 - Protocol support: add protocol adapters below `request.lifecycle.<protocol>`
@@ -96,7 +102,12 @@ workflow transitions.
 - Incoming notifications update peer evidence, not DCB request state directly.
 - Polling and reactive inbound messages should converge at the lifecycle
   evidence boundary before projection, audit, and workflow progression.
+- `TrackingServiceV3` is the default polling implementation. `TrackingServiceV4`
+  is selected only with `dcb.tracking.service=v4` and routes polling state
+  changes through lifecycle evidence projection.
+- `TrackingScheduler` owns scheduled tracking task registration. Tracking
+  service implementations are invoked through the `TrackingService` interface
+  and must not register their own scheduled tasks.
 - Admin transaction history must explain state changes consistently regardless
   of whether evidence came from polling or an inbound protocol message.
 - Event-driven tracking must have explicit idempotency and retry semantics.
-

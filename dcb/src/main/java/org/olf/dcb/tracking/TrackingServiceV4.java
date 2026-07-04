@@ -40,6 +40,8 @@ import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
 
 import io.micrometer.core.annotation.Timed;
+import io.micronaut.context.annotation.Requires;
+import io.micronaut.context.annotation.Replaces;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.runtime.context.scope.Refreshable;
 import jakarta.inject.Singleton;
@@ -52,7 +54,9 @@ import services.k_int.federation.reactor.ReactorFederatedLockService;
 @Slf4j
 @Refreshable
 @Singleton
-public class TrackingServiceV3 implements TrackingService {
+@Requires(property = "dcb.tracking.service", value = "v4")
+@Replaces(TrackingServiceV3.class)
+public class TrackingServiceV4 implements TrackingService {
 
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
@@ -75,11 +79,11 @@ public class TrackingServiceV3 implements TrackingService {
   // mark it "TooLong" which will stop it being visited by the tracking code.
 	private final int TOO_LONG_THRESHOLD = 56;
 
-	TrackingServiceV3(PatronRequestRepository patronRequestRepository,
+	TrackingServiceV4(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
 		SupplyingAgencyService supplyingAgencyService,
 		HostLmsService hostLmsService,
-		HostLmsReactions hostLmsReactions,
+		LifecycleEvidenceTrackingEventSink trackingEventSink,
 		PatronRequestWorkflowService patronRequestWorkflowService,
 		ReactorFederatedLockService reactorFederatedLockService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
@@ -89,7 +93,7 @@ public class TrackingServiceV3 implements TrackingService {
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
-		this.trackingEventSink = hostLmsReactions;
+		this.trackingEventSink = trackingEventSink;
 		this.patronRequestWorkflowService = patronRequestWorkflowService;
 		this.reactorFederatedLockService = reactorFederatedLockService;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
@@ -117,8 +121,8 @@ public class TrackingServiceV3 implements TrackingService {
         this.lastTrackingRunCount = Long.valueOf(0);
         log.error("TRACKING Error {} when updating tracking information in {}", error.getMessage(), lastTrackingRunDuration, error);
       })
-			.subscribe(
-				total -> log.info("TRACKING Tracking completed for {} total Requests", total),
+				.subscribe(
+					total -> log.info("TRACKING Tracking completed for {} total Requests", total),
 				error -> log.error("TRACKING Error when updating tracking information", error));
 	}
 

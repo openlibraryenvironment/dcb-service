@@ -32,7 +32,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
  */
 @Slf4j
 @Singleton
-public class HostLmsReactions {
+public class HostLmsReactions implements TrackingEventSink {
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
@@ -60,6 +60,7 @@ public class HostLmsReactions {
 	}
 
 	@Transactional
+	@Override
 	public Mono<Map<String,Object>> onTrackingEvent(TrackingRecord trackingRecord) {
 		log.debug("onTrackingEvent {}", trackingRecord);
 		// This no longer does anything other than update the relevant state of the items against the PR or SR
