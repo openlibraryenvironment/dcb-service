@@ -10,7 +10,7 @@ Covered documents:
 
 - `ARCHITECTURE.md`
 - `AGENTS.md`
-- `docs/backlog/current/inbound-lifecycle-convergence.md`
+- `docs/backlog/done/inbound-lifecycle-convergence-phase-1.md`
 
 ## Findings
 

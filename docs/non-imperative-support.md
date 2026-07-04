@@ -383,8 +383,9 @@ normal lifecycle driver for those requests.
 
 ### Inbound Message Handling
 
-Production refinement of this boundary is tracked in
-`docs/backlog/current/inbound-lifecycle-convergence.md`.
+Phase 1 refinement of this boundary is tracked in
+`docs/backlog/done/inbound-lifecycle-convergence-phase-1.md`. Follow-up rollout,
+retry, ACK, and admin audit work is tracked in `docs/backlog/current/`.
 
 Event-driven protocols still need to feed the same DCB workflow engine. The
 inbound protocol endpoint should translate protocol-specific messages into a

@@ -2,7 +2,18 @@
 
 ## Status
 
-Current architecture backlog item.
+Done for Phase 1.
+
+Completed on 2026-07-04. Phase 1 established the inbound lifecycle evidence
+boundary without schema changes, kept V3 as the default tracking service, and
+left V4 opt-in behind `dcb.tracking.service=v4`.
+
+Follow-up work is tracked separately:
+
+- `docs/backlog/current/durable-inbound-evidence-inbox.md`
+- `docs/backlog/current/tracking-service-v4-default-rollout.md`
+- `docs/backlog/current/ncip-acknowledgement-profile-hardening.md`
+- `docs/backlog/current/admin-ui-inbound-audit-review.md`
 
 ## Phase 1 Guardrails
 
@@ -360,12 +371,12 @@ legacy names may still be carried for audit compatibility.
 
 ### Decision 4: NCIP Acknowledgement Semantics
 
-Status: direction set; per-message details still need design.
+Status: accepted for Phase 1.
 
 Treat NCIP acknowledgement primarily as:
 
 ```text
-received, accepted, and transactionally safe
+received, accepted, and projected/audited transactionally
 ```
 
 not always:
@@ -376,21 +387,23 @@ the downstream DCB workflow operation has fully completed
 
 Synchronous completion may be allowed where natural and safe, but it must not be
 mandatory for all inbound messages. Different NCIP services may have different
-implications, so define acknowledgement semantics per service/profile where
-needed.
+implications, so future service/profile-specific semantics must not assume full
+workflow cascade completion unless that is explicitly reviewed.
 
-Open design detail: define what "transactionally safe" means for Phase 2. It
-may mean evidence projected to the current model, or it may require a durable
-inbox if asynchronous processing is introduced.
+For Phase 1, "transactionally safe" means the message has passed parse,
+validation, peer authorization, mapping, lifecycle evidence projection, and
+audit using the current database model. Current synchronous workflow progression
+may still happen before response in existing code paths, but the protocol
+contract must not promise that downstream LMS side effects have completed.
 
 ### Decision 5: Retry Semantics Are Deferred Unless Needed
 
-Status: accepted for next stage.
+Status: accepted for Phase 1.
 
-Do not introduce new retry semantics unless the existing workflow/polling model
-cannot support the next slice. Avoid subverting or duplicating the current
-polling loop. The next stage should make inbound evidence use the same workflow
-mechanisms as polling before designing a new retry system.
+Do not introduce new durable retry semantics in Phase 1. Keep the current
+in-memory idempotency guard and document its limitation: it prevents duplicates
+within the running service process only. Durable inbound evidence retry/replay is
+Phase 2 work and requires explicit schema/design approval.
 
 ### Decision 6: Durable Inbox Requires Design Approval
 
@@ -401,6 +414,14 @@ with explicit design approval. The design must justify why persistence is
 needed, what is stored, how replay works, how it interacts with current polling,
 and how architecture tests ensure all inbound lifecycle traffic passes through
 the approved mechanism.
+
+### Decision 7: V4 Rollout
+
+Status: accepted for Phase 1.
+
+`TrackingServiceV4` remains opt-in in Phase 1. V4 parity is covered by focused
+tests and the full suite, but making V4 the default requires a separate rollout
+decision with smoke evidence and operational review.
 
 ### Strategic Direction
 
@@ -496,9 +517,9 @@ then decide whether to add `TrackingServiceV4` for a cleaner backout path or
 adapt `HostLmsReactions` only where the change is demonstrably low risk.
 
 Decision update: use `TrackingServiceV4` for polling convergence. V4 should be
-introduced opt-in first, with `TrackingServiceV3` remaining the default until
-parity is proven. V4 may become the default in this iteration only after the
-parity gates below pass.
+introduced opt-in first, with `TrackingServiceV3` remaining the default for
+Phase 1. V4 may become the default only after a separate rollout decision with
+smoke evidence and operational review.
 
 The V4 migration path is:
 
@@ -511,12 +532,11 @@ The V4 migration path is:
    Done with `dcb.tracking.service=v4`; V3 remains default.
 4. Prove V3/V4 parity for representative supplier request, supplier item,
    borrower request, borrower virtual item, pickup request, and pickup item
-   state changes.
+   state changes. Done.
 5. Preserve existing audit brief descriptions and exact legacy audit data keys.
-   Lifecycle metadata may be additive only. Done for supplier confirmation.
+   Lifecycle metadata may be additive only. Done for V4 polling projections.
 6. Keep Host LMS adapters untouched.
-7. Switch V4 to default only after focused parity tests, full suite, and local
-   smoke pass.
+7. Keep V4 opt-in for Phase 1. Default rollout is a separate decision.
 
 Keep the backout simple:
 
@@ -652,9 +672,8 @@ Add tests around the new boundary instead:
 5. Retry and idempotency tests.
 
    - Duplicate inbound messages do not double-apply.
-   - Workflow failure after inbound evidence has arrived has explicit tested
-     behaviour: pending evidence retry, delayed projection, or scheduled
-     progression retry.
+   - Durable retry/replay behaviour is explicitly out of Phase 1 and must be
+     covered by a separate schema-approved design.
 
 ## Architecture Tests
 
@@ -752,7 +771,7 @@ This work needs two explicit reviews before production adoption:
 - Existing external-system contract tests remain valid unless an intentional
   contract change is reviewed.
 - `TrackingServiceV4` is introduced behind explicit selection first; V3 remains
-  selectable until V4 parity and smoke proof are complete.
+  default in Phase 1. V4 default rollout requires a separate decision.
 - NCIP-specific classes remain below `org.olf.dcb.request.lifecycle.ncip`.
 - `ARCHITECTURE.md` and any affected `MODULE.md` files are updated.
 - The two required reviews are completed or explicitly deferred.

@@ -10,7 +10,7 @@ evidence.
 Covered documents:
 
 - `ARCHITECTURE.md`
-- `docs/backlog/current/inbound-lifecycle-convergence.md`
+- `docs/backlog/done/inbound-lifecycle-convergence-phase-1.md`
 - `docs/backlog/current/ncip-v202-dual-declarative-agency-spike.md`
 - `docs/non-imperative-support.md`
 
@@ -45,10 +45,10 @@ evidence over state already persisted by the existing imperative flow.
    ingestion. Workflow-level coverage now proves `HandleSupplierInTransit`
    updates borrower and pickup systems for pickup-anywhere transit.
 
-4. Retry semantics are unclear for event-driven flows.
+4. Durable retry semantics are deferred.
 
-   Polling can re-trigger workflow on later polls. Event-driven NCIP suppresses
-   scheduled polling, so failed downstream cascades need explicit retry handling.
+   Phase 1 keeps the in-memory idempotency guard only. Durable inbound evidence
+   retry/replay is Phase 2 work and requires schema/design approval.
 
 5. Admin transaction history is protected for V4 polling projections.
 
@@ -62,7 +62,8 @@ evidence over state already persisted by the existing imperative flow.
    It is selected by `dcb.tracking.service=v4`. Automatic polling is registered
    once by `TrackingScheduler`, which is annotated with `@AppTask` and delegates
    to the selected `TrackingService`. V3 and V4 remain unscheduled
-   implementations.
+   implementations. V4 remains opt-in for Phase 1; default rollout requires a
+   separate smoke/operational review.
 
 7. Workflow no longer imports NCIP for supplier confirmation.
 
@@ -107,20 +108,25 @@ Protocol adapters must not directly decide `PatronRequest.status`.
 - `ItemShipped -> TRANSIT -> HandleSupplierInTransit` cascade test.
 - No direct protocol mutation of `PatronRequest.status`.
 - Audit coherence tests.
-- Retry/idempotency tests.
+- In-memory idempotency tests.
 - Architecture dependency tests.
-- V4 parity tests for supplier item, borrower request, borrower virtual item,
-  pickup request, and pickup item before making V4 default.
+- V4 parity tests for supplier request, supplier item, borrower request,
+  borrower virtual item, pickup request, and pickup item.
 
 ## Validation Notes
 
 - Focused inbound, V4 supplier-confirmation parity, mapping, and architecture
   tests pass.
+- V4 polling parity tests cover supplier request, supplier item, borrower
+  request, borrower virtual item, pickup request, and pickup item.
+- Transit cascade tests cover `ItemShipped -> TRANSIT ->
+  HandleSupplierInTransit`.
 - `PlaceRequestAtSupplyingAgencyTests` passes unchanged.
 - Full suite passes:
   `GRADLE_USER_HOME="$PWD/.gradle-codex" timeout 30m ./gradlew test --no-daemon --no-build-cache --rerun-tasks`.
 
 ## Review Outcome
 
-Proceed incrementally. V4 can remain opt-in while remaining parity tests, NCIP
-acknowledgement semantics, and retry semantics are settled.
+Phase 1 can proceed with V4 opt-in. NCIP acknowledgement is accepted as
+"projected/audited transactionally", not full workflow cascade completion.
+Durable retry/replay is deferred to Phase 2 with schema/design approval.
