@@ -16,8 +16,10 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
 import org.olf.dcb.request.lifecycle.ncip.peerauth.DcbPeerAuthProperties;
 import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthGuard;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessage;
@@ -48,10 +50,11 @@ class NcipControllerTests {
 		final var message = messageCaptor.getValue();
 		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.resource(), is(LifecycleEvidenceResource.ITEM));
 		assertThat(message.hostLmsCode(), is("supplier-host"));
 		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
 		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
-		assertThat(message.status(), is("SHIPPED"));
+		assertThat(message.status(), is(HostLmsItem.ITEM_TRANSIT));
 		assertThat(message.rawStatus(), is("ItemShipped"));
 		assertThat(message.itemId(), is("item-1"));
 	}
@@ -97,6 +100,7 @@ class NcipControllerTests {
 		final var message = messageCaptor.getValue();
 		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.resource(), is(LifecycleEvidenceResource.REQUEST));
 		assertThat(message.hostLmsCode(), is("supplier-host"));
 		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
 		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
@@ -125,6 +129,7 @@ class NcipControllerTests {
 		final var message = messageCaptor.getValue();
 		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.resource(), is(LifecycleEvidenceResource.REQUEST));
 		assertThat(message.hostLmsCode(), is("supplier-host"));
 		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
 		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
@@ -153,6 +158,7 @@ class NcipControllerTests {
 		final var message = messageCaptor.getValue();
 		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.resource(), is(LifecycleEvidenceResource.REQUEST));
 		assertThat(message.hostLmsCode(), is("supplier-host"));
 		assertThat(message.hostRequestId(), is("request-1:SUPPLIER"));
 		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
@@ -178,6 +184,7 @@ class NcipControllerTests {
 		final var message = messageCaptor.getValue();
 		assertThat(message.protocol(), is(NcipProtocol.PROTOCOL));
 		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.resource(), is(LifecycleEvidenceResource.REQUEST));
 		assertThat(message.hostLmsCode(), is("borrower-host"));
 		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
 		assertThat(message.correlationId(), is("request-1:BORROWER"));

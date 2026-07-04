@@ -66,12 +66,22 @@ NcipController
   -> NcipInboundXmlMapper
   -> NcipInboundMessageMapper
   -> InboundLifecycleMessageHandler
+  -> LifecycleEvidenceIngestor
   -> PatronRequest/SupplierRequest evidence update
   -> PatronRequestWorkflowService.progressUsing(...)
 ```
 
-They currently join only at persisted request evidence plus workflow progression.
-That works for the spike, but it is not yet an explicit architectural seam.
+The first implementation slice introduces `LifecycleEvidenceIngestor` for the
+NCIP inbound path. Polling still needs to be adapted into that same boundary.
+Polling audit rows now carry additive lifecycle metadata (`source`, `role`,
+`resource`) while preserving the existing state-change audit message and keys.
+
+Implementation lesson: the existing placement pivot is also a coupling point.
+The imperative supplying-agency strategy delegates to `SupplyingAgencyService`,
+which already persists supplier request evidence. The lifecycle wrapper must not
+then re-save stale supplier state from the pre-call workflow context. Phase 1
+fixes this by reloading the active supplier request at the strategy boundary
+before projection.
 
 ## Critical Gaps
 
@@ -100,7 +110,9 @@ RequestItemResponse / ItemRequested
 ```
 
 But the implementation has a separate NCIP projection path. It does not use the
-same tracking event vocabulary or projection boundary as polling.
+same tracking event vocabulary as polling. The first implementation slice routes
+NCIP through `LifecycleEvidenceIngestor`; polling convergence remains follow-up
+work.
 
 ### Retry Semantics
 
@@ -123,7 +135,7 @@ The convergence design must define whether inbound evidence is:
 
 ### NCIP ItemShipped Does Not Currently Drive Transit
 
-`ItemShipped` currently maps to supplier role status `SHIPPED`.
+Original gap: `ItemShipped` mapped to supplier role status `SHIPPED`.
 
 The existing transit workflow expects supplier evidence to be `TRANSIT`:
 
@@ -133,9 +145,10 @@ or
 SupplierRequest.localStatus == TRANSIT
 ```
 
-Therefore current `ItemShipped -> SHIPPED` evidence likely does not trigger
-`HandleSupplierInTransit`, which is the transition that cascades transit updates
-to borrower and pickup systems, including pickup-anywhere transactions.
+The first implementation slice maps `ItemShipped` to supplier item `TRANSIT`
+evidence before ingestion. This is intended to trigger `HandleSupplierInTransit`,
+which is the transition that cascades transit updates to borrower and pickup
+systems, including pickup-anywhere transactions.
 
 This is not a message-specific bug only. It shows the need for a canonical
 inbound lifecycle evidence model that can say:
@@ -186,8 +199,9 @@ Inbound lifecycle message projected.
 ```
 
 with audit data including protocol, role, operation, host LMS code, host request
-id, correlation id, status, raw status, message timestamp, and raw message
-reference.
+id, correlation id, status, raw status, item id/barcode, message timestamp, and
+raw message reference. These fields are stored as admin-friendly strings where
+they represent canonical lifecycle vocabulary.
 
 Workflow then adds the normal action audit rows, for example:
 
@@ -234,6 +248,10 @@ NCIP/protocol details should be additive audit data, for example:
 They should not replace the existing state-change message vocabulary unless a
 separate admin-facing change is reviewed.
 
+First-slice implementation note: polling rows now add `source=POLLING`,
+`role=...`, and `resource=...`. Existing polling brief descriptions and legacy
+state-change keys remain unchanged.
+
 ## Candidate Outcomes
 
 1. Keep current split, document it.
@@ -251,7 +269,8 @@ separate admin-facing change is reviewed.
    evidence. One projector updates `PatronRequest` or `SupplierRequest`, audits,
    and invokes workflow progression.
 
-   This is the likely production direction, but it needs design before code.
+   This is the selected Phase 1 direction for NCIP inbound evidence. Polling
+   adaptation remains follow-up work.
 
 ## Decision Log / ADR Notes
 
@@ -268,14 +287,34 @@ approval with a schema proposal.
 
 ### Decision 2: Public Boundary Before Internal Cleanup
 
-Status: proposed.
+Status: accepted for Phase 1.
 
 The first goal is a single public lifecycle evidence ingestion boundary for
 polling and reactive inbound messages. Existing internal types such as
 `StateChange` may remain as adapters or implementation details until parity is
 proven.
 
-### Decision 3: NCIP Acknowledgement Semantics
+### Decision 3: Audit Compatibility First
+
+Status: accepted for Phase 1.
+
+Do not rewrite existing polling audit messages in Phase 1. New lifecycle
+metadata must be additive. Any change to admin-facing audit vocabulary needs
+separate review with the admin applications.
+
+## Known Follow-Up Work
+
+- Adapt polling into `LifecycleEvidenceIngestor` or a clearly documented
+  adapter so polling and NCIP share the same projection path.
+- Keep the protocol-adapter architecture guard green as inbound protocols are
+  added.
+- Decide NCIP acknowledgement semantics: after parse, after projection, or after
+  workflow progression.
+- Define retry semantics for failed workflow progression after inbound evidence.
+- Add broader transit cascade coverage for `ItemShipped -> TRANSIT ->
+  HandleSupplierInTransit`.
+
+### Decision 4: NCIP Acknowledgement Semantics
 
 Status: unresolved.
 
@@ -301,7 +340,7 @@ interface LifecycleEvidenceIngestor {
 The model should be protocol-neutral and source-neutral. It should describe what
 changed, not how DCB learned about it:
 
-- source: polling, NCIP, future webhook, future message bus
+- source: polling, inbound protocol, future webhook, future message bus
 - lifecycle role: supplier, borrower, pickup
 - resource: request, item, borrower virtual item, pickup request, pickup item
 - operation or lifecycle area

@@ -35,6 +35,8 @@ import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.request.lifecycle.TrackingMode;
+import org.olf.dcb.request.lifecycle.evidence.DefaultLifecycleEvidenceIngestor;
+import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceIdempotencyGuard;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestProjector;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestStrategyService;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestStrategyResolver;
@@ -45,7 +47,6 @@ import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestStrategySer
 import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestStrategyResolver;
 import org.olf.dcb.request.lifecycle.tracking.DefaultRequestTrackingPolicy;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageHandler;
-import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageIdempotencyGuard;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
@@ -225,13 +226,15 @@ class NcipDualDeclarativeAgencySpikeTests {
 				return Mono.just(context);
 			});
 
-		return new InboundLifecycleMessageHandler(
+		final var ingestor = new DefaultLifecycleEvidenceIngestor(
 			patronRequestRepository,
 			supplierRequestRepository,
 			contextHelper,
 			workflowService,
 			auditService,
-			new InboundLifecycleMessageIdempotencyGuard());
+			new LifecycleEvidenceIdempotencyGuard());
+
+		return new InboundLifecycleMessageHandler(ingestor);
 	}
 
 	private static LifecycleCapabilitiesConfiguration dualDeclarativeConfiguration() {

@@ -26,6 +26,7 @@ import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.request.lifecycle.TrackingMode;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 
 import reactor.core.publisher.Mono;
 
@@ -232,25 +233,33 @@ class RequestPlacementStrategyTests {
 	@Test
 	void imperativeSupplyingStrategyDelegatesToSupplyingAgencyService() {
 		final var supplyingAgencyService = mock(SupplyingAgencyService.class);
+		final var supplierRequestService = mock(SupplierRequestService.class);
 		final var strategy = new ImperativeSupplyingAgencyRequestStrategy(
-			supplyingAgencyService);
+			supplyingAgencyService, supplierRequestService);
 		final var patronRequest = new PatronRequest();
-		final var supplierRequest = new SupplierRequest();
+		final var staleSupplierRequest = new SupplierRequest();
+		staleSupplierRequest.setLocalItemBarcode("stale-item-barcode");
+		final var reloadedSupplierRequest = new SupplierRequest();
+		reloadedSupplierRequest.setLocalItemBarcode("placed-item-barcode");
 		final var context = new RequestWorkflowContext()
 			.setPatronRequest(patronRequest)
-			.setSupplierRequest(supplierRequest);
+			.setSupplierRequest(staleSupplierRequest);
 
 		when(supplyingAgencyService.placePatronRequestAtSupplyingAgency(
 			patronRequest))
 			.thenReturn(Mono.just(patronRequest));
+		when(supplierRequestService.findActiveSupplierRequestFor(patronRequest))
+			.thenReturn(Mono.just(reloadedSupplierRequest));
 
 		final var result = singleValueFrom(strategy.place(context));
 
 		assertThat(strategy.type(), is(StrategyType.IMPERATIVE));
 		assertThat(result.patronRequest(), sameInstance(patronRequest));
-		assertThat(result.supplierRequest(), sameInstance(supplierRequest));
+		assertThat(result.supplierRequest(), sameInstance(reloadedSupplierRequest));
+		assertThat(result.localItemBarcode(), is("placed-item-barcode"));
 		verify(supplyingAgencyService).placePatronRequestAtSupplyingAgency(
 			patronRequest);
+		verify(supplierRequestService).findActiveSupplierRequestFor(patronRequest);
 	}
 
 	@Test

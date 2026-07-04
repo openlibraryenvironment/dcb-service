@@ -1,11 +1,11 @@
-package org.olf.dcb.request.lifecycle.tracking;
+package org.olf.dcb.request.lifecycle.evidence;
 
 import java.time.Instant;
-import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 
-public record InboundLifecycleMessage(
+public record LifecycleEvidence(
+	LifecycleEvidenceSource source,
 	String protocol,
 	LifecycleRole role,
 	LifecycleOperation operation,
@@ -20,3 +20,4 @@ public record InboundLifecycleMessage(
 	Instant messageTimestamp,
 	String rawMessageReference) {
 }
+

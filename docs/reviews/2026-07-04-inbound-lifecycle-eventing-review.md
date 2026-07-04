@@ -14,37 +14,62 @@ Covered documents:
 - `docs/backlog/current/ncip-v202-dual-declarative-agency-spike.md`
 - `docs/non-imperative-support.md`
 
-No eventing implementation has been changed in this review.
+Implementation update: the first schema-free slice introduces a
+`LifecycleEvidenceIngestor` for NCIP inbound evidence and additive lifecycle
+metadata on polling audit rows. Polling still needs to be adapted into the same
+projection boundary.
+
+Placement update: the imperative supplying-agency strategy now reloads the
+active supplier request after delegating to `SupplyingAgencyService`. This keeps
+the lifecycle strategy wrapper from re-projecting stale pre-placement supplier
+evidence over state already persisted by the existing imperative flow.
 
 ## Findings
 
-1. Current NCIP inbound and polling paths converge too late.
+1. Current NCIP inbound and polling paths still do not fully converge.
 
    Polling uses `StateChange` and `HostLmsReactions`. NCIP inbound uses
-   `InboundLifecycleMessageHandler` and projects evidence directly. Both then
-   call workflow progression, but they do not share one lifecycle evidence
-   boundary.
+   `InboundLifecycleMessageHandler` as an adapter into
+   `LifecycleEvidenceIngestor`. Polling audit rows now carry compatible
+   lifecycle metadata, but polling still needs to be adapted into the same
+   lifecycle evidence projection path.
 
 2. Current NCIP confirmation broadly follows the right pattern.
 
    NCIP confirmation updates supplier evidence, then workflow decides DCB
    request state through `HandleSupplierRequestConfirmed`.
 
-3. `ItemShipped` is a known gap.
+3. `ItemShipped` was a known gap and now has first-slice coverage.
 
-   Current NCIP `ItemShipped` maps to `SHIPPED`; transit workflow expects
-   `TRANSIT`. This likely fails to trigger `HandleSupplierInTransit` and its
-   borrower/pickup cascades.
+   NCIP `ItemShipped` now maps to supplier item `TRANSIT` evidence before
+   ingestion. Transit cascade behaviour still needs broader workflow-level
+   coverage.
 
 4. Retry semantics are unclear for event-driven flows.
 
    Polling can re-trigger workflow on later polls. Event-driven NCIP suppresses
    scheduled polling, so failed downstream cascades need explicit retry handling.
 
-5. Admin transaction history is not yet coherent across paths.
+5. Admin transaction history is more comparable but not fully unified.
 
-   Polling records state-change style audit entries. NCIP records inbound
-   lifecycle projection audit entries. Both are explainable, but not unified.
+   Polling keeps existing state-change audit entries and now adds `source`,
+   `role`, and `resource`. NCIP records inbound lifecycle projection audit
+   entries with protocol/correlation details. Both are explainable, but not yet
+   one shared audit vocabulary.
+
+6. Workflow no longer imports NCIP for supplier confirmation.
+
+   `HandleSupplierRequestConfirmed` now treats protocol-present supplier
+   requests as declarative instead of importing the NCIP adapter. The existing
+   protocol adapter architecture test now protects this boundary.
+
+7. The placement strategy wrapper had hidden coupling to imperative state.
+
+   The wrapper originally returned the pre-call supplier request from the
+   workflow context after `SupplyingAgencyService` had already persisted newer
+   supplier evidence. This could overwrite selected item data. The fix keeps the
+   existing Host LMS implementation untouched and reloads the active supplier
+   request at the lifecycle strategy boundary.
 
 ## Required Direction
 
@@ -66,6 +91,8 @@ Protocol adapters must not directly decide `PatronRequest.status`.
   remain valid.
 - Workflow and core model packages must not depend on NCIP.
 - Existing imperative behaviour remains the default.
+- Existing audit brief descriptions must remain stable unless reviewed with the
+  admin applications.
 
 ## Required Tests
 
@@ -76,9 +103,17 @@ Protocol adapters must not directly decide `PatronRequest.status`.
 - Retry/idempotency tests.
 - Architecture dependency tests.
 
+## Validation Notes
+
+- Focused inbound, placement, workflow, polling-audit, and architecture tests
+  pass.
+- `PlaceRequestAtSupplyingAgencyTests` passes unchanged.
+- Full suite passes:
+  `GRADLE_USER_HOME="$PWD/.gradle-codex" timeout 30m ./gradlew test --no-daemon --no-build-cache --rerun-tasks`.
+
 ## Review Outcome
 
-Proceed with design of the lifecycle evidence boundary before code changes.
-Implementation should be incremental and parity-tested against existing polling
-behaviour.
-
+Proceed incrementally. The first slice is acceptable if focused tests pass and
+no schema changes are present. Next work should converge polling projection and
+decide NCIP acknowledgement/retry semantics before expanding inbound message
+support.
