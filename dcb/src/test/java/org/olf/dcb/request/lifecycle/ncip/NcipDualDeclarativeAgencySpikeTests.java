@@ -48,6 +48,7 @@ import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestStrategySer
 import org.olf.dcb.request.lifecycle.placement.SupplyingAgencyRequestStrategyResolver;
 import org.olf.dcb.request.lifecycle.tracking.DefaultRequestTrackingPolicy;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageHandler;
+import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
@@ -187,7 +188,8 @@ class NcipDualDeclarativeAgencySpikeTests {
 			new NcipPayloadBuilder(),
 			hostLmsService(),
 			ncipIdentityConfiguration(),
-			addressResolver());
+			addressResolver(),
+			sharedIndexService());
 		final var resolver = new BorrowingAgencyRequestStrategyResolver(
 			mock(ImperativeBorrowingAgencyRequestStrategy.class),
 			List.of(strategy),
@@ -287,6 +289,13 @@ class NcipDualDeclarativeAgencySpikeTests {
 		return new NcipAddressResolver(
 			mock(org.olf.dcb.storage.AgencyRepository.class),
 			mock(HostLmsService.class));
+	}
+
+	private static SharedIndexService sharedIndexService() {
+		final var sharedIndexService = mock(SharedIndexService.class);
+		when(sharedIndexService.findSelectedBib(any(UUID.class)))
+			.thenReturn(Mono.empty());
+		return sharedIndexService;
 	}
 
 	private static class RoleAwareTransport implements DeclarativeRequestTransport {

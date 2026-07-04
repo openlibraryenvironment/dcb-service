@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -31,6 +33,7 @@ import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
+import org.olf.dcb.request.resolution.SharedIndexService;
 import reactor.core.publisher.Mono;
 
 class NcipBorrowingRequestStrategyTests {
@@ -49,16 +52,18 @@ class NcipBorrowingRequestStrategyTests {
 			new NcipPayloadBuilder(),
 			hostLmsService(),
 			ncipIdentityConfiguration(),
-			addressResolver());
+			addressResolver(),
+			sharedIndexService());
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
-				.setPatronRequest(new PatronRequest()
-					.setId(patronRequestId)
-					.setPatronHostlmsCode("borrower-host")
-					.setLocalBibId("borrower-bib-1")
-					.setRequestingIdentity(new PatronIdentity()
-						.setLocalId("borrower-patron-id")
-						.setLocalBarcode("borrower-barcode")))
+			.setPickupBibTitle("Borrower title")
+			.setPatronRequest(new PatronRequest()
+				.setId(patronRequestId)
+				.setPatronHostlmsCode("borrower-host")
+				.setLocalBibId("borrower-bib-1")
+				.setRequestingIdentity(new PatronIdentity()
+					.setLocalId("borrower-patron-id")
+					.setLocalBarcode("borrower-barcode")))
 			.setSupplierRequest(new SupplierRequest()
 				.setLocalItemId("supplier-item-1")
 				.setLocalItemBarcode("supplier-barcode-1"));
@@ -90,6 +95,8 @@ class NcipBorrowingRequestStrategyTests {
 		assertThat(request.payload(), containsString(">barcode</"));
 		assertThat(request.payload(),
 			containsString("<BibliographicRecordIdentifier>borrower-bib-1</BibliographicRecordIdentifier>"));
+		assertThat(request.payload(),
+			containsString("<Title>Borrower title</Title>"));
 		assertDoesNotThrow(() -> validator.validate(request.payload()));
 		assertThat(result.role(), is(LifecycleRole.BORROWER));
 		assertThat(result.protocol(), is(NcipProtocol.PROTOCOL));
@@ -114,7 +121,8 @@ class NcipBorrowingRequestStrategyTests {
 			new NcipPayloadBuilder(),
 			hostLmsService(),
 			ncipIdentityConfiguration(),
-			addressResolver());
+			addressResolver(),
+			sharedIndexService());
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
 			.setPatronRequest(new PatronRequest()
@@ -130,6 +138,44 @@ class NcipBorrowingRequestStrategyTests {
 
 		assertThat(error.getMessage(),
 			containsString("without supplier item barcode"));
+	}
+
+	@Test
+	void enrichesAcceptItemTitleFromSelectedBibWhenPickupTitleIsMissing() {
+		final var patronRequestId = UUID.randomUUID();
+		final var bibClusterId = UUID.randomUUID();
+		final var transport = new CapturingTransport(new DeclarativeTransportResponse(
+			"borrower-remote-request-1",
+			"ACCEPTED",
+			"accepted",
+			"raw-message-2"));
+		final var strategy = new NcipBorrowingRequestStrategy(
+			transport,
+			new NcipPayloadBuilder(),
+			hostLmsService(),
+			ncipIdentityConfiguration(),
+			addressResolver(),
+			sharedIndexServiceWithTitle("A Philosophy of Software Design, 2nd Edition"));
+		final var context = new RequestWorkflowContext()
+			.setPatronAgencyCode("borrower-agency")
+			.setPatronRequest(new PatronRequest()
+				.setId(patronRequestId)
+				.setBibClusterId(bibClusterId)
+				.setPatronHostlmsCode("borrower-host")
+				.setRequestingIdentity(new PatronIdentity()
+					.setLocalBarcode("borrower-barcode")))
+			.setSupplierRequest(new SupplierRequest()
+				.setLocalItemBarcode("supplier-barcode-1"));
+
+		singleValueFrom(strategy.place(context));
+		final var request = transport.onlyRequest();
+
+		assertThat(request.payload(),
+			containsString("<Title>A Philosophy of Software Design, 2nd Edition</Title>"));
+		assertThat(request.payload(),
+			containsString("<BibliographicRecordIdentifier>" + bibClusterId
+				+ "</BibliographicRecordIdentifier>"));
+		assertDoesNotThrow(() -> validator.validate(request.payload()));
 	}
 
 	private static Path schemaPath() {
@@ -175,6 +221,25 @@ class NcipBorrowingRequestStrategyTests {
 		return new NcipAddressResolver(
 			mock(org.olf.dcb.storage.AgencyRepository.class),
 			mock(HostLmsService.class));
+	}
+
+	private static SharedIndexService sharedIndexService() {
+		final var sharedIndexService = mock(SharedIndexService.class);
+		when(sharedIndexService.findSelectedBib(any(UUID.class)))
+			.thenReturn(Mono.empty());
+		return sharedIndexService;
+	}
+
+	private static SharedIndexService sharedIndexServiceWithTitle(String title) {
+		final var sharedIndexService = mock(SharedIndexService.class);
+		when(sharedIndexService.findSelectedBib(any(UUID.class)))
+			.thenReturn(Mono.just(BibRecord.builder()
+				.id(UUID.randomUUID())
+				.sourceSystemId(UUID.randomUUID())
+				.sourceRecordId("source-record-1")
+				.title(title)
+				.build()));
+		return sharedIndexService;
 	}
 
 	private static class CapturingTransport implements DeclarativeRequestTransport {
