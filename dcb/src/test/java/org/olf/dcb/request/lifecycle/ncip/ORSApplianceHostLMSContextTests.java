@@ -54,6 +54,7 @@ class ORSApplianceHostLMSContextTests {
 					.patronRequestId("request-1")
 					.localPatronBarcode("patron-1")
 					.localBibId("bib-1")
+					.localItemBarcode("barcode-1")
 					.requestingAgencyCode("borrower-agency")
 					.supplyingAgencyCode("supplier-agency")
 					.build()));
@@ -91,6 +92,8 @@ class ORSApplianceHostLMSContextTests {
 					.localPatronBarcode("patron-1")
 					.requestingAgencyCode("borrower-agency")
 					.supplyingLocalItemId("item-1")
+					.supplyingLocalItemBarcode("barcode-1")
+					.title("A Philosophy of Software Design, 2nd Edition")
 					.build()));
 
 		final var recordedRequests = recordedNcipRequests(mockServerClient);
@@ -106,7 +109,9 @@ class ORSApplianceHostLMSContextTests {
 		assertThat(recordedRequests[0].getBodyAsString(),
 			containsString("<RequestIdentifierValue>request-1:BORROWER</RequestIdentifierValue>"));
 		assertThat(recordedRequests[0].getBodyAsString(),
-			containsString("<ItemIdentifierValue>item-1</ItemIdentifierValue>"));
+			containsString("<ItemIdentifierValue>barcode-1</ItemIdentifierValue>"));
+		assertThat(recordedRequests[0].getBodyAsString(),
+			containsString("<Title>A Philosophy of Software Design, 2nd Edition</Title>"));
 	}
 
 	private static void mockNcipResponse(

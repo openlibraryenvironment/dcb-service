@@ -6,7 +6,10 @@ public record NcipAcceptItemPayload(
 	String requestedActionType,
 	String userAgencyId,
 	String userIdentifierValue,
-	String itemIdentifierValue) {
+	String itemAgencyId,
+	String itemIdentifierType,
+	String itemIdentifierValue,
+	NcipBibliographicDescription bibliographicDescription) {
 
 	public NcipAcceptItemPayload {
 		if (party == null) {

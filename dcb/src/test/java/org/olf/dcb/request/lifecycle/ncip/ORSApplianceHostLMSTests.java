@@ -72,6 +72,7 @@ class ORSApplianceHostLMSTests {
 					.localPatronBarcode("patron-1")
 					.localBibId("bib-1")
 					.localItemId("item-1")
+					.localItemBarcode("barcode-1")
 					.requestingAgencyCode("borrower-agency")
 					.supplyingAgencyCode("supplier-agency")
 					.build()));
@@ -90,7 +91,7 @@ class ORSApplianceHostLMSTests {
 		assertThat(request.payload(),
 			containsString("<BibliographicRecordIdentifier>bib-1</BibliographicRecordIdentifier>"));
 		assertThat(request.payload(),
-			containsString("<ItemIdentifierValue>item-1</ItemIdentifierValue>"));
+			containsString("<ItemIdentifierValue>barcode-1</ItemIdentifierValue>"));
 		assertDoesNotThrow(() -> validator.validate(request.payload()));
 		assertThat(localRequest.getLocalId(), is("supplier-remote"));
 		assertThat(localRequest.getLocalStatus(), is("CONFIRMED"));
@@ -110,6 +111,8 @@ class ORSApplianceHostLMSTests {
 					.localPatronBarcode("patron-1")
 					.requestingAgencyCode("borrower-agency")
 					.supplyingLocalItemId("item-1")
+					.supplyingLocalItemBarcode("barcode-1")
+					.title("A Philosophy of Software Design, 2nd Edition")
 					.build()));
 		final var request = transport.onlyRequest();
 
@@ -124,7 +127,11 @@ class ORSApplianceHostLMSTests {
 		assertThat(request.payload(),
 			containsString("<RequestIdentifierValue>request-1:BORROWER</RequestIdentifierValue>"));
 		assertThat(request.payload(),
-			containsString("<ItemIdentifierValue>item-1</ItemIdentifierValue>"));
+			containsString("<ItemIdentifierValue>barcode-1</ItemIdentifierValue>"));
+		assertThat(request.payload(), containsString("<ItemIdentifierType"));
+		assertThat(request.payload(), containsString(">barcode</"));
+		assertThat(request.payload(),
+			containsString("<Title>A Philosophy of Software Design, 2nd Edition</Title>"));
 		assertDoesNotThrow(() -> validator.validate(request.payload()));
 		assertThat(localRequest.getLocalId(), is("borrower-remote"));
 		assertThat(localRequest.getLocalStatus(), is("CONFIRMED"));

@@ -101,7 +101,10 @@ public class NcipBorrowingRequestStrategy
 						REQUESTED_ACTION_TYPE,
 						tuple.getT2(),
 						userIdentifierValueFor(context),
-						itemIdentifierValueFor(context))));
+						tuple.getT1(),
+						"barcode",
+						requiredItemBarcodeFor(context),
+						bibliographicDescriptionFor(context, tuple.getT1()))));
 			})
 			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
@@ -171,20 +174,37 @@ public class NcipBorrowingRequestStrategy
 				"Cannot create NCIP AcceptItem without patron identity"));
 	}
 
-	private static String itemIdentifierValueFor(RequestWorkflowContext context) {
+	private static String requiredItemBarcodeFor(RequestWorkflowContext context) {
 		return Optional.ofNullable(context)
 			.map(RequestWorkflowContext::getSupplierRequest)
-			.map(SupplierRequest::getLocalItemId)
+			.map(SupplierRequest::getLocalItemBarcode)
 			.filter(NcipBorrowingRequestStrategy::hasText)
-			.or(() -> Optional.ofNullable(context)
-				.map(RequestWorkflowContext::getSupplierRequest)
-				.map(SupplierRequest::getLocalItemBarcode)
-				.filter(NcipBorrowingRequestStrategy::hasText))
-			.or(() -> Optional.ofNullable(context)
+			.orElseThrow(() -> new IllegalArgumentException(
+				"Cannot create NCIP AcceptItem without supplier item barcode"));
+	}
+
+	private static NcipBibliographicDescription bibliographicDescriptionFor(
+		RequestWorkflowContext context,
+		String bibliographicRecordAgencyId) {
+
+		return new NcipBibliographicDescription(
+			Optional.ofNullable(context)
+				.map(RequestWorkflowContext::getPickupBibTitle)
+				.filter(NcipBorrowingRequestStrategy::hasText)
+				.orElse(null),
+			null,
+			Optional.ofNullable(context)
 				.map(RequestWorkflowContext::getPatronRequest)
-				.map(PatronRequest::getLocalItemId)
-				.filter(NcipBorrowingRequestStrategy::hasText))
-			.orElse(null);
+				.map(PatronRequest::getLocalBibId)
+				.filter(NcipBorrowingRequestStrategy::hasText)
+				.or(() -> Optional.ofNullable(context)
+					.map(RequestWorkflowContext::getPatronRequest)
+					.map(PatronRequest::getBibClusterId)
+					.map(UUID::toString))
+				.orElse(null),
+			bibliographicRecordAgencyId,
+			requiredItemBarcodeFor(context),
+			null);
 	}
 
 	private static String correlationIdFor(

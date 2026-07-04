@@ -30,7 +30,11 @@ public class NcipPayloadBuilder {
 			payload.bibliographicRecordIdentifier(),
 			payload.bibliographicRecordAgencyId()));
 		if (hasText(payload.itemIdentifierValue())) {
-			requestItem.appendChild(itemId(document, payload.itemIdentifierValue()));
+			requestItem.appendChild(itemId(
+				document,
+				payload.itemAgencyId(),
+				payload.itemIdentifierType(),
+				payload.itemIdentifierValue()));
 		}
 		requestItem.appendChild(requestId(
 			document,
@@ -76,7 +80,18 @@ public class NcipPayloadBuilder {
 		}
 
 		if (hasText(payload.itemIdentifierValue())) {
-			acceptItem.appendChild(itemId(document, payload.itemIdentifierValue()));
+			acceptItem.appendChild(itemId(
+				document,
+				payload.itemAgencyId(),
+				payload.itemIdentifierType(),
+				payload.itemIdentifierValue()));
+		}
+
+		if (payload.bibliographicDescription() != null
+			&& payload.bibliographicDescription().hasContent()) {
+			acceptItem.appendChild(itemOptionalFields(
+				document,
+				payload.bibliographicDescription()));
 		}
 
 		return toXml(document);
@@ -182,14 +197,69 @@ public class NcipPayloadBuilder {
 		return authenticationInput;
 	}
 
-	private static Element itemId(Document document, String itemIdentifierValue) {
+	private static Element itemId(
+		Document document,
+		String agencyId,
+		String itemIdentifierType,
+		String itemIdentifierValue) {
+
 		final var itemId = element(document, "ItemId");
+		if (hasText(agencyId)) {
+			itemId.appendChild(value(document, "AgencyId", agencyId));
+		}
+		if (hasText(itemIdentifierType)) {
+			itemId.appendChild(schemeValue(document, "ItemIdentifierType", itemIdentifierType));
+		}
 		itemId.appendChild(value(
 			document,
 			"ItemIdentifierValue",
 			itemIdentifierValue));
 
 		return itemId;
+	}
+
+	private static Element itemOptionalFields(
+		Document document,
+		NcipBibliographicDescription description) {
+
+		final var itemOptionalFields = element(document, "ItemOptionalFields");
+		itemOptionalFields.appendChild(bibliographicDescription(document, description));
+		return itemOptionalFields;
+	}
+
+	private static Element bibliographicDescription(
+		Document document,
+		NcipBibliographicDescription description) {
+
+		final var bibliographicDescription = element(document, "BibliographicDescription");
+		if (hasText(description.author())) {
+			bibliographicDescription.appendChild(value(document, "Author", description.author()));
+		}
+		if (hasText(description.itemIdentifierValue())) {
+			final var bibliographicItemId = element(document, "BibliographicItemId");
+			bibliographicItemId.appendChild(value(
+				document,
+				"BibliographicItemIdentifier",
+				description.itemIdentifierValue()));
+			bibliographicItemId.appendChild(schemeValue(
+				document,
+				"BibliographicItemIdentifierCode",
+				"barcode"));
+			bibliographicDescription.appendChild(bibliographicItemId);
+		}
+		if (hasText(description.bibliographicRecordIdentifier())) {
+			bibliographicDescription.appendChild(bibliographicRecordId(
+				document,
+				description.bibliographicRecordIdentifier(),
+				description.bibliographicRecordAgencyId()));
+		}
+		if (hasText(description.edition())) {
+			bibliographicDescription.appendChild(value(document, "Edition", description.edition()));
+		}
+		if (hasText(description.title())) {
+			bibliographicDescription.appendChild(value(document, "Title", description.title()));
+		}
+		return bibliographicDescription;
 	}
 
 	private static Element requestId(
@@ -224,6 +294,27 @@ public class NcipPayloadBuilder {
 		bibliographicId.appendChild(bibliographicRecordId);
 
 		return bibliographicId;
+	}
+
+	private static Element bibliographicRecordId(
+		Document document,
+		String bibliographicRecordIdentifier,
+		String bibliographicRecordAgencyId) {
+
+		final var bibliographicRecordId = element(document, "BibliographicRecordId");
+		bibliographicRecordId.appendChild(value(
+			document,
+			"BibliographicRecordIdentifier",
+			bibliographicRecordIdentifier));
+		bibliographicRecordId.appendChild(value(
+			document,
+			"AgencyId",
+			bibliographicRecordAgencyId));
+		return bibliographicRecordId;
+	}
+
+	private static Element schemeValue(Document document, String name, String value) {
+		return value(document, name, value);
 	}
 
 	private static Element value(Document document, String name, String value) {

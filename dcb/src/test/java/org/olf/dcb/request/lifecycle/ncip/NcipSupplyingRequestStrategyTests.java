@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -52,7 +53,9 @@ class NcipSupplyingRequestStrategyTests {
 			addressResolver());
 		final var supplierRequest = new SupplierRequest()
 			.setHostLmsCode("supplier-host")
-			.setLocalAgency("supplier-agency");
+			.setLocalAgency("supplier-agency")
+			.setLocalItemId("supplier-item-1")
+			.setLocalItemBarcode("supplier-barcode-1");
 		final var context = new RequestWorkflowContext()
 			.setPatronHomeIdentity(new PatronIdentity()
 				.setLocalId("patron-local-id")
@@ -83,6 +86,10 @@ class NcipSupplyingRequestStrategyTests {
 		assertThat(request.payload(),
 			containsString("<BibliographicRecordIdentifier>" + bibClusterId
 				+ "</BibliographicRecordIdentifier>"));
+		assertThat(request.payload(),
+			containsString("<ItemIdentifierValue>supplier-barcode-1</ItemIdentifierValue>"));
+		assertThat(request.payload(), containsString("<ItemIdentifierType"));
+		assertThat(request.payload(), containsString(">barcode</"));
 		assertDoesNotThrow(() -> validator.validate(request.payload()));
 		assertThat(result.role(), is(LifecycleRole.SUPPLIER));
 		assertThat(result.protocol(), is(NcipProtocol.PROTOCOL));
@@ -94,6 +101,36 @@ class NcipSupplyingRequestStrategyTests {
 		assertThat(result.localRequestId(), is("supplier-remote-request-1"));
 		assertThat(result.localItemId(), nullValue());
 		assertThat(result.localItemBarcode(), nullValue());
+	}
+
+	@Test
+	void rejectsItemLevelRequestWithoutBarcode() {
+		final var strategy = new NcipSupplyingRequestStrategy(
+			new CapturingTransport(new DeclarativeTransportResponse(
+				"supplier-remote-request-1",
+				"PLACED",
+				"placed",
+				"raw-message-1")),
+			new NcipPayloadBuilder(),
+			hostLmsService(),
+			ncipIdentityConfiguration(),
+			addressResolver());
+		final var context = new RequestWorkflowContext()
+			.setPatronHomeIdentity(new PatronIdentity()
+				.setLocalBarcode("patron-barcode"))
+			.setPatronRequest(new PatronRequest()
+				.setId(UUID.randomUUID())
+				.setBibClusterId(UUID.randomUUID()))
+			.setSupplierRequest(new SupplierRequest()
+				.setHostLmsCode("supplier-host")
+				.setLocalAgency("supplier-agency")
+				.setLocalItemId("supplier-item-1"));
+
+		final var error = assertThrows(IllegalArgumentException.class,
+			() -> singleValueFrom(strategy.place(context)));
+
+		assertThat(error.getMessage(),
+			containsString("without item barcode"));
 	}
 
 	private static Path schemaPath() {

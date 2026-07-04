@@ -119,11 +119,14 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 						parameters.getSupplyingLocalBibId(),
 						parameters.getPatronRequestId()),
 					supplyingAgencyId,
-					firstTextOrNull(
-						parameters.getLocalItemId(),
-						parameters.getSupplyingLocalItemId(),
+					supplyingAgencyId,
+					"barcode",
+					optionalNcipItemBarcode(
+						NcipProtocol.REQUEST_ITEM,
 						parameters.getLocalItemBarcode(),
-						parameters.getSupplyingLocalItemBarcode()),
+						parameters.getSupplyingLocalItemBarcode(),
+						parameters.getLocalItemId(),
+						parameters.getSupplyingLocalItemId()),
 					correlationId,
 					REQUEST_TYPE,
 					REQUEST_SCOPE_TYPE))));
@@ -159,11 +162,15 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 						parameters.getLocalPatronBarcode(),
 						parameters.getLocalPatronId(),
 						parameters.getPatronRequestId()),
-					firstText(
-						parameters.getSupplyingLocalItemId(),
-						parameters.getLocalItemId(),
+					tuple.getT1(),
+					"barcode",
+					requiredNcipItemBarcode(
+						NcipProtocol.ACCEPT_ITEM,
 						parameters.getSupplyingLocalItemBarcode(),
-						parameters.getLocalItemBarcode())))));
+						parameters.getLocalItemBarcode(),
+						parameters.getSupplyingLocalItemId(),
+						parameters.getLocalItemId()),
+					bibliographicDescription(parameters, tuple.getT1())))));
 	}
 
 	@Override
@@ -230,6 +237,27 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			.map(response -> response.getBody()
 				.orElseThrow(() -> new NcipProblemException(
 				"NCIP LookupUserResponse body is empty")));
+	}
+
+	private static NcipBibliographicDescription bibliographicDescription(
+		PlaceHoldRequestParameters parameters,
+		String bibliographicRecordAgencyId) {
+
+		return new NcipBibliographicDescription(
+			parameters.getTitle(),
+			null,
+			firstTextOrNull(
+				parameters.getLocalBibId(),
+				parameters.getSupplyingLocalBibId(),
+				parameters.getPatronRequestId()),
+			bibliographicRecordAgencyId,
+			requiredNcipItemBarcode(
+				NcipProtocol.ACCEPT_ITEM,
+				parameters.getSupplyingLocalItemBarcode(),
+				parameters.getLocalItemBarcode(),
+				parameters.getSupplyingLocalItemId(),
+				parameters.getLocalItemId()),
+			null);
 	}
 
 	private Mono<String> postLookupItemSet(String payload) {
@@ -310,6 +338,44 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		}
 
 		return null;
+	}
+
+	private static String optionalNcipItemBarcode(
+		String messageKind,
+		String primaryBarcode,
+		String secondaryBarcode,
+		String... internalItemIds) {
+
+		final var barcode = firstTextOrNull(primaryBarcode, secondaryBarcode);
+		if (barcode != null) {
+			return barcode;
+		}
+
+		if (firstTextOrNull(internalItemIds) != null) {
+			throw new IllegalArgumentException(
+				"Cannot create NCIP " + messageKind + " item identifier without item barcode");
+		}
+
+		return null;
+	}
+
+	private static String requiredNcipItemBarcode(
+		String messageKind,
+		String primaryBarcode,
+		String secondaryBarcode,
+		String... internalItemIds) {
+
+		final var barcode = optionalNcipItemBarcode(
+			messageKind,
+			primaryBarcode,
+			secondaryBarcode,
+			internalItemIds);
+		if (barcode == null) {
+			throw new IllegalArgumentException(
+				"Cannot create NCIP " + messageKind + " without item barcode");
+		}
+
+		return barcode;
 	}
 
 	private static Patron lookupUserResponseToPatron(String xml) {

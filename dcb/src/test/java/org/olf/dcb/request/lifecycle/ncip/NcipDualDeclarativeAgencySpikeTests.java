@@ -149,7 +149,9 @@ class NcipDualDeclarativeAgencySpikeTests {
 		assertThat(transport.payloads().getFirst(), containsString("<RequestItem"));
 		assertThat(transport.payloads().get(1), containsString("<AcceptItem"));
 		assertThat(transport.payloads().get(1),
-			containsString("<ItemIdentifierValue>supplier-item</ItemIdentifierValue>"));
+			containsString("<ItemIdentifierValue>supplier-barcode</ItemIdentifierValue>"));
+		assertThat(transport.payloads().get(1),
+			containsString("<ItemIdentifierType>barcode</ItemIdentifierType>"));
 	}
 
 	private static SupplyingAgencyRequestStrategyService supplyingPlacementService(

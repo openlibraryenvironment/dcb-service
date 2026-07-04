@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -51,12 +52,13 @@ class NcipBorrowingRequestStrategyTests {
 			addressResolver());
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
-			.setPatronRequest(new PatronRequest()
-				.setId(patronRequestId)
-				.setPatronHostlmsCode("borrower-host")
-				.setRequestingIdentity(new PatronIdentity()
-					.setLocalId("borrower-patron-id")
-					.setLocalBarcode("borrower-barcode")))
+				.setPatronRequest(new PatronRequest()
+					.setId(patronRequestId)
+					.setPatronHostlmsCode("borrower-host")
+					.setLocalBibId("borrower-bib-1")
+					.setRequestingIdentity(new PatronIdentity()
+						.setLocalId("borrower-patron-id")
+						.setLocalBarcode("borrower-barcode")))
 			.setSupplierRequest(new SupplierRequest()
 				.setLocalItemId("supplier-item-1")
 				.setLocalItemBarcode("supplier-barcode-1"));
@@ -83,7 +85,11 @@ class NcipBorrowingRequestStrategyTests {
 		assertThat(request.payload(),
 			containsString("<UserIdentifierValue>borrower-barcode</UserIdentifierValue>"));
 		assertThat(request.payload(),
-			containsString("<ItemIdentifierValue>supplier-item-1</ItemIdentifierValue>"));
+			containsString("<ItemIdentifierValue>supplier-barcode-1</ItemIdentifierValue>"));
+		assertThat(request.payload(), containsString("<ItemIdentifierType"));
+		assertThat(request.payload(), containsString(">barcode</"));
+		assertThat(request.payload(),
+			containsString("<BibliographicRecordIdentifier>borrower-bib-1</BibliographicRecordIdentifier>"));
 		assertDoesNotThrow(() -> validator.validate(request.payload()));
 		assertThat(result.role(), is(LifecycleRole.BORROWER));
 		assertThat(result.protocol(), is(NcipProtocol.PROTOCOL));
@@ -94,6 +100,36 @@ class NcipBorrowingRequestStrategyTests {
 		assertThat(result.createdVirtualItem(), is(false));
 		assertThat(result.localBibId(), nullValue());
 		assertThat(result.localItemId(), nullValue());
+	}
+
+	@Test
+	void rejectsAcceptItemWithoutSupplierBarcode() {
+		final var patronRequestId = UUID.randomUUID();
+		final var strategy = new NcipBorrowingRequestStrategy(
+			new CapturingTransport(new DeclarativeTransportResponse(
+				"borrower-remote-request-1",
+				"ACCEPTED",
+				"accepted",
+				"raw-message-2")),
+			new NcipPayloadBuilder(),
+			hostLmsService(),
+			ncipIdentityConfiguration(),
+			addressResolver());
+		final var context = new RequestWorkflowContext()
+			.setPatronAgencyCode("borrower-agency")
+			.setPatronRequest(new PatronRequest()
+				.setId(patronRequestId)
+				.setPatronHostlmsCode("borrower-host")
+				.setRequestingIdentity(new PatronIdentity()
+					.setLocalBarcode("borrower-barcode")))
+			.setSupplierRequest(new SupplierRequest()
+				.setLocalItemId("supplier-item-1"));
+
+		final var error = assertThrows(IllegalArgumentException.class,
+			() -> singleValueFrom(strategy.place(context)));
+
+		assertThat(error.getMessage(),
+			containsString("without supplier item barcode"));
 	}
 
 	private static Path schemaPath() {

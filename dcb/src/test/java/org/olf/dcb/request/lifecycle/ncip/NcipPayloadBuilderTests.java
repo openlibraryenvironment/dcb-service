@@ -27,6 +27,8 @@ class NcipPayloadBuilderTests {
 			"patron-123",
 			"bib-456",
 			"supplier-agency",
+			"supplier-agency",
+			"barcode",
 			"item-456",
 			"request-789:SUPPLIER",
 			"Hold",
@@ -68,7 +70,16 @@ class NcipPayloadBuilderTests {
 			"Accept For Loan",
 			"borrower-agency",
 			"patron-123",
-			"item-456"));
+			"supplier-agency",
+			"barcode",
+			"item-456",
+			new NcipBibliographicDescription(
+				"A Philosophy of Software Design, 2nd Edition",
+				null,
+				"bib-456",
+				"supplier-agency",
+				"item-456",
+				"2nd Edition")));
 
 		assertDoesNotThrow(() -> validator.validate(xml));
 
@@ -79,7 +90,13 @@ class NcipPayloadBuilderTests {
 		assertThat(xml, containsString("<AcceptItem"));
 		assertThat(xml, containsString("<RequestIdentifierValue>request-789:BORROWER</RequestIdentifierValue>"));
 		assertThat(xml, containsString("<RequestedActionType>Accept For Loan</RequestedActionType>"));
+		assertThat(xml, containsString("<ItemIdentifierType"));
+		assertThat(xml, containsString(">barcode</"));
 		assertThat(xml, containsString("<ItemIdentifierValue>item-456</ItemIdentifierValue>"));
+		assertThat(xml, containsString("<ItemOptionalFields>"));
+		assertThat(xml, containsString("<BibliographicDescription>"));
+		assertThat(xml, containsString("<Title>A Philosophy of Software Design, 2nd Edition</Title>"));
+		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
 	}
 
 	private static Document parse(String xml) {

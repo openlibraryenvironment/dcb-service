@@ -6,6 +6,8 @@ public record NcipRequestItemPayload(
 	String userIdentifierValue,
 	String bibliographicRecordIdentifier,
 	String bibliographicRecordAgencyId,
+	String itemAgencyId,
+	String itemIdentifierType,
 	String itemIdentifierValue,
 	String requestIdentifierValue,
 	String requestType,

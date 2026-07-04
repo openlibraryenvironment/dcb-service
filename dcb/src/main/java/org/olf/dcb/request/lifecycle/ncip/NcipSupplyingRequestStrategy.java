@@ -7,6 +7,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
@@ -81,7 +82,9 @@ public class NcipSupplyingRequestStrategy
 						userIdentifierValueFor(context),
 						bibliographicRecordIdentifierFor(patronRequest),
 						toAgencyId,
-						supplierRequest != null ? supplierRequest.getLocalItemId() : null,
+						toAgencyId,
+						"barcode",
+						itemIdentifierValueFor(supplierRequest),
 						correlationId,
 						REQUEST_TYPE,
 						REQUEST_SCOPE_TYPE)));
@@ -155,6 +158,26 @@ public class NcipSupplyingRequestStrategy
 				"Cannot create NCIP RequestItem without bibliographic identity"));
 	}
 
+	private static String itemIdentifierValueFor(SupplierRequest supplierRequest) {
+		final var barcode = Optional.ofNullable(supplierRequest)
+			.map(SupplierRequest::getLocalItemBarcode)
+			.filter(NcipSupplyingRequestStrategy::hasText)
+			.orElse(null);
+		if (barcode != null) {
+			return barcode;
+		}
+
+		if (Optional.ofNullable(supplierRequest)
+			.map(SupplierRequest::getLocalItemId)
+			.filter(NcipSupplyingRequestStrategy::hasText)
+			.isPresent()) {
+			throw new IllegalArgumentException(
+				"Cannot create NCIP RequestItem item identifier without item barcode");
+		}
+
+		return null;
+	}
+
 	private static String correlationIdFor(
 		RequestWorkflowContext context,
 		LifecycleRole role) {
@@ -172,13 +195,4 @@ public class NcipSupplyingRequestStrategy
 		return value != null && !value.isBlank();
 	}
 
-	private static String firstTextOrNull(String... values) {
-		for (final var value : values) {
-			if (hasText(value)) {
-				return value;
-			}
-		}
-
-		return null;
-	}
 }
