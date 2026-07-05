@@ -36,4 +36,12 @@ class NcipResponseBuilderTests {
 		assertThat(xml, containsString("<Problem"));
 		assertDoesNotThrow(() -> validator.validate(xml));
 	}
+
+	@Test
+	void buildsValidItemCheckedOutResponse() {
+		final var xml = responseBuilder.itemCheckedOutResponse();
+
+		assertThat(xml, containsString("<ItemCheckedOutResponse"));
+		assertDoesNotThrow(() -> validator.validate(xml));
+	}
 }

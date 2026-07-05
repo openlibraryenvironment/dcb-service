@@ -37,6 +37,13 @@ public class NcipResponseBuilder {
 		return toXml(document);
 	}
 
+	public String itemCheckedOutResponse() {
+		final var document = newDocument();
+		message(document, NcipProtocol.ITEM_CHECKED_OUT_RESPONSE);
+
+		return toXml(document);
+	}
+
 	public String itemRequestedResponse() {
 		final var document = newDocument();
 		message(document, NcipProtocol.ITEM_REQUESTED_RESPONSE);
@@ -76,6 +83,14 @@ public class NcipResponseBuilder {
 	public String itemCheckedInProblem(String detail) {
 		final var document = newDocument();
 		final var response = message(document, NcipProtocol.ITEM_CHECKED_IN_RESPONSE);
+		response.appendChild(problem(document, detail));
+
+		return toXml(document);
+	}
+
+	public String itemCheckedOutProblem(String detail) {
+		final var document = newDocument();
+		final var response = message(document, NcipProtocol.ITEM_CHECKED_OUT_RESPONSE);
 		response.appendChild(problem(document, detail));
 
 		return toXml(document);

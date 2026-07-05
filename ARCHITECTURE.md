@@ -101,6 +101,13 @@ workflow transitions.
 ## Boundary Rules
 
 - DCB request state changes belong in `Handle...` workflow transitions.
+- DCB state-model documentation is generated from `PatronRequestStateTransition`
+  beans through `StateModelService`. Do not maintain a parallel static state
+  model file.
+- `request.workflow` transitions decide DCB state movement from projected
+  evidence. They must not call `HostLmsService` or `HostLmsClient` directly.
+  Host side effects must sit behind lifecycle, placement, or fulfilment ports so
+  declarative and imperative host strategies remain interchangeable.
 - `Handle...` workflow transitions are the application reaction layer. They
   consume projected peer state and decide what DCB should do next.
 - Incoming notifications update peer evidence, not DCB request state directly.

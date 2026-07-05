@@ -18,6 +18,8 @@ public final class NcipProtocol {
 	public static final String ITEM_RECEIVED_RESPONSE = "ItemReceivedResponse";
 	public static final String ITEM_CHECKED_IN = "ItemCheckedIn";
 	public static final String ITEM_CHECKED_IN_RESPONSE = "ItemCheckedInResponse";
+	public static final String ITEM_CHECKED_OUT = "ItemCheckedOut";
+	public static final String ITEM_CHECKED_OUT_RESPONSE = "ItemCheckedOutResponse";
 
 	private NcipProtocol() {
 	}

@@ -29,6 +29,24 @@ class NcipInboundXmlMapperTests {
 	}
 
 	@Test
+	void mapsBorrowerItemShippedXmlToReturnTransitEvidence() {
+		final var message = new NcipInboundXmlMapper().map(
+			NcipControllerTests.validBorrowerItemShipped());
+
+		assertThat(message.messageKind(), is(NcipProtocol.ITEM_SHIPPED));
+		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.operation(), is(LifecycleOperation.PLACE_REQUEST));
+		assertThat(message.hostLmsCode(), is("borrower-host"));
+		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
+		assertThat(message.correlationId(), is("request-1:BORROWER"));
+		assertThat(message.status(), is("SHIPPED"));
+		assertThat(message.rawStatus(), is("ItemShipped"));
+		assertThat(message.itemId(), is("item-1"));
+		assertThat(message.messageTimestamp(),
+			is(Instant.parse("2026-06-26T12:07:00Z")));
+	}
+
+	@Test
 	void mapsItemReceivedXmlToBorrowerItemEvidence() {
 		final var message = new NcipInboundXmlMapper().map(
 			NcipControllerTests.validItemReceived());
@@ -66,6 +84,26 @@ class NcipInboundXmlMapperTests {
 		assertThat(message.itemBarcode(), is("item-1"));
 		assertThat(message.protocolProperties().get("fromAgencyId"), is("borrower-host"));
 		assertThat(message.protocolProperties().get("toAgencyId"), is("dcb-host"));
+	}
+
+	@Test
+	void mapsItemCheckedOutXmlToBorrowerLoanEvidence() {
+		final var message = new NcipInboundXmlMapper().map(
+			NcipControllerTests.validItemCheckedOut());
+
+		assertThat(message.messageKind(), is(NcipProtocol.ITEM_CHECKED_OUT));
+		assertThat(message.role(), is(LifecycleRole.BORROWER));
+		assertThat(message.operation(), is(LifecycleOperation.PLACE_REQUEST));
+		assertThat(message.hostLmsCode(), is("borrower-host"));
+		assertThat(message.hostRequestId(), is("request-1:BORROWER"));
+		assertThat(message.correlationId(), is("request-1:BORROWER"));
+		assertThat(message.status(), is("CHECKED_OUT"));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_CHECKED_OUT));
+		assertThat(message.itemId(), is("item-1"));
+		assertThat(message.itemBarcode(), is("item-1"));
+		assertThat(message.protocolProperties().get("fromAgencyId"), is("borrower-host"));
+		assertThat(message.protocolProperties().get("toAgencyId"), is("dcb-host"));
+		assertThat(message.protocolProperties().get("dateDue"), is("2026-07-17T12:06:00Z"));
 	}
 
 	@Test

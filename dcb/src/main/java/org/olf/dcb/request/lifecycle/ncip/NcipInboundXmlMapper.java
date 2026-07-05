@@ -28,6 +28,7 @@ public class NcipInboundXmlMapper {
 			case NcipProtocol.ITEM_SHIPPED -> itemShipped(message, xml);
 			case NcipProtocol.ITEM_RECEIVED -> itemReceived(message, xml);
 			case NcipProtocol.ITEM_CHECKED_IN -> itemCheckedIn(message, xml);
+			case NcipProtocol.ITEM_CHECKED_OUT -> itemCheckedOut(message, xml);
 			case NcipProtocol.ITEM_REQUESTED -> itemRequested(message, xml);
 			case NcipProtocol.CANCEL_REQUEST_ITEM -> cancelRequestItem(message, xml);
 			case NcipProtocol.REQUEST_ITEM_RESPONSE -> requestItemResponse(
@@ -49,7 +50,7 @@ public class NcipInboundXmlMapper {
 
 		return new NcipInboundMessage(
 			NcipProtocol.ITEM_SHIPPED,
-			LifecycleRole.SUPPLIER,
+			roleFor(requestId),
 			LifecycleOperation.PLACE_REQUEST,
 			requiredInitiatingPeerId(itemShipped),
 			requestId,
@@ -137,6 +138,33 @@ public class NcipInboundXmlMapper {
 			null,
 			rawMessageReference(NcipProtocol.ITEM_CHECKED_IN, xml),
 			orientation);
+	}
+
+	private static NcipInboundMessage itemCheckedOut(Element itemCheckedOut, String xml) {
+		final var requestId = requiredText(itemCheckedOut, "RequestIdentifierValue");
+		final var itemId = requiredText(itemCheckedOut, "ItemIdentifierValue");
+		final var orientation = initiationOrientation(itemCheckedOut);
+		final var properties = optionalText(itemCheckedOut, "DateDue")
+			.<Map<String, Object>>map(dateDue -> Map.of(
+				"fromAgencyId", orientation.get("fromAgencyId"),
+				"toAgencyId", orientation.get("toAgencyId"),
+				"dateDue", dateDue))
+			.orElse(orientation);
+
+		return new NcipInboundMessage(
+			NcipProtocol.ITEM_CHECKED_OUT,
+			roleFor(requestId),
+			LifecycleOperation.PLACE_REQUEST,
+			requiredInitiatingPeerId(itemCheckedOut),
+			requestId,
+			requestId,
+			"CHECKED_OUT",
+			NcipProtocol.ITEM_CHECKED_OUT,
+			itemId,
+			itemId,
+			null,
+			rawMessageReference(NcipProtocol.ITEM_CHECKED_OUT, xml),
+			properties);
 	}
 
 	private static NcipInboundMessage itemRequested(Element itemRequested, String xml) {

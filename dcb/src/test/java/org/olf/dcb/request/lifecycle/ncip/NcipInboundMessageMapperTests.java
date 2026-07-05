@@ -119,4 +119,50 @@ class NcipInboundMessageMapperTests {
 		assertThat(message.status(), is(HostLmsItem.ITEM_ON_HOLDSHELF));
 		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_CHECKED_IN));
 	}
+
+	@Test
+	void mapsSupplierItemCheckedInToCanonicalReceivedEvidence() {
+		final var mapper = new NcipInboundMessageMapper();
+
+		final var message = mapper.map(new NcipInboundMessage(
+			NcipProtocol.ITEM_CHECKED_IN,
+			LifecycleRole.SUPPLIER,
+			LifecycleOperation.PLACE_REQUEST,
+			"supplier-host",
+			"supplier-remote-request",
+			"patron-request-id:SUPPLIER",
+			"CHECKED_IN",
+			NcipProtocol.ITEM_CHECKED_IN,
+			"item-1",
+			"barcode-1",
+			null,
+			"raw-message-5"));
+
+		assertThat(message.resource(), is(LifecycleEvidenceResource.ITEM));
+		assertThat(message.status(), is(HostLmsItem.ITEM_RECEIVED));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_CHECKED_IN));
+	}
+
+	@Test
+	void mapsBorrowerItemCheckedOutToCanonicalLoanedEvidence() {
+		final var mapper = new NcipInboundMessageMapper();
+
+		final var message = mapper.map(new NcipInboundMessage(
+			NcipProtocol.ITEM_CHECKED_OUT,
+			LifecycleRole.BORROWER,
+			LifecycleOperation.PLACE_REQUEST,
+			"borrower-host",
+			"borrower-remote-request",
+			"patron-request-id:BORROWER",
+			"CHECKED_OUT",
+			NcipProtocol.ITEM_CHECKED_OUT,
+			"item-1",
+			"barcode-1",
+			null,
+			"raw-message-6"));
+
+		assertThat(message.resource(), is(LifecycleEvidenceResource.ITEM));
+		assertThat(message.status(), is(HostLmsItem.ITEM_LOANED));
+		assertThat(message.rawStatus(), is(NcipProtocol.ITEM_CHECKED_OUT));
+	}
 }

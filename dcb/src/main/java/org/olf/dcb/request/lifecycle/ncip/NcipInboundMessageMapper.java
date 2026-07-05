@@ -2,6 +2,7 @@ package org.olf.dcb.request.lifecycle.ncip;
 
 import io.micronaut.context.annotation.Prototype;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessage;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
 
@@ -31,6 +32,7 @@ public class NcipInboundMessageMapper {
 		return NcipProtocol.ITEM_SHIPPED.equals(message.messageKind())
 			|| NcipProtocol.ITEM_RECEIVED.equals(message.messageKind())
 			|| NcipProtocol.ITEM_CHECKED_IN.equals(message.messageKind())
+			|| NcipProtocol.ITEM_CHECKED_OUT.equals(message.messageKind())
 			? LifecycleEvidenceResource.ITEM
 			: LifecycleEvidenceResource.REQUEST;
 	}
@@ -39,8 +41,15 @@ public class NcipInboundMessageMapper {
 		return switch (message.messageKind()) {
 			case NcipProtocol.ITEM_SHIPPED -> HostLmsItem.ITEM_TRANSIT;
 			case NcipProtocol.ITEM_RECEIVED -> HostLmsItem.ITEM_RECEIVED;
-			case NcipProtocol.ITEM_CHECKED_IN -> HostLmsItem.ITEM_ON_HOLDSHELF;
+			case NcipProtocol.ITEM_CHECKED_IN -> checkedInStatusFor(message);
+			case NcipProtocol.ITEM_CHECKED_OUT -> HostLmsItem.ITEM_LOANED;
 			default -> message.status();
 		};
+	}
+
+	private static String checkedInStatusFor(NcipInboundMessage message) {
+		return message.role() == LifecycleRole.SUPPLIER
+			? HostLmsItem.ITEM_RECEIVED
+			: HostLmsItem.ITEM_ON_HOLDSHELF;
 	}
 }
