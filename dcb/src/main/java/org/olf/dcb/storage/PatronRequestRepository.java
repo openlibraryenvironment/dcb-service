@@ -157,32 +157,34 @@ public interface PatronRequestRepository {
 	// This is intended for discovery services who cannot make use of the GraphQL APIs available
 	// And who need to provide a summary for patrons
 	@Query(value = """
-        SELECT 
-            pr.id, 
-            CAST(pr.status_code AS VARCHAR) as status, 
-            CAST(pr.next_expected_status AS VARCHAR) as next_expected_status, 
-            pr.elapsed_time_in_current_status as time_in_state, 
-            pr.error_message, 
-            cr.title as title, 
-            pr.pickup_location_code, 
-            pr.date_created, 
+        SELECT
+            pr.id,
+            CAST(pr.status_code AS VARCHAR) as status,
+            CAST(pr.next_expected_status AS VARCHAR) as next_expected_status,
+            pr.elapsed_time_in_current_status as time_in_state,
+            pr.error_message,
+            cr.title as title,
+            pr.pickup_location_code,
+            pr.active_workflow,
+            pr.bib_cluster_id,
+            pr.date_created,
             pr.date_updated
         FROM patron_request pr
         JOIN patron_identity pi ON pr.requesting_identity_id = pi.id
         LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
-        WHERE pr.patron_hostlms_code = :hostLmsCode 
+        WHERE pr.patron_hostlms_code = :hostLmsCode
           AND pi.local_barcode LIKE CONCAT('%', :patronBarcode, '%')
           AND pr.status_code IN (
-              'SUBMITTED_TO_DCB', 
-              'PATRON_VERIFIED', 
-              'RESOLVED', 
-              'REQUEST_PLACED_AT_SUPPLYING_AGENCY', 
-              'CONFIRMED', 
-              'REQUEST_PLACED_AT_BORROWING_AGENCY', 
-              'REQUEST_PLACED_AT_PICKUP_AGENCY', 
-              'RECEIVED_AT_PICKUP', 
-              'READY_FOR_PICKUP', 
-              'LOANED', 
+              'SUBMITTED_TO_DCB',
+              'PATRON_VERIFIED',
+              'RESOLVED',
+              'REQUEST_PLACED_AT_SUPPLYING_AGENCY',
+              'CONFIRMED',
+              'REQUEST_PLACED_AT_BORROWING_AGENCY',
+              'REQUEST_PLACED_AT_PICKUP_AGENCY',
+              'RECEIVED_AT_PICKUP',
+              'READY_FOR_PICKUP',
+              'LOANED',
               'PICKUP_TRANSIT'
           )
         ORDER BY pr.date_updated DESC
@@ -191,24 +193,62 @@ public interface PatronRequestRepository {
 
 	// While the active requests are most useful for the discovery services, all time data also has its use for consortial admins
 	@Query(value = """
-        SELECT 
-            pr.id, 
-            CAST(pr.status_code AS VARCHAR) as status, 
-            CAST(pr.next_expected_status AS VARCHAR) as next_expected_status, 
-            pr.elapsed_time_in_current_status as time_in_state, 
-            pr.error_message, 
-            cr.title as title, 
-            pr.pickup_location_code, 
-            pr.date_created, 
+        SELECT
+            pr.id,
+            CAST(pr.status_code AS VARCHAR) as status,
+            CAST(pr.next_expected_status AS VARCHAR) as next_expected_status,
+            pr.elapsed_time_in_current_status as time_in_state,
+            pr.error_message,
+            cr.title as title,
+            pr.pickup_location_code,
+            pr.active_workflow,
+            pr.bib_cluster_id,
+            pr.date_created,
             pr.date_updated
         FROM patron_request pr
         JOIN patron_identity pi ON pr.requesting_identity_id = pi.id
         LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
-        WHERE pr.patron_hostlms_code = :hostLmsCode 
+        WHERE pr.patron_hostlms_code = :hostLmsCode
           AND pi.local_barcode LIKE CONCAT('%', :patronBarcode, '%')
         ORDER BY pr.date_updated DESC
     """, nativeQuery = true)
 	Flux<PatronRequestSummary> findAllRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
+
+	// Paged summary of a patron's own requests, keyed by the identity claims a
+	// discovery-service JWT carries. Same joins/filters as findRequestsForPatron,
+	// but projected to PatronRequestSummary because the raw PatronRequest entity
+	// has no serializable introspection (returning it 500s at render time).
+	@Query(value = """
+        SELECT
+            pr.id,
+            CAST(pr.status_code AS VARCHAR) as status,
+            CAST(pr.next_expected_status AS VARCHAR) as next_expected_status,
+            pr.elapsed_time_in_current_status as time_in_state,
+            pr.error_message,
+            cr.title as title,
+            pr.pickup_location_code,
+            pr.active_workflow,
+            pr.bib_cluster_id,
+            pr.date_created,
+            pr.date_updated
+        FROM patron_request pr
+        JOIN patron_identity pi ON pr.patron_id = pi.patron_id
+        JOIN host_lms h ON pi.host_lms_id = h.id
+        LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+        WHERE h.code = :patronSystem
+          AND pi.local_id = :patronId
+          AND pi.home_identity = true
+        ORDER BY pr.date_updated DESC
+    """, countQuery = """
+        SELECT count(pr.id)
+        FROM patron_request pr
+        JOIN patron_identity pi ON pr.patron_id = pi.patron_id
+        JOIN host_lms h ON pi.host_lms_id = h.id
+        WHERE h.code = :patronSystem
+          AND pi.local_id = :patronId
+          AND pi.home_identity = true
+    """, nativeQuery = true)
+	Publisher<Page<PatronRequestSummary>> findSummariesForPatron(String patronSystem, String patronId, Pageable pageable);
 
 	@Query(
 		value = """

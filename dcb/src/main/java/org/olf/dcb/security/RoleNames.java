@@ -7,4 +7,8 @@ public interface RoleNames {
 	public static final String LIBRARY_ADMIN = "LIBRARY_ADMIN";
 	public static final String LIBRARY_READ_ONLY = "LIBRARY_READ_ONLY";
 	public static final String INTEROP_TESTER = "INTEROP_TESTER";
+	// Self-service role for patrons authenticated via discovery (wayfinder).
+	// Grants access ONLY to endpoints whose identity derivation is self-scoped
+	// to the caller's own JWT claims (localSystemCode / localSystemPatronId).
+	public static final String PATRON = "PATRON";
 }

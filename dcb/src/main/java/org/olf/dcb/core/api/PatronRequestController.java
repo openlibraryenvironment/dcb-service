@@ -50,6 +50,8 @@ import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
 
+import org.olf.dcb.security.RoleNames;
+
 @Controller("/patrons/requests")
 @Validated
 @Secured(IS_AUTHENTICATED)
@@ -201,12 +203,17 @@ public class PatronRequestController {
 			.build());
 	}
 
-	@Secured(ADMINISTRATOR)
+	// PATRON is safe here: identity comes exclusively from the caller's own JWT
+	// claims below — a patron token can only ever retrieve that patron's requests.
+	// Returns PatronRequestSummary (not the raw entity): the entity has no
+	// serializable introspection, so the previous Page<PatronRequest> shape
+	// could never actually render for a non-empty page.
+	@Secured({ADMINISTRATOR, RoleNames.PATRON})
 	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })
 	@Get("/{?pageable*}")
-	public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable,
+	public Mono<Page<PatronRequestSummary>> list(@Parameter(hidden = true) @Valid Pageable pageable,
 			Authentication authentication) {
 
 		Map<String, Object> claims = authentication.getAttributes();
@@ -220,7 +227,7 @@ public class PatronRequestController {
 
 		if ((patron_home_system != null) && (patron_home_id != null)) {
 			log.debug("Finding requests for {} {}", patron_home_system, patron_home_id);
-			return Mono.from(patronRequestRepository.findRequestsForPatron(patron_home_system.toString(),
+			return Mono.from(patronRequestRepository.findSummariesForPatron(patron_home_system.toString(),
 					patron_home_id.toString(), pageable));
 		} else {
 			log.debug("Missing values for patron requests");

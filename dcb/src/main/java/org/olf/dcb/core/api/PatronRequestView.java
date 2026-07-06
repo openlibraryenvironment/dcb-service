@@ -13,6 +13,10 @@ import lombok.Value;
 @Value
 public class PatronRequestView {
 	UUID id;
+	// Read-only, straight from the entity: lets a discovery client show the just-placed
+	// request's state and (once resolved) whether it took the RET-LOCAL local-hold path.
+	String status;
+	String activeWorkflow;
 	Citation citation;
 	PickupLocation pickupLocation;
 	Requestor requestor;
@@ -22,6 +26,8 @@ public class PatronRequestView {
 		final var identity = Identity.fromList(patronRequest.getPatron().getPatronIdentities());
 
 		return new PatronRequestView(patronRequest.getId(),
+				patronRequest.getStatus() != null ? patronRequest.getStatus().name() : null,
+				patronRequest.getActiveWorkflow(),
 				new Citation(patronRequest.getBibClusterId()),
 				new PickupLocation(patronRequest.getPickupLocationCode()),
 				new Requestor(identity.getLocalId(), identity.getLocalSystemCode(),

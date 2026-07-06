@@ -23,6 +23,11 @@ public record PatronRequestSummary(
 	@Nullable String errorMessage,
 	@Nullable String title,
 	@Nullable String pickupLocationCode,
+	// RET-LOCAL means a same-library hold; discovery services use this to
+	// split "my requests" from "my local requests"
+	@Nullable String activeWorkflow,
+	// Lets a discovery UI link the request back to its catalogue record
+	@Nullable UUID bibClusterId,
 	@Nullable Instant dateCreated,
 	@Nullable Instant dateUpdated
 ) {}
