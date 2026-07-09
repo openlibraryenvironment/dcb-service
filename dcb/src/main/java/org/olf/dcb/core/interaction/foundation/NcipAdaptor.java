@@ -8,6 +8,7 @@ import io.micronaut.http.client.HttpClient;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.foundation.commands.FoundationCreateItemCommand;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.model.HostLms;
 import reactor.core.publisher.Mono;
 
@@ -90,7 +91,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
 			command.getLocationCode()         // PickupLocation
 		);
 
-		return send("AcceptItem", content).map(response ->
+		return send(NcipProtocol.ACCEPT_ITEM, content).map(response ->
 			HostLmsItem.builder()
 				.localId(command.getBarcode())
 				.status(HostLmsItem.ITEM_REQUESTED)
@@ -113,7 +114,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
             <UserElementType Scheme="http://www.niso.org/ncip/v1_0/schemes/userelementtype/userelementtype.scm">User Privilege</UserElementType>
             """.formatted(localId);
 
-		return send("LookupUser", content).map(response -> {
+		return send(NcipProtocol.LOOKUP_USER, content).map(response -> {
 			// Basic regex parsing (Production should use a real XML parser)
 			String firstName = extractTagValue(response, "GivenName");
 			String lastName = extractTagValue(response, "Surname");
@@ -166,7 +167,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
 			patron.getLocalPatronType() // Profile/P-Type
 		);
 
-		return send("CreateUser", content).map(response -> {
+		return send(NcipProtocol.CREATE_USER, content).map(response -> {
 			// Return the UserIdentifierValue confirmed by the server
 			return extractTagValue(response, "UserIdentifierValue");
 		});
@@ -186,7 +187,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
             <ItemElementType>Location</ItemElementType>
             """.formatted(localItemId);
 
-		return send("LookupItem", content).map(response -> {
+		return send(NcipProtocol.LOOKUP_ITEM, content).map(response -> {
 			String status = extractTagValue(response, "CirculationStatusValue");
 			// Map NCIP status to DCB Canonical Item State
 			String dcbStatus = mapNcipStatus(status);
@@ -221,7 +222,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
 			command.getLocalRequestId()
 		);
 
-		return send("CheckOutItem", content).map(response -> {
+		return send(NcipProtocol.CHECK_OUT_ITEM, content).map(response -> {
 			// Check for success or return the Due Date
 			return extractTagValue(response, "DueDate");
 		});
@@ -238,7 +239,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
             </ItemId>
             """.formatted(itemBarcode);
 
-		return send("CheckInItem", content).map(response -> "OK");
+		return send(NcipProtocol.CHECK_IN_ITEM, content).map(response -> "OK");
 	}
 
 	// ========================================================================
@@ -268,7 +269,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
 			params.getPickupLocationCode()
 		);
 
-		return send("RequestItem", content).map(response -> {
+		return send(NcipProtocol.REQUEST_ITEM, content).map(response -> {
 			String reqId = extractTagValue(response, "RequestIdentifierValue");
 			return LocalRequest.builder()
 				.localId(reqId)
@@ -358,7 +359,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
             </VersionSupported>
             """;
 
-		return sendRaw("LookupVersion", content)
+		return sendRaw(NcipProtocol.LOOKUP_VERSION, content)
 			.map(response -> {
 				// If we get ANY valid XML response (Problem or Success), the service is active.
 				// A 404 or Connection Refused would have triggered onErrorResume.
@@ -378,7 +379,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
 	public Mono<List<String>> getSupportedProtocols() {
 		String content = "<AgencyId>" + toAgency + "</AgencyId>";
 
-		return sendRaw("LookupAgency", content)
+		return sendRaw(NcipProtocol.LOOKUP_AGENCY, content)
 			.map(this::parseServicesFromLookupAgency)
 			.flatMap(services -> {
 				if (services.isEmpty()) {
