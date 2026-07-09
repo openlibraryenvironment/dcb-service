@@ -77,6 +77,23 @@ nested scopes (lifecycle strategy, then protocol primitive).
 - **PR-5** Unified host-scoped `capabilities` config schema (outer lifecycle scope +
   nested `imperative` Foundation scope).
 - **PR-6** Bring the declarative NCIP leaf + ORS appliance client onto the branch.
+  **Decomposed during delivery** (the strategy bean's DI closure = transport +
+  payload builder + identity/address config + peerauth, so it cannot land as one
+  tiny slice without breaking DI for every `@MicronautTest`):
+  - **PR-6a (done):** outbound declarative payload layer (`NcipPayloadBuilder` +
+    payload records) + protocol-neutral transport contract
+    (`DeclarativeRequestTransport`/`Request`/`Response`). Pure classes, no beans
+    that break DI. Proven: declarative RequestItem/AcceptItem/LookupItemSet
+    validate against the *same* shared `core.interaction.ncip` XSD validator the
+    Foundation adaptor uses.
+  - **PR-6b (todo):** the live declarative flow — concrete
+    `NcipDeclarativeRequestTransport` + `peerauth` JWT subsystem (Nimbus already
+    on classpath via `micronaut-security-jwt`), `NcipBorrowing/SupplyingRequestStrategy`
+    (register as DECLARATIVE beans; resolver already filters them by protocol),
+    `ORSApplianceHostLMS`, `NcipController` + inbound evidence/tracking. Reconcile
+    the spike's `request.lifecycle.ncip.NcipProtocol/SchemaValidator/SchemaPath`
+    duplicates against PR-4's `core.interaction.ncip` versions (repoint imports,
+    do not bring duplicates).
 - **PR-7** Tracking capability + poll suppression (`nextScheduledPoll = null`) + inbound
   message handling.
 - **PR-8** Full A–D acceptance harness + docs.
