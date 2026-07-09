@@ -66,8 +66,14 @@ nested scopes (lifecycle strategy, then protocol primitive).
 - **PR-1** Land the lifecycle seam (imperative-only, zero behaviour change).
 - **PR-2** Make capability configuration host-scoped. *(critical)*
 - **PR-3** `FoundationClient extends AbstractHostLmsClient`, resolvable as imperative client.
-- **PR-4** One shared NCIP protocol module (payloads + XSD), consumed by both the
-  imperative `NcipAdaptor` and the declarative transport.
+- **PR-4** One shared NCIP protocol module, consumed by both the imperative
+  `NcipAdaptor` and the declarative transport. **Scope refined during delivery:**
+  the two implementations diverge at the payload layer (Foundation = hand-rolled
+  imperative item-or-bib messages + full primitive set; spike = structured
+  declarative bib-only records). The shared module is therefore the
+  *non-divergent* layer — `NcipProtocol` constants + `NcipSchemaValidator`/XSD in
+  `core.interaction.ncip` — not a merged payload builder (that would be
+  over-engineering two different message models into one).
 - **PR-5** Unified host-scoped `capabilities` config schema (outer lifecycle scope +
   nested `imperative` Foundation scope).
 - **PR-6** Bring the declarative NCIP leaf + ORS appliance client onto the branch.
