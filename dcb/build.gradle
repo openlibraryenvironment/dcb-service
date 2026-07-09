@@ -234,6 +234,13 @@ java {
 	targetCompatibility = JavaVersion.toVersion("17")
 }
 
+// Compile sources as UTF-8 regardless of the platform default charset.
+// Without this, non-ASCII characters in source files fail to compile on
+// Windows (windows-1252 default) even though CI (Linux/UTF-8) succeeds.
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
 micronaut {
 	runtime("netty")
 	testRuntime("junit5")

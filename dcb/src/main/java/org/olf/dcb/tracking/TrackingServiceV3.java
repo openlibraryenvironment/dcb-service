@@ -104,7 +104,7 @@ public class TrackingServiceV3 implements TrackingService {
 	@Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
 	public void run() {
 		log.debug("DCB Tracking Service run");
-    Instant start = Instant.now(); // ⏱ Start timing
+    Instant start = Instant.now(); // Start timing
 
 		Flux.from(patronRequestRepository.findScheduledChecks())
 			.doOnNext( tracking_record -> log.debug("Scheduled check for {}",tracking_record))
@@ -112,12 +112,12 @@ public class TrackingServiceV3 implements TrackingService {
 			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(LOCK_NAME))
 			.count()
       .doOnSuccess(total -> {
-        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // ⏱ Store duration
+        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // Store duration
         this.lastTrackingRunCount = total;
         log.info("TRACKING Tracking completed for {} total Requests in {}", total, lastTrackingRunDuration);
       })
       .doOnError(error -> {
-        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // ⏱ Even on error
+        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // Even on error
         this.lastTrackingRunCount = Long.valueOf(0);
         log.error("TRACKING Error {} when updating tracking information in {}", error.getMessage(), lastTrackingRunDuration, error);
       })
