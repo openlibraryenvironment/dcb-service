@@ -44,8 +44,8 @@ public class FoundationClient extends AbstractHostLmsClient {
 	}
 
 	private ProtocolAdaptor resolveBaseAdapter(HostLms lms, BeanContext context) {
-		final Map<String, Object> config = lms.getClientConfig();
-		final String protocol = (String) config.getOrDefault("base-protocol", "NCIP");
+		final var configured = ImperativeCapabilityConfig.setting(lms, "base-protocol");
+		final String protocol = configured != null ? configured.toString() : "NCIP";
 
 		if ("SIP2".equalsIgnoreCase(protocol)) {
 			return context.createBean(Sip2Adaptor.class, lms);
@@ -57,8 +57,10 @@ public class FoundationClient extends AbstractHostLmsClient {
 
 	@SuppressWarnings("unchecked")
 	private <T> T resolveStrategy(String configKey, Class<T> type, T defaultImpl) {
-		final Map<String, Object> config = lms.getClientConfig();
-		final Map<String, String> overrides = (Map<String, String>) config.get("overrides");
+		final Map<String, String> overrides =
+			ImperativeCapabilityConfig.setting(lms, "overrides") instanceof Map<?, ?> map
+				? (Map<String, String>) map
+				: null;
 
 		if (overrides != null && overrides.containsKey(configKey)) {
 			final String beanName = overrides.get(configKey);

@@ -37,7 +37,12 @@ public class NcipAdaptor implements ProtocolAdaptor {
 		Map<String, Object> config = lms.getClientConfig();
 		Map<String, Object> ncipConfig = (Map<String, Object>) config.getOrDefault("ncip", Map.of());
 
-		this.endpoint = (String) ncipConfig.getOrDefault("endpoint", "");
+		// Endpoint unifies with the declarative side's key (capabilities.imperative.ncip-endpoint-url),
+		// falling back to the legacy ncip.endpoint sub-config.
+		final var unifiedEndpoint = ImperativeCapabilityConfig.setting(lms, "ncip-endpoint-url");
+		this.endpoint = unifiedEndpoint != null
+			? unifiedEndpoint.toString()
+			: (String) ncipConfig.getOrDefault("endpoint", "");
 		// Default agency IDs if not provided in config
 		this.fromAgency = (String) ncipConfig.getOrDefault("fromAgency", "DCB-CENTRAL");
 		this.toAgency = (String) ncipConfig.getOrDefault("toAgency", lms.getCode());
