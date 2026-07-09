@@ -86,7 +86,7 @@ nested scopes (lifecycle strategy, then protocol primitive).
     that break DI. Proven: declarative RequestItem/AcceptItem/LookupItemSet
     validate against the *same* shared `core.interaction.ncip` XSD validator the
     Foundation adaptor uses.
-  - **PR-6b (todo):** the live declarative flow — concrete
+  - **PR-6b (done):** the live declarative flow — concrete
     `NcipDeclarativeRequestTransport` + `peerauth` JWT subsystem (Nimbus already
     on classpath via `micronaut-security-jwt`), `NcipBorrowing/SupplyingRequestStrategy`
     (register as DECLARATIVE beans; resolver already filters them by protocol),
