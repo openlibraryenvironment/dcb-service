@@ -18,6 +18,7 @@ import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.request.lifecycle.tracking.RequestTrackingPolicy;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingHelpers;
 import org.reactivestreams.Publisher;
@@ -45,15 +46,18 @@ public class PatronRequestWorkflowService {
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final TrackingHelpers trackingHelpers;
 	private final AlarmsService alarmsService;
+	private final RequestTrackingPolicy requestTrackingPolicy;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		TrackingHelpers trackingHelpers,
-		AlarmsService alarmsService) {
+		AlarmsService alarmsService,
+		RequestTrackingPolicy requestTrackingPolicy) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.requestTrackingPolicy = requestTrackingPolicy;
 		// By loading the list of all transitions, we can declare new transitions
 		// without having to modify the
 		// workflow engine constructor every time.
@@ -303,16 +307,23 @@ public class PatronRequestWorkflowService {
 	private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
 		final var patronRequest = ctx.getPatronRequest();
 
-		final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
-
 		Instant next_poll = null;
 
-		if (duration.isEmpty()) {
-			log.debug("No scheduled check due");
+		if (!requestTrackingPolicy.schedulesAutomaticPolls(ctx)) {
+			// Event-driven tracking: inbound protocol messages drive this request,
+			// so suppress the scheduled poll entirely (nextScheduledPoll = null).
+			log.debug("Event-driven tracking for {} - suppressing scheduled poll", patronRequest.getId());
 		}
 		else {
-			next_poll = Instant.now().plus(duration.get());
-			log.debug("scheduleNextCheck Extracted duration {} next check is {}",duration,next_poll);
+			final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
+
+			if (duration.isEmpty()) {
+				log.debug("No scheduled check due");
+			}
+			else {
+				next_poll = Instant.now().plus(duration.get());
+				log.debug("scheduleNextCheck Extracted duration {} next check is {}",duration,next_poll);
+			}
 		}
 
 		patronRequest.setNextScheduledPoll(next_poll);
