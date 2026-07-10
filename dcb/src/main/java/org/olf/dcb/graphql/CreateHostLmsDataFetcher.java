@@ -132,6 +132,7 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 			.flatMap(HostLmsClient::ping)
 			.map(pingResponse -> "Status: " + pingResponse.getStatus() +
 				(pingResponse.getAdditional() != null ? " - " + pingResponse.getAdditional() : ""))
+			.defaultIfEmpty("Ping Skipped or Missing")
 			.onErrorResume(e -> Mono.just("Ping Failed: " + e.getMessage()));
 
 		// Ideally we'd also look up a patron or do something else that demonstrates auth access
