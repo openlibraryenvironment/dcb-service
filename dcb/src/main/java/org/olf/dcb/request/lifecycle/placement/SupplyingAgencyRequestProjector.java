@@ -43,8 +43,6 @@ public class SupplyingAgencyRequestProjector {
 			result.rawLocalRequestStatus(),
 			result.localItemId(),
 			result.localItemBarcode());
-		// Note: SupplierRequest has no protocol column on this branch; the request
-		// protocol is persisted on PatronRequest (borrowing projector). Persisting
-		// supplier-side protocol is a follow-on (add SupplierRequest.protocol).
+		supplierRequest.setProtocol(result.protocol());
 	}
 }
