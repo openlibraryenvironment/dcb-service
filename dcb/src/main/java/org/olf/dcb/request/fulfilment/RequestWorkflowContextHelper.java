@@ -140,12 +140,23 @@ public class RequestWorkflowContextHelper {
 	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
 		log.info("decorateContextWithLenderDetails");
 
-		if ( ctx.getSupplierRequest() != null ) {
-			ctx.setLenderAgencyCode(ctx.getSupplierRequest().getLocalAgency());
-			ctx.setLenderSystemCode(ctx.getSupplierRequest().getHostLmsCode());
+		if ( ctx.getSupplierRequest() == null ) {
+			return Mono.just(ctx);
 		}
 
-		return Mono.just(ctx);
+		ctx.setLenderAgencyCode(ctx.getSupplierRequest().getLocalAgency());
+		ctx.setLenderSystemCode(ctx.getSupplierRequest().getHostLmsCode());
+
+		final var lenderSystemCode = ctx.getSupplierRequest().getHostLmsCode();
+		if (lenderSystemCode == null) {
+			return Mono.just(ctx);
+		}
+
+		// Load the supplier Host LMS so SUPPLIER capability/tracking can resolve
+		// per-host. Missing host leaves lenderSystem null -> instance-wide fallback.
+		return hostLmsService.findByCode(lenderSystemCode)
+			.map(ctx::setLenderSystem)
+			.defaultIfEmpty(ctx);
 	}
 
 	// The patron request should have an attached patronIdentity, the supplier request should have a virtual identity. 

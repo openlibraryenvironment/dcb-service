@@ -35,15 +35,15 @@ public class DefaultRequestTrackingPolicy implements RequestTrackingPolicy {
 	}
 
 	private TrackingMode trackingModeFor(RequestWorkflowContext context, LifecycleRole role) {
-		// The borrower host is available in-context, so borrower tracking mode is
-		// resolved per-host. Supplier/pickup fall back to instance-wide config until
-		// the supplier host object is carried in the workflow context.
-		if (role == LifecycleRole.BORROWER) {
-			return capabilityResolver.trackingMode(
+		// Both borrower and supplier hosts are carried in-context, so tracking mode
+		// resolves per-host. Pickup falls back to instance-wide config.
+		return switch (role) {
+			case BORROWER -> capabilityResolver.trackingMode(
 				context.getPatronSystem(), LifecycleRole.BORROWER);
-		}
-
-		return capabilityResolver.trackingMode(role);
+			case SUPPLIER -> capabilityResolver.trackingMode(
+				context.getLenderSystem(), LifecycleRole.SUPPLIER);
+			default -> capabilityResolver.trackingMode(role);
+		};
 	}
 
 	private static Set<LifecycleRole> rolesTrackedAutomaticallyFor(
