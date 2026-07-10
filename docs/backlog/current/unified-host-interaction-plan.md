@@ -1,4 +1,4 @@
-# Unified Host Interaction Model — Delivery Plan (Profiles A–D)
+1# Unified Host Interaction Model — Delivery Plan (Profiles A–D)
 
 ## Status
 
@@ -97,6 +97,24 @@ nested scopes (lifecycle strategy, then protocol primitive).
 - **PR-7** Tracking capability + poll suppression (`nextScheduledPoll = null`) + inbound
   message handling.
 - **PR-8** Full A–D acceptance harness + docs.
+
+## Delivery status
+
+Done: PR-1..PR-7, the supplying seam + declarative supplying, `ORSApplianceHostLMS`,
+the inbound leaf (`/ncip/v2_02` + evidence), both follow-ons (supplier-side
+protocol persistence; per-host SUPPLIER capability resolution), the PR-8 ArchUnit
+boundary guardrails, and the integration guide
+(`docs/unified-host-interaction-integration-guide.md`).
+
+Deferred / blocked:
+- **Peer authentication (JWT/JWKS)** — the declarative transport, appliance
+  client, and inbound controller run **unauthenticated**. Re-enabling peer auth
+  needs `com.k_int.mn:ki-mn-peer-auth`, which targets **JVM 25**; this module is
+  Java 17. Blocked on a project-wide toolchain bump. The consumers were left with
+  clean unauthenticated stubs so re-wiring is a localised change once unblocked.
+- **Automated four-profile acceptance harness** — the manual + per-slice
+  automated coverage is documented in the integration guide (§5–6); a single
+  A–D MockServer harness remains to be written.
 
 ## Unified config schema
 
