@@ -5,9 +5,12 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Singleton;
 import java.net.URI;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
@@ -85,7 +88,24 @@ public class NcipDeclarativeRequestTransport
 				Argument.of(String.class)))
 			.map(response -> response.getBody()
 				.orElseThrow(() -> new NcipProblemException(
-					"NCIP " + request.messageKind() + " response body is empty")));
+					"NCIP " + request.messageKind() + " response body is empty")))
+			.onErrorMap(HttpClientResponseException.class, error -> new NcipProblemException(
+				"NCIP %s rejected by %s: %s".formatted(
+					request.messageKind(), request.hostLmsCode(), responseDetail(error)),
+				error));
+	}
+
+	private static String responseDetail(HttpClientResponseException error) {
+		Optional<?> body = error.getResponse().getBody(Argument.of(Map.class));
+		if (body.isPresent() && body.get() instanceof Map<?, ?> values) {
+			Object detail = values.get("detail");
+			if (detail != null && !detail.toString().isBlank()) {
+				return detail.toString();
+			}
+		}
+		return error.getResponse().getBody(String.class)
+			.filter(value -> !value.isBlank())
+			.orElse(error.getMessage());
 	}
 
 	private DeclarativeTransportResponse toTransportResponse(

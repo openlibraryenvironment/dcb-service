@@ -18,6 +18,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import java.net.URI;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -121,6 +122,34 @@ class NcipDeclarativeRequestTransportTests {
 
 		assertThat(error.getMessage(),
 			is("Missing required configuration property: \"ncip-endpoint-url\""));
+	}
+
+	@Test
+	void reportsRemoteProblemDetailWhenNcipRequestIsRejected() {
+		final var hostLmsService = mock(HostLmsService.class);
+		final var httpClient = mock(HttpClient.class);
+		final var transport = transport(hostLmsService, httpClient);
+		when(hostLmsService.findByCode("supplier-host"))
+			.thenReturn(Mono.just(hostLms("supplier-host")));
+		final var response = HttpResponse.badRequest(Map.of(
+			"title", "NCIP2 processing error",
+			"detail", "Requested item is not loanable: COPY-1"));
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.error(new HttpClientResponseException("Bad Request", response)));
+
+		final var error = assertThrows(NcipProblemException.class,
+			() -> singleValueFrom(transport.send(new DeclarativeTransportRequest(
+				NcipProtocol.PROTOCOL,
+				LifecycleRole.SUPPLIER,
+				LifecycleOperation.PLACE_REQUEST,
+				"supplier-host",
+				"supplier-agency",
+				"request-1:SUPPLIER",
+				NcipProtocol.REQUEST_ITEM,
+				"<NCIPMessage><RequestItem/></NCIPMessage>"))));
+
+		assertThat(error.getMessage(), is(
+			"NCIP RequestItem rejected by supplier-host: Requested item is not loanable: COPY-1"));
 	}
 
 	private static NcipDeclarativeRequestTransport transport(

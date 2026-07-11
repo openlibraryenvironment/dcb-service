@@ -24,6 +24,8 @@ Owns lifecycle strategy selection and protocol-neutral lifecycle evidence.
 - NCIP `RequestItem` sends the supplier-local bib ID, item ID, barcode, and
   available title/author/edition. `AcceptItem` sends the supplied barcode and
   available bibliographic description to the borrower.
+- NCIP transport failures retain the remote problem detail in the DCB request
+  error instead of the generic HTTP status.
 
 ## Boundary Rules
 
