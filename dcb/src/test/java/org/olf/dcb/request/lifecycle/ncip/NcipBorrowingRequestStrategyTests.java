@@ -53,7 +53,7 @@ class NcipBorrowingRequestStrategyTests {
 			hostLmsService(),
 			ncipIdentityConfiguration(),
 			addressResolver(),
-			sharedIndexService());
+			new NcipBibliographicMetadataResolver(sharedIndexService()));
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
 			.setPickupBibTitle("Borrower title")
@@ -122,7 +122,7 @@ class NcipBorrowingRequestStrategyTests {
 			hostLmsService(),
 			ncipIdentityConfiguration(),
 			addressResolver(),
-			sharedIndexService());
+			new NcipBibliographicMetadataResolver(sharedIndexService()));
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
 			.setPatronRequest(new PatronRequest()
@@ -155,7 +155,8 @@ class NcipBorrowingRequestStrategyTests {
 			hostLmsService(),
 			ncipIdentityConfiguration(),
 			addressResolver(),
-			sharedIndexServiceWithTitle("A Philosophy of Software Design, 2nd Edition"));
+			new NcipBibliographicMetadataResolver(
+				sharedIndexServiceWithTitle("A Philosophy of Software Design, 2nd Edition")));
 		final var context = new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
 			.setPatronRequest(new PatronRequest()

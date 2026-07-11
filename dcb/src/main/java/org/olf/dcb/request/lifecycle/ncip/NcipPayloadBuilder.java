@@ -36,6 +36,14 @@ public class NcipPayloadBuilder {
 				payload.itemIdentifierType(),
 				payload.itemIdentifierValue()));
 		}
+		if (hasText(payload.localItemIdentifierValue())
+			&& !payload.localItemIdentifierValue().equals(payload.itemIdentifierValue())) {
+			requestItem.appendChild(itemId(
+				document,
+				payload.itemAgencyId(),
+				"local-item-id",
+				payload.localItemIdentifierValue()));
+		}
 		requestItem.appendChild(requestId(
 			document,
 			payload.requestIdentifierValue()));
@@ -47,6 +55,10 @@ public class NcipPayloadBuilder {
 			document,
 			"RequestScopeType",
 			payload.requestScopeType()));
+		if (payload.bibliographicDescription() != null
+			&& payload.bibliographicDescription().hasContent()) {
+			requestItem.appendChild(itemOptionalFields(document, payload.bibliographicDescription()));
+		}
 
 		return toXml(document);
 	}

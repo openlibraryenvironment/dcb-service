@@ -21,6 +21,9 @@ Owns lifecycle strategy selection and protocol-neutral lifecycle evidence.
 - Add protocol adapters below `request.lifecycle.<protocol>`.
 - Map protocol messages to lifecycle evidence.
 - Keep protocol acknowledgement semantics explicit per protocol/message type.
+- NCIP `RequestItem` sends the supplier-local bib ID, item ID, barcode, and
+  available title/author/edition. `AcceptItem` sends the supplied barcode and
+  available bibliographic description to the borrower.
 
 ## Boundary Rules
 

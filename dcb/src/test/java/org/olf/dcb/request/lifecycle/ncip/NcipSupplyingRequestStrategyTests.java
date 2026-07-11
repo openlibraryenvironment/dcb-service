@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +22,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -31,6 +33,7 @@ import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
+import org.olf.dcb.request.resolution.SharedIndexService;
 import reactor.core.publisher.Mono;
 
 class NcipSupplyingRequestStrategyTests {
@@ -50,10 +53,12 @@ class NcipSupplyingRequestStrategyTests {
 			new NcipPayloadBuilder(),
 			hostLmsService(),
 			ncipIdentityConfiguration(),
-			addressResolver());
+			addressResolver(),
+			bibliographicMetadataResolver());
 		final var supplierRequest = new SupplierRequest()
 			.setHostLmsCode("supplier-host")
 			.setLocalAgency("supplier-agency")
+			.setLocalBibId("supplier-bib-1")
 			.setLocalItemId("supplier-item-1")
 			.setLocalItemBarcode("supplier-barcode-1");
 		final var context = new RequestWorkflowContext()
@@ -84,12 +89,16 @@ class NcipSupplyingRequestStrategyTests {
 		assertThat(request.payload(),
 			containsString("<UserIdentifierValue>patron-barcode</UserIdentifierValue>"));
 		assertThat(request.payload(),
-			containsString("<BibliographicRecordIdentifier>" + bibClusterId
+			containsString("<BibliographicRecordIdentifier>supplier-bib-1"
 				+ "</BibliographicRecordIdentifier>"));
 		assertThat(request.payload(),
 			containsString("<ItemIdentifierValue>supplier-barcode-1</ItemIdentifierValue>"));
 		assertThat(request.payload(), containsString("<ItemIdentifierType"));
 		assertThat(request.payload(), containsString(">barcode</"));
+		assertThat(request.payload(), containsString(">local-item-id</"));
+		assertThat(request.payload(),
+			containsString("<ItemIdentifierValue>supplier-item-1</ItemIdentifierValue>"));
+		assertThat(request.payload(), containsString("<Title>Supplier title</Title>"));
 		assertDoesNotThrow(() -> validator.validate(request.payload()));
 		assertThat(result.role(), is(LifecycleRole.SUPPLIER));
 		assertThat(result.protocol(), is(NcipProtocol.PROTOCOL));
@@ -114,7 +123,8 @@ class NcipSupplyingRequestStrategyTests {
 			new NcipPayloadBuilder(),
 			hostLmsService(),
 			ncipIdentityConfiguration(),
-			addressResolver());
+			addressResolver(),
+			bibliographicMetadataResolver());
 		final var context = new RequestWorkflowContext()
 			.setPatronHomeIdentity(new PatronIdentity()
 				.setLocalBarcode("patron-barcode"))
@@ -176,6 +186,18 @@ class NcipSupplyingRequestStrategyTests {
 		return new NcipAddressResolver(
 			mock(org.olf.dcb.storage.AgencyRepository.class),
 			mock(HostLmsService.class));
+	}
+
+	private static NcipBibliographicMetadataResolver bibliographicMetadataResolver() {
+		final var sharedIndexService = mock(SharedIndexService.class);
+		when(sharedIndexService.findSelectedBib(any(UUID.class)))
+			.thenReturn(Mono.just(BibRecord.builder()
+				.id(UUID.randomUUID())
+				.sourceSystemId(UUID.randomUUID())
+				.sourceRecordId("source-record-1")
+				.title("Supplier title")
+				.build()));
+		return new NcipBibliographicMetadataResolver(sharedIndexService);
 	}
 
 	private static class CapturingTransport implements DeclarativeRequestTransport {

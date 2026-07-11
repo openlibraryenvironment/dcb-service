@@ -29,19 +29,22 @@ public class NcipSupplyingRequestStrategy
 	private final HostLmsService hostLmsService;
 	private final NcipIdentityConfiguration ncipIdentityConfiguration;
 	private final NcipAddressResolver addressResolver;
+	private final NcipBibliographicMetadataResolver bibliographicMetadataResolver;
 
 	public NcipSupplyingRequestStrategy(
 		DeclarativeRequestTransport transport,
 		NcipPayloadBuilder payloadBuilder,
 		HostLmsService hostLmsService,
 		NcipIdentityConfiguration ncipIdentityConfiguration,
-		NcipAddressResolver addressResolver) {
+		NcipAddressResolver addressResolver,
+		NcipBibliographicMetadataResolver bibliographicMetadataResolver) {
 
 		this.transport = transport;
 		this.payloadBuilder = payloadBuilder;
 		this.hostLmsService = hostLmsService;
 		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
 		this.addressResolver = addressResolver;
+		this.bibliographicMetadataResolver = bibliographicMetadataResolver;
 	}
 
 	@Override
@@ -71,7 +74,7 @@ public class NcipSupplyingRequestStrategy
 		return hostLmsService.findByCode(hostLmsCode)
 			.switchIfEmpty(Mono.error(new IllegalArgumentException(
 				"Cannot create NCIP RequestItem without HostLMS " + hostLmsCode)))
-			.flatMap(hostLms -> {
+			.flatMap(hostLms -> bibliographicMetadataResolver.resolve(context).flatMap(metadata -> {
 				final var toAgencyId = addressResolver.agencyIdForHost(hostLms);
 				return addressResolver.agencyIdForLocalAgencyCode(
 						context.getPatronAgencyCode(),
@@ -80,15 +83,21 @@ public class NcipSupplyingRequestStrategy
 						party(hostLms, fromAgencyId, toAgencyId),
 						fromAgencyId,
 						userIdentifierValueFor(context),
-						bibliographicRecordIdentifierFor(patronRequest),
+						bibliographicRecordIdentifierFor(patronRequest, supplierRequest),
 						toAgencyId,
 						toAgencyId,
 						"barcode",
 						itemIdentifierValueFor(supplierRequest),
+						localItemIdentifierValueFor(supplierRequest),
 						correlationId,
 						REQUEST_TYPE,
-						REQUEST_SCOPE_TYPE)));
-			})
+						REQUEST_SCOPE_TYPE,
+						bibliographicDescriptionFor(
+							patronRequest,
+							supplierRequest,
+							toAgencyId,
+							metadata))));
+			}))
 			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
 				LifecycleRole.SUPPLIER,
@@ -146,16 +155,44 @@ public class NcipSupplyingRequestStrategy
 	}
 
 	private static String bibliographicRecordIdentifierFor(
-		PatronRequest patronRequest) {
+		PatronRequest patronRequest,
+		SupplierRequest supplierRequest) {
 
-		return Optional.ofNullable(patronRequest)
+		return Optional.ofNullable(supplierRequest)
+			.map(SupplierRequest::getLocalBibId)
+			.filter(NcipSupplyingRequestStrategy::hasText)
+			.or(() -> Optional.ofNullable(patronRequest)
 			.map(PatronRequest::getBibClusterId)
-			.map(UUID::toString)
+			.map(UUID::toString))
 			.or(() -> Optional.ofNullable(patronRequest)
 				.map(PatronRequest::getId)
 				.map(UUID::toString))
 			.orElseThrow(() -> new IllegalArgumentException(
 				"Cannot create NCIP RequestItem without bibliographic identity"));
+	}
+
+	private static String localItemIdentifierValueFor(SupplierRequest supplierRequest) {
+		return Optional.ofNullable(supplierRequest)
+			.map(SupplierRequest::getLocalItemId)
+			.filter(NcipSupplyingRequestStrategy::hasText)
+			.orElse(null);
+	}
+
+	private static NcipBibliographicDescription bibliographicDescriptionFor(
+		PatronRequest patronRequest,
+		SupplierRequest supplierRequest,
+		String bibliographicRecordAgencyId,
+		NcipBibliographicMetadata metadata) {
+
+		return new NcipBibliographicDescription(
+			metadata.title(),
+			metadata.author(),
+			bibliographicRecordIdentifierFor(
+				patronRequest,
+				supplierRequest),
+			bibliographicRecordAgencyId,
+			itemIdentifierValueFor(supplierRequest),
+			metadata.edition());
 	}
 
 	private static String itemIdentifierValueFor(SupplierRequest supplierRequest) {

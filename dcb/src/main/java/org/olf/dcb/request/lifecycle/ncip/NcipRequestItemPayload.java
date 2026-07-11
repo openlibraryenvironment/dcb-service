@@ -9,9 +9,29 @@ public record NcipRequestItemPayload(
 	String itemAgencyId,
 	String itemIdentifierType,
 	String itemIdentifierValue,
+	String localItemIdentifierValue,
 	String requestIdentifierValue,
 	String requestType,
-	String requestScopeType) {
+	String requestScopeType,
+	NcipBibliographicDescription bibliographicDescription) {
+
+	public NcipRequestItemPayload(
+		NcipParty party,
+		String userAgencyId,
+		String userIdentifierValue,
+		String bibliographicRecordIdentifier,
+		String bibliographicRecordAgencyId,
+		String itemAgencyId,
+		String itemIdentifierType,
+		String itemIdentifierValue,
+		String requestIdentifierValue,
+		String requestType,
+		String requestScopeType
+	) {
+		this(party, userAgencyId, userIdentifierValue, bibliographicRecordIdentifier,
+			bibliographicRecordAgencyId, itemAgencyId, itemIdentifierType, itemIdentifierValue,
+			null, requestIdentifierValue, requestType, requestScopeType, null);
+	}
 
 	public NcipRequestItemPayload {
 		if (party == null) {

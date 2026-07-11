@@ -115,8 +115,8 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 						parameters.getLocalPatronId(),
 						parameters.getPatronRequestId()),
 					firstText(
-						parameters.getLocalBibId(),
 						parameters.getSupplyingLocalBibId(),
+						parameters.getLocalBibId(),
 						parameters.getPatronRequestId()),
 					supplyingAgencyId,
 					supplyingAgencyId,
@@ -127,9 +127,13 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 						parameters.getSupplyingLocalItemBarcode(),
 						parameters.getLocalItemId(),
 						parameters.getSupplyingLocalItemId()),
+					firstTextOrNull(
+						parameters.getSupplyingLocalItemId(),
+						parameters.getLocalItemId()),
 					correlationId,
 					REQUEST_TYPE,
-					REQUEST_SCOPE_TYPE))));
+					REQUEST_SCOPE_TYPE,
+					bibliographicDescription(parameters, supplyingAgencyId)))));
 	}
 
 	@Override

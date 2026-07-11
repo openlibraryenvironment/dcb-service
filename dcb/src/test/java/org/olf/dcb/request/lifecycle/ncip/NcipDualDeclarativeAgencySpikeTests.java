@@ -164,7 +164,8 @@ class NcipDualDeclarativeAgencySpikeTests {
 			new NcipPayloadBuilder(),
 			hostLmsService(),
 			ncipIdentityConfiguration(),
-			addressResolver());
+			addressResolver(),
+			new NcipBibliographicMetadataResolver(sharedIndexService()));
 		final var resolver = new SupplyingAgencyRequestStrategyResolver(
 			mock(ImperativeSupplyingAgencyRequestStrategy.class),
 			List.of(strategy),
@@ -189,7 +190,7 @@ class NcipDualDeclarativeAgencySpikeTests {
 			hostLmsService(),
 			ncipIdentityConfiguration(),
 			addressResolver(),
-			sharedIndexService());
+			new NcipBibliographicMetadataResolver(sharedIndexService()));
 		final var resolver = new BorrowingAgencyRequestStrategyResolver(
 			mock(ImperativeBorrowingAgencyRequestStrategy.class),
 			List.of(strategy),
