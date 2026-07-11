@@ -28,7 +28,11 @@ Current states
 
 What happens on place request?
 
-- An authenticated client POSTs a [PlacePatronRequestCommand](https://github.com/openlibraryenvironment/dcb-service/blob/main/dcb/src/main/java/org/olf/dcb/request/fulfilment/PlacePatronRequestCommand.java) to the the [/patrons/request/place](https://github.com/openlibraryenvironment/dcb-service/blob/8e2fe7f35d134ddd05a1d1e1ff03e44f2d92edba/dcb/src/main/java/org/olf/dcb/core/api/PatronRequestController.java#L120) endpoint.
+- An authenticated client POSTs a [PlacePatronRequestCommand](https://github.com/openlibraryenvironment/dcb-service/blob/main/dcb/src/main/java/org/olf/dcb/request/fulfilment/PlacePatronRequestCommand.java) to `/patrons/requests/place`.
+- `citation`, `pickupLocation`, and `requestor` are schema-required. Current request placement also
+  operationally requires `citation.bibClusterId`, `pickupLocation.code` containing a DCB Location UUID,
+  and requestor `localId`, `localSystemCode`, and `agencyCode`. `homeLibraryCode`, notes, description,
+  explicit item, volume designator, and expedited flag are optional.
 - This then calls [patronRequestService.placePatronRequest](https://github.com/openlibraryenvironment/dcb-service/blob/main/dcb/src/main/java/org/olf/dcb/request/fulfilment/PatronRequestService.java)
 - placePatronRequest first executes prefligt checks.
 - If the command passes we upsert a patron record based on the requesting patron identity
@@ -42,5 +46,4 @@ How does the PatronRequestWorkflow work
 - progressAll will attempt to find any actions which can be applied to the request in it's current state - it calls progressUsing with a selected action
 - progressUsing will call applyTransition for any available action
 - applyTransition calls the attempt method on the request, and *then recursively calls itself* to apply any subsequent actions. Repeat
-
 
