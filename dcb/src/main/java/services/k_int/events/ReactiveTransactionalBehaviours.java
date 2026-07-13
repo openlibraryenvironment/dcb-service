@@ -61,7 +61,7 @@ public class ReactiveTransactionalBehaviours {
 //				.publishOn( scheduler )
 				.subscribeOn( scheduler )
 				.filter( ReactiveTransactionStatus::isCompleted )
-				.repeatWhenEmpty( l -> Mono.delay(Duration.ofNanos(200)))
+				.repeatWhenEmpty(l -> l.delayElements(Duration.ofMillis(200)))
 				
 				// Rollbacks degrade to empty publisher
 				.filter( ReactiveTransactionalBehaviours::noneRollbackPredicate )
