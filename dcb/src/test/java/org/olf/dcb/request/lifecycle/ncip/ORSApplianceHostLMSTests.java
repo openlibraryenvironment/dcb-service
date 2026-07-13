@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.ShippingTestData.shippingContext;
 
 import com.k_int.peerauth.service.PeerTokenSigner;
 import java.util.ArrayList;
@@ -75,6 +76,7 @@ class ORSApplianceHostLMSTests {
 					.localItemBarcode("barcode-1")
 					.requestingAgencyCode("borrower-agency")
 					.supplyingAgencyCode("supplier-agency")
+					.shippingContext(shippingContext())
 					.build()));
 		final var request = transport.onlyRequest();
 

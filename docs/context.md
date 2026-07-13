@@ -81,6 +81,10 @@ The main request code is split across three cooperating packages:
 - `org.olf.dcb.request.workflow`
   Contains the workflow engine and the concrete state transitions.
 
+Supplier placement projects a validated `RequestShippingContext` before transport. It keeps patron-home,
+borrowing, supplier and pickup-owner roles distinct; unresolved pickup routing stops placement. NCIP always
+gets printable shipping instructions and ORS peers additionally get the versioned DCB shipping extension.
+
 ### Workflow Engine
 
 `PatronRequestWorkflowService` is the heart of request progression. It loads all

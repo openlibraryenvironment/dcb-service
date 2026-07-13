@@ -133,7 +133,18 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 					correlationId,
 					REQUEST_TYPE,
 					REQUEST_SCOPE_TYPE,
-					bibliographicDescription(parameters, supplyingAgencyId)))));
+					bibliographicDescription(parameters, supplyingAgencyId),
+					requireShippingContext(parameters),
+					true))));
+	}
+
+	private static org.olf.dcb.core.interaction.RequestShippingContext requireShippingContext(
+		PlaceHoldRequestParameters parameters) {
+
+		if (parameters.getShippingContext() == null) {
+			throw new IllegalStateException("Cannot route supplier request: shipping context is missing");
+		}
+		return parameters.getShippingContext();
 	}
 
 	@Override

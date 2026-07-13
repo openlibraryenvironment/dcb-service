@@ -9,6 +9,7 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestShippingContextProjector;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
@@ -96,7 +97,9 @@ public class NcipSupplyingRequestStrategy
 							patronRequest,
 							supplierRequest,
 							toAgencyId,
-							metadata))));
+							metadata),
+						RequestShippingContextProjector.project(context),
+						isOrsAppliance(hostLms))));
 			}))
 			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
@@ -123,6 +126,12 @@ public class NcipSupplyingRequestStrategy
 				response.status(),
 				response.rawStatus(),
 				response.rawMessageReference()));
+	}
+
+	private static boolean isOrsAppliance(HostLms hostLms) {
+		return hostLms != null
+			&& hostLms.getClientType() != null
+			&& ORSApplianceHostLMS.class.isAssignableFrom(hostLms.getClientType());
 	}
 
 	private NcipParty party(

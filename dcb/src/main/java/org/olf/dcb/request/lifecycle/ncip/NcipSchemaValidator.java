@@ -52,7 +52,7 @@ public class NcipSchemaValidator {
 		final var wrapper = """
 			<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 			  <xs:import namespace="http://www.niso.org/2008/ncip" schemaLocation="%s"/>
-			  <xs:import namespace="https://openrs.org/ncip/fallback-host" schemaLocation="%s"/>
+			  <xs:import namespace="https://openrs.org/ncip/dcb-shipping/v1" schemaLocation="%s"/>
 			</xs:schema>
 			""".formatted(schemaPath.toUri(), extensionSchema.toUri());
 

@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.is;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.ShippingTestData.shippingContext;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,7 @@ class ORSApplianceHostLMSContextTests {
 					.localItemBarcode("barcode-1")
 					.requestingAgencyCode("borrower-agency")
 					.supplyingAgencyCode("supplier-agency")
+					.shippingContext(shippingContext())
 					.build()));
 
 		final var recordedRequests = recordedNcipRequests(mockServerClient);

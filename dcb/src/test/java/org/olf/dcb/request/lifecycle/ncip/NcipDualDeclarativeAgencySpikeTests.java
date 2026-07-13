@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.olf.dcb.test.ShippingTestData.withShipping;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -75,13 +76,13 @@ class NcipDualDeclarativeAgencySpikeTests {
 		final var supplierRequest = new SupplierRequest()
 			.setHostLmsCode("supplier-host")
 			.setLocalAgency("supplier-agency");
-		final var context = new RequestWorkflowContext()
+		final var context = withShipping(new RequestWorkflowContext()
 			.setPatronAgencyCode("borrower-agency")
 			.setPatronHomeIdentity(new PatronIdentity()
 				.setLocalId("home-patron")
 				.setLocalBarcode("home-barcode"))
 			.setPatronRequest(patronRequest)
-			.setSupplierRequest(supplierRequest);
+			.setSupplierRequest(supplierRequest));
 		final var supplierPlacement = supplyingPlacementService(
 			capabilityResolver, transport);
 		final var borrowerPlacement = borrowingPlacementService(

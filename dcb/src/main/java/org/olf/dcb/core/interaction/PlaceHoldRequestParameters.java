@@ -34,4 +34,5 @@ public class PlaceHoldRequestParameters {
 	String supplyingLocalItemLocation;
 	String activeWorkflow;
 	String localNames;
+	RequestShippingContext shippingContext;
 }

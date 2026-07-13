@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.ShippingTestData.withShipping;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -61,14 +62,14 @@ class NcipSupplyingRequestStrategyTests {
 			.setLocalBibId("supplier-bib-1")
 			.setLocalItemId("supplier-item-1")
 			.setLocalItemBarcode("supplier-barcode-1");
-		final var context = new RequestWorkflowContext()
+		final var context = withShipping(new RequestWorkflowContext()
 			.setPatronHomeIdentity(new PatronIdentity()
 				.setLocalId("patron-local-id")
 				.setLocalBarcode("patron-barcode"))
 			.setPatronRequest(new PatronRequest()
 				.setId(patronRequestId)
 				.setBibClusterId(bibClusterId))
-			.setSupplierRequest(supplierRequest);
+			.setSupplierRequest(supplierRequest));
 
 		final var result = singleValueFrom(strategy.place(context));
 		final var request = transport.onlyRequest();

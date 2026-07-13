@@ -11,6 +11,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import jakarta.inject.Singleton;
+import org.olf.dcb.core.interaction.RequestShippingContext;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -18,6 +19,7 @@ import org.w3c.dom.Element;
 public class NcipPayloadBuilder {
 	public static final String NCIP_NAMESPACE = "http://www.niso.org/2008/ncip";
 	public static final String NCIP_VERSION = "2.02";
+	public static final String OPENRS_SHIPPING_NAMESPACE = "https://openrs.org/ncip/dcb-shipping/v1";
 
 	public String requestItem(NcipRequestItemPayload payload) {
 		final var document = newDocument();
@@ -58,6 +60,12 @@ public class NcipPayloadBuilder {
 		if (payload.bibliographicDescription() != null
 			&& payload.bibliographicDescription().hasContent()) {
 			requestItem.appendChild(itemOptionalFields(document, payload.bibliographicDescription()));
+		}
+		if (payload.shippingContext() != null) {
+			requestItem.appendChild(shippingInformation(
+				document,
+				payload.shippingContext(),
+				payload.includeOpenRsShippingExtension()));
 		}
 
 		return toXml(document);
@@ -272,6 +280,115 @@ public class NcipPayloadBuilder {
 			bibliographicDescription.appendChild(value(document, "Title", description.title()));
 		}
 		return bibliographicDescription;
+	}
+
+	private static Element shippingInformation(
+		Document document,
+		RequestShippingContext context,
+		boolean includeExtension) {
+
+		final var shippingInformation = element(document, "ShippingInformation");
+		shippingInformation.appendChild(value(
+			document, "ShippingInstructions", context.shippingInstructions()));
+
+		final var physicalAddress = element(document, "PhysicalAddress");
+		final var unstructuredAddress = element(document, "UnstructuredAddress");
+		unstructuredAddress.appendChild(schemeValue(
+			document, "UnstructuredAddressType", "Pickup Location"));
+		unstructuredAddress.appendChild(value(
+			document, "UnstructuredAddressData", context.unstructuredAddress()));
+		physicalAddress.appendChild(unstructuredAddress);
+		physicalAddress.appendChild(schemeValue(document, "PhysicalAddressType", "Ship To"));
+		shippingInformation.appendChild(physicalAddress);
+
+		if (includeExtension) {
+			shippingInformation.appendChild(shippingExtension(document, context));
+		}
+		return shippingInformation;
+	}
+
+	private static Element shippingExtension(Document document, RequestShippingContext context) {
+		final var ext = element(document, "Ext");
+		final var shippingContext = extensionElement(document, "ShippingContext");
+		shippingContext.appendChild(extensionValue(document, "SchemaVersion", context.schemaVersion()));
+		shippingContext.appendChild(extensionValue(document, "WorkflowCode", context.workflowCode()));
+		shippingContext.appendChild(extensionValue(document, "RouteMode", context.routeMode()));
+		shippingContext.appendChild(patron(document, context.patron()));
+		shippingContext.appendChild(endpoint(document, "BorrowingLibrary", context.borrowingLibrary()));
+		shippingContext.appendChild(endpoint(document, "Supplier", context.supplier()));
+		shippingContext.appendChild(pickupDestination(document, context.pickupDestination()));
+		shippingContext.appendChild(provenance(document, context.provenance()));
+		ext.appendChild(shippingContext);
+		return ext;
+	}
+
+	private static Element patron(Document document, RequestShippingContext.Patron patron) {
+		final var element = extensionElement(document, "Patron");
+		appendExtensionValue(document, element, "Barcode", patron.barcode());
+		appendExtensionValue(document, element, "SystemCode", patron.systemCode());
+		appendExtensionValue(document, element, "AgencyCode", patron.agencyCode());
+		return element;
+	}
+
+	private static Element endpoint(
+		Document document, String name, RequestShippingContext.Endpoint endpoint) {
+
+		final var element = extensionElement(document, name);
+		appendExtensionValue(document, element, "SystemCode", endpoint.systemCode());
+		appendExtensionValue(document, element, "AgencyCode", endpoint.agencyCode());
+		appendExtensionValue(document, element, "AgencyName", endpoint.agencyName());
+		return element;
+	}
+
+	private static Element pickupDestination(
+		Document document, RequestShippingContext.PickupDestination destination) {
+
+		final var element = extensionElement(document, "PickupDestination");
+		appendExtensionValue(document, element, "Kind", destination.kind());
+		element.appendChild(endpoint(document, "Owner", destination.owner()));
+		appendExtensionValue(document, element, "DcbLocationId", destination.dcbLocationId());
+		appendExtensionValue(document, element, "DcbLocationCode", destination.dcbLocationCode());
+		appendExtensionValue(document, element, "LocalLocationCode", destination.localLocationCode());
+		appendExtensionValue(document, element, "DisplayName", destination.displayName());
+		if (destination.address() != null) {
+			final var address = extensionElement(document, "Address");
+			appendExtensionValue(document, address, "Formatted", destination.address().formatted());
+			appendExtensionValue(document, address, "Scope", destination.address().scope());
+			appendExtensionValue(document, address, "Source", destination.address().source());
+			element.appendChild(address);
+		}
+		return element;
+	}
+
+	private static Element provenance(
+		Document document, RequestShippingContext.Provenance provenance) {
+
+		final var element = extensionElement(document, "Provenance");
+		appendExtensionValue(document, element, "Source", provenance.source());
+		appendExtensionValue(document, element, "SelectedPickupValue", provenance.selectedPickupValue());
+		appendExtensionValue(document, element, "SelectedPickupCodeContext", provenance.selectedPickupCodeContext());
+		appendExtensionValue(document, element, "SelectedPickupContext", provenance.selectedPickupContext());
+		appendExtensionValue(document, element, "RequestCreatedAt", provenance.requestCreatedAt());
+		appendExtensionValue(document, element, "LocationLastImportedAt", provenance.locationLastImportedAt());
+		return element;
+	}
+
+	private static void appendExtensionValue(
+		Document document, Element parent, String name, Object value) {
+
+		if (value != null && !value.toString().isBlank()) {
+			parent.appendChild(extensionValue(document, name, value));
+		}
+	}
+
+	private static Element extensionValue(Document document, String name, Object value) {
+		final var element = extensionElement(document, name);
+		element.setTextContent(value.toString());
+		return element;
+	}
+
+	private static Element extensionElement(Document document, String name) {
+		return document.createElementNS(OPENRS_SHIPPING_NAMESPACE, "dcb:" + name);
 	}
 
 	private static Element requestId(
