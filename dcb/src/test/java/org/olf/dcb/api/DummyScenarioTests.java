@@ -9,6 +9,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.AWAITING_RETURN_TO_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
@@ -394,7 +395,10 @@ class DummyScenarioTests {
 
 		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
 
-		assertRequestIsInExpectedStatus(placedRequestUUID, RETURN_TRANSIT);
+		// The pickup hold is now gone while the item is still "out", which is indistinguishable from a
+		// cancellation-while-out: HandleCancelledRequestItemOut parks the request until the item is back
+		// at the supplier (it supersedes the old SkippedLoanTransit hop straight to RETURN_TRANSIT).
+		assertRequestIsInExpectedStatus(placedRequestUUID, AWAITING_RETURN_TO_SUPPLIER);
 
 		log.info("Patron request completing");
 

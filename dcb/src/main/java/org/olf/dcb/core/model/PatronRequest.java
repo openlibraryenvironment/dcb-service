@@ -81,6 +81,7 @@ public class PatronRequest {
 		LOANED, // Currently on loan
 		PICKUP_TRANSIT, // In transit to pickup location
 		RETURN_TRANSIT, // In transit back to owning location from lender
+		AWAITING_RETURN_TO_SUPPLIER, // Cancelled while the item was "out" - held (records intact, still tracked) until the item is back at the supplier, then finalised
 		CANCELLED,
 		COMPLETED, // Everything is finished, regardless and ready to be finalised
 		FINALISED, // We've cleaned up everything and this is the end of the line

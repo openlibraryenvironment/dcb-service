@@ -86,6 +86,7 @@ public class PatronRequestController {
 			case RECEIVED_AT_PICKUP -> throw new IllegalStateException("Cannot transition requests where item is in RECEIVED_AT_PICKUP");
 			case LOANED -> throw new IllegalStateException("Cannot transition requests where item is in LOANED");
 			case RETURN_TRANSIT -> throw new IllegalStateException("Cannot transition requests where item is in RETURN_TRANSIT");
+			case AWAITING_RETURN_TO_SUPPLIER -> throw new IllegalStateException("Cannot transition requests where item is awaiting return to the supplier");
 			case CANCELLED -> throw new IllegalStateException("Cannot transition cancelled requests");
 
 			default -> patronRequest;

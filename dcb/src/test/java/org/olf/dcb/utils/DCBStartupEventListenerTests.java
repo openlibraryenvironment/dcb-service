@@ -146,6 +146,7 @@ class DCBStartupEventListenerTests {
 			hasStatusCode("DCBRequest", "READY_FOR_PICKUP", true),
 			hasStatusCode("DCBRequest", "LOANED", true),
 			hasStatusCode("DCBRequest", "RETURN_TRANSIT", true),
+			hasStatusCode("DCBRequest", "AWAITING_RETURN_TO_SUPPLIER", true),
 			hasStatusCode("DCBRequest", "CANCELLED", true),
 			hasStatusCode("DCBRequest", "COMPLETED", true),
 			hasStatusCode("DCBRequest", "FINALISED", false),
