@@ -36,7 +36,10 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
   private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
-	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT);
+	// RETURN_TRANSIT: normal return leg. AWAITING_RETURN_TO_SUPPLIER: request cancelled while the item
+	// was out and parked by HandleCancelledRequestItemOut - both complete once the supplier has the item back.
+	private static final List<Status> possibleSourceStatus = List.of(
+		Status.RETURN_TRANSIT, Status.AWAITING_RETURN_TO_SUPPLIER);
 	
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -119,7 +122,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
-		return List.of( new DCBGuardCondition("DCBPatronRequest state is RETURN_TRANSIT and Supplier item status is AVAILABLE"));
+		return List.of( new DCBGuardCondition("DCBPatronRequest state is RETURN_TRANSIT or AWAITING_RETURN_TO_SUPPLIER and Supplier item status is AVAILABLE"));
 	}
 
 	@Override

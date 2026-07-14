@@ -226,6 +226,7 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "READY_FOR_PICKUP", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "LOANED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "RETURN_TRANSIT", Boolean.TRUE)))
+			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "AWAITING_RETURN_TO_SUPPLIER", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "CANCELLED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "COMPLETED", Boolean.TRUE)))
 			.flatMap( v -> Mono.from(saveOrUpdateStatusCode("DCBRequest", "FINALISED", Boolean.FALSE)))
