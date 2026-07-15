@@ -100,6 +100,34 @@ class NcipDeclarativeRequestTransportTests {
 	}
 
 	@Test
+	void postsItemShippedAndMapsSupplierResponse() {
+		final var hostLmsService = mock(HostLmsService.class);
+		final var httpClient = mock(HttpClient.class);
+		final var transport = transport(hostLmsService, httpClient);
+		when(hostLmsService.findByCode("supplier-host"))
+			.thenReturn(Mono.just(hostLms("supplier-host")));
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(
+				NcipInboundXmlMapperTests.validItemShippedResponse())));
+
+		final var response = singleValueFrom(transport.send(
+			new DeclarativeTransportRequest(
+				NcipProtocol.PROTOCOL,
+				LifecycleRole.SUPPLIER,
+				LifecycleOperation.REVISE_REQUEST,
+				"supplier-host",
+				"supplier-agency",
+				"request-1:SUPPLIER",
+				NcipProtocol.ITEM_SHIPPED,
+				"<NCIPMessage><ItemShipped/></NCIPMessage>")));
+
+		assertThat(response.remoteRequestId(), is("request-1:SUPPLIER"));
+		assertThat(response.status(), is("CONFIRMED"));
+		assertThat(response.rawStatus(),
+			is(NcipProtocol.ITEM_SHIPPED_RESPONSE));
+	}
+
+	@Test
 	void rejectsHostLmsWithoutNcipEndpointConfiguration() {
 		final var hostLmsService = mock(HostLmsService.class);
 		final var transport = transport(hostLmsService, mock(HttpClient.class));

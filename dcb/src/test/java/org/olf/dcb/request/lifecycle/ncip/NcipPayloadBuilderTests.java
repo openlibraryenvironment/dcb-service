@@ -128,6 +128,26 @@ class NcipPayloadBuilderTests {
 		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
 	}
 
+	@Test
+	void buildsValidItemShippedPayload() {
+		final var xml = builder.itemShipped(new NcipItemShippedPayload(
+			party(),
+			"request-789:SUPPLIER",
+			"supplier-agency",
+			"item-456",
+			Instant.parse("2026-07-15T09:30:00Z")));
+
+		assertDoesNotThrow(() -> validator.validate(xml));
+		assertThat(xml, containsString("<ItemShipped"));
+		assertThat(xml, containsString(
+			"<RequestIdentifierValue>request-789:SUPPLIER</RequestIdentifierValue>"));
+		assertThat(xml, containsString(
+			"<ItemIdentifierValue>item-456</ItemIdentifierValue>"));
+		assertThat(xml, containsString(
+			"<DateShipped>2026-07-15T09:30:00Z</DateShipped>"));
+		assertThat(xml, containsString("<ShippingInformation>"));
+	}
+
 	private static Document parse(String xml) {
 		try {
 			final var factory = DocumentBuilderFactory.newInstance();

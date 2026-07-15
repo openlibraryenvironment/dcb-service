@@ -47,6 +47,40 @@ class NcipInboundXmlMapperTests {
 	}
 
 	@Test
+	void mapsItemShippedResponseToSupplierRevisionResult() {
+		final var message = new NcipInboundXmlMapper().map(
+			validItemShippedResponse());
+
+		assertThat(message.messageKind(),
+			is(NcipProtocol.ITEM_SHIPPED_RESPONSE));
+		assertThat(message.role(), is(LifecycleRole.SUPPLIER));
+		assertThat(message.operation(), is(LifecycleOperation.REVISE_REQUEST));
+		assertThat(message.hostLmsCode(), is("supplier-host"));
+		assertThat(message.correlationId(), is("request-1:SUPPLIER"));
+		assertThat(message.status(), is("CONFIRMED"));
+	}
+
+	static String validItemShippedResponse() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <ItemShippedResponse>
+			    <ResponseHeader>
+			      <FromAgencyId>
+			        <AgencyId>supplier-host</AgencyId>
+			      </FromAgencyId>
+			      <ToAgencyId>
+			        <AgencyId>dcb-host</AgencyId>
+			      </ToAgencyId>
+			    </ResponseHeader>
+			    <RequestId>
+			      <RequestIdentifierValue>request-1:SUPPLIER</RequestIdentifierValue>
+			    </RequestId>
+			  </ItemShippedResponse>
+			</NCIPMessage>
+			""";
+	}
+
+	@Test
 	void mapsItemReceivedXmlToBorrowerItemEvidence() {
 		final var message = new NcipInboundXmlMapper().map(
 			NcipControllerTests.validItemReceived());

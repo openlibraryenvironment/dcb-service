@@ -145,6 +145,7 @@ public class NcipDeclarativeRequestTransport
 		return switch (request.messageKind()) {
 			case NcipProtocol.REQUEST_ITEM -> NcipProtocol.REQUEST_ITEM_RESPONSE;
 			case NcipProtocol.ACCEPT_ITEM -> NcipProtocol.ACCEPT_ITEM_RESPONSE;
+			case NcipProtocol.ITEM_SHIPPED -> NcipProtocol.ITEM_SHIPPED_RESPONSE;
 			default -> throw new NcipProblemException(
 				"Unsupported NCIP outbound message: " + request.messageKind());
 		};

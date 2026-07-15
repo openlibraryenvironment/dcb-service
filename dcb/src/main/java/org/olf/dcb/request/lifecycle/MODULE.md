@@ -5,6 +5,7 @@ Owns lifecycle strategy selection and protocol-neutral lifecycle evidence.
 ## Owns
 
 - Imperative/declarative placement strategy ports.
+- Protocol-neutral supplier return notification port.
 - `LifecycleEvidence` as the canonical inbound evidence model.
 - `LifecycleEvidenceProjector` for request evidence projection and audit.
 - `LifecycleEvidenceIngestor` for reactive inbound evidence plus workflow
@@ -26,6 +27,9 @@ Owns lifecycle strategy selection and protocol-neutral lifecycle evidence.
   available bibliographic description to the borrower.
 - NCIP transport failures retain the remote problem detail in the DCB request
   error instead of the generic HTTP status.
+- Standard NCIP returns send a correlated `ItemShipped` signal to the supplier.
+  Repeated delivery is safe because the supplier projects it onto the existing
+  host request identity and return state.
 
 ## Boundary Rules
 

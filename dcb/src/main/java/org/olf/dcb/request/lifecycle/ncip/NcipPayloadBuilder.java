@@ -117,6 +117,25 @@ public class NcipPayloadBuilder {
 		return toXml(document);
 	}
 
+	public String itemShipped(NcipItemShippedPayload payload) {
+		final var document = newDocument();
+		final var itemShipped = message(document, NcipProtocol.ITEM_SHIPPED);
+
+		itemShipped.appendChild(initiationHeader(document, payload.party()));
+		itemShipped.appendChild(requestId(
+			document, payload.requestIdentifierValue()));
+		itemShipped.appendChild(itemId(
+			document,
+			payload.itemAgencyId(),
+			null,
+			payload.itemIdentifierValue()));
+		itemShipped.appendChild(value(
+			document, "DateShipped", payload.dateShipped().toString()));
+		itemShipped.appendChild(returnShippingInformation(document));
+
+		return toXml(document);
+	}
+
 	public String lookupUser(NcipLookupUserPayload payload) {
 		final var document = newDocument();
 		final var lookupUser = message(document, "LookupUser");
@@ -304,6 +323,19 @@ public class NcipPayloadBuilder {
 		if (includeExtension) {
 			shippingInformation.appendChild(shippingExtension(document, context));
 		}
+		return shippingInformation;
+	}
+
+	private static Element returnShippingInformation(Document document) {
+		final var shippingInformation = element(document, "ShippingInformation");
+		final var electronicAddress = element(document, "ElectronicAddress");
+		electronicAddress.appendChild(schemeValue(
+			document, "ElectronicAddressType", "Email"));
+		electronicAddress.appendChild(value(
+			document,
+			"ElectronicAddressData",
+			"return-shipment@openrs.local"));
+		shippingInformation.appendChild(electronicAddress);
 		return shippingInformation;
 	}
 

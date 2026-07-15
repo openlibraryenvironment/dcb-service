@@ -90,7 +90,8 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 		// DCB-851 update borrowing lib
 		return updateBorrowerThatItemHasBeenReceivedBack(ctx.getPatronRequest())
-			.map( ok -> ctx.getPatronRequest().setStatus(PatronRequest.Status.COMPLETED))
+			.then(Mono.fromSupplier(() -> ctx.getPatronRequest()
+				.setStatus(PatronRequest.Status.COMPLETED)))
 			.doOnSuccess( pr -> Mono.from(supplierRequestRepository.saveOrUpdate(ctx.getSupplierRequest()) ) )
 			.flatMap( pr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
 			.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers item back on the shelf after loan. Completing request") )
