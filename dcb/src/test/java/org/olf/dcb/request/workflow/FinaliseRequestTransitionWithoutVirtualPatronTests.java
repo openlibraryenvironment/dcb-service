@@ -5,14 +5,19 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -25,10 +30,12 @@ import reactor.core.publisher.Mono;
 
 class FinaliseRequestTransitionWithoutVirtualPatronTests {
 	@Test
+	@SuppressWarnings("unchecked")
 	void finalisesWhenSupplierProtocolDoesNotCreateVirtualPatron() {
 		final var auditService = mock(PatronRequestAuditService.class);
 		final var supplyingAgencyService = mock(SupplyingAgencyService.class);
 		final var borrowingAgencyService = mock(BorrowingAgencyService.class);
+		final var pickupAgencyService = mock(PickupAgencyService.class);
 		final var cleanupService = mock(CleanupService.class);
 		final var patronRequest = PatronRequest.builder()
 			.id(UUID.randomUUID())
@@ -38,6 +45,7 @@ class FinaliseRequestTransitionWithoutVirtualPatronTests {
 			.id(UUID.randomUUID())
 			.patronRequest(patronRequest)
 			.hostLmsCode("supplier-host")
+			.localId("supplier-request-1")
 			.build();
 		final var context = new RequestWorkflowContext()
 			.setPatronRequest(patronRequest)
@@ -53,11 +61,25 @@ class FinaliseRequestTransitionWithoutVirtualPatronTests {
 			auditService,
 			supplyingAgencyService,
 			borrowingAgencyService,
-			mock(PickupAgencyService.class),
+			pickupAgencyService,
 			cleanupService);
 
 		assertThat(singleValueFrom(transition.attempt(context)), is(context));
 		assertThat(patronRequest.getStatus(), is(PatronRequest.Status.FINALISED));
+		verify(cleanupService).cleanup(context);
+		verify(borrowingAgencyService).getItem(patronRequest);
 		verify(supplyingAgencyService, never()).getPatron(context);
+		final var requestCaptor = ArgumentCaptor.forClass(HostLmsRequest.class);
+		verify(supplyingAgencyService).getRequest(
+			eq("supplier-host"), requestCaptor.capture());
+		assertThat(requestCaptor.getValue().getLocalId(),
+			is("supplier-request-1"));
+		final ArgumentCaptor<Map<String, Object>> auditDataCaptor =
+			ArgumentCaptor.forClass(Map.class);
+		verify(auditService).addAuditEntry(
+			eq(patronRequest), eq("Clean up result"), auditDataCaptor.capture());
+		assertThat(auditDataCaptor.getValue().get("VirtualPatron"),
+			is("Not created by supplier protocol"));
+		verifyNoInteractions(pickupAgencyService);
 	}
 }
