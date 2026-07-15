@@ -44,3 +44,5 @@ Owns lifecycle strategy selection and protocol-neutral lifecycle evidence.
   projected peer state into DCB workflow progression.
 - Polling may call the projector directly; reactive inbound callers should use
   the ingestor so workflow progression is triggered.
+- `RequestTrackingPolicy` suppresses automatic polling per lifecycle role. It
+  must retain polling for imperative roles in mixed-mode requests.

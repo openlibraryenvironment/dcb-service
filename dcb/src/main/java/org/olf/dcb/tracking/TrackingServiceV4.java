@@ -34,6 +34,8 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.tracking.RequestTrackingPolicy;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
@@ -67,6 +69,7 @@ public class TrackingServiceV4 implements TrackingService {
 	private final ReactorFederatedLockService reactorFederatedLockService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestAuditService patronRequestAuditService;
+	private final RequestTrackingPolicy requestTrackingPolicy;
 
 	@Value("${dcb.tracking.dryRun:false}")
 	private Boolean dryRun;
@@ -87,7 +90,8 @@ public class TrackingServiceV4 implements TrackingService {
 		PatronRequestWorkflowService patronRequestWorkflowService,
 		ReactorFederatedLockService reactorFederatedLockService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
-		PatronRequestAuditService patronRequestAuditService) {
+		PatronRequestAuditService patronRequestAuditService,
+		RequestTrackingPolicy requestTrackingPolicy) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -98,6 +102,7 @@ public class TrackingServiceV4 implements TrackingService {
 		this.reactorFederatedLockService = reactorFederatedLockService;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.requestTrackingPolicy = requestTrackingPolicy;
 	}
 
 	@Timed("tracking.run")
@@ -211,6 +216,13 @@ public class TrackingServiceV4 implements TrackingService {
 	private Mono<RequestWorkflowContext> failSafeTracking(RequestWorkflowContext ctx, boolean isAutoTracking) {
 		final var pr_id = ctx.getPatronRequest().getId();
 
+		if (isAutoTracking && !requestTrackingPolicy.schedulesAutomaticPolls(ctx)) {
+			log.warn("Event-driven request {} was selected for automatic tracking; clearing stale schedule", pr_id);
+			ctx.getPatronRequest().setNextScheduledPoll(null);
+			return Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest()))
+				.map(ctx::setPatronRequest);
+		}
+
     Instant lastStateChange = ctx.getPatronRequest().getCurrentStatusTimestamp();
     if ( lastStateChange != null ) {
       Instant tooLongThreshold = Instant.now().minus(Duration.ofDays(TOO_LONG_THRESHOLD));
@@ -220,7 +232,9 @@ public class TrackingServiceV4 implements TrackingService {
     }
 
 		return Mono.just(isAutoTracking ? incrementAutoPollCounter(ctx) : incrementManualPollCounter(ctx))
-			.flatMap(context -> isAutoTracking ? trackSystems(context) : manuallyTrack(context))
+			.flatMap(context -> isAutoTracking
+				? trackSystems(context, true)
+				: manuallyTrack(context))
 			.doOnError(error -> log.error("TRACKING Error occurred tracking patron request in local systems {}", pr_id, error))
 			.flatMap(context -> {
 				if (Boolean.TRUE.equals(dryRun)) {
@@ -260,16 +274,34 @@ public class TrackingServiceV4 implements TrackingService {
 
 	private Mono<RequestWorkflowContext> manuallyTrack(RequestWorkflowContext ctx) {
 		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), "Manual update actioned.")
-			.flatMap(audit -> trackSystems(ctx));
+			.flatMap(audit -> trackSystems(ctx, false));
 	}
 
-	private <R> Mono<RequestWorkflowContext> trackSystems(RequestWorkflowContext ctx) {
-		return this.trackBorrowingSystem(ctx)
+	private Mono<RequestWorkflowContext> trackSystems(
+		RequestWorkflowContext ctx, boolean automatic) {
+
+		return trackRole(ctx, automatic, LifecycleRole.BORROWER, this::trackBorrowingSystem)
 			.onErrorResume(error -> auditTrackingError("Tracking failed : Borrowing System", ctx, error))
-			.flatMap(this::trackPickupSystem)
+			.flatMap(context -> trackRole(context, automatic,
+				LifecycleRole.PICKUP, this::trackPickupSystem))
 			.onErrorResume(error -> auditTrackingError("Tracking failed : Pickup System", ctx, error))
-			.flatMap(this::trackSupplyingSystem)
+			.flatMap(context -> trackRole(context, automatic,
+				LifecycleRole.SUPPLIER, this::trackSupplyingSystem))
 			.onErrorResume(error -> auditTrackingError("Tracking failed : Supplying System", ctx, error));
+	}
+
+	private Mono<RequestWorkflowContext> trackRole(
+		RequestWorkflowContext context,
+		boolean automatic,
+		LifecycleRole role,
+		Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> tracker) {
+
+		if (automatic && !requestTrackingPolicy.schedulesAutomaticPolls(context, role)) {
+			log.debug("Automatic {} tracking suppressed for {}", role,
+				context.getPatronRequest().getId());
+			return Mono.just(context);
+		}
+		return tracker.apply(context);
 	}
 
 	private Mono<RequestWorkflowContext> trackBorrowingSystem(RequestWorkflowContext rwc) {

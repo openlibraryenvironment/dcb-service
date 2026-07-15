@@ -37,4 +37,6 @@ evidence.
 - `TrackingScheduler` owns scheduling. `TrackingServiceV3` and
   `TrackingServiceV4` must remain unscheduled implementations selected through
   Micronaut injection.
+- Automatic tracking must consult `RequestTrackingPolicy` before each role call.
+  Manual tracking remains available for diagnostics and recovery.
 - V4 is not default until parity, full-suite, smoke, and review are complete.

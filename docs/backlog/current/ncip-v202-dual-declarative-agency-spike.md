@@ -9,7 +9,8 @@ Branch: `spike/iso18626-declarative-dual-agency`
 This item supersedes the ISO18626 protocol leaf from
 `docs/backlog/done/iso18626-dual-declarative-agency-spike.md`.
 
-Current spike state: SystemId/directory return-routing slice done. Production follow-ons remain.
+Current spike state: SystemId/directory return-routing and lifecycle-wide
+event-driven poll suppression done. Production follow-ons remain.
 
 Related architecture backlog:
 `docs/backlog/done/inbound-lifecycle-convergence-phase-1.md`.
@@ -109,6 +110,10 @@ repository now contains the NCIP schema at `src/xsd/ncip_v2_02.xsd`, including
 6. `nextScheduledPoll = null` blocks automatic polling for event-driven roles.
 
 7. Manual tracking remains available for diagnostics and recovery.
+
+7a. Suppression applies per role across the active lifecycle. Mixed
+    pickup-anywhere requests may poll an imperative pickup role without polling
+    event-driven supplier or borrower roles.
 
 8. Existing `PatronRequest` and `SupplierRequest` fields remain compatibility
    projections, not the canonical protocol model.

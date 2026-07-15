@@ -119,6 +119,8 @@ workflow transitions.
 - `TrackingScheduler` owns scheduled tracking task registration. Tracking
   service implementations are invoked through the `TrackingService` interface
   and must not register their own scheduled tasks.
+- `RequestTrackingPolicy` owns per-role automatic-poll eligibility across the
+  request lifecycle. Mixed-mode requests poll only scheduled roles.
 - Admin transaction history must explain state changes consistently regardless
   of whether evidence came from polling or an inbound protocol message.
 - Event-driven tracking must have explicit idempotency and retry semantics.
