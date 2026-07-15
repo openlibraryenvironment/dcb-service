@@ -32,6 +32,7 @@ import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthorizationService;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthProfile;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
@@ -82,10 +83,12 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(
-			NcipHostLmsConfiguration.ENDPOINT_URL,
-			NcipHostLmsConfiguration.NCIP_SYSTEM_ID,
-			NcipHostLmsConfiguration.NCIP_AGENCY_ID);
+		return java.util.stream.Stream.concat(
+			List.of(
+				NcipHostLmsConfiguration.ENDPOINT_URL,
+				NcipHostLmsConfiguration.NCIP_SYSTEM_ID,
+				NcipHostLmsConfiguration.NCIP_AGENCY_ID).stream(),
+			NcipPeerAuthProfile.settings().stream()).toList();
 	}
 
 	@Override

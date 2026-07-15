@@ -42,7 +42,14 @@ class NcipPeerAuthorizationServiceTests {
 
 		final var request = service.authorize(
 			HttpRequest.POST("https://ors.example/ncip/v2_02", "<NCIPMessage/>"),
-			DataHostLms.builder().code("ors-host").build());
+			DataHostLms.builder()
+				.code("ors-host")
+				.clientConfig(java.util.Map.of(
+					"ncip-peer-auth-mode", "JWT_REQUIRED",
+					"ncip-peer-issuer", "https://ors.example",
+					"ncip-peer-jwks-url", "https://ors.example/jwks",
+					"ncip-peer-audience", "ors"))
+				.build());
 
 		final var authorization = request.getHeaders()
 			.getAuthorization()
@@ -50,7 +57,7 @@ class NcipPeerAuthorizationServiceTests {
 		final var jwt = SignedJWT.parse(authorization.substring("Bearer ".length()));
 
 		assertThat(jwt.getJWTClaimsSet().getIssuer(), is("https://dcb.example"));
-		assertThat(jwt.getJWTClaimsSet().getSubject(), is("dcb"));
+		assertThat(jwt.getJWTClaimsSet().getSubject(), is("dcb-system"));
 		assertThat(jwt.getJWTClaimsSet().getAudience(), is(List.of("ors")));
 		assertThat(jwt.getJWTClaimsSet().getStringClaim("protocol"), is(NcipPeerAuth.PROTOCOL));
 		assertThat(jwt.getJWTClaimsSet().getStringClaim("systemId"), is("dcb-system"));

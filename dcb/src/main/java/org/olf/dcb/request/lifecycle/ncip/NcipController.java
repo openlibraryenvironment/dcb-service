@@ -81,17 +81,16 @@ public class NcipController {
 			return Mono.just(xmlResponse(responseBuilder.problem(messageFrom(e))));
 		}
 
-		if (enforcePeerAuth) {
-			final var authProblem = peerAuthGuard.problem(request, ncipMessage);
-			if (authProblem.isPresent()) {
-				return Mono.just(authProblem.get());
-			}
-		}
+		final var authProblem = enforcePeerAuth
+			? peerAuthGuard.problem(request, ncipMessage)
+			: Mono.just(java.util.Optional.<MutableHttpResponse<String>>empty());
 
-		return inboundLifecycleMessageHandler.handle(
+		return authProblem.flatMap(problem -> problem
+			.map(Mono::just)
+			.orElseGet(() -> inboundLifecycleMessageHandler.handle(
 				new NcipInboundMessageMapper().map(ncipMessage))
 			.thenReturn(successResponseFor(ncipMessage))
-			.onErrorResume(error -> Mono.just(problemResponseFor(ncipMessage, error)));
+			.onErrorResume(error -> Mono.just(problemResponseFor(ncipMessage, error)))));
 	}
 
 	private MutableHttpResponse<String> successResponseFor(

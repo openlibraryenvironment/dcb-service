@@ -9,14 +9,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.k_int.peerauth.service.PeerBindingValidator;
-import com.k_int.peerauth.service.PeerTokenVerifier;
+import com.k_int.peerauth.service.PeerJwksResolver;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
@@ -25,6 +25,7 @@ import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthGuard;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessage;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageHandler;
 import reactor.core.publisher.Mono;
+import java.util.Map;
 
 class NcipControllerTests {
 	private final NcipSchemaValidator validator = new NcipSchemaValidator(
@@ -316,8 +317,8 @@ class NcipControllerTests {
 			new NcipSchemaValidator(NcipSchemaPath.schemaPath()),
 			new NcipPeerAuthGuard(
 				properties,
-				mock(PeerTokenVerifier.class),
-				mock(PeerBindingValidator.class),
+				hostLmsResolverWithJwtRequiredPeer(),
+				mock(PeerJwksResolver.class),
 				new NcipResponseBuilder()));
 
 		final var response = controller.receive(
@@ -340,11 +341,32 @@ class NcipControllerTests {
 	}
 
 	private static NcipPeerAuthGuard disabledPeerAuthGuard() {
+		final var resolver = mock(NcipPeerHostLmsResolver.class);
+		when(resolver.findBySystemId(any())).thenAnswer(invocation -> Mono.just(DataHostLms.builder()
+			.code("test-host")
+			.clientConfig(Map.of(
+				"ncip-system-id", invocation.getArgument(0),
+				"ncip-peer-auth-mode", "INSECURE"))
+			.build()));
 		return new NcipPeerAuthGuard(
 			new DcbPeerAuthProperties(),
-			mock(PeerTokenVerifier.class),
-			mock(PeerBindingValidator.class),
+			resolver,
+			mock(PeerJwksResolver.class),
 			new NcipResponseBuilder());
+	}
+
+	private static NcipPeerHostLmsResolver hostLmsResolverWithJwtRequiredPeer() {
+		final var resolver = mock(NcipPeerHostLmsResolver.class);
+		when(resolver.findBySystemId(any())).thenAnswer(invocation -> Mono.just(DataHostLms.builder()
+			.code(invocation.getArgument(0))
+			.clientConfig(Map.of(
+				"ncip-system-id", invocation.getArgument(0),
+				"ncip-peer-auth-mode", "JWT_REQUIRED",
+				"ncip-peer-issuer", "https://ors.example",
+				"ncip-peer-jwks-url", "https://ors.example/jwks",
+				"ncip-peer-audience", "ors"))
+			.build()));
+		return resolver;
 	}
 
 	static String validItemShipped() {

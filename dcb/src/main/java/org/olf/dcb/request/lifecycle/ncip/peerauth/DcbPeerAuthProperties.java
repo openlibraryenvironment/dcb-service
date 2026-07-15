@@ -51,6 +51,7 @@ public class DcbPeerAuthProperties {
 		return enabled && ncip.isEnabled();
 	}
 
+	@ConfigurationProperties("ncip")
 	public static class Ncip {
 		private boolean enabled;
 
@@ -63,6 +64,7 @@ public class DcbPeerAuthProperties {
 		}
 	}
 
+	@ConfigurationProperties("local-identity")
 	public static class LocalIdentity {
 		private String id = "dcb";
 		private String issuer;

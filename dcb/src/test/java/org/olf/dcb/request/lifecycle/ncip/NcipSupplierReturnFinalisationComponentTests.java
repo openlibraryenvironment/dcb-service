@@ -11,17 +11,18 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.k_int.peerauth.service.PeerBindingValidator;
-import com.k_int.peerauth.service.PeerTokenVerifier;
+import com.k_int.peerauth.service.PeerJwksResolver;
 import io.micronaut.context.BeanProvider;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.AlarmsService;
@@ -229,10 +230,18 @@ class NcipSupplierReturnFinalisationComponentTests {
 	}
 
 	private static NcipPeerAuthGuard disabledPeerAuthGuard() {
+		final var resolver = mock(NcipPeerHostLmsResolver.class);
+		when(resolver.findBySystemId(any())).thenAnswer(invocation -> reactor.core.publisher.Mono.just(
+			DataHostLms.builder()
+				.code("supplier-host")
+				.clientConfig(Map.of(
+					"ncip-system-id", invocation.getArgument(0),
+					"ncip-peer-auth-mode", "INSECURE"))
+				.build()));
 		return new NcipPeerAuthGuard(
 			new DcbPeerAuthProperties(),
-			mock(PeerTokenVerifier.class),
-			mock(PeerBindingValidator.class),
+			resolver,
+			mock(PeerJwksResolver.class),
 			new NcipResponseBuilder());
 	}
 }
