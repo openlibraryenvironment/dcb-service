@@ -424,7 +424,8 @@ class CancelledPatronRequestTransitionTests {
 	@Test
 	void shouldNotBeApplicableWhenItemIsOutSoRequestIsRoutedToReturnTransitInstead() {
 		// Once the item is "out" the cancellation must be handled by HandleCancelledRequestItemOut
-		// (which routes to RETURN_TRANSIT), so this transition must NOT claim these states.
+		// (which parks the request in AWAITING_RETURN_TO_SUPPLIER), so this transition must NOT claim
+		// these states.
 		for (final var outStatus : List.of(PICKUP_TRANSIT, RECEIVED_AT_PICKUP, READY_FOR_PICKUP)) {
 			final var ctx = new RequestWorkflowContext()
 				.setPatronRequest(PatronRequest.builder()

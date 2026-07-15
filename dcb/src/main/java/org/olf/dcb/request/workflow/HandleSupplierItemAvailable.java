@@ -36,10 +36,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
   private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private HostLmsService hostLmsService;
 
-	// RETURN_TRANSIT: normal return leg. AWAITING_RETURN_TO_SUPPLIER: request cancelled while the item
-	// was out and parked by HandleCancelledRequestItemOut - both complete once the supplier has the item back.
-	private static final List<Status> possibleSourceStatus = List.of(
-		Status.RETURN_TRANSIT, Status.AWAITING_RETURN_TO_SUPPLIER);
+	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT);
 	
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -71,7 +68,22 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 		return hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())
 			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(hostLmsItem,
-				HostLmsClient.CanonicalItemState.COMPLETED));
+				HostLmsClient.CanonicalItemState.COMPLETED))
+			// Best-effort borrower notification. Completion is authoritatively gated by the supplier
+			// having the item back; poking the borrower's virtual item is secondary cleanup that
+			// finalisation completes regardless (and FOLIO deleteHold already tolerates the same case).
+			// It legitimately fails when the borrower side is already terminal - e.g. a FOLIO borrower
+			// whose mod-dcb transaction is CANCELLED after a patron cancellation, where CANCELLED -> CLOSED
+			// is not a permitted mod-dcb transition. Do not let that wedge the request in RETURN_TRANSIT.
+			.onErrorResume(error -> {
+				log.warn("Best-effort borrower 'item received back' update failed for {} - continuing to COMPLETED: {}",
+					getValueOrNull(patronRequest, PatronRequest::getId), error.getMessage());
+
+				return auditService.addAuditEntry(patronRequest,
+						"Supplier item available - borrower 'received back' update skipped (borrower already terminal): "
+							+ error.getMessage())
+					.thenReturn("OK");
+			});
 	}
 
 
@@ -126,7 +138,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
-		return List.of( new DCBGuardCondition("DCBPatronRequest state is RETURN_TRANSIT or AWAITING_RETURN_TO_SUPPLIER and Supplier item status is AVAILABLE"));
+		return List.of( new DCBGuardCondition("DCBPatronRequest state is RETURN_TRANSIT and Supplier item status is AVAILABLE"));
 	}
 
 	@Override
