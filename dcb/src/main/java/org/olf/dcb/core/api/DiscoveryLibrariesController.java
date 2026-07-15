@@ -21,11 +21,9 @@ import reactor.core.publisher.Mono;
 
 /**
  * Anonymous, non-sensitive library directory for discovery services: code,
- * host LMS code and geographic coordinates only. This is the same data already
- * visible through the anonymous search facets — it carries no auth profiles,
- * IdP URLs or labels (unlike the ADMINISTRATOR-only /agencies endpoint).
+ * host LMS code and lat/long only
  *
- * Discovery uses it to resolve "the library nearest to me" into a concrete
+ * Discovery will use it to resolve "the library nearest to me" into a concrete
  * hostLms code it can scope a search by.
  */
 @Controller("/discovery/libraries")

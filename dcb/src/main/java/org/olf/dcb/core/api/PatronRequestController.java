@@ -21,6 +21,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.api.discovery.PatronStatusMapper;
 import org.olf.dcb.core.api.serde.PatronRequestSummary;
 import org.olf.dcb.core.api.serde.RequestedTitleStat;
 import org.olf.dcb.core.api.serde.TopRequestorStat;
@@ -181,20 +182,18 @@ public class PatronRequestController {
 		summary = "List Requests by Patron Barcode",
 		description = "Returns a list of patron requests associated with a specific barcode and Host LMS."
 	)
-	@Get(value = "/patrons/{hostLmsCode}/requests")
+	@Get(value = "/{hostLmsCode}")
 	public Flux<PatronRequestSummary> getPatronRequestsByBarcode(
 		@Parameter(description = "The Host LMS Code") String hostLmsCode,
 		@Parameter(description = "The Patron's Barcode") @QueryValue String barcode,
 		@Parameter(description = "Filter mode: 'active' (default) or 'all'") @QueryValue(defaultValue = "active") @Nullable String mode) {
 
+		final var rawRequests = "all".equalsIgnoreCase(mode)
+			? patronRequestRepository.findAllRequestsForPatronByBarcode(hostLmsCode, barcode)
+			: patronRequestRepository.findActiveRequestsForPatronByBarcode(hostLmsCode, barcode);
 
-		if ("all".equalsIgnoreCase(mode)) {
-			return patronRequestRepository.findAllRequestsForPatronByBarcode(hostLmsCode, barcode);
-		} else {
-			return patronRequestRepository.findActiveRequestsForPatronByBarcode(hostLmsCode, barcode);
-		}
+		return rawRequests.map(PatronStatusMapper::enrich);
 	}
-
 
 	@Error
 	public HttpResponse<ChecksFailure> onCheckFailure(PreflightCheckFailedException exception) {
@@ -228,7 +227,8 @@ public class PatronRequestController {
 		if ((patron_home_system != null) && (patron_home_id != null)) {
 			log.debug("Finding requests for {} {}", patron_home_system, patron_home_id);
 			return Mono.from(patronRequestRepository.findSummariesForPatron(patron_home_system.toString(),
-					patron_home_id.toString(), pageable));
+					patron_home_id.toString(), pageable))
+				.map(page -> page.map(PatronStatusMapper::enrich));
 		} else {
 			log.debug("Missing values for patron requests");
 			return Mono.empty();

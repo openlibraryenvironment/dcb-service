@@ -12,7 +12,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import org.olf.dcb.core.api.serde.PatronRequestSummary;
+import org.olf.dcb.core.api.serde.PatronRequestSummaryProjection;
 import org.olf.dcb.core.api.serde.RequestedTitleStat;
 import org.olf.dcb.core.api.serde.TopRequestorStat;
 import org.olf.dcb.core.model.PatronIdentity;
@@ -165,6 +165,7 @@ public interface PatronRequestRepository {
             pr.error_message,
             cr.title as title,
             pr.pickup_location_code,
+            (SELECT l.name FROM location l WHERE l.code = pr.pickup_location_code LIMIT 1) as pickup_location_name,
             pr.active_workflow,
             pr.bib_cluster_id,
             pr.date_created,
@@ -189,7 +190,7 @@ public interface PatronRequestRepository {
           )
         ORDER BY pr.date_updated DESC
     """, nativeQuery = true)
-	Flux<PatronRequestSummary> findActiveRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
+	Flux<PatronRequestSummaryProjection> findActiveRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
 
 	// While the active requests are most useful for the discovery services, all time data also has its use for consortial admins
 	@Query(value = """
@@ -201,6 +202,7 @@ public interface PatronRequestRepository {
             pr.error_message,
             cr.title as title,
             pr.pickup_location_code,
+            (SELECT l.name FROM location l WHERE l.code = pr.pickup_location_code LIMIT 1) as pickup_location_name,
             pr.active_workflow,
             pr.bib_cluster_id,
             pr.date_created,
@@ -212,7 +214,7 @@ public interface PatronRequestRepository {
           AND pi.local_barcode LIKE CONCAT('%', :patronBarcode, '%')
         ORDER BY pr.date_updated DESC
     """, nativeQuery = true)
-	Flux<PatronRequestSummary> findAllRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
+	Flux<PatronRequestSummaryProjection> findAllRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
 
 	// Paged summary of a patron's own requests, keyed by the identity claims a
 	// discovery-service JWT carries. Same joins/filters as findRequestsForPatron,
@@ -227,6 +229,7 @@ public interface PatronRequestRepository {
             pr.error_message,
             cr.title as title,
             pr.pickup_location_code,
+            (SELECT l.name FROM location l WHERE l.code = pr.pickup_location_code LIMIT 1) as pickup_location_name,
             pr.active_workflow,
             pr.bib_cluster_id,
             pr.date_created,
@@ -248,7 +251,7 @@ public interface PatronRequestRepository {
           AND pi.local_id = :patronId
           AND pi.home_identity = true
     """, nativeQuery = true)
-	Publisher<Page<PatronRequestSummary>> findSummariesForPatron(String patronSystem, String patronId, Pageable pageable);
+	Publisher<Page<PatronRequestSummaryProjection>> findSummariesForPatron(String patronSystem, String patronId, Pageable pageable);
 
 	@Query(
 		value = """
