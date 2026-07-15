@@ -58,7 +58,7 @@ dependencies {
 	implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation("io.micronaut.serde:micronaut-serde-jackson")
 	implementation("io.micronaut.security:micronaut-security-jwt")
-	implementation("com.k_int.mn:ki-mn-peer-auth:1.3.1")
+	implementation("com.k_int.mn:ki-mn-peer-auth:1.4.0")
 	implementation("io.micronaut:micronaut-http-client")
 	implementation("io.micronaut:micronaut-management")
 	implementation("io.micronaut.cache:micronaut-cache-caffeine")
