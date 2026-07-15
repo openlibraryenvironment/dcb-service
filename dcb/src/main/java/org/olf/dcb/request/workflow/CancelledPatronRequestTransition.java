@@ -35,8 +35,10 @@ import reactor.core.publisher.Mono;
 @Prototype
 public class CancelledPatronRequestTransition implements PatronRequestStateTransition {
 	// Item is still at the supplier in these states, so cancelling and finalising the request is
-	// non-destructive. Once the item is "out" (PICKUP_TRANSIT / RECEIVED_AT_PICKUP / READY_FOR_PICKUP)
-	// cancellation is handled by HandleCancelledRequestItemOut, which routes to RETURN_TRANSIT instead.
+	// non-destructive (no virtual records to orphan). Once the item is "out" (PICKUP_TRANSIT /
+	// RECEIVED_AT_PICKUP / READY_FOR_PICKUP) cancellation is instead parked by
+	// HandleCancelledRequestItemOut in AWAITING_RETURN_TO_SUPPLIER and finalised only once the item
+	// is back at the supplier.
 	private static final List<Status> POSSIBLE_SOURCE_STATUS = List.of(
 		Status.REQUEST_PLACED_AT_BORROWING_AGENCY,
 		Status.REQUEST_PLACED_AT_PICKUP_AGENCY
@@ -246,7 +248,7 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	// The item has not yet shipped and is still recallable at the supplier. Once it is "out" the
-	// cancellation is routed to RETURN_TRANSIT by HandleCancelledRequestItemOut instead.
+	// cancellation is parked in AWAITING_RETURN_TO_SUPPLIER by HandleCancelledRequestItemOut instead.
 	private static boolean isItemStillAtSupplier(Status requestStatus) {
 		return POSSIBLE_SOURCE_STATUS.contains(requestStatus);
 	}

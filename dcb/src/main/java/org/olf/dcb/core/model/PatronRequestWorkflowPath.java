@@ -30,8 +30,9 @@ public enum PatronRequestWorkflowPath {
 		transitions.put(READY_FOR_PICKUP, LOANED);
 		transitions.put(LOANED, RETURN_TRANSIT);
 		transitions.put(RETURN_TRANSIT, COMPLETED);
-		// Cancelled-while-out requests are parked here until the item is back at the supplier, then completed
-		transitions.put(AWAITING_RETURN_TO_SUPPLIER, COMPLETED);
+		// Patron-cancelled-while-out requests are parked here until the borrower routes the item back,
+		// then they join the normal return leg at RETURN_TRANSIT
+		transitions.put(AWAITING_RETURN_TO_SUPPLIER, RETURN_TRANSIT);
 		transitions.put(CANCELLED, CANCELLED);
 		transitions.put(COMPLETED, FINALISED);
 		transitions.put(FINALISED, FINALISED);

@@ -18,6 +18,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.READY_FOR_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.RECEIVED_AT_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -48,7 +49,6 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
-import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -72,7 +72,7 @@ class HandleCancelledRequestItemOutTests {
 	@Inject
 	private HandleCancelledRequestItemOut handleCancelledRequestItemOut;
 	@Inject
-	private HandleSupplierItemAvailable handleSupplierItemAvailable;
+	private HandleCancelledRequestReturnTransit handleCancelledRequestReturnTransit;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private DataHostLms supplierHostLMS;
@@ -177,9 +177,10 @@ class HandleCancelledRequestItemOutTests {
 	}
 
 	@Test
-	void shouldCancelSupplierHoldAndParkRequestAwaitingReturn() {
-		// The supplier hold MUST be cancelled when parking, otherwise checking the item back in at the
-		// supplier re-fills the still-active hold and ships it back to the borrower instead of going AVAILABLE.
+	void shouldParkRequestAwaitingReturnWithoutTouchingTheSupplier() {
+		// The supplier hold/transaction MUST NOT be cancelled when parking. On FOLIO the mod-dcb
+		// transaction is the tracking channel and cancelling it orphans the request; on the other ILS
+		// there is no live hold to cancel. The item comes home via the normal return leg instead.
 		final var patron = Patron.builder().id(randomUUID()).build();
 		patronFixture.savePatron(patron);
 		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, supplierHostLMS, "007",
@@ -212,20 +213,15 @@ class HandleCancelledRequestItemOutTests {
 				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
-		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId, SierraPatronHold.builder()
-			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localSupplyingHoldId))
-			.build());
-		sierraPatronsAPIFixture.mockDeleteHold(localSupplyingHoldId);
-
 		// Act
 		final var updated = singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(handleCancelledRequestItemOut::attempt)
 			.map(RequestWorkflowContext::getPatronRequest));
 
-		// Assert
+		// Assert - parked, and the supplier hold was left completely alone
 		assertThat(updated, allOf(notNullValue(), hasStatus(AWAITING_RETURN_TO_SUPPLIER)));
 
-		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
+		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade();
 
 		final var auditEntries = mapStream(patronRequestsFixture.findAuditEntries(patronRequest),
 				PatronRequestAudit::getBriefDescription)
@@ -236,12 +232,72 @@ class HandleCancelledRequestItemOutTests {
 	}
 
 	@Test
-	void heldRequestShouldBeReleasedByHandleSupplierItemAvailableOnceSupplierHasItemBack() {
-		// The held request only leaves AWAITING_RETURN_TO_SUPPLIER via HandleSupplierItemAvailable,
-		// once the supplier item is back on the shelf.
+	void parkedRequestShouldJoinTheReturnLegOnceTheItemIsRoutedBack() {
+		// AWAITING_RETURN_TO_SUPPLIER is not a completion state: it is released onto the normal return
+		// leg (RETURN_TRANSIT) by HandleCancelledRequestReturnTransit once the borrower routes the item
+		// home. Completion then happens through the untouched HandleSupplierItemAvailable path.
+		final var stillOnShelf = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(AWAITING_RETURN_TO_SUPPLIER)
+			.localItemStatus("HOLDSHELF")
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build());
+
+		assertThat("Not released while the item is still sitting on the pickup shelf",
+			handleCancelledRequestReturnTransit.isApplicableFor(stillOnShelf), is(false));
+
+		final var routedBack = PatronRequest.builder()
+			.id(randomUUID())
+			.status(AWAITING_RETURN_TO_SUPPLIER)
+			.localItemStatus(ITEM_TRANSIT)
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build();
+
+		final var ctx = contextFor(routedBack);
+
+		assertThat("Released once the borrower item is in transit back",
+			handleCancelledRequestReturnTransit.isApplicableFor(ctx), is(true));
+
+		final var updated = singleValueFrom(handleCancelledRequestReturnTransit.attempt(ctx)
+			.map(RequestWorkflowContext::getPatronRequest));
+
+		assertThat(updated, allOf(notNullValue(), hasStatus(RETURN_TRANSIT)));
+	}
+
+	@Test
+	void parkedFolioBorrowerRequestShouldReleaseOnSupplierItemBack() {
+		// Regression for the FOLIO-borrower stall: the cancelled mod-dcb borrower transaction is
+		// terminal, so the borrower virtual item never reports TRANSIT (DCB sees a passthrough
+		// "CANCELLED"). If the release only watched the borrower item the request would be stranded
+		// in AWAITING even though the supplier (e.g. Polaris) already has the item back. The release
+		// must key off the supplier item being AVAILABLE.
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
 			.status(AWAITING_RETURN_TO_SUPPLIER)
+			.localRequestStatus(HOLD_CANCELLED)
+			.localItemStatus("CANCELLED")
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build();
+
+		final var supplierHasItemBack = new RequestWorkflowContext()
+			.setPatronRequest(patronRequest)
+			.setSupplierRequest(SupplierRequest.builder().id(randomUUID()).localItemStatus(ITEM_AVAILABLE).build());
+
+		assertThat("Released once the supplier has the item back, despite the FOLIO borrower item never reporting transit",
+			handleCancelledRequestReturnTransit.isApplicableFor(supplierHasItemBack), is(true));
+
+		final var updated = singleValueFrom(handleCancelledRequestReturnTransit.attempt(supplierHasItemBack)
+			.map(RequestWorkflowContext::getPatronRequest));
+
+		assertThat(updated, allOf(notNullValue(), hasStatus(RETURN_TRANSIT)));
+	}
+
+	@Test
+	void parkedRequestShouldNotReleaseWhileItemIsNeitherInTransitNorBackAtSupplier() {
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.status(AWAITING_RETURN_TO_SUPPLIER)
+			.localItemStatus("HOLDSHELF")
 			.activeWorkflow(STANDARD_WORKFLOW)
 			.build();
 
@@ -249,15 +305,8 @@ class HandleCancelledRequestItemOutTests {
 			.setPatronRequest(patronRequest)
 			.setSupplierRequest(SupplierRequest.builder().id(randomUUID()).localItemStatus(ITEM_TRANSIT).build());
 
-		assertThat("Not released while supplier item is still in transit",
-			handleSupplierItemAvailable.isApplicableFor(stillOut), is(false));
-
-		final var backAtSupplier = new RequestWorkflowContext()
-			.setPatronRequest(patronRequest)
-			.setSupplierRequest(SupplierRequest.builder().id(randomUUID()).localItemStatus(ITEM_AVAILABLE).build());
-
-		assertThat("Released once supplier item is available",
-			handleSupplierItemAvailable.isApplicableFor(backAtSupplier), is(true));
+		assertThat("Not released while the supplier item is still in transit and the borrower item is on the shelf",
+			handleCancelledRequestReturnTransit.isApplicableFor(stillOut), is(false));
 	}
 
 	private RequestWorkflowContext contextFor(PatronRequest patronRequest) {
