@@ -115,6 +115,9 @@ repository now contains the NCIP schema at `src/xsd/ncip_v2_02.xsd`, including
     pickup-anywhere requests may poll an imperative pickup role without polling
     event-driven supplier or borrower roles.
 
+7b. Declarative suppliers do not require DCB-created virtual patrons or a
+    supplier-side checkout reflection during the loan transition.
+
 8. Existing `PatronRequest` and `SupplierRequest` fields remain compatibility
    projections, not the canonical protocol model.
 
