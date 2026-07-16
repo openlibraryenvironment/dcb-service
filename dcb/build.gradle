@@ -417,6 +417,9 @@ graalvmNative {
         main {
         		// Uncomment quickBuild when testing in development only
         		// quickBuild = true
+            // GraalVM 25.0.3 crashes in PartialEscapeBlockState during pre-analysis.
+            // Retain Optimize=2 while disabling only the failing compiler pass.
+            buildArgs.add('-H:-EscapeAnalysisBeforeAnalysis')
             if (project.hasProperty('spikeNativeQuickBuild')) {
                 quickBuild = true
                 buildArgs.add('-H:Optimize=0')
