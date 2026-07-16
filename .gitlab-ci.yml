@@ -91,12 +91,17 @@ build-native-image:
     - mkdir ~/.docker
     - cp ./config.json ~/.docker/config.json
     - ./gradlew -x test nativeCompile
-    - ./gradlew -x test dockerPushNative
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "spike/iso18626-declarative-dual-agency" ]; then
+        ./gradlew -x test dockerPushSpikeNative
+      else
+        ./gradlew -x test dockerPushNative
+      fi
     - ./gradlew -x test dockerPush
-    - ls ki-console-api/build/native/nativeCompile
+    - ls dcb/build/native/nativeCompile
   artifacts:
     paths:
-      - ki-console-api/build/native/nativeCompile/ki-console-api
+      - dcb/build/native/nativeCompile/dcb
   cache:
     key: "$CI_COMMIT_REF_NAME"
     policy: pull
