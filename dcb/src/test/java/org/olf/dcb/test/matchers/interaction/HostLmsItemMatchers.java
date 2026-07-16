@@ -7,8 +7,6 @@ import static services.k_int.utils.StringUtils.convertIntegerToString;
 import org.hamcrest.Matcher;
 import org.olf.dcb.core.interaction.HostLmsItem;
 
-import services.k_int.utils.StringUtils;
-
 public class HostLmsItemMatchers {
 	public static Matcher<HostLmsItem> hasStatus(String expectedStatus) {
 		return hasProperty("status", is(expectedStatus));
@@ -32,5 +30,9 @@ public class HostLmsItemMatchers {
 
 	public static Matcher<HostLmsItem> hasRenewalCount(Integer count) {
 		return hasProperty("renewalCount", is(count));
+	}
+
+	public static Matcher<HostLmsItem> hasBibId(String expectedBibId) {
+		return hasProperty("bibId", is(expectedBibId));
 	}
 }
