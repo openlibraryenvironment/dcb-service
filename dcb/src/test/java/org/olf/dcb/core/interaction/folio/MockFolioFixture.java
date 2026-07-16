@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.MockServerCommonResponses.created;
 import static org.olf.dcb.test.MockServerCommonResponses.noContent;
 import static org.olf.dcb.test.MockServerCommonResponses.ok;
@@ -8,6 +9,7 @@ import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
+import org.mockserver.matchers.MatchType;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.olf.dcb.test.MockServer;
@@ -89,6 +91,13 @@ public class MockFolioFixture {
 
 	public void mockUpdateTransaction(String transactionId, HttpResponse response) {
 		mockServer.mockPut(updateTransactionPath(transactionId), response);
+	}
+
+	// PUT .../{id}/status, body-matched on the target status only (ignores other serialized fields), so
+	// successive status PUTs can be mocked independently - e.g. deleteHold's CLOSE-then-CANCEL fallback.
+	public void mockUpdateTransactionStatus(String transactionId, String status, HttpResponse response) {
+		mockServer.mock(commonRequests.put(getTransactionStatusPath(transactionId))
+			.withBody(json("{\"status\":\"" + status + "\"}", MatchType.ONLY_MATCHING_FIELDS)), response);
 	}
 
 	public void verifyUpdateTransaction(String transactionId, UpdateTransactionRequest expectedRequest) {

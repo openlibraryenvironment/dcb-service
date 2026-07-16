@@ -47,6 +47,7 @@ import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_ERROR;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_OK;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_CANCELLED;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_CLOSED;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_NOT_RESOLVED;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_BORROWER;
@@ -59,6 +60,7 @@ import static org.olf.dcb.core.interaction.folio.TransactionStatus.AWAITING_PICK
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CANCELLED;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CLOSED;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CREATED;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.ERROR;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.ITEM_CHECKED_IN;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.ITEM_CHECKED_OUT;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.OPEN;
@@ -1167,16 +1169,31 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				String currentStatus = txStatus.getStatus();
 				log.debug("Current status for transaction {}: {}", localRequestId, currentStatus);
 
-				// If it's already closed don't try and close it again
-				if (CLOSED.equals(currentStatus)) {
+				// Nothing to do if the transaction is already terminal - idempotent cleanup that avoids
+				// trying (and failing) to CLOSE or CANCEL a CLOSED/CANCELLED/ERROR transaction, which is
+				// exactly what happens when finalisation cleanup re-runs deleteHold after we already
+				// cancelled the hold at park time.
+				if (CLOSED.equals(currentStatus) || CANCELLED.equals(currentStatus) || ERROR.equals(currentStatus)) {
 					return Mono.just(RESULT_OK);
 				}
+				// The clean path is CLOSED (item returned). mod-dcb only permits that once the item is
+				// physically back, so while the item is still out (e.g. transaction OPEN after a patron
+				// cancellation mid-transit) this is rejected. We must NOT leave the transaction active:
+				// left OPEN, mod-dcb re-captures the item when it is checked back in at the supplier and
+				// ships it out to the borrower again. Fall back to CANCELLED to release the hold - the
+				// supplier item then returns to AVAILABLE in inventory (mod-dcb releases it on cancel).
 				return updateTransactionStatus(localRequestId, TransactionStatus.CLOSED)
 					.thenReturn(RESULT_OK_CLOSED)
-					.onErrorResume(e -> {
-						log.error("Failed to CLOSE mod-dcb transaction {}. API does not support this transition from {}. Error: {}",
-							localRequestId, currentStatus, e.getMessage());
-						return Mono.just(RESULT_OK_NOT_RESOLVED); // Put a more specific message in here in future
+					.onErrorResume(closeError -> {
+						log.warn("Could not CLOSE mod-dcb transaction {} from {} (item still out) - cancelling it to release the hold. Close error: {}",
+							localRequestId, currentStatus, closeError.getMessage());
+						return updateTransactionStatus(localRequestId, TransactionStatus.CANCELLED)
+							.thenReturn(RESULT_OK_CANCELLED)
+							.onErrorResume(cancelError -> {
+								log.error("Failed to CANCEL mod-dcb transaction {} from {} after CLOSE was rejected. Error: {}",
+									localRequestId, currentStatus, cancelError.getMessage());
+								return Mono.just(RESULT_OK_NOT_RESOLVED);
+							});
 					});
 			})
 			.onErrorResume(TransactionNotFoundException.class, e -> {
@@ -1363,8 +1380,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public boolean cancellingSupplierHoldReleasesItem() {
+		// Cancelling the mod-dcb transaction cancels the circulation request and returns the item to
+		// AVAILABLE in inventory. There is no physical return to wait for (or track), so a cancelled-while-out
+		// request against a FOLIO supplier is finalised immediately rather than parked. See HostLmsClient.
+		return true;
+	}
+
+	@Override
 	public @NonNull String getClientId() {
-		
+
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.

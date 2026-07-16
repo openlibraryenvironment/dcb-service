@@ -13,6 +13,7 @@ final class ConsortialFolioClientConstants {
 	// Generic operation result strings
 	static final String RESULT_OK = "OK";
 	static final String RESULT_OK_CLOSED = "OK_CLOSED";
+	static final String RESULT_OK_CANCELLED = "OK_CANCELLED";
 	static final String RESULT_OK_NOT_RESOLVED = "OK_NOT_RESOLVED";
 
 	// Request / item status

@@ -146,6 +146,23 @@ public interface HostLmsClient extends Comparable<HostLmsClient> {
 		return true;
 	}
 
+	/**
+	 * When we terminate the supplier hold for an item that is out (patron cancelled while the item was in
+	 * transit / on the pickup shelf), does that immediately return the item to available at the supplier?
+	 * <p>
+	 * FOLIO answers true: cancelling the mod-dcb transaction cancels the underlying circulation request and
+	 * releases the item back to AVAILABLE in inventory - so there is no physical return for DCB to wait on,
+	 * and no signal it could wait on (the terminal transaction can no longer report the item). Such a
+	 * request is finalised immediately rather than parked.
+	 * <p>
+	 * Sierra / Polaris / Alma answer false (the default): deleting the hold does not return the item; the
+	 * real inventory item stays out and is tracked independently until it is physically checked back in, so
+	 * the request is parked in AWAITING_RETURN_TO_SUPPLIER until the item genuinely comes home.
+	 */
+	default boolean cancellingSupplierHoldReleasesItem() {
+		return false;
+	}
+
 	@NonNull
 	String getClientId();
 	
