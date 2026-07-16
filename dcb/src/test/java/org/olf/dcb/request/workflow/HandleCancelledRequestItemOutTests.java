@@ -49,6 +49,7 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -177,10 +178,12 @@ class HandleCancelledRequestItemOutTests {
 	}
 
 	@Test
-	void shouldParkRequestAwaitingReturnWithoutTouchingTheSupplier() {
-		// The supplier hold/transaction MUST NOT be cancelled when parking. On FOLIO the mod-dcb
-		// transaction is the tracking channel and cancelling it orphans the request; on the other ILS
-		// there is no live hold to cancel. The item comes home via the normal return leg instead.
+	void shouldDeleteSupplierHoldWhenParkingSoReturningItemIsNotReCaptured() {
+		// The supplier hold is only consumed by the supplier-side checkout, which happens in
+		// HandleBorrowerItemLoaned. The patron cancelled before loaning, so nothing consumed it - left
+		// in place it re-captures the item on check-in at the supplier (Polaris: "transfer for hold")
+		// and the item never becomes AVAILABLE. So we must DELETE it (never CANCEL, which would kill
+		// FOLIO's mod-dcb tracking transaction).
 		final var patron = Patron.builder().id(randomUUID()).build();
 		patronFixture.savePatron(patron);
 		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, supplierHostLMS, "007",
@@ -213,15 +216,21 @@ class HandleCancelledRequestItemOutTests {
 				.virtualIdentity(virtualPatronIdentity)
 				.build());
 
+		// cleanUp checks the hold exists before deleting it
+		sierraPatronsAPIFixture.mockGetHoldById(localSupplyingHoldId, SierraPatronHold.builder()
+			.id("%s/iii/sierra-api/v6/patrons/holds/%s".formatted(BASE_URL, localSupplyingHoldId))
+			.build());
+		sierraPatronsAPIFixture.mockDeleteHold(localSupplyingHoldId);
+
 		// Act
 		final var updated = singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(handleCancelledRequestItemOut::attempt)
 			.map(RequestWorkflowContext::getPatronRequest));
 
-		// Assert - parked, and the supplier hold was left completely alone
+		// Assert - parked, and the supplier hold was removed so the item can go AVAILABLE on return
 		assertThat(updated, allOf(notNullValue(), hasStatus(AWAITING_RETURN_TO_SUPPLIER)));
 
-		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade();
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
 
 		final var auditEntries = mapStream(patronRequestsFixture.findAuditEntries(patronRequest),
 				PatronRequestAudit::getBriefDescription)
