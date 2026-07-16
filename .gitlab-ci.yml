@@ -11,6 +11,8 @@ variables:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   DOCKER_HOST: "tcp://localhost:2375/"
   DOCKER_TLS_CERTDIR: ""
+  # Override for spike/iso18626-declarative-dual-agency branch for now.
+  DOCKER_IMAGE: "docker.libsdev.k-int.com/knowledgeintegration/dcb-service-ii"
   # The conventional-git Gradle plugin walks tag ancestry while the build is
   # being configured, so shallow CI checkouts can fail before any task runs.
   GIT_DEPTH: "0"
@@ -82,6 +84,7 @@ build-native-image:
   only:
     - main
     - tags
+    - spike/iso18626-declarative-dual-agency
   tags:
     - ki-onprem
   script: 
