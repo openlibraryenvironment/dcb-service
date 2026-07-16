@@ -2,12 +2,20 @@
 
 You are close. The state-model *shape* on `dcb-2193-new-transition` is right; two things sink it. This guide takes you from the current branch to a mergeable solution without touching mod-dcb and without going near supplier cancellation.
 
-## 0. The one thing you must internalise about FOLIO
+## 0. The two things you must internalise
 
-For a FOLIO supplier, **the mod-dcb transaction IS the tracking channel.** DCB observes the item coming home only because the transaction reaches `CLOSED` (lender check-in → `CLOSED` → DCB maps it to item `AVAILABLE`).
+**(a) For a FOLIO supplier, the mod-dcb transaction IS the tracking channel.** DCB observes the item coming home only because the transaction reaches `CLOSED` (lender check-in → `CLOSED` → DCB maps it to item `AVAILABLE`). If you **cancel** that transaction, mod-dcb's check-in listener stops seeing it (`findTransactionByItemIdAndStatusNotInClosed` excludes `CANCELLED`/`ERROR`), so it **never** reaches `CLOSED`, DCB **never** sees `AVAILABLE`, and the request is orphaned forever.
 
-If you cancel that transaction, mod-dcb's own check-in listener stops seeing it —
-`findTransactionByItemIdAndStatusNotInClosed` excludes `CANCELLED`/`ERROR` — so it **never** reaches `CLOSED`, DCB **never** sees `AVAILABLE`, and the request is orphaned forever. On Sierra/Polaris/Koha/Alma there is no live hold to cancel anyway (it was consumed into the supplier loan when the item shipped), and the normal return leg never cancels one. **Conclusion: the correct supplier action while parking a cancelled-while-out request is *no action*.** Delete `cancelSupplierHoldIfPresent`.
+**(b) But the supplier hold MUST still be removed — because in this flow nothing ever consumed it.** The supplier-side checkout that normally consumes the hold (`checkOutItemToPatron`) is only called from `HandleBorrowerItemLoaned` — i.e. only when the patron actually **loans** the item. Here the patron cancelled *before* loaning, so the hold is still live. Left in place it re-captures the item when it is checked back in at the supplier — Polaris reports **"transfer for hold"** and routes it straight back out — so the item never becomes `AVAILABLE` and the request can never complete. *This is why the normal return leg works and this one does not.*
+
+**Conclusion — the operation matters more than the intent. Use `SupplyingAgencyService.cleanUp` (`HoldOperation.DELETE`), never `cancelHold` (`HoldOperation.CANCEL`):**
+
+| | `cancelHold()` → `cancelHoldRequest` | `cleanUp()` → `deleteHold` |
+|---|---|---|
+| **FOLIO supplier** | Sets transaction `CANCELLED` → **kills tracking, orphans request** | Attempts `CLOSED`; mod-dcb rejects it (lender close processor is `manual`, and `process()` validates the whole chain **before** mutating, so nothing changes); client swallows it as `RESULT_OK_NOT_RESOLVED` → **transaction intact**, closes naturally on check-in ✓ |
+| **Polaris / Sierra / Alma** | cancels hold | **deletes the hold** → no re-capture → item goes `AVAILABLE` ✓ (Polaris's delete/fallback-cancel quirk is already handled inside `deleteHold`) |
+
+`deleteHold` is the existing, ILS-aware abstraction — no `if (ils == POLARIS)` needed. The original branch's instinct (cancel the supplier hold) was **right**; only the operation was wrong.
 
 ## 1. Decisions (already made — don't relitigate on the branch)
 
@@ -21,9 +29,9 @@ If you cancel that transaction, mod-dcb's own check-in listener stops seeing it 
  PICKUP_TRANSIT ─┐
  RECEIVED_AT_PICKUP ─┼─► AWAITING_RETURN_TO_SUPPLIER ─► RETURN_TRANSIT ─► COMPLETED ─► FINALISED
  READY_FOR_PICKUP ─┘   (HandleCancelledRequestItemOut) │  (HandleCancelled  (HandleSupplier (Finalise
-                        no supplier/borrower LMS calls  │   RequestReturn     ItemAvailable)  Request)
-                                                        │   Transit, when
-                                                        │   item goes TRANSIT)
+                        DELETEs the supplier hold;      │   RequestReturn     ItemAvailable)  Request)
+                        no borrower LMS calls           │   Transit, once the
+                                                        │   supplier has it back)
  item still AT supplier (REQUEST_PLACED_*) ─► CANCELLED ─► FINALISED   (unchanged: auto-finalise is fine, nothing to orphan)
 ```
 
@@ -31,8 +39,10 @@ If you cancel that transaction, mod-dcb's own check-in listener stops seeing it 
 
 1. **`PatronRequest.Status`** — keep the new `AWAITING_RETURN_TO_SUPPLIER` enum value. ✔ (already on branch)
 
-2. **`HandleCancelledRequestItemOut`** — the entry transition. Source = the 3 "out" states; guard = borrower hold (or pickup hold for PUA) is `MISSING`/`CANCELLED`; action = **audit + set `AWAITING_RETURN_TO_SUPPLIER`, nothing else.**
-   - Delete `cancelSupplierHoldIfPresent` and the `SupplyingAgencyService` dependency.
+2. **`HandleCancelledRequestItemOut`** — the entry transition. Source = the 3 "out" states; guard = borrower hold (or pickup hold for PUA) is `MISSING`/`CANCELLED`; action = **`supplyingAgencyService.cleanUp(ctx)` (DELETE the supplier hold), then audit + set `AWAITING_RETURN_TO_SUPPLIER`.**
+   - Replace `cancelSupplierHoldIfPresent` (which called `cancelHold`/CANCEL — FOLIO-fatal) with `cleanUp` (DELETE — FOLIO-safe). Keep the `SupplyingAgencyService` dependency. See §0(b): the hold must go, or Polaris re-captures the returning item.
+   - `cleanUp` is already defensive (it audits and swallows its own failures via `logAndReturnErrorString` rather than erroring the transition), so no extra error handling is needed here.
+   - No borrower LMS call — the borrower hold is already gone; that's the trigger.
    - Fix the docstring: it currently says "routes to RETURN_TRANSIT" — it parks in `AWAITING_RETURN_TO_SUPPLIER`.
 
 3. **`HandleCancelledRequestReturnTransit`** — new release transition. Source = `AWAITING_RETURN_TO_SUPPLIER`; action = set `RETURN_TRANSIT`. No LMS calls.
@@ -54,11 +64,11 @@ If you cancel that transaction, mod-dcb's own check-in listener stops seeing it 
 - **Supplier cancellation / re-resolution.** `HandleSupplierRequestCancelled` (keys off `SupplierRequest.localStatus`) → `NOT_SUPPLIED_CURRENT_SUPPLIER` → `ResolveNextSupplierTransition`. This is a *different, non-terminal* concern (it can find a new supplier). Your path is driven by the **borrower/pickup** hold and is terminal. They never intersect — keep it that way. Don't add the new status to any supplier-side transition.
 - **`FinaliseRequestTransition`.** Leave `CANCELLED` auto-finalise exactly as is.
 
-## 5. Tests (this is why the bug is invisible today — the branch tests are Sierra-only and *assert the cancel*)
+## 5. Tests (the branch tests are Sierra-only, which is why every one of these bugs was invisible)
 
-1. **Entry, no supplier contact.** Cancel-while-out on Sierra supplier → status `AWAITING_RETURN_TO_SUPPLIER` **and** `verifyNoDeleteHoldRequestMade()` (invert the current `verifyDeleteHoldRequestMade`). Audit entry present.
-2. **Release hop.** From `AWAITING_RETURN_TO_SUPPLIER`, item on shelf → transition **not** applicable; item `TRANSIT` → applicable and moves to `RETURN_TRANSIT`.
-3. **FOLIO-supplier lifecycle (the missing test).** Drive a FOLIO-supplied request to `READY_FOR_PICKUP`, cancel the borrower hold, run entry → `AWAITING_RETURN_TO_SUPPLIER`; assert **zero** `updateTransactionStatus(...CANCELLED)` calls to mod-dcb; then simulate the lender `CHECK_IN` → transaction `CLOSED` → supplier item `AVAILABLE` → request reaches `COMPLETED`/`FINALISED`. With the old `cancelHold` code this test wedges in `AWAITING_RETURN_TO_SUPPLIER` — that is the regression guard.
+1. **Entry deletes the supplier hold.** Cancel-while-out on Sierra supplier → status `AWAITING_RETURN_TO_SUPPLIER` **and** `verifyDeleteHoldRequestMade(holdId)`. Audit entry present. (Guards the Polaris "transfer for hold" re-capture.)
+2. **Release hop.** From `AWAITING_RETURN_TO_SUPPLIER`, item on shelf and supplier not yet back → **not** applicable; supplier item `AVAILABLE` (or borrower item `TRANSIT`) → applicable and moves to `RETURN_TRANSIT`.
+3. **FOLIO-supplier lifecycle (the missing test).** Drive a FOLIO-supplied request to `READY_FOR_PICKUP`, cancel the borrower hold, run entry → `AWAITING_RETURN_TO_SUPPLIER`; assert **zero** `updateTransactionStatus(...CANCELLED)` calls to mod-dcb (the `deleteHold` attempt at `CLOSED` may be rejected — that's expected and harmless); then simulate the lender `CHECK_IN` → transaction `CLOSED` → supplier item `AVAILABLE` → request reaches `COMPLETED`/`FINALISED`. With `cancelHold` this test wedges in `AWAITING_RETURN_TO_SUPPLIER` — that is the regression guard.
    - **FOLIO-borrower release test.** Parked request with borrower `localItemStatus == "CANCELLED"` (FOLIO passthrough) and supplier item `AVAILABLE` → release transition **is** applicable and moves to `RETURN_TRANSIT`. This is the guard for the observed Polaris-supplier/FOLIO-borrower stall.
    - **FOLIO-borrower completion resilience test.** In `RETURN_TRANSIT` with supplier item `AVAILABLE` and a borrower client whose `updateItemStatus(COMPLETED)` throws (simulating mod-dcb rejecting `CANCELLED → CLOSED`), `HandleSupplierItemAvailable` must still reach `COMPLETED` (best-effort poke, audited). Without the fix the request wedges in `RETURN_TRANSIT`.
 4. **Still-at-supplier path unchanged.** Cancel at `REQUEST_PLACED_*` still auto-finalises.
