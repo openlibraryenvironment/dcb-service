@@ -246,6 +246,7 @@ dcb:
       LOANED: 6h
       PICKUP_TRANSIT: 1h
       RETURN_TRANSIT: 1h
+      AWAITING_RETURN_TO_SUPPLIER: 1h
       CANCELLED: null
       COMPLETED: null
       FINALISED: null

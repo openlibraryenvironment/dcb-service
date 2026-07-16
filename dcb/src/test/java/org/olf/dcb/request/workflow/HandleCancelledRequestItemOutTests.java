@@ -7,12 +7,15 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.AWAITING_RETURN_TO_SUPPLIER;
+import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
+import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.READY_FOR_PICKUP;
@@ -32,6 +35,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.folio.MockFolioFixture;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataHostLms;
@@ -47,6 +51,8 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
+import java.util.Map;
+
 import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
@@ -57,6 +63,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class HandleCancelledRequestItemOutTests {
 
 	private static final String SUPPLYING_HOST_LMS_CODE = "supplier-host-lms";
+	private static final String FOLIO_SUPPLYING_HOST_LMS_CODE = "folio-supplier-host-lms";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -77,6 +84,8 @@ class HandleCancelledRequestItemOutTests {
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private DataHostLms supplierHostLMS;
+	private DataHostLms folioSupplierHostLMS;
+	private MockFolioFixture mockFolioFixture;
 	private String BASE_URL;
 
 	@BeforeAll
@@ -95,6 +104,12 @@ class HandleCancelledRequestItemOutTests {
 			SECRET, BASE_URL, "title");
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
+
+		// A FOLIO supplier, used to exercise the "cancel releases the item -> finalise" branch.
+		final var FOLIO_API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";
+		folioSupplierHostLMS = hostLmsFixture.createFolioHostLms(FOLIO_SUPPLYING_HOST_LMS_CODE,
+			"https://folio-cancelled-item-out-tests", FOLIO_API_KEY, "", "");
+		mockFolioFixture = new MockFolioFixture(mockServerClient, "folio-cancelled-item-out-tests", FOLIO_API_KEY);
 	}
 
 	@BeforeEach
@@ -241,10 +256,71 @@ class HandleCancelledRequestItemOutTests {
 	}
 
 	@Test
-	void parkedRequestShouldJoinTheReturnLegOnceTheItemIsRoutedBack() {
-		// AWAITING_RETURN_TO_SUPPLIER is not a completion state: it is released onto the normal return
-		// leg (RETURN_TRANSIT) by HandleCancelledRequestReturnTransit once the borrower routes the item
-		// home. Completion then happens through the untouched HandleSupplierItemAvailable path.
+	void folioSupplierShouldFinaliseInsteadOfParkingBecauseCancelReleasesTheItem() {
+		// For a FOLIO supplier, cancelling the mod-dcb transaction returns the item to available at the
+		// supplier - there is no physical return to wait on (and none DCB could track). So instead of
+		// parking we set CANCELLED and let the request finalise. Contrast the Sierra test above, which parks.
+		final var patron = Patron.builder().id(randomUUID()).build();
+		patronFixture.savePatron(patron);
+		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, folioSupplierHostLMS,
+			"folio-patron-barcode", false, "-", "LOCAL_SYSTEM_CODE", null);
+
+		final var transactionId = randomUUID().toString();
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(PICKUP_TRANSIT)
+			.localRequestStatus(HOLD_MISSING)
+			.localItemStatus(ITEM_TRANSIT)
+			.localItemId(randomUUID().toString())
+			.localBibId("bib-folio")
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localStatus(HOLD_CONFIRMED)
+				.localId(transactionId)
+				.localItemId(patronRequest.getLocalItemId())
+				.localItemBarcode("folio-item-barcode")
+				.patronRequest(patronRequest)
+				.hostLmsCode(FOLIO_SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualPatronIdentity)
+				.build());
+
+		// cleanUp -> checkHoldExists (transaction present) -> deleteHold: CLOSE rejected -> CANCELLED.
+		mockFolioFixture.mockGetTransactionStatus(transactionId, "OPEN");
+		mockFolioFixture.mockUpdateTransactionStatus(transactionId, "CLOSED", response().withStatusCode(422));
+		mockFolioFixture.mockUpdateTransactionStatus(transactionId, "CANCELLED",
+			okJson(Map.of("status", "CANCELLED")));
+
+		// Act
+		final var updated = singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+			.flatMap(handleCancelledRequestItemOut::attempt)
+			.map(RequestWorkflowContext::getPatronRequest));
+
+		// Assert - finalised path (CANCELLED), not parked
+		assertThat(updated, allOf(notNullValue(), hasStatus(CANCELLED)));
+
+		final var auditEntries = mapStream(patronRequestsFixture.findAuditEntries(patronRequest),
+				PatronRequestAudit::getBriefDescription)
+			.filter(HandleCancelledRequestItemOut.ITEM_OUT_CANCELLED_AND_FINALISING::equals)
+			.toList();
+
+		assertThat(auditEntries, hasSize(1));
+	}
+
+	@Test
+	void parkedRequestShouldNotReleaseWhileBorrowerItemIsMerelyInTransit() {
+		// Regression: a request cancelled during PICKUP_TRANSIT has its borrower virtual item in TRANSIT -
+		// the OUTBOUND leg, item heading TO the borrower. Outbound and return transit share the exact same
+		// TRANSIT status, so the borrower item must NOT trigger release; otherwise the request jumps
+		// straight to RETURN_TRANSIT at park time, before the item is anywhere near coming back. Release
+		// keys solely off the supplier actually having the item.
 		final var stillOnShelf = contextFor(PatronRequest.builder()
 			.id(randomUUID())
 			.status(AWAITING_RETURN_TO_SUPPLIER)
@@ -255,22 +331,17 @@ class HandleCancelledRequestItemOutTests {
 		assertThat("Not released while the item is still sitting on the pickup shelf",
 			handleCancelledRequestReturnTransit.isApplicableFor(stillOnShelf), is(false));
 
-		final var routedBack = PatronRequest.builder()
-			.id(randomUUID())
-			.status(AWAITING_RETURN_TO_SUPPLIER)
-			.localItemStatus(ITEM_TRANSIT)
-			.activeWorkflow(STANDARD_WORKFLOW)
-			.build();
+		final var outboundTransit = new RequestWorkflowContext()
+			.setPatronRequest(PatronRequest.builder()
+				.id(randomUUID())
+				.status(AWAITING_RETURN_TO_SUPPLIER)
+				.localItemStatus(ITEM_TRANSIT)
+				.activeWorkflow(STANDARD_WORKFLOW)
+				.build())
+			.setSupplierRequest(SupplierRequest.builder().id(randomUUID()).localItemStatus(ITEM_TRANSIT).build());
 
-		final var ctx = contextFor(routedBack);
-
-		assertThat("Released once the borrower item is in transit back",
-			handleCancelledRequestReturnTransit.isApplicableFor(ctx), is(true));
-
-		final var updated = singleValueFrom(handleCancelledRequestReturnTransit.attempt(ctx)
-			.map(RequestWorkflowContext::getPatronRequest));
-
-		assertThat(updated, allOf(notNullValue(), hasStatus(RETURN_TRANSIT)));
+		assertThat("Not released just because the borrower item is in transit - outbound and return look identical",
+			handleCancelledRequestReturnTransit.isApplicableFor(outboundTransit), is(false));
 	}
 
 	@Test

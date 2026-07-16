@@ -25,13 +25,18 @@ import reactor.core.publisher.Mono;
  * existing HandleSupplierItemAvailable completes and finalises it. This preserves RETURN_TRANSIT
  * rather than bypassing it, and involves no LMS calls.
  *
- * Release is driven primarily by the SUPPLIER item being back (AVAILABLE / RECEIVED, or a FOLIO
- * supplier transaction CLOSED) - the one signal that is reliable across every ILS. We deliberately
- * do NOT rely solely on the borrower item reaching TRANSIT: when the borrower is FOLIO, its item
- * status is a projection of the now-terminal (CANCELLED) mod-dcb transaction, which never reports
- * TRANSIT, so a borrower-only gate would strand the request in AWAITING even though the supplier
- * already has the item back. The borrower/pickup TRANSIT check is kept as a secondary, earlier
- * trigger so non-FOLIO borrowers still enter RETURN_TRANSIT while the item is genuinely in transit.
+ * Only Sierra / Polaris / Alma suppliers reach this transition: they track the real inventory item
+ * independently of the DCB hold, so a cancelled-while-out request is parked here until the item is
+ * physically back. A FOLIO supplier never parks - cancelling its transaction releases the item and
+ * there is nothing to wait on, so HandleCancelledRequestItemOut finalises it at entry.
+ *
+ * Release is gated SOLELY on the SUPPLIER item being back (AVAILABLE / RECEIVED) - the one signal that
+ * means the item has genuinely returned. We must NOT release on the borrower/pickup item reaching TRANSIT:
+ * the outbound leg (item on its way TO the borrower) uses the exact same TRANSIT status, so a request
+ * cancelled during PICKUP_TRANSIT would release immediately - before the item is anywhere near coming
+ * back. There is no status that distinguishes outbound transit from return transit, so the borrower
+ * side cannot be used as a trigger at all; the request stays parked in AWAITING_RETURN_TO_SUPPLIER
+ * until the supplier actually has the item.
  */
 @Slf4j
 @Singleton
@@ -39,14 +44,10 @@ import reactor.core.publisher.Mono;
 public class HandleCancelledRequestReturnTransit implements PatronRequestStateTransition {
 	private static final List<Status> possibleSourceStatus = List.of(Status.AWAITING_RETURN_TO_SUPPLIER);
 
-	// Secondary early trigger: the borrower/pickup item is on its way back (observable on non-FOLIO borrowers).
-	private static final List<String> borrowerReturningItemStatus = List.of(
-		HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_MISSING, HostLmsItem.ITEM_AVAILABLE);
-
-	// Primary reliable trigger: the supplier has the item back. Mirrors HandleSupplierItemAvailable.
+	// The only reliable, ILS-agnostic release trigger: the supplier has the item back.
+	// Mirrors HandleSupplierItemAvailable.
 	private static final List<String> supplierItemBackStatus = List.of(
 		HostLmsItem.ITEM_AVAILABLE, HostLmsItem.ITEM_RECEIVED);
-	private static final String SUPPLIER_TRANSACTION_CLOSED = "CLOSED";
 
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
@@ -56,15 +57,10 @@ public class HandleCancelledRequestReturnTransit implements PatronRequestStateTr
 		if (status == null || !possibleSourceStatus.contains(status)) return false;
 		if (getValueOrNull(patronRequest, PatronRequest::getActiveWorkflow) == null) return false;
 
-		// Reliable, ILS-agnostic exit: the supplier has the item back.
-		if (supplierHasItemBack(ctx)) return true;
-
-		// Otherwise release early if the borrower/pickup item is genuinely in transit back.
-		final var itemStatus = patronRequest.isUsingPickupAnywhereWorkflow()
-			? getValueOrNull(patronRequest, PatronRequest::getPickupItemStatus)
-			: getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus);
-
-		return borrowerReturningItemStatus.contains(itemStatus);
+		// Release only once the supplier actually has the item back. The borrower side cannot be used:
+		// outbound and return transit share the same TRANSIT status, so a borrower-item gate misfires at
+		// park time for requests cancelled during PICKUP_TRANSIT.
+		return supplierHasItemBack(ctx);
 	}
 
 	private static boolean supplierHasItemBack(RequestWorkflowContext ctx) {
@@ -72,10 +68,9 @@ public class HandleCancelledRequestReturnTransit implements PatronRequestStateTr
 		if (supplierRequest == null) return false;
 
 		final var supplierItemStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus);
-		final var supplierLocalStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus);
 
-		return supplierItemBackStatus.contains(supplierItemStatus)
-			|| SUPPLIER_TRANSACTION_CLOSED.equals(supplierLocalStatus);
+		// N.B. supplierItemBackStatus is an immutable List, whose contains(null) throws - guard it.
+		return supplierItemStatus != null && supplierItemBackStatus.contains(supplierItemStatus);
 	}
 
 	@Override
@@ -107,8 +102,8 @@ public class HandleCancelledRequestReturnTransit implements PatronRequestStateTr
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
 		return List.of(new DCBGuardCondition(
-			"DCBPatronRequest state is AWAITING_RETURN_TO_SUPPLIER and either the supplier item is back "
-				+ "(AVAILABLE/RECEIVED or supplier transaction CLOSED) or the borrower/pickup item is TRANSIT/MISSING/AVAILABLE"));
+			"DCBPatronRequest state is AWAITING_RETURN_TO_SUPPLIER and the supplier has the item back "
+				+ "(supplier item AVAILABLE/RECEIVED)"));
 	}
 
 	@Override
