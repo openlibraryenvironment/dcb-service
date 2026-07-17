@@ -1,9 +1,11 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static java.lang.Integer.parseInt;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -34,6 +36,7 @@ import org.zalando.problem.ThrowableProblem;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.SierraTestUtils;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
@@ -221,6 +224,54 @@ class SierraHostLmsClientPlaceRequestTests {
 		assertThat(problem.toString(), containsString("responseBody"));
 		assertThat(problem.toString(), containsString("additionalData"));
 		assertThat(problem.toString(), containsString("id=6721574"));
+	}
+
+	@Test
+	void shouldReportThePatronRecordWhenXCircRejectsTheLibraryRecord() {
+		// Arrange
+		final var patronRequestId = UUID.randomUUID().toString();
+		// Distinct from the patron used by the record-not-available test, so that the
+		// two XCirc hold request mocks cannot match each other's requests
+		final var localPatronId = "567216";
+		final var localBibId = 23423423;
+
+		sierraPatronsAPIFixture.problemWithLibraryRecordResponse(localPatronId, "b");
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			SierraPatronRecord.builder()
+				.id(parseInt(localPatronId))
+				.patronType(15)
+				.expirationDate("2020-01-01")
+				.homeLibraryCode("home-library")
+				.build());
+
+		// The most common cause is the patron being at their MAX HOLDS limit, which is
+		// only visible by comparing this count against the library's Patron Blocks table
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningCount(localPatronId, 25);
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localBibId(Integer.toString(localBibId))
+					.localPatronId(localPatronId)
+					.patronRequestId(patronRequestId)
+					.build())));
+
+		// Assert
+		assertThat(problem.toString(), allOf(
+			containsString("sierra-place-hold-tests XCirc Error: There is a problem with the patron's library record"),
+			// The fault is with the patron, so the diagnostics must describe the patron
+			containsString("expirationDate=2020-01-01"),
+			containsString("patronType=15"),
+			containsString("hasBarcodes=false"),
+			containsString("currentHoldCount=25")
+		));
+
+		// The item is not at fault and must not be blamed for this
+		assertThat(problem.toString(), not(containsString("This record is not available")));
 	}
 
 	@Test

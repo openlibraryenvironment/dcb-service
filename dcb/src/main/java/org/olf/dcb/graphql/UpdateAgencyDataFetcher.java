@@ -66,6 +66,8 @@ public class UpdateAgencyDataFetcher implements DataFetcher<CompletableFuture<Da
 			.map(value -> Boolean.parseBoolean(value.toString()));
 		Integer maxLoansInput = input_map.containsKey("maxConsortialLoans") ?
 			Integer.parseInt(input_map.get("maxConsortialLoans").toString()): null; // Needs valid integer check
+		Integer maxLocalHoldsInput = input_map.containsKey("maxLocalHolds") ?
+			Integer.parseInt(input_map.get("maxLocalHolds").toString()): null;
 		Optional <String> authProfile = Optional.ofNullable(env.getGraphQlContext().get("authProfile"))
 			.map(Object::toString);
 		Optional <String> name = Optional.ofNullable(env.getGraphQlContext().get("name"))
@@ -126,6 +128,14 @@ public class UpdateAgencyDataFetcher implements DataFetcher<CompletableFuture<Da
 					}
 					if (maxLoansInput !=null) {
 						agency.setMaxConsortialLoans(maxLoansInput);
+						agency.setLastEditedBy(userString);
+					}
+					if (maxLocalHoldsInput != null) {
+						if (maxLocalHoldsInput < 1) {
+							return Mono.error(new EntityCreationException(
+								"Max local holds update failed: must be 1 or greater"));
+						}
+						agency.setMaxLocalHolds(maxLocalHoldsInput);
 						agency.setLastEditedBy(userString);
 					}
 					return Mono.from(agencyRepository.update(agency));

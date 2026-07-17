@@ -14,9 +14,11 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalNames
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isActive;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isBlocked;
+import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotActive;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +81,52 @@ class SierraPatronMapperTests {
 			isNotBlocked(),
 			isActive(),
 			isNotDeleted()
+		));
+	}
+
+	@Test
+	void shouldMapExpiredPatronAsInactive() {
+		// Act
+		final var sierraPatron = patronWithExpirationDate("2020-01-01");
+
+		final var patron = mapToPatron(sierraPatron);
+
+		// Assert
+		assertThat(patron, allOf(
+			notNullValue(),
+			isNotActive()
+		));
+	}
+
+	@Test
+	void shouldMapUnexpiredPatronAsActive() {
+		// Act
+		final var sierraPatron = patronWithExpirationDate(
+			LocalDate.now().plusYears(1).toString());
+
+		final var patron = mapToPatron(sierraPatron);
+
+		// Assert
+		assertThat(patron, allOf(
+			notNullValue(),
+			isActive()
+		));
+	}
+
+	@Test
+	void shouldMapPatronWithoutExpirationDateAsActive() {
+		// Sierra has no explicit active flag, so an absent expiry date must not be
+		// interpreted as inactive
+
+		// Act
+		final var sierraPatron = patronWithExpirationDate(null);
+
+		final var patron = mapToPatron(sierraPatron);
+
+		// Assert
+		assertThat(patron, allOf(
+			notNullValue(),
+			isActive()
 		));
 	}
 
@@ -159,6 +207,17 @@ class SierraPatronMapperTests {
 			notNullValue(),
 			isNotBlocked()
 		));
+	}
+
+	private static SierraPatronRecord patronWithExpirationDate(String expirationDate) {
+		return SierraPatronRecord.builder()
+			.id(5837526)
+			.barcodes(List.of("3725562155"))
+			.names(List.of("first name", "middle name", "last name"))
+			.patronType(MAPPED_LOCAL_PATRON_TYPE)
+			.homeLibraryCode("home-library")
+			.expirationDate(expirationDate)
+			.build();
 	}
 
 	private static SierraPatronRecord patronWithAutomaticBlock(String blockCode) {

@@ -27,7 +27,8 @@ public class IntMessageService {
 		Map.entry("NO_ITEM_SELECTABLE_FOR_REQUEST", "We're sorry, we were unable to locate an available item"),
 		Map.entry("CLUSTER_RECORD_NOT_FOUND", "we're sorry, we were unable to find the title being requested. Please re-enter your search. If you believe you have reached this message in error, please reach out to your library for assistance."),
 		Map.entry("EXCEEDS_GLOBAL_LIMIT", "Your account has exceeded the maximum global limit for consortial requests"),
-		Map.entry("EXCEEDS_AGENCY_LIMIT", "Your account has exceeded the maximum global limit for requests from your institution")
+		Map.entry("EXCEEDS_AGENCY_LIMIT", "Your account has exceeded the maximum global limit for requests from your institution"),
+		Map.entry("PATRON_HOLD_LIMIT_REACHED", "You have reached the maximum number of holds allowed on your account. Please cancel an existing hold, or contact your library for additional information.")
 	);
 
 	public String getMessage(String code) {

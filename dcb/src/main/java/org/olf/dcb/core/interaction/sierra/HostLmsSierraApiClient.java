@@ -18,6 +18,7 @@ import java.util.function.Function;
 
 import org.olf.dcb.core.interaction.AbstractHttpResponseProblem;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
+import org.olf.dcb.core.interaction.PatronRecordProblem;
 import org.olf.dcb.core.interaction.RecordIsNotAvailableProblem;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
@@ -297,21 +298,26 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	public Mono<Void> placeHoldRequest(String id, PatronHoldPost body) {
 		return createRequest(POST, "patrons/" + id + "/holds/requests")
 			.map(req -> req.body(body)).flatMap(this::ensureToken)
-			.flatMap(req -> doExchange(req, Object.class, handleHoldRequestError(body, req)))
+			.flatMap(req -> doExchange(req, Object.class, handleHoldRequestError(body, req, id)))
 			.then();
 	}
 
 	public Function<Mono<HttpResponse<Object>>, Mono<HttpResponse<Object>>> handleHoldRequestError(
-		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req) {
+		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> req, String patronId) {
 
 		return response -> response
-			.onErrorResume(HttpClientResponseException.class, isRecordNotAvailable(body, req));
+			.onErrorResume(HttpClientResponseException.class, handleXCircDenial(body, req, patronId));
 	}
 
-	private Function<HttpClientResponseException, Mono<HttpResponse<Object>>> isRecordNotAvailable(
-		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> request) {
+	private Function<HttpClientResponseException, Mono<HttpResponse<Object>>> handleXCircDenial(
+		PatronHoldPost body, MutableHttpRequest<PatronHoldPost> request, String patronId) {
 
 		return httpClientResponseException -> {
+			// XCirc denials are all code 132. Only specificCode tells us whether the item
+			// or the patron record is at fault, so gather evidence about the right record.
+			if (sierraResponseErrorMatcher.isPatronRecordProblem(httpClientResponseException)) {
+				return createPatronRecordProblem(patronId, request, httpClientResponseException);
+			}
 			if (sierraResponseErrorMatcher.isRecordNotAvailable(httpClientResponseException)) {
 				return createRecordIsNotAvailableProblem(body, request, httpClientResponseException);
 			}
@@ -326,12 +332,64 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			.flatMap(additionalData -> raiseError(new RecordIsNotAvailableProblem(lms.getCode(), req, ex, additionalData)));
 	}
 
+	private Mono<HttpResponse<Object>> createPatronRecordProblem(
+		String patronId, MutableHttpRequest<PatronHoldPost> req, HttpClientResponseException ex) {
+
+		return fetchPatronState(patronId)
+			.flatMap(additionalData -> raiseError(new PatronRecordProblem(lms.getCode(), req, ex, additionalData)));
+	}
+
 	private Mono<Map<String, Object>> fetchItemState(String recordNumber) {
 		return get("items/" + recordNumber, Argument.of(SierraItem.class))
 			.map(SierraItem::toMap)
 			// if the item request fails we create a map with the exception response
 			.onErrorResume(error -> Mono.just(Map.of("Failed to retrieve item information", error.toString())))
 			.map(itemMap -> Map.of("item", itemMap));
+	}
+
+	private Mono<Map<String, Object>> fetchPatronState(String patronId) {
+		return Mono.from(getPatron(safeParsePatronId(patronId)))
+			.zipWith(countHoldsFor(patronId), HostLmsSierraApiClient::toPatronDiagnostics)
+			// if the patron request fails we create a map with the exception response
+			.onErrorResume(error -> Mono.just(Map.of("Failed to retrieve patron information", error.toString())))
+			.map(patronMap -> Map.of("patron", patronMap));
+	}
+
+	/**
+	 * Sierra's MAX HOLDS limit lives in the library's Patron Blocks table, keyed on
+	 * P TYPE, and no API exposes it. Reporting the count lets a librarian compare it
+	 * against their own table - which is the only place the limit can be read.
+	 */
+	private Mono<String> countHoldsFor(String patronId) {
+		return Mono.from(patronHolds(patronId))
+			.map(holds -> String.valueOf(holds.total()))
+			.onErrorResume(error -> Mono.just("Failed to retrieve hold count: " + error))
+			.defaultIfEmpty("Unknown");
+	}
+
+	/**
+	 * Deliberately excludes names and emails. This ends up in the request audit,
+	 * which is visible far more widely than the patron record itself.
+	 */
+	private static Map<String, Object> toPatronDiagnostics(SierraPatronRecord patron, String holdCount) {
+		return Map.of(
+			"id", String.valueOf(patron.getId()),
+			"patronType", String.valueOf(patron.getPatronType()),
+			"expirationDate", String.valueOf(patron.getExpirationDate()),
+			"homeLibraryCode", String.valueOf(patron.getHomeLibraryCode()),
+			"blockInfo", String.valueOf(patron.getBlockInfo()),
+			"autoBlockInfo", String.valueOf(patron.getAutoBlockInfo()),
+			"hasBarcodes", String.valueOf(patron.getBarcodes() != null && !patron.getBarcodes().isEmpty()),
+			"deleted", String.valueOf(patron.getDeleted()),
+			"currentHoldCount", holdCount);
+	}
+
+	private static Long safeParsePatronId(String patronId) {
+		try {
+			return Long.valueOf(patronId);
+		} catch (NumberFormatException | NullPointerException e) {
+			return null;
+		}
 	}
 
 	@SingleResult

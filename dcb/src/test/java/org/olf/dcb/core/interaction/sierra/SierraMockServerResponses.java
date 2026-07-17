@@ -40,6 +40,18 @@ class SierraMockServerResponses {
 				.build()));
 	}
 
+	// Same code and specificCode as thisRecordIsNotAvailable - only the description
+	// distinguishes a patron record fault from an item fault
+	static HttpResponse problemWithLibraryRecord() {
+		return MockServerCommonResponses.serverError((Error.builder()
+				.code(132)
+				.specificCode(2)
+				.httpStatus(500)
+				.name("XCirc error")
+				.description("XCirc error : There is a problem with your library record.  Please see a librarian.")
+				.build()));
+	}
+
 	static HttpResponse badRequestError() {
 		return badRequest(Error.builder()
 			.code(130)

@@ -134,6 +134,18 @@ public interface HostLmsClient
 
 	Mono<Patron> updatePatron(String localId, String patronType);
 
+	/**
+	 * Count the holds a local patron currently has, local holds included, for
+	 * comparison against the agency's configured maxLocalHolds.
+	 * <p>
+	 * Empty means the count is unknown, which is not the same as zero. Host LMS that
+	 * cannot report a count must leave this unimplemented so that callers decline to
+	 * judge rather than assume the patron is under their limit.
+	 */
+	default Mono<Integer> countHoldsForPatron(String localPatronId) {
+		return Mono.empty();
+	}
+
 	Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret);
 
 	Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand);

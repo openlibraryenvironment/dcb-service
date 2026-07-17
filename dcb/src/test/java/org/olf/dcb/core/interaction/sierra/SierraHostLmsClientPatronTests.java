@@ -132,6 +132,41 @@ class SierraHostLmsClientPatronTests {
 
 	@Test
 	@SneakyThrows
+	void shouldOnlySendPatronTypeWhenUpdatingPatronType() {
+		// Sierra applies PUT /patrons/{id} as a partial update. Any field serialized as
+		// null is written to the record as null, leaving a patron that XCirc rejects on
+		// every subsequent transaction.
+
+		// Arrange
+		final var localPatronId = "864902";
+		final var newLocalPatronType = 15;
+
+		sierraPatronsAPIFixture.updatePatron(localPatronId);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			SierraPatronRecord.builder()
+				.id(parseInt(localPatronId))
+				.barcodes(List.of("6273627"))
+				.names(List.of("first name", "last name"))
+				.patronType(newLocalPatronType)
+				.homeLibraryCode("home-library")
+				.build());
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(HOST_LMS_CODE,
+			newLocalPatronType, newLocalPatronType, "DCB", "UNDERGRAD");
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		singleValueFrom(client.updatePatron(localPatronId, String.valueOf(newLocalPatronType)));
+
+		// Assert
+		sierraPatronsAPIFixture.verifyUpdatePatronRequestBody(localPatronId,
+			"{\"patronType\": %d}".formatted(newLocalPatronType));
+	}
+
+	@Test
+	@SneakyThrows
 	void shouldNotPassPinWhenThereIsNoConfigValueSetUponCheckout() {
 		// Arrange
 		final var itemId = "46345345";

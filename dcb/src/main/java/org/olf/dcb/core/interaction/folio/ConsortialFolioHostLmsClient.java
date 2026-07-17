@@ -695,6 +695,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Mono<Integer> countHoldsForPatron(String localPatronId) {
+		// DCB talks to FOLIO through edge-dcb / mod-dcb, which only exposes DCB's own
+		// transactions - there is no way to see the patron's other requests. Empty
+		// means unknown, so the hold limit preflight check declines to judge.
+		log.debug("countHoldsForPatron({}) is not supported for FOLIO", localPatronId);
+
+		return Mono.empty();
+	}
+
+	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
 		try {
 			final var barcodeListString = getValueOrNull(patron,

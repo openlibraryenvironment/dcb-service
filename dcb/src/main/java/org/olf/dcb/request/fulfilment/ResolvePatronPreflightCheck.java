@@ -43,7 +43,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var localPatronId = getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId);
 
 		return localPatronService.findLocalPatronAndAgency(localPatronId, hostLmsCode)
-			.map(function((patron, agency) -> checkPatron(patron, localPatronId, agency, hostLmsCode)))
+			.flatMap(function((patron, agency) -> checkPatron(patron, localPatronId, agency, hostLmsCode)))
 			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
@@ -52,7 +52,7 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 			.switchIfEmpty(patronDeleted(localPatronId, hostLmsCode));
 	}
 
-	private List<CheckResult> checkPatron(Patron patron, String localPatronId,
+	private Mono<List<CheckResult>> checkPatron(Patron patron, String localPatronId,
 		DataAgency agency, String hostLmsCode) {
 
 		// Uses the incoming local patron ID
@@ -63,14 +63,46 @@ public class ResolvePatronPreflightCheck implements PreflightCheck {
 		final var eligibilityCheckResults = checkEligibility(localPatronId, patron, hostLmsCode);
 		final var agencyCheckResults = checkAgency(localPatronId, agency, hostLmsCode);
 
-		final var allCheckResults = concat(
-			concat(eligibilityCheckResults, agencyCheckResults), barcodeChecksResults);
+		return checkHoldLimit(localPatronId, agency, hostLmsCode)
+			.map(holdLimitCheckResults -> {
+				final var allCheckResults = concat(concat(
+					concat(eligibilityCheckResults, agencyCheckResults), barcodeChecksResults),
+					holdLimitCheckResults);
 
-		if (isEmpty(allCheckResults)) {
-			allCheckResults.add(passed());
+				if (isEmpty(allCheckResults)) {
+					allCheckResults.add(passed());
+				}
+
+				return allCheckResults;
+			});
+	}
+
+	/**
+	 * Typically a Host LMS enforces this limit itself, but rejects the hold later in the workflow, causing requests to
+	 * enter an ERROR state. The message received is typically unhelpful: Sierra's XCirc
+	 * reports "There is a problem with your library record" and blames nothing in
+	 * particular. Checking here turns that into an actionable message at placement.
+	 */
+	private Mono<List<CheckResult>> checkHoldLimit(String localPatronId,
+		DataAgency agency, String hostLmsCode) {
+
+		final var holdLimit = getValueOrNull(agency, DataAgency::getMaxLocalHolds);
+
+		// If a library doesn't tell us their hold limit, we fail-safe: it cannot be checked.
+		// Declining to judge is the only safe option.
+		if (holdLimit == null) {
+			return Mono.just(List.of());
 		}
 
-		return allCheckResults;
+		return localPatronService.countHoldsForPatron(localPatronId, hostLmsCode)
+			.filter(holdCount -> holdCount >= holdLimit)
+			.map(holdCount -> List.of(failedUm("PATRON_HOLD_LIMIT_REACHED",
+				"Patron \"%s\" from \"%s\" has %d holds, which reaches the limit of %d for agency \"%s\""
+					.formatted(localPatronId, hostLmsCode, holdCount, holdLimit,
+						getValueOrNull(agency, DataAgency::getCode)),
+				intMessageService.getMessage("PATRON_HOLD_LIMIT_REACHED"))))
+			// An unknown count cannot demonstrate the patron is over their limit
+			.defaultIfEmpty(List.of());
 	}
 
 	private List<CheckResult> checkBarcode(String localPatronId, Patron patron,

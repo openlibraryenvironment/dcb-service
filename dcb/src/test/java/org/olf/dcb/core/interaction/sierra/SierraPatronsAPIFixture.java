@@ -6,6 +6,7 @@ import static org.mockserver.verify.VerificationTimes.once;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.badRequestError;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.jsonLink;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.noRecordsFound;
+import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.problemWithLibraryRecord;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.serverError;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.thisRecordIsNotAvailable;
 import static org.olf.dcb.test.MockServerCommonResponses.noContent;
@@ -15,6 +16,7 @@ import static services.k_int.interaction.sierra.QueryEntry.buildPatronQuery;
 import java.util.Collections;
 import java.util.List;
 
+import org.mockserver.matchers.MatchType;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
@@ -124,6 +126,13 @@ public class SierraPatronsAPIFixture {
 				.build()), thisRecordIsNotAvailable());
 	}
 
+	public void problemWithLibraryRecordResponse(String patronId, String expectedRecordType) {
+		mockServer.mock(postPatronHoldRequest(patronId, PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(null)
+				.build()), problemWithLibraryRecord());
+	}
+
 	public void verifyCreatePatronRequestMade(String uniqueId) {
 		mockServer.verify(postPatronRequest(uniqueId));
 	}
@@ -197,6 +206,16 @@ public class SierraPatronsAPIFixture {
 
 	private void verifyUpdatePatronRequest(String expectedPatronId, VerificationTimes times) {
 		mockServer.verify(putPatron(expectedPatronId), times);
+	}
+
+	/**
+	 * Sierra applies PUT /patrons/{id} as a partial update, so a strict match is the
+	 * only way to prove unset fields are absent rather than serialized as nulls that
+	 * would wipe the patron record.
+	 */
+	public void verifyUpdatePatronRequestBody(String expectedPatronId, String expectedBody) {
+		mockServer.verify(sierraMockServerRequests.put("/" + expectedPatronId,
+			expectedBody, MatchType.STRICT), once());
 	}
 
 	private HttpRequest putPatron(String patronId) {
@@ -338,6 +357,14 @@ public class SierraPatronsAPIFixture {
 
 	public void patronHoldErrorResponse(String id) {
 		mockServer.mock(getPatronHolds(id), badRequestError());
+	}
+
+	public void mockGetHoldsForPatronReturningCount(String patronId, int total) {
+		mockServer.replaceMock(getPatronHolds(patronId), okJson(SierraPatronHoldResultSet.builder()
+			.total(total)
+			.start(0)
+			.entries(Collections.emptyList())
+			.build()));
 	}
 
 	public void addPatronGetExpectation(String patronId) {

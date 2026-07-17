@@ -229,6 +229,21 @@ public interface KohaApiClient {
 		return get("/api/v1/holds", Object[].class, Map.of("item_id", itemId, "old", false));
 	}
 
+	/**
+	 * Get active holds for a patron, for comparison against an agency's hold limit.
+	 * Filters out old (completed/cancelled) holds using the 'old=false' query parameter.
+	 * '_per_page=-1' disables pagination, otherwise Koha caps the response at its
+	 * default page size (20) and the count would be wrong for exactly the patrons
+	 * this exists to catch.
+	 * <p>
+	 * API docs: <a href="https://api.koha-community.org/#tag/holds/operation/listHolds">List holds</a>
+	 * </p>
+	 */
+	default Mono<Object[]> getActiveHoldsForPatron(String patronId) {
+		return get("/api/v1/holds", Object[].class,
+			Map.of("patron_id", patronId, "old", false, "_per_page", -1));
+	}
+
 
 	/* Holds and checkouts **/
 

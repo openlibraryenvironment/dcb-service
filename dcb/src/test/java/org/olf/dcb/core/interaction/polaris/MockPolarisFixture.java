@@ -278,6 +278,10 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.localRequests(patronId), holds);
 	}
 
+	public void mockListPatronLocalHoldsServerErrorResponse(Integer patronId) {
+		mockServer.mockGet(paths.localRequests(patronId), serverError());
+	}
+
 	public void mockGetHold(Integer holdId, LibraryHold responseBody) {
 		mockGetHold(convertIntegerToString(holdId), responseBody);
 	}

@@ -37,6 +37,16 @@ public class LocalPatronService {
 			.zipWhen(patron -> findAgencyForPatron(patron, hostLmsCode));
 	}
 
+	/**
+	 * Empty when the Host LMS cannot report a count. Callers must not treat that as zero.
+	 */
+	public Mono<Integer> countHoldsForPatron(String localPatronId, String hostLmsCode) {
+		return hostLmsService.getClientFor(hostLmsCode)
+			.flatMap(client -> client.countHoldsForPatron(localPatronId))
+			.doOnSuccess(count -> log.info("Patron {} at {} has {} holds",
+				localPatronId, hostLmsCode, count));
+	}
+
 	private Mono<Patron> getPatronByIdentifier(String identifier, HostLmsClient client) {
 		log.info("Getting patron by local id {}", identifier);
 

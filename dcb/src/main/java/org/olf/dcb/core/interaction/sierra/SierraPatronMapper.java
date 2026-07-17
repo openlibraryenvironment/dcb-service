@@ -43,7 +43,7 @@ public class SierraPatronMapper {
 			.localBarcodes(patronRecord.getBarcodes())
 			.localNames(patronRecord.getNames())
 			.localHomeLibraryCode(patronRecord.getHomeLibraryCode())
-			.isActive(true)
+			.isActive(isNotExpired(mappedExpiryDate))
 			.isBlocked(isPatronBlocked(patronRecord))
 			.isDeleted(patronRecord.getDeleted() != null ? patronRecord.getDeleted() : false)
 			.expiryDate(mappedExpiryDate)
@@ -55,6 +55,12 @@ public class SierraPatronMapper {
 
 		return Mono.just(result)
 			.flatMap(p -> enrichWithCanonicalPatronType(p, hostLmsCode));
+	}
+
+	// Sierra has no explicit active flag. An absent expiry date must not be read as
+	// inactive, otherwise every patron without one becomes ineligible.
+	private static boolean isNotExpired(@Nullable Date expiryDate) {
+		return expiryDate == null || expiryDate.after(new Date());
 	}
 
 	private static boolean isPatronBlocked(SierraPatronRecord sierraPatronRecord) {

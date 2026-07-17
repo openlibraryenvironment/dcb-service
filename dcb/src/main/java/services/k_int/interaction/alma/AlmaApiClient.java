@@ -214,6 +214,19 @@ public interface AlmaApiClient {
 	}
 
 	/**
+	 * Retrieve the active hold requests for a user, for comparison against an
+	 * agency's hold limit. Booking and digitization requests are excluded because
+	 * they do not count towards it.
+	 * <p>
+	 * API: GET /almaws/v1/users/{user_id}/requests?request_type=HOLD
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3Rz/
+	 */
+	default Mono<AlmaRequests> retrieveUserHoldRequests(String user_id) {
+		return get("/almaws/v1/users/" + user_id + "/requests", AlmaRequests.class,
+			Map.of("request_type", "HOLD"));
+	}
+
+	/**
 	 * Retrieve a specific user request.
 	 * <p>
 	 * API: GET /almaws/v1/users/{user_id}/requests/{request_id}

@@ -341,6 +341,84 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
+	void shouldFailWhenPatronHasReachedTheAgencyHoldLimit() {
+		// Arrange
+		final var localPatronId = "164301";
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, 25);
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningCount(localPatronId, 25);
+
+		// Act
+		final var results = checkPatronRequestFor(localPatronId);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("PATRON_HOLD_LIMIT_REACHED",
+				"Patron \"%s\" from \"%s\" has 25 holds, which reaches the limit of 25 for agency \"example-agency\""
+					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+		));
+	}
+
+	@Test
+	void shouldPassWhenPatronIsBelowTheAgencyHoldLimit() {
+		// Arrange
+		final var localPatronId = "164302";
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, 25);
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningCount(localPatronId, 24);
+
+		// Act
+		final var results = checkPatronRequestFor(localPatronId);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldNotCheckHoldLimitWhenAgencyHasNotDeclaredOne() {
+		// No Host LMS exposes its hold limit, so an agency that has not told us theirs
+		// cannot be checked - the patron must not be blocked on a number we invented
+
+		// Arrange
+		final var localPatronId = "164303";
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, null);
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningCount(localPatronId, 500);
+
+		// Act
+		final var results = checkPatronRequestFor(localPatronId);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldPassWhenHoldCountCannotBeDetermined() {
+		// An unknown count is not a count of zero, but it cannot demonstrate the patron
+		// is over their limit either, so it must not block them
+
+		// Arrange
+		final var localPatronId = "164304";
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, 25);
+
+		sierraPatronsAPIFixture.patronHoldErrorResponse(localPatronId);
+
+		// Act
+		final var results = checkPatronRequestFor(localPatronId);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
 	void shouldFailWhenPatronIsBlocked() {
 		// Arrange
 		final var localPatronId = "164266";
@@ -704,6 +782,12 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private void mapPatronToAgency(String hostLmsCode, String locationCode,
 		String agencyCode, Boolean isBorrowingAgency) {
 
+		mapPatronToAgency(hostLmsCode, locationCode, agencyCode, isBorrowingAgency, null);
+	}
+
+	private void mapPatronToAgency(String hostLmsCode, String locationCode,
+		String agencyCode, Boolean isBorrowingAgency, Integer maxLocalHolds) {
+
 		final var hostLms = hostLmsFixture.findByCode(hostLmsCode);
 
 		agencyFixture.defineAgency(DataAgency.builder()
@@ -712,11 +796,35 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 			.name("Example Agency")
 			.isSupplyingAgency(true)
 			.isBorrowingAgency(isBorrowingAgency)
+			.maxLocalHolds(maxLocalHolds)
 			.hostLms(hostLms)
 			.build());
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
 			hostLmsCode, locationCode, agencyCode);
+	}
+
+	private void defineEligiblePatron(String localPatronId, int localPatronType) {
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+			SierraPatronRecord.builder()
+				.id(Integer.parseInt(localPatronId))
+				.patronType(localPatronType)
+				.homeLibraryCode("home-library")
+				.barcodes(List.of("27536633"))
+				.names(List.of("Bob"))
+				.build());
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
+	}
+
+	private List<CheckResult> checkPatronRequestFor(String localPatronId) {
+		return check(PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.build());
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {
