@@ -219,6 +219,7 @@ class CancelledPatronRequestTransitionTests {
 			notNullValue(),
 			hasStatus(CANCELLED)
 		));
+		assertThat(updatedPatronRequest.getOutcome(), is(PatronRequest.Outcome.CANCELLED));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
 	}

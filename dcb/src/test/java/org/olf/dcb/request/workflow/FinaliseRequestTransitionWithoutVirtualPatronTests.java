@@ -40,6 +40,7 @@ class FinaliseRequestTransitionWithoutVirtualPatronTests {
 		final var patronRequest = PatronRequest.builder()
 			.id(UUID.randomUUID())
 			.status(PatronRequest.Status.COMPLETED)
+			.outcome(PatronRequest.Outcome.SUPPLIED)
 			.build();
 		final var supplierRequest = SupplierRequest.builder()
 			.id(UUID.randomUUID())
@@ -66,6 +67,7 @@ class FinaliseRequestTransitionWithoutVirtualPatronTests {
 
 		assertThat(singleValueFrom(transition.attempt(context)), is(context));
 		assertThat(patronRequest.getStatus(), is(PatronRequest.Status.FINALISED));
+		assertThat(patronRequest.getOutcome(), is(PatronRequest.Outcome.SUPPLIED));
 		verify(cleanupService).cleanup(context);
 		verify(borrowingAgencyService).getItem(patronRequest);
 		verify(supplyingAgencyService, never()).getPatron(context);

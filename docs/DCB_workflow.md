@@ -3,6 +3,10 @@
 
 The main loop of DCB is driven by the PatronRequest.status field which is of enum type Status, defined at the top of PatronRequest
 
+`PatronRequest.outcome` records the request's business result independently of
+workflow status. Finalised requests retain `SUPPLIED`, `NOT_SUPPLIED`,
+`CANCELLED`, or `UNKNOWN` for ambiguous manual or historical cleanup.
+
 
 Current states
 
@@ -46,4 +50,3 @@ How does the PatronRequestWorkflow work
 - progressAll will attempt to find any actions which can be applied to the request in it's current state - it calls progressUsing with a selected action
 - progressUsing will call applyTransition for any available action
 - applyTransition calls the attempt method on the request, and *then recursively calls itself* to apply any subsequent actions. Repeat
-

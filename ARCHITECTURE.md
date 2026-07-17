@@ -82,6 +82,10 @@ extension points, or constraints need more detail than this overview.
 Persistence is owned by repositories in `storage` and implementations in
 `storage.postgres`.
 
+`PatronRequest.status` records workflow state. `PatronRequest.outcome` separately
+records the business result (`SUPPLIED`, `NOT_SUPPLIED`, `CANCELLED`, or
+`UNKNOWN`) so finalisation does not erase whether fulfilment succeeded.
+
 No database schema changes are permitted without explicit approval. This includes
 new tables, columns, indexes, migrations, and changes to persisted domain model
 shape.

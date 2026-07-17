@@ -38,6 +38,8 @@ class HandleSupplierItemAvailableTests {
 
 		assertThat(fixture.patronRequest().getStatus(),
 			is(PatronRequest.Status.COMPLETED));
+		assertThat(fixture.patronRequest().getOutcome(),
+			is(PatronRequest.Outcome.SUPPLIED));
 		final var itemCaptor = ArgumentCaptor.forClass(HostLmsItem.class);
 		verify(fixture.hostLmsClient()).updateItemStatus(
 			itemCaptor.capture(),
@@ -71,6 +73,7 @@ class HandleSupplierItemAvailableTests {
 
 		assertThat(fixture.patronRequest().getStatus(),
 			is(PatronRequest.Status.RETURN_TRANSIT));
+		assertThat(fixture.patronRequest().getOutcome(), is((PatronRequest.Outcome) null));
 		verify(fixture.supplierRequestRepository(), never()).saveOrUpdate(any());
 		verify(fixture.patronRequestRepository(), never()).saveOrUpdate(any());
 		verify(fixture.auditService(), never()).addAuditEntry(any(), anyString());

@@ -8,6 +8,9 @@
 - **Patron home location**: the patron's local home-library/location code at their System.
 - **Pickup location**: the selected DCB Location. Legacy DCB placement accepts its Location UUID in
   `pickupLocation.code`; new facades should resolve a clear public identifier to that UUID.
+- **Request status**: the request's current workflow state, including terminal cleanup state `FINALISED`.
+- **Request outcome**: the independent business result: `SUPPLIED`, `NOT_SUPPLIED`, `CANCELLED`, or
+  `UNKNOWN` when historical or manual cleanup evidence is insufficient.
 
 External ILS, NCIP, and library practitioners may use agency, library, branch, site, institution, and
 system differently. Translate that vocabulary in adapters and facade documentation; do not conflate

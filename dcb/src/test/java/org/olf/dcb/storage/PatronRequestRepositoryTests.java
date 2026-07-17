@@ -3,8 +3,10 @@ package org.olf.dcb.storage;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.is;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.time.Instant;
 
@@ -59,5 +61,22 @@ class PatronRequestRepositoryTests {
 				.toList();
 
 		assertThat(scheduledRequestIds, contains(dueRequest.getId()));
+	}
+
+	@Test
+	void persistsRequestOutcomeIndependentlyFromStatus() {
+		final var patron = patronFixture.savePatron("home-library");
+		final var request = patronRequestsFixture.savePatronRequest(
+			PatronRequest.builder()
+				.id(randomUUID())
+				.patron(patron)
+				.status(PatronRequest.Status.FINALISED)
+				.outcome(PatronRequest.Outcome.NOT_SUPPLIED)
+				.build());
+
+		final var reloaded = singleValueFrom(patronRequestRepository.findById(request.getId()));
+
+		assertThat(reloaded.getStatus(), is(PatronRequest.Status.FINALISED));
+		assertThat(reloaded.getOutcome(), is(PatronRequest.Outcome.NOT_SUPPLIED));
 	}
 }

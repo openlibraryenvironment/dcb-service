@@ -261,7 +261,9 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> updatePatronRequestStatus() {
-		return ctx -> Mono.defer(() -> Mono.just(ctx.getPatronRequest().setStatus(Status.CANCELLED)))
+		return ctx -> Mono.defer(() -> Mono.just(ctx.getPatronRequest()
+			.setOutcome(PatronRequest.Outcome.CANCELLED)
+			.setStatus(Status.CANCELLED)))
 			.thenReturn(ctx);
 	}
 
