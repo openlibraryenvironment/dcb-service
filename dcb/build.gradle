@@ -83,10 +83,15 @@ dependencies {
 	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
 
+  // micronaut-platform 5.0.2 pulls micronaut-opensearch-bom 2.0.0, which manages
+  // opensearch-java 3.8.0 -- a version that only ships the legacy Jackson 2
+  // JsonpMapper and therefore cannot accept the Jackson 3 ObjectMapper Micronaut 5
+  // injects (see DefaultOpenSearchClientFactory). BOM 2.1.0 manages 3.9.0/3.7.0,
+  // which do ship a jackson3 mapper. Overriding the BOM keeps us on a
+  // Micronaut-validated combination rather than pinning the client ourselves.
+  implementation platform("io.micronaut.opensearch:micronaut-opensearch-bom:2.1.0")
   implementation 'org.opensearch.client:opensearch-java'
   implementation 'org.opensearch.client:opensearch-rest-client'
-	// implementation 'org.opensearch.client:opensearch-java'
-	// implementation 'org.opensearch.client:opensearch-rest-client'
 
 	implementation("ch.qos.logback:logback-core")
 	implementation("ch.qos.logback:logback-classic")

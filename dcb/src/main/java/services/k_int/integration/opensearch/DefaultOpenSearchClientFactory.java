@@ -2,13 +2,13 @@ package services.k_int.integration.opensearch;
 
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
-import org.opensearch.client.json.jackson.JacksonJsonpMapper;
+import org.opensearch.client.json.jackson3.JacksonJsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.transport.OpenSearchTransport;
 import org.opensearch.client.transport.rest_client.RestClientTransport;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
@@ -57,6 +57,12 @@ public class DefaultOpenSearchClientFactory {
 	 * @return The {@link OpenSearchTransport}.
 	 * @since 4.2.0
 	 */
+	// NB: this uses org.opensearch.client.json.jackson3.JacksonJsonpMapper, NOT the
+	// legacy org.opensearch.client.json.jackson one. The legacy mapper is built
+	// against Jackson 2 (com.fasterxml.jackson.databind.ObjectMapper) and cannot
+	// accept the Jackson 3 ObjectMapper that Micronaut 5 injects. opensearch-java
+	// 3.9.0 added the jackson3 variant, which keeps OpenSearch on the same
+	// ObjectMapper as the rest of the application.
 	@Singleton
 	@Bean(preDestroy = "close")
 	OpenSearchTransport openSearchTransport(DefaultOpenSearchConfigurationProperties openSearchConfiguration,

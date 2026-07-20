@@ -5,8 +5,11 @@ dependencies {
 	  
 		implementation 'org.marc4j:marc4j:2.9.5'
 		implementation 'info.debatty:java-string-similarity:2.0.0'
-	  implementation 'org.opensearch.client:opensearch-java:2.21.0'
-	  implementation 'org.opensearch.client:opensearch-rest-client:2.19.0'
+	  // opensearch-java / opensearch-rest-client versions are NOT pinned here on
+	  // purpose. They come from micronaut-opensearch-bom 2.1.0, imported in
+	  // dcb/build.gradle, which manages 3.9.0 / 3.7.0 -- the first releases with a
+	  // Jackson 3 mapper. Pinning them here as well would put us ahead of the
+	  // Micronaut BOM again and re-introduce the drift this replaced.
 	  implementation 'info.debatty:java-string-similarity:2.0.0'
 	  
 	  
