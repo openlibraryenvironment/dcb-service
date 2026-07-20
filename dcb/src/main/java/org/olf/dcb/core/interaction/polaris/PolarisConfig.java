@@ -317,8 +317,13 @@ public class PolarisConfig {
 		 * locationCode method. Default to the DCB-1675 method. N.B. This method relies upon the catalog instance (Which
      * may be different to the Circ Instance for shared systems, or the same for singletons) to have the required
      * Location to Agency mapping values installed. N.B. setting this to null in config will override the default */
+		// NB: @Builder.Default is required. Without it Lombok discards the initialiser
+		// entirely for builder-constructed instances (it warns about this at compile
+		// time), so itemAgencyResolutionMethod arrives null and PolarisItemMapper's
+		// switch on it throws NullPointerException.
 		@JsonProperty("item-agency-resolution-method")
-		private String itemAgencyResolutionMethod="Legacy";
+		@Builder.Default
+		private String itemAgencyResolutionMethod = "Legacy";
 	}
 
 	public String applicationServicesUriParameters() {

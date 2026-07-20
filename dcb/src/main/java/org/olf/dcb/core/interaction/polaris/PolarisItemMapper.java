@@ -197,10 +197,14 @@ public class PolarisItemMapper {
 
 	private org.olf.dcb.core.model.Location getLocation(ItemGetRow itemGetRow, String itemAgencyResolutionMethod) {
 
+		// NB: `case null` is required -- this is reached with a null resolution method
+		// when the Host LMS config omits item-agency-resolution-method. Null is treated
+		// the same as the default (shelf location), which is what the previous
+		// `default ->` branch did for any unrecognised value.
 		final var locationName = switch(itemAgencyResolutionMethod) {
       case "LocationId" -> getValueOrNull(itemGetRow, ItemGetRow::getLocationName);
       case "Legacy" -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
-      default -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
+      case null, default -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
     };
 
 		if (locationName == null) return Location.builder().build();
