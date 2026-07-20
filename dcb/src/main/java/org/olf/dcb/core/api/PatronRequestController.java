@@ -26,6 +26,7 @@ import org.olf.dcb.core.api.serde.RequestedTitleStat;
 import org.olf.dcb.core.api.serde.TopRequestorStat;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
+import org.olf.dcb.request.fulfilment.PatronRequestCancellationService;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
@@ -60,19 +61,22 @@ public class PatronRequestController {
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflowService workflowService;
 	private final CleanupPatronRequestTransition cleanupPatronRequestTransition;
+	private final PatronRequestCancellationService patronRequestCancellationService;
 
 	private final TrackingService trackingService;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
-			PatronRequestRepository patronRequestRepository, 
+			PatronRequestRepository patronRequestRepository,
 			PatronRequestWorkflowService workflowService,
 			CleanupPatronRequestTransition cleanupPatronRequestTransition,
+			PatronRequestCancellationService patronRequestCancellationService,
 			TrackingService trackingService) {
 
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.workflowService = workflowService;
 		this.cleanupPatronRequestTransition = cleanupPatronRequestTransition;
+		this.patronRequestCancellationService = patronRequestCancellationService;
 		this.trackingService = trackingService;
 	}
 	
@@ -199,6 +203,50 @@ public class PatronRequestController {
 		return badRequest(ChecksFailure.builder()
 			.failedChecks(exception.getFailedChecks())
 			.build());
+	}
+
+	/**
+	 * Patron-initiated cancellation, self-scoped exactly like {@link #list}: the
+	 * request must belong to the token's patron. The service cancels the
+	 * patron's own borrowing-side hold; the forced tracking update then lets the
+	 * normal cancellation transition converge the request state promptly instead
+	 * of waiting for the next scheduled poll. 202: the CANCELLED state lands
+	 * asynchronously via the state machine, never from this call.
+	 */
+	@SingleResult
+	@Post(value = "/{patronRequestId}/cancel", consumes = APPLICATION_JSON)
+	public Mono<HttpResponse<CancellationAccepted>> cancelOwnPatronRequest(
+			@NotNull final UUID patronRequestId, Authentication authentication) {
+
+		final Map<String, Object> claims = authentication.getAttributes();
+		final Object patronHomeSystem = claims.get("localSystemCode");
+		final Object patronHomeId = claims.get("localSystemPatronId");
+
+		if (patronHomeSystem == null || patronHomeId == null) {
+			return Mono.just(HttpResponse.badRequest());
+		}
+
+		return patronRequestCancellationService
+			.cancelOwnRequest(patronRequestId, patronHomeSystem.toString(), patronHomeId.toString())
+			.flatMap(patronRequest -> trackingService.forceUpdate(patronRequestId)
+				// The hold IS cancelled; a slow poll must not turn success into a 500.
+				.onErrorResume(error -> {
+					log.warn("Post-cancellation tracking update failed for {}", patronRequestId, error);
+					return Mono.just(patronRequestId);
+				}))
+			.map(id -> HttpResponse.accepted().body(new CancellationAccepted(id)));
+	}
+
+	@Error
+	public HttpResponse<Map<String, String>> onCancellationNotAllowed(
+			PatronRequestCancellationService.CancellationNotAllowedException exception) {
+
+		return HttpResponse.status(io.micronaut.http.HttpStatus.CONFLICT)
+			.body(Map.of("code", "NOT_CANCELLABLE", "message", exception.getMessage()));
+	}
+
+	@Serdeable
+	public record CancellationAccepted(UUID id) {
 	}
 
 	@Secured(ADMINISTRATOR)
