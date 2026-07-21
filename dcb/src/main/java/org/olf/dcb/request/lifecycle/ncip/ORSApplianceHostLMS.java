@@ -31,7 +31,8 @@ import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
-import org.olf.dcb.core.interaction.ncip.NcipProtocol;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthorizationService;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthProfile;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
@@ -54,6 +55,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	private final NcipAddressResolver addressResolver;
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
+	private final NcipPeerAuthorizationService peerAuthorizationService;
 
 	@Creator
 	public ORSApplianceHostLMS(
@@ -64,7 +66,8 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		NcipIdentityConfiguration ncipIdentityConfiguration,
 		NcipAddressResolver addressResolver,
 		AgencyRepository agencyRepository,
-		LocationRepository locationRepository) {
+		LocationRepository locationRepository,
+		NcipPeerAuthorizationService peerAuthorizationService) {
 
 		super(hostLms);
 		this.transport = transport;
@@ -75,14 +78,17 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		this.addressResolver = addressResolver;
 		this.agencyRepository = agencyRepository;
 		this.locationRepository = locationRepository;
+		this.peerAuthorizationService = peerAuthorizationService;
 	}
 
 	@Override
 	public List<HostLmsPropertyDefinition> getSettings() {
-		return List.of(
-			NcipHostLmsConfiguration.ENDPOINT_URL,
-			NcipHostLmsConfiguration.NCIP_SYSTEM_ID,
-			NcipHostLmsConfiguration.NCIP_AGENCY_ID);
+		return java.util.stream.Stream.concat(
+			List.of(
+				NcipHostLmsConfiguration.ENDPOINT_URL,
+				NcipHostLmsConfiguration.NCIP_SYSTEM_ID,
+				NcipHostLmsConfiguration.NCIP_AGENCY_ID).stream(),
+			NcipPeerAuthProfile.settings().stream()).toList();
 	}
 
 	@Override
@@ -112,8 +118,8 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 						parameters.getLocalPatronId(),
 						parameters.getPatronRequestId()),
 					firstText(
-						parameters.getLocalBibId(),
 						parameters.getSupplyingLocalBibId(),
+						parameters.getLocalBibId(),
 						parameters.getPatronRequestId()),
 					supplyingAgencyId,
 					supplyingAgencyId,
@@ -124,9 +130,24 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 						parameters.getSupplyingLocalItemBarcode(),
 						parameters.getLocalItemId(),
 						parameters.getSupplyingLocalItemId()),
+					firstTextOrNull(
+						parameters.getSupplyingLocalItemId(),
+						parameters.getLocalItemId()),
 					correlationId,
 					REQUEST_TYPE,
-					REQUEST_SCOPE_TYPE))));
+					REQUEST_SCOPE_TYPE,
+					bibliographicDescription(parameters, supplyingAgencyId),
+					requireShippingContext(parameters),
+					true))));
+	}
+
+	private static org.olf.dcb.core.interaction.RequestShippingContext requireShippingContext(
+		PlaceHoldRequestParameters parameters) {
+
+		if (parameters.getShippingContext() == null) {
+			throw new IllegalStateException("Cannot route supplier request: shipping context is missing");
+		}
+		return parameters.getShippingContext();
 	}
 
 	@Override
@@ -224,10 +245,11 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 
 	private Mono<String> postLookupUser(String payload) {
 		final var endpoint = hostLmsConfiguration.endpointUriFor(getHostLms());
-		// Peer authentication (JWT) is a follow-on; send unauthenticated for now.
-		final var request = HttpRequest.POST(endpoint, payload)
+		final var request = peerAuthorizationService.authorize(
+			HttpRequest.POST(endpoint, payload)
 			.contentType(MediaType.APPLICATION_XML_TYPE)
-			.accept(MediaType.APPLICATION_XML_TYPE);
+			.accept(MediaType.APPLICATION_XML_TYPE),
+			getHostLms());
 
 		return Mono.from(httpClient.exchange(request, Argument.of(String.class)))
 			.map(response -> response.getBody()
@@ -258,10 +280,11 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 
 	private Mono<String> postLookupItemSet(String payload) {
 		final var endpoint = hostLmsConfiguration.endpointUriFor(getHostLms());
-		// Peer authentication (JWT) is a follow-on; send unauthenticated for now.
-		final var request = HttpRequest.POST(endpoint, payload)
+		final var request = peerAuthorizationService.authorize(
+			HttpRequest.POST(endpoint, payload)
 			.contentType(MediaType.APPLICATION_XML_TYPE)
-			.accept(MediaType.APPLICATION_XML_TYPE);
+			.accept(MediaType.APPLICATION_XML_TYPE),
+			getHostLms());
 
 		return Mono.from(httpClient.exchange(request, Argument.of(String.class)))
 			.map(response -> response.getBody()

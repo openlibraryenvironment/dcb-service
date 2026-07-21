@@ -111,3 +111,4 @@ password will be test
 
 Useful greps: 
   "Unable to map canonical item type"
+Domain terminology: [docs/glossary.md](docs/glossary.md).

@@ -194,7 +194,10 @@ class StandardWorkflowPatronRequestApiTests {
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("2745326", "i", null);
 
 		// borrowing agency service
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
+
 		final var bibPatch = BibPatch.builder()
+			.fixedFields(fixedFields)
 			.authors(List.of("Stafford Beer"))
 			.titles(List.of("Brain of the Firm"))
 			.build();

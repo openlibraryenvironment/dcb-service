@@ -3,9 +3,6 @@ package services.k_int.interaction.oaipmh;
 import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlText;
 
 import io.micronaut.serde.annotation.Serdeable;
 

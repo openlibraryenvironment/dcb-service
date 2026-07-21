@@ -1474,33 +1474,36 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
-  @Override
-  public Mono<PingResponse> ping() {
-
+	@Override
+	public Mono<PingResponse> ping() {
 		Publisher<HttpResponse<Void>> responsePublisher = httpClient.exchange(rootUri + PATH_PROXY_HEALTH, Void.class);
-    Instant start = Instant.now();
+		Instant start = Instant.now();
 
 		return Mono.from(responsePublisher)
-			.onErrorResume ( e -> {
-				log.error("Problem pinging host {}",e.getMessage());
-				return Mono.empty();
-			})
 			.flatMap(response -> {
 				if (response.getStatus().getCode() == 200) {
 					return Mono.just(PingResponse.builder()
-			      .target(getHostLmsCode())
-			      .status(PING_STATUS_OK)
-	          .pingTime(Duration.between(start, Instant.now()))
-			      .build());
+						.target(getHostLmsCode())
+						.status(PING_STATUS_OK)
+						.pingTime(Duration.between(start, Instant.now()))
+						.build());
 				} else {
 					return Mono.just(PingResponse.builder()
-			      .target(getHostLmsCode())
-			      .status(PING_STATUS_ERROR)
-	          .pingTime(Duration.between(start, Instant.now()))
-			      .build());
+						.target(getHostLmsCode())
+						.status(PING_STATUS_ERROR)
+						.pingTime(Duration.between(start, Instant.now()))
+						.build());
 				}
+			})
+			.onErrorResume(e -> {
+				log.error("Problem pinging host {}", e.getMessage());
+				return Mono.just(PingResponse.builder()
+					.target(getHostLmsCode())
+					.status(PING_STATUS_ERROR)
+					.pingTime(Duration.between(start, Instant.now()))
+					.build());
 			});
-  }
+	}
 
 	public String getHostLmsCode() {
     String result = hostLms.getCode();

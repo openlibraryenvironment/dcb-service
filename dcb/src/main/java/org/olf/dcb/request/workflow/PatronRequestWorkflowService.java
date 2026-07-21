@@ -45,19 +45,18 @@ public class PatronRequestWorkflowService {
 	private final List<PatronRequestStateTransition> allTransitions;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final TrackingHelpers trackingHelpers;
-	private final AlarmsService alarmsService;
 	private final RequestTrackingPolicy requestTrackingPolicy;
+	private final AlarmsService alarmsService;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
 		PatronRequestAuditService patronRequestAuditService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		TrackingHelpers trackingHelpers,
-		AlarmsService alarmsService,
-		RequestTrackingPolicy requestTrackingPolicy) {
+		RequestTrackingPolicy requestTrackingPolicy,
+		AlarmsService alarmsService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
-		this.requestTrackingPolicy = requestTrackingPolicy;
 		// By loading the list of all transitions, we can declare new transitions
 		// without having to modify the
 		// workflow engine constructor every time.
@@ -65,6 +64,7 @@ public class PatronRequestWorkflowService {
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.trackingHelpers = trackingHelpers;
+		this.requestTrackingPolicy = requestTrackingPolicy;
 		this.alarmsService = alarmsService;
 
 		log.info("Initialising workflow engine with available transitions");
@@ -307,23 +307,23 @@ public class PatronRequestWorkflowService {
 	private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
 		final var patronRequest = ctx.getPatronRequest();
 
+		if (!requestTrackingPolicy.schedulesAutomaticPolls(ctx)) {
+			log.debug("Automatic polling suppressed for {}", patronRequest.getId());
+			patronRequest.setNextScheduledPoll(null);
+			return Mono.from(patronRequestRepository.saveOrUpdate(patronRequest))
+				.map(ctx::setPatronRequest);
+		}
+
+		final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
+
 		Instant next_poll = null;
 
-		if (!requestTrackingPolicy.schedulesAutomaticPolls(ctx)) {
-			// Event-driven tracking: inbound protocol messages drive this request,
-			// so suppress the scheduled poll entirely (nextScheduledPoll = null).
-			log.debug("Event-driven tracking for {} - suppressing scheduled poll", patronRequest.getId());
+		if (duration.isEmpty()) {
+			log.debug("No scheduled check due");
 		}
 		else {
-			final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
-
-			if (duration.isEmpty()) {
-				log.debug("No scheduled check due");
-			}
-			else {
-				next_poll = Instant.now().plus(duration.get());
-				log.debug("scheduleNextCheck Extracted duration {} next check is {}",duration,next_poll);
-			}
+			next_poll = Instant.now().plus(duration.get());
+			log.debug("scheduleNextCheck Extracted duration {} next check is {}",duration,next_poll);
 		}
 
 		patronRequest.setNextScheduledPoll(next_poll);

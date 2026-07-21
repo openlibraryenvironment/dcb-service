@@ -31,17 +31,15 @@ public class BorrowingAgencyRequestStrategyResolver {
 		RequestWorkflowContext context,
 		LifecycleOperation operation) {
 
-		final var borrowingHost = context.getPatronSystem();
-
 		final var strategy = capabilityResolver.placementStrategy(
-			borrowingHost, LifecycleRole.BORROWER);
+			LifecycleRole.BORROWER);
 
 		if (strategy == StrategyType.IMPERATIVE) {
 			return imperativeStrategy;
 		}
 
 		return declarativeStrategy(
-			capabilityResolver.placementProtocol(borrowingHost, LifecycleRole.BORROWER),
+			capabilityResolver.placementProtocol(LifecycleRole.BORROWER),
 			context);
 	}
 
@@ -55,7 +53,7 @@ public class BorrowingAgencyRequestStrategyResolver {
 			.toList();
 
 		if (matchingStrategies.size() == 1) {
-			return matchingStrategies.get(0);
+			return matchingStrategies.getFirst();
 		}
 
 		if (matchingStrategies.isEmpty()) {

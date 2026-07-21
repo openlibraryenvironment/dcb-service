@@ -5,14 +5,18 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import jakarta.inject.Singleton;
+import java.net.URI;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthorizationService;
 import reactor.core.publisher.Mono;
 
 @Singleton
@@ -22,29 +26,34 @@ public class NcipDeclarativeRequestTransport
 	private final HttpClient httpClient;
 	private final NcipInboundXmlMapper inboundXmlMapper;
 	private final NcipHostLmsConfiguration hostLmsConfiguration;
+	private final NcipPeerAuthorizationService peerAuthorizationService;
 
 	public NcipDeclarativeRequestTransport(
 		HostLmsService hostLmsService,
 		@Client("/") HttpClient httpClient,
-		NcipInboundXmlMapper inboundXmlMapper) {
+		NcipInboundXmlMapper inboundXmlMapper,
+		NcipPeerAuthorizationService peerAuthorizationService) {
 
 		this(
 			hostLmsService,
 			httpClient,
 			inboundXmlMapper,
-			new NcipHostLmsConfiguration());
+			new NcipHostLmsConfiguration(),
+			peerAuthorizationService);
 	}
 
 	NcipDeclarativeRequestTransport(
 		HostLmsService hostLmsService,
 		HttpClient httpClient,
 		NcipInboundXmlMapper inboundXmlMapper,
-		NcipHostLmsConfiguration hostLmsConfiguration) {
+		NcipHostLmsConfiguration hostLmsConfiguration,
+		NcipPeerAuthorizationService peerAuthorizationService) {
 
 		this.hostLmsService = hostLmsService;
 		this.httpClient = httpClient;
 		this.inboundXmlMapper = inboundXmlMapper;
 		this.hostLmsConfiguration = hostLmsConfiguration;
+		this.peerAuthorizationService = peerAuthorizationService;
 	}
 
 	@Override
@@ -68,18 +77,35 @@ public class NcipDeclarativeRequestTransport
 
 	private Mono<String> post(HostLms hostLms, DeclarativeTransportRequest request) {
 		final var endpoint = hostLmsConfiguration.endpointUriFor(hostLms);
-
-		// Peer authentication (JWT) is a follow-on (PR-6c); send unauthenticated for now.
-		final var httpRequest = HttpRequest.POST(endpoint, request.payload())
+		final var httpRequest = peerAuthorizationService.authorize(
+			HttpRequest.POST(endpoint, request.payload())
 			.contentType(MediaType.APPLICATION_XML_TYPE)
-			.accept(MediaType.APPLICATION_XML_TYPE);
+			.accept(MediaType.APPLICATION_XML_TYPE),
+			hostLms);
 
 		return Mono.from(httpClient.exchange(
 				httpRequest,
 				Argument.of(String.class)))
 			.map(response -> response.getBody()
 				.orElseThrow(() -> new NcipProblemException(
-					"NCIP " + request.messageKind() + " response body is empty")));
+					"NCIP " + request.messageKind() + " response body is empty")))
+			.onErrorMap(HttpClientResponseException.class, error -> new NcipProblemException(
+				"NCIP %s rejected by %s: %s".formatted(
+					request.messageKind(), request.hostLmsCode(), responseDetail(error)),
+				error));
+	}
+
+	private static String responseDetail(HttpClientResponseException error) {
+		Optional<?> body = error.getResponse().getBody(Argument.of(Map.class));
+		if (body.isPresent() && body.get() instanceof Map<?, ?> values) {
+			Object detail = values.get("detail");
+			if (detail != null && !detail.toString().isBlank()) {
+				return detail.toString();
+			}
+		}
+		return error.getResponse().getBody(String.class)
+			.filter(value -> !value.isBlank())
+			.orElse(error.getMessage());
 	}
 
 	private DeclarativeTransportResponse toTransportResponse(
@@ -119,6 +145,7 @@ public class NcipDeclarativeRequestTransport
 		return switch (request.messageKind()) {
 			case NcipProtocol.REQUEST_ITEM -> NcipProtocol.REQUEST_ITEM_RESPONSE;
 			case NcipProtocol.ACCEPT_ITEM -> NcipProtocol.ACCEPT_ITEM_RESPONSE;
+			case NcipProtocol.ITEM_SHIPPED -> NcipProtocol.ITEM_SHIPPED_RESPONSE;
 			default -> throw new NcipProblemException(
 				"Unsupported NCIP outbound message: " + request.messageKind());
 		};

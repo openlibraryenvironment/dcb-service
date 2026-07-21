@@ -16,6 +16,7 @@ import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.statemodel.DCBGuardCondition;
@@ -93,9 +94,15 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 	public Mono<RequestWorkflowContext> checkHomeItemOutToVirtualPatron(
 		RequestWorkflowContext rwc) {
+		final var supplierRequest = rwc.getSupplierRequest();
+		if (hasDeclarativeProtocol(supplierRequest)) {
+			rwc.getWorkflowMessages().add(
+				"Skipped supplier-side virtual patron checkout for declarative supplier request");
+			return Mono.just(rwc);
+		}
 
-		if ((rwc.getSupplierRequest() != null) &&
-			(rwc.getSupplierRequest().getLocalItemId() != null) &&
+		if ((supplierRequest != null) &&
+			(supplierRequest.getLocalItemId() != null) &&
 			(rwc.getLenderSystemCode() != null) &&
 			(rwc.getPatronVirtualIdentity() != null)) {
 
@@ -158,6 +165,14 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 						rwc, rwc.getSupplierRequest(), rwc.getPatronVirtualIdentity()))
 				.thenReturn(rwc);
 		}
+	}
+
+	private static boolean hasDeclarativeProtocol(
+		SupplierRequest supplierRequest) {
+
+		final var protocol = getValueOrNull(
+			supplierRequest, SupplierRequest::getProtocol);
+		return protocol != null && !protocol.isBlank();
 	}
 
 	private Mono<RequestWorkflowContext> checkoutItemToPatronIfEnabled(

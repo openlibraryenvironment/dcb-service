@@ -1,6 +1,8 @@
 package org.olf.dcb.core.svc;
 
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.Workflow;
@@ -90,11 +92,15 @@ public class LocationService {
 	}
 
 	private Mono<Location> dynamicCreateLocation(Location location) {
-		location.getActiveWorkflows().put("DynamicLocation", 
+		Map<String, Workflow> activeWorkflows = location.getActiveWorkflows() == null
+			? new HashMap<>()
+			: new HashMap<>(location.getActiveWorkflows());
+		activeWorkflows.put("DynamicLocation",
 			Workflow.builder()
 				.code("ReviewDynamicLocation")
 				.status("PENDING")
 				.build());
+		location.setActiveWorkflows(activeWorkflows);
 		location.setNeedsAttention(Boolean.TRUE);
 		return(Mono.from(locationRepository.save(location)));
 	}

@@ -63,7 +63,7 @@ final class NcipHostLmsConfiguration {
 			.findFirst();
 	}
 
-	private java.util.Optional<String> findNcipSystemId(Map<String, Object> clientConfig) {
+	java.util.Optional<String> findNcipSystemId(Map<String, Object> clientConfig) {
 		return NCIP_SYSTEM_ID_KEYS.stream()
 			.map(key -> getAsOptionalString(clientConfig, key))
 			.flatMap(java.util.Optional::stream)

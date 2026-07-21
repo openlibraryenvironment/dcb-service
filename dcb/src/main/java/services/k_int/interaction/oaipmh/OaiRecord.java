@@ -4,7 +4,7 @@ import java.time.Instant;
 import org.marc4j.marc.Record;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.micronaut.serde.annotation.Serdeable;
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+import tools.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 
 @Serdeable
 public record OaiRecord (
@@ -14,8 +14,8 @@ public record OaiRecord (
 	
 	@Serdeable
 	public static record Metadata(
-			Record record
-			) {
+				Record record
+				) {
 	}
 	
 	@Serdeable

@@ -700,7 +700,10 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public @NonNull String getClientId() {
-		return "DUMMY_DEV_CLIENT";
+		// Workflow routing compares HostLmsClient ids to detect when different
+		// agencies are backed by the same configured system. Dummy clients must
+		// therefore identify the configured Host LMS, not the dummy client class.
+		return Optional.ofNullable(getHostLmsCode()).orElse("DUMMY_DEV_CLIENT");
 	}
 
 	@Override

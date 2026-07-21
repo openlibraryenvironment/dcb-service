@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.w3c.dom.Document;
@@ -36,9 +35,32 @@ public class NcipInboundXmlMapper {
 				message, xml);
 			case NcipProtocol.ACCEPT_ITEM_RESPONSE -> acceptItemResponse(
 				message, xml);
+			case NcipProtocol.ITEM_SHIPPED_RESPONSE -> itemShippedResponse(
+				message, xml);
 			default -> throw new NcipProblemException(
 				"Unsupported NCIP message: " + message.getLocalName());
 		};
+	}
+
+	private static NcipInboundMessage itemShippedResponse(
+		Element response,
+		String xml) {
+
+		final var requestId = requiredText(
+			response, "RequestIdentifierValue");
+		return new NcipInboundMessage(
+			NcipProtocol.ITEM_SHIPPED_RESPONSE,
+			LifecycleRole.SUPPLIER,
+			LifecycleOperation.REVISE_REQUEST,
+			requiredResponsePeerId(response),
+			requestId,
+			requestId,
+			CONFIRMED_STATUS,
+			NcipProtocol.ITEM_SHIPPED_RESPONSE,
+			null,
+			null,
+			null,
+			rawMessageReference(NcipProtocol.ITEM_SHIPPED_RESPONSE, xml));
 	}
 
 	private static NcipInboundMessage itemShipped(

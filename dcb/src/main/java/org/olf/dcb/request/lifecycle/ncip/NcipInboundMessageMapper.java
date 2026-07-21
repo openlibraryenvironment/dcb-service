@@ -2,7 +2,6 @@ package org.olf.dcb.request.lifecycle.ncip;
 
 import io.micronaut.context.annotation.Prototype;
 import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessage;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;

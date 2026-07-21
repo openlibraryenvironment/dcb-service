@@ -61,7 +61,7 @@ public class PresentableItem {
 		return getValue(itemStatusCode, Enum::name, "null");
 	}
 
-	private static String dateTimeToString(Item item, Function<Item, @Nullable Instant> getDateTime) {
+	private static String dateTimeToString(Item item, Function<Item, Instant> getDateTime) {
 		return getValue(item, getDateTime, Instant::toString, "null");
 	}
 }

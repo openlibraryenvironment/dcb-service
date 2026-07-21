@@ -50,7 +50,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
-@MicronautTest(propertySources = "classpath:geo-sort-strategy-config.yml")
+@MicronautTest(propertySources = "classpath:geo-sort-strategy-config.yml", contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 public class GeoDistanceTieBreakerTests {
 
 	private static final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";

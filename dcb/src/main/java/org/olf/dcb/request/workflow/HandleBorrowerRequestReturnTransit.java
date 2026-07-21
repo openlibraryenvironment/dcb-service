@@ -11,6 +11,7 @@ import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.lifecycle.SupplierReturnExpectedNotifier;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
@@ -33,6 +34,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTransition {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
+	private final SupplierReturnExpectedNotifier supplierReturnExpectedNotifier;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.LOANED);
 	private static final List<String> possibleLocalItemStatus = List.of(
@@ -40,9 +42,13 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	private static final List<String> possibleSupplierLocalItemStatus = List.of(
 		HostLmsItem.ITEM_AVAILABLE);
 	
-	public HandleBorrowerRequestReturnTransit(HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService) {
+	public HandleBorrowerRequestReturnTransit(
+		HostLmsService hostLmsService,
+		PatronRequestAuditService patronRequestAuditService,
+		SupplierReturnExpectedNotifier supplierReturnExpectedNotifier) {
 		this.hostLmsService = hostLmsService;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.supplierReturnExpectedNotifier = supplierReturnExpectedNotifier;
 	}
 
 	@Override
@@ -90,7 +96,7 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 				.doOnError(error -> log.error("HandleBorrowerRequestReturnTransit attempt failed.", error));
 		} else {
 			ctx.getPatronRequest().setStatus(PatronRequest.Status.RETURN_TRANSIT);
-			return Mono.just(ctx);
+			return supplierReturnExpectedNotifier.notifyExpectedReturn(ctx);
 		}
 	}
 

@@ -59,8 +59,9 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 				log.info("Potential re-resolution from RET-LOCAL to RET-STD detected for {}", patronRequest.getId());
 				final Map<String, Object> auditData = getAuditData(ctx, patronRequest);
 				return patronRequestAuditService.addAuditEntry(patronRequest, "Re-resolution: potential re-resolution from RET-LOCAL to RET-STD: attempting to place request at borrower", auditData)
-					.then(borrowingAgencyRequestStrategyService.place(ctx).map(RequestWorkflowContext::getPatronRequest))
-					.doOnSuccess(pr -> log.info("Re-resolution: RET-LOCAL to RET-STD detected, successfully placed request at borrower: {}", pr))
+					.then(borrowingAgencyRequestStrategyService.place(ctx))
+					.doOnSuccess(updatedContext -> log.info("Re-resolution: RET-LOCAL to RET-STD detected, successfully placed request at borrower: {}",
+						updatedContext.getPatronRequest()))
 					.doOnError(error -> log.error("Re-resolution: RET-LOCAL to RET-STD, error occurred when placing a patron request at borrowing agency({}@{}): {}",
 						patronRequest.getRequestingIdentity().getLocalId(),
 						patronRequest.getPatronHostlmsCode(),
@@ -69,9 +70,9 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 			}
 			else
 			{
-				return borrowingAgencyRequestStrategyService.revise(ctx).map(RequestWorkflowContext::getPatronRequest)
-					.doOnSuccess(pr -> {
-						log.info("Updated patron request at borrowing agency: {}", pr);
+				return borrowingAgencyRequestStrategyService.revise(ctx)
+					.doOnSuccess(updatedContext -> {
+						log.info("Updated patron request at borrowing agency: {}", updatedContext.getPatronRequest());
 						ctx.getWorkflowMessages().add("Updated patron request at borrowing agency");
 					})
 					.doOnError(error -> {
@@ -82,14 +83,15 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 			}
 		}
 
-		return borrowingAgencyRequestStrategyService.place(ctx).map(RequestWorkflowContext::getPatronRequest)
-			.doOnSuccess(pr -> {
-				log.info("Placed patron request to borrowing agency: {}", pr);
+		return borrowingAgencyRequestStrategyService.place(ctx)
+			.doOnSuccess(updatedContext -> {
+				final var updatedPatronRequest = updatedContext.getPatronRequest();
+				log.info("Placed patron request to borrowing agency: {}", updatedPatronRequest);
 
-				final var localBibId = getValue(pr, PatronRequest::getLocalBibId, "none");
-				final var localHoldingId = getValue(pr, PatronRequest::getLocalHoldingId, "none");
-				final var localItemId = getValue(pr, PatronRequest::getLocalItemId, "none");
-				final var localRequestId = getValue(pr, PatronRequest::getLocalRequestId, "none");
+				final var localBibId = getValue(updatedPatronRequest, PatronRequest::getLocalBibId, "none");
+				final var localHoldingId = getValue(updatedPatronRequest, PatronRequest::getLocalHoldingId, "none");
+				final var localItemId = getValue(updatedPatronRequest, PatronRequest::getLocalItemId, "none");
+				final var localRequestId = getValue(updatedPatronRequest, PatronRequest::getLocalRequestId, "none");
 
 				ctx.getWorkflowMessages().add("Placed patron request to borrowing agency");
 				ctx.getWorkflowMessages().add("Local bib ID: \"%s\"".formatted(localBibId));

@@ -19,7 +19,6 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.StringUtils.stringEquals;
 
-import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -152,6 +151,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final ApplicationServicesClient ApplicationServices;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
+	private static final com.fasterxml.jackson.databind.ObjectMapper CLIENT_CONFIG_MAPPER =
+		new com.fasterxml.jackson.databind.ObjectMapper();
 	private final ObjectMapper objectMapper;
 	private final ObjectRulesService objectRuleService;
 	private final RulesetCacheInvalidator cacheInvalidator;
@@ -204,10 +205,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Map<String, Object> lmsConf = hostLms.getClientConfig();
 
 		try {
-			JsonNode conftree = objectMapper.writeValueToTree(lmsConf);
-			PolarisConfig conf = objectMapper.readValueFromTree(conftree, PolarisConfig.class);
-			return conf;
-		} catch (IOException e) {
+			return CLIENT_CONFIG_MAPPER.convertValue(lmsConf, PolarisConfig.class);
+		} catch (IllegalArgumentException e) {
 			throw new RuntimeException( e );
 		}
 	}

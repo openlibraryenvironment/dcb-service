@@ -31,17 +31,15 @@ public class SupplyingAgencyRequestStrategyResolver {
 		RequestWorkflowContext context,
 		LifecycleOperation operation) {
 
-		final var supplyingHost = context.getLenderSystem();
-
 		final var strategy = capabilityResolver.placementStrategy(
-			supplyingHost, LifecycleRole.SUPPLIER);
+			LifecycleRole.SUPPLIER);
 
 		if (strategy == StrategyType.IMPERATIVE) {
 			return imperativeStrategy;
 		}
 
 		return declarativeStrategy(
-			capabilityResolver.placementProtocol(supplyingHost, LifecycleRole.SUPPLIER),
+			capabilityResolver.placementProtocol(LifecycleRole.SUPPLIER),
 			context);
 	}
 
@@ -55,7 +53,7 @@ public class SupplyingAgencyRequestStrategyResolver {
 			.toList();
 
 		if (matchingStrategies.size() == 1) {
-			return matchingStrategies.get(0);
+			return matchingStrategies.getFirst();
 		}
 
 		if (matchingStrategies.isEmpty()) {

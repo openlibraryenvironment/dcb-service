@@ -4,8 +4,6 @@ import io.micronaut.context.annotation.Prototype;
 import java.util.Optional;
 import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.ncip.NcipProtocol;
-import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -18,12 +16,9 @@ import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestResult;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestStrategy;
-import org.olf.dcb.request.resolution.SharedIndexService;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 @Prototype
-@Slf4j
 public class NcipBorrowingRequestStrategy
 	implements BorrowingAgencyRequestStrategy {
 	private static final String REQUESTED_ACTION_TYPE = "Accept For Loan";
@@ -33,7 +28,7 @@ public class NcipBorrowingRequestStrategy
 	private final HostLmsService hostLmsService;
 	private final NcipIdentityConfiguration ncipIdentityConfiguration;
 	private final NcipAddressResolver addressResolver;
-	private final SharedIndexService sharedIndexService;
+	private final NcipBibliographicMetadataResolver bibliographicMetadataResolver;
 
 	public NcipBorrowingRequestStrategy(
 		DeclarativeRequestTransport transport,
@@ -41,14 +36,14 @@ public class NcipBorrowingRequestStrategy
 		HostLmsService hostLmsService,
 		NcipIdentityConfiguration ncipIdentityConfiguration,
 		NcipAddressResolver addressResolver,
-		SharedIndexService sharedIndexService) {
+		NcipBibliographicMetadataResolver bibliographicMetadataResolver) {
 
 		this.transport = transport;
 		this.payloadBuilder = payloadBuilder;
 		this.hostLmsService = hostLmsService;
 		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
 		this.addressResolver = addressResolver;
-		this.sharedIndexService = sharedIndexService;
+		this.bibliographicMetadataResolver = bibliographicMetadataResolver;
 	}
 
 	@Override
@@ -96,8 +91,8 @@ public class NcipBorrowingRequestStrategy
 				"Cannot create NCIP AcceptItem without HostLMS " + hostLmsCode)))
 			.flatMap(hostLms -> {
 				final var toAgencyId = addressResolver.agencyIdForHost(hostLms);
-				return bibliographicTitleFor(context)
-					.flatMap(bibliographicTitle -> Mono.zip(
+				return bibliographicMetadataResolver.resolve(context)
+					.flatMap(metadata -> Mono.zip(
 						addressResolver.agencyIdForLocalAgencyCode(
 							supplyingAgencyCode,
 							ncipIdentityConfiguration.getAgencyId()),
@@ -116,7 +111,7 @@ public class NcipBorrowingRequestStrategy
 						bibliographicDescriptionFor(
 							context,
 							tuple.getT1(),
-							bibliographicTitle.orElse(null))))));
+							metadata)))));
 			})
 			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
@@ -198,11 +193,11 @@ public class NcipBorrowingRequestStrategy
 	private static NcipBibliographicDescription bibliographicDescriptionFor(
 		RequestWorkflowContext context,
 		String bibliographicRecordAgencyId,
-		String bibliographicTitle) {
+		NcipBibliographicMetadata metadata) {
 
 		return new NcipBibliographicDescription(
-			bibliographicTitle,
-			null,
+			metadata.title(),
+			metadata.author(),
 			Optional.ofNullable(context)
 				.map(RequestWorkflowContext::getPatronRequest)
 				.map(PatronRequest::getLocalBibId)
@@ -214,45 +209,7 @@ public class NcipBorrowingRequestStrategy
 				.orElse(null),
 			bibliographicRecordAgencyId,
 			requiredItemBarcodeFor(context),
-			null);
-	}
-
-	private Mono<Optional<String>> bibliographicTitleFor(
-		RequestWorkflowContext context) {
-
-		return titleFromContext(context)
-			.map(title -> Mono.just(Optional.of(title)))
-			.orElseGet(() -> titleFromSharedIndex(context)
-				.map(Optional::of)
-				.defaultIfEmpty(Optional.empty()));
-	}
-
-	private Optional<String> titleFromContext(RequestWorkflowContext context) {
-		return Optional.ofNullable(context)
-			.map(RequestWorkflowContext::getPickupBibTitle)
-			.filter(NcipBorrowingRequestStrategy::hasText);
-	}
-
-	private Mono<String> titleFromSharedIndex(RequestWorkflowContext context) {
-		final var bibClusterId = Optional.ofNullable(context)
-			.map(RequestWorkflowContext::getPatronRequest)
-			.map(PatronRequest::getBibClusterId)
-			.orElse(null);
-
-		if (bibClusterId == null) {
-			return Mono.empty();
-		}
-
-		return sharedIndexService.findSelectedBib(bibClusterId)
-			.map(BibRecord::getTitle)
-			.filter(NcipBorrowingRequestStrategy::hasText)
-			.onErrorResume(error -> {
-				log.warn(
-					"Cannot resolve selected bib title for NCIP AcceptItem from bib cluster {}",
-					bibClusterId,
-					error);
-				return Mono.empty();
-			});
+			metadata.edition());
 	}
 
 	private static String correlationIdFor(

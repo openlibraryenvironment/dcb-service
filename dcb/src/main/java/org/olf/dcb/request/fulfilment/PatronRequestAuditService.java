@@ -84,7 +84,7 @@ public class PatronRequestAuditService {
 
 		message.ifPresent(value -> builder.briefDescription(truncate(value, 254)));
 
-		return buildAndSaveAuditMessage(builder);
+		return buildAndSaveAuditMessage(builder.build());
 	}
 
 	private Map<String, Object> updateAuditData(Map<String, Object> auditData, PatronRequest patronRequest) {
@@ -109,9 +109,7 @@ public class PatronRequestAuditService {
 
 	@Transactional
 	public Mono<PatronRequestAudit> buildAndSaveAuditMessage(
-		PatronRequestAudit.PatronRequestAuditBuilder builder) {
-
-		final var pra = builder.build();
+		PatronRequestAudit pra) {
 
 		return Mono.just(pra)
 			.flatMap(auditEntry -> Mono.from(patronRequestAuditRepository.save(auditEntry))

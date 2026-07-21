@@ -21,7 +21,7 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 	private final PatronRequestAuditService patronRequestAuditService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.RESOLVED);
-
+	
 	public PlacePatronRequestAtSupplyingAgencyStateTransition(
 		SupplyingAgencyRequestStrategyService supplyingAgencyRequestStrategyService,
 		PatronRequestAuditService patronRequestAuditService) {
@@ -43,11 +43,11 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 
 		log.debug("PlacePatronRequestAtSupplyingAgencyStateTransition firing for {}", ctx.getPatronRequest());
 
-		// Note: supplyingAgencyService.placePatronRequestAtSupplyingAgency will eventually call PatronRequest::placedAtSupplyingAgency
+		// Note: the default strategy delegates to SupplyingAgencyService, which will eventually call PatronRequest::placedAtSupplyingAgency
 
-		return supplyingAgencyRequestStrategyService.place(ctx).map(RequestWorkflowContext::getPatronRequest)
-			.doOnSuccess(pr -> {
-				log.debug("Placed patron request to supplier: pr={}", pr);
+		return supplyingAgencyRequestStrategyService.place(ctx)
+			.doOnSuccess(updatedContext -> {
+				log.debug("Placed patron request to supplier: pr={}", updatedContext.getPatronRequest());
 				ctx.getWorkflowMessages().add("Placed patron request to supplier");
 				addAuditDetail(ctx);
 			})

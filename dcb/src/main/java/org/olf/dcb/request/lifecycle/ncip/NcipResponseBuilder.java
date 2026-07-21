@@ -2,7 +2,6 @@ package org.olf.dcb.request.lifecycle.ncip;
 
 import jakarta.inject.Singleton;
 import java.io.StringWriter;
-import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;

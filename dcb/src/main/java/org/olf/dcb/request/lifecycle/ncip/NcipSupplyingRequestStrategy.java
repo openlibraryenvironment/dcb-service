@@ -4,12 +4,12 @@ import io.micronaut.context.annotation.Prototype;
 import java.util.Optional;
 import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.RequestShippingContextProjector;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
@@ -30,19 +30,22 @@ public class NcipSupplyingRequestStrategy
 	private final HostLmsService hostLmsService;
 	private final NcipIdentityConfiguration ncipIdentityConfiguration;
 	private final NcipAddressResolver addressResolver;
+	private final NcipBibliographicMetadataResolver bibliographicMetadataResolver;
 
 	public NcipSupplyingRequestStrategy(
 		DeclarativeRequestTransport transport,
 		NcipPayloadBuilder payloadBuilder,
 		HostLmsService hostLmsService,
 		NcipIdentityConfiguration ncipIdentityConfiguration,
-		NcipAddressResolver addressResolver) {
+		NcipAddressResolver addressResolver,
+		NcipBibliographicMetadataResolver bibliographicMetadataResolver) {
 
 		this.transport = transport;
 		this.payloadBuilder = payloadBuilder;
 		this.hostLmsService = hostLmsService;
 		this.ncipIdentityConfiguration = ncipIdentityConfiguration;
 		this.addressResolver = addressResolver;
+		this.bibliographicMetadataResolver = bibliographicMetadataResolver;
 	}
 
 	@Override
@@ -72,7 +75,7 @@ public class NcipSupplyingRequestStrategy
 		return hostLmsService.findByCode(hostLmsCode)
 			.switchIfEmpty(Mono.error(new IllegalArgumentException(
 				"Cannot create NCIP RequestItem without HostLMS " + hostLmsCode)))
-			.flatMap(hostLms -> {
+			.flatMap(hostLms -> bibliographicMetadataResolver.resolve(context).flatMap(metadata -> {
 				final var toAgencyId = addressResolver.agencyIdForHost(hostLms);
 				return addressResolver.agencyIdForLocalAgencyCode(
 						context.getPatronAgencyCode(),
@@ -81,15 +84,23 @@ public class NcipSupplyingRequestStrategy
 						party(hostLms, fromAgencyId, toAgencyId),
 						fromAgencyId,
 						userIdentifierValueFor(context),
-						bibliographicRecordIdentifierFor(patronRequest),
+						bibliographicRecordIdentifierFor(patronRequest, supplierRequest),
 						toAgencyId,
 						toAgencyId,
 						"barcode",
 						itemIdentifierValueFor(supplierRequest),
+						localItemIdentifierValueFor(supplierRequest),
 						correlationId,
 						REQUEST_TYPE,
-						REQUEST_SCOPE_TYPE)));
-			})
+						REQUEST_SCOPE_TYPE,
+						bibliographicDescriptionFor(
+							patronRequest,
+							supplierRequest,
+							toAgencyId,
+							metadata),
+						RequestShippingContextProjector.project(context),
+						isOrsAppliance(hostLms))));
+			}))
 			.flatMap(payload -> transport.send(new DeclarativeTransportRequest(
 				NcipProtocol.PROTOCOL,
 				LifecycleRole.SUPPLIER,
@@ -115,6 +126,12 @@ public class NcipSupplyingRequestStrategy
 				response.status(),
 				response.rawStatus(),
 				response.rawMessageReference()));
+	}
+
+	private static boolean isOrsAppliance(HostLms hostLms) {
+		return hostLms != null
+			&& hostLms.getClientType() != null
+			&& ORSApplianceHostLMS.class.isAssignableFrom(hostLms.getClientType());
 	}
 
 	private NcipParty party(
@@ -147,16 +164,44 @@ public class NcipSupplyingRequestStrategy
 	}
 
 	private static String bibliographicRecordIdentifierFor(
-		PatronRequest patronRequest) {
+		PatronRequest patronRequest,
+		SupplierRequest supplierRequest) {
 
-		return Optional.ofNullable(patronRequest)
+		return Optional.ofNullable(supplierRequest)
+			.map(SupplierRequest::getLocalBibId)
+			.filter(NcipSupplyingRequestStrategy::hasText)
+			.or(() -> Optional.ofNullable(patronRequest)
 			.map(PatronRequest::getBibClusterId)
-			.map(UUID::toString)
+			.map(UUID::toString))
 			.or(() -> Optional.ofNullable(patronRequest)
 				.map(PatronRequest::getId)
 				.map(UUID::toString))
 			.orElseThrow(() -> new IllegalArgumentException(
 				"Cannot create NCIP RequestItem without bibliographic identity"));
+	}
+
+	private static String localItemIdentifierValueFor(SupplierRequest supplierRequest) {
+		return Optional.ofNullable(supplierRequest)
+			.map(SupplierRequest::getLocalItemId)
+			.filter(NcipSupplyingRequestStrategy::hasText)
+			.orElse(null);
+	}
+
+	private static NcipBibliographicDescription bibliographicDescriptionFor(
+		PatronRequest patronRequest,
+		SupplierRequest supplierRequest,
+		String bibliographicRecordAgencyId,
+		NcipBibliographicMetadata metadata) {
+
+		return new NcipBibliographicDescription(
+			metadata.title(),
+			metadata.author(),
+			bibliographicRecordIdentifierFor(
+				patronRequest,
+				supplierRequest),
+			bibliographicRecordAgencyId,
+			itemIdentifierValueFor(supplierRequest),
+			metadata.edition());
 	}
 
 	private static String itemIdentifierValueFor(SupplierRequest supplierRequest) {

@@ -70,6 +70,8 @@ class PatronRequestResolutionServiceTests {
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
 	private final String BORROWING_HOST_LMS_CODE = "resolution-borrowing";
 	private final String SAME_SERVER_SUPPLYING_HOST_LMS_CODE = "same-server-hostlms";
+	private final String QUALIFIED_BORROWING_HOST_LMS_CODE = "qualified-borrowing-hostlms";
+	private final String QUALIFIED_SUPPLYING_HOST_LMS_CODE = "qualified-supplying-hostlms";
 
 	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
 	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
@@ -132,6 +134,12 @@ class PatronRequestResolutionServiceTests {
 		// create a supplying host LMS that is on the same server as the borrower
 		hostLmsFixture.createSierraHostLms(SAME_SERVER_SUPPLYING_HOST_LMS_CODE, key,
 			secret, baseUrl, "item");
+
+		hostLmsFixture.createSierraHostLms(QUALIFIED_BORROWING_HOST_LMS_CODE, key,
+			secret, baseUrl, "item", "borrowing-tenant");
+
+		hostLmsFixture.createSierraHostLms(QUALIFIED_SUPPLYING_HOST_LMS_CODE, key,
+			secret, baseUrl, "item", "supplying-tenant");
 	}
 
 	@BeforeEach
@@ -162,6 +170,9 @@ class PatronRequestResolutionServiceTests {
 		// For simplicity all sierra item types are expected to be on 1 in this class
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			QUALIFIED_SUPPLYING_HOST_LMS_CODE, 1, 1, "loanable-item");
 	}
 
 	@Test
@@ -588,6 +599,68 @@ class PatronRequestResolutionServiceTests {
 		assertThat(resolution, allOf(
 			notNullValue(),
 			hasNoChosenItem()
+		));
+	}
+
+	@Test
+	void shouldNotExcludeItemWhenSharedBaseUrlHasDifferentQualifiers() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+		final var clusterRecord = createClusterRecord(bibRecordId);
+		final var sourceRecordId = "774421";
+
+		bibRecordFixture.createBibRecord(bibRecordId,
+			hostLmsFixture.findByCode(QUALIFIED_SUPPLYING_HOST_LMS_CODE).getId(),
+			sourceRecordId, clusterRecord);
+
+		final var availableItemId = "qualified-item-1";
+		final var availableItemBarcode = "qualified-barcode-1";
+		final var itemLocationCode = "qualified-item-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(availableItemId, availableItemBarcode, itemLocationCode)
+		));
+
+		final var qualifiedBorrowingAgencyCode = "qualified-borrowing-agency";
+		final var qualifiedSupplyingAgencyCode = "qualified-supplying-agency";
+
+		final var qualifiedBorrowingAgency = agencyFixture.defineAgency(
+			qualifiedBorrowingAgencyCode, qualifiedBorrowingAgencyCode,
+			hostLmsFixture.findByCode(QUALIFIED_BORROWING_HOST_LMS_CODE));
+
+		agencyFixture.defineAgency(qualifiedSupplyingAgencyCode, qualifiedSupplyingAgencyCode,
+			hostLmsFixture.findByCode(QUALIFIED_SUPPLYING_HOST_LMS_CODE));
+
+		final var qualifiedPickupLocation = locationFixture.createPickupLocation(
+			randomUUID(), "Qualified Pickup Location", "qualified-pickup-location",
+			qualifiedBorrowingAgency);
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			QUALIFIED_SUPPLYING_HOST_LMS_CODE, itemLocationCode,
+			qualifiedSupplyingAgencyCode);
+
+		// Act
+		final var parameters = ResolutionParameters.builder()
+			.borrowingAgencyCode(qualifiedBorrowingAgencyCode)
+			.borrowingHostLmsCode(QUALIFIED_BORROWING_HOST_LMS_CODE)
+			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
+			.pickupLocationCode(getValueOrNull(qualifiedPickupLocation,
+				Location::getId, UUID::toString))
+			.pickupAgencyCode(qualifiedBorrowingAgencyCode)
+			.excludedSupplyingAgencyCodes(emptyList())
+			.build();
+
+		final var resolution = resolve(parameters);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(QUALIFIED_SUPPLYING_HOST_LMS_CODE),
+				hasLocalId(availableItemId),
+				hasBarcode(availableItemBarcode),
+				hasAgencyCode(qualifiedSupplyingAgencyCode)
+			)
 		));
 	}
 

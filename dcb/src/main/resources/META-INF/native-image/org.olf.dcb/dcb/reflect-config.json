@@ -2,7 +2,7 @@
 	{
 	  "condition":{"typeReachable":"com.hazelcast.instance.BuildInfoProvider"},
 	  "name":"com.hazelcast.instance.GeneratedBuildProperties",
-	  "fields":[{"name":"ARTIFACT_ID"}, {"name":"BUILD"}, {"name":"COMMIT_ID"}, {"name":"DISTRIBUTION"}, {"name":"REVISION"}, {"name":"SERIALIZATION_VERSION"}, {"name":"VERSION"}]
+	  "fields":[{"name":"ARTIFACT_ID"}, {"name":"BUILD"}, {"name":"COMMIT_ID"}, {"name":"DISTRIBUTION"}, {"name":"LAST_LTS_VERSION"}, {"name":"REVISION"}, {"name":"SERIALIZATION_VERSION"}, {"name":"VERSION"}]
 	},
 	{
 	  "condition":{"typeReachable":"com.hazelcast.shaded.org.jctools.queues.MpmcArrayQueueProducerIndexField"},

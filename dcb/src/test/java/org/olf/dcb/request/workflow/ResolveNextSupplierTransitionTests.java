@@ -230,6 +230,7 @@ class ResolveNextSupplierTransitionTests {
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasNoResolutionCount()
 		));
+		assertThat(updatedPatronRequest.getOutcome(), is(PatronRequest.Outcome.NOT_SUPPLIED));
 
 		assertThat("Previous supplier request should still exist",
 			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));

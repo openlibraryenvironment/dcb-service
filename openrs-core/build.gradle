@@ -5,7 +5,7 @@ buildscript {
 }
 
 plugins {
-	id("com.github.johnrengelman.shadow") version "8.1.1"
+	id("com.gradleup.shadow") version "9.3.0"
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
 	id("io.micronaut.test-resources") version "$micronautGradleVersion"
@@ -14,7 +14,7 @@ plugins {
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
   // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
-  id "com.gorylenko.gradle-git-properties" version "2.4.1"
+  id "com.gorylenko.gradle-git-properties" version "4.0.1"
   id('com.jaredsburrows.license') version '0.9.8'
 }
 
@@ -43,7 +43,6 @@ dependencies {
 	annotationProcessor('io.micronaut:micronaut-graal')
   annotationProcessor("io.micronaut.micrometer:micronaut-micrometer-annotation")
 
-	compileOnly("org.graalvm.nativeimage:svm")
 	compileOnly("io.micronaut:micronaut-inject-java")
 
 	// Implementation
@@ -179,8 +178,8 @@ dependencies {
 }
 
 java {
-	sourceCompatibility = JavaVersion.toVersion("17")
-	targetCompatibility = JavaVersion.toVersion("17")
+	sourceCompatibility = JavaVersion.toVersion("25")
+	targetCompatibility = JavaVersion.toVersion("25")
 }
 
 final Set<String> jacocoExcludes = [
@@ -189,30 +188,3 @@ final Set<String> jacocoExcludes = [
 	'**/model/**/*',	
 	// Ingest happens at a different client level, so safely exclude from report.
 	'org/olf/dcb/ingest/sierra/**/*',	'org/olf/dcb/ingest/gokb/**/*']
-
-eclipse {
-  factorypath {
-  	file {
-	  	whenMerged { fp ->
-	  	
-	  	  final String regex = '^.*\\/([^\\.\\/]+(\\.[^\\.\\/]+)+)\\/([^\\/]+)\\/(\\d+[^\\/]+)\\/.*$'
-	  	  final String subst = '$1:$3:$4';
-	  	
-				// Change the enties
-				List entries = fp.getEntries().sort { s1, s2 ->
-				  final String sub1 = s1.canonicalPath.replaceAll( regex, subst )
-				  final String sub2 = s2.canonicalPath.replaceAll( regex, subst )
-				
-					int val1 = oderedAnnotationDeps.get( sub1 ) ?: Integer.MAX_VALUE
-					int val2 = oderedAnnotationDeps.get( sub2 ) ?: Integer.MAX_VALUE
-					
-					val1 <=> val2
-				}				
-				
-				fp.getEntries().each { fpent ->
-					println fpent
-				}
-			}
-		}
-  }
-}

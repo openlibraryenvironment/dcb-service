@@ -26,6 +26,7 @@ public class PlaceHoldRequestParameters {
 	String pickupNote;
 	String note;
 	String patronRequestId;
+	String requestingAgencyCode;
 	String supplyingAgencyCode;
 	// The borrower/requesting agency code. Used by declarative NCIP placement to
 	// populate the requesting agency id; null falls back to the configured DCB agency.
@@ -36,4 +37,5 @@ public class PlaceHoldRequestParameters {
 	String supplyingLocalItemLocation;
 	String activeWorkflow;
 	String localNames;
+	RequestShippingContext shippingContext;
 }

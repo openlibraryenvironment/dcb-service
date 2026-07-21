@@ -65,6 +65,10 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		Collection<String> roles = env.getGraphQlContext().get("roles");
 
 		List<Map<String, Object>> contactsInput = (List<Map<String, Object>>) input_map.get("contacts");
+		if (contactsInput == null) {
+			contactsInput = List.of();
+		}
+		final List<Map<String, Object>> contactsList = contactsInput;
 		log.debug("createLibraryDataFetcher {}", input_map);
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
@@ -186,6 +190,10 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 									existingAgency.setIsBorrowingAgency(isBorrowingAgency);
 									agencyUpdated = true;
 								}
+								if (authProfile != null && !authProfile.equals(existingAgency.getAuthProfile())) {
+									existingAgency.setAuthProfile(authProfile);
+									agencyUpdated = true;
+								}
 
 								return agencyUpdated ? Mono.from(agencyRepository.saveOrUpdate(existingAgency)) : Mono.just(existingAgency);
 							})
@@ -212,8 +220,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 						return Mono.from(libraryRepository.saveOrUpdate(input));
 					})
 					.flatMap(savedLibrary -> {
-						// 4. Associate contacts
-						Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsInput)
+						Mono<? extends List<? extends Person>> contactsMono = Flux.fromIterable(contactsList)
 							.flatMap(contactInput -> createPersonFromInput(contactInput, userString)
 								.flatMap(person -> Mono.from(personRepository.saveOrUpdate(person))))
 							.collectList();
@@ -230,7 +237,8 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		String roleString = contactInput.get("role").toString().trim().replace("-", "_");
 		// First validate the role name.
 		String newRoleString = roleString.replace(" ", "_").toUpperCase();
-		log.debug("RoleName: {}", RoleName.valueOf(newRoleString));
+		// Validate BEFORE calling RoleName.valueOf - valueOf throws IllegalArgumentException
+		// on an unknown constant, which would bypass the friendly error below.
 		if (!RoleName.isValid(newRoleString)) {
 			return Mono.error(new IllegalArgumentException(
 				String.format("Invalid role: '%s'. The roles currently available are: %s",

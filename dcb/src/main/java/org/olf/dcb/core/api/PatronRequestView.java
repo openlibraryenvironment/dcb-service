@@ -47,7 +47,7 @@ public class PatronRequestView {
 		String localId;
 		String localSystemCode;
 
-		private static Identity from(PatronIdentity patronIdentity) {
+		static Identity from(PatronIdentity patronIdentity) {
 			return new Identity(patronIdentity.getLocalId(), patronIdentity.getHostLms().getCode());
 		}
 

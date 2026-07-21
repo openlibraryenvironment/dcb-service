@@ -1,7 +1,5 @@
 package org.olf.dcb.request.lifecycle.ncip;
 
-import org.olf.dcb.core.interaction.ncip.NcipSchemaValidator;
-
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -11,10 +9,12 @@ import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.RequestShippingContext;
 import org.w3c.dom.Document;
 
 class NcipPayloadBuilderTests {
@@ -50,6 +50,33 @@ class NcipPayloadBuilderTests {
 		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
 		assertThat(xml, containsString("<ItemIdentifierValue>item-456</ItemIdentifierValue>"));
 		assertThat(xml, containsString("<RequestIdentifierValue>request-789:SUPPLIER</RequestIdentifierValue>"));
+	}
+
+	@Test
+	void buildsValidRequestItemShippingInformation() {
+		final var xml = builder.requestItem(new NcipRequestItemPayload(
+			party(),
+			"borrower-agency",
+			"patron-123",
+			"bib-456",
+			"supplier-agency",
+			"supplier-agency",
+			"barcode",
+			"item-456",
+			null,
+			"request-789:SUPPLIER",
+			"Hold",
+			"Bibliographic Item",
+			null,
+			shippingContext(),
+			true));
+
+		assertDoesNotThrow(() -> validator.validate(xml));
+		assertThat(xml, containsString("<ShippingInstructions>For pickup by patron-123@borrower-system"));
+		assertThat(xml, containsString("<UnstructuredAddressData>Main Library, 1 Main Street"));
+		assertThat(xml, containsString("<dcb:ShippingContext"));
+		assertThat(xml, containsString("<dcb:RouteMode>Direct</dcb:RouteMode>"));
+		assertThat(xml, containsString("<dcb:LocalLocationCode>MAIN</dcb:LocalLocationCode>"));
 	}
 
 	@Test
@@ -101,6 +128,26 @@ class NcipPayloadBuilderTests {
 		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
 	}
 
+	@Test
+	void buildsValidItemShippedPayload() {
+		final var xml = builder.itemShipped(new NcipItemShippedPayload(
+			party(),
+			"request-789:SUPPLIER",
+			"supplier-agency",
+			"item-456",
+			Instant.parse("2026-07-15T09:30:00Z")));
+
+		assertDoesNotThrow(() -> validator.validate(xml));
+		assertThat(xml, containsString("<ItemShipped"));
+		assertThat(xml, containsString(
+			"<RequestIdentifierValue>request-789:SUPPLIER</RequestIdentifierValue>"));
+		assertThat(xml, containsString(
+			"<ItemIdentifierValue>item-456</ItemIdentifierValue>"));
+		assertThat(xml, containsString(
+			"<DateShipped>2026-07-15T09:30:00Z</DateShipped>"));
+		assertThat(xml, containsString("<ShippingInformation>"));
+	}
+
 	private static Document parse(String xml) {
 		try {
 			final var factory = DocumentBuilderFactory.newInstance();
@@ -120,6 +167,28 @@ class NcipPayloadBuilderTests {
 			"supplier-agency",
 			"dcb-system",
 			"supplier-system");
+	}
+
+	private static RequestShippingContext shippingContext() {
+		return new RequestShippingContext(
+			1,
+			"RET-STD",
+			"Direct",
+			new RequestShippingContext.Patron("patron-123", "borrower-system", "borrower-agency"),
+			new RequestShippingContext.Endpoint("borrower-system", "borrower-agency", "Borrower"),
+			new RequestShippingContext.Endpoint("supplier-system", "supplier-agency", "Supplier"),
+			new RequestShippingContext.PickupDestination(
+				"PICKUP_LOCATION",
+				new RequestShippingContext.Endpoint("borrower-system", "borrower-agency", "Borrower"),
+				"location-id",
+				"BORROWER-MAIN",
+				"MAIN",
+				"Main Library",
+				new RequestShippingContext.AddressSnapshot(
+					"1 Main Street", "PICKUP_LIBRARY", "DCB_LIBRARY_DIRECTORY")),
+			new RequestShippingContext.Provenance(
+				"DCB_PATRON_REQUEST", "location-id", "borrower-system", null,
+				Instant.parse("2026-07-13T09:00:00Z"), null));
 	}
 
 	private static Path schemaPath() {

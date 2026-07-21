@@ -40,8 +40,7 @@ public class ClusterRecordIndexDoc {
 		return cluster.getTitle();
 	}
 	
-	@SuppressWarnings("unchecked")
-	private String getIdentifier( @NonNull final String namepace ) {
+	private String getIdentifier( final String namepace ) {
 		return getSelectedBib()
 			.map( BibRecord::getCanonicalMetadata )
 			.map( map -> (Collection<Map<String,?>>)map.get("identifiers") )
