@@ -64,7 +64,12 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
-@Property(name = "dcb.resolution.live-availability.timeout", value = "PT1S")
+// PT1S was too tight under Micronaut 5: the first resolution's cold start (Sierra client
+// init, TLS CONNECT through the MockServer proxy, and per-item agency lookups) takes ~1.3s,
+// so the live-availability race lost to the timeout and returned an empty item list. Raised
+// to PT5S for cold-start headroom; shouldNotWaitForSlowResponseForAvailability keeps proving
+// the timeout fires by delaying its mock well beyond this (see that test).
+@Property(name = "dcb.resolution.live-availability.timeout", value = "PT5S")
 class PatronRequestResolutionServiceTests {
 	private final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
@@ -451,10 +456,12 @@ class PatronRequestResolutionServiceTests {
 		final var unavailableItemId = "372656";
 		final var unavailableItemBarcode = "6256486473634";
 
+		// Delay must exceed the class live-availability timeout (PT5S) so the response is
+		// abandoned; 8s clears it even after the ~1.3s Micronaut 5 cold start.
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			checkedOutItem(unavailableItemId, unavailableItemBarcode),
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
-		), 2000);
+		), 8000);
 
 		// Act
 		final var parameters = standardParametersFor(clusterRecord);
