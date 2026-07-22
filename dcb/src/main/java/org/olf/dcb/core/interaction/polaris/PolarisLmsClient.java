@@ -151,8 +151,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final ApplicationServicesClient ApplicationServices;
 	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
 	private final List<PolarisItemStatus> statuses = new ArrayList<>();
+	// NB: PolarisConfig must be bound with Jackson, NOT Micronaut's ObjectMapper, even
+	// though it is @Serdeable. PolarisConfig.baseUrl is declared as Object, and Micronaut
+	// Serde 3 silently binds null into Object-typed bean properties -- every Polaris test
+	// then fails with "Missing required config value: base-url". That is why the Micronaut
+	// 5 migration moved this to Jackson.
+	//
+	// FAIL_ON_UNKNOWN_PROPERTIES must be disabled: it defaults to true on a plain
+	// ObjectMapper, whereas Micronaut Serde ignored unknown properties. Without this, any
+	// stored Host LMS config carrying a key DCB does not model -- a real deployment had
+	// "staff-ui" -- fails client instantiation outright with
+	// "Unrecognized field ... not marked as ignorable".
 	private static final com.fasterxml.jackson.databind.ObjectMapper CLIENT_CONFIG_MAPPER =
-		new com.fasterxml.jackson.databind.ObjectMapper();
+		com.fasterxml.jackson.databind.json.JsonMapper.builder()
+			.disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+			.build();
 	private final ObjectMapper objectMapper;
 	private final ObjectRulesService objectRuleService;
 	private final RulesetCacheInvalidator cacheInvalidator;
