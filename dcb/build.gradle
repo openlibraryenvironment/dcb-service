@@ -362,6 +362,41 @@ tasks {
 		images = nativeImageNames
 	}
 
+	// Native image packaging, built from the nativeCompile output rather than through
+	// Micronaut's dockerBuildNative / dockerPushNative.
+	//
+	// Those tasks are unusable on Gradle 9: NativeImageDockerfile fails the stricter task
+	// validation with "property 'nativeImageOptions.layers' is missing an input or output
+	// annotation". Micronaut Gradle plugin 5.0.1 and 5.0.2 are both affected and 5.0.2 is
+	// the latest release, so there is nothing to upgrade to. nativeCompile itself is fine,
+	// so we package its binary ourselves.
+	//
+	// The base image must be glibc-based. The native binary is dynamically linked against
+	// /lib64/ld-linux-x86-64.so.2, so the Alpine/musl BASE_IMAGE used for the JVM image
+	// will NOT run it.
+	project.tasks.register('dockerfileNativeBinary', com.bmuschko.gradle.docker.tasks.image.Dockerfile) {
+		dependsOn 'nativeCompile'
+		destFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.native'))
+		from(project.findProperty('NATIVE_BASE_IMAGE') ?: 'cgr.dev/chainguard/wolfi-base:latest')
+		workingDir('/app')
+		copyFile('dcb', '/app/application')
+		exposePort(8080)
+		label(labels)
+		entryPoint('/app/application')
+	}
+
+	project.tasks.register('dockerBuildNativeBinary', com.bmuschko.gradle.docker.tasks.image.DockerBuildImage) {
+		dependsOn 'dockerfileNativeBinary'
+		inputDir.set(layout.buildDirectory.dir('native/nativeCompile'))
+		dockerFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.native'))
+		images.set(nativeImageNames)
+	}
+
+	project.tasks.register('dockerPushNativeBinary', com.bmuschko.gradle.docker.tasks.image.DockerPushImage) {
+		dependsOn 'dockerBuildNativeBinary'
+		images.set(nativeImageNames)
+	}
+
 
 	jacocoTestReport {
 		dependsOn test
