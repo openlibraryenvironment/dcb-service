@@ -412,7 +412,26 @@ graalvmNative {
             buildArgs.add('--verbose')
             buildArgs.add('-march=x86-64-v2')
             buildArgs.add('-H:+AddAllCharsets')
-            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j.LoggerFactory,org.slf4j.helpers.SubstituteServiceProvider,org.slf4j.helpers.NOP_FallbackServiceProvider,ch.qos.logback,kotlin.coroutines.intrinsics.CoroutineSingletons')
+            // org.slf4j is initialised at build time as a whole package, matching how
+            // ch.qos.logback is handled. LoggerFactory caches its resolved provider in static
+            // state, so that provider and everything it reaches (NOPLoggerFactory, NOPLogger,
+            // BasicMarkerFactory, the substitute providers) gets snapshotted into the image
+            // heap. Listing the classes individually turned into whack-a-mole: each build
+            // failed with "An object of type 'org.slf4j.helpers.X' was found in the image heap
+            // ... marked for initialization at image run time" naming the next one along.
+            // org.xml.sax is needed because ch.qos.logback is build-time initialised, so
+            // logback.xml is parsed during the build and the resulting configuration retains
+            // SAX objects (org.xml.sax.helpers.LocatorImpl). Without it the build fails with
+            // "Cannot read instance field of a class that is initialized at run time:
+            // org.xml.sax.helpers.LocatorImpl.publicId".
+            // com.fasterxml.jackson is required because ch.qos.logback.contrib.jackson
+            // .JacksonJsonFormatter is build-time initialised and holds a Jackson 2
+            // ObjectMapper; without it the build fails with "Cannot read instance field of a
+            // class that is initialized at run time:
+            // com.fasterxml.jackson.databind.ObjectMapper._jsonFactory". This is Jackson 2,
+            // used only by the logback JSON layout -- the application itself is on Jackson 3
+            // (tools.jackson) under Micronaut 5.
+            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j,ch.qos.logback,org.xml.sax,com.fasterxml.jackson,kotlin.coroutines.intrinsics.CoroutineSingletons')
             buildArgs.add('--add-opens=java.base/java.nio=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED')
