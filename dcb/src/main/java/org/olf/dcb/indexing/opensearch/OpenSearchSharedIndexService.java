@@ -13,6 +13,7 @@ import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
+import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
@@ -67,10 +68,13 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private final String indexName;
 	private final int indexVersion; 
 	
-	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
+	private final SharedIndexBackendInfo backendInfo;
+
+	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs, SharedIndexBackendInfo backendInfo) {
 		super(recordClusteringService, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
+		this.backendInfo = backendInfo;
 		this.indexName = conf.name();
 		if (conf.version().isEmpty()) {
 			this.indexVersion = SharedIndexConfiguration.LATEST_INDEX_VERSION;
@@ -78,10 +82,35 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			this.indexVersion = conf.version().get();
 		}
 	}
-	
+
 	@PostConstruct
 	void init() {
 		log.info("Using Opensearch Indexing service");
+		reportBackendVersion();
+	}
+
+	// Report which server we are actually talking to. Client/server compatibility is a
+	// recurring upgrade hazard, and establishing a deployment's backend version otherwise
+	// requires credentials for that cluster. Best-effort: a failure here must never stop
+	// the service starting, so it only downgrades to a warning.
+	private void reportBackendVersion() {
+		try {
+			client.info()
+				.whenComplete((info, error) -> {
+					if (error != null) {
+						log.warn("Could not determine the OpenSearch server version", error);
+						return;
+					}
+
+					final var version = info.version();
+					backendInfo.record(version.distribution(), version.number());
+
+					log.info("Shared index backend: {} {}", version.distribution(), version.number());
+				});
+		}
+		catch (Exception e) {
+			log.warn("Could not determine the OpenSearch server version", e);
+		}
 	}
 
 	@Override

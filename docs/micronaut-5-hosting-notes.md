@@ -111,10 +111,39 @@ apart quickly:
 | `CP subsystem is a licensed feature` | Hazelcast newer than 5.4.0 on the classpath — should not happen from our image; report it |
 | `Unrecognized field "..." (class ...Config)` | A Host LMS config key DCB does not model. Should no longer fail; report it if it does |
 
-Checking the server version behind the index is usually the fastest first step:
+### Finding your search backend version
+
+From this release, **DCB reports it itself** — you no longer need credentials for
+the cluster to answer "what version are we on?".
+
+At startup:
+
+```
+Shared index backend: opensearch 2.14.0
+```
+
+and on the info endpoint, under `dcb.index.backend`:
+
+```bash
+curl -s http://<dcb-host>:8080/info | jq '.dcb.index.backend'
+# { "distribution": "opensearch", "version": "2.14.0" }
+```
+
+It is absent when no shared index is configured, or if the backend could not be
+reached at startup.
+
+If you do have direct access, this also works:
 
 ```bash
 curl -s $OPENSEARCH_HTTP_HOSTS | jq .version.number
+```
+
+And for an AWS OpenSearch Service domain the engine version is domain metadata,
+gated by IAM rather than cluster credentials:
+
+```bash
+aws opensearch describe-domain --domain-name <name> \
+  --query 'DomainStatus.EngineVersion'
 ```
 
 ## Rollback

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,7 @@ import jakarta.inject.Inject;
 class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 
 	private static final String INDEX_NAME = "dcb-shared-index-test";
+	private static final String OPENSEARCH_VERSION = "2.19.1";
 
 	/**
 	 * sharedIndex/settings-2.json declares an icu_folding_nopunc analyzer over
@@ -53,9 +55,9 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 		final String image;
 
 		try {
-			image = new ImageFromDockerfile("dcb-opensearch-icu-test:2.19.1", false)
+			image = new ImageFromDockerfile("dcb-opensearch-icu-test:" + OPENSEARCH_VERSION, false)
 				.withDockerfileFromBuilder(builder -> builder
-					.from("opensearchproject/opensearch:2.19.1")
+					.from("opensearchproject/opensearch:" + OPENSEARCH_VERSION)
 					.run("/usr/share/opensearch/bin/opensearch-plugin install --batch analysis-icu")
 					.build())
 				.get();
@@ -87,6 +89,9 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 	@Inject
 	private OpenSearchAsyncClient client;
 
+	@Inject
+	private SharedIndexBackendInfo backendInfo;
+
 	@Test
 	void shouldWireTheOpenSearchImplementationOfTheSharedIndex() {
 		// Guards the bean wiring itself. Under Micronaut 5 this failed with
@@ -109,6 +114,15 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 
 		assertThat("Expected the shared index to have been created on startup",
 			exists, is(true));
+	}
+
+	@Test
+	void shouldRecordTheBackendVersionForTheInfoEndpoint() {
+		// Reported at startup and surfaced on /info as dcb.index.backend.*, so a
+		// deployment's search backend version can be established without holding
+		// credentials for that cluster.
+		assertThat(backendInfo.getDistribution(), is(Optional.of("opensearch")));
+		assertThat(backendInfo.getVersion(), is(Optional.of(OPENSEARCH_VERSION)));
 	}
 
 	@Test
