@@ -14,6 +14,7 @@ import java.time.Instant;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.ncip.NcipSchemaValidator;
 import org.olf.dcb.core.interaction.RequestShippingContext;
 import org.w3c.dom.Document;
 

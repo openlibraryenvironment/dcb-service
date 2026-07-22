@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 import java.time.Instant;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;

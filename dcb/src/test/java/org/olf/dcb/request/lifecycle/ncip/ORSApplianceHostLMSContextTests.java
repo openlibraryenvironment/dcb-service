@@ -12,6 +12,7 @@ import static org.olf.dcb.test.ShippingTestData.shippingContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.test.HostLmsFixture;
 

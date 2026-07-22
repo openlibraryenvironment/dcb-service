@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.AbstractHostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;

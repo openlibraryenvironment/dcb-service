@@ -11,6 +11,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import jakarta.inject.Singleton;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.RequestShippingContext;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -19,7 +20,7 @@ import org.w3c.dom.Element;
 public class NcipPayloadBuilder {
 	public static final String NCIP_NAMESPACE = "http://www.niso.org/2008/ncip";
 	public static final String NCIP_VERSION = "2.02";
-	public static final String OPENRS_SHIPPING_NAMESPACE = "https://openrs.org/ncip/dcb-shipping/v1";
+	public static final String OPENRS_SHIPPING_NAMESPACE = "https://openrs.org/ncip/fallback-host";
 
 	public String requestItem(NcipRequestItemPayload payload) {
 		final var document = newDocument();

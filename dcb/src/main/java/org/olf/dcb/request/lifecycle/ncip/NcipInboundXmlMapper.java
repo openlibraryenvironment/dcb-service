@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.w3c.dom.Document;

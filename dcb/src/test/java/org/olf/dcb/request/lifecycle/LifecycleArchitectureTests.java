@@ -43,6 +43,23 @@ class LifecycleArchitectureTests {
 		.that().resideInAPackage("org.olf.dcb.request.lifecycle.tracking..")
 		.should().dependOnClassesThat().resideInAPackage(DECLARATIVE_NCIP);
 
+	/**
+	 * The wire vocabulary and the XSD validator have exactly one home:
+	 * {@code core.interaction.ncip}. A merge once re-introduced private copies here
+	 * and the two validators silently drifted on the extension namespace. Declaring
+	 * them in the declarative leaf again is a build failure, not a review comment.
+	 */
+	@ArchTest
+	static final ArchRule declarative_ncip_must_not_redeclare_shared_protocol_mechanics =
+		noClasses()
+			.that().resideInAPackage(DECLARATIVE_NCIP)
+			.should().haveSimpleName("NcipProtocol")
+			.orShould().haveSimpleName("NcipSchemaValidator")
+			.orShould().haveSimpleName("NcipSchemaPath")
+			.because("NCIP constants and the XSD validator are shared via "
+				+ "org.olf.dcb.core.interaction.ncip - duplicating them lets the "
+				+ "imperative and declarative sides drift apart on the wire");
+
 	@ArchTest
 	static final ArchRule vendor_adapters_must_not_depend_on_declarative_ncip = noClasses()
 		.that().resideInAnyPackage(

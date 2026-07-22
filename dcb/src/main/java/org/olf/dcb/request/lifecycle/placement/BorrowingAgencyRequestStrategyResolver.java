@@ -31,15 +31,17 @@ public class BorrowingAgencyRequestStrategyResolver {
 		RequestWorkflowContext context,
 		LifecycleOperation operation) {
 
+		final var borrowingHost = context.getPatronSystem();
+
 		final var strategy = capabilityResolver.placementStrategy(
-			LifecycleRole.BORROWER);
+			borrowingHost, LifecycleRole.BORROWER);
 
 		if (strategy == StrategyType.IMPERATIVE) {
 			return imperativeStrategy;
 		}
 
 		return declarativeStrategy(
-			capabilityResolver.placementProtocol(LifecycleRole.BORROWER),
+			capabilityResolver.placementProtocol(borrowingHost, LifecycleRole.BORROWER),
 			context);
 	}
 

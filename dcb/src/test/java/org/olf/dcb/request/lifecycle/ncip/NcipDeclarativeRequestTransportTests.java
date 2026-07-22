@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;

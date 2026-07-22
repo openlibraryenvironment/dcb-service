@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 

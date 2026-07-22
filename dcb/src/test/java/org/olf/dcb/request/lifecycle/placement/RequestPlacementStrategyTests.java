@@ -13,7 +13,9 @@ import static org.mockito.Mockito.when;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
@@ -416,6 +418,102 @@ class RequestPlacementStrategyTests {
 		assertThat(patronRequest.getLocalRequestStatus(), is("ACCEPTED"));
 		assertThat(patronRequest.getLocalBibId(), nullValue());
 		assertThat(patronRequest.getLocalItemId(), nullValue());
+	}
+
+	/**
+	 * The placement resolvers must read the capability block off the host carried
+	 * in the workflow context, not the instance-wide config. Without this, every
+	 * host in a consortium shares one strategy and profiles A-D cannot mix.
+	 */
+	@Test
+	void borrowingResolverSelectsDeclarativeFromBorrowerHostConfig() {
+		final var declarativeStrategy = declarativeBorrowingStrategy();
+		final var resolver = new BorrowingAgencyRequestStrategyResolver(
+			mock(ImperativeBorrowingAgencyRequestStrategy.class),
+			List.of(declarativeStrategy),
+			defaultCapabilityResolver());
+
+		final var context = new RequestWorkflowContext()
+			.setPatronSystem(hostWithCapability(
+				"borrowing-agency-request", "strategy", "declarative"));
+
+		assertThat(resolver.resolve(context, LifecycleOperation.PLACE_REQUEST),
+			sameInstance(declarativeStrategy));
+	}
+
+	@Test
+	void supplyingResolverSelectsDeclarativeFromSupplierHostConfig() {
+		final var declarativeStrategy = declarativeSupplyingStrategy();
+		final var resolver = new SupplyingAgencyRequestStrategyResolver(
+			mock(ImperativeSupplyingAgencyRequestStrategy.class),
+			List.of(declarativeStrategy),
+			defaultCapabilityResolver());
+
+		final var context = new RequestWorkflowContext()
+			.setLenderSystem(hostWithCapability(
+				"supplying-agency-request", "strategy", "declarative"));
+
+		assertThat(resolver.resolve(context, LifecycleOperation.PLACE_REQUEST),
+			sameInstance(declarativeStrategy));
+	}
+
+	/** Profile mixing: one declarative host and one imperative host, one run. */
+	@Test
+	void twoBorrowerHostsResolveIndependentlyInOneRun() {
+		final var imperativeStrategy = mock(ImperativeBorrowingAgencyRequestStrategy.class);
+		final var declarativeStrategy = declarativeBorrowingStrategy();
+		final var resolver = new BorrowingAgencyRequestStrategyResolver(
+			imperativeStrategy, List.of(declarativeStrategy),
+			defaultCapabilityResolver());
+
+		final var declarativeContext = new RequestWorkflowContext()
+			.setPatronSystem(hostWithCapability(
+				"borrowing-agency-request", "strategy", "declarative"));
+		final var imperativeContext = new RequestWorkflowContext()
+			.setPatronSystem(hostWithCapability("borrowing-agency-request"));
+
+		assertThat(resolver.resolve(declarativeContext, LifecycleOperation.PLACE_REQUEST),
+			sameInstance(declarativeStrategy));
+		assertThat(resolver.resolve(imperativeContext, LifecycleOperation.PLACE_REQUEST),
+			sameInstance(imperativeStrategy));
+	}
+
+	private static BorrowingAgencyRequestStrategy declarativeBorrowingStrategy() {
+		final var strategy = mock(BorrowingAgencyRequestStrategy.class);
+		when(strategy.type()).thenReturn(StrategyType.DECLARATIVE);
+		when(strategy.supportsProtocol("ncip-v202")).thenReturn(true);
+		when(strategy.supports(any())).thenReturn(true);
+		return strategy;
+	}
+
+	private static SupplyingAgencyRequestStrategy declarativeSupplyingStrategy() {
+		final var strategy = mock(SupplyingAgencyRequestStrategy.class);
+		when(strategy.type()).thenReturn(StrategyType.DECLARATIVE);
+		when(strategy.supportsProtocol("ncip-v202")).thenReturn(true);
+		when(strategy.supports(any())).thenReturn(true);
+		return strategy;
+	}
+
+	/**
+	 * Builds a host whose clientConfig carries the given capability block. Passing
+	 * no entries yields a host with an empty block, which must default to imperative.
+	 */
+	private static DataHostLms hostWithCapability(
+		String capabilityKey, String... entries) {
+
+		final var capability = new java.util.HashMap<String, Object>();
+		for (int i = 0; i < entries.length; i += 2) {
+			capability.put(entries[i], entries[i + 1]);
+		}
+		if (!capability.isEmpty()) {
+			capability.put("protocol", "ncip-v202");
+		}
+
+		final var host = mock(DataHostLms.class);
+		when(host.getCode()).thenReturn("HOST");
+		when(host.getClientConfig()).thenReturn(
+			Map.of("capabilities", Map.of(capabilityKey, capability)));
+		return host;
 	}
 
 	private static LifecycleCapabilityResolver defaultCapabilityResolver() {

@@ -11,6 +11,7 @@ import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;

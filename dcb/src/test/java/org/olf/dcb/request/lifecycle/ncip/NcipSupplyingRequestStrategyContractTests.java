@@ -14,7 +14,7 @@ import org.olf.dcb.request.lifecycle.StrategyType;
  */
 class NcipSupplyingRequestStrategyContractTests {
 	private final NcipSupplyingRequestStrategy strategy =
-		new NcipSupplyingRequestStrategy(null, null, null, null, null);
+		new NcipSupplyingRequestStrategy(null, null, null, null, null, null);
 
 	@Test
 	void identifiesAsDeclarative() {

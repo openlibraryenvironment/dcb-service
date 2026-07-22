@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -112,11 +113,20 @@ class ProtocolAdapterArchitectureTests {
 		return source.contains("import " + protocol.packageName());
 	}
 
+	/**
+	 * A file "names" a protocol when it <em>declares</em> a protocol-named type -
+	 * not merely when the token appears somewhere in it. Matching raw content also
+	 * flagged shared command objects whose only mention of NCIP was a comment,
+	 * which says nothing about where protocol code lives.
+	 */
 	private static boolean namesProtocolAdapter(
 		String source,
 		ProtocolAdapterBoundary protocol) {
 
-		return protocol.nameTokens().stream().anyMatch(source::contains);
+		return protocol.nameTokens().stream()
+			.map(token -> Pattern.compile(
+				"\\b(?:class|interface|record|enum)\\s+\\w*" + Pattern.quote(token) + "\\w*"))
+			.anyMatch(pattern -> pattern.matcher(source).find());
 	}
 
 	private static List<Path> sourceFilesUnder(Path root) throws IOException {
@@ -136,7 +146,9 @@ class ProtocolAdapterArchitectureTests {
 		Path path,
 		ProtocolAdapterBoundary protocol) {
 
-		return normalise(path).contains(protocol.packagePath());
+		final var normalised = normalise(path);
+
+		return protocol.packagePaths().stream().anyMatch(normalised::contains);
 	}
 
 	private static String normalise(Path path) {
@@ -170,8 +182,21 @@ class ProtocolAdapterArchitectureTests {
 			return "org.olf.dcb.request.lifecycle." + packageSegment();
 		}
 
-		String packagePath() {
-			return "org/olf/dcb/request/lifecycle/" + packageSegment() + "/";
+		/**
+		 * Every package a protocol may legitimately be named in. Under the unified
+		 * host-interaction model NCIP has three homes, not one:
+		 *   - request/lifecycle/ncip   the declarative leaf (removable)
+		 *   - core/interaction/ncip    shared protocol mechanics (constants + XSD)
+		 *   - core/interaction/foundation  the imperative NCIP adaptor
+		 * The rule that matters is that protocol code stays in one of these, and
+		 * that the imperative boundaries never import the declarative leaf - which
+		 * the other two tests in this class enforce.
+		 */
+		List<String> packagePaths() {
+			return List.of(
+				"org/olf/dcb/request/lifecycle/" + packageSegment() + "/",
+				"org/olf/dcb/core/interaction/" + packageSegment() + "/",
+				"org/olf/dcb/core/interaction/foundation/");
 		}
 	}
 }

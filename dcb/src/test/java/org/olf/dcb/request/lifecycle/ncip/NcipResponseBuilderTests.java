@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.ncip.NcipSchemaPath;
+import org.olf.dcb.core.interaction.ncip.NcipSchemaValidator;
 
 class NcipResponseBuilderTests {
 	private final NcipSchemaValidator validator = new NcipSchemaValidator(

@@ -106,12 +106,18 @@ protocol persistence; per-host SUPPLIER capability resolution), the PR-8 ArchUni
 boundary guardrails, and the integration guide
 (`docs/unified-host-interaction-integration-guide.md`).
 
-Deferred / blocked:
-- **Peer authentication (JWT/JWKS)** — the declarative transport, appliance
-  client, and inbound controller run **unauthenticated**. Re-enabling peer auth
-  needs `com.k_int.mn:ki-mn-peer-auth`, which targets **JVM 25**; this module is
-  Java 17. Blocked on a project-wide toolchain bump. The consumers were left with
-  clean unauthenticated stubs so re-wiring is a localised change once unblocked.
+Also done:
+- **Peer authentication (JWT/JWKS)** — no longer blocked. The module builds on the
+  **Java 25** toolchain against `com.k_int.mn:ki-mn-peer-auth:1.4.0`, and peer auth
+  is wired in both directions: outbound signing in `NcipDeclarativeRequestTransport`
+  via `NcipPeerAuthorizationService`, inbound enforcement in `NcipController` via
+  `NcipPeerAuthGuard`, with DCB's keys published at
+  `/peer-auth/.well-known/jwks.json`. Per-peer trust is declared on the HostLms
+  (`ncip-peer-auth-mode`, default `INSECURE`); DCB's own identity and the
+  trusted-peer register live under `dcb.peer-auth.*` (disabled by default). See the
+  integration guide §4.2.
+
+Deferred:
 - **Automated four-profile acceptance harness** — the manual + per-slice
   automated coverage is documented in the integration guide (§5–6); a single
   A–D MockServer harness remains to be written.

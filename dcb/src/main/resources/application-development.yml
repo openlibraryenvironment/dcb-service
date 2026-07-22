@@ -57,4 +57,7 @@ dcb:
 #  httpHosts: "http://localhost:9200"
 
 
-
+test-resources:
+  containers:
+    elasticsearch:
+       image-name: "docker.libsdev.k-int.com/knowledgeintegration/folio-es:8.7.0"

@@ -11,6 +11,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
@@ -153,9 +154,17 @@ public class RequestWorkflowContextHelper {
 		}
 
 		// Load the supplier Host LMS so SUPPLIER capability/tracking can resolve
-		// per-host. Missing host leaves lenderSystem null -> instance-wide fallback.
+		// per-host. This is an enrichment, not a requirement: findByCode errors on an
+		// unknown code, and letting that escape would abort the whole context
+		// decoration and stall the workflow. Missing host leaves lenderSystem null
+		// -> instance-wide fallback.
 		return hostLmsService.findByCode(lenderSystemCode)
 			.map(ctx::setLenderSystem)
+			.onErrorResume(UnknownHostLmsException.class, error -> {
+				log.warn("Supplier Host LMS '{}' not found; SUPPLIER capability resolution "
+					+ "falls back to instance-wide configuration", lenderSystemCode);
+				return Mono.just(ctx);
+			})
 			.defaultIfEmpty(ctx);
 	}
 

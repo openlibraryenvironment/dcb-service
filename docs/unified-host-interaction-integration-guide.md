@@ -209,14 +209,73 @@ dcb:
    XSD, maps to a canonical `InboundLifecycleMessage`, and the evidence ingestor
    advances the workflow idempotently.
 
-### 4.2 Peer authentication (status)
+### 4.2 Peer authentication (JWT / JWKS)
 
-Inbound/outbound peer authentication (JWT/JWKS) is **not yet enabled on this
-branch** — the transport, appliance client, and inbound controller currently run
-unauthenticated. Production use requires the peer-auth slice (`dcb.peer-auth.*`),
-which depends on `com.k_int.mn:ki-mn-peer-auth`. That library targets **JVM 25**,
-so enabling it requires bumping the module's Java toolchain (this branch is
-Java 17). Until then, restrict the appliance ↔ DCB channel at the network layer.
+Peer authentication is **wired on both directions** and gated by config. The
+module now builds on the **Java 25** toolchain against
+`com.k_int.mn:ki-mn-peer-auth:1.4.0`, so the earlier JVM-25 blocker is resolved.
+
+- **Outbound** — `NcipDeclarativeRequestTransport` signs each POST via
+  `NcipPeerAuthorizationService` (Nimbus, `NimbusPeerTokenSigner`).
+- **Inbound** — `NcipController` rejects unauthorised messages via
+  `NcipPeerAuthGuard`, which returns an NCIP `Problem` rather than a bare 401.
+- **Key publication** — DCB serves its own public keys at
+  `GET /peer-auth/.well-known/jwks.json`.
+
+Configuration has **two halves, and a secured peer needs both.**
+
+**(a) Per-HostLms — is this peer secured?** (`NcipPeerAuthProfile`, read from the
+appliance's `clientConfig`.) Defaults to `INSECURE`, so existing hosts are
+unaffected. `JWT_REQUIRED` fails fast at load unless all three companions are set:
+
+```yaml
+ncip-peer-auth-mode: JWT_REQUIRED        # or INSECURE (default)
+ncip-peer-issuer:    https://appliance-z.example.org
+ncip-peer-jwks-url:  https://appliance-z.example.org/.well-known/jwks.json
+ncip-peer-audience:  dcb-central
+ncip-system-id:      APPLIANCE-Z         # must equal the JWT `sub` and NCIP FromSystemId
+```
+
+**(b) Instance-wide — DCB's own identity and the trusted-peer register**
+(`DcbPeerAuthProperties` → `DcbPeerAuthStore`, which backs the ki-mn-peer-auth
+store SPI). Disabled by default; **both** flags must be on:
+
+```yaml
+dcb:
+  peer-auth:
+    enabled: true
+    ncip:
+      enabled: true          # both this AND the parent flag gate NCIP peer auth
+    local-identity:          # DCB's signing identity, published at the JWKS endpoint
+      id: dcb
+      issuer: https://your-dcb/peer-auth
+      subject: dcb-central
+      audiences: [ appliance-z ]
+      key-id: dcb-2026-01
+      public-jwk:  '{"kty":"RSA",...}'
+      private-jwk: '{"kty":"RSA",...}'   # inject from a secret, never commit
+      token-lifetime: 5m
+    trusted-peers:           # matched to an inbound token by `issuer`
+      - peer-id: appliance-z
+        issuer: https://appliance-z.example.org
+        jwks-uri: https://appliance-z.example.org/.well-known/jwks.json
+        audiences: [ dcb-central ]
+        subjects: [ appliance-z ]
+        status: ACTIVE
+        bindings:
+          - protocol: ncip-v202
+            system-id: APPLIANCE-Z     # ties the token to the NCIP peer identity
+```
+
+A trusted peer may supply an inline `jwks` map instead of `jwks-uri`. The
+`bindings` block is what stops a validly-signed token from one peer being
+replayed as another peer's NCIP system id. Key rotation at an unchanged JWKS URL
+is picked up automatically; an issuer or URL change is a manual review step.
+
+If a host is `JWT_REQUIRED` but `dcb.peer-auth` is off, requests are refused
+rather than silently downgraded. While peer auth is off everywhere, restrict the
+appliance ↔ DCB channel at the network layer. See also
+`docs/ncip-peer-authentication.md`.
 
 ---
 
@@ -315,7 +374,12 @@ contamination. (Automating this as a single harness is the remaining PR-8 item.)
 | `capabilities.imperative.overrides.<op>` | inner | `FoundationClient` | named strategy override bean |
 | `ncip-system-id` / `ncip-agency-id` | HostLms | `NcipHostLmsConfiguration` | peer NCIP identity |
 | `dcb.ncip.system-id` / `dcb.ncip.agency-id` | app config | `NcipIdentityConfiguration` | DCB's own NCIP identity |
-| `dcb.peer-auth.enabled` | app config | peer-auth (deferred) | JWT/JWKS peer auth toggle |
+| `ncip-peer-auth-mode` | HostLms | `NcipPeerAuthProfile` | `JWT_REQUIRED` / `INSECURE` (default) |
+| `ncip-peer-issuer` / `ncip-peer-jwks-url` / `ncip-peer-audience` | HostLms | `NcipPeerAuthProfile` | approved peer JWT metadata; required when `JWT_REQUIRED` |
+| `dcb.peer-auth.enabled` | app config | `DcbPeerAuthProperties` | master JWT/JWKS peer-auth toggle (default off) |
+| `dcb.peer-auth.ncip.enabled` | app config | `NcipPeerAuthGuard` / transport | enables peer auth for NCIP specifically |
+| `dcb.peer-auth.local-identity.*` | app config | `DcbPeerAuthStore` | DCB's signing key, issuer, audiences, token lifetime |
+| `dcb.peer-auth.trusted-peers[]` | app config | `DcbPeerAuthStore` | accepted peers: issuer, JWKS, audiences, protocol bindings |
 
 Roles: `borrowing-agency-request`, `supplying-agency-request`,
 `borrower-tracking`, `supplier-tracking`.

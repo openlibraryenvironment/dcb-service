@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
+import org.olf.dcb.core.interaction.ncip.NcipSchemaValidator;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.BibRecord;

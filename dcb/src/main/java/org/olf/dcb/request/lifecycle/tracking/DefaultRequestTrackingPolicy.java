@@ -3,6 +3,7 @@ package org.olf.dcb.request.lifecycle.tracking;
 import io.micronaut.context.annotation.Prototype;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.lifecycle.LifecycleCapabilityResolver;
@@ -29,8 +30,8 @@ public class DefaultRequestTrackingPolicy implements RequestTrackingPolicy {
 		}
 
 		final var trackingModes = trackedRoles.stream()
-			.map(capabilityResolver::trackingMode)
-			.collect(java.util.stream.Collectors.toSet());
+			.map(role -> trackingModeFor(context, role))
+			.collect(Collectors.toSet());
 
 		if (trackingModes.equals(Set.of(TrackingMode.EVENT_DRIVEN))) {
 			return TrackingMode.EVENT_DRIVEN;
@@ -50,7 +51,22 @@ public class DefaultRequestTrackingPolicy implements RequestTrackingPolicy {
 		// Unknown states retain the legacy polling behaviour.
 		return trackedRoles.isEmpty()
 			|| trackedRoles.contains(role)
-				&& capabilityResolver.trackingMode(role) != TrackingMode.EVENT_DRIVEN;
+				&& trackingModeFor(context, role) != TrackingMode.EVENT_DRIVEN;
+	}
+
+	private TrackingMode trackingModeFor(
+		RequestWorkflowContext context, LifecycleRole role) {
+
+		// Both borrower and supplier hosts are carried in-context, so tracking mode
+		// resolves per-host. Pickup has no HostLms in context (only a client), so it
+		// falls back to instance-wide config.
+		return switch (role) {
+			case BORROWER -> capabilityResolver.trackingMode(
+				context.getPatronSystem(), LifecycleRole.BORROWER);
+			case SUPPLIER -> capabilityResolver.trackingMode(
+				context.getLenderSystem(), LifecycleRole.SUPPLIER);
+			default -> capabilityResolver.trackingMode(role);
+		};
 	}
 
 	private static Set<LifecycleRole> rolesTrackedAutomaticallyFor(

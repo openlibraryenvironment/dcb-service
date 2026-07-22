@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-  targetNamespace="https://openrs.org/ncip/dcb-shipping/v1"
-  xmlns:dcb="https://openrs.org/ncip/dcb-shipping/v1"
+  targetNamespace="https://openrs.org/ncip/fallback-host"
+  xmlns:dcb="https://openrs.org/ncip/fallback-host"
   elementFormDefault="qualified">
 
   <xs:element name="ShippingContext" type="dcb:ShippingContextType"/>
