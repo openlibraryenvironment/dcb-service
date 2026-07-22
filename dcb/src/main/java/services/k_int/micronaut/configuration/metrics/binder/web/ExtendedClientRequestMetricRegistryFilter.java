@@ -1,8 +1,6 @@
 package services.k_int.micronaut.configuration.metrics.binder.web;
 
 import static io.micronaut.core.util.StringUtils.FALSE;
-import static io.micronaut.http.HttpAttributes.SERVICE_ID;
-import static io.micronaut.http.HttpAttributes.URI_TEMPLATE;
 
 import java.util.List;
 import java.util.Map;
@@ -13,13 +11,16 @@ import java.util.stream.Stream;
 
 import org.reactivestreams.Publisher;
 
-import io.micronaut.configuration.metrics.binder.web.ClientRequestMetricRegistryFilter;
+import io.micronaut.configuration.metrics.annotation.RequiresMetrics;
+import io.micronaut.configuration.metrics.binder.web.config.HttpMetricsConfig;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.order.Ordered;
 import io.micronaut.core.util.StringUtils;
+import io.micronaut.http.BasicHttpAttributes;
+import io.micronaut.http.HttpAttributes;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -39,9 +40,17 @@ import reactor.core.publisher.Flux;
  * 
  * @author Steve Osguthorpe
  */
+// NB: this was previously gated on @Requires(bean = ClientRequestMetricRegistryFilter.class).
+// Micronaut Micrometer 5.9 deprecated that class for removal and stripped its bean
+// annotations, replacing it with the package-private ClientMetricsFilter. The class still
+// exists, so the @Requires still compiled -- it simply never matched again, and this filter
+// silently stopped being registered. Gate on the same public conditions the replacement
+// uses instead. The "Extended metrics enabled" line logged from the constructor is the
+// canary that it is actually active.
 @Slf4j
 @Filter("${micronaut.metrics.http.client.path:/**}")
-@Requires(bean = ClientRequestMetricRegistryFilter.class)
+@RequiresMetrics
+@Requires(property = HttpMetricsConfig.ENABLED, notEquals = FALSE)
 @Requires(property = ExtendedClientRequestMetricRegistryFilter.METRIC_CONFIG_ROOT + ".use-extended-client-metrics", notEquals = FALSE)
 public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilter {
 	protected static final String METRIC_CONFIG_ROOT = "k-int.metrics";
@@ -66,12 +75,18 @@ public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilt
 		log.info("Extended metrics enabled");
 	}
 
+	// HttpAttributes is deprecated for removal in favour of the BasicHttpAttributes
+	// accessors, but that class exposes only getServiceId -- there is no setServiceId. The
+	// read below uses the accessor; the write has no non-deprecated equivalent, so it still
+	// goes through the enum. BasicHttpAttributes.getServiceId reads exactly this attribute,
+	// so the two remain consistent. Revisit if a setter is ever added.
+	@SuppressWarnings("removal")
 	private <T extends MutableHttpRequest<?>> T defaultToHostAsServiceId(T request) {
 
-		Optional<String> svcId = request.getAttribute(SERVICE_ID.toString(), String.class);
+		Optional<String> svcId = BasicHttpAttributes.getServiceId(request);
 		if (svcId.isEmpty()) {
 			String host = resolveHostFromRequest(request);
-			request.setAttribute(SERVICE_ID, host);
+			request.setAttribute(HttpAttributes.SERVICE_ID, host);
 		}
 		return request;
 	}
@@ -109,18 +124,18 @@ public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilt
 		
 		Optional<String> staticRoute = findMatchedStaticTemplate( request );
 		
-		// Always use the URI_TEMPLATE if present, to avoid breaking expected core behaviour.
-		Optional<String> definedRoute = request.getAttribute(URI_TEMPLATE, String.class);
-		
+		// Always use the URI template if present, to avoid breaking expected core behaviour.
+		Optional<String> definedRoute = BasicHttpAttributes.getUriTemplate(request);
+
 		if (staticRoute.isPresent() || definedRoute.isEmpty()) {
 
-			// Allows a default to be supplied if the URI_TEMPLATE isn't present.
+			// Allows a default to be supplied if the URI template isn't present.
 			String path = staticRoute
 				.or(() -> request.getAttribute(METRIC_TEMPLATE_DEFAULT, String.class))
 				.orElse(request.getPath());
-			
+
 			// Write it to the template attribute.
-			request.setAttribute(URI_TEMPLATE, path);
+			BasicHttpAttributes.setUriTemplate(request, path);
 		}
 
 		return request;
