@@ -151,10 +151,14 @@ public class PolarisItemMapper {
 	 * @return a Mono containing the enriched item
 	 */
 	private Mono<Item> enrichItemWithAgency(ItemGetRow itemGetRow, Item item, String hostLmsCode, String itemAgencyResolutionMethod) {
+		// NB: `case null` is required for the same reason as in getLocation below. A
+		// switch on a String throws NullPointerException before reaching `default`, and
+		// a null resolution method is reachable -- PolarisConfig documents that setting
+		// it to null in config deliberately overrides the default.
 		return switch(itemAgencyResolutionMethod) {
 			case "LocationId" -> enrichItemWithAgencyUsingLocationId(itemGetRow, item, hostLmsCode);
 			case "Legacy" -> legacyEnrichItemWithAgency(item, hostLmsCode);
-			default -> Mono.just(item);
+			case null, default -> Mono.just(item);
     };
   }
 
