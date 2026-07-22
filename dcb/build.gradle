@@ -200,6 +200,13 @@ dependencies {
 	testImplementation('org.awaitility:awaitility')
 	testImplementation('io.projectreactor:reactor-test')
 
+	// opensearch-testcontainers is managed by micronaut-opensearch-bom 2.1.0 (see the
+	// platform import above) and builds against Testcontainers 2.x, matching the
+	// testcontainers-bom already pinned here. Testcontainers core is otherwise only a
+	// runtime dependency, so it needs promoting to compile the index integration test.
+	testImplementation('org.testcontainers:testcontainers')
+	testImplementation('org.opensearch:opensearch-testcontainers')
+
 	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
 
 	testRuntimeOnly("org.testcontainers:testcontainers-postgresql:2.0.5")
