@@ -32,8 +32,20 @@ dependencies {
 		implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
 		implementation 'org.apache.lucene:lucene-queryparser:9.7.0'
 
-	// 4.5.x is last version with Community version of CP subsystem.
-		implementation 'com.hazelcast:hazelcast:5.4.0'
+	// 5.4.0 is the last release whose CP subsystem works in the Community edition.
+	// From 5.5.0 onward getCPSubsystem().getLock(...) resolves to CPSubsystemStubImpl,
+	// which throws "CP subsystem is a licensed feature. Please ensure you have an
+	// Enterprise license that enables CP." -- that breaks HazelcastFederatedLockService
+	// and therefore every federated lock (ingest, clustering housekeeping, tracking).
+	//
+	// This MUST be `strictly`. As a plain constraint it was silently overridden:
+	// micronaut-platform 5.0.2 pulls micronaut-cache-bom 6.0.0, which manages Hazelcast
+	// to 5.6.0, and Gradle resolved 5.4.0 -> 5.6.0. Nothing here uses Hazelcast caching
+	// (DCB uses micronaut-cache-caffeine); the cache BOM merely manages the version.
+		implementation('com.hazelcast:hazelcast') {
+			version { strictly '5.4.0' }
+			because 'CP subsystem is Enterprise-only from Hazelcast 5.5.0'
+		}
 		implementation 'guru.nidi:graphviz-java-all-j2v8:0.18.1'
 		implementation 'com.graphql-java:graphql-java-extended-scalars:22.0'
 		implementation 'com.opencsv:opencsv:5.8'
