@@ -4,7 +4,6 @@ import static io.micronaut.http.HttpMethod.DELETE;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
-import static io.micronaut.http.HttpMethod.PATCH;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.valueOf;
@@ -18,8 +17,7 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Wor
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Yes;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.CompletedSuccessfully;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_AV_LEADER;
-import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_BIB_BOOKS_LEADER;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.*;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.PolarisItemStatus;
 import static org.olf.dcb.core.interaction.polaris.PolarisLmsClient.getNoteForStaff;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -319,12 +317,53 @@ class ApplicationServicesClient {
 			.defaultIfEmpty( localPatronId );
 	}
 
+	/**
+	 * Reconciles a freshly created virtual patron's address check block. The create body already
+	 * stamps the address check date far into the future, so normally Polaris raises no
+	 * verify-patron-data block and there is nothing to do. Only when a system's local rules clamped
+	 * the create date does the block appear - then we re-apply the date with override (falling back
+	 * to a nearer date) and flag the patron for staff only if Polaris still refuses. Blocks found are
+	 * cleared as before. Crucially, a patron whose date was accepted is never flagged.
+	 */
+	Mono<Integer> reconcileVirtualPatronAddressCheck(Integer localPatronId, String barcode, Patron patron) {
+		return getPatronBlocks(localPatronId)
+			.flatMap(blocks -> {
+				final boolean addressCheckBlocked = blocks.stream()
+					.anyMatch(block -> VERIFY_PATRON_DATA_BLOCK.equals(block.getBlockType()));
+
+				final Mono<Integer> clearBlocks = blocks.isEmpty()
+					? Mono.just(localPatronId)
+					: deleteUnwantedPatronBlocks(localPatronId, blocks);
+
+				// The create date was accepted (no address check block) - nothing to fix or warn about
+				if (!addressCheckBlocked) {
+					return clearBlocks;
+				}
+
+				// If local rules stopped the create date - force it with override, fall back to a nearer
+				// date, and warn staff only if Polaris still refuses both. The PAPI update is keyed by
+				// barcode (the prefixed barcode Polaris assigned), not the local patron id.
+				return pushAddressCheckDateIntoFuture(barcode)
+					.hasElement()
+					.doOnNext(applied -> {
+						if (Boolean.FALSE.equals(applied)) {
+							patron.addWarning(ADDRESS_CHECK_DATE_WARNING
+								.formatted(localPatronId, client.getHostLmsCode()));
+						}
+					})
+					.then(clearBlocks);
+			})
+			.defaultIfEmpty(localPatronId);
+	}
+
+	// Polaris raises this block when a patron's address check date has passed. It is the block a
+	// lapsed virtual patron address check date produces, and the one Polaris re-derives at
+	// circulation time regardless of any earlier deletion.
+
 	// we only expect
 	private Mono<Integer> deleteUnwantedPatronBlocks(Integer localPatronId, List<PatronBlockGetRow> patronBlockGetRows) {
 
-		final Integer VERIFY_PATRON_DATA = 3;
-		final Integer REGISTRATION_HAS_EXPIRED = 100;
-		final var knownBlocksToHandle = List.of(VERIFY_PATRON_DATA, REGISTRATION_HAS_EXPIRED);
+		final var knownBlocksToHandle = List.of(VERIFY_PATRON_DATA_BLOCK, REGISTRATION_HAS_EXPIRED_BLOCK);
 
 		return Flux.fromIterable(patronBlockGetRows)
 			.flatMap(row -> {
@@ -989,6 +1028,71 @@ class ApplicationServicesClient {
 	}
 
 	/**
+	 * Checks an item out via the Application Services check-out workflow.
+	 *
+	 * <p>Unlike the PAPI item checkout, this endpoint can bypass patron blocks — but only when the
+	 * logon user holds the Polaris override permission. {@code IgnorePatronBlocksCheck} is all or
+	 * nothing, so callers must have already established that bypassing is safe
+	 *
+	 * @see <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/checkout">check out workflow docs</a>
+	 */
+	Mono<WorkflowResponse> checkoutItemToPatron(String itemBarcode, String patronBarcode,
+		boolean bypassPatronBlocks) {
+
+		log.info("checkoutItemToPatron item {} patron {} bypassPatronBlocks {}",
+			itemBarcode, patronBarcode, bypassPatronBlocks);
+
+		final var path = createPath("workflow");
+		final var CheckOutWorkflowRequestType = 2;
+		final var CheckOutDataWorkflowRequestExtensionType = 1;
+		final var CHKOUT_NORM = 6;
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> request.body(WorkflowRequest.builder()
+				.workflowRequestType(CheckOutWorkflowRequestType)
+				.txnUserID(TransactingPolarisUserID)
+				.txnBranchID(polarisConfig.getIllLocationId())
+				.txnWorkstationID(TransactingWorkstationID)
+				.requestExtension(RequestExtension.builder()
+					.workflowRequestExtensionType(CheckOutDataWorkflowRequestExtensionType)
+					.data(RequestExtensionData.builder()
+						.checkoutTypeID(CHKOUT_NORM)
+						.patronBarcode(patronBarcode)
+						.itemBarcode(itemBarcode)
+						.ignorePatronBlocksCheck(bypassPatronBlocks)
+						.build())
+					.build())
+				.build()))
+			.flatMap(request -> client.retrieve(request, Argument.of(WorkflowResponse.class)))
+			.map(this::validateWorkflowResponse);
+	}
+
+	// The blocks a virtual patron inflicts on itself over its lifecycle - a lapsed address check
+	// and an expired registration. Both are benign for a throwaway DCB patron and are the same
+	// blocks handled on find/create, so they are the only ones safe to bypass at checkout.
+	private static final List<Integer> SELF_RESOLVABLE_BLOCKS =
+		List.of(VERIFY_PATRON_DATA_BLOCK, REGISTRATION_HAS_EXPIRED_BLOCK);
+
+	/**
+	 * True only when every block on the patron is one a virtual patron inflicts on itself (a lapsed
+	 * address check or an expired registration) and there is at least one. Those are safe to bypass
+	 * at checkout; any other block (fines, barred, lost card) must still stop the loan, so we refuse
+	 * to bypass when one is present. If the blocks cannot be determined we return false, leaving the
+	 * checkout to fail normally rather than blindly overriding.
+	 */
+	Mono<Boolean> isBlockedOnlyBySelfResolvableBlocks(Integer localPatronId) {
+		return getPatronBlocks(localPatronId)
+			.map(blocks -> !blocks.isEmpty()
+				&& blocks.stream().allMatch(block -> SELF_RESOLVABLE_BLOCKS.contains(block.getBlockType())))
+			.defaultIfEmpty(FALSE)
+			.onErrorResume(error -> {
+				log.warn("Could not determine blocks for patron {}, will not bypass at checkout: {}",
+					localPatronId, error.getMessage());
+				return Mono.just(FALSE);
+			});
+	}
+
+	/**
 	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
 	 */
 	Mono<Tuple4<String, String, String, String>> createILLHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {
@@ -1176,29 +1280,67 @@ class ApplicationServicesClient {
 			.map(HttpResponse::body)
 			// Call the expiry check logic
 			.flatMap(this::checkAndUpdateExpiryIfNeeded)
+			// Existing virtual patrons were created before we started pushing this date out
+			.flatMap(this::checkAndUpdateAddressCheckDateIfNeeded)
 			// Now map the (potentially updated) data to the DCB Patron
-			.map(data -> Patron.builder()
-				.localId(singletonList(valueOf(data.getPatronID())))
-				.localPatronType(valueOf(data.getPatronCodeID()))
-				.localBarcodes(singletonList(data.getBarcode()))
-				.localHomeLibraryCode(valueOf(data.getOrganizationID()))
-				.localNames(
-					Optional.ofNullable(data.getRegistration())
-						.map(reg -> Stream.of(reg.getNameFirst(), reg.getNameMiddle(), reg.getNameLast())
-							// At the minute if a name is null, we map to a blank string
-							.map(name -> name == null ? "" : name)
-							.map(String::trim)
-							.filter(s -> !s.isEmpty())
-							.collect(Collectors.toList())
-						)
-						// Default to an empty list if registration itself is null
-						.orElse(Collections.emptyList())
-				)
-				.isActive(true)
-				.isBlocked(data.getSystemBlocks() != null && data.getSystemBlocks() > 0)
-				.isDeleted(false)
-				.expiryDate((data.getRegistration() != null && data.getRegistration().getExpirationDate() != null) ? Timestamp.valueOf(data.getRegistration().getExpirationDate()) : null)
-				.build());
+			.map(data -> {
+				final var patron = Patron.builder()
+					.localId(singletonList(valueOf(data.getPatronID())))
+					.localPatronType(valueOf(data.getPatronCodeID()))
+					.localBarcodes(singletonList(data.getBarcode()))
+					.localHomeLibraryCode(valueOf(data.getOrganizationID()))
+					.localNames(
+						Optional.ofNullable(data.getRegistration())
+							.map(reg -> Stream.of(reg.getNameFirst(), reg.getNameMiddle(), reg.getNameLast())
+								// At the minute if a name is null, we map to a blank string
+								.map(name -> name == null ? "" : name)
+								.map(String::trim)
+								.filter(s -> !s.isEmpty())
+								.collect(Collectors.toList())
+							)
+							// Default to an empty list if registration itself is null
+							.orElse(Collections.emptyList())
+					)
+					.isActive(true)
+					.isBlocked(data.getSystemBlocks() != null && data.getSystemBlocks() > 0)
+					.isDeleted(false)
+					.expiryDate((data.getRegistration() != null && data.getRegistration().getExpirationDate() != null) ? Timestamp.valueOf(data.getRegistration().getExpirationDate()) : null)
+					.build();
+
+				// We could not fix it in Polaris, so tell the library staff before the checkout fails
+				if (addressCheckDateWillBlockCirculation(data.getRegistration())) {
+					patron.addWarning(ADDRESS_CHECK_DATE_WARNING
+						.formatted(localPatronId, client.getHostLmsCode()));
+				}
+
+				return patron;
+			});
+	}
+
+	/**
+	 * Pushes the address check date out when it has passed, or is about to.
+	 * The registration carried by the supplied patron data is updated in place when Polaris accepts the change.
+	 *
+	 * @param patronData The raw PatronData from Polaris.
+	 * @return A Mono emitting the PatronData, which will be updated if the update was successful.
+	 */
+	private Mono<PatronData> checkAndUpdateAddressCheckDateIfNeeded(PatronData patronData) {
+		final var registration = patronData.getRegistration();
+
+		if (!addressCheckDateWillBlockCirculation(registration)) {
+			return Mono.just(patronData);
+		}
+
+		log.debug("Patron {} address check date {} will block circulation. Updating.",
+			patronData.getPatronID(), registration.getAddrCheckDate());
+
+		return pushAddressCheckDateIntoFuture(patronData.getBarcode())
+			.map(appliedDate -> {
+				registration.setAddrCheckDate(appliedDate);
+				return patronData;
+			})
+			// Leave the original date in place so the caller can see it is still blocking
+			.defaultIfEmpty(patronData);
 	}
 
 	/**
@@ -1230,10 +1372,11 @@ class ApplicationServicesClient {
 			log.debug("Patron {} expiry date {} is within 30 days. Updating.", patronData.getPatronID(), patronExpiryDateTime);
 
 			final var newExpiryLocalDateTime = now.plusDays(120);
-			// Update the registration object, which is used by updatePatronRegistration
+			// Update the in-memory registration so the mapped Patron reflects the new date
 			registration.setExpirationDate(newExpiryLocalDateTime);
 
-			return this.updatePatronRegistration(valueOf(patronData.getPatronID()), registration)
+			return client.updateVirtualPatronDates(patronData.getBarcode(),
+					newExpiryLocalDateTime.format(ofPattern("yyyy-MM-dd")), null)
 				.map(success -> {
 					if (Boolean.TRUE.equals(success)) {
 						log.debug("Successfully updated patron {} expiry date in Polaris to {}", patronData.getPatronID(), newExpiryLocalDateTime);
@@ -1253,45 +1396,48 @@ class ApplicationServicesClient {
 	}
 
 	/**
-	 * Checks if a patron's registration is expired or expiring within 7 days.
-	 * If it is, it attempts to update the expiry date in Polaris to 90 days from now.
-	 * Think of 90 days as a starting point: this can be changed if necessary.
-	 * @param localPatronId The Polaris Patron ID
-	 * @param registration The PatronRegistration object to update the Polaris Patron with
-	 * @return Boolean Mono depending on whether the update is successful.
-	 * Success indicator is a 204 No Content response.
+	 * Moves a virtual patron's address check date far enough into the future that Polaris
+	 * will not block circulation on it. Falls back to a shorter period for systems whose
+	 * local rules refuse the longer one.
+	 *
+	 * @param barcode The virtual patron's barcode (the PAPI patron update is keyed by barcode)
+	 * @return the date that was applied, or empty when Polaris refused both attempts
 	 */
-	public Mono<Boolean> updatePatronRegistration(String localPatronId, PatronRegistration registration) {
-		log.debug("Updating registration for patron {}: {}", localPatronId, registration);
-		final var path = createPath("patrons", localPatronId) + "?type=profile";
-		// Construct the body
-		// The endpoint expects a PATCH request
-		// With a JSON body with the new expiry date and override policy true
-		// https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/patrons/patron_patch
-		final var requestBody = DtoPatronProfile.builder()
-															.expirationDate(valueOf(registration.expirationDate))
-															.overridePolicy(true)
-															.build();
-		return createRequest(PATCH, path, uri -> {})
-			.map(request -> request.body(requestBody))
-			// It would be good to audit log this and not just rely on the logs
-			.flatMap(request -> client.exchange(request, Void.class, FALSE))
-			.flatMap(response -> {
-				// Check for 204 No Content
-				if (response.getStatus() == HttpStatus.NO_CONTENT) {
-					log.info("Successfully updated registration for virtual patron {}", localPatronId);
-					return Mono.just(TRUE);
-				} else {
-					// Any other status code means it didn't work for whatever reason
-					log.warn("Unexpected status {} when updating virtual patron {} registration. Body: {}",
-						response.getStatus(), localPatronId, response.getBody().orElse(null));
-					return Mono.just(FALSE);
+	Mono<LocalDateTime> pushAddressCheckDateIntoFuture(String barcode) {
+		return setAddressCheckDate(barcode, VIRTUAL_PATRON_ADDRESS_CHECK_YEARS)
+			.switchIfEmpty(Mono.defer(() -> {
+				log.warn("{} refused an address check date {} years ahead for virtual patron {}. Retrying with {} years.",
+					client.getHostLmsCode(), VIRTUAL_PATRON_ADDRESS_CHECK_YEARS, barcode,
+					VIRTUAL_PATRON_ADDRESS_CHECK_FALLBACK_YEARS);
+
+				return setAddressCheckDate(barcode, VIRTUAL_PATRON_ADDRESS_CHECK_FALLBACK_YEARS);
+			}))
+			.doOnSuccess(appliedDate -> {
+				if (appliedDate == null) {
+					log.error("{} refused every address check date for virtual patron {}. Circulation will be blocked.",
+						client.getHostLmsCode(), barcode);
 				}
-			})
-			.onErrorResume(e -> {
-				log.error("Error updating patron {} registration: {}", localPatronId, e.getMessage(), e);
-				return Mono.just(FALSE); // Return false on error to prevent breaking the chain
 			});
+	}
+
+	private Mono<LocalDateTime> setAddressCheckDate(String barcode, int yearsAhead) {
+		final var addressCheckDate = LocalDateTime.now(UTC).plusYears(yearsAhead);
+
+		return client.updateVirtualPatronDates(barcode, null, addressCheckDate.format(ofPattern("yyyy-MM-dd")))
+			.filter(TRUE::equals)
+			.map(updated -> addressCheckDate);
+	}
+
+	/**
+	 * A date already in the past blocks circulation immediately, and one inside the safety
+	 * window will start blocking part way through a loan. Both need pushing out.
+	 * A patron with no address check date at all has nothing to block on.
+	 */
+	private static boolean addressCheckDateWillBlockCirculation(PatronRegistration registration) {
+		final var addressCheckDate = getValueOrNull(registration, PatronRegistration::getAddrCheckDate);
+
+		return addressCheckDate != null
+			&& addressCheckDate.isBefore(LocalDateTime.now(UTC).plusDays(VIRTUAL_PATRON_ADDRESS_CHECK_SAFETY_DAYS));
 	}
 
 	/**
@@ -1941,6 +2087,16 @@ class ApplicationServicesClient {
 		private Integer freeDays;
 		@JsonProperty("ignoreInventoryStatusMessages")
 		private Boolean ignoreInventoryStatusMessages;
+
+		// check out item
+		@JsonProperty("CheckoutTypeID")
+		private Integer checkoutTypeID;
+		@JsonProperty("PatronBarcode")
+		private String patronBarcode;
+		// Bypasses ALL patron blocks, so callers must only set it once they have
+		// established the sole block is one it is safe to override
+		@JsonProperty("IgnorePatronBlocksCheck")
+		private Boolean ignorePatronBlocksCheck;
 	}
 
 	@Builder
@@ -2517,14 +2673,4 @@ class ApplicationServicesClient {
 		private String title;
 	}
 
-	@Builder
-	@Data
-	@AllArgsConstructor
-	@Serdeable
-	static class DtoPatronProfile {
-		@JsonProperty("OverridePolicy")
-		private Boolean overridePolicy;
-		@JsonProperty("ExpirationDate")
-		private String expirationDate;
-	}
 }

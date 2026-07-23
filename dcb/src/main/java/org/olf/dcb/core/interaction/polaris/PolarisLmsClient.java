@@ -532,7 +532,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Integer bibId, String note, String activationDate, Integer holdCount) {
 
 		if (Objects.equals(sysHoldRequest.getBibliographicRecordID(), bibId) &&
-			isEqualDisplayNoteIfPresent(sysHoldRequest, note)) {
+			hasMatchingTransactionNote(sysHoldRequest, note)) {
 
 			log.info("Hold found by bibId and note.");
 
@@ -568,18 +568,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return FALSE;
 	}
 
-	private static boolean isEqualDisplayNoteIfPresent(
+	private static boolean hasMatchingTransactionNote(
 		ApplicationServicesClient.SysHoldRequest sysHoldRequest, String note) {
 
 		final var returnedDisplayNote = notNullDisplayNote(sysHoldRequest);
 
-		if (returnedDisplayNote != null && note != null) {
-			final var tnoNote = extractTno(note);
-			final var tnoReturned = extractTno(returnedDisplayNote);
-			return Objects.equals(tnoReturned, tnoNote);
+		// Our DCB holds always carry a transaction note. A hold with no display note therefore
+		// cannot be one of ours, and must not be treated as a match. This matters most in the local
+		// (same library) workflow, where the real patron may already hold their own note-less holds
+		// on the same bib - failing open here matched those too and produced spurious
+		// "multiple hold requests found" failures.
+		if (returnedDisplayNote == null || note == null) {
+			return FALSE;
 		}
 
-		return TRUE;
+		return Objects.equals(extractTno(returnedDisplayNote), extractTno(note));
 	}
 
 	private static String notNullDisplayNote(ApplicationServicesClient.SysHoldRequest sysHoldRequest) {
@@ -607,7 +610,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return getPlaceHoldRequestData(extractedId);
 
 		} else if (filteredHolds.size() > 1) {
-			throw new HoldRequestException("Multiple hold requests found: " + filteredHolds);
+			// Raised as a Problem, not a HoldRequestException, so the caller's retry - which only
+			// retries Problems - lets Polaris settle before we give up. Right after placing, the
+			// display notes that disambiguate our hold from the patron's other holds on the same
+			// bib can lag, briefly leaving more than one apparent match.
+			return raiseError(Problem.builder()
+				.withTitle("Multiple hold requests found")
+				.withDetail(filteredHolds.size() + " holds matched the request")
+				.with("matched-holds", filteredHolds.toString())
+				.build());
 		} else {
 			return Mono.empty();
 		}
@@ -1091,6 +1102,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.doOnError(error -> log.error("Error trying to create patron: ", error));
 	}
 
+	// The date updates live here rather than in ApplicationServicesClient because they use the PAPI
+	// patron update (the only endpoint that accepts both ExpirationDate and AddrCheckDate)
+	Mono<Boolean> updateVirtualPatronDates(String barcode, String expirationDate, String addrCheckDate) {
+		return PAPIService.patronRegistrationUpdateDates(barcode, expirationDate, addrCheckDate);
+	}
+
 	private Mono<Patron> collectDefaultsForCreatePatron(Patron patron) {
 		return fetchItemLocation(patron)
 			.flatMap(this::fetchPatronDefaultsByOrg);
@@ -1138,9 +1155,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.build());
 		}
 
-		// we expect a block to be added when creating a virtual patron
-		// check and remove it if present
-		return ApplicationServices.handlePatronBlock(result.getPatronID()).map(String::valueOf);
+		final var localPatronId = result.getPatronID();
+		// Polaris assigns the (prefixed) barcode and returns it here - this is what the PAPI patron
+		// update is keyed by, not the local patron id we send to the block endpoints.
+		final var barcode = result.getBarcode();
+
+		// The registration create already stamps the address check date far into the future. Only
+		// re-apply it (with override + fallback), and only warn staff, when Polaris actually still
+		// raised the verify-patron-data block - i.e. a system with local rules clamped the create
+		// date. A patron whose date was accepted has no block and is never flagged.
+		return ApplicationServices.reconcileVirtualPatronAddressCheck(localPatronId, barcode, patron)
+			.map(String::valueOf);
 	}
 
 	@Override
@@ -1270,8 +1295,35 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				ApplicationServices.getItemBarcode(itemId),
 				ApplicationServices.getPatronBarcode(patronId)
 			))
-			.flatMap(tuple -> PAPIService.itemCheckoutPost(tuple.getT1(), tuple.getT2()))
-			.map(itemCheckoutResult -> "OK");
+			.flatMap(tuple -> checkoutItem(tuple.getT1(), tuple.getT2(), patronId));
+	}
+
+	/**
+	 * The PAPI item checkout cannot override patron blocks, so Polaris re-derives a virtual patron's
+	 * self-inflicted blocks (a lapsed address check or an expired registration) at circulation time
+	 * and fails the loan even after we have cleared them. When those are the only blocks present we
+	 * fall back to the Application Services check-out workflow, which can bypass them. Every other
+	 * case keeps the proven PAPI path, so genuine blocks (fines, barred, lost card) still stop the
+	 * checkout.
+	 */
+	private Mono<String> checkoutItem(String itemBarcode, String patronBarcode, String patronId) {
+		final var localPatronId = safeParseInteger(patronId);
+
+		final Mono<Boolean> onlySelfResolvableBlocks = localPatronId != null
+			? ApplicationServices.isBlockedOnlyBySelfResolvableBlocks(localPatronId)
+			: Mono.just(FALSE);
+
+		return onlySelfResolvableBlocks.flatMap(bypassBlocks -> {
+			if (Boolean.TRUE.equals(bypassBlocks)) {
+				log.info("Virtual patron {} blocked only by self-inflicted blocks (address check / expiry); checking out via workflow with block override", patronId);
+
+				return ApplicationServices.checkoutItemToPatron(itemBarcode, patronBarcode, true)
+					.thenReturn("OK");
+			}
+
+			return PAPIService.itemCheckoutPost(itemBarcode, patronBarcode)
+				.thenReturn("OK");
+		});
 	}
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {

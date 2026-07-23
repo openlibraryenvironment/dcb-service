@@ -10,6 +10,8 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
@@ -28,6 +30,8 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Pro
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.LastCopyOrRecordOptions;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.NoDisplayInPAC;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_PATRON_ADDRESS_CHECK_FALLBACK_YEARS;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_PATRON_ADDRESS_CHECK_YEARS;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
@@ -80,6 +84,7 @@ import static services.k_int.utils.StringUtils.convertIntegerToString;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -141,6 +146,11 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class PolarisLmsClientTests {
 	private static final String CATALOGUING_HOST_LMS_CODE = "polaris-cataloguing";
+
+	// Polaris block type raised by a lapsed address check date (verify patron data)
+	private static final int VERIFY_PATRON_DATA_BLOCK = 3;
+	// Polaris block type raised when the patron's registration has expired
+	private static final int REGISTRATION_HAS_EXPIRED_BLOCK = 100;
 	private static final String CIRCULATING_HOST_LMS_CODE = "polaris-circulating";
 	private static final int ILL_LOCATION_ID = 50;
 
@@ -463,6 +473,58 @@ class PolarisLmsClientTests {
 
 		// DCB appends a prefix to the barcode used in the generated field for the virtual patron
 		mockPolarisFixture.verifyPatronSearch(barcode);
+	}
+
+	@Test
+	void shouldUpdateExpiryByBarcodeWhenFindingAnExpiredVirtualPatron() {
+		// Arrange
+		final var localId = generateNumericLocalId();
+		final var barcode = generateBarcode();
+		final var patronCodeId = "3";
+
+		mockPolarisFixture.mockPatronSearch(barcode, barcode, localId);
+		mockPolarisFixture.mockGetPatronBlocksSummary(localId);
+
+		// The found virtual patron has already expired, and its address check date is safely in the
+		// future so only the expiry needs updating. Dates are expressed as the ISO strings Polaris
+		// returns.
+		final var expiredIso = LocalDateTime.now(UTC).minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+		final var futureAddrCheckIso = LocalDateTime.now(UTC).plusYears(VIRTUAL_PATRON_ADDRESS_CHECK_YEARS)
+			.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+		mockPolarisFixture.mockGetPatronRawJson(localId, """
+			{"PatronID":%d,"PatronCodeID":%s,"Barcode":"%s","OrganizationID":39,
+			 "Registration":{"ExpirationDate":"%s","AddrCheckDate":"%s"}}
+			""".formatted(localId, patronCodeId, barcode, expiredIso, futureAddrCheckIso));
+
+		// The expiry update must be keyed by barcode (PAPI PUT /patron/{barcode}), not the local id
+		mockPolarisFixture.mockUpdatePatronDates(barcode, 0);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(CATALOGUING_HOST_LMS_CODE,
+			parseLong(patronCodeId), parseLong(patronCodeId), "DCB", "UNDERGRADUATE");
+
+		final var patron = org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(
+				PatronIdentity.builder()
+					.localId(convertIntegerToString(localId))
+					.localBarcode(barcodeAsSerialisedList(barcode))
+					.resolvedAgency(DataAgency.builder().code("known-agency").build())
+					.homeIdentity(true)
+					.build()
+			))
+			.build();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var foundPatron = singleValueFrom(client.findVirtualPatron(patron));
+
+		// Assert
+		assertThat(foundPatron, is(notNullValue()));
+
+		// The expiry update went to the barcode endpoint and carried an ExpirationDate
+		mockPolarisFixture.verifyUpdatePatronDatesContains(barcode, "\"ExpirationDate\"");
 	}
 
 	@Test
@@ -856,6 +918,68 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldChooseTheDcbHoldWhenLocalPatronAlreadyHasANoteLessHoldOnSameBib() {
+		// Arrange
+		// The local (same library) workflow places a hold for the real patron, who may already hold
+		// their own hold on the same bib. That other hold carries no DCB transaction note, and must
+		// not be mistaken for ours - doing so previously produced "multiple hold requests found".
+		final var itemId = generateNumericLocalId();
+		final var bibId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
+
+		mockGetItem(itemId, generateBarcode(), bibId);
+		mockGetBibId(bibId);
+
+		mockPolarisFixture.mockStartWorkflow(holdPlacedSuccessfully());
+
+		final var dcbHoldId = generateNumericLocalId();
+		final var patronRequestId = randomUUID().toString();
+		final var dcbNote = "Consortial Hold. tno=" + patronRequestId;
+
+		mockPolarisFixture.mockListPatronLocalHolds(patronId, List.of(
+			// the patron's own pre-existing hold on the same bib, with no DCB note
+			SysHoldRequest.builder()
+				.sysHoldRequestID(generateNumericLocalId())
+				.bibliographicRecordID(bibId)
+				.pacDisplayNotes(null)
+				.build(),
+			// our DCB hold, identified by its transaction note
+			SysHoldRequest.builder()
+				.sysHoldRequestID(dcbHoldId)
+				.bibliographicRecordID(bibId)
+				.pacDisplayNotes(dcbNote)
+				.build()));
+
+		final var itemBarcode = generateBarcode();
+		final var localHoldStatus = inProcessingHoldStatus();
+
+		mockPolarisFixture.mockGetHold(dcbHoldId,
+			libraryHold(itemId, itemBarcode, localHoldStatus));
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtLocalAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId(convertIntegerToString(patronId))
+				.localBibId(convertIntegerToString(bibId))
+				.localItemId(convertIntegerToString(itemId))
+				.pickupLocationCode(generateNumericLocalIdAsString())
+				.note(dcbNote)
+				.patronRequestId(patronRequestId)
+				.build()));
+
+		// Assert - the note-less hold is ignored, ours is chosen
+		assertThat(localRequest, allOf(
+			notNullValue(),
+			hasLocalId(dcbHoldId),
+			hasLocalStatus(localHoldStatus),
+			hasRequestedItemId(itemId.toString()),
+			hasRequestedItemBarcode(itemBarcode)
+		));
+	}
+
+	@Test
 	void shouldFailToPlaceRequestAtSupplyingAgencyWhenMatchingHoldIsEmpty() {
 		// Arrange
 		final var itemId = generateNumericLocalId();
@@ -1071,28 +1195,25 @@ class PolarisLmsClientTests {
 	@Test
 	void shouldBeAbleToCreateVirtualPatron() {
 		// Arrange
-		final var itemId = generateNumericLocalId();
-
-		mockGetItem(itemId, generateBarcode(), generateNumericLocalId());
-
 		final var patronId = generateNumericLocalId();
+		final var polarisBarcode = generateBarcode();
 
 		mockPolarisFixture.mockCreatePatron(
 			PatronRegistrationCreateResult.builder()
 				.patronID(patronId)
+				.barcode(polarisBarcode)
 				.papiErrorCode(0)
 				.build());
 
+		// Polaris accepted the future address check date from the create body, so no block is raised
 		mockPolarisFixture.mockGetPatronBlocksSummary(patronId);
-
-		final var patronBarcode = generateBarcode();
 
 		final var patron = Patron.builder()
 			.uniqueIds(List.of("dcb_unique_Id"))
 			.localPatronType("1")
 			.localHomeLibraryCode("39")
-			.localBarcodes(List.of(patronBarcode))
-			.localItemId(convertIntegerToString(itemId))
+			.localBarcodes(List.of(generateBarcode()))
+			.localItemId(convertIntegerToString(generateNumericLocalId()))
 			.build();
 
 		// Act
@@ -1103,6 +1224,135 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response, is(convertIntegerToString(patronId)));
+
+		// The patron code must be valid at the registration branch, so it must be the configured
+		// DCB branch (the ILL location), not the item's physical branch - otherwise Polaris rejects
+		// the create with -3612 "PatronCodeID does not exist for patron's branch"
+		mockPolarisFixture.verifyCreatePatronBodyContains("\"PatronBranchID\":" + ILL_LOCATION_ID);
+
+		// The patron is born with the address check date already pushed into the future, so it never
+		// carries the block Polaris derives from a past date
+		mockPolarisFixture.verifyCreatePatronBodyContains(
+			addressCheckDateFragment(VIRTUAL_PATRON_ADDRESS_CHECK_YEARS));
+
+		// Since Polaris raised no block, there is nothing to re-apply and, crucially, nothing to warn about
+		mockPolarisFixture.verifyNoUpdatePatronDates(polarisBarcode);
+		assertThat(patron.hasWarnings(), is(false));
+	}
+
+	@Test
+	void shouldFallBackToShorterAddressCheckDateWhenPolarisRefusesTheLongerOne() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+
+		mockGetItem(itemId, generateBarcode(), generateNumericLocalId());
+
+		final var patronId = generateNumericLocalId();
+		final var polarisBarcode = generateBarcode();
+
+		mockPolarisFixture.mockCreatePatron(
+			PatronRegistrationCreateResult.builder()
+				.patronID(patronId)
+				.barcode(polarisBarcode)
+				.papiErrorCode(0)
+				.build());
+
+		// Local rules clamped the create date, so Polaris raised the verify-patron-data block
+		final var blockId = generateNumericLocalId();
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId, List.of(
+			verifyPatronDataBlock(patronId, blockId)));
+		mockPolarisFixture.mockDeletePatronBlock(patronId, VERIFY_PATRON_DATA_BLOCK, blockId);
+
+		// Local rules refuse the longer period (error code), but accept the shorter one.
+		// The PAPI date update is keyed by barcode, not patron id.
+		mockPolarisFixture.mockUpdatePatronDates(polarisBarcode, -1);
+		mockPolarisFixture.mockUpdatePatronDates(polarisBarcode, 0);
+
+		final var patron = Patron.builder()
+			.uniqueIds(List.of("dcb_unique_Id"))
+			.localPatronType("1")
+			.localHomeLibraryCode("39")
+			.localBarcodes(List.of(generateBarcode()))
+			.localItemId(convertIntegerToString(itemId))
+			.build();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.createPatron(patron));
+
+		// Assert
+		assertThat(response, is(convertIntegerToString(patronId)));
+
+		mockPolarisFixture.verifyUpdatePatronDatesContains(polarisBarcode,
+			addressCheckDateFragment(VIRTUAL_PATRON_ADDRESS_CHECK_YEARS));
+
+		mockPolarisFixture.verifyUpdatePatronDatesContains(polarisBarcode,
+			addressCheckDateFragment(VIRTUAL_PATRON_ADDRESS_CHECK_FALLBACK_YEARS));
+
+		// The fallback worked, so there is nothing for library staff to fix
+		assertThat(patron.hasWarnings(), is(false));
+	}
+
+	@Test
+	void shouldWarnWhenPolarisRefusesEveryAddressCheckDate() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+
+		mockGetItem(itemId, generateBarcode(), generateNumericLocalId());
+
+		final var patronId = generateNumericLocalId();
+		final var polarisBarcode = generateBarcode();
+
+		mockPolarisFixture.mockCreatePatron(
+			PatronRegistrationCreateResult.builder()
+				.patronID(patronId)
+				.barcode(polarisBarcode)
+				.papiErrorCode(0)
+				.build());
+
+		// Local rules clamped the create date, so Polaris raised the verify-patron-data block
+		final var blockId = generateNumericLocalId();
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId, List.of(
+			verifyPatronDataBlock(patronId, blockId)));
+		mockPolarisFixture.mockDeletePatronBlock(patronId, VERIFY_PATRON_DATA_BLOCK, blockId);
+
+		mockPolarisFixture.mockUpdatePatronDatesAlwaysFails(polarisBarcode);
+
+		final var patron = Patron.builder()
+			.uniqueIds(List.of("dcb_unique_Id"))
+			.localPatronType("1")
+			.localHomeLibraryCode("39")
+			.localBarcodes(List.of(generateBarcode()))
+			.localItemId(convertIntegerToString(itemId))
+			.build();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.createPatron(patron));
+
+		// Assert
+		// The patron is still usable for everything except circulation,
+		// so the request continues and library staff are told what to fix
+		assertThat(response, is(convertIntegerToString(patronId)));
+
+		assertThat(patron.getWarnings(), contains(
+			containsString("Unable to move the address check date for virtual patron " + patronId)));
+	}
+
+	private static String addressCheckDateFragment(int yearsAhead) {
+		return "\"AddrCheckDate\":\"%d-".formatted(LocalDate.now(UTC).plusYears(yearsAhead).getYear());
+	}
+
+	private static ApplicationServicesClient.PatronBlockGetRow verifyPatronDataBlock(
+		Integer patronId, Integer blockId) {
+
+		return ApplicationServicesClient.PatronBlockGetRow.builder()
+			.patronID(patronId)
+			.blockType(VERIFY_PATRON_DATA_BLOCK)
+			.blockID(blockId)
+			.build();
 	}
 
 	@Test
@@ -1217,6 +1467,9 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
 		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
 
+		// no blocks, so the proven PAPI checkout path is used
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId);
+
 		mockPolarisFixture.mockItemCheckout(patronBarcode,
 			ItemOperationResult.builder()
 				.itemRecordID(convertIntegerToString(itemId))
@@ -1237,6 +1490,155 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(response, is(notNullValue()));
 		assertThat(response, is("OK"));
+
+		// A patron with no blocks must not go anywhere near the block-override workflow
+		mockPolarisFixture.verifyWorkflowBodyNeverContains("IgnorePatronBlocksCheck");
+	}
+
+	@Test
+	void shouldCheckOutViaWorkflowWithOverrideWhenPatronBlockedOnlyByAddressCheck() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var itemBarcode = generateBarcode();
+
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
+		mockItemWorkflow(generateNumericLocalId());
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
+
+		// The only thing stopping the patron is the address check (verify-patron-data) block
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId, List.of(
+			ApplicationServicesClient.PatronBlockGetRow.builder()
+				.patronID(patronId)
+				.blockType(VERIFY_PATRON_DATA_BLOCK)
+				.blockID(generateNumericLocalId())
+				.build()));
+
+		// The checkout workflow POST is the second workflow call (update item status is the first)
+		mockPolarisFixture.mockWorkflowResponseOnce(WorkflowResponse.builder()
+			.workflowRequestGuid(randomUUID().toString())
+			.workflowStatus(1)
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.checkOutItemToPatron(CheckoutItemCommand.builder()
+			.itemId(convertIntegerToString(itemId))
+			.patronId(convertIntegerToString(patronId))
+			.patronBarcode(patronBarcode)
+			.build()));
+
+		// Assert
+		assertThat(response, is("OK"));
+
+		// Checked out via the workflow endpoint with the block override on
+		mockPolarisFixture.verifyWorkflowBodyContains("\"IgnorePatronBlocksCheck\":true");
+		mockPolarisFixture.verifyWorkflowBodyContains("\"CheckoutTypeID\":6");
+		mockPolarisFixture.verifyWorkflowBodyContains("\"PatronBarcode\":\"%s\"".formatted(patronBarcode));
+
+		// and NOT via the PAPI checkout, which cannot override the block
+		mockPolarisFixture.verifyNoItemCheckout(patronBarcode);
+	}
+
+	@Test
+	void shouldCheckOutViaWorkflowWithOverrideWhenVirtualPatronRegistrationHasExpired() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var itemBarcode = generateBarcode();
+
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
+		mockItemWorkflow(generateNumericLocalId());
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
+
+		// The virtual patron has expired - a self-inflicted block that must not stop the loan
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId, List.of(
+			ApplicationServicesClient.PatronBlockGetRow.builder()
+				.patronID(patronId)
+				.blockType(REGISTRATION_HAS_EXPIRED_BLOCK)
+				.blockID(generateNumericLocalId())
+				.build()));
+
+		mockPolarisFixture.mockWorkflowResponseOnce(WorkflowResponse.builder()
+			.workflowRequestGuid(randomUUID().toString())
+			.workflowStatus(1)
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.checkOutItemToPatron(CheckoutItemCommand.builder()
+			.itemId(convertIntegerToString(itemId))
+			.patronId(convertIntegerToString(patronId))
+			.patronBarcode(patronBarcode)
+			.build()));
+
+		// Assert
+		assertThat(response, is("OK"));
+
+		// An expired virtual patron is checked out via the workflow with the block override on
+		mockPolarisFixture.verifyWorkflowBodyContains("\"IgnorePatronBlocksCheck\":true");
+		mockPolarisFixture.verifyNoItemCheckout(patronBarcode);
+	}
+
+	@Test
+	void shouldNotOverrideBlocksWhenPatronHasANonAddressBlock() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var itemBarcode = generateBarcode();
+
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
+		mockItemWorkflow(generateNumericLocalId());
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
+
+		// A non-address block is present, so we must not bypass anything
+		final var someOtherBlockType = 5;
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId, List.of(
+			ApplicationServicesClient.PatronBlockGetRow.builder()
+				.patronID(patronId)
+				.blockType(someOtherBlockType)
+				.blockID(generateNumericLocalId())
+				.build(),
+			ApplicationServicesClient.PatronBlockGetRow.builder()
+				.patronID(patronId)
+				.blockType(VERIFY_PATRON_DATA_BLOCK)
+				.blockID(generateNumericLocalId())
+				.build()));
+
+		mockPolarisFixture.mockItemCheckout(patronBarcode,
+			ItemOperationResult.builder()
+				.itemRecordID(convertIntegerToString(itemId))
+				.papiErrorCode(0)
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.checkOutItemToPatron(CheckoutItemCommand.builder()
+			.itemId(convertIntegerToString(itemId))
+			.patronId(convertIntegerToString(patronId))
+			.patronBarcode(patronBarcode)
+			.build()));
+
+		// Assert
+		assertThat(response, is("OK"));
+
+		// The real block must reach Polaris via the normal checkout, never be overridden
+		mockPolarisFixture.verifyWorkflowBodyNeverContains("IgnorePatronBlocksCheck");
 	}
 
 	@Test
