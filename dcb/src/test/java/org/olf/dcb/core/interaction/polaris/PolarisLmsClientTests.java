@@ -1197,6 +1197,15 @@ class PolarisLmsClientTests {
 		// Arrange
 		final var patronId = generateNumericLocalId();
 		final var polarisBarcode = generateBarcode();
+		final var itemId = generateNumericLocalId();
+		final var itemAssignedBranchId = generateNumericLocalId();
+
+		// The virtual patron is registered at the item's assigned branch (fetched from the item record)
+		mockPolarisFixture.mockGetItem(itemId,
+			ApplicationServicesClient.ItemRecordFull.builder()
+				.itemRecordID(itemId)
+				.assignedBranchID(itemAssignedBranchId)
+				.build());
 
 		mockPolarisFixture.mockCreatePatron(
 			PatronRegistrationCreateResult.builder()
@@ -1213,7 +1222,7 @@ class PolarisLmsClientTests {
 			.localPatronType("1")
 			.localHomeLibraryCode("39")
 			.localBarcodes(List.of(generateBarcode()))
-			.localItemId(convertIntegerToString(generateNumericLocalId()))
+			.localItemId(convertIntegerToString(itemId))
 			.build();
 
 		// Act
@@ -1225,10 +1234,8 @@ class PolarisLmsClientTests {
 		assertThat(response, is(notNullValue()));
 		assertThat(response, is(convertIntegerToString(patronId)));
 
-		// The patron code must be valid at the registration branch, so it must be the configured
-		// DCB branch (the ILL location), not the item's physical branch - otherwise Polaris rejects
-		// the create with -3612 "PatronCodeID does not exist for patron's branch"
-		mockPolarisFixture.verifyCreatePatronBodyContains("\"PatronBranchID\":" + ILL_LOCATION_ID);
+		// The patron is registered at the branch assigned to the item being requested
+		mockPolarisFixture.verifyCreatePatronBodyContains("\"PatronBranchID\":" + itemAssignedBranchId);
 
 		// The patron is born with the address check date already pushed into the future, so it never
 		// carries the block Polaris derives from a past date
