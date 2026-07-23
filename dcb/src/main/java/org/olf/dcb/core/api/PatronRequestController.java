@@ -105,11 +105,10 @@ public class PatronRequestController {
 	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
 	public Mono<UUID> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
 		log.info("Request cleanup for {}",patronRequestId);
-		// Force update for request to ensure correct data
-		trackingService.forceUpdate(patronRequestId);
 
-		return patronRequestService
-			.findById( patronRequestId )
+		// Force a downstream poll FIRST so the state guard and cleanup act on fresh data
+		return trackingService.forceUpdate(patronRequestId)
+			.then(patronRequestService.findById(patronRequestId))
 			.map( this::ensureValidStateForCleanupTransition )
 			.zipWhen( (req) -> Mono.just(cleanupPatronRequestTransition))
 			.flatMap( TupleUtils.function(workflowService::progressUsing )) // Note: progressUsing can return an empty mono
