@@ -1217,6 +1217,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// List<UserIdentifier> user_identifiers;
 		localBarcodes.add(almaUser.getPrimary_id());
 
+		boolean isActive = almaUser.getStatus() != null && "ACTIVE".equalsIgnoreCase(almaUser.getStatus().getValue());
+		boolean isDeleted = almaUser.getStatus() != null && "DELETED".equalsIgnoreCase(almaUser.getStatus().getValue());
+
+
 		return Patron.builder()
 			.localId(localIds) // list
 			.localNames(localNames)
@@ -1531,6 +1535,7 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 				final String newExpirationDateStr = newExpiryDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "Z";
 
 				almaUser.setExpirationDate(newExpirationDateStr);
+				almaUser.setStatus(CodeValuePair.builder().value("ACTIVE").build());
 
 				return client.updateUserDetails(almaUser.getPrimary_id(), almaUser)
 					.map(updatedUser -> {
