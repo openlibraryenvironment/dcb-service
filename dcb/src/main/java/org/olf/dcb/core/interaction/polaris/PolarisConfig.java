@@ -44,6 +44,8 @@ public class PolarisConfig {
 	private String accessKey;
 	@JsonProperty("logon-branch-id")
 	private Object logonBranchId;
+	@JsonProperty("virtual-patron-branch-id")
+	private Object virtualPatronBranchId;
 	@JsonProperty("logon-user-id")
 	private Object logonUserId;
 	@JsonProperty("contextHierarchy")
@@ -234,6 +236,19 @@ public class PolarisConfig {
 		final var value = getNestedProperty(getItem(), ItemConfig::getIllLocationId);
 
 		return requiredValue("Ill Location ID", value, Integer.class);
+	}
+
+	/**
+	 * The branch a virtual patron is registered at. Polaris validates the patron code against this
+	 * branch (error -3612 "PatronCodeID does not exist for patron's branch" when it does not match),
+	 * so it must be a branch where the DCB patron types are defined. Defaults to the ILL location -
+	 * the branch DCB already uses for patron defaults and checkout logon, and where the DCB patron
+	 * types are configured. Override only when a deployment defines its DCB patron types at a
+	 * different branch.
+	 */
+	public Integer getVirtualPatronBranchId() {
+
+		return valueWithDefault(this.virtualPatronBranchId, Integer.class, getIllLocationId());
 	}
 
 	public Integer getHoldFetchingDelay(Integer defaultDelay) {
