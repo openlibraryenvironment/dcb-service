@@ -2,7 +2,6 @@ package org.olf.dcb.core.interaction.ncip;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import javax.xml.XMLConstants;
@@ -27,7 +26,7 @@ public class NcipSchemaValidator {
 			schemaFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
 			schemaFactory.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "file");
 
-			this.schema = schemaFactory.newSchema(schemaSource(schemaPath));
+			this.schema = schemaFactory.newSchema(new StreamSource(schemaPath.toFile()));
 		}
 		catch (SAXException e) {
 			throw new IllegalArgumentException(
@@ -51,21 +50,4 @@ public class NcipSchemaValidator {
 		}
 	}
 
-	private static StreamSource schemaSource(Path schemaPath) {
-		final var extensionSchema = schemaPath.resolveSibling(
-			"openrs_ncip_extension.xsd");
-
-		if (!Files.exists(extensionSchema)) {
-			return new StreamSource(schemaPath.toFile());
-		}
-
-		final var wrapper = """
-			<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-			  <xs:import namespace="http://www.niso.org/2008/ncip" schemaLocation="%s"/>
-			  <xs:import namespace="https://openrs.org/ncip/fallback-host" schemaLocation="%s"/>
-			</xs:schema>
-			""".formatted(schemaPath.toUri(), extensionSchema.toUri());
-
-		return new StreamSource(new StringReader(wrapper));
-	}
 }
