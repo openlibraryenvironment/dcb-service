@@ -306,7 +306,10 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 
 	private void assertRequestPlacedAtPickupAgency(UUID requestUUID) {
 		final String expectedStatus = "REQUEST_PLACED_AT_PICKUP_AGENCY";
-		final int timeoutInSeconds = 15;
+		// 15s was too tight once the whole suite runs together under Micronaut 5, whose
+		// first-request cold start is slower. Matches SameLibraryWorkflowApiTests and
+		// DummyScenarioTests, which already allow 30s for the same wait.
+		final int timeoutInSeconds = 30;
 
 		log.info("Verifying that request ID {} is placed at the pickup agency...", requestUUID);
 
@@ -340,7 +343,10 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	}
 
 	private BibPatch createCommonBibPatch() {
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
+
 		return BibPatch.builder()
+			.fixedFields(fixedFields)
 			.authors(List.of("Stafford Beer"))
 			.titles(List.of("Brain of the Firm"))
 			.build();

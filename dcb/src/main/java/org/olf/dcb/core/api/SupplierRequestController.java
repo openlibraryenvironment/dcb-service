@@ -314,7 +314,7 @@ public class SupplierRequestController {
 	}
 
 	private MutableHttpResponse<Object> error(HttpStatus status, HttpRequest<?> req,
-																						String code, String message, @Nullable String detail) {
+																						String code, String message, String detail) {
 		return HttpResponse.status(status).body(
 			new ApiError(code, message, status.getCode(),
 				req != null ? req.getPath() : null,

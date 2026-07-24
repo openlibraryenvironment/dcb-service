@@ -151,14 +151,18 @@ public class PolarisItemMapper {
 	 * @return a Mono containing the enriched item
 	 */
 	private Mono<Item> enrichItemWithAgency(ItemGetRow itemGetRow, Item item, String hostLmsCode, String itemAgencyResolutionMethod) {
+		// NB: `case null` is required for the same reason as in getLocation below. A
+		// switch on a String throws NullPointerException before reaching `default`, and
+		// a null resolution method is reachable -- PolarisConfig documents that setting
+		// it to null in config deliberately overrides the default.
 		return switch(itemAgencyResolutionMethod) {
 			case "LocationId" -> enrichItemWithAgencyUsingLocationId(itemGetRow, item, hostLmsCode);
 			case "Legacy" -> legacyEnrichItemWithAgency(item, hostLmsCode);
-			default -> Mono.just(item);
+			case null, default -> Mono.just(item);
     };
   }
 
-	private Mono<Item> enrichItemWithAgencyUsingLocationId(@NonNull ItemGetRow itemGetRow, @NonNull Item item, @NonNull String hostLmsCode) {
+	private Mono<Item> enrichItemWithAgencyUsingLocationId(ItemGetRow itemGetRow, Item item, String hostLmsCode) {
 		return locationToAgencyMappingService.dataAgencyFromMappedExternal(hostLmsCode, "Location", itemGetRow.getLocationID().toString())
 			.map(item::setAgency)
 			.switchIfEmpty(Mono.defer(() -> {
@@ -197,10 +201,14 @@ public class PolarisItemMapper {
 
 	private org.olf.dcb.core.model.Location getLocation(ItemGetRow itemGetRow, String itemAgencyResolutionMethod) {
 
+		// NB: `case null` is required -- this is reached with a null resolution method
+		// when the Host LMS config omits item-agency-resolution-method. Null is treated
+		// the same as the default (shelf location), which is what the previous
+		// `default ->` branch did for any unrecognised value.
 		final var locationName = switch(itemAgencyResolutionMethod) {
       case "LocationId" -> getValueOrNull(itemGetRow, ItemGetRow::getLocationName);
       case "Legacy" -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
-      default -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
+      case null, default -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
     };
 
 		if (locationName == null) return Location.builder().build();
@@ -212,8 +220,8 @@ public class PolarisItemMapper {
 			.build();
 	}
 
-	private boolean deriveItemSuppressedFlag(@NonNull ItemGetRow itemGetRow,
-		@NonNull Optional<ObjectRuleset> itemSuppressionRules, List<String> decisionLog) {
+	private boolean deriveItemSuppressedFlag(ItemGetRow itemGetRow,
+		Optional<ObjectRuleset> itemSuppressionRules, List<String> decisionLog) {
 
 		// do we display in pac? if false we need true for suppression
 		// if display in pac is set to true then suppression is false

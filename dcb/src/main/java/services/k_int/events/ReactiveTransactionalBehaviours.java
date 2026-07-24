@@ -52,8 +52,7 @@ public class ReactiveTransactionalBehaviours {
 		return true;
 	}
 	
-	@NonNull
-	private static ConcurrentLinkedQueue<Runnable> getSideEffectQueueFor(@NonNull final ReactiveTransactionStatus<?> status) {
+	private static ConcurrentLinkedQueue<Runnable> getSideEffectQueueFor(final ReactiveTransactionStatus<?> status) {
 		ConcurrentLinkedQueue<Runnable> queue = sideEffects.computeIfAbsent(status, _s -> new ConcurrentLinkedQueue<>());
 		
 		// Create the listener for this transaction.
@@ -62,7 +61,7 @@ public class ReactiveTransactionalBehaviours {
 //				.publishOn( scheduler )
 				.subscribeOn( scheduler )
 				.filter( ReactiveTransactionStatus::isCompleted )
-				.repeatWhenEmpty( l -> Mono.delay(Duration.ofNanos(200)))
+				.repeatWhenEmpty(l -> l.delayElements(Duration.ofMillis(200)))
 				
 				// Rollbacks degrade to empty publisher
 				.filter( ReactiveTransactionalBehaviours::noneRollbackPredicate )

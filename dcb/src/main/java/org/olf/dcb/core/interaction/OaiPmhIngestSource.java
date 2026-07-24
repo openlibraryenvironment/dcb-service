@@ -648,7 +648,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		);
 	}
 
-	private Mono<JsonNode> reactiveObjectMap ( @NonNull Object obj ) {
+	private Mono<JsonNode> reactiveObjectMap ( Object obj ) {
 		try {
 			return Mono.justOrEmpty( objectMapper.writeValueToTree(obj) );
 		} catch ( IOException e ) {

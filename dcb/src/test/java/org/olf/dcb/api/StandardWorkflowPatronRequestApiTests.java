@@ -194,7 +194,10 @@ class StandardWorkflowPatronRequestApiTests {
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("2745326", "i", null);
 
 		// borrowing agency service
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
+
 		final var bibPatch = BibPatch.builder()
+			.fixedFields(fixedFields)
 			.authors(List.of("Stafford Beer"))
 			.titles(List.of("Brain of the Firm"))
 			.build();
@@ -340,8 +343,12 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat(placedPatronRequest.getRequestor().getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 
 		log.info("Waiting for placed....");
+		// 20s was too tight once the whole suite runs together under Micronaut 5, whose
+		// first-request cold start is slower; the request was still short of
+		// REQUEST_PLACED_AT_BORROWING_AGENCY when the budget expired, and the workflow
+		// still running into the next test's cleanup then cascaded into FK violations.
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await()
-			.atMost(20, SECONDS)
+			.atMost(30, SECONDS)
 			.until(
 				() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.getId()),
 					isPlacedAtBorrowingAgency());

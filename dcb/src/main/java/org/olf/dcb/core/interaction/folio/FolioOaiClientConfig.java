@@ -21,8 +21,10 @@ import io.micronaut.http.ssl.SslConfiguration;
 import io.micronaut.logging.LogLevel;
 import jakarta.inject.Singleton;
 
+// Extends the CONCRETE DefaultHttpClientConfiguration (like PolarisClientConfig), now it seems to work on MN5
+// Original aim: provide a custom read timeout for slow FOLIO ingests. New tests added to try and maintain this.
 @Singleton
-public class FolioOaiClientConfig extends HttpClientConfiguration {
+public class FolioOaiClientConfig extends DefaultHttpClientConfiguration {
 	final Optional<Duration> folioTimeout = Optional.of( Duration.ofMinutes(10) );
 	
 	HttpClientConfiguration defaultConfig;

@@ -45,7 +45,7 @@ public class AvailabilityResponseView {
 		return new AvailabilityResponseView(mappedItems, mappedErrors, timingsMap, clusteredBibId);
 	}
 
-	private static ARVItem mapItem(Item item) {
+	static ARVItem mapItem(Item item) {
 		return ARVItem.builder()
 			.id(getValueOrNull(item, Item::getLocalId))
 			.barcode(getValueOrNull(item, Item::getBarcode))
@@ -72,20 +72,20 @@ public class AvailabilityResponseView {
 			.build();
 	}
 
-	private static Location mapLocation(Item item) {
+	static Location mapLocation(Item item) {
 		return Location.builder()
 			.code(getValueOrNull(item, Item::getLocation, org.olf.dcb.core.model.Location::getCode))
 			.name(getValueOrNull(item, Item::getLocation, org.olf.dcb.core.model.Location::getName))
 			.build();
 	}
 
-	private static Status mapStatus(Item item) {
+	static Status mapStatus(Item item) {
 		final var statusCode = getValueOrNull(item, Item::getStatus, ItemStatus::getCode);
 
 		return new Status(getValueOrNull(statusCode, Enum::name));
 	}
 
-	private static Agency mapAgency(Item item) {
+	static Agency mapAgency(Item item) {
 		final var agency = getValueOrNull(item, Item::getAgency);
 
 		if (agency == null) {
@@ -100,7 +100,7 @@ public class AvailabilityResponseView {
 			.build();
 	}
 
-	private static Error mapError(AvailabilityReport.Error error) {
+	static Error mapError(AvailabilityReport.Error error) {
 		return Error.builder()
 			.message(getValueOrNull(error, AvailabilityReport.Error::getMessage))
 			.build();

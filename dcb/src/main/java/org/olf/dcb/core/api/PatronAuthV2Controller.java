@@ -142,7 +142,7 @@ public class PatronAuthV2Controller {
 		List<String> uniqueIds;
 		List<String> nameParts;
 
-		private boolean isValid() {
+		boolean isValid() {
 			return VALID.equals(status);
 		}
 	}

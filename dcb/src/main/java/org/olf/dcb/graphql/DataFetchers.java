@@ -690,7 +690,7 @@ public class DataFetchers {
 							int fromIndex = finalPageno * finalPagesize;
 							int toIndex = Math.min(fromIndex + finalPagesize, sortedList.size());
 							List<ReferenceValueMapping> paginatedList = sortedList.subList(fromIndex, toIndex);
-							Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno, finalPagesize), sortedList.size());
+							Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno, finalPagesize), (long) sortedList.size());
 							return Mono.just(resultPage);
 						}).toFuture();
 				}
@@ -713,7 +713,7 @@ public class DataFetchers {
 						int fromIndex = finalPageno1 * finalPagesize1;
 						int toIndex = Math.min(fromIndex + finalPagesize1, sortedList.size());
 						List<ReferenceValueMapping> paginatedList = sortedList.subList(fromIndex, toIndex);
-						Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno1, finalPagesize1), sortedList.size());
+						Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno1, finalPagesize1), (long) sortedList.size());
 						return Mono.just(resultPage);
 					}).toFuture();
 			} else {

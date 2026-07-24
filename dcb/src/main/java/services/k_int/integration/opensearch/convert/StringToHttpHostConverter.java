@@ -3,7 +3,7 @@ package services.k_int.integration.opensearch.convert;
 import java.net.URI;
 import java.util.Optional;
 
-import org.apache.http.HttpHost;
+import org.apache.hc.core5.http.HttpHost;
 import org.opensearch.client.RestClientBuilder;
 
 import io.micronaut.context.annotation.Requires;
@@ -19,6 +19,6 @@ public class StringToHttpHostConverter implements TypeConverter<CharSequence, Ht
 	public Optional<HttpHost> convert(CharSequence object, Class<HttpHost> targetType, ConversionContext context) {
 		String uriString = object.toString();
 		URI uri = URI.create(uriString);
-		return Optional.of(new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme()));
+		return Optional.of(new HttpHost(uri.getScheme(), uri.getHost(), uri.getPort()));
 	}
 }

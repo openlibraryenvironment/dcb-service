@@ -899,7 +899,6 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	}
 
 
-	@SuppressWarnings("unchecked")
 	private void addToCanonicalMetadata(String property, VariableField vf, String tags,
 			Map<String, Object> canonical_metadata) {
 

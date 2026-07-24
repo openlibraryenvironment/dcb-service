@@ -8,7 +8,7 @@ buildscript {
 
 plugins {
   id "io.micronaut.graalvm" version "$micronautGradleVersion"
-	id("com.github.johnrengelman.shadow") version "8.1.1"
+	id("com.gradleup.shadow") version "9.3.0"
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
 	id("io.micronaut.test-resources") version "$micronautGradleVersion"
@@ -17,7 +17,7 @@ plugins {
 	id 'org.olf.dcb-bom'
 	id 'service.k_int.micronaut-multi'
   // Per https://guides.micronaut.io/latest/adding-commit-info-gradle-java.html
-  id "com.gorylenko.gradle-git-properties" version "2.5.0"
+  id "com.gorylenko.gradle-git-properties" version "4.0.1"
   id('com.jaredsburrows.license') version '0.9.8'
 }
 
@@ -29,7 +29,7 @@ repositories {
 }
 
 ext {
-  BASE_IMAGE = project.findProperty('BASE_IMAGE') ?: 'eclipse-temurin:21-jre-alpine'
+  BASE_IMAGE = project.findProperty('BASE_IMAGE') ?: 'eclipse-temurin:25-jre-alpine'
 }
 
 
@@ -50,7 +50,6 @@ dependencies {
 	annotationProcessor('io.micronaut:micronaut-graal')
   annotationProcessor("io.micronaut.micrometer:micronaut-micrometer-annotation")
 
-	compileOnly("org.graalvm.nativeimage:svm")
 	compileOnly("io.micronaut:micronaut-inject-java")
 
 
@@ -84,18 +83,27 @@ dependencies {
 	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
 
+  // micronaut-platform 5.0.2 pulls micronaut-opensearch-bom 2.0.0, which manages
+  // opensearch-java 3.8.0 -- a version that only ships the legacy Jackson 2
+  // JsonpMapper and therefore cannot accept the Jackson 3 ObjectMapper Micronaut 5
+  // injects (see DefaultOpenSearchClientFactory). BOM 2.1.0 manages 3.9.0/3.7.0,
+  // which do ship a jackson3 mapper. Overriding the BOM keeps us on a
+  // Micronaut-validated combination rather than pinning the client ourselves.
+  implementation platform("io.micronaut.opensearch:micronaut-opensearch-bom:2.1.0")
   implementation 'org.opensearch.client:opensearch-java'
   implementation 'org.opensearch.client:opensearch-rest-client'
-	// implementation 'org.opensearch.client:opensearch-java'
-	// implementation 'org.opensearch.client:opensearch-rest-client'
 
 	implementation("ch.qos.logback:logback-core")
 	implementation("ch.qos.logback:logback-classic")
 
 	// These are needed to address critical CVEs that block deployment
 	implementation("io.netty:netty-handler")
+	implementation("org.apache.httpcomponents:httpasyncclient")
+	implementation("org.apache.httpcomponents:httpclient")
 	implementation("org.apache.httpcomponents.client5:httpclient5")
 	implementation("commons-beanutils:commons-beanutils")
+	implementation("com.fasterxml.jackson.core:jackson-databind")
+	implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-xml")
 	
 	implementation 'info.debatty:java-string-similarity'
 
@@ -111,9 +119,9 @@ dependencies {
 
 	//data
 	implementation("io.micronaut.r2dbc:micronaut-r2dbc-core")
+	implementation("io.micronaut.data:micronaut-data-connection-jdbc")
 	implementation("io.micronaut.data:micronaut-data-processor")
 	implementation("io.micronaut.data:micronaut-data-r2dbc")
-	implementation("io.micronaut.data:micronaut-data-jdbc")
 	implementation("io.micronaut.sql:micronaut-jdbc-hikari")
 	// Introduced in DCB-1302 because of this issue https://github.com/micronaut-projects/micronaut-security/issues/1468
 	implementation("io.micrometer:context-propagation")
@@ -153,6 +161,7 @@ dependencies {
 	implementation 'com.hazelcast:hazelcast'
 
 	// Keep Testcontainers compatible with Docker API >= 1.44 on current GitHub runners.
+	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.3"))
 	testRuntimeOnly(platform("org.testcontainers:testcontainers-bom:2.0.3"))
 	testResourcesService(platform("org.testcontainers:testcontainers-bom:2.0.3"))
 
@@ -191,9 +200,16 @@ dependencies {
 	testImplementation('org.awaitility:awaitility')
 	testImplementation('io.projectreactor:reactor-test')
 
+	// opensearch-testcontainers is managed by micronaut-opensearch-bom 2.1.0 (see the
+	// platform import above) and builds against Testcontainers 2.x, matching the
+	// testcontainers-bom already pinned here. Testcontainers core is otherwise only a
+	// runtime dependency, so it needs promoting to compile the index integration test.
+	testImplementation('org.testcontainers:testcontainers')
+	testImplementation('org.opensearch:opensearch-testcontainers')
+
 	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
 
-	testRuntimeOnly("org.testcontainers:postgresql")
+	testRuntimeOnly("org.testcontainers:testcontainers-postgresql:2.0.5")
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
 	implementation("com.graphql-java:graphql-java-extended-scalars" )
@@ -230,14 +246,18 @@ run {
 }
 
 java {
-	sourceCompatibility = JavaVersion.toVersion("17")
-	targetCompatibility = JavaVersion.toVersion("17")
+	sourceCompatibility = JavaVersion.toVersion("25")
+	targetCompatibility = JavaVersion.toVersion("25")
 }
 
 micronaut {
 	runtime("netty")
 	testRuntime("junit5")
-	version "4.4.3"
+	version micronautVersion
+	testResources {
+		inferClasspath.set(false)
+		additionalModules.addAll("jdbc-postgresql", "r2dbc-postgresql", "r2dbc-pool")
+	}
 	processing {
 		incremental(true)
 		annotations("org.olf.dcb.*", "services.k_int.*")
@@ -253,6 +273,10 @@ micronaut {
 //      deduceEnvironment = false
 //      optimizeNetty = true
 //  }
+}
+
+tasks.matching { it.name == "inspectRuntimeClasspath" || it.name == "inspectTestRuntimeClasspath" }.configureEach {
+	dependsOn(tasks.named("generateGitProperties"))
 }
 
 final Set<String> jacocoExcludes = [
@@ -338,6 +362,41 @@ tasks {
 		images = nativeImageNames
 	}
 
+	// Native image packaging, built from the nativeCompile output rather than through
+	// Micronaut's dockerBuildNative / dockerPushNative.
+	//
+	// Those tasks are unusable on Gradle 9: NativeImageDockerfile fails the stricter task
+	// validation with "property 'nativeImageOptions.layers' is missing an input or output
+	// annotation". Micronaut Gradle plugin 5.0.1 and 5.0.2 are both affected and 5.0.2 is
+	// the latest release, so there is nothing to upgrade to. nativeCompile itself is fine,
+	// so we package its binary ourselves.
+	//
+	// The base image must be glibc-based. The native binary is dynamically linked against
+	// /lib64/ld-linux-x86-64.so.2, so the Alpine/musl BASE_IMAGE used for the JVM image
+	// will NOT run it.
+	project.tasks.register('dockerfileNativeBinary', com.bmuschko.gradle.docker.tasks.image.Dockerfile) {
+		dependsOn 'nativeCompile'
+		destFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.native'))
+		from(project.findProperty('NATIVE_BASE_IMAGE') ?: 'cgr.dev/chainguard/wolfi-base:latest')
+		workingDir('/app')
+		copyFile('dcb', '/app/application')
+		exposePort(8080)
+		label(labels)
+		entryPoint('/app/application')
+	}
+
+	project.tasks.register('dockerBuildNativeBinary', com.bmuschko.gradle.docker.tasks.image.DockerBuildImage) {
+		dependsOn 'dockerfileNativeBinary'
+		inputDir.set(layout.buildDirectory.dir('native/nativeCompile'))
+		dockerFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.native'))
+		images.set(nativeImageNames)
+	}
+
+	project.tasks.register('dockerPushNativeBinary', com.bmuschko.gradle.docker.tasks.image.DockerPushImage) {
+		dependsOn 'dockerBuildNativeBinary'
+		images.set(nativeImageNames)
+	}
+
 
 	jacocoTestReport {
 		dependsOn test
@@ -382,10 +441,32 @@ graalvmNative {
         main {
         		// Uncomment quickBuild when testing in development only
         		// quickBuild = true
+            // GraalVM 25.0.3 crashes in PartialEscapeBlockState during pre-analysis.
+            // Retain Optimize=2 while disabling only the failing compiler pass.
+            buildArgs.add('-H:-EscapeAnalysisBeforeAnalysis')
             buildArgs.add('--verbose')
             buildArgs.add('-march=x86-64-v2')
             buildArgs.add('-H:+AddAllCharsets')
-            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j.LoggerFactory,ch.qos.logback,kotlin.coroutines.intrinsics.CoroutineSingletons')
+            // org.slf4j is initialised at build time as a whole package, matching how
+            // ch.qos.logback is handled. LoggerFactory caches its resolved provider in static
+            // state, so that provider and everything it reaches (NOPLoggerFactory, NOPLogger,
+            // BasicMarkerFactory, the substitute providers) gets snapshotted into the image
+            // heap. Listing the classes individually turned into whack-a-mole: each build
+            // failed with "An object of type 'org.slf4j.helpers.X' was found in the image heap
+            // ... marked for initialization at image run time" naming the next one along.
+            // org.xml.sax is needed because ch.qos.logback is build-time initialised, so
+            // logback.xml is parsed during the build and the resulting configuration retains
+            // SAX objects (org.xml.sax.helpers.LocatorImpl). Without it the build fails with
+            // "Cannot read instance field of a class that is initialized at run time:
+            // org.xml.sax.helpers.LocatorImpl.publicId".
+            // com.fasterxml.jackson is required because ch.qos.logback.contrib.jackson
+            // .JacksonJsonFormatter is build-time initialised and holds a Jackson 2
+            // ObjectMapper; without it the build fails with "Cannot read instance field of a
+            // class that is initialized at run time:
+            // com.fasterxml.jackson.databind.ObjectMapper._jsonFactory". This is Jackson 2,
+            // used only by the logback JSON layout -- the application itself is on Jackson 3
+            // (tools.jackson) under Micronaut 5.
+            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j,ch.qos.logback,org.xml.sax,com.fasterxml.jackson,kotlin.coroutines.intrinsics.CoroutineSingletons')
             buildArgs.add('--add-opens=java.base/java.nio=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED')
@@ -404,6 +485,7 @@ tasks.withType(ShadowJar) {
 }
 
 tasks.withType(Test).configureEach {
+    maxHeapSize = '2g'
     jvmArgs '--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED',
             '--add-opens=java.base/java.lang=ALL-UNNAMED',
             '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
@@ -411,58 +493,6 @@ tasks.withType(Test).configureEach {
             '--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED',
             '-Dio.netty.leakDetectionLevel=paranoid'
 }
-
-def oderedAnnotationDeps = new HashMap<String, Integer>()
-
-configurations.annotationProcessor { ap ->
-	ap.incoming.afterResolve { resolution ->
-
-		println ap.name
-		int count = 0
-    resolution.resolutionResult.allComponents.each	{ comp ->
-    	comp.dependencies.each { dependency ->
-
-    		if (ResolvedDependencyResult.class.isAssignableFrom( dependency.getClass() )) {
-    			ResolvedDependencyResult resDep = dependency as ResolvedDependencyResult
-    			final String key = "${resDep.selected}";
-    			if (oderedAnnotationDeps.containsKey( key )) return;
-
-	    	  //println dependency
-	      	oderedAnnotationDeps[key] = count++
-      	}
-      }
-    }
-    // println oderedAnnotationDeps
-  }
-}
-
-eclipse {
-  factorypath {
-  	file {
-	  	whenMerged { fp ->
-
-	  	  final String regex = '^.*\\/([^\\.\\/]+(\\.[^\\.\\/]+)+)\\/([^\\/]+)\\/(\\d+[^\\/]+)\\/.*$'
-	  	  final String subst = '$1:$3:$4';
-
-				// Change the enties
-				List entries = fp.getEntries().sort { s1, s2 ->
-				  final String sub1 = s1.canonicalPath.replaceAll( regex, subst )
-				  final String sub2 = s2.canonicalPath.replaceAll( regex, subst )
-
-					int val1 = oderedAnnotationDeps.get( sub1 ) ?: Integer.MAX_VALUE
-					int val2 = oderedAnnotationDeps.get( sub2 ) ?: Integer.MAX_VALUE
-
-					val1 <=> val2
-				}
-
-				fp.getEntries().each { fpent ->
-					println fpent
-				}
-			}
-		}
-  }
-}
-
 
 licenseReport {
   // Generate reports
