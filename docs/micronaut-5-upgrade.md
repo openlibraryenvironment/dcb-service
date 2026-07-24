@@ -1,7 +1,10 @@
 # Micronaut 4 → 5 (and JDK 21 → 25)
 
-What this upgrade actually involved, and the traps worth knowing before the next
+We recently upgraded DCB Service to use Micronaut 5. This document aims to capture what this upgrade actually involved, and the traps worth knowing before the next
 one. Written after the fact from the work on `mn-5-upgrade`.
+This document has two purposes: to explain the decisions made in this upgrade, and to ensure that future Micronaut upgrades are easier for the team to manage.
+If any decisions articulated in this document are later proven to be wrong, unnecessary, or outdated, please update this document.
+
 
 ## Versions moved
 
@@ -14,7 +17,7 @@ one. Written after the fact from the work on `mn-5-upgrade`.
 | Jackson | 2 (`com.fasterxml`) | 3 (`tools.jackson`) |
 | Shadow plugin | `com.github.johnrengelman` 8.1.1 | `com.gradleup` 9.3.0 |
 
-## The one lesson worth internalising
+## Lessons learned
 
 **Almost every serious defect in this upgrade was silent.** Nothing threw at
 build time; a customisation hook or version pin simply stopped being honoured,
@@ -37,18 +40,18 @@ far more than it looks; the metrics filter was diagnosed purely because its
 "Extended metrics enabled" line was absent from a startup log.
 
 **Corollary on version pins:** Gradle resolves version conflicts by taking the
-**highest** version, and a platform BOM participates in that. Our Hazelcast pin of
-5.4.0 worked under Micronaut 4 only by luck — the MN4 cache BOM managed 5.3.7, so
+**highest** version, and a platform BOM participates in that. Previously, we had a Hazelcast pin of
+5.4.0. This worked under Micronaut 4 — the MN4 cache BOM managed 5.3.7, so
 our higher pin won. MN5's cache BOM moved to 5.6.0, which then won for exactly the
-same reason. A plain constraint can only ever raise a version; if a pin is
+same reason and caused the "licensed feature" error listed above. A plain constraint can only ever raise a version; if a pin is
 load-bearing it must be `strictly`, with a comment saying why, or the next
 platform bump silently undoes it.
 
-## Trap register
+## The traps we encountered
 
 ### Dependency and BOM
 
-- **Micronaut's platform BOM manages more than you think.** It overrode both the
+- **Micronaut's platform BOM managed more than we expected** It overrode both the
   Hazelcast pin and the OpenSearch client version. Check `dependencyInsight` for
   anything you rely on being a specific version.
 - **Prefer overriding a module BOM to pinning a library.** For OpenSearch, moving
@@ -62,11 +65,12 @@ platform bump silently undoes it.
 - Micronaut 5 injects `tools.jackson.databind.ObjectMapper`. Anything asking for
   `com.fasterxml.jackson.databind.ObjectMapper` will fail to inject.
 - Jackson 2 is still on the classpath (logback's JSON layout, opensearch-java's
-  legacy mapper), so `com.fasterxml` imports still *compile*. That is what makes
-  this dangerous.
+  legacy mapper), so `com.fasterxml` imports still *compile*. That makes
+  this something to watch out for.
 - **Do not hand-roll `new ObjectMapper()`** to dodge the problem. It bypasses
   Micronaut's configuration and changes defaults — `FAIL_ON_UNKNOWN_PROPERTIES`
-  bit us exactly this way.
+  bit us exactly this way with the Polaris configuration. 
+- This would have broken ALL Polaris Host LMS configuration had it been merged.
 
 ### Micronaut Serde 3
 
@@ -86,7 +90,7 @@ platform bump silently undoes it.
   (`property 'nativeImageOptions.layers' is missing an input or output
   annotation`) in plugin 5.0.1 and 5.0.2. Workaround: package the `nativeCompile`
   output with plain Docker tasks — see `dockerBuildNativeBinary`.
-- JDK 25 requires Gradle 9; you cannot downgrade Gradle to dodge the above.
+- JDK 25 requires Gradle 9; we cannot downgrade Gradle to dodge the above.
 
 ### Scheduling
 
@@ -106,14 +110,15 @@ platform bump silently undoes it.
 
 - **MN5's first-request cold start is slower.** Tight timeouts start failing
   non-deterministically — different tests each run, all passing in isolation.
-  Widen the budget rather than chasing individual tests.
+  We have widened the budget rather than chasing individual tests. 
+- This may not be the best approach in the long run: a re-evaluation of testing in DCB is worthwhile, but well out of scope.
 - Watch for failures that *cascade*: one awaitility timeout left a workflow
   in-flight, which then broke the next test's `@BeforeEach` cleanup with FK
   violations. Fix the first failure, not the three that follow it.
 
 ### Native image
 
-Three build-time-initialisation failures, each only visible once the previous was
+We encountered build-time-initialisation failures, each only visible once the previous was
 fixed:
 
 1. `org.slf4j.helpers.NOPLoggerFactory` in the image heap → initialise
@@ -130,9 +135,7 @@ Also: GraalVM 25 could crash in `PartialEscapeBlockState` during pre-analysis;
 
 ## What was deliberately not done
 
-- **Micronaut Test Resources was kept.** Removing it (as the ISO18626 spike did)
-  saves only ~13.5s one-time and loses the test-resources server's container reuse
-  between consecutive local runs.
+- **Micronaut Test Resources was kept for now.** It will likely be removed when the foundation + dual-agency spike is merged.
 - **CP-subsystem locking was kept.** Pinning Hazelcast to 5.4.0 preserves
   behaviour; replacing `FencedLock` with `IMap` locking would change locking
   semantics from fenced/linearizable to best-effort, which does not belong in an
@@ -140,17 +143,23 @@ Also: GraalVM 25 could crash in `PartialEscapeBlockState` during pre-analysis;
 
 ## Known follow-ups
 
-- Hazelcast is pinned to a 2024 release — check for CVEs fixed in 5.5/5.6, and
-  confirm JDK 25 behaviour.
+- Hazelcast is pinned to a 2024 release — JDK 25 behaviour is now **confirmed** (the
+  CP subsystem forms and `getLock(...)` works in the native boot above); the open
+  item is CVEs fixed in 5.5/5.6.
 - `folio/Holding.location` is typed `String` but real FOLIO returns an object.
   Pre-existing, not MN5, but it fires an alarm on every occurrence.
 - `GraphQLSecurityContextCustomizer` assumes Keycloak-shaped claims and has no
-  test coverage; the spike branch has a generic-OIDC fix worth taking separately.
+  test coverage; this will be resolved when generic-oidc work lands.
 - `testcontainers-bom` (2.0.3) and `testcontainers-postgresql` (2.0.5) disagree.
 
 ## Verification baseline
 
 - `./gradlew :dcb:test` — 692 tests, 0 failures, 2 skipped.
-- `nativeCompile` succeeds and the binary starts (banner, context, logback output,
-  scheduled-method registration) before stopping on an absent database.
+- `nativeCompile` succeeds and the binary **boots end-to-end**. Run against a
+  `postgres:18` container it reports `/health` UP with both the R2DBC and JDBC
+  datasources connected (Flyway migrates over JDBC), the relocated AppTask scheduler
+  registers and runs its jobs in native, and the Hazelcast CP subsystem forms —
+  `getCPSubsystem().getLock(...)` resolves to the real impl, not the licensed stub,
+  under native + JDK 25. The one native path still unexercised is the
+  OpenSearch/Elasticsearch client, which only runs with `dcb.index` configured.
 - Verified against Elasticsearch 9.4.0 (secured) and OpenSearch 2.14.0 / 2.19.1.

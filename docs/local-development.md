@@ -1,5 +1,9 @@
 # Running DCB locally
 
+This is a work in progress document that aims to assist local development on dcb-service.
+It is written after the Micronaut 5 upgrade to highlight certain changes, and will be updated continuously.
+It may also be useful for developers working with AI-assisted development tools, in explaining how local development works in this repo.
+
 ## Prerequisite: JDK 25
 
 Since the Micronaut 5 upgrade, DCB builds and runs on **JDK 25** (Gradle 9.3,
@@ -146,9 +150,13 @@ export R2DBC_DATASOURCES_DEFAULT_PASSWORD="dcb"
 Both datasources must point at the same database: Flyway migrates over JDBC
 while the application reads and writes over R2DBC.
 
-> Verified: the container starts healthy with `max_connections=200`. Booting DCB
-> end-to-end against it has **not** been verified — if Flyway or R2DBC complains,
-> that is the first place to look.
+> Verified: the container starts healthy with `max_connections=200`, and the
+> datasource wiring itself is sound — the release/native image boots end-to-end
+> against an external Postgres with these variables (Flyway migrates over JDBC, R2DBC
+> connects, both `UP` on `/health`). What is **not** independently confirmed is that
+> under `./gradlew run` these variables win over Test Resources' own provisioning; if
+> you end up with two Postgres instances or an empty DB, that override is the first
+> place to look.
 
 ## Troubleshooting
 
@@ -279,6 +287,4 @@ overridable with `-PNATIVE_BASE_IMAGE`.
 ## A note on secrets
 
 `~/.dcb.sh` holds live Keycloak credentials and is deliberately outside the
-repo. Keep it that way: never move real client secrets, admin passwords or Slack
-webhook URLs into a tracked script. If you copy an existing dev script as a
-starting point, strip the credentials out of it first.
+repo. Keep yours in the home directory, never commit it.

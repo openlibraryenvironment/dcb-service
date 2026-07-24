@@ -374,7 +374,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		
 		Time time = getRefreshInterval();
 		
-		log.info("Attempting to update OpenSearch refresh interval to {}",time);
+		log.info("Attempting to update ElasticSearch refresh interval to {}",time);
 
     return changeIndexSettings( s -> s.index(i -> i.refreshInterval(time)));
 	}
