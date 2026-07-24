@@ -2,8 +2,8 @@
   elasticsearch:
     # THIS IMAGE IS BUILD AND PUBLISHED FROM THE KI-OKAPI-GITOPS REPO - docker-buildfiles subdir
     #  
-    # image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0  # Use latest version available
-    image: docker.libsdev.k-int.com/knowledgeintegration/folio-es:8.7.0  # Use latest version available
+    # image: docker.elastic.co/elasticsearch/elasticsearch:9.4.2  # Use latest version available
+    image: docker.libsdev.k-int.com/knowledgeintegration/folio-es:9.4.2  # Use latest version available
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
