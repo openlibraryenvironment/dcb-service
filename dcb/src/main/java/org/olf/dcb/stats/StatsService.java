@@ -1,24 +1,21 @@
 package org.olf.dcb.stats;
 
-import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Singleton;
 
-import org.olf.dcb.core.svc.BibRecordService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cluster.Member;
 import com.hazelcast.map.IMap;
-import jakarta.annotation.PreDestroy;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micronaut.scheduling.annotation.Scheduled;
 
 
@@ -36,70 +33,34 @@ public class StatsService implements Runnable{
 	private static final Logger log = LoggerFactory.getLogger(StatsService.class);
 	private static final String HEARTBEAT_KEY = "lastHeartbeat";
 
+	private static final String EVENTS_METRIC = "dcb.stats.events";
+	private static final String TIMED_METRIC = "dcb.stats.timed";
+
   private final HazelcastInstance hazelcastInstance;
+	private final MeterRegistry meterRegistry;
 
-
-	public StatsService( HazelcastInstance hazelcastInstance ) {
+	public StatsService(HazelcastInstance hazelcastInstance, MeterRegistry meterRegistry) {
 		this.hazelcastInstance = hazelcastInstance;
+		this.meterRegistry = meterRegistry;
 	}
 
-	// This needs to be a hazelcast map ideally
-	Map<String, StatCounter> stat_counters = new HashMap<String, StatCounter>();
-  // private IMap<String, StatCounter> stat_counters = null;
-
-
-  @jakarta.annotation.PostConstruct
-  public void init() {
-    stat_counters = new HashMap(); // hazelcastInstance.getMap("stats");
-  }
-
-	private StatCounter getCounter(String id) {
-		StatCounter result = stat_counters.get(id);
-		if ( result == null ) {
-			result = new StatCounter(id);
-			stat_counters.put(id,result);
-		}
-		return result;
-	}
 	/**
-	 * StatsService offers a general mechanism for maintaining a histogram of event counts. Initially, the
-	 * aim is to provide per-minute counts for the last hour, per hour counts for the last day and per day counts
-	 * for the past 30 days.
-	 * An example event BibRecordInserted, Context DCB (In case we want to be more granular later)
+	 * Records an event count by (event, context) as a Micrometer counter — scrape it
+	 * at the Prometheus/metrics endpoint. Replaces the former unbounded in-heap
+	 * stat_counters map (which had no live reader and grew without bound).
+	 *
+	 * Both tags are low-cardinality: event is a fixed set (BibInsert, BibUpdate,
+	 * DroppedTitle, DroppedNullTitle, IngestRecord) and context is a configured Host
+	 * LMS source code. Never pass a UUID, timestamp, or raw user input here — that
+	 * explodes meter cardinality (the high-cardinality ban).
 	 */
 	public void notifyEvent(String event, String context) {
-		StatCounter sc = getCounter(event+":"+context);
-		synchronized (sc) {
-			sc.increment();
-		}
-	}
-
-	public Report getReport() {
-		// log.debug("report {}",stat_counters);
-		return new Report(stat_counters);
+		meterRegistry.counter(EVENTS_METRIC, "event", event, "context", context).increment();
 	}
 
 	public void notifyTimedEvent(String event, String context, long elapsed) {
-		// log.debug("notifyTimedEvent({},{},{})",event,context,elapsed);
-	}
-
-	@Serdeable
-	public class Report {
-
-		public Map<String, StatCounter.StatCounterReport> counters;
-
-		public Report(Map<String, StatCounter> internal_counters) {
-			// this.counters = counters;
-			this.counters = new HashMap<String, StatCounter.StatCounterReport>();
-			for (var entry : internal_counters.entrySet()) {
-				// log.debug("Adding report for {}",entry.getKey());
-				counters.put(entry.getKey(), entry.getValue().report());
-			}
-		}
-
-		public Map<String, StatCounter.StatCounterReport> getCounters() {
-			return counters;
-		}
+		meterRegistry.timer(TIMED_METRIC, "event", event, "context", context)
+			.record(elapsed, TimeUnit.MILLISECONDS);
 	}
 
 	/**
