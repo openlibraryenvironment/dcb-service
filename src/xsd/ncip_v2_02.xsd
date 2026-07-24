@@ -302,7 +302,7 @@ Change history:
   14)	Removed StartDate & EndDate from DTD.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="http://www.niso.org/2008/ncip" targetNamespace="http://www.niso.org/2008/ncip" elementFormDefault="qualified" attributeFormDefault="qualified">
-	<xs:import namespace="https://openrs.org/ncip/fallback-host" schemaLocation="openrs-ncip-fallback-host.xsd"/>
+	<xs:import namespace="https://openrs.org/ncip/fallback-host" schemaLocation="openrs_ncip_extension.xsd"/>
 	<xs:element name="NCIPMessage">
 		<xs:complexType>
 			<xs:sequence>
