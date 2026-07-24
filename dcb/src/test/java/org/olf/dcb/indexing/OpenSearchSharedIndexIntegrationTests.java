@@ -23,6 +23,7 @@ import org.testcontainers.utility.DockerImageName;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.micronaut.test.support.TestPropertyProvider;
 import jakarta.inject.Inject;
+import org.olf.dcb.test.DcbTestContainerContextBuilder;
 
 /**
  * Guards the OpenSearch shared index against the class of failure that shipped
@@ -36,7 +37,8 @@ import jakarta.inject.Inject;
  * cover the serialization path (settings and mappings are written through the
  * JsonpMapper) and confirm the client can talk to the server.
  */
-@MicronautTest(startApplication = false)
+@MicronautTest(startApplication = false,
+	contextBuilder = DcbTestContainerContextBuilder.class)
 @TestInstance(PER_CLASS)
 class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 
