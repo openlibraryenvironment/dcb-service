@@ -279,6 +279,14 @@ tasks.matching { it.name == "inspectRuntimeClasspath" || it.name == "inspectTest
 	dependsOn(tasks.named("generateGitProperties"))
 }
 
+// The release workflows echo a git.properties into src/main/resources while the
+// gradle-git-properties plugin generates another; under Gradle 9 processResources
+// refuses the Copy unless a duplicate strategy is set. The generated file is emitted
+// last and wins, carrying full commit/branch/tag metadata.
+tasks.named("processResources") {
+	duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
 final Set<String> jacocoExcludes = [
 	'**/Application.class',
 	'services/k_int/**/*',
