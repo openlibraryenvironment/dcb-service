@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.polaris;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
+import static org.mockserver.model.StringBody.subString;
 import static org.olf.dcb.test.MockServerCommonResponses.okText;
 import static org.olf.dcb.test.MockServerCommonResponses.serverError;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
@@ -13,6 +14,7 @@ import java.util.List;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecordFull;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
@@ -78,6 +80,10 @@ public class MockPolarisFixture {
 		mockServer.replaceMock(commonRequests.post(paths.createPatron()), responseBody);
 	}
 
+	public void verifyCreatePatronBodyContains(String fragment) {
+		mockServer.verify(commonRequests.post(paths.createPatron()).withBody(subString(fragment)));
+	}
+
 	public void mockUpdatePatron(String patronBarcode) {
 		mockServer.mockPut(paths.patronByBarcode(patronBarcode),
 			okJson(PatronUpdateResult.builder().papiErrorCode(0).build()));
@@ -85,6 +91,30 @@ public class MockPolarisFixture {
 
 	public void verifyUpdatePatron(String barcode, PatronRegistration expectedUpdate) {
 		mockServer.verifyPut(paths.patronByBarcode(barcode), expectedUpdate);
+	}
+
+	/**
+	 * Mocks the PAPI patron date update (PUT /patron/{barcode}). Each call queues a single response,
+	 * so consecutive calls describe consecutive attempts. Success is signalled by a PAPI error code
+	 * of 0; a non-zero code means Polaris refused the change.
+	 */
+	public void mockUpdatePatronDates(String barcode, int papiErrorCode) {
+		mockServer.mock(commonRequests.put(paths.patronByBarcode(barcode)),
+			okJson(PatronUpdateResult.builder().papiErrorCode(papiErrorCode).build()), Times.once());
+	}
+
+	public void mockUpdatePatronDatesAlwaysFails(String barcode) {
+		mockServer.replaceMock(commonRequests.put(paths.patronByBarcode(barcode)),
+			okJson(PatronUpdateResult.builder().papiErrorCode(-1).build()));
+	}
+
+	public void verifyUpdatePatronDatesContains(String barcode, String expectedBodyFragment) {
+		mockServer.verify(commonRequests.put(paths.patronByBarcode(barcode))
+			.withBody(subString(expectedBodyFragment)));
+	}
+
+	public void verifyNoUpdatePatronDates(String barcode) {
+		mockServer.verifyNever(commonRequests.put(paths.patronByBarcode(barcode)));
 	}
 
 	public void mockPatronSearch(String firstLastName, String barcode, Integer patronId) {
@@ -129,6 +159,16 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.patronById(patronId), patron);
 	}
 
+	/**
+	 * Serves a raw JSON body for GET patron, so date fields can be expressed as the ISO strings
+	 * Polaris actually returns (object serialization would emit them as Jackson arrays the client
+	 * cannot parse).
+	 */
+	public void mockGetPatronRawJson(Integer patronId, String rawJson) {
+		mockServer.mockGet(paths.patronById(convertIntegerToString(patronId)),
+			response().withStatusCode(200).withBody(json(rawJson)));
+	}
+
 	public void mockGetPatronServerErrorResponse(String patronId) {
 		mockServer.mockGet(paths.patronById(patronId), serverError());
 	}
@@ -149,6 +189,18 @@ public class MockPolarisFixture {
 
 	public void mockGetPatronBlocksSummary(String patronId) {
 		mockServer.replaceMock(commonRequests.get(paths.blocksSummary(patronId)), okText("[]"));
+	}
+
+	public void mockGetPatronBlocksSummary(Integer patronId,
+		List<ApplicationServicesClient.PatronBlockGetRow> blocks) {
+
+		mockServer.replaceMock(
+			commonRequests.get(paths.blocksSummary(convertIntegerToString(patronId))), okJson(blocks));
+	}
+
+	public void mockDeletePatronBlock(Integer patronId, Integer blockType, Integer blockId) {
+		mockServer.mock(commonRequests.delete(paths.applicationServices(
+			"/patrons/%d/blocks/%d/%d".formatted(patronId, blockType, blockId))), okJson(true));
 	}
 
 	public void mockGetPatronBlocksSummaryNotFoundResponse(Integer patronId) {
@@ -255,6 +307,25 @@ public class MockPolarisFixture {
 
 	public void verifyWorkflow(WorkflowRequest expectedBody) {
 		mockServer.verifyPost(paths.workflow(), expectedBody);
+	}
+
+	// Appends a single workflow POST response without clearing existing ones, so a flow that posts
+	// to the workflow endpoint more than once (e.g. update item status, then checkout) can queue
+	// each response in order.
+	public void mockWorkflowResponseOnce(WorkflowResponse response) {
+		mockServer.mock(commonRequests.post(paths.workflow()), response, Times.once());
+	}
+
+	public void verifyWorkflowBodyContains(String fragment) {
+		mockServer.verify(commonRequests.post(paths.workflow()).withBody(subString(fragment)));
+	}
+
+	public void verifyWorkflowBodyNeverContains(String fragment) {
+		mockServer.verifyNever(commonRequests.post(paths.workflow()).withBody(subString(fragment)));
+	}
+
+	public void verifyNoItemCheckout(String patronBarcode) {
+		mockServer.verifyNever(commonRequests.post(paths.patronItemCheckOut(patronBarcode)));
 	}
 
 	void mockGetMaterialTypes(List<ApplicationServicesClient.MaterialType> responseBody) {

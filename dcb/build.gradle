@@ -11,6 +11,7 @@ plugins {
 	id("com.gradleup.shadow") version "9.3.0"
 	// See https://plugins.gradle.org/plugin/io.micronaut.application
 	id("io.micronaut.application") version "$micronautGradleVersion"
+	id("io.micronaut.test-resources") version "$micronautGradleVersion"
 	// id("io.micronaut.aot") version "$micronautGradleVersion"
 	id('jacoco')
 	id 'org.olf.dcb-bom'
@@ -25,7 +26,6 @@ group = "org.olf.dcb"
 
 repositories {
 	mavenCentral()
-	maven { url "https://nexus.libsdev.k-int.com/repository/maven-releases" }
 }
 
 ext {
@@ -58,7 +58,6 @@ dependencies {
 	implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation("io.micronaut.serde:micronaut-serde-jackson")
 	implementation("io.micronaut.security:micronaut-security-jwt")
-	implementation("com.k_int.mn:ki-mn-peer-auth:1.4.0")
 	implementation("io.micronaut:micronaut-http-client")
 	implementation("io.micronaut:micronaut-management")
 	implementation("io.micronaut.cache:micronaut-cache-caffeine")
@@ -84,10 +83,15 @@ dependencies {
 	// implementation("io.micronaut.xml:micronaut-jackson-xml")
 	implementation 'org.marc4j:marc4j'
 
+  // micronaut-platform 5.0.2 pulls micronaut-opensearch-bom 2.0.0, which manages
+  // opensearch-java 3.8.0 -- a version that only ships the legacy Jackson 2
+  // JsonpMapper and therefore cannot accept the Jackson 3 ObjectMapper Micronaut 5
+  // injects (see DefaultOpenSearchClientFactory). BOM 2.1.0 manages 3.9.0/3.7.0,
+  // which do ship a jackson3 mapper. Overriding the BOM keeps us on a
+  // Micronaut-validated combination rather than pinning the client ourselves.
+  implementation platform("io.micronaut.opensearch:micronaut-opensearch-bom:2.1.0")
   implementation 'org.opensearch.client:opensearch-java'
   implementation 'org.opensearch.client:opensearch-rest-client'
-	// implementation 'org.opensearch.client:opensearch-java'
-	// implementation 'org.opensearch.client:opensearch-rest-client'
 
 	implementation("ch.qos.logback:logback-core")
 	implementation("ch.qos.logback:logback-classic")
@@ -126,7 +130,16 @@ dependencies {
 
 	runtimeOnly("org.postgresql:postgresql")
 
+	// Without this dependency, testcontainer injection seems not to happen at all.
+	// Wonder if this is because the bean that uses PG is a r2dbc service
 	runtimeOnly("org.postgresql:r2dbc-postgresql")
+
+
+		// testRuntimeOnly("io.micronaut.testresources:micronaut-test-resources-client")
+
+	// Uncommmenting this dependency results in
+	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
+	//
 	runtimeOnly("io.r2dbc:r2dbc-pool")
 
 	implementation("io.micronaut.flyway:micronaut-flyway")
@@ -148,8 +161,9 @@ dependencies {
 	implementation 'com.hazelcast:hazelcast'
 
 	// Keep Testcontainers compatible with Docker API >= 1.44 on current GitHub runners.
-	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
-	testRuntimeOnly(platform("org.testcontainers:testcontainers-bom:2.0.5"))
+	testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.3"))
+	testRuntimeOnly(platform("org.testcontainers:testcontainers-bom:2.0.3"))
+	testResourcesService(platform("org.testcontainers:testcontainers-bom:2.0.3"))
 
 	// Tests
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -178,8 +192,6 @@ dependencies {
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 
 	testImplementation('org.mock-server:mockserver-junit-jupiter')
-	// Architecture boundary guardrails for the unified host-interaction model.
-	testImplementation('com.tngtech.archunit:archunit-junit5:1.3.0')
 	testImplementation('org.junit.jupiter:junit-jupiter-params')
 
 	testImplementation('org.mockito:mockito-core')
@@ -188,7 +200,16 @@ dependencies {
 	testImplementation('org.awaitility:awaitility')
 	testImplementation('io.projectreactor:reactor-test')
 
-	testImplementation("org.testcontainers:testcontainers-postgresql")
+	// opensearch-testcontainers is managed by micronaut-opensearch-bom 2.1.0 (see the
+	// platform import above) and builds against Testcontainers 2.x, matching the
+	// testcontainers-bom already pinned here. Testcontainers core is otherwise only a
+	// runtime dependency, so it needs promoting to compile the index integration test.
+	testImplementation('org.testcontainers:testcontainers')
+	testImplementation('org.opensearch:opensearch-testcontainers')
+
+	// testImplementation(platform("org.testcontainers:testcontainers-bom"))
+
+	testRuntimeOnly("org.testcontainers:testcontainers-postgresql:2.0.5")
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
 	implementation("com.graphql-java:graphql-java-extended-scalars" )
@@ -224,29 +245,19 @@ run {
 	])
 }
 
-tasks.named('processResources') {
-	from("$rootDir/src/xsd") {
-		include '*.xsd'
-		into 'schemas'
-	}
-}
-
 java {
 	sourceCompatibility = JavaVersion.toVersion("25")
 	targetCompatibility = JavaVersion.toVersion("25")
-}
-
-// Compile sources as UTF-8 regardless of the platform default charset.
-// Without this, non-ASCII characters in source files fail to compile on
-// Windows (windows-1252 default) even though CI (Linux/UTF-8) succeeds.
-tasks.withType(JavaCompile).configureEach {
-	options.encoding = 'UTF-8'
 }
 
 micronaut {
 	runtime("netty")
 	testRuntime("junit5")
 	version micronautVersion
+	testResources {
+		inferClasspath.set(false)
+		additionalModules.addAll("jdbc-postgresql", "r2dbc-postgresql", "r2dbc-pool")
+	}
 	processing {
 		incremental(true)
 		annotations("org.olf.dcb.*", "services.k_int.*")
@@ -299,19 +310,11 @@ tasks {
 
 	dockerfileNative {
 		label(labels)
-		jdkVersion.set("25")
-		useCopyLink.set(false)
-		graalArch.set("x64")
-
-		doLast {
-			def dockerfileFile = destFile.get().asFile
-			def original = dockerfileFile.text
-			def collapsedConfigDirs = original
-				.replaceAll('(?m)^RUN mkdir /home/app/config-dirs$\\R(?:^RUN mkdir -p /home/app/config-dirs/[^\\r\\n]+$\\R)+', '')
-				.replaceAll('(?m)^(?:COPY config-dirs/[^\\r\\n]+ /home/app/config-dirs/[^\\r\\n]+$\\R)+', 'COPY config-dirs /home/app/config-dirs\n')
-
-			dockerfileFile.text = collapsedConfigDirs
-		}
+                // graalArch.set(org.apache.tools.ant.taskdefs.condition.Os.isArch("aarch64") ? "aarch64" : "amd64")
+                // graalArch.set("x64")
+                // graalArch.set("compatibility")
+                // Apparently graal defaults to x86-64-v3 - dev server is v2 so targetting v2
+                // graalArch.set("x86-64-v2")
 	}
 
 	boolean isPre = project.hasProperty('versionPreRelease') && !project.property('versionPreRelease').equals('unspecified') &&
@@ -359,10 +362,22 @@ tasks {
 		images = nativeImageNames
 	}
 
-	project.tasks.register('dockerfileSpikeNative', com.bmuschko.gradle.docker.tasks.image.Dockerfile) {
+	// Native image packaging, built from the nativeCompile output rather than through
+	// Micronaut's dockerBuildNative / dockerPushNative.
+	//
+	// Those tasks are unusable on Gradle 9: NativeImageDockerfile fails the stricter task
+	// validation with "property 'nativeImageOptions.layers' is missing an input or output
+	// annotation". Micronaut Gradle plugin 5.0.1 and 5.0.2 are both affected and 5.0.2 is
+	// the latest release, so there is nothing to upgrade to. nativeCompile itself is fine,
+	// so we package its binary ourselves.
+	//
+	// The base image must be glibc-based. The native binary is dynamically linked against
+	// /lib64/ld-linux-x86-64.so.2, so the Alpine/musl BASE_IMAGE used for the JVM image
+	// will NOT run it.
+	project.tasks.register('dockerfileNativeBinary', com.bmuschko.gradle.docker.tasks.image.Dockerfile) {
 		dependsOn 'nativeCompile'
-		destFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.spike'))
-		from('cgr.dev/chainguard/wolfi-base:latest')
+		destFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.native'))
+		from(project.findProperty('NATIVE_BASE_IMAGE') ?: 'cgr.dev/chainguard/wolfi-base:latest')
 		workingDir('/app')
 		copyFile('dcb', '/app/application')
 		exposePort(8080)
@@ -370,15 +385,15 @@ tasks {
 		entryPoint('/app/application')
 	}
 
-	project.tasks.register('dockerBuildSpikeNative', com.bmuschko.gradle.docker.tasks.image.DockerBuildImage) {
-		dependsOn 'dockerfileSpikeNative'
+	project.tasks.register('dockerBuildNativeBinary', com.bmuschko.gradle.docker.tasks.image.DockerBuildImage) {
+		dependsOn 'dockerfileNativeBinary'
 		inputDir.set(layout.buildDirectory.dir('native/nativeCompile'))
-		dockerFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.spike'))
+		dockerFile.set(layout.buildDirectory.file('native/nativeCompile/Dockerfile.native'))
 		images.set(nativeImageNames)
 	}
 
-	project.tasks.register('dockerPushSpikeNative', com.bmuschko.gradle.docker.tasks.image.DockerPushImage) {
-		dependsOn 'dockerBuildSpikeNative'
+	project.tasks.register('dockerPushNativeBinary', com.bmuschko.gradle.docker.tasks.image.DockerPushImage) {
+		dependsOn 'dockerBuildNativeBinary'
 		images.set(nativeImageNames)
 	}
 
@@ -429,14 +444,29 @@ graalvmNative {
             // GraalVM 25.0.3 crashes in PartialEscapeBlockState during pre-analysis.
             // Retain Optimize=2 while disabling only the failing compiler pass.
             buildArgs.add('-H:-EscapeAnalysisBeforeAnalysis')
-            if (project.hasProperty('spikeNativeQuickBuild')) {
-                quickBuild = true
-                buildArgs.add('-H:Optimize=0')
-            }
             buildArgs.add('--verbose')
             buildArgs.add('-march=x86-64-v2')
             buildArgs.add('-H:+AddAllCharsets')
-            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,ch.qos.logback,kotlin.coroutines.intrinsics.CoroutineSingletons')
+            // org.slf4j is initialised at build time as a whole package, matching how
+            // ch.qos.logback is handled. LoggerFactory caches its resolved provider in static
+            // state, so that provider and everything it reaches (NOPLoggerFactory, NOPLogger,
+            // BasicMarkerFactory, the substitute providers) gets snapshotted into the image
+            // heap. Listing the classes individually turned into whack-a-mole: each build
+            // failed with "An object of type 'org.slf4j.helpers.X' was found in the image heap
+            // ... marked for initialization at image run time" naming the next one along.
+            // org.xml.sax is needed because ch.qos.logback is build-time initialised, so
+            // logback.xml is parsed during the build and the resulting configuration retains
+            // SAX objects (org.xml.sax.helpers.LocatorImpl). Without it the build fails with
+            // "Cannot read instance field of a class that is initialized at run time:
+            // org.xml.sax.helpers.LocatorImpl.publicId".
+            // com.fasterxml.jackson is required because ch.qos.logback.contrib.jackson
+            // .JacksonJsonFormatter is build-time initialised and holds a Jackson 2
+            // ObjectMapper; without it the build fails with "Cannot read instance field of a
+            // class that is initialized at run time:
+            // com.fasterxml.jackson.databind.ObjectMapper._jsonFactory". This is Jackson 2,
+            // used only by the logback JSON layout -- the application itself is on Jackson 3
+            // (tools.jackson) under Micronaut 5.
+            buildArgs.add('--initialize-at-build-time=ch.qos.logback.contrib.jackson.JacksonJsonFormatter,org.slf4j,ch.qos.logback,org.xml.sax,com.fasterxml.jackson,kotlin.coroutines.intrinsics.CoroutineSingletons')
             buildArgs.add('--add-opens=java.base/java.nio=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED')

@@ -2,7 +2,8 @@
 	{
 	  "condition":{"typeReachable":"com.hazelcast.instance.BuildInfoProvider"},
 	  "name":"com.hazelcast.instance.GeneratedBuildProperties",
-	  "fields":[{"name":"ARTIFACT_ID"}, {"name":"BUILD"}, {"name":"COMMIT_ID"}, {"name":"DISTRIBUTION"}, {"name":"LAST_LTS_VERSION"}, {"name":"REVISION"}, {"name":"SERIALIZATION_VERSION"}, {"name":"VERSION"}]
+	  "//":"Fields must match com.hazelcast.instance.GeneratedBuildProperties for the pinned Hazelcast version (5.4.0). 5.6.0 added LAST_LTS_VERSION and PREVIOUS_MINOR_VERSION, which do not exist here -- if the Hazelcast pin is ever raised, BuildInfoProvider reads those reflectively and they must be added.",
+	  "fields":[{"name":"ARTIFACT_ID"}, {"name":"BUILD"}, {"name":"COMMIT_ID"}, {"name":"DISTRIBUTION"}, {"name":"REVISION"}, {"name":"SERIALIZATION_VERSION"}, {"name":"VERSION"}]
 	},
 	{
 	  "condition":{"typeReachable":"com.hazelcast.shaded.org.jctools.queues.MpmcArrayQueueProducerIndexField"},

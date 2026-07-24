@@ -13,6 +13,7 @@ import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
+import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
@@ -63,10 +64,13 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private final String indexName; 
 	private final int indexVersion; 
 	
-	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
+	private final SharedIndexBackendInfo backendInfo;
+
+	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs, SharedIndexBackendInfo backendInfo) {
 		super(recordClusteringService, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
+		this.backendInfo = backendInfo;
 		this.indexName = conf.name();
 		if (conf.version().isEmpty()) {
 			this.indexVersion = SharedIndexConfiguration.LATEST_INDEX_VERSION;
@@ -74,10 +78,28 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			this.indexVersion = conf.version().get();
 		}
 	}
-	
+
 	@PostConstruct
 	void init() {
 		log.info("Using Elasticearch Indexing service");
+		reportBackendVersion();
+	}
+
+	// See OpenSearchSharedIndexService.reportBackendVersion. Especially relevant here:
+	// an Elasticsearch 9 client cannot talk to an 8.x server at all, so knowing the server
+	// version without needing cluster credentials is what makes that diagnosable.
+	private void reportBackendVersion() {
+		client.info()
+			.whenComplete((info, error) -> {
+				if (error != null) {
+					log.warn("Could not determine the Elasticsearch server version", error);
+					return;
+				}
+
+				backendInfo.record("elasticsearch", info.version().number());
+
+				log.info("Shared index backend: elasticsearch {}", info.version().number());
+			});
 	}
 	
 	@Override
@@ -352,7 +374,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		
 		Time time = getRefreshInterval();
 		
-		log.info("Attempting to update OpenSearch refresh interval to {}",time);
+		log.info("Attempting to update ElasticSearch refresh interval to {}",time);
 
     return changeIndexSettings( s -> s.index(i -> i.refreshInterval(time)));
 	}

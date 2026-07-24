@@ -44,6 +44,8 @@ public class PolarisConfig {
 	private String accessKey;
 	@JsonProperty("logon-branch-id")
 	private Object logonBranchId;
+	@JsonProperty("virtual-patron-branch-id")
+	private Object virtualPatronBranchId;
 	@JsonProperty("logon-user-id")
 	private Object logonUserId;
 	@JsonProperty("contextHierarchy")
@@ -236,6 +238,19 @@ public class PolarisConfig {
 		return requiredValue("Ill Location ID", value, Integer.class);
 	}
 
+	/**
+	 * The branch a virtual patron is registered at. Polaris validates the patron code against this
+	 * branch (error -3612 "PatronCodeID does not exist for patron's branch" when it does not match),
+	 * so it must be a branch where the DCB patron types are defined. Defaults to the ILL location -
+	 * the branch DCB already uses for patron defaults and checkout logon, and where the DCB patron
+	 * types are configured. Override only when a deployment defines its DCB patron types at a
+	 * different branch.
+	 */
+	public Integer getVirtualPatronBranchId() {
+
+		return valueWithDefault(this.virtualPatronBranchId, Integer.class, getIllLocationId());
+	}
+
 	public Integer getHoldFetchingDelay(Integer defaultDelay) {
 
 		return valueWithDefault(this.holdFetchingDelay, Integer.class, defaultDelay);
@@ -317,8 +332,13 @@ public class PolarisConfig {
 		 * locationCode method. Default to the DCB-1675 method. N.B. This method relies upon the catalog instance (Which
      * may be different to the Circ Instance for shared systems, or the same for singletons) to have the required
      * Location to Agency mapping values installed. N.B. setting this to null in config will override the default */
+		// NB: @Builder.Default is required. Without it Lombok discards the initialiser
+		// entirely for builder-constructed instances (it warns about this at compile
+		// time), so itemAgencyResolutionMethod arrives null and PolarisItemMapper's
+		// switch on it throws NullPointerException.
 		@JsonProperty("item-agency-resolution-method")
-		private String itemAgencyResolutionMethod="Legacy";
+		@Builder.Default
+		private String itemAgencyResolutionMethod = "Legacy";
 	}
 
 	public String applicationServicesUriParameters() {

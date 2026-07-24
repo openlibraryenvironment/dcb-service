@@ -1,5 +1,26 @@
 # Changelog
 
+## Version 8.71.0
+
+### Additions
+* [General]
+	* First pass at Koha adapter prototype [DCB-2142]
+	* Polaris Config "enableDoubleDelete"
+
+### Changes
+* [Chore]
+	* Add DTOs for Folio Inventory Items and Instances
+	* Work on docs/ncip-support-exploration-1.md
+* [Refactor]
+	* move item status names collection into ConsortialFolioClientConstants
+	* extract hard-coded values into constants in Folio Host LMC Client [DCB-2202]
+
+### Fixes
+* [General]
+	* Test fixes - revert to old branch behaviour
+	* Ensure Alma respects patron expiry, blocks and deleted status
+	* Fixes for the "Create Library" workflow
+
 ## Version 8.70.0
 
 ### Additions
@@ -8,6 +29,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* API for triggering manual re-resolution
 	* Polaris AV renewal limit [DCB-2197]
 	* Update delete Host LMS method

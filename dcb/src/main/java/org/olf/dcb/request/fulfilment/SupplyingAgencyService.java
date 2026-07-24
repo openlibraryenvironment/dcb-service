@@ -437,6 +437,7 @@ public class SupplyingAgencyService {
 		// Get supplier system interface
 		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
 			.flatMap(hostLmsClient -> hostLmsClient.findVirtualPatron(psrc.getPatron()))
+			.flatMap(patron -> auditVirtualPatronWarnings(patronRequest, patron).thenReturn(patron))
       // Ensure that we have a local patronIdentity record to track the patron in the supplying ILS
 			.flatMap(patron -> updateLocalPatronIdentityForLmsPatron(patron, patronRequest, supplierRequest))
 			.flatMap( auditVirtualPatron(patronRequest, "Virtual patron : found") );
@@ -610,19 +611,40 @@ public class SupplyingAgencyService {
 				final var homeIdentityLocalId = getValueOrNull(requestingPatronIdentity, PatronIdentity::getLocalId);
 				log.info("Local id is {} and unique ID is {} and identity is {}", homeIdentityLocalId,uniqueId, requestingPatronIdentity);
 				// Now supplying localNames from the requesting identity.
-				return client.createPatron(
-					Patron.builder()
-						.localId(Collections.singletonList(homeIdentityLocalId))
-						.localBarcodes(patron_barcodes)
-						.localPatronType(patronType)
-						.localNames(parseList(requestingPatronIdentity.getLocalNames()))
-						.uniqueIds(stringToList(uniqueId))
-						.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
-						.localItemId(supplierRequest.getLocalItemId())
-						.build())
+				final var virtualPatron = Patron.builder()
+					.localId(Collections.singletonList(homeIdentityLocalId))
+					.localBarcodes(patron_barcodes)
+					.localPatronType(patronType)
+					.localNames(parseList(requestingPatronIdentity.getLocalNames()))
+					.uniqueIds(stringToList(uniqueId))
+					.localHomeLibraryCode(requestingPatronIdentity.getLocalHomeLibraryCode())
+					.localItemId(supplierRequest.getLocalItemId())
+					.build();
+
+				return client.createPatron(virtualPatron)
+					.flatMap(createdPatronId -> auditVirtualPatronWarnings(patronRequest, virtualPatron)
+						.thenReturn(createdPatronId))
 					.map(createdPatronId -> Tuples.of(createdPatronId, patronType))
 					.doOnSuccess( t -> log.debug("determinePatronType ended with success {}",t) );
 			});
+	}
+
+	/**
+	 * Host LMS clients flag non fatal problems they hit whilst creating or fetching a virtual patron.
+	 * These have to reach the audit so that library staff can intervene before the problem turns
+	 * into a failed virtual checkout.
+	 */
+	private Mono<Void> auditVirtualPatronWarnings(PatronRequest patronRequest, Patron patron) {
+		if (!patron.hasWarnings()) {
+			return Mono.empty();
+		}
+
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("warnings", patron.getWarnings());
+
+		return patronRequestAuditService
+			.addAuditEntry(patronRequest, "Virtual patron : needs attention", auditData)
+			.then();
 	}
 
 	private List<String> stringToList(String string) {

@@ -86,7 +86,9 @@ jobs:
         run: |
           export DCB_NAME_PART=$([ "$BRANCH_NAME" = "main" ] && echo "dcb" || echo dcb-${BRANCH_NAME} )
           export DOCKER_IMAGE=`echo "${DOCKER_REGISTRY_URL}/${DOCKER_REPOSITORY_PATH}/${DCB_NAME_PART}" | sed -e 's#//#/#' -e 's#^/##'`
-          ./gradlew dockerPushNative --no-daemon
+          # See formal-release.yml: dockerPushNative is unusable on Gradle 9 with
+          # Micronaut Gradle plugin 5.0.x.
+          ./gradlew dockerPushNativeBinary --no-daemon
 
       - name: Identify and delete large test result XMLs (>1MB)
         run: |

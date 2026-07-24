@@ -13,6 +13,14 @@ import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
+// DO NOT DELETE as "unused" -- it has no explicit references on purpose. Micronaut's
+// jackson-xml ObjectMapper factory auto-collects @Singleton tools.jackson deserializer
+// beans BY TYPE, so this registers itself onto the XmlMapper with no code pointing at it.
+// It is what turns OAI-PMH MARC-XML into org.marc4j.marc.Record on the FOLIO ingest path
+// (OaiPmhIngestSource retrieves the response as XML). Sierra ingest takes the JSON/Serde
+// Decoder path in Marc4jRecordSerde instead, so a grep + a Sierra-only test run makes this
+// look dead when it is not -- deleting it silently breaks FOLIO ingest (0 records). Covered
+// by FolioIngestTests; if you remove it, that test goes red.
 @Requires(classes = Record.class)
 @Singleton
 public class Marc4jRecordJackson3Deserializer extends StdDeserializer<Record> {
