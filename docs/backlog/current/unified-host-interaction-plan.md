@@ -146,11 +146,14 @@ green against the MN5 APIs.
 
 **Landmines avoided** (spike carried MN4-era duplicate fixes with the *same* commit
 messages as `main`'s MN5 fixes; `main`'s versions were kept in every case): Graal
-pre-analysis crash, indexing transaction wait, native-image CI, and `AppTask`. The
-custom `AppTaskAwareScheduledMethodProcessor` stays deleted; `@AppTask` is `main`'s
+pre-analysis crash, indexing transaction wait, native-image CI, and `AppTask`. Spike's
+duplicate `services.k_int.*.AppTaskAwareScheduledMethodProcessor` is gone; the canonical
+processor remains at `io.micronaut.scheduling.processor` (where it must live to compile —
+see the scheduler-subclass memory) and `@AppTask` is `main`'s
 `@Executable(processOnStartup = true)`. The obsolete spike guardrail
-`appTaskMustRemainMarkerOnly` was removed (its valid siblings — TrackingScheduler owns
-scheduling, services do not self-schedule — remain).
+`appTaskMustRemainMarkerOnly` (which asserted `@AppTask` carries no `@Executable`) was
+removed; its valid siblings — TrackingScheduler owns scheduling, services do not
+self-schedule — remain.
 
 **Test infrastructure — deliberate divergence from `main`.** `main` uses the
 Micronaut Test Resources plugin to auto-provision Postgres; unified uses spike's
