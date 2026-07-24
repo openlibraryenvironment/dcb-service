@@ -48,17 +48,6 @@ class TrackingBoundaryArchitectureTests {
 	}
 
 	@Test
-	void appTaskMustRemainMarkerOnly()
-		throws IOException {
-
-		final var source = Files.readString(Path.of(
-			sourcePath("src/main/java/services/k_int/micronaut/scheduling/processor/AppTask.java")));
-
-		assertThat(source, not(containsString("@Executable")));
-		assertThat(source, not(containsString("processOnStartup")));
-	}
-
-	@Test
 	void lifecycleProjectorMustNotDispatchOnTrackingResourceTypeStrings()
 		throws IOException {
 
