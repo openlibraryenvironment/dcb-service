@@ -5,6 +5,11 @@
 	elementFormDefault="qualified"
 	attributeFormDefault="unqualified">
 
+	<!-- Same target namespace, second file: xs:include (not xs:import) so both
+	     files' global elements compose into one grammar. A second same-namespace
+	     import would be skipped, dropping whichever file loaded second. -->
+	<xs:include schemaLocation="openrs_ncip_extension.xsd"/>
+
 	<xs:element name="FallbackHostSelectedItem">
 		<xs:complexType>
 			<xs:sequence>
