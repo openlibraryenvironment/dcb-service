@@ -1,12 +1,18 @@
-1# Unified Host Interaction Model — Delivery Plan (Profiles A–D)
+# Unified Host Interaction Model — Delivery Plan (Profiles A–D)
 
 ## Status
 
-Active. Branch: `feat/unified-host-interaction` (cut from `main`).
+Active. Branch: `feat/unified-host-interaction`.
 
 Supersedes the parallel exploration on `openrs-foundation` (NCIP-plus / mix-and-match)
 and `spike/iso18626-declarative-dual-agency` (declarative / ORS-appliance) by merging
 both into a single host-scoped capability model.
+
+**Platform: up to date with `main` (2026-07-24).** The Micronaut 5 / JDK 25 / ES9 /
+Jackson 3 upgrade from `main` has been merged in and the full suite is green. Spike is
+a full ancestor (every spike feature is present by construction); the branch is ~95
+commits ahead of `main`. See *Main merge & stabilisation* below for what the merge
+reconciled and where unified deliberately diverges from `main`.
 
 ## Goal
 
@@ -121,6 +127,62 @@ Deferred:
 - **Automated four-profile acceptance harness** — the manual + per-slice
   automated coverage is documented in the integration guide (§5–6); a single
   A–D MockServer harness remains to be written.
+
+## Main merge & stabilisation (2026-07-24)
+
+`main`'s Micronaut 5 / JDK 25 / ES9 / Jackson 3 upgrade was merged into the branch.
+The merge took `main`'s side on ~80 overlapping build/platform files; the following
+casualties and collisions were reconciled so the full suite passes. Both the
+Foundation (imperative) and ORS-appliance (declarative) pathways compile and test
+green against the MN5 APIs.
+
+**Merge casualties restored** (dropped when the merge took `main`'s `build.gradle`):
+- `com.k_int.mn:ki-mn-peer-auth:1.4.0` **and** the `nexus.libsdev.k-int.com`
+  repository that hosts it — without both, `DcbPeerAuthFactory` lost every
+  `com.k_int.peerauth.*` class. Peer auth is not on Maven Central.
+- `com.tngtech.archunit:archunit-junit5:1.3.0` — the PR-8 boundary guardrails.
+- `testcontainers-postgresql` promoted back to `testImplementation` (the test
+  container builder imports `PostgreSQLContainer` at compile time).
+
+**Landmines avoided** (spike carried MN4-era duplicate fixes with the *same* commit
+messages as `main`'s MN5 fixes; `main`'s versions were kept in every case): Graal
+pre-analysis crash, indexing transaction wait, native-image CI, and `AppTask`. The
+custom `AppTaskAwareScheduledMethodProcessor` stays deleted; `@AppTask` is `main`'s
+`@Executable(processOnStartup = true)`. The obsolete spike guardrail
+`appTaskMustRemainMarkerOnly` was removed (its valid siblings — TrackingScheduler owns
+scheduling, services do not self-schedule — remain).
+
+**Test infrastructure — deliberate divergence from `main`.** `main` uses the
+Micronaut Test Resources plugin to auto-provision Postgres; unified uses spike's
+hand-rolled `DcbTestContainerContextBuilder` (a `@MicronautTest(contextBuilder = …)`
+that starts a `PostgreSQLContainer` and sets `datasources.*` / `r2dbc.datasources.*`
+explicitly, including the `options.protocol` key the plugin could not resolve). The
+merge left an incoherent hybrid; stabilisation converged fully on the builder —
+removed the `io.micronaut.test-resources` plugin, its `testResourcesService`
+platform, and the `micronaut { testResources { } }` block. Consequence: any
+`main`-authored test that relied on auto-provisioning (e.g.
+`OpenSearchSharedIndexIntegrationTests`) must declare
+`contextBuilder = DcbTestContainerContextBuilder.class` to get a DB.
+
+**NCIP schema fix (correctness, platform-independent).** The
+`https://openrs.org/ncip/fallback-host` namespace is split across two XSD files
+(`openrs_ncip_extension.xsd` = `ShippingContext`/`dcb:`;
+`openrs-ncip-fallback-host.xsd` = `FallbackHost*`/`openrs:`). `xs:import` loads only
+the first schema document seen for a namespace and silently skips the second, so only
+half the namespace ever validated — this was a latent bug, **not** a JDK 25
+regression. Fixed by composing the two files with `xs:include` (additive) rather than
+two imports; `NcipSchemaValidator` was simplified to a direct base-schema load.
+
+**Other differences from `main`:**
+- `.gitlab-ci.yml` deleted — spike-only on-prem pipeline calling gradle tasks
+  (`dockerPushSpikeNative`) that `main`'s `build.gradle` no longer defines. Native
+  image publishing goes through GitHub Actions `dockerPushNativeBinary`, matching
+  `main`.
+- `processResources` given `DuplicatesStrategy.INCLUDE` — a latent `git.properties`
+  collision (CI echo + `gradle-git-properties` plugin) that Gradle 8 tolerated and
+  Gradle 9 fails hard on.
+- Governance/FSL docs preserved (`AGENTS.md` superset, `ARCHITECTURE.md`, `ADR-0001`,
+  both delivery docs) — none exist on `main`; all survived the merge.
 
 ## Unified config schema
 
