@@ -77,6 +77,21 @@ Additional optional configuration values. These may be set in configuration file
 Module documentation is auto generated and is accessed from the following URL once the container has
 started: https://openlibraryenvironment.github.io/dcb-service/openapi/
 
+## DCB Profile NCIP2.02+ membership
+
+DCB administrators issue a 30-minute, single-use invitation at
+`POST /api/v1/dcb-profile-ncip2/membership-invitations`. ORS uses the invitation and its signed
+registration proof to call non-consuming `POST /membership-validations`, then atomic
+`POST /memberships`. Redemption requires a printable institution address, pulls the ORS public directory, and creates HostLMS, Agency, Library
+and selected Locations only after all prerequisites and conflicts pass.
+
+DCB pulls approved metadata every 15 minutes. Administrators can call
+`POST /memberships/{id}/sync`, approve or reject sensitive changes, and revoke membership. Sensitive
+issuer, JWKS, NCIP/OAI origin, or selected-symbol changes remain pending while the last approved
+configuration stays active. Revocation disables NCIP participation and ingest without deleting
+history. See generated OpenAPI for request/response schemas and
+[`MODULE.md`](dcb/src/main/java/org/olf/dcb/request/lifecycle/ncip/profile/MODULE.md) for ownership.
+
 # General Documentation
 
 Module documentation can be found here: https://openlibraryenvironment.github.io/dcb-service/
