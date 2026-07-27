@@ -1,6 +1,8 @@
 package org.olf.dcb.request.fulfilment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
@@ -50,6 +52,50 @@ class RequestShippingContextProjectorTests {
 			() -> RequestShippingContextProjector.project(context));
 
 		assertEquals("Cannot route supplier request: pickup location is missing", error.getMessage());
+	}
+
+	// ---- Imperative boundary: a sparse context must never gate placement ----
+	//
+	// The imperative adapters (Sierra, Polaris, FOLIO, Alma) ignore shipping
+	// context entirely, and the workflow deliberately tolerates the two holes
+	// exercised below. If projectQuietly ever starts throwing, every imperative
+	// supplier placement on a host with sparse pickup or identity data breaks.
+
+	@Test
+	void projectQuietlyYieldsNullWhenPickupLocationIsUnresolved() {
+		// RequestWorkflowContextHelper returns early without setting a pickup
+		// location when the patron request carries no pickup symbol.
+		RequestWorkflowContext context = context(STANDARD_WORKFLOW).setPickupLocation(null);
+
+		assertNull(RequestShippingContextProjector.projectQuietly(context));
+	}
+
+	@Test
+	void projectQuietlyYieldsNullWhenHomeIdentityIsAbsentFromContext() {
+		// getRequestingIdentity ends in defaultIfEmpty(ctx), so a context with no
+		// home identity is a supported state - SupplyingAgencyService reads the
+		// identity from the patron instead.
+		RequestWorkflowContext context = context(STANDARD_WORKFLOW).setPatronHomeIdentity(null);
+
+		assertNull(RequestShippingContextProjector.projectQuietly(context));
+	}
+
+	@Test
+	void projectQuietlyYieldsNullWhenSupplierRequestIsAbsent() {
+		RequestWorkflowContext context = context(STANDARD_WORKFLOW).setSupplierRequest(null);
+
+		assertNull(RequestShippingContextProjector.projectQuietly(context));
+	}
+
+	@Test
+	void projectQuietlyStillProjectsACompleteContext() {
+		RequestWorkflowContext context = context(STANDARD_WORKFLOW);
+
+		var shipping = RequestShippingContextProjector.projectQuietly(context);
+
+		assertNotNull(shipping);
+		assertEquals("Direct", shipping.routeMode());
+		assertEquals("PICKUP-MAIN", shipping.pickupDestination().localLocationCode());
 	}
 
 	private static RequestWorkflowContext context(String workflow) {
