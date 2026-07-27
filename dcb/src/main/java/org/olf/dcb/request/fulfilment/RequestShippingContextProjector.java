@@ -9,8 +9,32 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public final class RequestShippingContextProjector {
 	private RequestShippingContextProjector() {}
+
+	/**
+	 * Best-effort projection for callers that do not consume shipping context.
+	 *
+	 * Only the declarative strategies put this on the wire; the imperative
+	 * adapters (Sierra, Polaris, FOLIO, Alma) ignore the field entirely. The
+	 * workflow deliberately tolerates a context with no pickup location (null
+	 * pickup symbol) and no home identity (identity lookup completes empty), so
+	 * demanding a complete projection here would fail placements that have always
+	 * succeeded. Declarative callers must use {@link #project} and fail loudly.
+	 */
+	public static RequestShippingContext projectQuietly(RequestWorkflowContext context) {
+		try {
+			return project(context);
+		}
+		catch (IllegalStateException e) {
+			log.debug("Shipping context unavailable, omitting from hold request: {}",
+				e.getMessage());
+			return null;
+		}
+	}
 
 	public static RequestShippingContext project(RequestWorkflowContext context) {
 		final var patronRequest = require(context != null ? context.getPatronRequest() : null, "patron request");

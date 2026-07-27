@@ -24,6 +24,9 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.PickupAgencyService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.lifecycle.LifecycleCapabilityResolver;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.storage.SupplierRequestRepository;
 
 import io.micronaut.context.annotation.Prototype;
@@ -50,19 +53,22 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final PickupAgencyService pickupAgencyService;
+	private final LifecycleCapabilityResolver capabilityResolver;
 
 	public CancelledPatronRequestTransition(
 		PatronRequestAuditService patronRequestAuditService,
 		HostLmsService hostLmsService,
 		SupplierRequestRepository supplierRequestRepository,
 		SupplyingAgencyService supplyingAgencyService,
-		PickupAgencyService pickupAgencyService) {
+		PickupAgencyService pickupAgencyService,
+		LifecycleCapabilityResolver capabilityResolver) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.hostLmsService = hostLmsService;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.pickupAgencyService = pickupAgencyService;
+		this.capabilityResolver = capabilityResolver;
 	}
 
 	@Override
@@ -253,11 +259,22 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 			.thenReturn(ctx);
 	}
 
-	private static boolean isDeclarativeSupplierRequest(RequestWorkflowContext ctx) {
-		final var protocol = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest,
-			SupplierRequest::getProtocol);
+	/**
+	 * Discriminate on the same source of truth used at placement time, not on the
+	 * persisted protocol string.
+	 *
+	 * A non-blank protocol used to mean "declarative", but Foundation is an
+	 * <em>imperative</em> NCIP adapter - anything recording its transport on the
+	 * supplier request would silently suppress the real cancellation and leave a
+	 * zombie hold in the supplying LMS. Resolving the strategy instead keeps the
+	 * failure direction correct: an unknown host falls back to instance-wide
+	 * config, which defaults to IMPERATIVE, so we still attempt cleanup.
+	 */
+	private boolean isDeclarativeSupplierRequest(RequestWorkflowContext ctx) {
+		final var lenderSystem = getValueOrNull(ctx, RequestWorkflowContext::getLenderSystem);
 
-		return protocol != null && !protocol.isBlank();
+		return capabilityResolver.placementStrategy(lenderSystem, LifecycleRole.SUPPLIER)
+			== StrategyType.DECLARATIVE;
 	}
 
 	private Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> updatePatronRequestStatus() {

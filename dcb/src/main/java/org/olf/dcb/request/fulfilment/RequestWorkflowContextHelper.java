@@ -11,7 +11,6 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
@@ -138,7 +137,9 @@ public class RequestWorkflowContextHelper {
 			.map(requestWorkflowContext::setPatron);
 	}
 
-	private Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
+	// Package-private so the enrichment-resilience contract can be tested directly
+	// without standing up the whole context decoration chain.
+	Mono<RequestWorkflowContext> decorateContextWithLenderDetails(RequestWorkflowContext ctx) {
 		log.info("decorateContextWithLenderDetails");
 
 		if ( ctx.getSupplierRequest() == null ) {
@@ -154,15 +155,17 @@ public class RequestWorkflowContextHelper {
 		}
 
 		// Load the supplier Host LMS so SUPPLIER capability/tracking can resolve
-		// per-host. This is an enrichment, not a requirement: findByCode errors on an
-		// unknown code, and letting that escape would abort the whole context
-		// decoration and stall the workflow. Missing host leaves lenderSystem null
-		// -> instance-wide fallback.
+		// per-host. This is an enrichment, not a requirement: letting any failure
+		// escape would abort the whole context decoration and stall the workflow.
+		// That has to hold for every failure, not just an unknown code - a transient
+		// R2DBC error must not take the imperative workflow down. Missing host
+		// leaves lenderSystem null -> instance-wide fallback -> IMPERATIVE.
 		return hostLmsService.findByCode(lenderSystemCode)
 			.map(ctx::setLenderSystem)
-			.onErrorResume(UnknownHostLmsException.class, error -> {
-				log.warn("Supplier Host LMS '{}' not found; SUPPLIER capability resolution "
-					+ "falls back to instance-wide configuration", lenderSystemCode);
+			.onErrorResume(error -> {
+				log.warn("Supplier Host LMS '{}' could not be loaded ({}); SUPPLIER capability "
+					+ "resolution falls back to instance-wide configuration",
+					lenderSystemCode, error.toString());
 				return Mono.just(ctx);
 			})
 			.defaultIfEmpty(ctx);

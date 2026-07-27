@@ -373,7 +373,9 @@ public class SupplyingAgencyService {
 					.supplyingLocalItemLocation(supplierRequest.getLocalItemLocationCode())
 					.activeWorkflow(patronRequest.getActiveWorkflow()) // For Alma - needed for minimum DCB hold
 					.localNames(homeIdentity.getLocalNames()) // For DCB-2043
-					.shippingContext(RequestShippingContextProjector.project(context))
+					// Best-effort: no imperative adapter reads this, and the declarative
+					// supplying strategy projects it itself. Must never gate placement.
+					.shippingContext(RequestShippingContextProjector.projectQuietly(context))
 					.build()));
 	}
 
