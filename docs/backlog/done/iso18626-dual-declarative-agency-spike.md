@@ -4,7 +4,7 @@
 
 Done as an architecture spike. The ISO18626 protocol leaf is superseded by the
 NCIP v2.02 pivot tracked in
-`docs/backlog/current/ncip-v202-dual-declarative-agency-spike.md`.
+`docs/backlog/done/ncip-v202-dual-declarative-agency-spike.md`.
 
 Branch: `spike/iso18626-declarative-dual-agency`
 

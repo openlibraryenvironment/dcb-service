@@ -2,15 +2,16 @@
 
 ## Status
 
-Current exploratory backlog item.
+Done as a spike. Closed 2026-07-26.
 
 Branch: `spike/iso18626-declarative-dual-agency`
 
 This item supersedes the ISO18626 protocol leaf from
 `docs/backlog/done/iso18626-dual-declarative-agency-spike.md`.
 
-Current spike state: SystemId/directory return-routing and lifecycle-wide
-event-driven poll suppression done. Production follow-ons remain.
+The spike proved SystemId/directory return-routing, lifecycle-wide event-driven
+poll suppression, dual declarative placement, inbound evidence, and NCIP
+transport. Production follow-ons remain separately owned.
 
 Related architecture backlog:
 `docs/backlog/done/inbound-lifecycle-convergence-phase-1.md`.
@@ -496,8 +497,8 @@ Acceptance:
 
 ## Remaining Production Follow-ons
 
-- Add inbound and outbound authentication.
-- Grow `ORSApplianceHostLMS` method coverage by lifecycle slice.
+- Inbound and outbound authentication is delivered.
+- Grow `ORSApplianceHostLMS` method coverage through ORS-Appliance `BL00036`.
 - Consider a longer-term split of `HostLmsClient` into narrower capability
   interfaces so NCIP and other adapters can implement only honest capabilities.
 - When extracting capability interfaces, extract only the interface needed by
@@ -506,13 +507,15 @@ Acceptance:
   scope.
 - Move real callers to narrower capability interfaces only when there is a
   concrete lifecycle change needing it.
-- Add discovery/API-facing black-box tests once the adapter can cover the
-  required Host LMS lifecycle calls.
+- Add discovery/API-facing black-box tests through ORS-Appliance `BL00036`.
 - Separate remote NCIP request ids from DCB correlation ids if partner profiles
   do not echo DCB `RequestId` values.
-- Add partner/profile-specific status mapping once real NCIP examples are
-  available.
-- Persist raw NCIP XML or external message ids if audit/replay requires it.
+- Add partner/profile-specific status mapping through
+  `ncip-acknowledgement-profile-hardening.md`.
+- Own raw NCIP persistence/replay decisions through
+  `durable-inbound-evidence-inbox.md`.
+
+No production follow-on keeps this exploratory spike open.
 
 ## 2026-07-02 SystemId Slice
 

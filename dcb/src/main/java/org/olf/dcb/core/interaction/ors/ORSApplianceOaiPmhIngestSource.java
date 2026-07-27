@@ -6,6 +6,7 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.serde.ObjectMapper;
+import java.net.URI;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
@@ -18,6 +19,7 @@ import services.k_int.utils.MapUtils;
 @Prototype
 public class ORSApplianceOaiPmhIngestSource extends OaiPmhIngestSource {
 	private static final String CONFIG_TENANT_ID = "tenant-id";
+	private static final String CONFIG_OAI_ENDPOINT_URL = "oai-endpoint-url";
 	private static final String UUID5_PREFIX = "ingest-source:ors-appliance-oai";
 
 	private final String oaiPath;
@@ -37,12 +39,17 @@ public class ORSApplianceOaiPmhIngestSource extends OaiPmhIngestSource {
 			processStateService, r2dbcOperations, objectMapper, objectRulesService,
 			cacheInvalidator, hostLmsService);
 
-		String tenantId = MapUtils.getAsOptionalString(
-			hostLms.getClientConfig(), CONFIG_TENANT_ID
-		).orElseThrow(() -> new IllegalArgumentException(
-			"ORS-Appliance OAI ingest requires client.tenant-id"));
-
-		oaiPath = "/ors-appliance/api/V1/public/" + tenantId + "/oai";
+		oaiPath = MapUtils.getAsOptionalString(hostLms.getClientConfig(), CONFIG_OAI_ENDPOINT_URL)
+			.map(URI::create)
+			.map(uri -> uri.getRawPath()
+				+ (uri.getRawQuery() != null ? "?" + uri.getRawQuery() : ""))
+			.orElseGet(() -> {
+				String tenantId = MapUtils.getAsOptionalString(
+					hostLms.getClientConfig(), CONFIG_TENANT_ID
+				).orElseThrow(() -> new IllegalArgumentException(
+					"ORS-Appliance OAI ingest requires client.oai-endpoint-url or client.tenant-id"));
+				return "/ors-appliance/api/V1/public/" + tenantId + "/oai";
+			});
 		setIdentifierSeparator(":");
 		setUuid5Prefix(UUID5_PREFIX);
 	}
