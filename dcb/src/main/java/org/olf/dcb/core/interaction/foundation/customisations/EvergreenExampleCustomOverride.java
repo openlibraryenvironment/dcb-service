@@ -1,7 +1,10 @@
 package org.olf.dcb.core.interaction.foundation.customisations;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+// Micronaut Serde, not Jackson: DCB does not register a Jackson ObjectMapper
+// bean, so injecting one made this override impossible to construct. The
+// Evergreen DTOs are already @Serdeable, which is the same intent.
+import io.micronaut.serde.ObjectMapper;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.http.HttpRequest;

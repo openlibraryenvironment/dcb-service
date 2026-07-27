@@ -64,10 +64,19 @@ public class FoundationClient extends AbstractHostLmsClient {
 
 		if (overrides != null && overrides.containsKey(configKey)) {
 			final String beanName = overrides.get(configKey);
+			final var qualifier = Qualifiers.<T>byName(beanName);
 			log.info("{} overriding {} with {}", lms.getCode(), configKey, beanName);
 
-			return beanContext.findBean(type, Qualifiers.byName(beanName))
-				.orElseThrow(() -> new IllegalStateException("Missing override bean: " + beanName));
+			if (!beanContext.containsBean(type, qualifier)) {
+				throw new IllegalStateException("Missing override bean: " + beanName);
+			}
+
+			// createBean, not findBean: an override takes the host as a
+			// @Parameter("hostLms") constructor argument, which makes its definition
+			// a ParametrizedInstantiatableBeanDefinition. Micronaut refuses to
+			// instantiate those without the argument, so findBean could never
+			// resolve one. This mirrors resolveBaseAdapter above.
+			return beanContext.createBean(type, qualifier, lms);
 		}
 
 		return defaultImpl;
