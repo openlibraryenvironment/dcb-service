@@ -1,0 +1,31 @@
+{
+  "id": "4d7b5ea0-6f94-5a75-b0a8-5c6d8e9f0a11",
+  "code": "EXAMPLE_ORS",
+  "name": "Example ORS Appliance Library",
+  "lmsClientClass": "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS",
+  "ingestSourceClass": "org.olf.dcb.core.interaction.ors.ORSApplianceOaiPmhIngestSource",
+  "clientConfig": {
+    "roles": ["CATALOGUE", "CIRCULATION"],
+    "ingest": true,
+
+    "capabilities": {
+      "supplying-agency-request": { "strategy": "declarative", "protocol": "ncip-v202" },
+      "borrowing-agency-request": { "strategy": "declarative", "protocol": "ncip-v202" },
+      "supplier-tracking":        { "mode": "event-driven",    "protocol": "ncip-v202" },
+      "borrower-tracking":        { "mode": "event-driven",    "protocol": "ncip-v202" }
+    },
+
+    "ncip-endpoint-url": "${EXAMPLE_ORS_NCIP_ENDPOINT_URL}",
+    "ncip-system-id": "${EXAMPLE_ORS_NCIP_SYSTEM_ID}",
+    "ncip-agency-id": "${EXAMPLE_ORS_NCIP_AGENCY_ID}",
+    "ncip-peer-auth-mode": "${EXAMPLE_ORS_PEER_AUTH_MODE}",
+
+    "base-url": "${EXAMPLE_ORS_BASE_URL}",
+    "tenant-id": "${EXAMPLE_ORS_TENANT_ID}",
+    "metadata-prefix": "marc21",
+    "page-size": 100,
+
+    "contextHierarchy": ["EXAMPLE_ORS", "GLOBAL"],
+    "default-agency-code": "example-ors"
+  }
+}

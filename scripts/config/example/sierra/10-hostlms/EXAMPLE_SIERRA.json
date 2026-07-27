@@ -1,0 +1,16 @@
+{
+  "id": "1a4e2bd7-3c61-5e42-8d75-2f2b6f8f1b02",
+  "code": "EXAMPLE_SIERRA",
+  "name": "Example Sierra Library",
+  "lmsClientClass": "org.olf.dcb.core.interaction.sierra.SierraLmsClient",
+  "ingestSourceClass": "org.olf.dcb.core.interaction.sierra.SierraLmsClient",
+  "clientConfig": {
+    "roles": ["CATALOGUE", "CIRCULATION"],
+    "ingest": true,
+    "base-url": "${EXAMPLE_SIERRA_BASE_URL}",
+    "key": "${EXAMPLE_SIERRA_KEY}",
+    "secret": "${EXAMPLE_SIERRA_SECRET}",
+    "contextHierarchy": ["EXAMPLE_SIERRA", "GLOBAL"],
+    "page-size": 100
+  }
+}

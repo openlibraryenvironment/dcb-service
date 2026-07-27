@@ -1,0 +1,33 @@
+mutation {
+  createLibrary(input: {
+    agencyCode: "example-evergreen"
+    hostLmsCode: "EXAMPLE_EVERGREEN"
+    isSupplyingAgency: true
+    isBorrowingAgency: true
+    fullName: "Example Evergreen Library"
+    shortName: "Example Evergreen"
+    abbreviatedName: "EEG"
+    address: "4 Example Terrace"
+    longitude: -1.548567
+    latitude: 53.801277
+    type: "ACADEMIC"
+    backupDowntimeSchedule: ""
+    supportHours: ""
+    discoverySystem: ""
+    patronWebsite: ""
+    hostLmsConfiguration: ""
+    contacts: [
+      {
+        firstName: "Edith"
+        lastName: "Example"
+        role: "Library Services Administrator"
+        isPrimaryContact: true
+        email: "edith.example@example.org"
+      }
+    ]
+  }) {
+    id
+    fullName
+    agencyCode
+  }
+}

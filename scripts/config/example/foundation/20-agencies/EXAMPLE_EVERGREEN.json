@@ -1,0 +1,11 @@
+{
+  "id": "70ae81d3-92c7-5da8-e3db-8f9a1b2c3d44",
+  "code": "example-evergreen",
+  "name": "Example Evergreen Agency",
+  "hostLMSCode": "EXAMPLE_EVERGREEN",
+  "authProfile": "BASIC/BARCODE+PIN",
+  "latitude": 53.801277,
+  "longitude": -1.548567,
+  "isSupplyingAgency": true,
+  "isBorrowingAgency": true
+}
