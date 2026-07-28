@@ -18,10 +18,8 @@ public class Bib {
 	private String title;
 	private String author;
 
-	// Circulation axis - drives loan periods and renewal limits, not bibliographic format
 	private String canonicalItemType;
 
-	// Bibliographic axis - the source record's MARC leader position 06 ('a', 'g', 'i', 'j', ...)
 	// This is what determines the material type of a virtual bib at the host LMS
 	private String typeOfRecord;
 }
