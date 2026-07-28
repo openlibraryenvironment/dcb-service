@@ -367,6 +367,7 @@ public class BorrowingAgencyService {
 
 		return Bib.builder().title(bibRecord.getTitle())
 			.author(bibRecord.getAuthor() != null ? bibRecord.getAuthor().getName() : null)
+			.typeOfRecord(bibRecord.getTypeOfRecord())
 			.build();
 	}
 
