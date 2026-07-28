@@ -279,6 +279,10 @@ public class MockPolarisFixture {
 		mockServer.replaceMock(createBibRequest(), bibId);
 	}
 
+	public void verifyCreateBibBodyContains(String fragment) {
+		mockServer.verify(createBibRequest().withBody(subString(fragment)));
+	}
+
 	public void mockCreateBibNotAuthorisedResponse() {
 		mockServer.replaceMock(createBibRequest(), response().withStatusCode(401));
 	}
