@@ -18,6 +18,7 @@ import java.util.UUID;
 public record PatronRequestSummary(
 	@NotNull UUID id,
 	@Nullable String status,
+	@Nullable String outcome,
 	@Nullable String nextExpectedStatus,
 	@Nullable Long timeInState,
 	@Nullable String errorMessage,

@@ -46,7 +46,7 @@ class SierraApiBibTests {
 		final var secret = "bib-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, baseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		sierraBibsAPIFixture = sierraApiFixtureProvider.bibs(mockServerClient, host);
 

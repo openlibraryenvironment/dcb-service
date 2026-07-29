@@ -106,7 +106,7 @@ class CancelledPatronRequestTransitionTests {
 		agencyFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		supplierHostLMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "title");
@@ -219,6 +219,7 @@ class CancelledPatronRequestTransitionTests {
 			notNullValue(),
 			hasStatus(CANCELLED)
 		));
+		assertThat(updatedPatronRequest.getOutcome(), is(PatronRequest.Outcome.CANCELLED));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(localSupplyingHoldId);
 	}

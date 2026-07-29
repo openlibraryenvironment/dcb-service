@@ -17,6 +17,7 @@ import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.devtools.interaction.dummy.DummyLmsClient;
 import org.olf.dcb.ingest.IngestSource;
+import org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS;
 import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.core.annotation.Nullable;
@@ -79,15 +80,26 @@ public class HostLmsFixture {
 	public DataHostLms createSierraHostLms(String code, String username,
 		String password, String baseUrl, String holdPolicy) {
 
-		return createSierraHostLms(code, Map.of(
-			"key", username,
-			"secret", password,
-			"base-url", baseUrl,
-			"holdPolicy", holdPolicy,
-			"get-holds-retry-attempts", "1",
-			"default-agency-code", "default-agency-code",
-			"place-hold-delay", 0,
-			"get-hold-delay", 0));
+		return createSierraHostLms(code, username, password, baseUrl, holdPolicy, null);
+	}
+
+	public DataHostLms createSierraHostLms(String code, String username,
+		String password, String baseUrl, String holdPolicy, String baseUrlQualifier) {
+
+		Map<String, Object> clientConfig = new HashMap<>();
+		clientConfig.put("key", username);
+		clientConfig.put("secret", password);
+		clientConfig.put("base-url", baseUrl);
+		clientConfig.put("holdPolicy", holdPolicy);
+		clientConfig.put("get-holds-retry-attempts", "1");
+		clientConfig.put("default-agency-code", "default-agency-code");
+		clientConfig.put("place-hold-delay", 0);
+		clientConfig.put("get-hold-delay", 0);
+		if (baseUrlQualifier != null) {
+			clientConfig.put("base-url-qualifier", baseUrlQualifier);
+		}
+
+		return createSierraHostLms(code, clientConfig);
 	}
 
 	private DataHostLms createSierraHostLms(String code, Map<String, Object> config) {
@@ -175,6 +187,18 @@ public class HostLmsFixture {
 
 		return createHostLms(randomUUID(), code, DummyLmsClient.class,
 			Optional.of(DummyLmsClient.class), clientConfig);
+	}
+
+	public DataHostLms createORSApplianceHostLms(
+		String code,
+		String ncipEndpointUrl) {
+
+		return createHostLms(randomUUID(), code, ORSApplianceHostLMS.class,
+			Optional.empty(), Map.of(
+				ORSApplianceHostLMS.NCIP_ENDPOINT_URL_KEY,
+				ncipEndpointUrl,
+				"ncipSystemId",
+				code + "-system"));
 	}
 
 	private String generateBaseUrl(String code) {

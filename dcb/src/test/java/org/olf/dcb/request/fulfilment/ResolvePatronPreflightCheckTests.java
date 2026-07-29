@@ -58,7 +58,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		final String SECRET = "resolve-patron-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, "test-token", 60);
+			.setValidCredentials(KEY, SECRET, "test-token", 3600);
 
 		hostLmsFixture.deleteAll();
 

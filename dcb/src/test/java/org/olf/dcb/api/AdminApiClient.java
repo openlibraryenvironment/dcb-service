@@ -102,6 +102,7 @@ class AdminApiClient {
 		@Value
 		public static class Status {
 			@Nullable String code;
+			@Nullable String outcome;
 			@Nullable String errorMessage;
 		}
 

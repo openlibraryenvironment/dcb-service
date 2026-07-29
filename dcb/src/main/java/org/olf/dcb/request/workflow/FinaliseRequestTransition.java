@@ -128,6 +128,10 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	}
 
 	private Mono<HashMap<String, Object>> fetchVirtualPatron(RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
+		if (ctx.getPatronVirtualIdentity() == null) {
+			return Mono.just(putAuditData(auditData, "VirtualPatron", "Not created by supplier protocol"));
+		}
+
 		return supplyingAgencyService.getPatron(ctx)
 			.map(patron -> putAuditData(auditData, "VirtualPatron", getValueOrNull(patron, Patron::toString)))
 			.onErrorResume(error -> auditThrowableMonoWrap(auditData, "VirtualPatron", error))

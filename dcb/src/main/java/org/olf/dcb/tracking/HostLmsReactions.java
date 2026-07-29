@@ -6,6 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
+import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceSource;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import org.olf.dcb.tracking.model.StateChange;
@@ -29,7 +32,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
  */
 @Slf4j
 @Singleton
-public class HostLmsReactions {
+public class HostLmsReactions implements TrackingEventSink {
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final SupplierRequestRepository supplierRequestRepository;
@@ -57,6 +60,7 @@ public class HostLmsReactions {
 	}
 
 	@Transactional
+	@Override
 	public Mono<Map<String,Object>> onTrackingEvent(TrackingRecord trackingRecord) {
 		log.debug("onTrackingEvent {}", trackingRecord);
 		// This no longer does anything other than update the relevant state of the items against the PR or SR
@@ -127,43 +131,62 @@ public class HostLmsReactions {
 	public Mono<Map<String,Object>> auditEventIndication(Map<String,Object> context,
 		TrackingRecord tr) {
 
-			log.debug("Audit event indication");
+		log.debug("Audit event indication");
 
-			final var sc = (StateChange) tr;
+		final var sc = (StateChange) tr;
 
-			final var msg = "to %s from %s - %s(%s)".formatted(
-				sc.getToState(), sc.getFromState(),
-				sc.getResourceType(), sc.getResourceId());
+		final var msg = "to %s from %s - %s(%s)".formatted(
+			sc.getToState(), sc.getFromState(),
+			sc.getResourceType(), sc.getResourceId());
 
-			final var auditData = new HashMap<String,Object>();
+		final var auditData = new HashMap<String,Object>();
 
-			auditData.put("patronRequestId", sc.getPatronRequestId());
-			auditData.put("resourceType", sc.getResourceType());
-			auditData.put("resourceId", sc.getResourceId());
-			auditData.put("fromState", sc.getFromState());
-			auditData.put("toState", sc.getToState());
-			if (sc.getFromRenewalCount() != null) {
-				auditData.put("fromRenewalCount", sc.getFromRenewalCount());
-			}
-			if (sc.getToRenewalCount() != null) {
-				auditData.put("toRenewalCount", sc.getToRenewalCount());
-			}
-
-			if ( "SupplierItem".equals(sc.getResourceType()) ) {
-				auditData.put("fromLocalHoldCount", sc.getFromHoldCount());
-				auditData.put("toLocalHoldCount", sc.getToHoldCount());
-			}
-			
-			final var additionalProperties = getValueOrNull(sc, StateChange::getAdditionalProperties);
-			if (additionalProperties != null) {
-				try {
-					auditData.putAll(additionalProperties);
-				} catch (Exception e) {
-					log.error("Unable to add additional properties to audit data");
-				}
-			}
-
-			return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)
-				.thenReturn(context);
+		auditData.put("source", LifecycleEvidenceSource.POLLING.name());
+		auditData.put("role", roleFor(sc.getResourceType()).name());
+		auditData.put("resource", resourceFor(sc.getResourceType()).name());
+		auditData.put("patronRequestId", sc.getPatronRequestId());
+		auditData.put("resourceType", sc.getResourceType());
+		auditData.put("resourceId", sc.getResourceId());
+		auditData.put("fromState", sc.getFromState());
+		auditData.put("toState", sc.getToState());
+		if (sc.getFromRenewalCount() != null) {
+			auditData.put("fromRenewalCount", sc.getFromRenewalCount());
 		}
+		if (sc.getToRenewalCount() != null) {
+			auditData.put("toRenewalCount", sc.getToRenewalCount());
+		}
+
+		if ( "SupplierItem".equals(sc.getResourceType()) ) {
+			auditData.put("fromLocalHoldCount", sc.getFromHoldCount());
+			auditData.put("toLocalHoldCount", sc.getToHoldCount());
+		}
+
+		final var additionalProperties = getValueOrNull(sc, StateChange::getAdditionalProperties);
+		if (additionalProperties != null) {
+			try {
+				auditData.putAll(additionalProperties);
+			} catch (Exception e) {
+				log.error("Unable to add additional properties to audit data");
+			}
+		}
+
+		return patronRequestAuditService.addAuditEntry(sc.getPatronRequestId(), msg, auditData)
+			.thenReturn(context);
 	}
+
+	private static LifecycleRole roleFor(String resourceType) {
+		return switch (resourceType) {
+			case "SupplierRequest", "SupplierItem" -> LifecycleRole.SUPPLIER;
+			case "PickupRequest", "PickupItem" -> LifecycleRole.PICKUP;
+			default -> LifecycleRole.BORROWER;
+		};
+	}
+
+	private static LifecycleEvidenceResource resourceFor(String resourceType) {
+		return switch (resourceType) {
+			case "SupplierItem", "BorrowerVirtualItem", "PickupItem" ->
+				LifecycleEvidenceResource.ITEM;
+			default -> LifecycleEvidenceResource.REQUEST;
+		};
+	}
+}

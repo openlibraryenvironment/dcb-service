@@ -18,6 +18,7 @@ import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
+import org.olf.dcb.request.lifecycle.tracking.RequestTrackingPolicy;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingHelpers;
 import org.reactivestreams.Publisher;
@@ -44,6 +45,7 @@ public class PatronRequestWorkflowService {
 	private final List<PatronRequestStateTransition> allTransitions;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final TrackingHelpers trackingHelpers;
+	private final RequestTrackingPolicy requestTrackingPolicy;
 	private final AlarmsService alarmsService;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
@@ -51,6 +53,7 @@ public class PatronRequestWorkflowService {
 		PatronRequestAuditService patronRequestAuditService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		TrackingHelpers trackingHelpers,
+		RequestTrackingPolicy requestTrackingPolicy,
 		AlarmsService alarmsService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
@@ -61,6 +64,7 @@ public class PatronRequestWorkflowService {
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.trackingHelpers = trackingHelpers;
+		this.requestTrackingPolicy = requestTrackingPolicy;
 		this.alarmsService = alarmsService;
 
 		log.info("Initialising workflow engine with available transitions");
@@ -302,6 +306,13 @@ public class PatronRequestWorkflowService {
 
 	private Mono<RequestWorkflowContext> scheduleNextCheck(RequestWorkflowContext ctx) {
 		final var patronRequest = ctx.getPatronRequest();
+
+		if (!requestTrackingPolicy.schedulesAutomaticPolls(ctx)) {
+			log.debug("Automatic polling suppressed for {}", patronRequest.getId());
+			patronRequest.setNextScheduledPoll(null);
+			return Mono.from(patronRequestRepository.saveOrUpdate(patronRequest))
+				.map(ctx::setPatronRequest);
+		}
 
 		final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
 

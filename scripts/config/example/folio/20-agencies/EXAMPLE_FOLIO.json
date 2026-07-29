@@ -1,0 +1,9 @@
+{
+  "id": "2b5f3ce8-4d72-5f53-9e86-3a3c7a9a2c03",
+  "code": "example-folio",
+  "name": "Example FOLIO Agency",
+  "hostLMSCode": "EXAMPLE_FOLIO",
+  "authProfile": "BASIC/BARCODE+PIN",
+  "isSupplyingAgency": true,
+  "isBorrowingAgency": true
+}

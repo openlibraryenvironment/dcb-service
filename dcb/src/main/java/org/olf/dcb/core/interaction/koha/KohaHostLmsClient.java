@@ -63,7 +63,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.config = kohaClientConfig;
-	}
+		}
 
 	/*** General operations - are we missing any? A version check would be useful. possibly implementer also***/
 
@@ -364,7 +364,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		}
 		if (item.getNotForLoanStatus() != null && item.getNotForLoanStatus() > 0) {
 			return HostLmsItem.ITEM_MISSING; // Really should be ITEM_UNAVAILABLE or ITEM_RESTRICTED
- 		}
+		}
 //		if (item.getDamagedStatus() != null && item.getDamagedStatus() > 0) {
 //		}
 		// Need to look at Koha item statuses for this one

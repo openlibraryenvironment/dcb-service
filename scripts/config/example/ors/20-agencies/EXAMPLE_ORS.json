@@ -1,0 +1,11 @@
+{
+  "id": "5e8c6fb1-70a5-5b86-c1b9-6d7e9f0a1b22",
+  "code": "example-ors",
+  "name": "Example ORS Appliance Agency",
+  "hostLMSCode": "EXAMPLE_ORS",
+  "authProfile": "BASIC/BARCODE+PIN",
+  "latitude": 53.801277,
+  "longitude": -1.548567,
+  "isSupplyingAgency": true,
+  "isBorrowingAgency": true
+}

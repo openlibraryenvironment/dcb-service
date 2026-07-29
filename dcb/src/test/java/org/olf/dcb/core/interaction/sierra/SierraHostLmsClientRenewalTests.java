@@ -48,7 +48,7 @@ class SierraHostLmsClientRenewalTests {
 		final String SECRET = "renewal-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);

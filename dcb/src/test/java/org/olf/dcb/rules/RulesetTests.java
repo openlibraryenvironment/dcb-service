@@ -29,7 +29,7 @@ import services.k_int.interaction.oaipmh.OaiRecord;
 import services.k_int.interaction.sierra.bibs.BibResult;
 
 @Slf4j
-@MicronautTest(propertySources = "rulesetTests.yml")
+@MicronautTest(propertySources = "rulesetTests.yml", contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 public class RulesetTests {
 	
 	private static final String RESOURCE_SUB_PATH = Stream.ofNullable(RulesetTests.class.getPackageName())

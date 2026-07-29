@@ -57,4 +57,41 @@ dcb:
 #  httpHosts: "http://localhost:9200"
 
 
+# --- Local development datasources -------------------------------------------
+#
+# Micronaut Test Resources used to provision a throwaway Postgres and inject the
+# datasource properties. The `io.micronaut.test-resources` plugin was removed
+# from dcb/build.gradle, so nothing supplies them any more and `./gradlew run`
+# fails at startup with "No value found for host".
+#
+# These defaults match the `persistent-db` profile in scripts/docker-compose.yml:
+#     docker compose -f scripts/docker-compose.yml --profile persistent-db up -d
+#
+# Only the `development` environment reads this file - build.gradle sets
+# micronaut.environments=development for the `run` task - so deployed instances
+# are unaffected. Every value is env-overridable, so exported DB_* (or the
+# DATASOURCES_* / R2DBC_DATASOURCES_* variables) still win.
+#
+db:
+  host: "${DB_HOST:localhost}"
+  port: "${DB_PORT:5432}"
+  database: "${DB_DATABASE:dcb}"
+  username: "${DB_USER:dcb}"
+  password: "${DB_PASSWORD:dcb}"
 
+datasources:
+  default:
+    url: "jdbc:postgresql://${db.host}:${db.port}/${db.database}"
+    username: "${db.username}"
+    password: "${db.password}"
+
+r2dbc:
+  datasources:
+    default:
+      url: "r2dbc:pool:postgresql://${db.host}:${db.port}/${db.database}"
+      username: "${db.username}"
+      password: "${db.password}"
+
+# NOTE: a `test-resources.containers.elasticsearch.image-name` block used to sit
+# here. It is inert now that the test-resources plugin is gone - start ES or
+# OpenSearch from scripts/docker-compose.yml instead (profiles es9 / os2).

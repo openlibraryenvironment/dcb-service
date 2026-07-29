@@ -84,10 +84,10 @@ class SupplierRenewalTransitionTests {
 		hostLmsFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, supplyingHostLmsBaseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		SierraTestUtils.mockFor(mockServerClient, borrowingHostLmsBaseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
 			key, secret, borrowingHostLmsBaseUrl);

@@ -94,10 +94,10 @@ class LiveAvailabilityServiceTests {
 		final String SECOND_SYSTEM_SECRET = "second-system-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, FIRST_HOST_LMS_BASE_URL)
-			.setValidCredentials(FIRST_HOST_LMS_KEY, FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_TOKEN, 60);
+			.setValidCredentials(FIRST_HOST_LMS_KEY, FIRST_HOST_LMS_SECRET, FIRST_HOST_LMS_TOKEN, 3600);
 
 		SierraTestUtils.mockFor(mockServerClient, SECOND_HOST_LMS_BASE_URL)
-			.setValidCredentials(SECOND_SYSTEM_KEY, SECOND_SYSTEM_SECRET, SECOND_SYSTEM_TOKEN, 60);
+			.setValidCredentials(SECOND_SYSTEM_KEY, SECOND_SYSTEM_SECRET, SECOND_SYSTEM_TOKEN, 3600);
 
 		hostLmsFixture.deleteAll();
 

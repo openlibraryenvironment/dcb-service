@@ -150,10 +150,10 @@ class ResolveNextSupplierTransitionTests {
 		hostLmsFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, supplyingHostLmsBaseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		SierraTestUtils.mockFor(mockServerClient, borrowingHostLmsBaseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
 			key, secret, borrowingHostLmsBaseUrl);
@@ -230,6 +230,7 @@ class ResolveNextSupplierTransitionTests {
 			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
 			hasNoResolutionCount()
 		));
+		assertThat(updatedPatronRequest.getOutcome(), is(PatronRequest.Outcome.NOT_SUPPLIED));
 
 		assertThat("Previous supplier request should still exist",
 			supplierRequestsFixture.exists(supplierRequest.getId()), is(true));
