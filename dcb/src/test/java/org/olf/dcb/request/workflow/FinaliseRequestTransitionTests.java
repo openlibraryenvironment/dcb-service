@@ -97,7 +97,7 @@ class FinaliseRequestTransitionTests {
 		agencyFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		supplierHostLMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "title");

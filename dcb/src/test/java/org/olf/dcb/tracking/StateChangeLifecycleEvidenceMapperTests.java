@@ -2,10 +2,12 @@ package org.olf.dcb.tracking;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.zalando.problem.ThrowableProblem;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
@@ -41,6 +43,31 @@ class StateChangeLifecycleEvidenceMapperTests {
 		assertThat(evidence.trackingResourceId(), is(supplierRequestId.toString()));
 		assertThat(evidence.trackingProperties().get("toRawStatus"),
 			is("confirmed"));
+	}
+
+	@Test
+	void rejectsUnknownResourceTypeRatherThanFilingItAsABorrowerRequest() {
+		final var stateChange = StateChange.builder()
+			.patronRequestId(UUID.randomUUID())
+			.resourceType("SomeResourceTypeAddedLater")
+			.resourceId(UUID.randomUUID().toString())
+			.fromState("A")
+			.toState("B")
+			.build();
+
+		assertThrows(ThrowableProblem.class, () -> mapper.map(stateChange));
+	}
+
+	@Test
+	void rejectsMissingResourceType() {
+		final var stateChange = StateChange.builder()
+			.patronRequestId(UUID.randomUUID())
+			.resourceId(UUID.randomUUID().toString())
+			.fromState("A")
+			.toState("B")
+			.build();
+
+		assertThrows(ThrowableProblem.class, () -> mapper.map(stateChange));
 	}
 
 	@Test

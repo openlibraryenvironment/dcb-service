@@ -60,7 +60,7 @@ class SierraApiItemTests {
 		final String SECRET = "item-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 

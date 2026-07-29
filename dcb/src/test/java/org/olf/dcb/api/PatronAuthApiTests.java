@@ -81,7 +81,7 @@ public class PatronAuthApiTests {
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
 		mockSierra = SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		this.sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
 

@@ -152,7 +152,7 @@ class SameLibraryWorkflowApiTests {
 	private void setUpMockCredentials(MockServerClient mockServerClient) {
 		final String TEST_TOKEN = "test-token";
 		SierraTestUtils.mockFor(mockServerClient, BORROWING_BASE_URL)
-			.setValidCredentials(TEST_KEY, TEST_SECRET, TEST_TOKEN, 60);
+			.setValidCredentials(TEST_KEY, TEST_SECRET, TEST_TOKEN, 3600);
 	}
 
 	private void setUpFixtures(MockServerClient mockServerClient) {

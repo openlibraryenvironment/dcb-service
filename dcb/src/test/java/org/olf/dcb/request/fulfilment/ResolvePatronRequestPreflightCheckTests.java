@@ -93,7 +93,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final String HOST_LMS_SECRET = "resolution-system-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, HOST_LMS_BASE_URL)
-			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
+			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 3600);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);

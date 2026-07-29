@@ -84,6 +84,98 @@ class LifecycleEvidenceTrackingEventSinkParityTests {
 		assertPickupItemProjection(lifecycleEvidenceTrackingEventSink);
 	}
 
+	@Test
+	void preservesSupplierRequestProjectionAndAuditShape() {
+		assertSupplierRequestProjection(hostLmsReactions);
+		resetData();
+		assertSupplierRequestProjection(lifecycleEvidenceTrackingEventSink);
+	}
+
+	/**
+	 * Tracking keeps using the instance it passed in - it evaluates transitions against it and
+	 * then saves it when scheduling the next check. A sink that writes to a second copy read
+	 * back from the database leaves the caller both blind to the new status and liable to
+	 * overwrite it.
+	 */
+	@Test
+	void projectsOntoTheInstanceSuppliedByTheCaller() {
+		assertProjectsOntoSuppliedInstance(hostLmsReactions);
+		resetData();
+		assertProjectsOntoSuppliedInstance(lifecycleEvidenceTrackingEventSink);
+	}
+
+	private void assertProjectsOntoSuppliedInstance(TrackingEventSink sink) {
+		final var patronRequest = savePatronRequest(PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.localItemStatus("TRANSIT")
+			.build());
+
+		final var supplierRequest = saveSupplierRequest(patronRequest,
+			SupplierRequest.builder()
+				.localStatus("PLACED"));
+
+		project(sink, StateChange.builder()
+			.resourceType("BorrowerVirtualItem")
+			.resource(patronRequest)
+			.resourceId(patronRequest.getId().toString())
+			.fromState("TRANSIT")
+			.toState("LOANED")
+			.patronRequestId(patronRequest.getId())
+			.build());
+
+		// the caller's own object, not a re-read
+		assertThat(patronRequest.getLocalItemStatus(), is("LOANED"));
+
+		project(sink, StateChange.builder()
+			.resourceType("SupplierRequest")
+			.resource(supplierRequest)
+			.resourceId(supplierRequest.getId().toString())
+			.fromState("PLACED")
+			.toState("CANCELLED")
+			.patronRequestId(patronRequest.getId())
+			.build());
+
+		assertThat(supplierRequest.getLocalStatus(), is("CANCELLED"));
+	}
+
+	private void assertSupplierRequestProjection(TrackingEventSink sink) {
+		final var patronRequest = savePatronRequest(PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.build());
+
+		final var supplierRequest = saveSupplierRequest(patronRequest,
+			SupplierRequest.builder()
+				.localStatus("PLACED")
+				.localId("hold-1")
+				.localRequestStatusRepeat(Long.valueOf(6)));
+
+		project(sink, StateChange.builder()
+			.resourceType("SupplierRequest")
+			.resource(supplierRequest)
+			.resourceId(supplierRequest.getId().toString())
+			.fromState("PLACED")
+			.toState("MISSING")
+			.patronRequestId(patronRequest.getId())
+			.additionalProperties(Map.of("toRawStatus", "missing"))
+			.build());
+
+		final var updatedSupplierRequest =
+			supplierRequestsFixture.findById(supplierRequest.getId());
+
+		assertThat(updatedSupplierRequest.getLocalStatus(), is("MISSING"));
+		assertThat(updatedSupplierRequest.getLocalRequestStatusRepeat(),
+			is(Long.valueOf(0)));
+		assertThat(updatedSupplierRequest.getLocalRequestLastCheckTimestamp(),
+			notNullValue());
+
+		// polling evidence carries no host request id, so the existing one must survive
+		assertThat(updatedSupplierRequest.getLocalId(), is("hold-1"));
+
+		assertPollingAudit(patronRequest, "SupplierRequest",
+			supplierRequest.getId().toString(), "PLACED", "MISSING", "SUPPLIER",
+			"REQUEST");
+	}
+
 	private void assertBorrowerRequestProjection(TrackingEventSink sink) {
 		final var patronRequest = savePatronRequest(PatronRequest.builder()
 			.id(UUID.randomUUID())

@@ -84,7 +84,7 @@ public class GeoDistanceTieBreakerTests {
 	@SneakyThrows
 	public void setupMockServerAndHostLms(MockServerClient mockServerClient) {
 		SierraTestUtils.mockFor(mockServerClient, HOST_LMS_BASE_URL)
-			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 60);
+			.setValidCredentials(HOST_LMS_KEY, HOST_LMS_SECRET, HOST_LMS_TOKEN, 3600);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, HOST_LMS_HOST);
 

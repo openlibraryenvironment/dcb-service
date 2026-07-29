@@ -119,7 +119,7 @@ class PatronRequestResolutionServiceTests {
 		final var secret = "resolution-system-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, baseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, host);
 

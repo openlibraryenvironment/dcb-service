@@ -89,7 +89,7 @@ class HandleSupplierRequestConfirmedTests {
 		agencyFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, baseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		SUPPLYING_HOST_LMS = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE, key,
 			secret, baseUrl, "title");
