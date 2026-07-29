@@ -1,6 +1,7 @@
 package org.olf.dcb.request.lifecycle.evidence;
 
 import io.micronaut.context.annotation.Prototype;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,28 +36,60 @@ public class DefaultLifecycleEvidenceProjector
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
+	@Transactional
 	@Override
 	public Mono<RequestWorkflowContext> project(LifecycleEvidence evidence) {
-		return Mono.from(patronRequestRepository.findById(
-				patronRequestIdFrom(evidence)))
-			.flatMap(patronRequest -> contextFor(evidence, patronRequest))
-			.flatMap(context -> project(evidence, context))
+		return project(evidence, null);
+	}
+
+	@Transactional
+	@Override
+	public Mono<RequestWorkflowContext> project(LifecycleEvidence evidence,
+		RequestWorkflowContext seed) {
+
+		return patronRequestFor(evidence, seed)
+			.flatMap(patronRequest -> contextFor(evidence, patronRequest, seed))
+			.flatMap(context -> projectOnto(evidence, context))
 			.flatMap(context -> audit(evidence, context));
+	}
+
+	private Mono<PatronRequest> patronRequestFor(
+		LifecycleEvidence evidence,
+		RequestWorkflowContext seed) {
+
+		final var seeded = seededPatronRequest(seed);
+
+		if (seeded != null) {
+			return Mono.just(seeded);
+		}
+
+		return Mono.from(patronRequestRepository.findById(
+			patronRequestIdFrom(evidence)));
 	}
 
 	private Mono<RequestWorkflowContext> contextFor(
 		LifecycleEvidence evidence,
-		PatronRequest patronRequest) {
+		PatronRequest patronRequest,
+		RequestWorkflowContext seed) {
 
 		if (evidence.source() == LifecycleEvidenceSource.POLLING) {
 			return Mono.just(new RequestWorkflowContext()
-				.setPatronRequest(patronRequest));
+				.setPatronRequest(patronRequest)
+				.setSupplierRequest(seededSupplierRequest(seed)));
 		}
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest);
 	}
 
-	private Mono<RequestWorkflowContext> project(
+	private static PatronRequest seededPatronRequest(RequestWorkflowContext seed) {
+		return seed == null ? null : seed.getPatronRequest();
+	}
+
+	private static SupplierRequest seededSupplierRequest(RequestWorkflowContext seed) {
+		return seed == null ? null : seed.getSupplierRequest();
+	}
+
+	private Mono<RequestWorkflowContext> projectOnto(
 		LifecycleEvidence evidence,
 		RequestWorkflowContext context) {
 
@@ -289,7 +322,7 @@ public class DefaultLifecycleEvidenceProjector
 		auditData.put("source", evidence.source().name());
 		auditData.put("role", evidence.role().name());
 		auditData.put("resource", evidence.resource().name());
-		auditData.put("patronRequestId", patronRequestIdFrom(evidence));
+		auditData.put("patronRequestId", context.getPatronRequest().getId());
 		auditData.put("resourceType", evidence.trackingResourceType());
 		auditData.put("resourceId", evidence.trackingResourceId());
 		auditData.put("fromState", evidence.fromStatus());

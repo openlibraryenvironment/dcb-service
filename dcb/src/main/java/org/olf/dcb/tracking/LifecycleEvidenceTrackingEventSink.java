@@ -2,6 +2,9 @@ package org.olf.dcb.tracking;
 
 import jakarta.inject.Singleton;
 import java.util.Map;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceProjector;
 import org.olf.dcb.tracking.model.StateChange;
 import org.olf.dcb.tracking.model.TrackingRecord;
@@ -37,7 +40,27 @@ public class LifecycleEvidenceTrackingEventSink implements TrackingEventSink {
 				.build());
 		}
 
-		return lifecycleEvidenceProjector.project(mapper.map(stateChange))
+		return lifecycleEvidenceProjector
+			.project(mapper.map(stateChange), seedFrom(stateChange))
 			.thenReturn(Map.of("StateChange", stateChange));
+	}
+
+	/**
+	 * Tracking hands us the entity it is holding. Pass it to the projector so the status is
+	 * written onto that instance rather than onto a second copy read back from the database -
+	 * the caller evaluates workflow transitions against this object and later saves it.
+	 */
+	private static RequestWorkflowContext seedFrom(StateChange stateChange) {
+		final var resource = stateChange.getResource();
+
+		if (resource instanceof PatronRequest patronRequest) {
+			return new RequestWorkflowContext().setPatronRequest(patronRequest);
+		}
+
+		if (resource instanceof SupplierRequest supplierRequest) {
+			return new RequestWorkflowContext().setSupplierRequest(supplierRequest);
+		}
+
+		return null;
 	}
 }

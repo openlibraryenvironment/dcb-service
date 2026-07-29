@@ -7,6 +7,8 @@ import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidence;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceResource;
 import org.olf.dcb.request.lifecycle.evidence.LifecycleEvidenceSource;
 import org.olf.dcb.tracking.model.StateChange;
+import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 public class StateChangeLifecycleEvidenceMapper {
 	public LifecycleEvidence map(StateChange stateChange) {
@@ -39,20 +41,41 @@ public class StateChangeLifecycleEvidenceMapper {
 			stateChange.getAdditionalProperties());
 	}
 
+	// Every resource type is listed explicitly in both mappings. An unrecognised type must fail
+	// here rather than fall through to a default: mapping it to BORROWER/REQUEST would write a
+	// status belonging to some other resource onto the borrowing request.
 	private static LifecycleRole roleFor(String resourceType) {
+		if (resourceType == null) {
+			throw unknownResourceType(null);
+		}
+
 		return switch (resourceType) {
 			case "SupplierRequest", "SupplierItem" -> LifecycleRole.SUPPLIER;
 			case "PickupRequest", "PickupItem" -> LifecycleRole.PICKUP;
-			default -> LifecycleRole.BORROWER;
+			case "PatronRequest", "BorrowerVirtualItem" -> LifecycleRole.BORROWER;
+			default -> throw unknownResourceType(resourceType);
 		};
 	}
 
 	private static LifecycleEvidenceResource resourceFor(String resourceType) {
+		if (resourceType == null) {
+			throw unknownResourceType(null);
+		}
+
 		return switch (resourceType) {
 			case "SupplierItem", "BorrowerVirtualItem", "PickupItem" ->
 				LifecycleEvidenceResource.ITEM;
-			default -> LifecycleEvidenceResource.REQUEST;
+			case "SupplierRequest", "PatronRequest", "PickupRequest" ->
+				LifecycleEvidenceResource.REQUEST;
+			default -> throw unknownResourceType(resourceType);
 		};
+	}
+
+	private static ThrowableProblem unknownResourceType(String resourceType) {
+		return Problem.builder()
+			.withTitle("State change record for unknown resource type")
+			.with("resourceType", String.valueOf(resourceType))
+			.build();
 	}
 
 	private static LifecycleOperation operationFor(
