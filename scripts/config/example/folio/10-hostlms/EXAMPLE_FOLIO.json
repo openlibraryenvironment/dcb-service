@@ -1,0 +1,19 @@
+{
+  "id": "0f3ff1cc-9b0f-5a3c-9b64-1f1a5e7e0a01",
+  "code": "EXAMPLE_FOLIO",
+  "name": "Example FOLIO Library",
+  "lmsClientClass": "org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient",
+  "ingestSourceClass": "org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource",
+  "clientConfig": {
+    "roles": ["CATALOGUE", "CIRCULATION"],
+    "ingest": true,
+    "apikey": "${EXAMPLE_FOLIO_APIKEY}",
+    "base-url": "${EXAMPLE_FOLIO_BASE_URL}",
+    "user-base-url": "${EXAMPLE_FOLIO_USER_BASE_URL}",
+    "record-syntax": "oai_dc",
+    "metadata-prefix": "marc21_withholdings",
+    "contextHierarchy": ["EXAMPLE_FOLIO", "GLOBAL"],
+    "default-agency-code": "example-folio",
+    "page-size": 100
+  }
+}

@@ -153,7 +153,7 @@ class PatronRequestResolutionStateTransitionTests {
 		final var cataloguingHostLmsUrl = "https://resolution-tests.com";
 
 		SierraTestUtils.mockFor(mockServerClient, cataloguingHostLmsUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		cataloguingHostLms = hostLmsFixture.createSierraHostLms(CATALOGUING_HOST_LMS_CODE,
 			key, secret, cataloguingHostLmsUrl, "item");
@@ -165,7 +165,7 @@ class PatronRequestResolutionStateTransitionTests {
 		final var borrowingHostLmsUrl = "http://some-borrowing-system";
 
 		SierraTestUtils.mockFor(mockServerClient, borrowingHostLmsUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		borrowingHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE,
 			key, secret, borrowingHostLmsUrl, "item");

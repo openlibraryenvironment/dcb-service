@@ -1,5 +1,13 @@
 # Agent Operating Notes
 
+## Architecture First
+
+Read `ARCHITECTURE.md` before substantial analysis or changes.
+
+Keep `ARCHITECTURE.md` current when changing module ownership, dependency rules,
+extension points, persistence ownership, external integration boundaries, or
+known architectural rules.
+
 ## ADR First
 
 Before making dependency or CI/test-run changes, review ADRs in `docs/ADRs/`.
@@ -17,3 +25,10 @@ GRADLE_USER_HOME="$PWD/.gradle-codex" timeout 30m ./gradlew test --no-daemon --n
 ```
 
 Do not terminate full-suite runs early unless there is a confirmed infrastructure/process issue.
+
+## Definition Of Done
+
+- Relevant tests or a clear reason they were not run.
+- Documentation updated when architecture, module boundaries, extension points,
+  persistence ownership, or external integration boundaries change.
+- No database schema changes without explicit approval.

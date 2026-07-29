@@ -95,7 +95,7 @@ class LiveAvailabilityApiTests {
 		final var secret = "live-availability-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, baseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, host);
 

@@ -115,7 +115,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		final String SECRET = "borrowing-agency-service-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		hostLmsFixture.deleteAll();
 		agencyFixture.deleteAll();

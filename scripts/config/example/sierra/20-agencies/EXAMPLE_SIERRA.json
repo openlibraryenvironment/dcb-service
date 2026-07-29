@@ -1,0 +1,9 @@
+{
+  "id": "3c6a4df9-5e83-5a64-af97-4b4d8bab3d04",
+  "code": "example-sierra",
+  "name": "Example Sierra Agency",
+  "hostLMSCode": "EXAMPLE_SIERRA",
+  "authProfile": "BASIC/BARCODE+PIN",
+  "isSupplyingAgency": true,
+  "isBorrowingAgency": true
+}

@@ -8,6 +8,7 @@ import java.util.concurrent.TimeoutException;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cp.lock.FencedLock;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.NonNull;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -17,6 +18,7 @@ import services.k_int.federation.FederatedLockService;
 @Singleton
 @Slf4j
 @Named("hazelcast")
+@Requires(property = "dcb.federation.lock-provider", notEquals = "local")
 public class HazelcastFederatedLockService implements FederatedLockService {
 
 	private final HazelcastInstance hazelcast;

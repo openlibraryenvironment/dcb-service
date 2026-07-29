@@ -34,6 +34,8 @@ import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.tracking.RequestTrackingPolicy;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
@@ -42,14 +44,12 @@ import org.olf.dcb.tracking.model.StateChange;
 import io.micrometer.core.annotation.Timed;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.runtime.context.scope.Refreshable;
-import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
-import services.k_int.micronaut.scheduling.processor.AppTask;
 
 @Slf4j
 @Refreshable
@@ -60,11 +60,12 @@ public class TrackingServiceV3 implements TrackingService {
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final HostLmsService hostLmsService;
-	private final HostLmsReactions hostLmsReactions;
+	private final TrackingEventSink trackingEventSink;
 	private final PatronRequestWorkflowService patronRequestWorkflowService;
 	private final ReactorFederatedLockService reactorFederatedLockService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestAuditService patronRequestAuditService;
+	private final RequestTrackingPolicy requestTrackingPolicy;
 
 	@Value("${dcb.tracking.dryRun:false}")
 	private Boolean dryRun;
@@ -85,26 +86,26 @@ public class TrackingServiceV3 implements TrackingService {
 		PatronRequestWorkflowService patronRequestWorkflowService,
 		ReactorFederatedLockService reactorFederatedLockService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
-		PatronRequestAuditService patronRequestAuditService) {
+		PatronRequestAuditService patronRequestAuditService,
+		RequestTrackingPolicy requestTrackingPolicy) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
-		this.hostLmsReactions = hostLmsReactions;
+		this.trackingEventSink = hostLmsReactions;
 		this.patronRequestWorkflowService = patronRequestWorkflowService;
 		this.reactorFederatedLockService = reactorFederatedLockService;
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.requestTrackingPolicy = requestTrackingPolicy;
 	}
 
 	@Timed("tracking.run")
-	@AppTask
 	@Override
-	@Scheduled(initialDelay = "2m", fixedDelay = "${dcb.tracking.interval:5m}")
 	public void run() {
 		log.debug("DCB Tracking Service run");
-    Instant start = Instant.now(); // ⏱ Start timing
+    Instant start = Instant.now(); // Start timing
 
 		Flux.from(patronRequestRepository.findScheduledChecks())
 			.doOnNext( tracking_record -> log.debug("Scheduled check for {}",tracking_record))
@@ -112,12 +113,12 @@ public class TrackingServiceV3 implements TrackingService {
 			.transformDeferred(reactorFederatedLockService.withLockOrEmpty(LOCK_NAME))
 			.count()
       .doOnSuccess(total -> {
-        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // ⏱ Store duration
+        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // Store duration
         this.lastTrackingRunCount = total;
         log.info("TRACKING Tracking completed for {} total Requests in {}", total, lastTrackingRunDuration);
       })
       .doOnError(error -> {
-        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // ⏱ Even on error
+        this.lastTrackingRunDuration = Duration.between(start, Instant.now()); // Even on error
         this.lastTrackingRunCount = Long.valueOf(0);
         log.error("TRACKING Error {} when updating tracking information in {}", error.getMessage(), lastTrackingRunDuration, error);
       })
@@ -211,6 +212,13 @@ public class TrackingServiceV3 implements TrackingService {
 	private Mono<RequestWorkflowContext> failSafeTracking(RequestWorkflowContext ctx, boolean isAutoTracking) {
 		final var pr_id = ctx.getPatronRequest().getId();
 
+		if (isAutoTracking && !requestTrackingPolicy.schedulesAutomaticPolls(ctx)) {
+			log.warn("Event-driven request {} was selected for automatic tracking; clearing stale schedule", pr_id);
+			ctx.getPatronRequest().setNextScheduledPoll(null);
+			return Mono.from(patronRequestRepository.saveOrUpdate(ctx.getPatronRequest()))
+				.map(ctx::setPatronRequest);
+		}
+
     Instant lastStateChange = ctx.getPatronRequest().getCurrentStatusTimestamp();
     if ( lastStateChange != null ) {
       Instant tooLongThreshold = Instant.now().minus(Duration.ofDays(TOO_LONG_THRESHOLD));
@@ -220,7 +228,9 @@ public class TrackingServiceV3 implements TrackingService {
     }
 
 		return Mono.just(isAutoTracking ? incrementAutoPollCounter(ctx) : incrementManualPollCounter(ctx))
-			.flatMap(context -> isAutoTracking ? trackSystems(context) : manuallyTrack(context))
+			.flatMap(context -> isAutoTracking
+				? trackSystems(context, true)
+				: manuallyTrack(context))
 			.doOnError(error -> log.error("TRACKING Error occurred tracking patron request in local systems {}", pr_id, error))
 			.flatMap(context -> {
 				if (Boolean.TRUE.equals(dryRun)) {
@@ -260,16 +270,34 @@ public class TrackingServiceV3 implements TrackingService {
 
 	private Mono<RequestWorkflowContext> manuallyTrack(RequestWorkflowContext ctx) {
 		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), "Manual update actioned.")
-			.flatMap(audit -> trackSystems(ctx));
+			.flatMap(audit -> trackSystems(ctx, false));
 	}
 
-	private <R> Mono<RequestWorkflowContext> trackSystems(RequestWorkflowContext ctx) {
-		return this.trackBorrowingSystem(ctx)
+	private Mono<RequestWorkflowContext> trackSystems(
+		RequestWorkflowContext ctx, boolean automatic) {
+
+		return trackRole(ctx, automatic, LifecycleRole.BORROWER, this::trackBorrowingSystem)
 			.onErrorResume(error -> auditTrackingError("Tracking failed : Borrowing System", ctx, error))
-			.flatMap(this::trackPickupSystem)
+			.flatMap(context -> trackRole(context, automatic,
+				LifecycleRole.PICKUP, this::trackPickupSystem))
 			.onErrorResume(error -> auditTrackingError("Tracking failed : Pickup System", ctx, error))
-			.flatMap(this::trackSupplyingSystem)
+			.flatMap(context -> trackRole(context, automatic,
+				LifecycleRole.SUPPLIER, this::trackSupplyingSystem))
 			.onErrorResume(error -> auditTrackingError("Tracking failed : Supplying System", ctx, error));
+	}
+
+	private Mono<RequestWorkflowContext> trackRole(
+		RequestWorkflowContext context,
+		boolean automatic,
+		LifecycleRole role,
+		Function<RequestWorkflowContext, Mono<RequestWorkflowContext>> tracker) {
+
+		if (automatic && !requestTrackingPolicy.schedulesAutomaticPolls(context, role)) {
+			log.debug("Automatic {} tracking suppressed for {}", role,
+				context.getPatronRequest().getId());
+			return Mono.just(context);
+		}
+		return tracker.apply(context);
 	}
 
 	private Mono<RequestWorkflowContext> trackBorrowingSystem(RequestWorkflowContext rwc) {
@@ -373,7 +401,7 @@ public class TrackingServiceV3 implements TrackingService {
 					StateChange sc = patronRequestStatusChanged(pr, hold);
 
 					log.info("TRACKING-EVENT PR state change event {}",sc);
-					return hostLmsReactions.onTrackingEvent(sc)
+					return trackingEventSink.onTrackingEvent(sc)
 						.thenReturn(pr);
 				}
 			});
@@ -425,7 +453,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 						log.info("TRACKING-EVENT vitem change event {}", sc);
 
-						return hostLmsReactions.onTrackingEvent(sc)
+						return trackingEventSink.onTrackingEvent(sc)
 							.thenReturn(pr);
 					}
 					else if (item.getRenewalCount() != null && 														// tracked item has a non-null renewal count
@@ -435,7 +463,7 @@ public class TrackingServiceV3 implements TrackingService {
 						log.debug("TRACKING Detected borrowing system - virtual item renewal count change {} to {}", pr.getLocalRenewalCount(), item.getRenewalCount());
 						StateChange sc = virtualItemRenewalCountChanged(pr, item);
 						log.info("TRACKING-EVENT vitem change event {}", sc);
-						return hostLmsReactions.onTrackingEvent(sc)
+						return trackingEventSink.onTrackingEvent(sc)
 							.thenReturn(pr);
 					}
 					else {
@@ -510,7 +538,7 @@ public class TrackingServiceV3 implements TrackingService {
 						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
 						StateChange sc = supplierItemStatusChanged(sr, item);
 						log.info("TRACKING-EVENT supplier-item state change {}", sc);
-						return hostLmsReactions.onTrackingEvent(sc)
+						return trackingEventSink.onTrackingEvent(sc)
 							.thenReturn(sr);
 					}
 					else {
@@ -568,7 +596,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 					log.info("TRACKING Publishing state change event for supplier request {}", sc);
 
-					return hostLmsReactions.onTrackingEvent(sc)
+					return trackingEventSink.onTrackingEvent(sc)
 						.thenReturn(sr);
 				}
 				else {
@@ -587,7 +615,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 					StateChange sc = supplierRequestErrored(sr, error);
 
-					return hostLmsReactions.onTrackingEvent(sc)
+					return trackingEventSink.onTrackingEvent(sc)
 						.thenReturn(sr);
 				}
 				else {
@@ -630,7 +658,7 @@ public class TrackingServiceV3 implements TrackingService {
 					StateChange sc = pickupRequestStatusChanged(pr, hold);
 
 					log.info("TRACKING-EVENT PickupReq state change event {}",sc);
-					return hostLmsReactions.onTrackingEvent(sc)
+					return trackingEventSink.onTrackingEvent(sc)
 						.thenReturn(rwc);
 				}
 			});
@@ -670,7 +698,7 @@ public class TrackingServiceV3 implements TrackingService {
 
 						log.info("TRACKING-EVENT pickup item change event {}", sc);
 
-						return hostLmsReactions.onTrackingEvent(sc)
+						return trackingEventSink.onTrackingEvent(sc)
 							.thenReturn(rwc);
 					}
 					else {

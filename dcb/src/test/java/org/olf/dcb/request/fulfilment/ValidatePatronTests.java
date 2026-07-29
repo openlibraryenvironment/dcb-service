@@ -83,7 +83,7 @@ public class ValidatePatronTests {
 		hostLmsFixture.deleteAll();
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 

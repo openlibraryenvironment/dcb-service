@@ -1,5 +1,7 @@
 <configuration>
 
+	<timestamp key="runTimestamp" datePattern="yyyy-MM-dd_HH-mm-ss"/>
+
   <!-- This issue is useful: https://github.com/micronaut-projects/micronaut-aws/issues/1687 -->
 	<appender name="JSON_SYNC" class="ch.qos.logback.core.ConsoleAppender">
 		<layout class="ch.qos.logback.contrib.json.classic.JsonLayout">
@@ -12,12 +14,36 @@
 
 	<appender name="STDOUT_SYNC"
 		class="ch.qos.logback.core.ConsoleAppender">
-		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder 
+		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder
 			by default -->
 		<encoder>
 			<pattern>%cyan(%d{HH:mm:ss.SSS}) %white([%thread]) %highlight(%-5level) %magenta(%logger{36}) - %msg%n
 			</pattern>
 		</encoder>
+	</appender>
+
+	<appender name="FILE_SYNC" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>logs/dcb-service-logs-${runTimestamp}.log</file>
+
+		<triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+			<maxFileSize>250MB</maxFileSize>
+		</triggeringPolicy>
+
+		<rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+			<fileNamePattern>logs/dcb-service-logs-${runTimestamp}.%i.log</fileNamePattern>
+			<minIndex>1</minIndex>
+			<maxIndex>20</maxIndex>
+		</rollingPolicy>
+
+		<encoder>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="FILE_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+		<discardingThreshold>0</discardingThreshold>
+		<queueSize>512</queueSize>
+		<appender-ref ref="FILE_SYNC" />
 	</appender>
 
   <!--
@@ -40,10 +66,10 @@
 	<logger name="io.micronaut.http.client" level="WARN"/>
 	<logger name="services.k_int.interaction" level="INFO"/>
 	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="INFO"/>
-	
+
 	<logger name="io.r2dbc.postgresql.QUERY" level="ERROR"/>
 	<logger name="io.micronaut.data.query" level="WARN"/>
-	
+
 	<!--
 	<logger name="io.r2dbc.postgresql.QUERY" level="DEBUG"/>
 	-->
@@ -55,39 +81,54 @@
 	<logger name="org.flyway" level="WARN"/>
 	<logger name="io.micronaut.flyway" level="WARN"/>
 	<logger name="org.olf.dcb" level="INFO"/>
-	
+
 	<logger name="org.olf.dcb.core.svc" level="INFO"/>
 	<logger name="org.olf.dcb.core.error" level="INFO"/>
 	<logger name="org.olf.dcb.core.interaction" level="INFO" />
+
 	<logger name="org.olf.dcb.core.clustering.ImprovedRecordClusteringService" level="INFO" />
-	
+	<logger name="org.olf.dcb.core.clustering.DefaultRecordClusteringService" level="INFO" />
+
 	<logger name="org.olf.dcb.tracking" level="INFO"/>
 	<logger name="org.olf.dcb.request" level="INFO"/>
 	<logger name="org.olf.dcb.ingest" level="INFO"/>
-	
+	<logger name="org.olf.dcb.request.workflow" level="DEBUG"/>
+
+
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
 	<logger name="org.olf.dcb.core.svc.BibRecordService" level="INFO" />
 	<logger name="org.olf.dcb.ingest.job" level="INFO" />
 	<logger name="services.k_int" level="INFO"/>
-	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="INFO"/>
+	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="DEBUG"/>
+	<logger name="org.olf.dcb.dataimport.job.SourceRecordImportJob" level="DEBUG"/>
+
 	<logger name="io.micronaut.security.authentication" level="WARN" />
 	<logger name="io.r2dbc" level="WARN" />
 	<logger name="io.r2dbc.postgresql.PARAM" level="WARN" />
 	<logger name="io.r2dbc.postgresql.client.ReactorNettyClient" level="WARN" />
 	<logger name="io.micronaut.security" level="WARN" />
-	
-	
+
+
 	<logger name="services.k_int.federation" level="INFO"/>
 	<logger name="services.k_int.hazelcast" level="INFO"/>
+	<logger name="services.k_int.jobs.ReactiveJobRunnerService" level="WARN"/>
+
 	<logger name="org.olf.dcb.operations" level="INFO"/>
-	
+
 	<logger name="com.hazelcast" level="error" />
 	<logger name="com.hazelcast.internal.cluster.ClusterService" level="INFO" />
   <logger name="org.olf.dcb.core.interaction.RelativeUriResolver" level="WARN" />
-  <logger name="org.olf.dcb.core.clustering.ClusterHousekeepingService" level="DEBUG" />
+	<logger name="org.olf.dcb.core.interaction.OaiPmhIngestSource" level="DEBUG" />
+	<logger name="org.olf.dcb.rules.ObjectRuleset" level="WARN" />
+	<logger name="org.olf.dcb.core.clustering.ClusterHousekeepingService" level="DEBUG" />
+	<logger name="org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient" level="DEBUG" />
+	<logger name="org.olf.dcb.core.clustering.matching.MatchpointService" level="INFO" />
+
+
 
 	<root level="info">
 		<appender-ref ref="${DCB_LOG_APPENDERS:-STDOUT_SYNC}"/>
+		<appender-ref ref="FILE_ASYNC"/>
 	</root>
 
 </configuration>

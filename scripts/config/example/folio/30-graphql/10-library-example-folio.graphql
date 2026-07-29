@@ -1,0 +1,33 @@
+mutation {
+  createLibrary(input: {
+    agencyCode: "example-folio"
+    hostLmsCode: "EXAMPLE_FOLIO"
+    isSupplyingAgency: true
+    isBorrowingAgency: true
+    fullName: "Example FOLIO Library"
+    shortName: "Example FOLIO"
+    abbreviatedName: "EFL"
+    address: "1 Example Road"
+    longitude: -1.548567
+    latitude: 53.801277
+    type: "ACADEMIC"
+    backupDowntimeSchedule: ""
+    supportHours: ""
+    discoverySystem: ""
+    patronWebsite: ""
+    hostLmsConfiguration: ""
+    contacts: [
+      {
+        firstName: "Ada"
+        lastName: "Example"
+        role: "Library Services Administrator"
+        isPrimaryContact: true
+        email: "ada.example@example.org"
+      }
+    ]
+  }) {
+    id
+    fullName
+    agencyCode
+  }
+}

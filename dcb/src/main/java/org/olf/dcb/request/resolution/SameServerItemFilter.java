@@ -41,8 +41,11 @@ public class SameServerItemFilter implements ItemFilter {
 				.build());
 		}
 
-		return Mono.zip(hostLmsService.getHostLmsBaseUrl(itemHostLmsCode),
-				hostLmsService.getHostLmsBaseUrl(borrowingHostLmsCode))
+		// Some adapters expose multiple logical circulation systems through one
+		// transport base URL. Use optional base-url-qualifier to distinguish those
+		// boundaries; without it this preserves the historic raw base-url check.
+		return Mono.zip(hostLmsService.getHostLmsQualifiedBaseUrl(itemHostLmsCode),
+				hostLmsService.getHostLmsQualifiedBaseUrl(borrowingHostLmsCode))
 			.map(function((String itemHostLmsBaseUrl, String borrowingHostLmsBaseUrl) ->
 				fromSameServer(itemHostLmsCode, borrowingHostLmsCode,
 					itemHostLmsBaseUrl, borrowingHostLmsBaseUrl)));

@@ -63,7 +63,7 @@ class SierraHostLmsClientPatronTests {
 		final String SECRET = "item-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, null);

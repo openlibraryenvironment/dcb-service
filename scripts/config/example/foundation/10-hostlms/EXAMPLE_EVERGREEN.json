@@ -1,0 +1,31 @@
+{
+  "id": "6f9d70c2-81b6-5c97-d2ca-7e8f0a1b2c33",
+  "code": "EXAMPLE_EVERGREEN",
+  "name": "Example Evergreen Library (Foundation)",
+  "lmsClientClass": "org.olf.dcb.core.interaction.foundation.FoundationClient",
+  "clientConfig": {
+    "roles": ["CIRCULATION"],
+    "ingest": false,
+
+    "capabilities": {
+      "imperative": {
+        "base-protocol": "NCIP",
+        "ncip-endpoint-url": "${EXAMPLE_EVERGREEN_NCIP_ENDPOINT_URL}",
+        "overrides": {
+          "renew": "EvergreenExampleCustomOverride"
+        }
+      }
+    },
+
+    "evergreen-api-url": "${EXAMPLE_EVERGREEN_API_URL}",
+
+    "ncip": {
+      "fromAgency": "${EXAMPLE_EVERGREEN_NCIP_FROM_AGENCY}",
+      "toAgency": "${EXAMPLE_EVERGREEN_NCIP_TO_AGENCY}",
+      "appProfileType": "EZBORROW"
+    },
+
+    "contextHierarchy": ["EXAMPLE_EVERGREEN", "GLOBAL"],
+    "default-agency-code": "example-evergreen"
+  }
+}

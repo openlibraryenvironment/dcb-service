@@ -105,11 +105,14 @@
           memory: 4g
 
   # Opt-in only: `docker compose --profile persistent-db up -d`.
-  # Without this profile nothing here starts, and `./gradlew run` keeps using the
-  # throwaway Postgres that Micronaut Test Resources provisions per run.
-  # Starting this alone does NOT redirect DCB at it -- you must also export the
-  # datasource variables (see docs/local-development.md), otherwise you get two
-  # Postgres instances and DCB writes to the ephemeral one.
+  #
+  # DCB has no other database since the Micronaut Test Resources plugin was
+  # removed from dcb/build.gradle -- nothing provisions Postgres automatically
+  # any more, so `./gradlew run` needs this (or some other Postgres) running.
+  # `scripts/local_dev.sh` starts it for you; see docs/local-development.md.
+  #
+  # Credentials match the defaults in dcb/src/main/resources/application-development.yml,
+  # so no datasource environment variables are needed in the common case.
   postgres:
     profiles: ["persistent-db"]
     image: postgres:18
@@ -122,7 +125,10 @@
     # pool alone is configured for maxSize 40.
     command: ["postgres", "-N", "200"]
     ports:
-      - "5432:5432"
+      # Host port is overridable because a native/WSL Postgres commonly already
+      # owns 5432 and would silently shadow this container. Set DCB_PG_PORT to
+      # move it, and pass the same value to DCB as DB_PORT.
+      - "${DCB_PG_PORT:-5432}:5432"
     volumes:
       # postgres:18+ expects a single mount at /var/lib/postgresql and puts the
       # cluster in a version subdirectory. Mounting /var/lib/postgresql/data (the

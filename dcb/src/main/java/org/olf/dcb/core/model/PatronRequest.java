@@ -95,6 +95,14 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 	}
 
 	@Serdeable
+	public enum Outcome {
+		SUPPLIED,
+		NOT_SUPPLIED,
+		CANCELLED,
+		UNKNOWN
+	}
+
+	@Serdeable
 	public enum RenewalStatus {
 		ALLOWED,
 		DISALLOWED,
@@ -226,6 +234,10 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 	@Nullable
 	@Column(name = "status_code") // Preserve the data mapping value from the old string type.
 	private Status status;
+
+	@Nullable
+	@Column(name = "outcome_code")
+	private Outcome outcome;
 
 	// Once we create a hold in the patrons home system, track it's ID here (Only
 	// unique in the context of the agencies host lms)
@@ -449,7 +461,8 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 	}
 
 	public PatronRequest resolveToNoItemsSelectable() {
-		return setStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
+		return setOutcome(Outcome.NOT_SUPPLIED)
+			.setStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY);
 	}
 
 	public PatronRequest addLocalItemDetails(HostLmsItem hostLmsItem) {
