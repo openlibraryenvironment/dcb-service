@@ -2,7 +2,7 @@
 
 # DCB Service
 
-A Direct Consortial Borrowing Service
+A Direct Consortial Borrowing Service for the OpenRS resource sharing project.
 
 # Source code and Docker container
 
@@ -76,6 +76,14 @@ Additional optional configuration values. These may be set in configuration file
 
 Module documentation is auto generated and is accessed from the following URL once the container has
 started: https://openlibraryenvironment.github.io/dcb-service/openapi/
+
+## Local Development 
+
+Please refer to our [Local Development Guide](docs/local-development.md) for a guide on how to get started with OpenRS DCB development on your local machine. 
+
+## The OpenRS suite of applications
+
+If you're curious about other OpenRS DCB apps, please check out [DCB Admin](https://github.com/openlibraryenvironment/dcb-admin-ui/) - the administrative application for OpenRS Consortia. You may also be interested in [DCB Admin for Libraries,](https://github.com/openlibraryenvironment/dcb-admin-for-libraries) the app that lets OpenRS libraries manage their resource sharing experience.
 
 ## DCB Profile NCIP2.02+ membership
 
