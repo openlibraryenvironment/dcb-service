@@ -54,6 +54,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | DCB_INDEX_NAME | ES or OS index name ||
 | DCB_INDEX_USERNAME | ES or OS username ||
 | DCB_INDEX_PASSWORD | ES or OS password ||
+| DCB_INDEX_NUMBER_OF_REPLICAS | Replica count for the shared index. Use `0` for a single-node test cluster and `1` or higher for production. | 1 |
 | ELASTICSEARCH_HTTP_HOSTS OR OPENSEARCH_HTTP_HOSTS | The url of the ES or OS instance | |
 
 # Configuration

@@ -102,6 +102,10 @@ External system details are isolated in:
 Do not leak protocol DTOs, XML models, or host-specific response objects into
 workflow transitions.
 
+The `indexing` module owns shared-index settings. Deployments configure the
+replica count with `dcb.index.number-of-replicas` (default `1`); DCB applies it
+when creating an index and reconciles the current version at startup.
+
 ## Boundary Rules
 
 - DCB request state changes belong in `Handle...` workflow transitions.

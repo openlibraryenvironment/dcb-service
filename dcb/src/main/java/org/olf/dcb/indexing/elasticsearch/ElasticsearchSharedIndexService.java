@@ -63,6 +63,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
 	private final String indexName; 
 	private final int indexVersion; 
+	private final int numberOfReplicas;
 	
 	private final SharedIndexBackendInfo backendInfo;
 
@@ -72,6 +73,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		this.conversionService = conversionService;
 		this.backendInfo = backendInfo;
 		this.indexName = conf.name();
+		this.numberOfReplicas = conf.effectiveNumberOfReplicas();
 		if (conf.version().isEmpty()) {
 			this.indexVersion = SharedIndexConfiguration.LATEST_INDEX_VERSION;
 		} else {
@@ -171,6 +173,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 		return checkIndex()	
 			.map(BooleanResponse::value)
 			.flatMap( exists -> (exists ? updateMappings() : createNewIndex()) )
+			.then(Mono.defer(this::reconcileNumberOfReplicas))
 			.then(Mono.defer(() -> restoreRefresh().then() ));
 	}
 	
@@ -213,7 +216,18 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
   	JsonParser settingsParser = mapper.jsonProvider().createParser(settingsInputStream);
   	IndexSettings indexSettings = IndexSettings._DESERIALIZER.deserialize(settingsParser, mapper);
   	
-  	return indexSettings;
+		return indexSettings.rebuild()
+			.index(indexSettings.index().rebuild()
+				.numberOfReplicas(String.valueOf(numberOfReplicas))
+				.build())
+			.build();
+	}
+
+	private Mono<Boolean> reconcileNumberOfReplicas() {
+		log.info("Setting Elasticsearch index {} replica count to {}", realIndexName(), numberOfReplicas);
+
+		return changeIndexSettings(realIndexName(), settings -> settings
+			.index(index -> index.numberOfReplicas(String.valueOf(numberOfReplicas))));
 	}
 	
 	private Mono<CreateIndexResponse> createIndex() {
@@ -348,11 +362,17 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	}
 	
 	private Mono<Boolean> changeIndexSettings(Function<IndexSettings.Builder, ObjectBuilder<IndexSettings>> settings) {
+		return changeIndexSettings(indexName, settings);
+	}
+
+	private Mono<Boolean> changeIndexSettings(
+		String targetIndex,
+		Function<IndexSettings.Builder, ObjectBuilder<IndexSettings>> settings) {
 		
 		try {
 			return Mono.fromFuture(
 					client.indices()
-					.putSettings( s -> s.index(indexName)
+					.putSettings( s -> s.index(targetIndex)
 						.settings(settings)))
 				.map(AcknowledgedResponse::acknowledged)
 				.onErrorResume( e -> {

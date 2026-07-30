@@ -82,7 +82,8 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 		// whole shared index stack. Without it none of these beans exist.
 		return Map.of(
 			"opensearch.http-hosts", OPENSEARCH.getHttpHostAddress(),
-			"dcb.index.name", INDEX_NAME);
+			"dcb.index.name", INDEX_NAME,
+			"dcb.index.number-of-replicas", "0");
 	}
 
 	@Inject
@@ -116,6 +117,16 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 
 		assertThat("Expected the shared index to have been created on startup",
 			exists, is(true));
+	}
+
+	@Test
+	void shouldApplyTheConfiguredReplicaCount() throws Exception {
+		final var indexName = INDEX_NAME + "-" + SharedIndexConfiguration.LATEST_INDEX_VERSION;
+		final var response = client.indices()
+			.getSettings(b -> b.index(indexName))
+			.get(30, TimeUnit.SECONDS);
+
+		assertThat(response.result().get(indexName).settings().index().numberOfReplicas(), is(0));
 	}
 
 	@Test
