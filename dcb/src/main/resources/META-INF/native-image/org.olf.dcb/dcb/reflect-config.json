@@ -152,6 +152,13 @@
     "allPublicClasses": true
   },
   {
+    "name": "ch.qos.logback.core.rolling.FixedWindowRollingPolicy",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "ch.qos.logback.contrib.jackson.JacksonJsonFormatter",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
