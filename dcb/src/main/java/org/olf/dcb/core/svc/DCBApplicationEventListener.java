@@ -4,12 +4,9 @@ import io.micronaut.context.event.ApplicationEventListener;
 import io.micronaut.runtime.server.event.ServerShutdownEvent;
 import io.micronaut.runtime.server.event.ServerStartupEvent;
 import jakarta.inject.Singleton;
-import java.util.UUID;
 import org.olf.dcb.core.model.Syslog;
 import io.micronaut.context.annotation.Context;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Context
 @Singleton
 public class DCBApplicationEventListener implements ApplicationEventListener<Object> {
@@ -22,8 +19,6 @@ public class DCBApplicationEventListener implements ApplicationEventListener<Obj
 
 	@Override
 	public void onApplicationEvent(Object event) {
-
-		log.info("DCBApplicationEventListener::onApplicationEvent({})",event);
 
 		if ( event instanceof ServerStartupEvent ) {
 			syslogService.log(
@@ -51,4 +46,3 @@ public class DCBApplicationEventListener implements ApplicationEventListener<Obj
 	}
 
 }
-
