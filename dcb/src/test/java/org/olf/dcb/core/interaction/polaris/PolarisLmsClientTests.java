@@ -1732,7 +1732,6 @@ class PolarisLmsClientTests {
 		final var receivedBibId = singleValueFrom(client.createBib(
 			Bib.builder()
 				.title("title")
-				.canonicalItemType("CIRCAV")
 				.build()));
 
 		// Assert

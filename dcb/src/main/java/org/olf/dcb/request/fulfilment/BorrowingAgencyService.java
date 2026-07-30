@@ -327,14 +327,10 @@ public class BorrowingAgencyService {
   }
 
 	private Mono<Tuple2<PatronRequest, String>> createVirtualBib(PatronRequest patronRequest,
-		SupplierRequest supplierRequest,
 		HostLmsClient hostLmsClient) {
 
 		final UUID bibClusterId = patronRequest.getBibClusterId();
 		log.debug("createVirtualBib for cluster {}", bibClusterId);
-
-		final var canonicalItemType = supplierRequest.getCanonicalItemType();
-		if (canonicalItemType == null) log.warn("canonicalItemType is NULL for creating virtual bib");
 
 		if (hostLmsClient == null) {
 			log.error("Cannot create a bib item at host system because hostLmsClient is NULL");
@@ -343,18 +339,12 @@ public class BorrowingAgencyService {
 
 		return sharedIndexService.findSelectedBib(bibClusterId)
 			.map(this::extractBibData)
-			.map(bib -> setCanonicalItemType(bib, canonicalItemType))
 			.flatMap(bib -> Mono.zip(
 				hostLmsClient.createBib(bib).map(patronRequest::setLocalBibId),
 				Mono.just(bib.getTitle())
 			))
 			.switchIfEmpty(Mono.error(new DcbError(
 				"Failed to create virtual bib at " + hostLmsClient.getHostLmsCode() + " for cluster " + bibClusterId)));
-	}
-
-	private static Bib setCanonicalItemType(Bib bib, String canonicalItemType) {
-		bib.setCanonicalItemType(canonicalItemType);
-		return bib;
 	}
 
 	private Bib extractBibData(BibRecord bibRecord) {
@@ -438,7 +428,7 @@ public class BorrowingAgencyService {
 		PatronRequest patronRequest, PatronIdentity borrowingIdentity,
 		HostLmsClient hostLmsClient, SupplierRequest supplierRequest) {
 
-		return createVirtualBib(patronRequest, supplierRequest, hostLmsClient)
+		return createVirtualBib(patronRequest, hostLmsClient)
 			// Have a suspicion that Polaris needs breathing space in between the virtual bib and the virtual item
 			.flatMap(tuple -> {
 				final var pr = tuple.getT1();
