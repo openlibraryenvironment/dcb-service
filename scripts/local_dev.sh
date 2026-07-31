@@ -306,7 +306,7 @@ docker exec dcb-postgres psql -U "$DB_USER" -d "$DB_DATABASE" \
 # quietly own instead -- so authenticate the same way DCB will before handing
 # over. This is the difference between a clear message and a stack trace.
 echo "==> Verifying authentication through the published port"
-if ! docker run --rm -e PGPASSWORD="$DB_PASSWORD" postgres:18 \
+if ! docker run --rm --add-host=host.docker.internal:host-gateway -e PGPASSWORD="$DB_PASSWORD" postgres:18 \
 	psql -h host.docker.internal -p "$DCB_PG_PORT" -U "$DB_USER" -d "$DB_DATABASE" \
 	-c 'select 1' >/dev/null 2>&1; then
 
