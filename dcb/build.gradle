@@ -286,6 +286,12 @@ tasks.matching { it.name == "inspectRuntimeClasspath" || it.name == "inspectTest
 // last and wins, carrying full commit/branch/tag metadata.
 tasks.named("processResources") {
 	duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	from(rootProject.file("src/xsd")) {
+		include("ncip_v2_02.xsd")
+		include("openrs-ncip-fallback-host.xsd")
+		include("openrs_ncip_extension.xsd")
+		into("schemas")
+	}
 }
 
 final Set<String> jacocoExcludes = [

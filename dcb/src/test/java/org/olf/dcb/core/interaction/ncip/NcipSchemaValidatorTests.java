@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.ncip;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,15 @@ import org.junit.jupiter.api.Test;
  */
 class NcipSchemaValidatorTests {
 	private final NcipSchemaValidator validator = NcipSchemaValidator.usingDefaultSchema();
+
+	@Test
+	void packagesTheCompleteNcipSchemaSet() {
+		final var classLoader = getClass().getClassLoader();
+
+		assertNotNull(classLoader.getResource("schemas/ncip_v2_02.xsd"));
+		assertNotNull(classLoader.getResource("schemas/openrs-ncip-fallback-host.xsd"));
+		assertNotNull(classLoader.getResource("schemas/openrs_ncip_extension.xsd"));
+	}
 
 	@Test
 	void rejectsXmlThatIsNotAnNcipMessage() {
