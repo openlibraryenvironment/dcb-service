@@ -4,6 +4,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.interaction.OaiPmhIngestSource;
+import org.olf.dcb.core.interaction.OaiPmhResumptionPolicy;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.storage.RawSourceRepository;
@@ -64,6 +65,13 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 	@Override
 	public String getConcurrencyGroupKey() {
 		return CONCURRENCY_GROUP_KEY;
+	}
+
+	@Override
+	protected OaiPmhResumptionPolicy resumptionPolicy() {
+		// FOLIO commonly exposes only second-resolution datestamps. Preserve its
+		// established clock checkpoint to avoid replaying a potentially full second.
+		return OaiPmhResumptionPolicy.INTERNAL_CLOCK;
 	}
 
 	@Override

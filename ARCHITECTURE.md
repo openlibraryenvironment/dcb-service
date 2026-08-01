@@ -99,6 +99,10 @@ External system details are isolated in:
 - API/controller packages for inbound service APIs.
 - ingest/indexing packages for bibliographic data sources and search systems.
 
+Generic OAI-PMH ingest checkpoints from the greatest source datestamp observed and accepts inclusive
+boundary replay. FOLIO OAI is the explicit exception: it retains the internal-clock checkpoint because
+FOLIO's second-resolution datestamps can place more than a page of records on one boundary.
+
 Do not leak protocol DTOs, XML models, or host-specific response objects into
 workflow transitions.
 
