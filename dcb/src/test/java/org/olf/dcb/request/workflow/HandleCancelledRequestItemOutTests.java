@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
@@ -21,10 +22,10 @@ import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.READY_FOR_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.RECEIVED_AT_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
-import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasOutcome;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.utils.CollectionUtils.mapStream;
 
@@ -80,7 +81,9 @@ class HandleCancelledRequestItemOutTests {
 	@Inject
 	private HandleCancelledRequestItemOut handleCancelledRequestItemOut;
 	@Inject
-	private HandleCancelledRequestReturnTransit handleCancelledRequestReturnTransit;
+	private HandleCancelledRequestItemReturned handleCancelledRequestItemReturned;
+	@Inject
+	private PatronRequestWorkflowService patronRequestWorkflowService;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private DataHostLms supplierHostLMS;
@@ -129,7 +132,8 @@ class HandleCancelledRequestItemOutTests {
 		"READY_FOR_PICKUP, CANCELLED"
 	})
 	void shouldBeApplicableWhenItemIsOutAndBorrowerHoldIsGone(Status status, String localRequestStatus) {
-		// No item-status gate - the request is parked as soon as the hold is gone, wherever the item is.
+		// Wherever the item is, as long as it is not with the patron - see
+		// patronCollectingTheItemMustNotBeTreatedAsACancellation for the one status that excludes it.
 		final var ctx = contextFor(PatronRequest.builder()
 			.id(randomUUID())
 			.status(status)
@@ -178,6 +182,50 @@ class HandleCancelledRequestItemOutTests {
 			.build());
 
 		assertThat(handleCancelledRequestItemOut.isApplicableFor(ctx), is(false));
+	}
+
+	@Test
+	void patronCollectingTheItemMustNotBeTreatedAsACancellation() {
+		// REGRESSION. Sierra and Polaris consume the local hold when the patron checks the item out, so
+		// localRequestStatus goes MISSING at the same moment localItemStatus goes LOANED. Tracking polls
+		// the request before the item (TrackingServiceV3.trackBorrowingSystem) and only progresses the
+		// workflow once, at the end of the cycle, so the engine sees BOTH facts in one context.
+		//
+		// A missing hold on its own is NOT a cancellation. If the item is with the patron it is a
+		// collection, and HandleBorrowerItemLoaned must win. Note the engine breaks the tie by reverse
+		// alphabetical name (PatronRequestWorkflowService.getPossibleStateTransitionsFor), where
+		// "HandleCancelledRequestItemOut" outranks "HandleBorrowerItemLoaned" - so this transition MUST
+		// exclude itself on the item status. Do not fix this by renaming.
+		final var ctx = contextWithSupplierFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(READY_FOR_PICKUP)
+			.localRequestStatus(HOLD_MISSING)
+			.localItemStatus(ITEM_LOANED)
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build());
+
+		assertThat("A collected item is not a cancellation",
+			handleCancelledRequestItemOut.isApplicableFor(ctx), is(false));
+
+		assertThat("The engine must route a collected item to the loan transition",
+			firstApplicableTransitionFor(ctx), is("HandleBorrowerItemLoaned"));
+	}
+
+	@Test
+	void pickupAnywhereCollectionMustNotBeTreatedAsACancellation() {
+		// Same regression on the PUA leg: the patron holds against the pickup system, so it is the
+		// pickup hold that is consumed on checkout and the pickup item that reports LOANED.
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(READY_FOR_PICKUP)
+			.localRequestStatus(HOLD_CONFIRMED)
+			.pickupRequestStatus(HOLD_MISSING)
+			.pickupItemStatus(ITEM_LOANED)
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
+			.build());
+
+		assertThat("A collected item is not a cancellation",
+			handleCancelledRequestItemOut.isApplicableFor(ctx), is(false));
 	}
 
 	@Test
@@ -303,12 +351,17 @@ class HandleCancelledRequestItemOutTests {
 			.flatMap(handleCancelledRequestItemOut::attempt)
 			.map(RequestWorkflowContext::getPatronRequest));
 
-		// Assert - finalised path (CANCELLED), not parked
-		assertThat(updated, allOf(notNullValue(), hasStatus(CANCELLED)));
+		// Assert - finalised path (CANCELLED), not parked.
+		// The outcome must be recorded too: it is the field reporting keys off, and this path bypasses
+		// CancelledPatronRequestTransition, which is otherwise the only thing that sets Outcome.CANCELLED.
+		assertThat(updated, allOf(
+			notNullValue(),
+			hasStatus(CANCELLED),
+			hasOutcome(PatronRequest.Outcome.CANCELLED)));
 
 		final var auditEntries = mapStream(patronRequestsFixture.findAuditEntries(patronRequest),
 				PatronRequestAudit::getBriefDescription)
-			.filter(HandleCancelledRequestItemOut.ITEM_OUT_CANCELLED_AND_FINALISING::equals)
+			.filter(HandleCancelledRequestItemOut.ITEM_OUT_RETURN_NOT_REPORTABLE::equals)
 			.toList();
 
 		assertThat(auditEntries, hasSize(1));
@@ -329,7 +382,7 @@ class HandleCancelledRequestItemOutTests {
 			.build());
 
 		assertThat("Not released while the item is still sitting on the pickup shelf",
-			handleCancelledRequestReturnTransit.isApplicableFor(stillOnShelf), is(false));
+			handleCancelledRequestItemReturned.isApplicableFor(stillOnShelf), is(false));
 
 		final var outboundTransit = new RequestWorkflowContext()
 			.setPatronRequest(PatronRequest.builder()
@@ -341,7 +394,7 @@ class HandleCancelledRequestItemOutTests {
 			.setSupplierRequest(SupplierRequest.builder().id(randomUUID()).localItemStatus(ITEM_TRANSIT).build());
 
 		assertThat("Not released just because the borrower item is in transit - outbound and return look identical",
-			handleCancelledRequestReturnTransit.isApplicableFor(outboundTransit), is(false));
+			handleCancelledRequestItemReturned.isApplicableFor(outboundTransit), is(false));
 	}
 
 	@Test
@@ -364,12 +417,17 @@ class HandleCancelledRequestItemOutTests {
 			.setSupplierRequest(SupplierRequest.builder().id(randomUUID()).localItemStatus(ITEM_AVAILABLE).build());
 
 		assertThat("Released once the supplier has the item back, despite the FOLIO borrower item never reporting transit",
-			handleCancelledRequestReturnTransit.isApplicableFor(supplierHasItemBack), is(true));
+			handleCancelledRequestItemReturned.isApplicableFor(supplierHasItemBack), is(true));
 
-		final var updated = singleValueFrom(handleCancelledRequestReturnTransit.attempt(supplierHasItemBack)
+		final var updated = singleValueFrom(handleCancelledRequestItemReturned.attempt(supplierHasItemBack)
 			.map(RequestWorkflowContext::getPatronRequest));
 
-		assertThat(updated, allOf(notNullValue(), hasStatus(RETURN_TRANSIT)));
+		// CANCELLED, not RETURN_TRANSIT: nothing was supplied. Rejoining the return leg would end in
+		// HandleSupplierItemAvailable and record Outcome.SUPPLIED for an item nobody ever received.
+		assertThat(updated, allOf(
+			notNullValue(),
+			hasStatus(CANCELLED),
+			hasOutcome(PatronRequest.Outcome.CANCELLED)));
 	}
 
 	@Test
@@ -386,10 +444,36 @@ class HandleCancelledRequestItemOutTests {
 			.setSupplierRequest(SupplierRequest.builder().id(randomUUID()).localItemStatus(ITEM_TRANSIT).build());
 
 		assertThat("Not released while the supplier item is still in transit and the borrower item is on the shelf",
-			handleCancelledRequestReturnTransit.isApplicableFor(stillOut), is(false));
+			handleCancelledRequestItemReturned.isApplicableFor(stillOut), is(false));
 	}
 
 	private RequestWorkflowContext contextFor(PatronRequest patronRequest) {
 		return new RequestWorkflowContext().setPatronRequest(patronRequest);
 	}
+
+	private RequestWorkflowContext contextWithSupplierFor(PatronRequest patronRequest) {
+		return contextFor(patronRequest)
+			.setSupplierRequest(SupplierRequest.builder()
+				.id(randomUUID())
+				.localId("supplier-hold-id")
+				.localItemId("supplier-item-id")
+				.localStatus(HOLD_CONFIRMED)
+				.localItemStatus(ITEM_TRANSIT)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.build());
+	}
+
+	/**
+	 * The transition the workflow engine would actually pick for this context. Guards are tested in
+	 * isolation elsewhere; this exercises the tie-break, which is where collisions between overlapping
+	 * transitions actually bite.
+	 */
+	private String firstApplicableTransitionFor(RequestWorkflowContext ctx) {
+		return patronRequestWorkflowService.getPossibleStateTransitionsFor(ctx)
+			.map(PatronRequestStateTransition::getName)
+			.findFirst()
+			.orElse("None");
+	}
 }
+
+

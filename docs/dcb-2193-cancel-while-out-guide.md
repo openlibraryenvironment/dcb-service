@@ -1,165 +1,217 @@
 # DCB-2193 — "Patron cancelled while the item is out": how the solution works
 
-When a patron cancels their local hold while the borrowed item is physically **out** of the supplying
-library, DCB used to auto-cancel and finalise the request — deleting the borrowing library's virtual
-records and orphaning the physical item (the supplier writes it off as lost). This document describes
-the implemented solution on `dcb-2193-new-transition`. The handling **diverges by supplier ILS**,
-because what "terminate the hold" does — and whether the item's physical return can be tracked at all —
-differs fundamentally between FOLIO and the others.
+When a patron's hold disappears while the borrowed item is physically **out** of the supplying library,
+DCB used to auto-cancel and finalise the request — deleting the borrowing library's virtual records and
+orphaning the physical item, which the supplier eventually writes off as lost and bills for. This
+document describes the implemented solution on `dcb-2193-new-transition`.
 
 ## 0. The two mechanics you must internalise
 
 **(a) The supplier hold MUST be terminated, or the returning item is re-captured.** The supplier-side
 checkout that normally consumes the hold only happens once the patron actually **loans** the item. Here
-they cancelled before loaning, so the hold is still live. Left in place, when the item is checked back
-in at the supplier it is re-routed straight back out to the borrower:
+nothing consumed it, so the hold is still live. Left in place, when the item is checked back in at the
+supplier it is routed straight back out to the borrower:
+
 - **Polaris / Sierra / Alma** re-fill the native hold (Polaris reports **"transfer for hold"**).
 - **FOLIO** re-fulfils the still-open mod-dcb transaction / circulation request.
 
-So DCB terminates the hold via `SupplyingAgencyService.cleanUp` (`HoldOperation.DELETE`); each client
-implements the correct terminal operation. For Sierra/Polaris/Alma that's a native hold delete. For
-FOLIO, `deleteHold` tries to CLOSE the transaction and — because mod-dcb rejects `→ CLOSED` while the
-item is out — falls back to CANCELLING it (see §mod-dcb).
+So DCB terminates the hold via `SupplyingAgencyService.cleanUp` (`HoldOperation.DELETE`), and then
+**verifies it actually went**. `cleanUp` swallows its own failures, and parking a request whose hold is
+still live means waiting for an `AVAILABLE` that can never arrive.
 
-**(b) After termination, only *some* ILSs can still tell us the item came home.** This is the crux, and
-it splits the flow:
+**(b) After termination, only *some* ILSs can still tell us the item came home.** This is the crux:
+
 - **Sierra / Polaris / Alma:** the supplier's **real inventory item** is tracked independently of the
-  hold. It stays "in transit / checked out" until physically checked in, then reports `AVAILABLE`. That
-  is a reliable "physically back" signal — so we **park** the request in `AWAITING_RETURN_TO_SUPPLIER`
-  and release it only when the real item is genuinely back.
-- **FOLIO:** the mod-dcb transaction is *both* the hold and the only tracking channel. Cancelling it
-  (step a) returns the item to `AVAILABLE` in inventory **immediately** (mod-dcb releases it), regardless
-  of where the item physically is, and permanently severs any `CLOSED` signal. So there is **no** signal
-  DCB can wait on — and nothing is orphaned at the supplier (the item is back in available inventory as
-  far as FOLIO is concerned). So we **finalise immediately** (`CANCELLED → FINALISED`).
+  hold. It stays out until physically checked in, then reports `AVAILABLE`. That is a reliable
+  "physically back" signal, so we **park** the request and release it only when the item is genuinely
+  home.
+- **FOLIO:** `getItem` derives the item status from the **mod-dcb transaction**, not from inventory
+  (`ConsortialFolioHostLmsClient.mapToItemStatus`). Terminating the hold makes that transaction
+  terminal, so it reports `CANCELLED` forever and can **never** report `AVAILABLE`. Parking would hang
+  the request permanently, so it is cancelled at entry instead.
 
-This is expressed as a client capability, not `if (ils == …)`:
-`HostLmsClient.cancellingSupplierHoldReleasesItem()` — FOLIO returns `true`, everyone else `false`.
+Expressed as a client capability, not `if (ils == …)`:
+`HostLmsClient.canReportItemReturnedAfterHoldTerminated()` — default `true`, FOLIO overrides to `false`.
+**`true` is the safe default:** a client wrongly answering `false` finalises while the item is out, which
+is the orphaning bug itself; one wrongly answering `true` merely parks a request where a human can see it.
 
 ### mod-dcb evidence (folio-org/mod-dcb, lender role)
 
 - **`→ CLOSED` cannot be forced by DCB.** `LendingLibraryServiceImpl.updateTransactionStatus` has no
-  `→ CLOSED` case — a PUT to `CLOSED` throws "not implemented" (this is the "Unexpected response from Host
-  LMS" DCB logs). For a lender, `CLOSED` is only reached by a physical check-in **event**
-  (`CirculationEventListener.processDcbTransactionEntity`: `CHECK_IN + LENDER → CLOSED`).
-- **Cancel releases the item.** PUT `CANCELLED` → `cancelTransactionRequest` → `CirculationServiceImpl.cancelRequest`
-  cancels the underlying FOLIO circulation (page) request, which returns the previously-paged item to
-  `Available`. So RTAC `AVAILABLE` after our cancel means "we cancelled", not "it came home".
-- **No path back to `CLOSED` after cancel.** The loan-check-in→`CLOSED` handler uses
-  `findTransactionByItemIdAndStatusNotInClosed`, whose SQL is `status NOT IN ('CLOSED','CANCELLED','ERROR','CREATED','OPEN')`
-  — `CANCELLED` (and `OPEN`) are excluded, so a later physical check-in can never move the transaction to
-  `CLOSED`. The check-in-topic handler only closes `EXPIRED` transactions.
+  `→ CLOSED` case; it falls through to `IllegalArgumentException("status update from %s to %s is not
+  implemented")`. For a lender, `CLOSED` is only reached by a physical check-in **event**.
+- **Cancel releases the item.** `PUT CANCELLED` → `BaseLibraryService.cancelTransactionRequest` →
+  `CirculationServiceImpl.cancelRequest` cancels the underlying page request, returning the item to
+  `Available`.
+- **No path back to `CLOSED` after cancel.** `TransactionRepository.findTransactionByItemIdAndStatusNotInClosed`
+  is `status NOT IN ('CLOSED','CANCELLED','ERROR','CREATED','OPEN')`, and
+  `CirculationEventListener.handleDcbLoanEvent` uses exactly that query — so a later physical check-in can
+  never find a `CANCELLED` transaction and can never close it.
 
-That trio is why a FOLIO supplier has no trackable physical return once the hold is terminated, and why
-Option A (finalise) is the right call for FOLIO specifically.
+**Also worth reporting to the mod-dcb team:** `cancelRequest` silently no-ops when
+`getCancellationRequestIfOpenOrNull` returns null, and the lender `CANCELLED` branch never calls
+`updateTransactionEntity` — so `PUT /status {CANCELLED}` can return success having changed nothing.
+Callers cannot distinguish "cancelled" from "did nothing".
+
+### What we want from mod-dcb (ranked)
+
+1. **Preferred — let a cancelled lender transaction still receive its check-in.** Include `CANCELLED` in
+   the lookup used by the DCB loan-event handler so `CHECK_IN + LENDER → CLOSED` still fires. FOLIO then
+   joins the same park-and-release path as every other ILS and the override below is deleted.
+2. **Alternative — a distinct lender state** (e.g. `CANCELLED_AWAITING_RETURN`) that cancels the
+   circulation request so it cannot re-capture, but stays eligible for check-in→`CLOSED` and does not
+   return the item to Available while it is physically elsewhere.
+3. **Not recommended — allow DCB to PUT `→ CLOSED` on a lender transaction.** It would unblock us, but
+   DCB would be asserting a physical fact it does not know.
 
 ## 1. Decisions
 
-- **Dedicated status `AWAITING_RETURN_TO_SUPPLIER`, not `CANCELLED`, for the park case.** `CANCELLED`
-  auto-finalises (`FinaliseRequestTransition`), which would delete the virtual records on the next tick —
-  the exact orphan bug. So Sierra/Polaris/Alma park in the dedicated status. (FOLIO deliberately *does*
-  use `CANCELLED` → finalise, because for FOLIO there is nothing to orphan.)
-- **Preserve `RETURN_TRANSIT`.** A parked request rejoins the existing return leg; completion stays in
-  `HandleSupplierItemAvailable` (source `RETURN_TRANSIT`).
+- **Dedicated status `AWAITING_RETURN_TO_SUPPLIER`.** Not `CANCELLED` (which auto-finalises, deleting the
+  records while the item is out — the bug). Not `RETURN_TRANSIT` either: when the patron cancels while the
+  item sits on the pickup shelf, nothing is in transit anywhere — the item is **stranded and needs a human
+  to send it back**. A distinct status makes that visible, filterable and alertable. That operational
+  signal is the justification for the new state.
+- **The park releases to `CANCELLED`, not back into the return leg.** Nothing was supplied. Rejoining
+  `RETURN_TRANSIT` would end in `HandleSupplierItemAvailable` and stamp `Outcome.SUPPLIED` on a request
+  nobody ever received. `FinaliseRequestTransition` then does the record cleanup it was always going to
+  do — just at the point where deleting the virtual records no longer orphans a physical item.
+- **`Outcome.CANCELLED` is set on both terminal paths.** `Outcome` is what reporting keys off, and both
+  paths bypass `CancelledPatronRequestTransition`, which is otherwise the only thing that sets it.
 
 ## 2. State graph
 
 ```
-                 patron hold gone, item OUT; cleanUp() the supplier hold
- PICKUP_TRANSIT ─┐
- RECEIVED_AT_PICKUP ─┼─(HandleCancelledRequestItemOut)─┬─ supplier releases item on cancel (FOLIO)
- READY_FOR_PICKUP ─┘                                   │      └─► CANCELLED ─► FINALISED
+                 patron hold gone, item OUT, item NOT with the patron
+ PICKUP_TRANSIT     ─┐        terminate + verify the supplier hold
+ RECEIVED_AT_PICKUP ─┼─(HandleCancelledRequestItemOut)─┬─ supplier cannot report a return (FOLIO)
+ READY_FOR_PICKUP   ─┘                                 │     └─► CANCELLED ─► FINALISED
                                                        │
-                                                       └─ supplier does NOT (Sierra/Polaris/Alma)
-                                                              └─► AWAITING_RETURN_TO_SUPPLIER
-                                                                    └─(real item AVAILABLE at supplier)─►
-                                                                       RETURN_TRANSIT ─► COMPLETED ─► FINALISED
+                                                       └─ supplier can (Sierra/Polaris/Alma)
+                                                            └─► AWAITING_RETURN_TO_SUPPLIER
+                                                                  └─(supplier item AVAILABLE/RECEIVED)─►
+                                                                     CANCELLED ─► FINALISED
 
  item still AT supplier (REQUEST_PLACED_*) ─► CANCELLED ─► FINALISED   (unchanged: nothing to orphan)
+ item WITH the patron (item LOANED)        ─► LOANED               (a collection, not a cancellation)
 ```
 
 ## 3. The changes
 
-1. **`PatronRequest.Status`** — new `AWAITING_RETURN_TO_SUPPLIER` value (the park state).
+1. **`PatronRequest.Status`** — new `AWAITING_RETURN_TO_SUPPLIER` value.
 
-2. **`HostLmsClient.cancellingSupplierHoldReleasesItem()`** — new default-`false` capability.
-   `ConsortialFolioHostLmsClient` overrides it to `true`. This is the single point that drives the
-   park-vs-finalise divergence; no ILS branching in workflow code.
+2. **`HostLmsClient.canReportItemReturnedAfterHoldTerminated()`** — new default-`true` capability;
+   `ConsortialFolioHostLmsClient` overrides to `false`. Single point driving the park-vs-cancel
+   divergence; no ILS branching in workflow code.
 
 3. **`HandleCancelledRequestItemOut`** — the entry transition. Source = the 3 "out" states; guard =
-   borrower hold (or pickup hold for PUA) is `MISSING`/`CANCELLED`. Action: `cleanUp` the supplier hold,
-   then branch on the capability — `CANCELLED` (finalise) if the supplier releases the item on cancel,
-   else `AWAITING_RETURN_TO_SUPPLIER` (park). No borrower LMS call (the borrower hold is already gone).
+   borrower (or pickup, for PUA) hold is `MISSING`/`CANCELLED` **and the item is not `LOANED`**. It
+   terminates the supplier hold, verifies it, then parks — or cancels if the supplier cannot report a
+   return. No borrower LMS call (the hold is already gone).
 
-4. **`ConsortialFolioHostLmsClient.deleteHold`** — while the item is out, `OPEN → CLOSED` is rejected, so
-   it falls back to `CANCELLED` (returns `RESULT_OK_CANCELLED`). It is also **idempotent on a terminal
-   transaction** (`CLOSED`/`CANCELLED`/`ERROR` → `RESULT_OK`, no mutation) so the finalisation cleanup,
-   which re-runs `deleteHold` after we already cancelled at park time, does not error.
+   **The item-status gate is load-bearing.** Sierra and Polaris consume the local hold on checkout, so
+   "hold gone" also describes a completely normal collection. Tracking polls the request before the item
+   and progresses the workflow once at the end of the cycle, so the engine sees the missing hold *and*
+   the `LOANED` item in one context — and breaks the tie by **reverse-alphabetical transition name**
+   (`PatronRequestWorkflowService.getPossibleStateTransitionsFor`), where `HandleCancelledRequestItemOut`
+   outranks `HandleBorrowerItemLoaned`. Without the gate, every successful pickup is parked as a
+   cancellation. Do not "fix" a future collision here by renaming.
 
-5. **`HandleCancelledRequestReturnTransit`** — releases a *parked* request (Sierra/Polaris/Alma). Gated
-   **solely** on the supplier having the item back: supplier item `AVAILABLE`/`RECEIVED`. The borrower
-   side is **not** a trigger — outbound and return transit share the same `TRANSIT` status, so a
-   borrower-item gate misfires at park time. FOLIO never reaches this transition (it finalised at entry),
-   so there is no FOLIO transaction-`CLOSED` release path here.
+4. **`HandleCancelledRequestItemReturned`** — releases a parked request to `CANCELLED` +
+   `Outcome.CANCELLED` once the **supplier** item is `AVAILABLE`/`RECEIVED`. The borrower side cannot be
+   used as a trigger: outbound and return transit share the same `TRANSIT` status, so a borrower-item
+   gate fires at park time.
 
-6. **`HandleSupplierItemAvailable`** — source `RETURN_TRANSIT`. The borrower "received back" poke is
-   best-effort (`onErrorResume`): a terminal (`CANCELLED`) FOLIO/Alma borrower rejects the poke, which must
-   not wedge the request in `RETURN_TRANSIT`.
+   Its guard is deliberately synchronous and narrow. A transition that is applicable but leaves the
+   status untouched **loops forever** — `applyTransition` recurses into `progressAll`, which selects it
+   again. So "can this supplier report a return?" is resolved once, at park time, not re-asked here.
 
-7. **`PatronRequestWorkflowPath`** — `AWAITING_RETURN_TO_SUPPLIER → RETURN_TRANSIT` next-expected hint.
+5. **`ConsortialFolioHostLmsClient.deleteHold`** — while the item is out, `OPEN → CLOSED` is rejected, so
+   it falls back to `CANCELLED`. Idempotent on a terminal transaction so finalisation cleanup does not
+   error.
 
-8. **`DCBStartupEventListener`** — seeds `saveOrUpdateStatusCode("DCBRequest","AWAITING_RETURN_TO_SUPPLIER",TRUE)`.
-   Keeps the parked request classified as tracked/non-terminal. It does **not**, on its own, schedule
-   polling — see item 9.
+6. **`DefaultRequestTrackingPolicy`** — `AWAITING_RETURN_TO_SUPPLIER` is tracked `SUPPLIER`-only. Without
+   an entry it fell through to `default -> Set.of()` and was polled on all three roles by the legacy
+   fallback. An event-driven supplier is not polled here at all and must release via inbound lifecycle
+   evidence — currently unimplemented, see §6.
 
-9. **`application.yml` — `dcb.polling.durations.AWAITING_RETURN_TO_SUPPLIER: 1h`.** The periodic tracker
-   (`TrackingServiceV3.run` → `findScheduledChecks`) is driven by `next_scheduled_poll`, which
-   `scheduleNextCheck` sets from `dcb.polling.durations`. With no entry, `next_scheduled_poll` is `null`
-   and the parked request is never re-polled. (Only relevant to the park path; FOLIO finalises immediately.)
+7. **`application.yml`** — `dcb.polling.durations.AWAITING_RETURN_TO_SUPPLIER: 1h`, and
+   **`DCBStartupEventListener`** seeds the status code as tracked/non-terminal.
 
-10. **`CancelledPatronRequestTransition`** — narrowed to `{REQUEST_PLACED_AT_BORROWING_AGENCY,
-    REQUEST_PLACED_AT_PICKUP_AGENCY}` (item still at supplier → auto-finalise is safe).
+8. **`CancelledPatronRequestTransition`** — narrowed to `{REQUEST_PLACED_AT_BORROWING_AGENCY,
+   REQUEST_PLACED_AT_PICKUP_AGENCY}` (item still at supplier → auto-finalise is safe).
 
-## 4. What is NOT touched
+9. **`PatronRequestController.cleanupPatronRequest`** — rejects manual cleanup in every status meaning
+   "the item is not back at the supplier yet". Guards on **stored** state: polling first would let
+   automatic progression move the request underneath the guard, so the caller would get an error about a
+   state they never asked about, having already mutated the request.
 
-- **Supplier cancellation / re-resolution** (`HandleSupplierRequestCancelled` → re-resolution) keys off
-  the supplier hold `localStatus` and is terminal-vs-non-terminal separate from this patron-cancellation
-  path. The new status is not added to any supplier-side transition.
-- **`FinaliseRequestTransition`** — `CANCELLED`/`COMPLETED` auto-finalise unchanged; the FOLIO path and
-  the released park path both reach `FINALISED` through it.
+## 4. Deleted
 
-## 5. Tests
+- **`HandleCancelledRequestReturnTransit`** — its guard was identical to `HandleSupplierItemAvailable`'s,
+  so it existed only to hop into `RETURN_TRANSIT` so that transition could run on a *later* poll. A no-op
+  hop costing an hour.
+- **`HandleBorrowerSkippedLoanTransit`** — subsumed. Its guard (hold `MISSING`, item
+  `TRANSIT`/`MISSING`/`AVAILABLE`, source `PICKUP_TRANSIT`/`READY_FOR_PICKUP`) was a strict subset of the
+  new transition's, so which of the two ran was decided by class name. It also jumped to `RETURN_TRANSIT`
+  **without terminating the supplier hold** — the bug being fixed.
 
-- **`HandleCancelledRequestItemOutTests`**
-  - Sierra supplier (capability false) → parks in `AWAITING_RETURN_TO_SUPPLIER` and deletes the hold
-    (`verifyDeleteHoldRequestMade`).
-  - FOLIO supplier (capability true) → sets `CANCELLED` (finalise path), with the CLOSE→CANCEL deleteHold.
-  - Release only on supplier item back (`AVAILABLE`/`RECEIVED`); regression that a borrower item merely
-    in `TRANSIT` does **not** release.
-- **`ConsortialFolioHostLmsClientDeleteHoldTests`** — CLOSE rejected → falls back to CANCEL
-  (`RESULT_OK_CANCELLED`); already-`CLOSED`/`CANCELLED`/`ERROR` → `RESULT_OK`, no mutation.
-- **`DummyScenarioTests`** — end-to-end park→release (Dummy supplier, capability false).
+  **Behaviour change worth flagging:** a genuinely missed loan is indistinguishable from a cancellation —
+  in both cases the hold is gone, the item is out, and DCB never saw a loan. Those requests now park and
+  record `Outcome.CANCELLED` rather than completing as supplied. The physical handling is identical and
+  correct either way; only the label differs.
+
+## 5. Reverted (collateral damage from earlier commits on this branch)
+
+- **`BorrowingAgencyService.cleanUp`'s `TRANSIT`/`LOANED` guard.** `TRANSIT` is the *normal* value of the
+  borrower's `localItemStatus` at cleanup time — `HandleBorrowerRequestReturnTransit` fires *because* it
+  is `TRANSIT`, nothing moves it off, and polling stops at `COMPLETED`. Gating deletion on it orphaned a
+  virtual item and bib at the borrowing library for **every completed loan**, with nothing ever coming
+  back to clean them up. Covered by
+  `FinaliseRequestTransitionTests.shouldDeleteVirtualRecordsEvenWhenTheBorrowerItemIsStillInTransit`.
+  Unnecessary now anyway: the request only finalises once the item is home.
+- **`PickupAgencyService`'s status guard** — unreachable. `FinaliseRequestTransition` runs cleanup while
+  the status is still `COMPLETED`/`CANCELLED`, and the manual API now rejects those states.
+- **`HandleSupplierItemAvailable`'s `onErrorResume`** — only needed because the park path used to route
+  through `RETURN_TRANSIT` and poke an already-terminal borrower. It also swallowed genuine failures on
+  the normal return leg.
 
 ## 6. Known follow-ups (separate issues)
 
+- **Declarative suppliers cannot have their hold terminated.** `HandleCancelledRequestItemOut` skips and
+  audits, matching `CancelledPatronRequestTransition`. Until a declarative cancel exists, such a request
+  parks with a live supplier hold and will not release itself.
+- **Event-driven suppliers have no release path.** The release keys off polled supplier item status;
+  under `TrackingMode.EVENT_DRIVEN` that is never populated. Needs `InboundLifecycleMessageHandler`
+  support.
+- **A parked request whose hold survived termination never releases.** The verification audits the
+  outcome but does not alarm. Wants an `AlarmsService` hook.
 - **Borrower-side routing:** when the patron cancels mid-transit, the borrower (e.g. Polaris) shelves the
-  returned item locally as `Available` rather than routing it back to the supplier — the physical item can
-  end up stranded at the borrower. DCB can't automate this return; tracked separately.
-- Pre-existing branch scope-creep to split out: FOLIO `getItemByBarcode` `JsonNode` rewrite; `ping()`
-  returning `Mono.empty()` on error instead of `PING_STATUS_ERROR`; deleted docs/mock JSON;
-  `BorrowingAgencyService` magic strings; `PatronRequestController.cleanupPatronRequest` dropping a publisher.
+  returned item locally as `Available` rather than routing it back to the supplier. DCB can't automate
+  this; the park state is what makes it visible.
+- **Manual cleanup has no override.** Support has no escape hatch for a genuinely stuck out-item request.
+  Wants a `force` parameter — and the guard should return 409, not the current 500
+  (`IllegalStateException` has no handler; the pre-existing `CANCELLED` case has the same problem).
+- **`dcb-hub-admin-ui/src/helpers/statuses.ts`** duplicates `constants/statuses/*` and is imported by
+  nothing. Delete it before the stale copy misleads someone.
 
-## 7. Verify
+## 7. Cross-stack
+
+`dcb-admin-ui` updated: `DCBStatuses.ts` (enum → filter dropdown), `cleanupStatuses.ts` (kept in step with
+the API guard), `useChartPalette.ts` (`STATUS_ORDER`), and the `en-GB` + `es` locale files.
+
+## 8. Verify
 
 - `./gradlew :dcb:compileJava :dcb:compileTestJava` — clean.
-- Targeted:
-  `./gradlew :dcb:test --tests "*HandleCancelledRequestItemOutTests" --tests "*ConsortialFolioHostLmsClient*Tests" --tests "*CancelledPatronRequestTransitionTests" --tests "*DummyScenarioTests" --tests "*DCBStartupEventListenerTests"`
-- Full gate before merge: `timeout 30m ./gradlew test --no-daemon --no-build-cache --rerun-tasks`.
+- Full suite: `./gradlew :dcb:test` — green (12m53s).
+- Regression tests that must never be deleted:
+  - `HandleCancelledRequestItemOutTests.patronCollectingTheItemMustNotBeTreatedAsACancellation`
+  - `HandleCancelledRequestItemOutTests.pickupAnywhereCollectionMustNotBeTreatedAsACancellation`
+  - `FinaliseRequestTransitionTests.shouldDeleteVirtualRecordsEvenWhenTheBorrowerItemIsStillInTransit`
 
 ## Definition of done
 
-Cancel-while-out terminates the supplier hold so the returning item is not re-captured. A **FOLIO**
-supplier finalises immediately (`CANCELLED → FINALISED`) — cancelling cleanly releases the item to
-available inventory and there is no trackable physical return. A **Sierra/Polaris/Alma** supplier parks
-in `AWAITING_RETURN_TO_SUPPLIER` (records intact, still tracked) and finalises only once the real item is
-physically back. Supplier cancellation / re-resolution is unchanged.
+A patron hold vanishing while the item is out terminates the supplier hold (verified) so the returning
+item is not re-captured, and the request holds its records until the item is genuinely back at the
+supplier — then cancels and finalises, recording `Outcome.CANCELLED`. A **FOLIO** supplier cancels at
+entry because it provably cannot report the return. A patron **collecting** the item is unaffected.
+Supplier cancellation / re-resolution is unchanged.

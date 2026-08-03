@@ -146,20 +146,24 @@ public interface HostLmsClient
 	}
 
 	/**
-	 * When we terminate the supplier hold for an item that is out (patron cancelled while the item was in
-	 * transit / on the pickup shelf), does that immediately return the item to available at the supplier?
+	 * Once DCB has terminated the supplier hold for an item that is physically out, can this system still
+	 * tell us that the item came home?
 	 * <p>
-	 * FOLIO answers true: cancelling the mod-dcb transaction cancels the underlying circulation request and
-	 * releases the item back to AVAILABLE in inventory - so there is no physical return for DCB to wait on,
-	 * and no signal it could wait on (the terminal transaction can no longer report the item). Such a
-	 * request is finalised immediately rather than parked.
+	 * Sierra / Polaris / Alma answer true (the default): the real inventory item is tracked independently
+	 * of the hold, so it keeps reporting until it is checked back in and becomes AVAILABLE. That is a
+	 * trustworthy "physically back" signal, so a cancelled-while-out request waits in
+	 * AWAITING_RETURN_TO_SUPPLIER for it.
 	 * <p>
-	 * Sierra / Polaris / Alma answer false (the default): deleting the hold does not return the item; the
-	 * real inventory item stays out and is tracked independently until it is physically checked back in, so
-	 * the request is parked in AWAITING_RETURN_TO_SUPPLIER until the item genuinely comes home.
+	 * FOLIO answers false: getItem derives the item status from the mod-dcb transaction, and terminating
+	 * the hold makes that transaction terminal, so it reports CANCELLED forever and can never report
+	 * AVAILABLE. Waiting would hang the request permanently, so it is released immediately.
+	 * <p>
+	 * True is the safe default. A client that wrongly answers false finalises while the item is still out,
+	 * which is the orphaned-item bug this whole path exists to prevent; one that wrongly answers true
+	 * merely parks a request where a human can see it.
 	 */
-	default boolean cancellingSupplierHoldReleasesItem() {
-		return false;
+	default boolean canReportItemReturnedAfterHoldTerminated() {
+		return true;
 	}
 
 	@NonNull

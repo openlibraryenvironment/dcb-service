@@ -81,12 +81,17 @@ public class PatronRequestController {
 			// we want to be able to clean up errored requests, so I am removing this for now
 			// case ERROR -> throw new IllegalStateException("Cannot transition errored requests");
 
-			// In order to block the API when items are "out" we need to error on any patron requests which are in this state
-			case PICKUP_TRANSIT -> throw new IllegalStateException("Cannot transition requests where item is in PICKUP_TRANSIT");
-			case RECEIVED_AT_PICKUP -> throw new IllegalStateException("Cannot transition requests where item is in RECEIVED_AT_PICKUP");
-			case LOANED -> throw new IllegalStateException("Cannot transition requests where item is in LOANED");
-			case RETURN_TRANSIT -> throw new IllegalStateException("Cannot transition requests where item is in RETURN_TRANSIT");
-			case AWAITING_RETURN_TO_SUPPLIER -> throw new IllegalStateException("Cannot transition requests where item is awaiting return to the supplier");
+			// Cleanup deletes the borrowing library's virtual item and bib. While the physical item is out
+			// that orphans it: the supplier has no record to check it back in against and eventually bills
+			// for a lost item. These states all mean "the item is not back at the supplier yet".
+			// AWAITING_RETURN_TO_SUPPLIER is the DCB-2193 park state, which exists precisely to hold the
+			// records until the item is home - cleaning it up by hand defeats the point.
+			case PICKUP_TRANSIT, RECEIVED_AT_PICKUP, READY_FOR_PICKUP, LOANED, RETURN_TRANSIT,
+				AWAITING_RETURN_TO_SUPPLIER ->
+				throw new IllegalStateException(
+					"Cannot clean up a request while the item is out (" + patronRequest.getStatus()
+						+ "). The item must be back at the supplier first.");
+
 			case CANCELLED -> throw new IllegalStateException("Cannot transition cancelled requests");
 
 			default -> patronRequest;
@@ -106,9 +111,12 @@ public class PatronRequestController {
 	public Mono<UUID> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
 		log.info("Request cleanup for {}",patronRequestId);
 
-		// Force a downstream poll FIRST so the state guard and cleanup act on fresh data
-		return trackingService.forceUpdate(patronRequestId)
-			.then(patronRequestService.findById(patronRequestId))
+		// Guard on stored state, which is what the operator saw before pressing the button. Polling first
+		// would let automatic progression move the request underneath the guard - a request in
+		// PICKUP_TRANSIT with a vanished hold parks itself, and the caller then gets an error about a
+		// state they never asked about, having already mutated the request.
+		return patronRequestService
+			.findById( patronRequestId )
 			.map( this::ensureValidStateForCleanupTransition )
 			.zipWhen( (req) -> Mono.just(cleanupPatronRequestTransition))
 			.flatMap( TupleUtils.function(workflowService::progressUsing )) // Note: progressUsing can return an empty mono

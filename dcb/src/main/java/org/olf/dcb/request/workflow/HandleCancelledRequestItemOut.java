@@ -1,7 +1,10 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.HashMap;
@@ -10,12 +13,17 @@ import java.util.Optional;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.lifecycle.LifecycleCapabilityResolver;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.statemodel.DCBGuardCondition;
 import org.olf.dcb.statemodel.DCBTransitionResult;
 
@@ -26,32 +34,34 @@ import reactor.core.publisher.Mono;
 
 /**
  * HandleCancelledRequestItemOut.
- * The patron has cancelled (or lost) their local hold while the item is physically "out" of the
- * supplying library - the DCB status is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP.
- * Auto-finalising here (the default cancellation behaviour) would delete the borrowing library's
- * virtual records while the item is out, so we handle it explicitly.
+ * The patron's hold has gone while the item is physically "out" of the supplying library - the DCB
+ * status is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP. Auto-finalising here (the default
+ * cancellation behaviour) would delete the borrowing library's virtual records while the item is out,
+ * orphaning the physical item so the supplier eventually writes it off as lost. So we park instead.
  *
- * We always DELETE the supplier hold via cleanUp - each client implements the correct terminal
- * operation for its ILS. The supplier hold is normally consumed by the supplier-side checkout, but
- * that only happens once the patron actually loans the item; here they cancelled before loaning, so
- * nothing consumed it. Left in place it re-captures the item when it is checked back in at the
- * supplier (Polaris reports "transfer for hold" and routes it straight out; FOLIO re-fulfils the
- * still-open transaction), so it must go.
+ * <p>We DELETE the supplier hold via cleanUp - each client implements the correct terminal operation for
+ * its ILS. The supplier hold is normally consumed by the supplier-side checkout, but that only happens
+ * once the patron actually loans the item; here nothing consumed it. Left in place it re-captures the
+ * item when it is checked back in at the supplier (Polaris reports "transfer for hold" and routes it
+ * straight back out), so it must go. Whether that actually succeeded is verified, not assumed - parking
+ * a request whose hold is still live would wait for an AVAILABLE that can never arrive.
  *
- * What happens next depends on whether terminating that hold returns the item to the supplier
- * (HostLmsClient.cancellingSupplierHoldReleasesItem):
- *  - FOLIO (releases the item): cancelling the mod-dcb transaction cancels the circulation request
- *    and returns the item to AVAILABLE in inventory. There is no physical return to wait for, and no
- *    signal DCB could wait on (the terminal transaction can no longer report the item), and nothing is
- *    orphaned at the supplier. So we set CANCELLED and let the request finalise immediately.
- *  - Sierra / Polaris / Alma (does not release the item): deleteHold removes the native hold but the
- *    real inventory item stays out, tracked independently. Finalising now would orphan it, so we park
- *    the request in AWAITING_RETURN_TO_SUPPLIER (records intact, still tracked) until the real item is
- *    back, when HandleCancelledRequestReturnTransit joins the normal RETURN_TRANSIT return leg.
- *
- * No borrower LMS call is needed either way: the borrower/pickup hold is already gone, which is this
+ * <p>No borrower LMS call is needed: the borrower/pickup hold is already gone, which is this
  * transition's trigger. This is the PATRON cancellation path; supplier cancellation / re-resolution is
  * a separate concern (HandleSupplierRequestCancelled) that this transition never interacts with.
+ *
+ * <p><b>The item must not be with the patron.</b> Sierra and Polaris consume the local hold on checkout,
+ * so "hold gone" on its own also describes a completely normal collection. Tracking polls the request
+ * before the item and progresses the workflow once at the end of the cycle, so the engine sees both the
+ * missing hold and the LOANED item in the same context - and breaks the tie by reverse-alphabetical
+ * transition name, where this class outranks HandleBorrowerItemLoaned. Without the item-status gate
+ * below, every successful pickup would be parked as a cancellation.
+ *
+ * <p><b>A genuinely missed loan is indistinguishable from a cancellation</b> and is handled here too
+ * (this transition subsumes the former HandleBorrowerSkippedLoanTransit). If DCB never observed the
+ * loan, there is no signal separating "the patron cancelled" from "we missed the checkout", and the
+ * physically correct response is the same either way: terminate the hold so the item is not re-captured,
+ * and keep the records until it is confirmed home. Both are recorded as Outcome.CANCELLED.
  */
 @Slf4j
 @Singleton
@@ -65,20 +75,29 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	private static final List<String> cancelledHoldStatus = List.of(HOLD_MISSING, HOLD_CANCELLED);
 
 	static final String ITEM_OUT_HELD_AWAITING_RETURN =
-		"CancelledRequestItemOut : patron cancelled while item is out, awaiting its return to the supplier";
-	static final String ITEM_OUT_CANCELLED_AND_FINALISING =
-		"CancelledRequestItemOut : patron cancelled while item is out; supplier releases the item on cancel, finalising";
+		"CancelledRequestItemOut : patron hold gone while item is out, awaiting its return to the supplier";
+	static final String ITEM_OUT_RETURN_NOT_REPORTABLE =
+		"CancelledRequestItemOut : patron hold gone while item is out, but the supplier cannot report the "
+			+ "item's return - cancelling rather than waiting for a signal that cannot arrive";
+	static final String SUPPLIER_HOLD_VERIFICATION =
+		"CancelledRequestItemOut : supplier hold termination verification";
+	static final String DECLARATIVE_SUPPLIER_SKIPPED =
+		"CancelledRequestItemOut : declarative supplier hold termination is not implemented; skipping imperative cleanup";
 
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final HostLmsService hostLmsService;
+	private final LifecycleCapabilityResolver capabilityResolver;
 
 	public HandleCancelledRequestItemOut(PatronRequestAuditService patronRequestAuditService,
 		SupplyingAgencyService supplyingAgencyService,
-		HostLmsService hostLmsService) {
+		HostLmsService hostLmsService,
+		LifecycleCapabilityResolver capabilityResolver) {
+
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
+		this.capabilityResolver = capabilityResolver;
 	}
 
 	@Override
@@ -90,43 +109,155 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 		if (getValueOrNull(patronRequest, PatronRequest::getActiveWorkflow) == null) return false;
 
 		// For Pickup Anywhere the patron holds against the pickup system, otherwise the borrower.
-		final var holdStatus = patronRequest.isUsingPickupAnywhereWorkflow()
+		final var usingPickupAnywhere = patronRequest.isUsingPickupAnywhereWorkflow();
+
+		final var holdStatus = usingPickupAnywhere
 			? getValueOrNull(patronRequest, PatronRequest::getPickupRequestStatus)
 			: getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus);
 
-		return cancelledHoldStatus.contains(holdStatus);
+		if (!cancelledHoldStatus.contains(holdStatus)) return false;
+
+		// The hold is also consumed when the patron simply collects the item. If the item is with the
+		// patron this is a loan, not a cancellation - leave it to HandleBorrowerItemLoaned.
+		return !isItemWithPatron(patronRequest, usingPickupAnywhere);
+	}
+
+	private static boolean isItemWithPatron(PatronRequest patronRequest, boolean usingPickupAnywhere) {
+		final var itemStatus = usingPickupAnywhere
+			? getValueOrNull(patronRequest, PatronRequest::getPickupItemStatus)
+			: getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus);
+
+		return ITEM_LOANED.equals(itemStatus);
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-		final var patronRequest = ctx.getPatronRequest();
+		return terminateSupplierHold(ctx)
+			.flatMap(this::verifySupplierHoldTerminated)
+			.flatMap(this::parkOrCancel);
+	}
 
-		return supplyingAgencyService.cleanUp(ctx)
-			.flatMap(c -> supplierReleasesItemOnCancel(ctx))
-			.flatMap(releasesItem -> {
-				// FOLIO releases the item on cancel -> finalise now (CANCELLED); everyone else parks until
-				// the real item is physically back at the supplier.
-				final var finalise = Boolean.TRUE.equals(releasesItem);
-				final var target = finalise ? Status.CANCELLED : Status.AWAITING_RETURN_TO_SUPPLIER;
-				final var message = finalise ? ITEM_OUT_CANCELLED_AND_FINALISING : ITEM_OUT_HELD_AWAITING_RETURN;
+	/**
+	 * Park and wait for the item, unless the supplier cannot report its return - waiting on a signal that
+	 * provably cannot arrive strands the request forever, so cancel those now.
+	 * <p>
+	 * The question is asked once, here, and never again. The release transition's guard has to be
+	 * synchronous (a transition that is applicable but changes nothing loops forever through
+	 * applyTransition -> progressAll), and resolving a client is not.
+	 */
+	private Mono<RequestWorkflowContext> parkOrCancel(RequestWorkflowContext ctx) {
+		return supplierCanReportReturn(ctx)
+			.flatMap(canReport -> {
+				final var park = Boolean.TRUE.equals(canReport);
+				final var patronRequest = ctx.getPatronRequest();
 
-				return patronRequestAuditService.addAuditEntry(patronRequest, message, buildAuditData(patronRequest))
-					.doOnSuccess(audit -> patronRequest.setStatus(target))
-					.thenReturn(ctx);
+				final var message = park
+					? ITEM_OUT_HELD_AWAITING_RETURN
+					: ITEM_OUT_RETURN_NOT_REPORTABLE;
+
+				return patronRequestAuditService
+					.addAuditEntry(patronRequest, message, buildAuditData(patronRequest))
+					.map(audit -> {
+						if (park) {
+							patronRequest.setStatus(Status.AWAITING_RETURN_TO_SUPPLIER);
+						}
+						else {
+							patronRequest
+								.setOutcome(PatronRequest.Outcome.CANCELLED)
+								.setStatus(Status.CANCELLED);
+						}
+						return ctx;
+					});
 			});
 	}
 
-	private Mono<Boolean> supplierReleasesItemOnCancel(RequestWorkflowContext ctx) {
-		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
-		final var hostLmsCode = getValueOrNull(supplierRequest, SupplierRequest::getHostLmsCode);
+	private Mono<Boolean> supplierCanReportReturn(RequestWorkflowContext ctx) {
+		final var hostLmsCode = getValueOrNull(ctx,
+			RequestWorkflowContext::getSupplierRequest, SupplierRequest::getHostLmsCode);
 
-		if (hostLmsCode == null) return Mono.just(Boolean.FALSE);
+		if (hostLmsCode == null) return Mono.just(Boolean.TRUE);
 
 		return hostLmsService.getClientFor(hostLmsCode)
-			.map(HostLmsClient::cancellingSupplierHoldReleasesItem)
-			// If we cannot resolve the client, park (the safe default - never finalise an out item on a guess).
-			.onErrorReturn(Boolean.FALSE)
-			.defaultIfEmpty(Boolean.FALSE);
+			.map(HostLmsClient::canReportItemReturnedAfterHoldTerminated)
+			// If we cannot resolve the client, park - never finalise an item that is out on a guess.
+			.onErrorReturn(Boolean.TRUE)
+			.defaultIfEmpty(Boolean.TRUE);
+	}
+
+	/**
+	 * Terminating a declarative supplier's obligation is a protocol message, not a REST hold delete.
+	 * Discriminate on the resolved placement strategy rather than the persisted protocol string -
+	 * Foundation is an imperative NCIP adapter, so a non-blank protocol does not mean declarative, and
+	 * misreading it would silently skip a cleanup that is genuinely needed. An unknown host falls back to
+	 * instance config, which defaults to IMPERATIVE, so we still attempt cleanup.
+	 */
+	private Mono<RequestWorkflowContext> terminateSupplierHold(RequestWorkflowContext ctx) {
+		final var lenderSystem = getValueOrNull(ctx, RequestWorkflowContext::getLenderSystem);
+
+		if (capabilityResolver.placementStrategy(lenderSystem, LifecycleRole.SUPPLIER)
+			== StrategyType.DECLARATIVE) {
+
+			return patronRequestAuditService
+				.addAuditEntry(ctx.getPatronRequest(), DECLARATIVE_SUPPLIER_SKIPPED, buildSupplierAuditData(ctx))
+				.thenReturn(ctx);
+		}
+
+		return supplyingAgencyService.cleanUp(ctx);
+	}
+
+	/**
+	 * The whole point of parking is that the item can still be observed coming home. That only holds if
+	 * the supplier hold really did go - a surviving hold re-captures the item on check-in, so it never
+	 * reports AVAILABLE and the request waits forever. cleanUp swallows its own failures, so ask the
+	 * supplier directly rather than trusting it.
+	 */
+	private Mono<RequestWorkflowContext> verifySupplierHoldTerminated(RequestWorkflowContext ctx) {
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		final var hostLmsCode = getValueOrNull(supplierRequest, SupplierRequest::getHostLmsCode);
+		final var localRequestId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
+
+		if (hostLmsCode == null || localRequestId == null) return Mono.just(ctx);
+
+		final var supplierPatronId = getValueOrNull(supplierRequest,
+			SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
+
+		final var hostLmsRequest = HostLmsRequest.builder()
+			.localId(localRequestId)
+			.localPatronId(supplierPatronId)
+			.build();
+
+		return hostLmsService.getClientFor(hostLmsCode)
+			.flatMap(client -> client.getRequest(hostLmsRequest))
+			.map(hold -> auditDataFor(localRequestId, getValueOrNull(hold, HostLmsRequest::getStatus)))
+			// No hold to report means it is gone, which is what we wanted.
+			.defaultIfEmpty(auditDataFor(localRequestId, HOLD_MISSING))
+			.onErrorResume(error -> {
+				final var auditData = auditDataFor(localRequestId, "Unknown");
+				auditThrowable(auditData, "Throwable", error);
+				return Mono.just(auditData);
+			})
+			.flatMap(auditData -> patronRequestAuditService
+				.addAuditEntry(ctx.getPatronRequest(), SUPPLIER_HOLD_VERIFICATION, auditData))
+			.thenReturn(ctx);
+	}
+
+	private static HashMap<String, Object> auditDataFor(String localRequestId, String holdStatus) {
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("localRequestId", localRequestId);
+		auditData.put("supplier-hold-status-after-termination", getValue(holdStatus, "Unknown"));
+		// A hold that survives leaves the item re-capturable, so the request will never release itself.
+		auditData.put("supplier-hold-terminated",
+			HOLD_MISSING.equals(holdStatus) || HOLD_CANCELLED.equals(holdStatus));
+		return auditData;
+	}
+
+	private static HashMap<String, Object> buildSupplierAuditData(RequestWorkflowContext ctx) {
+		final var auditData = new HashMap<String, Object>();
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+
+		auditData.put("supplierHostLmsCode", getValue(supplierRequest, SupplierRequest::getHostLmsCode, "Unknown"));
+		auditData.put("supplierRequestId", getValue(supplierRequest, SupplierRequest::getLocalId, "Unknown"));
+		return auditData;
 	}
 
 	private static HashMap<String, Object> buildAuditData(PatronRequest patronRequest) {
@@ -146,8 +277,6 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 
 	@Override
 	public Optional<Status> getTargetStatus() {
-		// Two outcomes depending on the supplier (see getOutcomes); AWAITING_RETURN_TO_SUPPLIER is the
-		// common park case.
 		return Optional.of(Status.AWAITING_RETURN_TO_SUPPLIER);
 	}
 
@@ -164,13 +293,14 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
 		return List.of(new DCBGuardCondition(
-			"DCBPatronRequest state is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP and the patron hold is MISSING or CANCELLED"));
+			"DCBPatronRequest state is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP, the patron hold is "
+				+ "MISSING or CANCELLED, and the item is not loaned to the patron"));
 	}
 
 	@Override
 	public List<DCBTransitionResult> getOutcomes() {
 		return List.of(
 			new DCBTransitionResult("HELD", Status.AWAITING_RETURN_TO_SUPPLIER.toString()),
-			new DCBTransitionResult("CANCELLED", Status.CANCELLED.toString()));
+			new DCBTransitionResult("RETURN_NOT_REPORTABLE", Status.CANCELLED.toString()));
 	}
 }

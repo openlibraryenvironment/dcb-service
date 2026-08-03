@@ -8,6 +8,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.COMPLETED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
@@ -298,6 +299,60 @@ class FinaliseRequestTransitionTests {
 		// Assert
 		assertPatronRequestWasFinalised(updatedPatronRequest);
 		assertStatusOfVirtualRecordsWithAudit(updatedPatronRequest);
+	}
+
+	@Test
+	void shouldDeleteVirtualRecordsEvenWhenTheBorrowerItemIsStillInTransit() {
+		// REGRESSION. On the ordinary return leg the borrower's virtual item is left in TRANSIT:
+		// HandleBorrowerRequestReturnTransit fires *because* it is TRANSIT, nothing at the borrower ever
+		// moves it off TRANSIT, and polling stops at COMPLETED (application.yml sets COMPLETED: null).
+		// So TRANSIT is the NORMAL value of localItemStatus by the time cleanup runs - it is not a
+		// signal that the item is still out. Gating record deletion on it orphans a virtual item and bib
+		// at the borrowing library for every completed loan, which nothing ever comes back to clean up
+		// because FINALISED is terminal.
+		final var patron = patronFixture.savePatron(Patron.builder()
+			.id(randomUUID())
+			.build());
+
+		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron,
+			supplierHostLMS, "700", false, "-", "LOCAL_SYSTEM_CODE", null);
+
+		final var patronRequest = patronRequestsFixture.savePatronRequest(PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(COMPLETED)
+			.localRequestId("43634634")
+			.localRequestStatus(HOLD_MISSING)
+			.localBibId("328947")
+			.localItemId("75432")
+			// The item the patron returned, still showing as in transit back to the supplier
+			.localItemStatus(ITEM_TRANSIT)
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.build());
+
+		final var supplierRequest = supplierRequestsFixture.saveSupplierRequest(
+			SupplierRequest.builder()
+				.id(randomUUID())
+				.localStatus(HOLD_MISSING)
+				.localId("7357356")
+				.localItemId("647375678")
+				.localItemBarcode("26123553")
+				.patronRequest(patronRequest)
+				.statusCode(SupplierRequestStatusCode.CANCELLED)
+				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+				.virtualIdentity(virtualPatronIdentity)
+				.build());
+
+		createStandardWorkflowMocksForFinalisationTransition(patronRequest, supplierRequest.getLocalId(), virtualPatronIdentity);
+
+		// Act
+		final var updatedPatronRequest = finalisePatronRequest(patronRequest);
+
+		// Assert
+		assertPatronRequestWasFinalised(updatedPatronRequest);
+
+		sierraItemsAPIFixture.verifyDeleteItemRequestMade(patronRequest.getLocalItemId());
+		sierraBibsAPIFixture.verifyDeleteBibRequestMade(patronRequest.getLocalBibId());
 	}
 
 	private void createStandardWorkflowMocksForFinalisationTransition(

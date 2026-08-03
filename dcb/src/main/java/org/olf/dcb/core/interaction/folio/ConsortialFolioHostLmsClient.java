@@ -1380,11 +1380,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
-	public boolean cancellingSupplierHoldReleasesItem() {
-		// Cancelling the mod-dcb transaction cancels the circulation request and returns the item to
-		// AVAILABLE in inventory. There is no physical return to wait for (or track), so a cancelled-while-out
-		// request against a FOLIO supplier is finalised immediately rather than parked. See HostLmsClient.
-		return true;
+	public boolean canReportItemReturnedAfterHoldTerminated() {
+		// getItem reads the mod-dcb transaction, not inventory (see mapToItemStatus). Terminating the
+		// hold leaves that transaction CANCELLED, which maps to no item status at all, and mod-dcb can
+		// never move a CANCELLED lender transaction back to CLOSED - findTransactionByItemIdAndStatusNotInClosed
+		// excludes it, so the physical check-in event can never find it. There is therefore no signal
+		// left for DCB to wait on, and parking would hang the request forever.
+		//
+		// Lift this the moment mod-dcb lets a cancelled lender transaction still receive its check-in;
+		// FOLIO then joins the same wait-for-the-real-item path as everyone else.
+		return false;
 	}
 
 	@Override

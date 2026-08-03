@@ -395,9 +395,11 @@ class DummyScenarioTests {
 
 		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
 
-		// The pickup hold is now gone while the item is still "out", which is indistinguishable from a
-		// cancellation-while-out: HandleCancelledRequestItemOut parks the request until the item is back
-		// at the supplier (it supersedes the old SkippedLoanTransit hop straight to RETURN_TRANSIT).
+		// The pickup hold is gone while the item is still "out" and DCB never saw a loan, which is
+		// indistinguishable from a cancellation-while-out. HandleCancelledRequestItemOut terminates the
+		// supplier hold and parks the request until the item is back at the supplier, rather than jumping
+		// to RETURN_TRANSIT with a live hold still able to re-capture the item (the old
+		// HandleBorrowerSkippedLoanTransit behaviour, which this transition subsumes).
 		assertRequestIsInExpectedStatus(placedRequestUUID, AWAITING_RETURN_TO_SUPPLIER);
 
 		log.info("Patron request completing");
