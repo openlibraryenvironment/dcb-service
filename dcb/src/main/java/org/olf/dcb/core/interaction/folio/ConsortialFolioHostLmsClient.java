@@ -1456,6 +1456,14 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	// FOLIO takes the same wait-for-the-real-item path as every other supplier.
 
 	@Override
+	public boolean cancellingSupplierHoldReleasesItem() {
+		// Cancelling the mod-dcb transaction cancels the circulation request and returns the item to
+		// AVAILABLE in inventory. There is no physical return to wait for (or track), so a cancelled-while-out
+		// request against a FOLIO supplier is finalised immediately rather than parked. See HostLmsClient.
+		return true;
+	}
+
+	@Override
 	public @NonNull String getClientId() {
 
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
