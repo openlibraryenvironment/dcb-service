@@ -390,14 +390,15 @@ class HandleCancelledRequestItemOutTests {
 
 		assertThat(auditEntries, hasSize(1));
 
-		// ...but flagged, because nothing will release it automatically until mod-dcb can report the
-		// return. A parked request a human can see beats a deleted record they cannot recover.
+		// ...and NOT flagged as needing manual release. mod-dcb cannot report the return once we have
+		// cancelled the transaction, but the FOLIO client falls back to Inventory, which can - so this
+		// park releases itself like any other once the item is checked in at the owning library.
 		final var flagged = mapStream(patronRequestsFixture.findAuditEntries(patronRequest),
 				PatronRequestAudit::getBriefDescription)
 			.filter(HandleCancelledRequestItemOut.RETURN_NOT_REPORTABLE_NEEDS_ATTENTION::equals)
 			.toList();
 
-		assertThat("Should record that this park needs manual release", flagged, hasSize(1));
+		assertThat("A FOLIO supplier can report the return via Inventory", flagged, hasSize(0));
 	}
 
 	@Test

@@ -158,6 +158,25 @@ public class MockFolioFixture {
 		mockServer.mockGet("/inventory/items", "query", "barcode==\"" + barcode + "\"", response);
 	}
 
+	public void mockQueryItemsById(String itemId, String inventoryStatus) {
+		mockServer.mockGet("/inventory/items", "query", "id==\"" + itemId + "\"",
+			okJson(InventoryItemCollection.builder()
+				.items(List.of(InventoryItem.builder()
+					.id(itemId)
+					.status(InventoryItemStatus.builder().name(inventoryStatus).build())
+					.build()))
+				.build()));
+	}
+
+	public void mockQueryItemsByIdNotFound(String itemId) {
+		mockServer.mockGet("/inventory/items", "query", "id==\"" + itemId + "\"",
+			okJson(InventoryItemCollection.builder().items(List.of()).build()));
+	}
+
+	public void mockQueryItemsById(String itemId, HttpResponse response) {
+		mockServer.mockGet("/inventory/items", "query", "id==\"" + itemId + "\"", response);
+	}
+
 	public void mockQueryInstancesByHoldingsRecordId(String holdingsRecordId, String jsonResourcePath) {
 		mockServer.mockGet("/inventory/instances", "query", "holdingsRecords.id==\"" + holdingsRecordId + "\"",
 			okJson(mockServer.getResource(jsonResourcePath)));

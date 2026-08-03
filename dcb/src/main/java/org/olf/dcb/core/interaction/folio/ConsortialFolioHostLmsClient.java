@@ -974,8 +974,78 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return getTransactionStatus(localRequestId)
 			.doOnSuccess(transactionStatus -> log.debug("got transaction {} status {}",  localRequestId, transactionStatus))
-			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus, currentHoldCount))
+			.flatMap(transactionStatus -> {
+				final var fromTransaction = mapToHostLmsItem(localItemId, transactionStatus, currentHoldCount);
+
+				if (!CANCELLED.equals(getValueOrNull(transactionStatus, TransactionStatus::getStatus))) {
+					return Mono.just(fromTransaction);
+				}
+
+				return itemFromInventory(localItemId, currentHoldCount)
+					.defaultIfEmpty(fromTransaction);
+			})
 			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
+	}
+
+	/**
+	 * Where the item actually is, once the transaction can no longer say.
+	 * <p>
+	 * A CANCELLED transaction is terminal and reports nothing useful about the item - and it is DCB that
+	 * made it terminal, cancelling the lender hold so the returning item is not re-captured
+	 * (HandleCancelledRequestItemOut). Inventory is a separate channel that survives that: FOLIO leaves
+	 * the item <em>In transit</em> (reason "DCB cancelled") until it is physically checked in at the
+	 * owning library, whereupon it becomes <em>Available</em>.
+	 * <p>
+	 * That is precisely the "the item is home" signal a request parked in AWAITING_RETURN_TO_SUPPLIER is
+	 * waiting for, so read it rather than giving up and stranding the request - which is what forced the
+	 * borrowing library to keep its virtual records indefinitely, or worse, tempted us into deleting them
+	 * early.
+	 * <p>
+	 * Only for CANCELLED. Every other transaction status is still authoritatively the transaction's, and
+	 * CLOSED already maps to AVAILABLE. Empty if inventory does not know the item - a borrower's record
+	 * lives in mod-circulation-item, not inventory - so the caller keeps the transaction's answer.
+	 */
+	private Mono<HostLmsItem> itemFromInventory(String localItemId, Integer currentHoldCount) {
+		if (isEmpty(localItemId)) {
+			return Mono.empty();
+		}
+
+		final var query = exactEqualityQuery("id", localItemId);
+
+		final var request = authorisedRequest(GET, PATH_INVENTORY_ITEMS)
+			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
+
+		return makeRequest(request, Argument.of(InventoryItemCollection.class))
+			.flatMap(itemsCollection -> {
+				if (isEmpty(itemsCollection.getItems())) {
+					log.debug("Cancelled transaction for item {} and inventory does not know it - "
+						+ "keeping the transaction's answer", localItemId);
+
+					return Mono.<HostLmsItem>empty();
+				}
+
+				final var item = itemsCollection.getItems().iterator().next();
+				final var rawStatus = getValue(item, InventoryItem::getStatus,
+					InventoryItemStatus::getName, "Unknown");
+
+				log.debug("Cancelled transaction for item {} - inventory reports {}", localItemId, rawStatus);
+
+				return Mono.just(HostLmsItem.builder()
+					.localId(localItemId)
+					.status(mapFolioInventoryItemStatus(rawStatus))
+					.rawStatus(rawStatus)
+					.barcode(item.getBarcode())
+					.renewalCount(0)
+					.holdCount(currentHoldCount != null ? currentHoldCount : 0)
+					.build());
+			})
+			// Tracking must not break because inventory is unavailable; fall back to the transaction.
+			.onErrorResume(error -> {
+				log.warn("Could not read inventory for item {} after transaction cancellation: {}",
+					localItemId, error.getMessage());
+
+				return Mono.empty();
+			});
 	}
 
 	private static int determineHoldCount(TransactionStatus transactionStatus) {
@@ -1379,18 +1449,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	}
 
-	@Override
-	public boolean canReportItemReturnedAfterHoldTerminated() {
-		// getItem reads the mod-dcb transaction, not inventory (see mapToItemStatus). Terminating the
-		// hold leaves that transaction CANCELLED, which maps to no item status at all, and mod-dcb can
-		// never move a CANCELLED lender transaction back to CLOSED - findTransactionByItemIdAndStatusNotInClosed
-		// excludes it, so the physical check-in event can never find it. There is therefore no signal
-		// left for DCB to wait on, and parking would hang the request forever.
-		//
-		// Lift this the moment mod-dcb lets a cancelled lender transaction still receive its check-in;
-		// FOLIO then joins the same wait-for-the-real-item path as everyone else.
-		return false;
-	}
+	// N.B. no canReportItemReturnedAfterHoldTerminated override. mod-dcb cannot report the return - a
+	// CANCELLED lender transaction is terminal and findTransactionByItemIdAndStatusNotInClosed excludes
+	// it, so the physical check-in event can never reach it - but getItem no longer depends on mod-dcb
+	// for this. It falls back to Inventory, which does report the return (see itemFromInventory), so
+	// FOLIO takes the same wait-for-the-real-item path as every other supplier.
 
 	@Override
 	public @NonNull String getClientId() {

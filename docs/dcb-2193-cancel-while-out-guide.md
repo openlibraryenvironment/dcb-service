@@ -25,13 +25,18 @@ still live means waiting for an `AVAILABLE` that can never arrive.
   hold. It stays out until physically checked in, then reports `AVAILABLE`. That is a reliable
   "physically back" signal, so we **park** the request and release it only when the item is genuinely
   home.
-- **FOLIO:** `getItem` derives the item status from the **mod-dcb transaction**, not from inventory
-  (`ConsortialFolioHostLmsClient.mapToItemStatus`). Terminating the hold makes that transaction
-  terminal, so it reports `CANCELLED` forever and can **never** report `AVAILABLE`. Nothing will release
-  such a request automatically.
+- **FOLIO:** `getItem` normally derives the item status from the **mod-dcb transaction**
+  (`mapToItemStatus`), and terminating the hold makes that transaction terminal — it reports `CANCELLED`
+  forever and can never report `AVAILABLE`. But mod-dcb is not the only channel. FOLIO's **Inventory**
+  survives the cancellation: the item stays `In transit` (reason "DCB cancelled") until it is physically
+  checked in at the owning library, then becomes `Available`. So for a `CANCELLED` transaction only,
+  `getItem` falls back to Inventory (`itemFromInventory`) and FOLIO reports the return like everyone
+  else. **No workflow code knows or cares** — the park releases through the ordinary guard.
 
 Expressed as a client capability, not `if (ils == …)`:
-`HostLmsClient.canReportItemReturnedAfterHoldTerminated()` — default `true`, FOLIO overrides to `false`.
+`HostLmsClient.canReportItemReturnedAfterHoldTerminated()` — default `true`. **Nothing overrides it to
+`false` today**; FOLIO did until the Inventory fallback made it able to report. It is kept as the
+extension point for any ILS that genuinely cannot, and drives flagging only.
 
 > **This capability must never gate cleanup or finalisation, and does not.** It describes what the
 > *supplier* can observe. It says nothing about whether it is safe to delete the *borrower's* records.
@@ -95,11 +100,12 @@ Callers cannot distinguish "cancelled" from "did nothing".
  READY_FOR_PICKUP   ─┘         (always - never CANCELLED)   │
                                                            ├─(supplier item AVAILABLE/RECEIVED)─►
                                                            │    CANCELLED ─► FINALISED
+                                                           │      (records deleted here, safely)
                                                            │
-                                                           └─ supplier cannot report a return (FOLIO):
-                                                                stays parked, flagged + alarmed, released
-                                                                by hand once the item is confirmed home
-                                                                (cleanup?force=true)
+                                                           └─ supplier that cannot report a return at
+                                                                all: stays parked, flagged + alarmed,
+                                                                released by hand (cleanup?force=true).
+                                                                No ILS is in this state today.
 
  item still AT supplier (REQUEST_PLACED_*) ─► CANCELLED ─► FINALISED   (unchanged: nothing to orphan)
  item WITH the patron (item LOANED)        ─► LOANED               (a collection, not a cancellation)
@@ -226,13 +232,36 @@ status maps through `mapToItemStatus`'s `default` branch to a passthrough `"CANC
 |---|---|---|---|
 | still at supplier | any | `CancelledPatronRequestTransition` | `CANCELLED` → `FINALISED` |
 | out | Sierra/Polaris/Alma | park → supplier item `AVAILABLE` → release | `CANCELLED` → `FINALISED` |
-| out | FOLIO | park, flagged; **released by hand** | `CANCELLED` → `FINALISED`, after human action |
+| out | FOLIO | park → Inventory reports `Available` → release | `CANCELLED` → `FINALISED` |
 | out, PUA | any | borrower hold watched (§3a) | as above |
 
-A FOLIO-supplied request therefore does **not** reach `FINALISED` on its own, and that is deliberate. The
-alternative — finalising because we cannot see the item — is what destroyed a Polaris borrower's virtual
-item in production. Records intact and a human prompted beats records deleted and a library billed.
-§6 has the route to closing that gap properly.
+Every combination reaches `FINALISED` on its own, and only once the real item is confirmed home. Nothing
+in the workflow layer distinguishes the supplier.
+
+## 5b. Why only Polaris libraries reported this
+
+The premature-deletion complaint tracks the **borrower's** ILS exactly, and the reason is in the adapters:
+
+| Borrower | `deleteItem` / `deleteBib` |
+|---|---|
+| Polaris | real — `ApplicationServices.deleteItemRecord` / `deleteBibliographicRecord` |
+| Sierra | real — `client.deleteItem` / `deleteBib` |
+| FOLIO | **no-ops** — *"Delete virtual item is not currently implemented for FOLIO"*, returns `OK` |
+
+A FOLIO borrower's "virtual item" is a mod-dcb **circulation item**, whose lifecycle mod-dcb owns. DCB
+never deletes it, so finalising early at a FOLIO borrower destroyed nothing and nobody noticed. At a
+Polaris or Sierra borrower the records really are DCB's to delete, and deleting them while the item was
+still out left the library with no record to check the item back in against — so the supplier billed them
+for a lost item.
+
+Two consequences worth keeping in mind:
+
+- **FOLIO borrowers were never evidence that the timing was correct** — only that DCB had nothing to
+  break there. Their silence is the absence of a symptom, not the absence of the bug. That is exactly the
+  trap the reverted early-cancel fell into: it was reasoned about from the FOLIO side and shipped against
+  a Polaris one.
+- **Anything that fixes the timing must be judged on the borrower**, which is why the park is now
+  unconditional and no FOLIO-as-borrower carve-out was added — it would have bought nothing.
 
 Finalisation against a FOLIO **borrower** completes because:
 
@@ -249,22 +278,16 @@ reached immediately rather than on the next poll.
 
 ## 6. Known follow-ups (separate issues)
 
-- **Release a FOLIO-supplied park automatically — the remaining gap, and it looks closable.** DCB is only
-  blind because `getItem` reads the mod-dcb transaction, which we ourselves made terminal. FOLIO's real
-  inventory is a separate, transaction-independent channel that the client can already reach:
-  `PATH_INVENTORY_ITEMS` is wired up for `getItemByBarcode`, and
-  `FOLIO_INVENTORY_STATUS_IN_TRANSIT` / `_AVAILABLE` already exist as constants.
-
-  So `ConsortialFolioHostLmsClient.getItem` could fall back to Inventory when the transaction is terminal
-  and map the real item status. **No workflow change at all** — the park would release itself through the
-  existing guard, and `canReportItemReturnedAfterHoldTerminated` could go back to `true` and be deleted.
-
-  **Verify first:** does cancelling the lender transaction leave the FOLIO item `In transit` until it is
-  physically checked in at the owning library, or does it flip straight to `Available`? Cancelling a
-  request should not check an item in, so `In transit` is expected — but if it flips immediately, the
-  signal is worthless and would release the park instantly, reintroducing the bug. This is exactly the
-  claim the original branch doc asserted about RTAC and got wrong, so it needs confirming against a real
-  tenant before anyone builds on it.
+- **Watch the Inventory fallback in production.** It rests on FOLIO leaving the item `In transit`
+  (reason "DCB cancelled") until it is checked in at the owning library — confirmed against a real
+  tenant, and covered by `ConsortialFolioHostLmsClientGetItemTests`. If a tenant is ever seen flipping
+  the item straight to `Available` on cancellation, the fallback would release the park instantly and
+  reintroduce the bug; the containment is to override
+  `canReportItemReturnedAfterHoldTerminated()` to `false` on the FOLIO client again, which restores the
+  parked-and-flagged behaviour in one line.
+- **The mod-dcb asks in §0 are still worth making.** The Inventory fallback works around a limitation
+  rather than removing it: a lender transaction that could still receive its check-in would let DCB use
+  one channel instead of two, and would benefit anyone else integrating with mod-dcb.
 
 - **Declarative suppliers cannot have their hold terminated.** `HandleCancelledRequestItemOut` skips and
   audits, matching `CancelledPatronRequestTransition`. Until a declarative cancel exists, such a request

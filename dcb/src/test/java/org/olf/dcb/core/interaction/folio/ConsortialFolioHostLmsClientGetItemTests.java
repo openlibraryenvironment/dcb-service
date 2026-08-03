@@ -249,6 +249,104 @@ class ConsortialFolioHostLmsClientGetItemTests {
 		));
 	}
 
+	@Test
+	void shouldReportItemStillOutFromInventoryWhenTransactionHasBeenCancelled() {
+		// DCB cancels the lender transaction so the returning item is not re-captured, which also makes
+		// the transaction terminal and useless for tracking. Inventory survives that: FOLIO leaves the
+		// item "In transit" (reason "DCB cancelled") until it is physically checked in at the owning
+		// library. Report that, so a request parked in AWAITING_RETURN_TO_SUPPLIER keeps waiting.
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CANCELLED");
+		mockFolioFixture.mockQueryItemsById(localItemId, "In transit");
+
+		final var localItem = getItem(localItemId, localRequestId);
+
+		assertThat(localItem, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasStatus("TRANSIT"),
+			hasRawStatus("In transit")
+		));
+	}
+
+	@Test
+	void shouldReportItemHomeFromInventoryWhenTransactionHasBeenCancelled() {
+		// The signal the parked request is waiting for. Once the item is checked in at the owning
+		// library FOLIO makes it Available, and the request can cancel and finalise - which is when the
+		// borrowing library's virtual records are safe to delete.
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CANCELLED");
+		mockFolioFixture.mockQueryItemsById(localItemId, "Available");
+
+		final var localItem = getItem(localItemId, localRequestId);
+
+		assertThat(localItem, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasStatus("AVAILABLE"),
+			hasRawStatus("Available")
+		));
+	}
+
+	@Test
+	void shouldKeepTheTransactionAnswerWhenInventoryDoesNotKnowTheItem() {
+		// A borrowing library's record lives in mod-circulation-item, not inventory, so the lookup finds
+		// nothing. Fall back to the transaction rather than inventing a status.
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CANCELLED");
+		mockFolioFixture.mockQueryItemsByIdNotFound(localItemId);
+
+		final var localItem = getItem(localItemId, localRequestId);
+
+		assertThat(localItem, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasRawStatus("CANCELLED")
+		));
+	}
+
+	@Test
+	void shouldKeepTheTransactionAnswerWhenInventoryIsUnavailable() {
+		// Tracking must not break because inventory is down.
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CANCELLED");
+		mockFolioFixture.mockQueryItemsById(localItemId, response().withStatusCode(500));
+
+		final var localItem = getItem(localItemId, localRequestId);
+
+		assertThat(localItem, allOf(
+			notNullValue(),
+			hasLocalId(localItemId),
+			hasRawStatus("CANCELLED")
+		));
+	}
+
+	@Test
+	void shouldNotConsultInventoryWhileTheTransactionIsStillLive() {
+		// Only a CANCELLED transaction is mute. Everything else is still authoritative, and CLOSED
+		// already means the item is home - no inventory mock is registered, so consulting it would fail.
+		final var localRequestId = randomUUID().toString();
+		final var localItemId = randomUUID().toString();
+
+		mockFolioFixture.mockGetTransactionStatus(localRequestId, "CLOSED");
+
+		final var localItem = getItem(localItemId, localRequestId);
+
+		assertThat(localItem, allOf(
+			notNullValue(),
+			hasStatus("AVAILABLE"),
+			hasRawStatus("CLOSED")
+		));
+	}
+
 	private HostLmsItem getItem(String localItemId, String localRequestId) {
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
