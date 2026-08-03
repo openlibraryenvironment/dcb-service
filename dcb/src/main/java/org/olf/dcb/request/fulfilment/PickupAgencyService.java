@@ -47,33 +47,21 @@ public class PickupAgencyService {
 
 		log.info("WORKFLOW pickup system cleanUp {}", patronRequest);
 
-		final var auditData = new HashMap<String, Object>();
-		auditData.put("pickupSystem", getValue(pickupSystemCode, "No value present"));
+		if (pickupSystem == null) {
+			final var message = "Pickup system cleanup : Skipped";
+			final var auditData = new HashMap<String, Object>();
 
-		if (pickupSystem != null) {
-			if( patronRequest.getStatus() == PatronRequest.Status.PICKUP_TRANSIT ||
-				patronRequest.getStatus() == PatronRequest.Status.RECEIVED_AT_PICKUP ||
-				patronRequest.getStatus() == PatronRequest.Status.LOANED ) {
+			auditData.put("pickupSystem", getValue(pickupSystemCode, "No value present"));
 
-				final var message = "Pickup system cleanup : Patron request status prevents complete request cleanup";
-
-				return Mono.just(pickupSystem)
-					.flatMap(client -> deleteHoldIfPresent(client, patronRequest))
-					.flatMap(client -> patronRequestAuditService.addAuditEntry(patronRequest, message, auditData))
-					.thenReturn(requestWorkflowContext);
-			}
-
-			return Mono.just(pickupSystem)
-				.flatMap(client -> deleteItemIfPresent(client, patronRequest))
-				.flatMap(client -> deleteBibIfPresent(client, patronRequest))
-				.flatMap(client -> deleteHoldIfPresent(client, patronRequest))
-				.thenReturn(requestWorkflowContext);
+			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
+				.flatMap(audit -> Mono.just(requestWorkflowContext));
 		}
 
-		final var message = "Pickup system cleanup : Skipped";
-		return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)
-			.flatMap(audit -> Mono.just(requestWorkflowContext));
-
+		return Mono.just(pickupSystem)
+			.flatMap(client -> deleteItemIfPresent(client, patronRequest))
+			.flatMap(client -> deleteBibIfPresent(client, patronRequest))
+			.flatMap(client -> deleteHoldIfPresent(client, patronRequest))
+			.thenReturn(requestWorkflowContext);
 	}
 
 	private Mono<String> deleteHoldIfPresent(HostLmsClient client, PatronRequest patronRequest) {

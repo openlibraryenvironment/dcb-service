@@ -465,6 +465,30 @@ class HandleCancelledRequestItemOutTests {
 	}
 
 	@Test
+	void engineMustPickTheReleaseTransitionThatCancels() {
+		// REGRESSION. The release must go through HandleCancelledRequestItemReturned, which ends the
+		// request as CANCELLED with Outcome.CANCELLED. Nothing else may claim AWAITING_RETURN_TO_SUPPLIER.
+		//
+		// A merge once resurrected the superseded HandleCancelledRequestReturnTransit, which shares this
+		// source status and whose name sorts ABOVE this one ("...Ret" > "...Ite"), so it silently won the
+		// reverse-alphabetical tie and sent parks back into RETURN_TRANSIT - ending in
+		// HandleSupplierItemAvailable and stamping Outcome.SUPPLIED on a request nobody received.
+		// Asserting the transition in isolation cannot see that; only the engine's choice can.
+		final var ctx = new RequestWorkflowContext()
+			.setPatronRequest(PatronRequest.builder()
+				.id(randomUUID())
+				.status(AWAITING_RETURN_TO_SUPPLIER)
+				.activeWorkflow(STANDARD_WORKFLOW)
+				.build())
+			.setSupplierRequest(SupplierRequest.builder()
+				.id(randomUUID())
+				.localItemStatus(ITEM_AVAILABLE)
+				.build());
+
+		assertThat(firstApplicableTransitionFor(ctx), is("HandleCancelledRequestItemReturned"));
+	}
+
+	@Test
 	void parkedRequestShouldNotReleaseWhileItemIsNeitherInTransitNorBackAtSupplier() {
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())

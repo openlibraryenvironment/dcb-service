@@ -68,22 +68,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 		return hostLmsService.getClientFor(patronRequest.getPatronHostlmsCode())
 			.flatMap(hostLmsClient -> hostLmsClient.updateItemStatus(hostLmsItem,
-				HostLmsClient.CanonicalItemState.COMPLETED))
-			// Best-effort borrower notification. Completion is authoritatively gated by the supplier
-			// having the item back; poking the borrower's virtual item is secondary cleanup that
-			// finalisation completes regardless (and FOLIO deleteHold already tolerates the same case).
-			// It legitimately fails when the borrower side is already terminal - e.g. a FOLIO borrower
-			// whose mod-dcb transaction is CANCELLED after a patron cancellation, where CANCELLED -> CLOSED
-			// is not a permitted mod-dcb transition. Do not let that wedge the request in RETURN_TRANSIT.
-			.onErrorResume(error -> {
-				log.warn("Best-effort borrower 'item received back' update failed for {} - continuing to COMPLETED: {}",
-					getValueOrNull(patronRequest, PatronRequest::getId), error.getMessage());
-
-				return auditService.addAuditEntry(patronRequest,
-						"Supplier item available - borrower 'received back' update skipped (borrower already terminal): "
-							+ error.getMessage())
-					.thenReturn("OK");
-			});
+				HostLmsClient.CanonicalItemState.COMPLETED));
 	}
 
 
