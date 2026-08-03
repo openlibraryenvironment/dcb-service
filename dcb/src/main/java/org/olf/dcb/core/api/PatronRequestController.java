@@ -34,13 +34,18 @@ import org.olf.dcb.request.workflow.CleanupPatronRequestTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingService;
+import org.zalando.problem.Problem;
+import org.zalando.problem.Status;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
+import java.net.URI;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static io.micronaut.http.HttpResponse.badRequest;
@@ -76,26 +81,69 @@ public class PatronRequestController {
 		this.trackingService = trackingService;
 	}
 	
-	public PatronRequest ensureValidStateForCleanupTransition( final PatronRequest patronRequest ) {
-		return switch (patronRequest.getStatus()) {
-			// we want to be able to clean up errored requests, so I am removing this for now
-			// case ERROR -> throw new IllegalStateException("Cannot transition errored requests");
+	/**
+	 * Cleanup deletes the borrowing library's virtual item and bib. While the physical item is out that
+	 * orphans it - the supplier has no record to check it back in against and eventually bills for a lost
+	 * item (DCB-2193). These states all mean "the item is not back at the supplier yet".
+	 * AWAITING_RETURN_TO_SUPPLIER is the park state, which exists precisely to hold the records until the
+	 * item is home.
+	 * <p>
+	 * Kept in step with dcb-admin-ui's cleanupStatuses, which hides the button for the same set.
+	 */
+	private static final Set<PatronRequest.Status> ITEM_OUT_STATUSES = EnumSet.of(
+		PatronRequest.Status.PICKUP_TRANSIT,
+		PatronRequest.Status.RECEIVED_AT_PICKUP,
+		PatronRequest.Status.READY_FOR_PICKUP,
+		PatronRequest.Status.LOANED,
+		PatronRequest.Status.RETURN_TRANSIT,
+		PatronRequest.Status.AWAITING_RETURN_TO_SUPPLIER);
 
-			// Cleanup deletes the borrowing library's virtual item and bib. While the physical item is out
-			// that orphans it: the supplier has no record to check it back in against and eventually bills
-			// for a lost item. These states all mean "the item is not back at the supplier yet".
-			// AWAITING_RETURN_TO_SUPPLIER is the DCB-2193 park state, which exists precisely to hold the
-			// records until the item is home - cleaning it up by hand defeats the point.
-			case PICKUP_TRANSIT, RECEIVED_AT_PICKUP, READY_FOR_PICKUP, LOANED, RETURN_TRANSIT,
-				AWAITING_RETURN_TO_SUPPLIER ->
-				throw new IllegalStateException(
-					"Cannot clean up a request while the item is out (" + patronRequest.getStatus()
-						+ "). The item must be back at the supplier first.");
+	private static final URI ERR_CLEANUP_ITEM_OUT = URI.create(
+		"https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/cleanup-while-item-is-out");
 
-			case CANCELLED -> throw new IllegalStateException("Cannot transition cancelled requests");
+	public PatronRequest ensureValidStateForCleanupTransition(
+		final PatronRequest patronRequest, final boolean force) {
 
-			default -> patronRequest;
-		};
+		final var status = patronRequest.getStatus();
+
+		// we want to be able to clean up errored requests, so this is not blocked
+
+		if (ITEM_OUT_STATUSES.contains(status)) {
+			// Support does occasionally need to clear a genuinely stuck request, so this is an override
+			// rather than a wall - but it has to be asked for explicitly, and it is audited by the
+			// transition itself.
+			if (force) {
+				log.warn("Forced cleanup of patron request {} while item is out (status {})",
+					patronRequest.getId(), status);
+
+				return patronRequest;
+			}
+
+			throw Problem.builder()
+				.withType(ERR_CLEANUP_ITEM_OUT)
+				.withTitle("Cannot clean up a request while the item is out")
+				.withStatus(Status.CONFLICT)
+				.withDetail(("The item for this request is not back at the supplying library (status %s). "
+					+ "Cleaning up now would delete the borrowing library's virtual records and orphan the "
+					+ "physical item. Wait for the item to be returned, or repeat with force=true if you are "
+					+ "certain the item is accounted for.").formatted(status))
+				.with("patronRequestId", String.valueOf(patronRequest.getId()))
+				// N.B. "status" is a reserved Problem property and throws if used here
+				.with("patronRequestStatus", String.valueOf(status))
+				.build();
+		}
+
+		if (PatronRequest.Status.CANCELLED.equals(status)) {
+			throw Problem.builder()
+				.withType(ERR_CLEANUP_ITEM_OUT)
+				.withTitle("Cannot transition cancelled requests")
+				.withStatus(Status.CONFLICT)
+				.withDetail("This request is already cancelled and will finalise on its own.")
+				.with("patronRequestId", String.valueOf(patronRequest.getId()))
+				.build();
+		}
+
+		return patronRequest;
 	}
 
 	/**
@@ -108,8 +156,14 @@ public class PatronRequestController {
 	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN})
 	@SingleResult
 	@Post(value = "/{patronRequestId}/transition/cleanup", consumes = APPLICATION_JSON)
-	public Mono<UUID> cleanupPatronRequest(@NotNull final UUID patronRequestId) {
-		log.info("Request cleanup for {}",patronRequestId);
+	public Mono<UUID> cleanupPatronRequest(@NotNull final UUID patronRequestId,
+		@Parameter(in = ParameterIn.QUERY,
+			description = "Clean up even though the item is still out. Deletes the borrowing library's "
+				+ "virtual records while the physical item is unaccounted for - only use when the item's "
+				+ "whereabouts have been confirmed by other means.")
+		@QueryValue(defaultValue = "false") final boolean force) {
+
+		log.info("Request cleanup for {} (force={})", patronRequestId, force);
 
 		// Guard on stored state, which is what the operator saw before pressing the button. Polling first
 		// would let automatic progression move the request underneath the guard - a request in
@@ -117,7 +171,7 @@ public class PatronRequestController {
 		// state they never asked about, having already mutated the request.
 		return patronRequestService
 			.findById( patronRequestId )
-			.map( this::ensureValidStateForCleanupTransition )
+			.map( patronRequest -> ensureValidStateForCleanupTransition(patronRequest, force) )
 			.zipWhen( (req) -> Mono.just(cleanupPatronRequestTransition))
 			.flatMap( TupleUtils.function(workflowService::progressUsing )) // Note: progressUsing can return an empty mono
 			.doOnSuccess(pr -> log.info("Successful cleanup for patron request {}", patronRequestId))

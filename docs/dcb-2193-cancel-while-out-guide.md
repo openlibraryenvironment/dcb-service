@@ -141,9 +141,30 @@ Callers cannot distinguish "cancelled" from "did nothing".
    REQUEST_PLACED_AT_PICKUP_AGENCY}` (item still at supplier → auto-finalise is safe).
 
 9. **`PatronRequestController.cleanupPatronRequest`** — rejects manual cleanup in every status meaning
-   "the item is not back at the supplier yet". Guards on **stored** state: polling first would let
-   automatic progression move the request underneath the guard, so the caller would get an error about a
-   state they never asked about, having already mutated the request.
+   "the item is not back at the supplier yet", with **409 Conflict** (a `ThrowableProblem`; `micronaut-problem-json`
+   renders it as RFC-7807) rather than the 500 an unhandled `IllegalStateException` produced. Support can
+   override with **`?force=true`**, which is logged and audited — they do occasionally need to clear a
+   genuinely stuck request, so this is a speed bump, not a wall.
+
+   Guards on **stored** state: polling first would let automatic progression move the request underneath
+   the guard, so the caller would get an error about a state they never asked about, having already
+   mutated the request.
+
+   N.B. `status` is a reserved Problem property — passing it to `.with()` throws.
+
+## 3a. Which hold does the patron actually cancel?
+
+The patron's own hold is the one at their **home (borrowing)** library — including under Pickup Anywhere.
+The pickup hold is one DCB places against a *virtual* patron so the item can sit on the pickup shelf;
+`CancelledPatronRequestTransition` treats the borrower hold as the trigger and then tears the pickup hold
+down as a consequence.
+
+So `HandleCancelledRequestItemOut` watches the **borrower** hold always, plus the **pickup** hold for PUA
+(losing that also means the item is out with nothing holding it). Watching only the pickup hold for PUA —
+as an earlier revision of this branch did — silently dropped every PUA patron cancellation: once the item
+is out, `CancelledPatronRequestTransition` no longer claims those states either, so nothing moved the
+request and it never reached `FINALISED`. Covered by
+`shouldBeApplicableForPickupAnywhereWhenThePatronCancelsAtTheirHomeLibrary`.
 
 ## 4. Deleted
 
@@ -175,6 +196,38 @@ Callers cannot distinguish "cancelled" from "did nothing".
   through `RETURN_TRANSIT` and poke an already-terminal borrower. It also swallowed genuine failures on
   the normal return leg.
 
+## 5a. A FOLIO patron cancelling: does it reach FINALISED?
+
+Traced end to end. **Yes**, in every combination — but only because of the PUA fix in §3a; before it, the
+PUA case stalled indefinitely.
+
+Detection: the patron cancels their FOLIO request → Kafka `CANCEL` event →
+`CirculationEventListener.processRequestEvent` → `cancelTransactionEntity` for **any** role, so the
+borrower transaction goes `CANCELLED`. DCB's `getRequest` maps mod-dcb `CANCELLED` → `HOLD_CANCELLED`
+(`mapToHostLmsRequest`), so `localRequestStatus` is a recognised cancellation. The borrower's *item*
+status maps through `mapToItemStatus`'s `default` branch to a passthrough `"CANCELLED"` — importantly not
+`LOANED`, so the collection gate does not exclude it.
+
+| Item is | Supplier | Path | Ends |
+|---|---|---|---|
+| still at supplier | any | `CancelledPatronRequestTransition` | `CANCELLED` → `FINALISED` |
+| out | Sierra/Polaris/Alma | park → supplier item `AVAILABLE` → release | `CANCELLED` → `FINALISED` |
+| out | FOLIO | cancelled at entry (cannot report a return) | `CANCELLED` → `FINALISED` |
+| out, PUA | any | borrower hold watched (§3a) | `CANCELLED` → `FINALISED` |
+
+Finalisation against a FOLIO **borrower** completes because:
+
+- `deleteRequestIfPresent` → `deleteHold` sees a `CANCELLED` transaction and short-circuits to
+  `RESULT_OK` without mutating it (§3.5). Without that terminal check it would attempt `CLOSED`, be
+  rejected, and cancel an already-cancelled transaction.
+- `deleteItem` and `deleteBib` are deliberate no-ops for FOLIO — mod-dcb owns those records — so there is
+  nothing left to fail.
+- While parked, only the SUPPLIER role is polled (§3.6), so DCB stops interrogating a terminal borrower
+  transaction it can learn nothing more from.
+
+`FinaliseRequestTransition` runs in the same recursive progression as the release, so `FINALISED` is
+reached immediately rather than on the next poll.
+
 ## 6. Known follow-ups (separate issues)
 
 - **Declarative suppliers cannot have their hold terminated.** `HandleCancelledRequestItemOut` skips and
@@ -188,9 +241,9 @@ Callers cannot distinguish "cancelled" from "did nothing".
 - **Borrower-side routing:** when the patron cancels mid-transit, the borrower (e.g. Polaris) shelves the
   returned item locally as `Available` rather than routing it back to the supplier. DCB can't automate
   this; the park state is what makes it visible.
-- **Manual cleanup has no override.** Support has no escape hatch for a genuinely stuck out-item request.
-  Wants a `force` parameter — and the guard should return 409, not the current 500
-  (`IllegalStateException` has no handler; the pre-existing `CANCELLED` case has the same problem).
+- **The admin UI has no affordance for `?force=true`.** The API supports it; the UI still just hides the
+  cleanup button for out-item statuses. A "clean up anyway" confirmation behind it would save support a
+  curl.
 - **`dcb-hub-admin-ui/src/helpers/statuses.ts`** duplicates `constants/statuses/*` and is imported by
   nothing. Delete it before the stale copy misleads someone.
 
@@ -206,7 +259,9 @@ the API guard), `useChartPalette.ts` (`STATUS_ORDER`), and the `en-GB` + `es` lo
 - Regression tests that must never be deleted:
   - `HandleCancelledRequestItemOutTests.patronCollectingTheItemMustNotBeTreatedAsACancellation`
   - `HandleCancelledRequestItemOutTests.pickupAnywhereCollectionMustNotBeTreatedAsACancellation`
+  - `HandleCancelledRequestItemOutTests.shouldBeApplicableForPickupAnywhereWhenThePatronCancelsAtTheirHomeLibrary`
   - `FinaliseRequestTransitionTests.shouldDeleteVirtualRecordsEvenWhenTheBorrowerItemIsStillInTransit`
+  - `PatronRequestCleanupGuardTests` (409 + force override)
 
 ## Definition of done
 

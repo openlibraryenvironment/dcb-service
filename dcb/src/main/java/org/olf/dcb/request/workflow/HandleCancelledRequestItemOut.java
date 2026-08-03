@@ -108,26 +108,42 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 		if (status == null || !possibleSourceStatus.contains(status)) return false;
 		if (getValueOrNull(patronRequest, PatronRequest::getActiveWorkflow) == null) return false;
 
-		// For Pickup Anywhere the patron holds against the pickup system, otherwise the borrower.
-		final var usingPickupAnywhere = patronRequest.isUsingPickupAnywhereWorkflow();
-
-		final var holdStatus = usingPickupAnywhere
-			? getValueOrNull(patronRequest, PatronRequest::getPickupRequestStatus)
-			: getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus);
-
-		if (!cancelledHoldStatus.contains(holdStatus)) return false;
+		if (!isPatronHoldGone(patronRequest)) return false;
 
 		// The hold is also consumed when the patron simply collects the item. If the item is with the
 		// patron this is a loan, not a cancellation - leave it to HandleBorrowerItemLoaned.
-		return !isItemWithPatron(patronRequest, usingPickupAnywhere);
+		return !isItemWithPatron(patronRequest);
 	}
 
-	private static boolean isItemWithPatron(PatronRequest patronRequest, boolean usingPickupAnywhere) {
-		final var itemStatus = usingPickupAnywhere
-			? getValueOrNull(patronRequest, PatronRequest::getPickupItemStatus)
-			: getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus);
+	/**
+	 * The patron's own hold is the one at their home (borrowing) library - that is what they see and what
+	 * they cancel, in Pickup Anywhere as much as anywhere else. The pickup hold is one DCB placed against
+	 * a virtual patron so the item can sit on the pickup shelf, and it disappears for its own reasons
+	 * (notably being consumed at collection, which the item-status gate catches).
+	 * <p>
+	 * For PUA we therefore watch BOTH: the borrower hold because that is the patron's, and the pickup
+	 * hold because losing it also means the item is out with nothing holding it. Watching only the pickup
+	 * hold silently drops every PUA patron cancellation - nothing else claims those states.
+	 */
+	private static boolean isPatronHoldGone(PatronRequest patronRequest) {
+		if (cancelledHoldStatus.contains(
+			getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus))) {
 
-		return ITEM_LOANED.equals(itemStatus);
+			return true;
+		}
+
+		return patronRequest.isUsingPickupAnywhereWorkflow()
+			&& cancelledHoldStatus.contains(
+				getValueOrNull(patronRequest, PatronRequest::getPickupRequestStatus));
+	}
+
+	/**
+	 * Either side reporting the item loaned means the patron has it. Mirrors HandleBorrowerItemLoaned,
+	 * which triggers on either, so the two stay in step.
+	 */
+	private static boolean isItemWithPatron(PatronRequest patronRequest) {
+		return ITEM_LOANED.equals(getValueOrNull(patronRequest, PatronRequest::getLocalItemStatus))
+			|| ITEM_LOANED.equals(getValueOrNull(patronRequest, PatronRequest::getPickupItemStatus));
 	}
 
 	@Override
@@ -293,8 +309,9 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
 		return List.of(new DCBGuardCondition(
-			"DCBPatronRequest state is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP, the patron hold is "
-				+ "MISSING or CANCELLED, and the item is not loaned to the patron"));
+			"DCBPatronRequest state is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP, the borrower hold "
+				+ "(or for Pickup Anywhere either the borrower or the pickup hold) is MISSING or CANCELLED, and "
+				+ "the item is not loaned to the patron"));
 	}
 
 	@Override

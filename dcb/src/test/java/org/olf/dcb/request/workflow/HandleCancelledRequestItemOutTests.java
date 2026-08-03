@@ -161,6 +161,28 @@ class HandleCancelledRequestItemOutTests {
 	}
 
 	@Test
+	void shouldBeApplicableForPickupAnywhereWhenThePatronCancelsAtTheirHomeLibrary() {
+		// REGRESSION. In PUA the patron's OWN hold is the one at their home (borrowing) library - that is
+		// what they see and what they cancel. The pickup hold is one DCB placed against a virtual patron
+		// so the item can sit on the pickup shelf; CancelledPatronRequestTransition treats the borrower
+		// hold as the trigger and then tears the pickup hold down as a consequence.
+		//
+		// Watching only the pickup hold here silently drops every PUA patron cancellation: the request is
+		// no longer claimed by CancelledPatronRequestTransition either (narrowed to the pre-shipment
+		// states), so nothing moves it and it never reaches FINALISED.
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(RECEIVED_AT_PICKUP)
+			.localRequestStatus(HOLD_CANCELLED)
+			.pickupRequestStatus(HOLD_CONFIRMED)
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
+			.build());
+
+		assertThat("A PUA patron cancelling at their home library is still a cancellation",
+			handleCancelledRequestItemOut.isApplicableFor(ctx), is(true));
+	}
+
+	@Test
 	void shouldNotBeApplicableWhenBorrowerHoldIsStillActive() {
 		final var ctx = contextFor(PatronRequest.builder()
 			.id(randomUUID())
