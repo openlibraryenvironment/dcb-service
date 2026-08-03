@@ -378,17 +378,51 @@ FOLIO's **Inventory** is a separate channel that survives the cancellation: the 
 It **rejects with 409 Conflict** (an RFC-7807 `ThrowableProblem`, rendered by `micronaut-problem-json`) in
 every status meaning "the item is not back at the supplier yet": `PICKUP_TRANSIT`, `RECEIVED_AT_PICKUP`,
 `READY_FOR_PICKUP`, `LOANED`, `RETURN_TRANSIT`, `AWAITING_RETURN_TO_SUPPLIER` — plus `CANCELLED`, which
-finalises on its own. `ERROR` is deliberately allowed; clearing errored requests is what the endpoint is
-mainly for.
+finalises on its own.
 
-`?force=true` overrides the item-out check for support staff who have confirmed the item's whereabouts by
-other means. It is logged and audited.
-
-The guard reads **stored** state, not freshly polled state: polling first would let automatic progression
-move the request underneath the guard, so the caller would get an error about a status they never asked
-about, having already mutated the request.
+`?force=true` overrides the check for support staff who have confirmed the item's whereabouts by other
+means. It is logged and audited.
 
 `dcb-admin-ui`'s `cleanupStatuses` hides the button for the same set and must be kept in step.
+
+### `ERROR` is allowed, but not blindly
+
+Clearing errored requests is what this endpoint is mainly for, so `ERROR` is permitted — but it is the one
+permitted status whose stored state can be **arbitrarily stale**. `application.yml` sets
+`ERROR: null` in `dcb.polling.durations`, so `next_scheduled_poll` is never set and an errored request is
+**never polled again**. Its status is frozen at the moment it failed, however long ago that was.
+
+`ERROR` itself says nothing about where the item is. `previousStatus` does — it is recorded on every
+status change by `PatronRequest.decidePreviousStatus`. So cleanup is refused when a request errored *out
+of* an item-out status, with the same `force=true` override.
+
+Without that, a request that errored in `PICKUP_TRANSIT` reads `ERROR`, is waved through, and cleanup
+deletes the borrower's virtual records with the item still out — the DCB-2193 bug, by hand, on exactly the
+requests most likely to be cleaned up by hand.
+
+### Why the guard does not poll first
+
+The obvious objection is that the guard trusts stored state, so it should call
+`TrackingService.forceUpdate` first to be sure. It deliberately does not:
+
+- **It would not help where staleness actually bites.** The guard reads `status`, and tracking only
+  changes `status` as a side effect of workflow progression. The genuinely stale case is `ERROR`, and
+  nothing progresses out of `ERROR` — polling refreshes item and hold fields the guard never reads.
+  `previousStatus` closes that hole for free.
+- **It mutates before refusing.** `forceUpdate` runs `progressUsing`, so a request in `PICKUP_TRANSIT`
+  with a vanished hold parks itself and the caller then gets an error about `AWAITING_RETURN_TO_SUPPLIER`
+  — a status they never asked about, on a request DCB has already changed.
+- **It is slow and can fail silently.** Up to three ILSs are polled synchronously inside an admin API
+  call, and `forceUpdate` swallows its own errors (`onErrorResume(error -> Mono.just(pr_id))`), so a
+  downed ILS yields stale data anyway, just later.
+- **Freshness is already a separate operation.** `POST /{id}/update` *is* `forceUpdate`. An operator who
+  wants current data can ask for it explicitly, and then decide. Coupling it to the destructive call
+  removes that choice.
+
+The remaining exposure is a status that is fresh-ish but not current: pre-shipment statuses poll hourly
+(`REQUEST_PLACED_AT_BORROWING_AGENCY: 1h`), so there is a window in which the item has shipped and DCB has
+not noticed. That window is bounded, it self-heals on the next poll, and `force=true` is not needed to
+work around it — which is not true of the `ERROR` case.
 
 > Implementation note: `status` is a **reserved** Problem property — passing it to `.with()` throws at
 > runtime. The offending status is reported as `patronRequestStatus`.
@@ -481,4 +515,11 @@ Changing cancellation behaviour? These are the things that must stay true.
 | `folioSupplierMustStillParkSoTheBorrowerKeepsItsVirtualItem` | the §7.4 regression |
 | `shouldDeleteVirtualRecordsEvenWhenTheBorrowerItemIsStillInTransit` | virtual records orphaned on every normal loan |
 | `ConsortialFolioHostLmsClientGetItemTests` (Inventory fallback cases) | FOLIO parks never releasing, or releasing instantly |
-| `PatronRequestCleanupGuardTests` | cleanup API deleting records while the item is out |
+| `PatronRequestCleanupGuardTests` | cleanup API deleting records while the item is out, including via a stale `ERROR` |
+| `engineMustPickTheReleaseTransitionThatCancels` | another transition claiming `AWAITING_RETURN_TO_SUPPLIER` and stamping `Outcome.SUPPLIED` |
+
+> Two of these assert the **engine's** choice rather than a transition in isolation
+> (`patronCollectingTheItemMustNotBeTreatedAsACancellation`,
+> `engineMustPickTheReleaseTransitionThatCancels`). That is deliberate: guards tested in isolation cannot
+> see a collision, and both bugs those tests cover were collisions. A merge that resurrected a superseded
+> transition was invisible to every other test in this list.

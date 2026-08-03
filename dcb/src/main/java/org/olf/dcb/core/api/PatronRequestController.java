@@ -106,31 +106,32 @@ public class PatronRequestController {
 
 		final var status = patronRequest.getStatus();
 
-		// we want to be able to clean up errored requests, so this is not blocked
+		// Errored requests are the main thing this endpoint is for, so ERROR itself is not blocked - but
+		// it is the one permitted status whose stored state can be arbitrarily stale. application.yml sets
+		// ERROR polling to null, so an errored request is never polled again and its status is frozen at
+		// the moment it failed. ERROR says nothing about where the item is; previousStatus does, and it is
+		// recorded on every status change. Without this check a request that errored in PICKUP_TRANSIT
+		// reads ERROR, is waved through, and cleanup deletes the borrower's virtual records with the item
+		// still out - the DCB-2193 bug, by hand, on the requests most likely to be cleaned up by hand.
+		if (PatronRequest.Status.ERROR.equals(status)
+			&& ITEM_OUT_STATUSES.contains(patronRequest.getPreviousStatus())) {
+
+			return refuseUnlessForced(patronRequest, force,
+				("This request errored while the item was out (last known state %s), and errored requests are "
+					+ "not polled again, so DCB cannot confirm where the item is now. Cleaning up would delete "
+					+ "the borrowing library's virtual records. Confirm the item is back at the supplying "
+					+ "library, then repeat with force=true.")
+					.formatted(patronRequest.getPreviousStatus()),
+				patronRequest.getPreviousStatus());
+		}
 
 		if (ITEM_OUT_STATUSES.contains(status)) {
-			// Support does occasionally need to clear a genuinely stuck request, so this is an override
-			// rather than a wall - but it has to be asked for explicitly, and it is audited by the
-			// transition itself.
-			if (force) {
-				log.warn("Forced cleanup of patron request {} while item is out (status {})",
-					patronRequest.getId(), status);
-
-				return patronRequest;
-			}
-
-			throw Problem.builder()
-				.withType(ERR_CLEANUP_ITEM_OUT)
-				.withTitle("Cannot clean up a request while the item is out")
-				.withStatus(Status.CONFLICT)
-				.withDetail(("The item for this request is not back at the supplying library (status %s). "
-					+ "Cleaning up now would delete the borrowing library's virtual records and orphan the "
-					+ "physical item. Wait for the item to be returned, or repeat with force=true if you are "
-					+ "certain the item is accounted for.").formatted(status))
-				.with("patronRequestId", String.valueOf(patronRequest.getId()))
-				// N.B. "status" is a reserved Problem property and throws if used here
-				.with("patronRequestStatus", String.valueOf(status))
-				.build();
+			return refuseUnlessForced(patronRequest, force,
+				("The item for this request is not back at the supplying library (status %s). Cleaning up now "
+					+ "would delete the borrowing library's virtual records and orphan the physical item. Wait "
+					+ "for the item to be returned, or repeat with force=true if you are certain the item is "
+					+ "accounted for.").formatted(status),
+				status);
 		}
 
 		if (PatronRequest.Status.CANCELLED.equals(status)) {
@@ -144,6 +145,33 @@ public class PatronRequestController {
 		}
 
 		return patronRequest;
+	}
+
+	/**
+	 * Refuse a cleanup that would delete virtual records while the item is unaccounted for - unless the
+	 * caller has explicitly asked to override, which support occasionally needs for a genuinely stuck
+	 * request. A 409 so the caller can tell "you may not do this yet" from "DCB fell over".
+	 */
+	private PatronRequest refuseUnlessForced(PatronRequest patronRequest, boolean force,
+		String detail, PatronRequest.Status offendingStatus) {
+
+		if (force) {
+			log.warn("Forced cleanup of patron request {} while item is out (status {}, last known {})",
+				patronRequest.getId(), patronRequest.getStatus(), offendingStatus);
+
+			return patronRequest;
+		}
+
+		throw Problem.builder()
+			.withType(ERR_CLEANUP_ITEM_OUT)
+			.withTitle("Cannot clean up a request while the item is out")
+			.withStatus(Status.CONFLICT)
+			.withDetail(detail)
+			.with("patronRequestId", String.valueOf(patronRequest.getId()))
+			// N.B. "status" is a reserved Problem property and throws if used here
+			.with("patronRequestStatus", String.valueOf(patronRequest.getStatus()))
+			.with("lastKnownItemOutStatus", String.valueOf(offendingStatus))
+			.build();
 	}
 
 	/**

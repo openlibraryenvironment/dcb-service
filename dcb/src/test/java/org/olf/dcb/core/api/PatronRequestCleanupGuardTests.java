@@ -86,6 +86,71 @@ class PatronRequestCleanupGuardTests {
 			is(patronRequest));
 	}
 
+	@ParameterizedTest
+	@EnumSource(value = Status.class, names = {
+		"PICKUP_TRANSIT", "RECEIVED_AT_PICKUP", "READY_FOR_PICKUP", "LOANED", "RETURN_TRANSIT",
+		"AWAITING_RETURN_TO_SUPPLIER"
+	})
+	void shouldRejectCleanupOfARequestThatErroredWhileTheItemWasOut(Status previousStatus) {
+		// ERROR is the one permitted status whose stored state can be arbitrarily stale: application.yml
+		// sets ERROR polling to null, so an errored request is never polled again and its status is frozen
+		// at the moment it failed. ERROR itself says nothing about where the item is - but previousStatus
+		// does, and it is recorded on every status change.
+		//
+		// Without this, a request that errored in PICKUP_TRANSIT reads ERROR, is allowed through, and
+		// cleanup deletes the borrower's virtual records with the item still out. Errored requests are the
+		// main thing this endpoint is used on, so this is the likeliest way to hit the DCB-2193 bug by hand.
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.status(Status.ERROR)
+			.previousStatus(previousStatus)
+			.build();
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false));
+
+		assertThat(problem.getStatus().getStatusCode(), is(409));
+		assertThat("Should name the state the request errored in",
+			problem.getDetail(), containsString(previousStatus.toString()));
+	}
+
+	@Test
+	void shouldAllowCleanupOfARequestThatErroredBeforeTheItemShipped() {
+		// The common case, and the one this endpoint exists for.
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.status(Status.ERROR)
+			.previousStatus(Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.build();
+
+		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false),
+			is(patronRequest));
+	}
+
+	@Test
+	void shouldAllowCleanupOfAnErroredRequestWithNoRecordedPreviousStatus() {
+		// Errored before it ever transitioned, so nothing shipped.
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.status(Status.ERROR)
+			.build();
+
+		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false),
+			is(patronRequest));
+	}
+
+	@Test
+	void shouldAllowForcedCleanupOfARequestThatErroredWhileTheItemWasOut() {
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.status(Status.ERROR)
+			.previousStatus(Status.LOANED)
+			.build();
+
+		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, true),
+			is(patronRequest));
+	}
+
 	@Test
 	void shouldRejectCleanupOfAnAlreadyCancelledRequest() {
 		final var patronRequest = PatronRequest.builder()
