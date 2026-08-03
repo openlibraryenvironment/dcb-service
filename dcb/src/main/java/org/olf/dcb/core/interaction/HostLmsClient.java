@@ -156,11 +156,14 @@ public interface HostLmsClient
 	 * <p>
 	 * FOLIO answers false: getItem derives the item status from the mod-dcb transaction, and terminating
 	 * the hold makes that transaction terminal, so it reports CANCELLED forever and can never report
-	 * AVAILABLE. Waiting would hang the request permanently, so it is released immediately.
+	 * AVAILABLE. Such a request still parks - it is simply flagged as needing a human to release it.
 	 * <p>
-	 * True is the safe default. A client that wrongly answers false finalises while the item is still out,
-	 * which is the orphaned-item bug this whole path exists to prevent; one that wrongly answers true
-	 * merely parks a request where a human can see it.
+	 * <b>This must never gate cleanup or finalisation.</b> It describes what the SUPPLIER can observe and
+	 * says nothing about whether it is safe to delete the BORROWER's virtual records. An earlier revision
+	 * used it to cancel a FOLIO-supplied request immediately; that deleted a Polaris borrower's virtual
+	 * item while the real item was still out and got the library billed for a lost item - precisely the
+	 * bug DCB-2193 exists to fix. Its only legitimate use is deciding whether a parked request needs
+	 * flagging for manual release.
 	 */
 	default boolean canReportItemReturnedAfterHoldTerminated() {
 		return true;

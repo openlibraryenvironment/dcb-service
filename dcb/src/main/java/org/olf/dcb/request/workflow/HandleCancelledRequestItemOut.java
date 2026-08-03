@@ -14,10 +14,12 @@ import java.util.Optional;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
@@ -31,6 +33,7 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 /**
  * HandleCancelledRequestItemOut.
@@ -38,6 +41,12 @@ import reactor.core.publisher.Mono;
  * status is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP. Auto-finalising here (the default
  * cancellation behaviour) would delete the borrowing library's virtual records while the item is out,
  * orphaning the physical item so the supplier eventually writes it off as lost. So we park instead.
+ *
+ * <p><b>It parks unconditionally.</b> The request is never cancelled from here, whatever the supplier is.
+ * Cancelling finalises, and finalisation deletes the borrowing library's virtual item and bib - doing
+ * that while the physical item is still out is exactly the orphaned-item bug this transition exists to
+ * prevent. A supplier that cannot report the item's return is flagged for manual release, not finalised:
+ * its tracking limitations are not the borrowing library's to pay for.
  *
  * <p>We DELETE the supplier hold via cleanUp - each client implements the correct terminal operation for
  * its ILS. The supplier hold is normally consumed by the supplier-side checkout, but that only happens
@@ -76,9 +85,9 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 
 	static final String ITEM_OUT_HELD_AWAITING_RETURN =
 		"CancelledRequestItemOut : patron hold gone while item is out, awaiting its return to the supplier";
-	static final String ITEM_OUT_RETURN_NOT_REPORTABLE =
-		"CancelledRequestItemOut : patron hold gone while item is out, but the supplier cannot report the "
-			+ "item's return - cancelling rather than waiting for a signal that cannot arrive";
+	static final String RETURN_NOT_REPORTABLE_NEEDS_ATTENTION =
+		"CancelledRequestItemOut : supplier cannot report this item's return - the request will stay parked "
+			+ "until someone confirms the item is home and cleans it up with force=true";
 	static final String SUPPLIER_HOLD_VERIFICATION =
 		"CancelledRequestItemOut : supplier hold termination verification";
 	static final String DECLARATIVE_SUPPLIER_SKIPPED =
@@ -88,16 +97,19 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final HostLmsService hostLmsService;
 	private final LifecycleCapabilityResolver capabilityResolver;
+	private final AlarmsService alarmsService;
 
 	public HandleCancelledRequestItemOut(PatronRequestAuditService patronRequestAuditService,
 		SupplyingAgencyService supplyingAgencyService,
 		HostLmsService hostLmsService,
-		LifecycleCapabilityResolver capabilityResolver) {
+		LifecycleCapabilityResolver capabilityResolver,
+		AlarmsService alarmsService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.hostLmsService = hostLmsService;
 		this.capabilityResolver = capabilityResolver;
+		this.alarmsService = alarmsService;
 	}
 
 	@Override
@@ -150,54 +162,72 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
 		return terminateSupplierHold(ctx)
 			.flatMap(this::verifySupplierHoldTerminated)
-			.flatMap(this::parkOrCancel);
+			.flatMap(this::park)
+			.flatMap(this::flagIfReturnCannotBeReported);
 	}
 
-	/**
-	 * Park and wait for the item, unless the supplier cannot report its return - waiting on a signal that
-	 * provably cannot arrive strands the request forever, so cancel those now.
-	 * <p>
-	 * The question is asked once, here, and never again. The release transition's guard has to be
-	 * synchronous (a transition that is applicable but changes nothing loops forever through
-	 * applyTransition -> progressAll), and resolving a client is not.
-	 */
-	private Mono<RequestWorkflowContext> parkOrCancel(RequestWorkflowContext ctx) {
-		return supplierCanReportReturn(ctx)
-			.flatMap(canReport -> {
-				final var park = Boolean.TRUE.equals(canReport);
-				final var patronRequest = ctx.getPatronRequest();
+	private Mono<RequestWorkflowContext> park(RequestWorkflowContext ctx) {
+		final var patronRequest = ctx.getPatronRequest();
 
-				final var message = park
-					? ITEM_OUT_HELD_AWAITING_RETURN
-					: ITEM_OUT_RETURN_NOT_REPORTABLE;
-
-				return patronRequestAuditService
-					.addAuditEntry(patronRequest, message, buildAuditData(patronRequest))
-					.map(audit -> {
-						if (park) {
-							patronRequest.setStatus(Status.AWAITING_RETURN_TO_SUPPLIER);
-						}
-						else {
-							patronRequest
-								.setOutcome(PatronRequest.Outcome.CANCELLED)
-								.setStatus(Status.CANCELLED);
-						}
-						return ctx;
-					});
+		return patronRequestAuditService
+			.addAuditEntry(patronRequest, ITEM_OUT_HELD_AWAITING_RETURN, buildAuditData(patronRequest))
+			.map(audit -> {
+				patronRequest.setStatus(Status.AWAITING_RETURN_TO_SUPPLIER);
+				return ctx;
 			});
 	}
 
-	private Mono<Boolean> supplierCanReportReturn(RequestWorkflowContext ctx) {
+	/**
+	 * Some suppliers cannot report the item's return once their hold is terminated - a FOLIO supplier
+	 * today, because cancelling the mod-dcb transaction is also what destroys the only channel DCB can
+	 * observe the item through. Nothing will release such a request automatically.
+	 * <p>
+	 * That is a reason to raise a flag, and never a reason to cancel. Cancelling finalises, finalisation
+	 * deletes the borrowing library's virtual item, and doing that while the real item is still out is the
+	 * orphaned-item bug this transition exists to prevent - the supplier's tracking limitations are not
+	 * the borrower's problem to pay for. A parked request a human can see and release (POST
+	 * .../transition/cleanup?force=true, once they have confirmed the item is home) beats a deleted record
+	 * they cannot recover.
+	 */
+	private Mono<RequestWorkflowContext> flagIfReturnCannotBeReported(RequestWorkflowContext ctx) {
 		final var hostLmsCode = getValueOrNull(ctx,
 			RequestWorkflowContext::getSupplierRequest, SupplierRequest::getHostLmsCode);
 
-		if (hostLmsCode == null) return Mono.just(Boolean.TRUE);
+		if (hostLmsCode == null) return Mono.just(ctx);
 
 		return hostLmsService.getClientFor(hostLmsCode)
 			.map(HostLmsClient::canReportItemReturnedAfterHoldTerminated)
-			// If we cannot resolve the client, park - never finalise an item that is out on a guess.
+			// Assume it can report if we cannot tell; a spurious flag is noise, and the request is parked
+			// safely either way.
 			.onErrorReturn(Boolean.TRUE)
-			.defaultIfEmpty(Boolean.TRUE);
+			.defaultIfEmpty(Boolean.TRUE)
+			.flatMap(canReport -> Boolean.TRUE.equals(canReport)
+				? Mono.just(ctx)
+				: raiseNeedsManualReleaseAlarm(ctx, hostLmsCode));
+	}
+
+	private Mono<RequestWorkflowContext> raiseNeedsManualReleaseAlarm(
+		RequestWorkflowContext ctx, String hostLmsCode) {
+
+		final var auditData = new HashMap<String, Object>();
+		auditData.put("supplierHostLmsCode", hostLmsCode);
+		auditData.put("reason", "Supplier cannot report the item's return once its hold has been terminated");
+		auditData.put("resolution", "Confirm the item is back at the supplier, then clean up with force=true");
+
+		// Alarm code is bounded by the number of host LMS, never by request - no high-cardinality keys.
+		final var alarmCode = "SYSTEM.REQ-WORKFLOW.CANCEL-WHILE-OUT.NO-RETURN-SIGNAL." + hostLmsCode;
+
+		return alarmsService.raise(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.build())
+			.onErrorResume(error -> {
+				log.error("Could not raise no-return-signal alarm for {}", hostLmsCode, error);
+				return Mono.empty();
+			})
+			.then(patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(),
+				RETURN_NOT_REPORTABLE_NEEDS_ATTENTION, auditData))
+			.thenReturn(ctx);
 	}
 
 	/**
@@ -317,7 +347,6 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	@Override
 	public List<DCBTransitionResult> getOutcomes() {
 		return List.of(
-			new DCBTransitionResult("HELD", Status.AWAITING_RETURN_TO_SUPPLIER.toString()),
-			new DCBTransitionResult("RETURN_NOT_REPORTABLE", Status.CANCELLED.toString()));
+			new DCBTransitionResult("HELD", Status.AWAITING_RETURN_TO_SUPPLIER.toString()));
 	}
 }

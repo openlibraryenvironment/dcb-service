@@ -27,13 +27,21 @@ still live means waiting for an `AVAILABLE` that can never arrive.
   home.
 - **FOLIO:** `getItem` derives the item status from the **mod-dcb transaction**, not from inventory
   (`ConsortialFolioHostLmsClient.mapToItemStatus`). Terminating the hold makes that transaction
-  terminal, so it reports `CANCELLED` forever and can **never** report `AVAILABLE`. Parking would hang
-  the request permanently, so it is cancelled at entry instead.
+  terminal, so it reports `CANCELLED` forever and can **never** report `AVAILABLE`. Nothing will release
+  such a request automatically.
 
 Expressed as a client capability, not `if (ils == …)`:
 `HostLmsClient.canReportItemReturnedAfterHoldTerminated()` — default `true`, FOLIO overrides to `false`.
-**`true` is the safe default:** a client wrongly answering `false` finalises while the item is out, which
-is the orphaning bug itself; one wrongly answering `true` merely parks a request where a human can see it.
+
+> **This capability must never gate cleanup or finalisation, and does not.** It describes what the
+> *supplier* can observe. It says nothing about whether it is safe to delete the *borrower's* records.
+>
+> An earlier revision of this branch used it to cancel a FOLIO-supplied request at entry, reasoning that
+> waiting for a signal that cannot arrive is a permanent stall. Shipped against a Polaris borrower, that
+> deleted the Polaris virtual item while the real item was still out and the library was billed for a
+> lost item — the exact bug DCB-2193 exists to fix, reintroduced through the back door. **A supplier's
+> tracking limitations are not the borrowing library's to pay for.** Its only remaining use is deciding
+> whether a parked request needs flagging for a human to release.
 
 ### mod-dcb evidence (folio-org/mod-dcb, lender role)
 
@@ -83,13 +91,15 @@ Callers cannot distinguish "cancelled" from "did nothing".
 ```
                  patron hold gone, item OUT, item NOT with the patron
  PICKUP_TRANSIT     ─┐        terminate + verify the supplier hold
- RECEIVED_AT_PICKUP ─┼─(HandleCancelledRequestItemOut)─┬─ supplier cannot report a return (FOLIO)
- READY_FOR_PICKUP   ─┘                                 │     └─► CANCELLED ─► FINALISED
-                                                       │
-                                                       └─ supplier can (Sierra/Polaris/Alma)
-                                                            └─► AWAITING_RETURN_TO_SUPPLIER
-                                                                  └─(supplier item AVAILABLE/RECEIVED)─►
-                                                                     CANCELLED ─► FINALISED
+ RECEIVED_AT_PICKUP ─┼─(HandleCancelledRequestItemOut)─► AWAITING_RETURN_TO_SUPPLIER
+ READY_FOR_PICKUP   ─┘         (always - never CANCELLED)   │
+                                                           ├─(supplier item AVAILABLE/RECEIVED)─►
+                                                           │    CANCELLED ─► FINALISED
+                                                           │
+                                                           └─ supplier cannot report a return (FOLIO):
+                                                                stays parked, flagged + alarmed, released
+                                                                by hand once the item is confirmed home
+                                                                (cleanup?force=true)
 
  item still AT supplier (REQUEST_PLACED_*) ─► CANCELLED ─► FINALISED   (unchanged: nothing to orphan)
  item WITH the patron (item LOANED)        ─► LOANED               (a collection, not a cancellation)
@@ -100,13 +110,17 @@ Callers cannot distinguish "cancelled" from "did nothing".
 1. **`PatronRequest.Status`** — new `AWAITING_RETURN_TO_SUPPLIER` value.
 
 2. **`HostLmsClient.canReportItemReturnedAfterHoldTerminated()`** — new default-`true` capability;
-   `ConsortialFolioHostLmsClient` overrides to `false`. Single point driving the park-vs-cancel
-   divergence; no ILS branching in workflow code.
+   `ConsortialFolioHostLmsClient` overrides to `false`. Drives **flagging only** — see the warning in §0.
 
 3. **`HandleCancelledRequestItemOut`** — the entry transition. Source = the 3 "out" states; guard =
    borrower (or pickup, for PUA) hold is `MISSING`/`CANCELLED` **and the item is not `LOANED`**. It
-   terminates the supplier hold, verifies it, then parks — or cancels if the supplier cannot report a
-   return. No borrower LMS call (the hold is already gone).
+   terminates the supplier hold, verifies it, and **always parks**. No borrower LMS call (the hold is
+   already gone).
+
+   **There is no cancel-at-entry path, for any supplier.** Cancelling finalises; finalisation deletes the
+   borrowing library's virtual item and bib; doing that while the item is out is the bug. A supplier that
+   cannot report the return is parked and flagged (audit + a bounded-cardinality alarm keyed on the host
+   LMS code), never finalised.
 
    **The item-status gate is load-bearing.** Sierra and Polaris consume the local hold on checkout, so
    "hold gone" also describes a completely normal collection. Tracking polls the request before the item
@@ -212,8 +226,13 @@ status maps through `mapToItemStatus`'s `default` branch to a passthrough `"CANC
 |---|---|---|---|
 | still at supplier | any | `CancelledPatronRequestTransition` | `CANCELLED` → `FINALISED` |
 | out | Sierra/Polaris/Alma | park → supplier item `AVAILABLE` → release | `CANCELLED` → `FINALISED` |
-| out | FOLIO | cancelled at entry (cannot report a return) | `CANCELLED` → `FINALISED` |
-| out, PUA | any | borrower hold watched (§3a) | `CANCELLED` → `FINALISED` |
+| out | FOLIO | park, flagged; **released by hand** | `CANCELLED` → `FINALISED`, after human action |
+| out, PUA | any | borrower hold watched (§3a) | as above |
+
+A FOLIO-supplied request therefore does **not** reach `FINALISED` on its own, and that is deliberate. The
+alternative — finalising because we cannot see the item — is what destroyed a Polaris borrower's virtual
+item in production. Records intact and a human prompted beats records deleted and a library billed.
+§6 has the route to closing that gap properly.
 
 Finalisation against a FOLIO **borrower** completes because:
 
@@ -229,6 +248,23 @@ Finalisation against a FOLIO **borrower** completes because:
 reached immediately rather than on the next poll.
 
 ## 6. Known follow-ups (separate issues)
+
+- **Release a FOLIO-supplied park automatically — the remaining gap, and it looks closable.** DCB is only
+  blind because `getItem` reads the mod-dcb transaction, which we ourselves made terminal. FOLIO's real
+  inventory is a separate, transaction-independent channel that the client can already reach:
+  `PATH_INVENTORY_ITEMS` is wired up for `getItemByBarcode`, and
+  `FOLIO_INVENTORY_STATUS_IN_TRANSIT` / `_AVAILABLE` already exist as constants.
+
+  So `ConsortialFolioHostLmsClient.getItem` could fall back to Inventory when the transaction is terminal
+  and map the real item status. **No workflow change at all** — the park would release itself through the
+  existing guard, and `canReportItemReturnedAfterHoldTerminated` could go back to `true` and be deleted.
+
+  **Verify first:** does cancelling the lender transaction leave the FOLIO item `In transit` until it is
+  physically checked in at the owning library, or does it flip straight to `Available`? Cancelling a
+  request should not check an item in, so `In transit` is expected — but if it flips immediately, the
+  signal is worthless and would release the park instantly, reintroducing the bug. This is exactly the
+  claim the original branch doc asserted about RTAC and got wrong, so it needs confirming against a real
+  tenant before anyone builds on it.
 
 - **Declarative suppliers cannot have their hold terminated.** `HandleCancelledRequestItemOut` skips and
   audits, matching `CancelledPatronRequestTransition`. Until a declarative cancel exists, such a request

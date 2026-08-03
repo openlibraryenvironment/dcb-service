@@ -326,10 +326,16 @@ class HandleCancelledRequestItemOutTests {
 	}
 
 	@Test
-	void folioSupplierShouldFinaliseInsteadOfParkingBecauseCancelReleasesTheItem() {
-		// For a FOLIO supplier, cancelling the mod-dcb transaction returns the item to available at the
-		// supplier - there is no physical return to wait on (and none DCB could track). So instead of
-		// parking we set CANCELLED and let the request finalise. Contrast the Sierra test above, which parks.
+	void folioSupplierMustStillParkSoTheBorrowerKeepsItsVirtualItem() {
+		// REGRESSION (Polaris borrower, FOLIO supplier - reported from LEAP). An earlier revision cancelled
+		// immediately here on the grounds that a FOLIO supplier can never report the item's return, so
+		// waiting was pointless. That reasoning is about the SUPPLIER's tracking, and it was used to
+		// license destroying the BORROWER's records: CANCELLED finalises, finalisation deletes Polaris's
+		// virtual item while the real item is still out, and the Polaris library gets billed for a lost
+		// item. That is precisely the bug DCB-2193 exists to fix, reintroduced through the back door.
+		//
+		// Not being able to see the item come home is a reason to park and ask a human, never a reason to
+		// delete the borrower's records early. Park regardless of what the supplier can report.
 		final var patron = Patron.builder().id(randomUUID()).build();
 		patronFixture.savePatron(patron);
 		final var virtualPatronIdentity = patronFixture.saveIdentityAndReturn(patron, folioSupplierHostLMS,
@@ -373,20 +379,25 @@ class HandleCancelledRequestItemOutTests {
 			.flatMap(handleCancelledRequestItemOut::attempt)
 			.map(RequestWorkflowContext::getPatronRequest));
 
-		// Assert - finalised path (CANCELLED), not parked.
-		// The outcome must be recorded too: it is the field reporting keys off, and this path bypasses
-		// CancelledPatronRequestTransition, which is otherwise the only thing that sets Outcome.CANCELLED.
-		assertThat(updated, allOf(
-			notNullValue(),
-			hasStatus(CANCELLED),
-			hasOutcome(PatronRequest.Outcome.CANCELLED)));
+		// Assert - parked, exactly as for any other supplier. Never CANCELLED here: that finalises, and
+		// finalisation deletes the borrower's virtual item while the real item is still out.
+		assertThat(updated, allOf(notNullValue(), hasStatus(AWAITING_RETURN_TO_SUPPLIER)));
 
 		final var auditEntries = mapStream(patronRequestsFixture.findAuditEntries(patronRequest),
 				PatronRequestAudit::getBriefDescription)
-			.filter(HandleCancelledRequestItemOut.ITEM_OUT_RETURN_NOT_REPORTABLE::equals)
+			.filter(HandleCancelledRequestItemOut.ITEM_OUT_HELD_AWAITING_RETURN::equals)
 			.toList();
 
 		assertThat(auditEntries, hasSize(1));
+
+		// ...but flagged, because nothing will release it automatically until mod-dcb can report the
+		// return. A parked request a human can see beats a deleted record they cannot recover.
+		final var flagged = mapStream(patronRequestsFixture.findAuditEntries(patronRequest),
+				PatronRequestAudit::getBriefDescription)
+			.filter(HandleCancelledRequestItemOut.RETURN_NOT_REPORTABLE_NEEDS_ATTENTION::equals)
+			.toList();
+
+		assertThat("Should record that this park needs manual release", flagged, hasSize(1));
 	}
 
 	@Test
