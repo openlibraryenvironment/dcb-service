@@ -9,6 +9,7 @@ import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 
 import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.core.interaction.polaris.MockPolarisFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -67,7 +68,8 @@ class PolarisIngestTests {
 		mockPolarisFixture.mockGetPagedBibs();
 
 		// Act
-		final var bibs = manyValuesFrom(ingestService.getBibRecordStream());
+		final var bibs = manyValuesFrom(ingestService.getBibRecordStream()
+				.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest")));
 
 		// Assert
 
