@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.olf.dcb.core.clustering.ImprovedRecordClusteringService;
+import org.olf.dcb.core.clustering.DefaultRecordClusteringService;
 import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.BibIdentifier;
 import org.olf.dcb.core.model.BibRecord;
@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Singleton
-@Requires(bean = ImprovedRecordClusteringService.class)
+@Requires(bean = DefaultRecordClusteringService.class)
 public class MatchpointService {
 	public static final String MATCHPOINT_ID = "id";
 	private static final Pattern PATTERN_WILCARD = Pattern.compile("\\*");
