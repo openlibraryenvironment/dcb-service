@@ -19,7 +19,6 @@ import org.olf.dcb.core.interaction.alma.AlmaClientFactory;
 import org.olf.dcb.core.interaction.alma.AlmaHostLmsClient;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.koha.KohaApiClient;
-import org.olf.dcb.core.interaction.koha.KohaClientConfig;
 import org.olf.dcb.core.interaction.koha.KohaClientFactory;
 import org.olf.dcb.core.interaction.koha.KohaHostLmsClient;
 import org.olf.dcb.core.model.HostLms;
@@ -128,9 +127,8 @@ class HostLmsClientIdentityTests {
 			final var clientFactory = mock(KohaClientFactory.class);
 			when(clientFactory.createClientFor(hostLms)).thenReturn(mock(KohaApiClient.class));
 
-			return new KohaHostLmsClient(hostLms, mock(KohaApiClient.class),
+			return new KohaHostLmsClient(hostLms,
 				mock(ReferenceValueMappingService.class), clientFactory,
-				new KohaClientConfig(hostLms),
 				mock(MaterialTypeToItemTypeMappingService.class),
 				mock(LocationToAgencyMappingService.class));
 		}

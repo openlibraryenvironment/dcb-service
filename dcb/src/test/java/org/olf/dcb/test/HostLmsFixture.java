@@ -8,8 +8,10 @@ import java.util.*;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.alma.AlmaHostLmsClient;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
+import org.olf.dcb.core.interaction.koha.KohaHostLmsClient;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
@@ -46,6 +48,49 @@ public class HostLmsFixture {
 		this.patronFixture = patronFixture;
 		this.numericRangeMappingFixture = numericRangeMappingFixture;
 		this.agencyFixture = agencyFixture;
+	}
+
+	public DataHostLms createKohaHostLms(String code, String apiUrl) {
+		return createKohaHostLms(code, apiUrl, new HashMap<>());
+	}
+
+	/**
+	 * @param extraConfig merged over the required settings - use it for
+	 * shared-system, default-agency-code, base-url-qualifier and the like
+	 */
+	public DataHostLms createKohaHostLms(String code, String apiUrl,
+		Map<String, Object> extraConfig) {
+
+		Map<String, Object> clientConfig = new HashMap<>();
+		clientConfig.put("api-url", apiUrl);
+		clientConfig.put("client_id", "koha-client-id");
+		clientConfig.put("client_secret", "koha-client-secret");
+		clientConfig.put("sharing-library-code", "DCB-SHARING");
+		clientConfig.put("virtual-item-library-code", "DCB-VIRTUAL");
+		clientConfig.put("virtual-item-location-code", "DCB-VIRTUAL-LOC");
+		clientConfig.putAll(extraConfig);
+
+		return createHostLms(randomUUID(), code, KohaHostLmsClient.class,
+			Optional.empty(), clientConfig);
+	}
+
+	public DataHostLms createAlmaHostLms(String code, String almaUrl) {
+		return createAlmaHostLms(code, almaUrl, new HashMap<>());
+	}
+
+	public DataHostLms createAlmaHostLms(String code, String almaUrl,
+		Map<String, Object> extraConfig) {
+
+		Map<String, Object> clientConfig = new HashMap<>();
+		clientConfig.put("alma-url", almaUrl);
+		clientConfig.put("apikey", "alma-api-key");
+		clientConfig.put("sharing-library-code", "DCB-SHARING");
+		clientConfig.put("virtual-item-library-code", "DCB-VIRTUAL");
+		clientConfig.put("virtual-item-location-code", "DCB-VIRTUAL-LOC");
+		clientConfig.putAll(extraConfig);
+
+		return createHostLms(randomUUID(), code, AlmaHostLmsClient.class,
+			Optional.empty(), clientConfig);
 	}
 
 	public DataHostLms createFolioHostLms(String code, String baseUrl,

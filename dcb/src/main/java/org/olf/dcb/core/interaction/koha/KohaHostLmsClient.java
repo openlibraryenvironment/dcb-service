@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.koha;
 
 import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.Patron;
@@ -35,6 +36,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * */
 
 @Slf4j
+@Prototype
 public class KohaHostLmsClient implements HostLmsClient {
 
 	private final HostLms hostLms;
@@ -52,9 +54,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	public KohaHostLmsClient(
 		@Parameter HostLms hostLms,
-		KohaApiClient client, // is this needed any more??
 		ReferenceValueMappingService referenceValueMappingService,
-		KohaClientFactory kohaClientFactory, KohaClientConfig kohaClientConfig,
+		KohaClientFactory kohaClientFactory,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
 		LocationToAgencyMappingService locationToAgencyMappingService) {
 		this.hostLms = hostLms;
@@ -62,7 +63,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.config = kohaClientConfig;
+		// Built here rather than injected, as Alma does. KohaClientConfig has no bean
+		// definition and its only constructor takes the HostLms, so it could never have
+		// been satisfied as an injection point.
+		this.config = new KohaClientConfig(hostLms);
 		}
 
 	/*** General operations - are we missing any? A version check would be useful. possibly implementer also***/
