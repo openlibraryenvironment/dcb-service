@@ -1094,7 +1094,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public @NonNull String getClientId() {
-			return "";
+		// Resolving "/" forces URI.toString to construct a fresh representation
+		// rather than echoing whatever string the config supplied, so two tenants
+		// configured with cosmetically different URLs still compare correctly.
+		return qualifySystemIdentity(config.getBaseUrl().resolve("/").toString());
 	}
 
 	@Override

@@ -80,7 +80,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public String getClientId() {
-		return hostLms.getCode();
+		// The Koha server, not the Host LMS code: several DCB Host LMS records can
+		// point at one Koha, and returning the code would hide that from the
+		// same-server checks entirely.
+		return qualifySystemIdentity(config.getApiUrl().resolve("/").toString());
 	}
 
 	@Override

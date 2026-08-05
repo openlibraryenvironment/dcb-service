@@ -23,6 +23,17 @@ public interface HostLmsClient
 	extends Comparable<HostLmsClient>,
 		CanPlaceSupplyingAgencyRequest,
 		CanPlaceBorrowingAgencyRequest {
+
+	/** Marks a Host LMS that hosts more than one participating library. */
+	String SHARED_SYSTEM = "shared-system";
+
+	/**
+	 * Distinguishes logical circulation systems that share one transport URL.
+	 * Only needed by adapters (NCIP appliances, gateways) where the URL alone
+	 * does not identify the system.
+	 */
+	String BASE_URL_QUALIFIER = "base-url-qualifier";
+
 	Mono<HostLmsRenewal> renew(@NonNull HostLmsRenewal hostLmsRenewal);
 
 	Mono<LocalRequest> updateHoldRequest(@NonNull LocalRequest localRequest);
@@ -55,7 +66,28 @@ public interface HostLmsClient
 		return Mono.error(new NotImplementedException("fetchConfigurationFromAPI is not currently implemented"));
 	}
 
+	/**
+	 * Does this Host LMS host more than one participating library?
+	 * <p>
+	 * On a shared system an agency can only ever be identified by a specific local
+	 * location/branch code. Any mechanism that collapses "unknown location" onto a
+	 * single agency - a default agency code, a wildcard location mapping - silently
+	 * attributes every co-tenant to one library, so those mechanisms are disabled
+	 * when this is set.
+	 */
+	default boolean isSharedSystem() {
+		return Boolean.parseBoolean(
+			String.valueOf(getConfig().getOrDefault(SHARED_SYSTEM, Boolean.FALSE)));
+	}
+
 	default String getDefaultAgencyCode() {
+		// A shared system has no meaningful default agency. Returning one here would
+		// attribute every unmapped patron of every co-tenant library to whichever
+		// agency happened to be configured.
+		if (isSharedSystem()) {
+			return null;
+		}
+
 		return (String) getConfig().get("default-agency-code");
 	}
 
@@ -145,9 +177,51 @@ public interface HostLmsClient
 		return true;
 	}
 
+	/**
+	 * A stable identifier for the physical system this client talks to.
+	 * <p>
+	 * <strong>Contract:</strong> two clients addressing the same system MUST return
+	 * equal values, and two clients addressing different systems MUST NOT. This is
+	 * the only shared-system primitive DCB has: {@link #compareTo} is built on it,
+	 * workflow routing decides RET-LOCAL versus RET-STD/RET-PUA with it, and item
+	 * resolution excludes same-server supply with it.
+	 * <p>
+	 * For an adapter that reaches its system over HTTP the base URL is the natural
+	 * answer - resolve it ("/") first so URI.toString produces a comparable form.
+	 * Where several logical systems share one URL, wrap it in
+	 * {@link #qualifySystemIdentity}.
+	 * <p>
+	 * Returning the Host LMS code is only correct for an adapter that cannot be
+	 * shared (the dev/test double); for a real adapter it means a shared server is
+	 * never detected. Returning a constant is never correct - it makes every
+	 * instance of that adapter compare equal to every other.
+	 */
 	@NonNull
 	String getClientId();
-	
+
+	/**
+	 * Append the configured {@link #BASE_URL_QUALIFIER} to a system identity so that
+	 * adapters fronting several logical systems on one transport URL can still tell
+	 * them apart. Returns the identity unchanged when no qualifier applies.
+	 *
+	 * @param defaultQualifier used when no qualifier is configured; may be null
+	 */
+	default String qualifySystemIdentity(String systemIdentity, String defaultQualifier) {
+		final var configured = getConfig().get(BASE_URL_QUALIFIER);
+
+		final var qualifier = configured != null
+			? configured.toString().trim()
+			: (defaultQualifier != null ? defaultQualifier.trim() : "");
+
+		return qualifier.isEmpty()
+			? systemIdentity
+			: systemIdentity + "#" + qualifier;
+	}
+
+	default String qualifySystemIdentity(String systemIdentity) {
+		return qualifySystemIdentity(systemIdentity, null);
+	}
+
 	@Override
 	default int compareTo(HostLmsClient o) {
 		return getClientId().compareTo(o.getClientId());

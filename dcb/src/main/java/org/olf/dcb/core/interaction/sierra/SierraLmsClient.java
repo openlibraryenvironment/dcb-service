@@ -2015,11 +2015,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	@Override
 	public @NonNull String getClientId() {
-		
+
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
-		return client.getRootUri().toString();
+		return qualifySystemIdentity(client.getRootUri().toString());
 	}
 
 	public R2dbcOperations getR2dbcOperations() {
