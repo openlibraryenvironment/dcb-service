@@ -15,7 +15,6 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.workflow.exceptions.AgencyNotParticipatingInBorrowingException;
 import org.olf.dcb.storage.PatronIdentityRepository;
@@ -26,13 +25,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
+
+import static reactor.function.TupleUtils.function;
 
 @Slf4j
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final PatronIdentityRepository patronIdentityRepository;
-	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final LocalPatronService localPatronService;
 
 	// Provider to prevent circular reference exception by allowing lazy access to
@@ -43,12 +43,10 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		LocationToAgencyMappingService locationToAgencyMappingService,
 		LocalPatronService localPatronService) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
-		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.localPatronService = localPatronService;
 	}
 
@@ -65,8 +63,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		log.info("ValidatePatronTransition CIRC validatePatronIdentity by calling out to host LMS - PI is {} host lms client is {}",
 			pi, hostLms);
 
-		return findLocalPatron(pi)
-			.flatMap(hostLmsPatron -> {
+		// findLocalPatronAndAgency resolves both in one pass. This used to take only the
+		// patron from it and then resolve the agency a second time from the same home
+		// library code - which was how the two resolutions came to drift apart in the
+		// first place.
+		return findLocalPatronAndAgency(pi)
+			.flatMap(function((hostLmsPatron, agency) -> {
 				log.info("CIRC update patron identity with latest info from host {}", hostLmsPatron);
 
 				// Update the patron identity with the current patron type and set the last
@@ -84,14 +86,13 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 				if (hostLmsPatron.getLocalBarcodes() == null)
 					log.warn("Patron does not have barcodes.. Will not be able to circulate items");
 
-				return Mono.just(pi);
-			}).flatMap(updatedPatronIdentity -> {
-					return Mono.fromDirect(resolveHomeLibraryCodeFromSystemToAgencyCode(
-						hostLms.getCode(),
-							pi.getLocalHomeLibraryCode(), pi));
-				}).flatMap(updatedPatronIdentity -> {
-					return Mono.fromDirect(patronIdentityRepository.saveOrUpdate(updatedPatronIdentity));
-				});
+				log.debug("Located agency {}", agency);
+
+				return assertParticipatesInBorrowing(agency)
+					.map(pi::setResolvedAgency);
+			}))
+			.flatMap(updatedPatronIdentity ->
+				Mono.fromDirect(patronIdentityRepository.saveOrUpdate(updatedPatronIdentity)));
 	}
 
 	private static String extractLocalIdFrom(Patron hostLmsPatron) {
@@ -121,32 +122,23 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		return hostLmsPatron.getLocalId().get(0);
 	}
 
-	private Mono<Patron> findLocalPatron(PatronIdentity pi) {
+	/**
+	 * The patron as their own system currently describes them, together with the
+	 * agency that home library code resolves to.
+	 * <p>
+	 * Deliberately the same call preflight makes. This transition used to carry its
+	 * own resolution that went straight to findMapping, skipping the context
+	 * hierarchy and the wildcard fallback, so a request could pass preflight against
+	 * one agency and then be validated against another.
+	 */
+	private Mono<Tuple2<Patron, DataAgency>> findLocalPatronAndAgency(PatronIdentity pi) {
 		// when we get a localId here, beware, it may be whatever identifier DCB was passed
 		// the hostLmsClient class will handle this in getPatronByIdentifier
 		final var identifier = getValue(pi, PatronIdentity::getLocalId, "Unknown");
 		final var hostLmsCode = getValue(pi, PatronIdentity::getHostLms, HostLms::getCode, "Unknown");
 
 		return localPatronService.findLocalPatronAndAgency(identifier, hostLmsCode)
-			.map(TupleUtils.function((patron, agency) -> patron))
 			.switchIfEmpty(Mono.error(new PatronNotFoundInHostLmsException(identifier, hostLmsCode)));
-	}
-
-	private Mono<PatronIdentity> resolveHomeLibraryCodeFromSystemToAgencyCode(String systemCode, String homeLibraryCode,
-			PatronIdentity pi) {
-
-		log.debug("resolveHomeLibraryCodeFromSystemToAgencyCode({},{})", systemCode, homeLibraryCode);
-
-		// Deliberately the same resolver preflight uses. This transition used to carry
-		// its own copy that went straight to findMapping, skipping the context
-		// hierarchy and the wildcard fallback - so a request could pass preflight
-		// against one agency and then be validated against another, or fail here after
-		// already being accepted.
-		return locationToAgencyMappingService
-			.resolveAgencyForPatronHomeLocation(systemCode, homeLibraryCode)
-			.doOnNext(locatedAgency -> log.debug("Located agency {}", locatedAgency))
-			.flatMap(ValidatePatronTransition::assertParticipatesInBorrowing)
-			.map(pi::setResolvedAgency);
 	}
 
 	/**

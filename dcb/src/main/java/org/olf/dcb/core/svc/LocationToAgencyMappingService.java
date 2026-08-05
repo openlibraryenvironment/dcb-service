@@ -145,12 +145,29 @@ public class LocationToAgencyMappingService {
 		return hostLmsService.getClientFor(context)
 			.map(client -> new LocationLookupRules(
 				contextHierarchyOf(client, context, defaults), client.isSharedSystem()))
-			.switchIfEmpty(Mono.fromSupplier(() -> new LocationLookupRules(defaults, false)))
+			.switchIfEmpty(Mono.fromSupplier(() -> unidentifiedSystem(context, defaults)))
 			.onErrorResume(error -> {
 				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
 					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
-				return Mono.just(new LocationLookupRules(defaults, false));
+				return Mono.just(unidentifiedSystem(context, defaults));
 			});
+	}
+
+	/**
+	 * What to assume when the Host LMS behind a context cannot be loaded.
+	 * <p>
+	 * The wildcard collapses every location on a system onto one agency, which is only
+	 * ever safe on a system serving one library. If we cannot tell which kind of system
+	 * this is, we cannot tell whether that is safe - and the two outcomes are not
+	 * equally bad. Suppressing it means an item or patron fails to map and says so;
+	 * allowing it means silently attributing a co-tenant library's holdings or borrowers
+	 * to a library they have nothing to do with.
+	 */
+	private static LocationLookupRules unidentifiedSystem(String context, List<String> defaults) {
+		log.warn("Could not determine whether '{}' is a shared system; "
+			+ "suppressing the wildcard location mapping for this lookup", context);
+
+		return new LocationLookupRules(defaults, true);
 	}
 
 	@SuppressWarnings("unchecked")
