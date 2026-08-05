@@ -58,18 +58,31 @@ public class HostLmsConfigValidator {
 	 * anything had gone wrong. Refuse the combination rather than ignore it.
 	 */
 	private void validateSharedSystem(Map<String, Object> config) {
-		if (!isSharedSystem(config)) {
-			return;
-		}
-
-		if (isPresent(config, "default-agency-code")) {
-			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
-				"Invalid Configuration. 'default-agency-code' cannot be set when 'shared-system' is true: "
-					+ "a shared system must map each library's locations to its agency explicitly.");
+		if (hasSharedSystemConflict(config)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, SHARED_SYSTEM_CONFLICT_DETAIL);
 		}
 	}
 
-	private boolean isSharedSystem(Map<String, Object> config) {
+	/**
+	 * The contradiction described by {@link #validateSharedSystem}, as a predicate.
+	 * <p>
+	 * Host LMS records also arrive from application configuration at startup, which
+	 * never passes through this validator. That path cannot reasonably refuse to boot
+	 * over it, but it can say so - see DCBStartupEventListener.
+	 */
+	public static boolean hasSharedSystemConflict(Map<String, Object> config) {
+		if (config == null) {
+			return false;
+		}
+
+		return isSharedSystem(config) && isPresent(config, "default-agency-code");
+	}
+
+	public static final String SHARED_SYSTEM_CONFLICT_DETAIL
+		= "Invalid Configuration. 'default-agency-code' cannot be set when 'shared-system' is true: "
+			+ "a shared system must map each library's locations to its agency explicitly.";
+
+	private static boolean isSharedSystem(Map<String, Object> config) {
 		return Boolean.parseBoolean(String.valueOf(config.getOrDefault(SHARED_SYSTEM, Boolean.FALSE)));
 	}
 
@@ -168,7 +181,7 @@ public class HostLmsConfigValidator {
 		return warnings;
 	}
 
-	private boolean isPresent(Map<String, Object> config, String key) {
+	private static boolean isPresent(Map<String, Object> config, String key) {
 		return config.containsKey(key) && config.get(key) != null
 			&& !config.get(key).toString().isBlank();
 	}
