@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -13,7 +14,10 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.ArgumentCaptor;
+import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronsList;
@@ -35,6 +39,7 @@ import reactor.core.publisher.Mono;
 @TestInstance(PER_CLASS)
 class KohaMappingTests {
 	private KohaApiClient apiClient;
+	private ReferenceValueMappingService referenceValueMappingService;
 	private KohaHostLmsClient client;
 
 	@BeforeEach
@@ -44,9 +49,13 @@ class KohaMappingTests {
 		when(hostLms.getClientConfig()).thenReturn(Map.<String, Object>of(
 			"api-url", "https://koha.example.com",
 			"client_id", "any-id",
-			"client_secret", "any-secret"));
+			"client_secret", "any-secret",
+			"sharing-library-code", "DCB-SHARING",
+			"virtual-item-library-code", "DCB-VIRTUAL",
+			"virtual-item-location-code", "DCB-VIRTUAL-LOC"));
 
 		apiClient = mock(KohaApiClient.class);
+		referenceValueMappingService = mock(ReferenceValueMappingService.class);
 
 		final var clientFactory = mock(KohaClientFactory.class);
 		when(clientFactory.createClientFor(hostLms)).thenReturn(apiClient);
@@ -62,7 +71,7 @@ class KohaMappingTests {
 			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
 
 		client = new KohaHostLmsClient(hostLms,
-			mock(ReferenceValueMappingService.class), clientFactory,
+			referenceValueMappingService, clientFactory,
 			materialTypeToItemType, locationToAgency);
 	}
 
@@ -151,6 +160,64 @@ class KohaMappingTests {
 
 		assertThat(item.getLocation(), is(nullValue()));
 		assertThat(item.getShelvingLocation(), is("STACKS"));
+	}
+
+	@Test
+	void shouldCreateTheVirtualItemAtTheBorrowingBranch() {
+		// virtual-item-library-code is one value on the Host LMS. On a Koha serving
+		// sixty libraries that would land every library's incoming loans at whichever
+		// branch was configured, where no patron could collect them.
+		final var created = createVirtualItem("BRANCH-NORTH");
+
+		assertThat(created.getHomeLibraryId(), is("BRANCH-NORTH"));
+		assertThat(created.getHoldingLibraryId(), is("BRANCH-NORTH"));
+	}
+
+	@Test
+	void shouldFallBackToTheConfiguredVirtualItemLibrary() {
+		// A Host LMS serving one library has nothing per-request to go on
+		final var created = createVirtualItem(null);
+
+		assertThat(created.getHomeLibraryId(), is("DCB-VIRTUAL"));
+	}
+
+	@Test
+	void shouldCreateTheVirtualPatronAtTheSharingLibrary() {
+		// A virtual patron stands for a borrower outside this Koha, which is what the
+		// sharing library represents. It used to read default-agency-code, which names
+		// one of the co-tenant libraries and bypassed the shared-system guard.
+		final var captor = ArgumentCaptor.forClass(KohaPatron.class);
+
+		when(apiClient.createPatron(captor.capture()))
+			.thenReturn(Mono.just(KohaPatron.builder().patronId(77L).build()));
+
+		client.createPatron(org.olf.dcb.core.interaction.Patron.builder()
+			.uniqueIds(java.util.List.of("unique-id"))
+			.localNames(java.util.List.of("Ada", "Lovelace"))
+			.localPatronType("DCB")
+			.localHomeLibraryCode("SOMEWHERE-ELSE")
+			.build()).block();
+
+		assertThat(captor.getValue().getLibraryId(), is("DCB-SHARING"));
+	}
+
+	private KohaItem createVirtualItem(String patronHomeLocation) {
+		final var captor = ArgumentCaptor.forClass(KohaItem.class);
+
+		when(referenceValueMappingService.findMapping(any(), any(), any(), any(), any()))
+			.thenReturn(Mono.just(ReferenceValueMapping.builder().toValue("BK").build()));
+
+		when(apiClient.createItem(eq("42"), captor.capture()))
+			.thenReturn(Mono.just(KohaItem.builder().itemId(99L).build()));
+
+		client.createItem(CreateItemCommand.builder()
+			.bibId("42")
+			.barcode("6565750674")
+			.canonicalItemType("BKM")
+			.patronHomeLocation(patronHomeLocation)
+			.build()).block();
+
+		return captor.getValue();
 	}
 
 	private Item firstItem() {

@@ -131,11 +131,13 @@ public class KohaHostLmsClient implements HostLmsClient {
 		String lastName = (patron.getLocalNames() != null && patron.getLocalNames().size() > 1)
 			? patron.getLocalNames().get(patron.getLocalNames().size() - 1) : DEFAULT_LAST_NAME;
 
-		// Koha POST /api/v1/patrons strictly requires surname, library_id, and category_id
-		// We will need to define a default library for virtual patrons
-		// then we have the joy of the shared libraries ....
-		// and we MUST be able to distinguish DCB patrons from real ones
-		String libraryId = getConfig().getOrDefault("default-agency-code", "").toString();
+		// Koha POST /api/v1/patrons strictly requires surname, library_id, and category_id.
+		// A virtual patron stands for a borrower outside this Koha, which is precisely
+		// what the sharing library represents - so one scalar is the right shape here
+		// even on a shared server. The default agency code is not: it names one of the
+		// co-tenant libraries, and reading it from config directly also bypassed the
+		// shared-system guard on getDefaultAgencyCode.
+		String libraryId = getDcbSharingLibraryCode();
 		String categoryId = patron.getLocalPatronType() != null ? patron.getLocalPatronType() : "DCB";
 
 		KohaPatron kohaPatron = new KohaPatron(
@@ -453,7 +455,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.info("Koha: Creating virtual item for bibId: {}, barcode: {}", bibId, barcode);
 
-		final String targetLibraryCode = config.getVirtualItemLibraryCode();
+		final String targetLibraryCode = virtualItemLibraryFor(cic);
 //		final Integer virtualNotForLoanStatus = -1; // We might need to make this configurable
 
 		return getMappedItemType(cic.getCanonicalItemType())
@@ -480,6 +482,29 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.map(this::mapKohaItemToHostLmsItem)
 			.doOnSuccess(item -> log.info("Successfully created Koha virtual item: {}", item.getLocalId()))
 			.doOnError(e -> log.error("Failed to create Koha virtual item for bib {}: {}", bibId, e.getMessage()));
+	}
+
+	/**
+	 * Which branch a virtual item is created at.
+	 * <p>
+	 * The virtual item is the incoming loan, so it belongs at the branch the patron
+	 * will collect it from. virtual-item-library-code is a single value on the Host
+	 * LMS, which is fine for a Koha serving one library and wrong for one serving
+	 * sixty - every library's incoming loans would materialise at whichever branch
+	 * was configured. patronHomeLocation carries the borrower's own branch, so it
+	 * wins wherever the caller knows it.
+	 */
+	private String virtualItemLibraryFor(CreateItemCommand cic) {
+		final var patronHomeLocation = getValueOrNull(cic, CreateItemCommand::getPatronHomeLocation);
+
+		if (isBlank(patronHomeLocation)) {
+			log.debug("No patron home location on {}, falling back to virtual-item-library-code",
+				cic.getPatronRequestId());
+
+			return config.getVirtualItemLibraryCode();
+		}
+
+		return patronHomeLocation;
 	}
 
 	Mono<String> getMappedItemType(String itemTypeCode) {
