@@ -8,12 +8,14 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.Order;
 import jakarta.inject.Singleton;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton
+@Order(ItemFilter.ITEM_WITH_HOLDS_ORDER)
 @AllArgsConstructor
 public class IncludeItemWithHoldsItemFilter implements ItemFilter {
 	private final ConsortiumService consortiumService;

@@ -10,6 +10,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.Order;
 import jakarta.inject.Singleton;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ import reactor.core.publisher.Mono;
  */
 @Slf4j
 @Singleton
+@Order(ItemFilter.SAME_SERVER_ORDER)
 @AllArgsConstructor
 public class SameServerItemFilter implements ItemFilter {
 	private final HostLmsService hostLmsService;
