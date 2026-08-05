@@ -75,17 +75,44 @@ public class LocationToAgencyMappingService {
 			.map(ReferenceValueMapping::getToValue)
 			.flatMap(agencyService::findByCode)
 			.doOnNext(agency -> log.debug("Found agency for location: {}", agency))
-      .switchIfEmpty(Mono.defer(() -> {
-        log.warn("No agency found for locationCode={} (hostLmsCode={}, category={})", locationCode, hostLmsCode, fromCategory);
-        String alarmCode = "ILS."+hostLmsCode+".LOCATION_TO_AGENCY_FAILURE."+fromCategory+"."+(locationCode.toString()).toUpperCase();
-        // Alarm can last up to 5 days
-        alarmsService.raise(Alarm.builder()
-            .id(UUIDUtils.generateAlarmId(alarmCode))
-            .code(alarmCode)
-            .expires(Instant.now().plus(Duration.ofDays(5)))
-            .build());
-        return Mono.empty();
-      }));
+			.switchIfEmpty(Mono.defer(() -> {
+				log.warn("No agency found for locationCode={} (hostLmsCode={}, category={})",
+					locationCode, hostLmsCode, fromCategory);
+
+				raiseUnmappedLocationAlarm(hostLmsCode, fromCategory, locationCode);
+
+				return Mono.empty();
+			}));
+	}
+
+	/**
+	 * One alarm per Host LMS and category, listing the location codes that could not
+	 * be mapped.
+	 * <p>
+	 * This used to build an alarm code per location, which would announce every
+	 * unmapped code separately - and bringing a shared system with sixty branches
+	 * online is exactly when an operator least wants sixty notifications. It also
+	 * never subscribed to the result, so no alarm was ever actually raised.
+	 */
+	private void raiseUnmappedLocationAlarm(String hostLmsCode, String fromCategory,
+		String locationCode) {
+
+		final var alarmCode = "ILS." + hostLmsCode + ".LOCATION_TO_AGENCY_FAILURE." + fromCategory;
+
+		// Deliberately detached rather than composed into the caller: this sits on the
+		// per-item availability path, and an operator-facing notice is not worth making
+		// item mapping wait on a write.
+		alarmsService.raiseAccumulating(Alarm.builder()
+					.id(UUIDUtils.generateAlarmId(alarmCode))
+					.code(alarmCode)
+					// Alarm can last up to 5 days
+					.expires(Instant.now().plus(Duration.ofDays(5)))
+					.build(),
+				"unmappedLocationCodes", locationCode.toUpperCase())
+			.subscribe(
+				raised -> log.debug("Recorded unmapped location {} against {}", locationCode, alarmCode),
+				error -> log.warn("Unable to record unmapped location {} against {}",
+					locationCode, alarmCode, error));
 	}
 
 	public Mono<ReferenceValueMapping> findLocationToAgencyMapping(String fromContext, String locationCode) {
