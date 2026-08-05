@@ -279,6 +279,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.localNames(List.of(kohaPatron.getFirstname(), kohaPatron.getSurname()))
 			.localBarcodes(kohaPatron.getCardnumber() != null ? List.of(kohaPatron.getCardnumber()) : List.of())
 			.localPatronType(kohaPatron.getCategoryId())
+			// The Koha branch is the only thing distinguishing co-tenant libraries on a
+			// shared server, and it is what location-to-agency mappings are keyed on.
+			// Without it every patron falls through to the default agency, which on a
+			// 60-library Koha means every patron belongs to whichever library was
+			// configured there.
+			.localHomeLibraryCode(kohaPatron.getLibraryId())
 			.isActive(true)
 			.build();
 	}
