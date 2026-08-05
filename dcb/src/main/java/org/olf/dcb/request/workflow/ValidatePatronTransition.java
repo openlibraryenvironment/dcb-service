@@ -10,18 +10,12 @@ import java.util.Optional;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
-import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
-import org.olf.dcb.request.workflow.exceptions.NoAgencyFoundException;
-import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
-import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
 import io.micronaut.context.BeanProvider;
@@ -36,8 +30,6 @@ import reactor.function.TupleUtils;
 @Prototype
 public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final PatronIdentityRepository patronIdentityRepository;
-	private final ReferenceValueMappingService referenceValueMappingService;
-	private final AgencyRepository agencyRepository;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final LocalPatronService localPatronService;
 
@@ -48,16 +40,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
 
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
-		ReferenceValueMappingService referenceValueMappingService,
 		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
-		AgencyRepository agencyRepository,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		LocalPatronService localPatronService) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
-		this.referenceValueMappingService = referenceValueMappingService;
 		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
-		this.agencyRepository = agencyRepository;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.localPatronService = localPatronService;
 	}
@@ -147,53 +135,15 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 
 		log.debug("resolveHomeLibraryCodeFromSystemToAgencyCode({},{})", systemCode, homeLibraryCode);
 
-		if ((systemCode == null))
-			throw new java.lang.RuntimeException("Missing system code. Unable to accept request");
-
-		log.debug(
-			"findMapping(targetContext=DCB, targetCategory=AGENCY, sourceCategory=Location, sourceContext={}, sourceValue={}",
-			systemCode, homeLibraryCode);
-
-		return Mono.justOrEmpty(homeLibraryCode)
-
-			// findAgencyForLocation only when homeLibraryCode is not null
-			.flatMap(code -> findAgencyForLocation(code, systemCode))
-
-			// If homeLibraryCode or findAgencyForLocation produced empty,
-			// try to use a default agency code from config
-			.switchIfEmpty(Mono.defer(() -> locationToAgencyMappingService.findDefaultAgencyCode(systemCode)))
-			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(homeLibraryCode, systemCode))
-
-			// when either findAgencyForLocation or findAgencyForDefaultAgencyCode
-			// successfully found an agency code then..
-			.flatMap(this::findOneAgencyByCode)
-
-			// If an agency is found from either findAgencyForLocation or findAgencyForDefaultAgencyCode
-			.flatMap(locatedAgency -> {
-				log.debug("Located agency {}", locatedAgency);
-				pi.setResolvedAgency(locatedAgency);
-				return Mono.just(pi);
-			})
-
-			// Last fallback if the empty was not already caught
-			.switchIfEmpty(Mono.defer(() -> Mono.error(new NoAgencyFoundException(
-				"Unable to resolve patron home library code(" + systemCode + "/" + homeLibraryCode + ") to an agency"))));
-	}
-
-	private Mono<String> findAgencyForLocation(String code, String systemCode) {
-		log.debug("findAgencyForLocation({}, {})", code, systemCode);
-
-		return referenceValueMappingService.findMapping("Location", systemCode, code, "AGENCY", "DCB")
-			.doOnNext(locatedMapping -> log.debug("Located Loc-to-agency mapping {}", locatedMapping))
-			.map(ReferenceValueMapping::getToValue);
-	}
-
-	private Mono<DataAgency> findOneAgencyByCode(String code) {
-		log.debug("findOneAgencyByCode({})", code);
-
-		return Mono.from(agencyRepository.findOneByCode(code))
-			.doOnSuccess(dataAgency -> log.debug("Agency found by code {}", dataAgency))
-			.switchIfEmpty(Mono.defer(() -> Mono.error(new NoAgencyFoundException("No agency found with code: " + code))));
+		// Deliberately the same resolver preflight uses. This transition used to carry
+		// its own copy that went straight to findMapping, skipping the context
+		// hierarchy and the wildcard fallback - so a request could pass preflight
+		// against one agency and then be validated against another, or fail here after
+		// already being accepted.
+		return locationToAgencyMappingService
+			.resolveAgencyForPatronHomeLocation(systemCode, homeLibraryCode)
+			.doOnNext(locatedAgency -> log.debug("Located agency {}", locatedAgency))
+			.map(pi::setResolvedAgency);
 	}
 
 	/**

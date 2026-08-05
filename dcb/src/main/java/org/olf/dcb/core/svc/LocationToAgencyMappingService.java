@@ -17,6 +17,7 @@ import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
 import graphql.com.google.common.base.Predicates;
 import jakarta.inject.Singleton;
@@ -105,15 +106,69 @@ public class LocationToAgencyMappingService {
 			return empty();
 		}
 
-		// Allow implementers to specify wildcards that will match all locations. Look for specific locations
-		// before falling back to looking for any wildcards.
-		List<String> lookupCodeList = List.of(locationCode, "*");
-
-		return getContextHierarchyFor(fromContext)
-			.flatMap(sourceContexts -> referenceValueMappingService.findMappingUsingHierarchyWithFallback(
-				fromCategory, sourceContexts, lookupCodeList, "AGENCY", "DCB"));
+		return lookupRulesFor(fromContext)
+			.flatMap(rules -> referenceValueMappingService.findMappingUsingHierarchyWithFallback(
+				fromCategory, rules.sourceContexts(), rules.lookupCodesFor(locationCode), "AGENCY", "DCB"));
 	}
-	
+
+	/**
+	 * How a given context resolves locations: which contexts to search, and whether
+	 * the wildcard fallback is safe.
+	 * <p>
+	 * Both answers come from the same Host LMS, so they are read from a single
+	 * client rather than fetching one per question - this sits on the per-item
+	 * availability path.
+	 */
+	private record LocationLookupRules(List<String> sourceContexts, boolean sharedSystem) {
+		List<String> lookupCodesFor(String locationCode) {
+			// Allow implementers to specify wildcards that will match all locations. Look for the
+			// specific location before falling back to looking for any wildcard.
+			//
+			// A wildcard says "every location on this system belongs to one agency", which is
+			// exactly wrong on a shared system - it sweeps every co-tenant library, including ones
+			// not in the consortium at all, onto whichever agency happened to be configured. A
+			// shared system must map each location explicitly.
+			return sharedSystem
+				? List.of(locationCode)
+				: List.of(locationCode, "*");
+		}
+	}
+
+	private Mono<LocationLookupRules> lookupRulesFor(String context) {
+		final var defaults = List.of(context);
+
+		// guard clause for non-hostlms contexts
+		if ("DCB".equals(context)) {
+			return Mono.just(new LocationLookupRules(defaults, false));
+		}
+
+		return hostLmsService.getClientFor(context)
+			.map(client -> new LocationLookupRules(
+				contextHierarchyOf(client, context, defaults), client.isSharedSystem()))
+			.switchIfEmpty(Mono.fromSupplier(() -> new LocationLookupRules(defaults, false)))
+			.onErrorResume(error -> {
+				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
+					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
+				return Mono.just(new LocationLookupRules(defaults, false));
+			});
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<String> contextHierarchyOf(HostLmsClient client, String context,
+		List<String> defaults) {
+
+		final var configured = (List<String>) client.getConfig().get(KEY_CONTEXT_HIERARCHY);
+
+		if (configured == null || configured.isEmpty()) {
+			log.debug("[CONTEXT-HIERARCHY-EMPTY] " +
+				"- Fetching 'contextHierarchy' returned an EMPTY list for context: '{}'", context);
+
+			return defaults;
+		}
+
+		return configured;
+	}
+
 	public Mono<List<String>> getContextHierarchyFor(String context) {
 		return getContextHierarchyFor( context, List.of(context));
 	}
@@ -142,6 +197,41 @@ public class LocationToAgencyMappingService {
 					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
 				return Mono.justOrEmpty(defaults);
 			});
+	}
+
+	/**
+	 * Resolve the agency a patron belongs to from their home library code.
+	 * <p>
+	 * This is the single answer to "which library is this patron from". Preflight and
+	 * the patron validation transition both ask it, and they must agree: a request
+	 * accepted at preflight against one agency and then validated against another is
+	 * worse than a request refused outright. Anything with its own copy of this logic
+	 * will drift - the previous duplicate in ValidatePatronTransition skipped both the
+	 * context hierarchy and the wildcard fallback, so on any shared or hierarchical
+	 * configuration the two stages could disagree.
+	 *
+	 * @return the resolved agency, or {@link UnableToResolveAgencyProblem} if neither
+	 * the home library code nor the Host LMS default resolves to one
+	 */
+	public Mono<DataAgency> resolveAgencyForPatronHomeLocation(String hostLmsCode,
+		String homeLibraryCode) {
+
+		if (isEmpty(hostLmsCode)) {
+			return Mono.error(new IllegalArgumentException(
+				"Missing system code. Unable to resolve an agency for the patron"));
+		}
+
+		log.debug("resolveAgencyForPatronHomeLocation({}, {})", hostLmsCode, homeLibraryCode);
+
+		return findLocationToAgencyMapping(hostLmsCode, homeLibraryCode)
+			.map(ReferenceValueMapping::getToValue)
+			// findDefaultAgencyCode is a no-op on a shared system, where no single
+			// agency can stand in for an unrecognised location
+			.switchIfEmpty(Mono.defer(() -> findDefaultAgencyCode(hostLmsCode)))
+			.flatMap(agencyService::findByCode)
+			.doOnNext(agency -> log.debug("Resolved patron home library {}/{} to agency {}",
+				hostLmsCode, homeLibraryCode, agency.getCode()))
+			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(homeLibraryCode, hostLmsCode));
 	}
 
 	public Mono<String> findDefaultAgencyCode(String hostLmsCode) {
