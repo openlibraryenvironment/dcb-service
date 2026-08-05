@@ -2,20 +2,34 @@ package org.olf.dcb.request.resolution;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static reactor.function.TupleUtils.function;
-import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
-import org.zalando.problem.Problem;
 
 import jakarta.inject.Singleton;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+/**
+ * Excludes items that live on the same physical system as the borrower but under
+ * a different Host LMS record.
+ * <p>
+ * DCB fulfils those by creating a virtual bib and item in the borrower's system -
+ * which, when both records address one server, means creating a duplicate of a
+ * record that is already there. Two Host LMS records over one server is a
+ * configuration for describing separately-administered libraries, not a licence to
+ * lend an item to the database it already lives in.
+ * <p>
+ * Note what this does <em>not</em> exclude: several agencies under one Host LMS
+ * record. That is the ordinary shared-system shape (one Koha, sixty libraries) and
+ * it is handled by workflow routing sending it down RET-LOCAL, where a real hold is
+ * placed on the real item and no virtual records are created at all.
+ */
 @Slf4j
 @Singleton
 @AllArgsConstructor
@@ -32,46 +46,48 @@ public class SameServerItemFilter implements ItemFilter {
 	private Mono<Boolean> fromSameServer(Item item, String borrowingHostLmsCode) {
 		final var itemHostLmsCode = getValueOrNull(item, Item::getHostLmsCode);
 
+		// A filter is a predicate. Raising here would abort resolution for the whole
+		// cluster over one unattributable item, and which of those two happens would
+		// depend on where this filter landed in the composite's ordering.
 		if (itemHostLmsCode == null || borrowingHostLmsCode == null) {
-			return raiseError(Problem.builder()
-				.withTitle("Missing required value to evaluate item fromSameServer")
-				.withDetail("Could not compare LMS codes")
-				.with("itemHostLmsCode", itemHostLmsCode)
-				.with("borrowingHostLmsCode", borrowingHostLmsCode)
-				.build());
+			log.warn("Cannot evaluate fromSameServer, excluding item: itemLms={}, borrowingLms={}",
+				itemHostLmsCode, borrowingHostLmsCode);
+
+			return Mono.just(false);
 		}
 
-		// Some adapters expose multiple logical circulation systems through one
-		// transport base URL. Use optional base-url-qualifier to distinguish those
-		// boundaries; without it this preserves the historic raw base-url check.
-		return Mono.zip(hostLmsService.getHostLmsQualifiedBaseUrl(itemHostLmsCode),
-				hostLmsService.getHostLmsQualifiedBaseUrl(borrowingHostLmsCode))
-			.map(function((String itemHostLmsBaseUrl, String borrowingHostLmsBaseUrl) ->
-				fromSameServer(itemHostLmsCode, borrowingHostLmsCode,
-					itemHostLmsBaseUrl, borrowingHostLmsBaseUrl)));
+		// One Host LMS record hosting several agencies is the supported shared-system
+		// shape, not the case this filter exists to catch.
+		if (itemHostLmsCode.equals(borrowingHostLmsCode)) {
+			return Mono.just(true);
+		}
+
+		// Ask the clients who they talk to. getClientId is the system-identity
+		// primitive - it knows about adapters that reach several logical systems
+		// through one URL, which reading a config key never could.
+		return Mono.zip(hostLmsService.getClientFor(itemHostLmsCode),
+				hostLmsService.getClientFor(borrowingHostLmsCode))
+			.map(function((HostLmsClient itemClient, HostLmsClient borrowingClient) ->
+				includeItem(itemHostLmsCode, borrowingHostLmsCode, itemClient, borrowingClient)))
+			.onErrorResume(error -> {
+				log.warn("Unable to compare systems for itemLms={} and borrowingLms={} ({}), excluding item",
+					itemHostLmsCode, borrowingHostLmsCode, error.toString());
+
+				return Mono.just(false);
+			})
+			.defaultIfEmpty(false);
 	}
 
-	private static boolean fromSameServer(String itemHostLmsCode, String borrowingHostLmsCode,
-		String itemHostLmsBaseUrl, String borrowingHostLmsBaseUrl) {
+	private static boolean includeItem(String itemHostLmsCode, String borrowingHostLmsCode,
+		HostLmsClient itemClient, HostLmsClient borrowingClient) {
 
-		if (itemHostLmsBaseUrl == null || borrowingHostLmsBaseUrl == null) {
-			throw Problem.builder()
-				.withTitle("Missing required value to evaluate item fromSameServer")
-				.withDetail("Could not compare base-url")
-				.with("itemHostLmsBaseUrl", itemHostLmsBaseUrl)
-				.with("borrowingHostLmsBaseUrl", borrowingHostLmsBaseUrl)
-				.build();
+		final var sameServer = itemClient.compareTo(borrowingClient) == 0;
+
+		if (sameServer) {
+			log.debug("Excluding item from same server: itemLms={}, borrowingLms={}, systemIdentity={}",
+				itemHostLmsCode, borrowingHostLmsCode, itemClient.getClientId());
 		}
 
-		boolean isSameServer = itemHostLmsBaseUrl.equals(borrowingHostLmsBaseUrl);
-		boolean isDifferentLms = !itemHostLmsCode.equals(borrowingHostLmsCode);
-		boolean shouldExclude = isSameServer && isDifferentLms;
-
-		if (shouldExclude) {
-			log.debug("Excluding item from same server: itemLms={}, borrowingLms={}, baseUrl={}",
-				itemHostLmsCode, borrowingHostLmsCode, itemHostLmsBaseUrl);
-		}
-
-		return !shouldExclude;
+		return !sameServer;
 	}
 }
