@@ -35,13 +35,18 @@ class PatronRequestCancellationServiceTests {
 
 	private static final UUID REQUEST_ID = UUID.randomUUID();
 
-	private final PatronRequestRepository patronRequestRepository = mock(PatronRequestRepository.class);
-	private final HostLmsService hostLmsService = mock(HostLmsService.class);
-	private final PatronRequestAuditService auditService = mock(PatronRequestAuditService.class);
-	private final HostLmsClient borrowingClient = mock(HostLmsClient.class);
+	// Created per TEST, not per class. This repo sets
+	// junit.jupiter.testinstance.lifecycle.default = per_class in
+	// junit-platform.properties, so one instance is shared across every method here —
+	// field initialisers run ONCE and Mockito then accumulates invocations across tests.
+	// Initialised inline, `verify(..., never())` in one test sees a call another test
+	// legitimately made, and fails for a reason that has nothing to do with the code.
+	private PatronRequestRepository patronRequestRepository;
+	private HostLmsService hostLmsService;
+	private PatronRequestAuditService auditService;
+	private HostLmsClient borrowingClient;
 
-	private final PatronRequestCancellationService service =
-		new PatronRequestCancellationService(patronRequestRepository, hostLmsService, auditService);
+	private PatronRequestCancellationService service;
 
 	private static PatronRequest requestInState(Status status) {
 		return PatronRequest.builder()
@@ -55,6 +60,13 @@ class PatronRequestCancellationServiceTests {
 
 	@BeforeEach
 	void stubCollaborators() {
+		patronRequestRepository = mock(PatronRequestRepository.class);
+		hostLmsService = mock(HostLmsService.class);
+		auditService = mock(PatronRequestAuditService.class);
+		borrowingClient = mock(HostLmsClient.class);
+		service = new PatronRequestCancellationService(
+			patronRequestRepository, hostLmsService, auditService);
+
 		when(hostLmsService.getClientFor(eq("borrowing-lms"))).thenReturn(Mono.just(borrowingClient));
 		when(borrowingClient.cancelHoldRequest(any())).thenReturn(Mono.just("OK"));
 		when(auditService.addAuditEntry(any(PatronRequest.class), anyString(), anyMap()))
