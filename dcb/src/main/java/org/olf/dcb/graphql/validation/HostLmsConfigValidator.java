@@ -1,5 +1,7 @@
 package org.olf.dcb.graphql.validation;
 
+import static org.olf.dcb.core.interaction.HostLmsClient.SHARED_SYSTEM;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.List;
@@ -36,6 +38,8 @@ public class HostLmsConfigValidator {
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "clientConfig cannot be null or empty.");
 		}
 
+		validateSharedSystem(clientConfig);
+
 		switch (lmsClientClass) {
 			case CLASS_SIERRA -> validateSierra(clientConfig);
 			case CLASS_ALMA -> validateAlma(clientConfig);
@@ -46,12 +50,48 @@ public class HostLmsConfigValidator {
 		}
 	}
 
+	/**
+	 * A shared system hosts several participating libraries, so no single agency can
+	 * stand in for an unrecognised location. Accepting a default agency code here
+	 * would let it silently attribute every co-tenant's patrons - including libraries
+	 * outside the consortium entirely - to one library, with nothing to indicate that
+	 * anything had gone wrong. Refuse the combination rather than ignore it.
+	 */
+	private void validateSharedSystem(Map<String, Object> config) {
+		if (!isSharedSystem(config)) {
+			return;
+		}
+
+		if (isPresent(config, "default-agency-code")) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Invalid Configuration. 'default-agency-code' cannot be set when 'shared-system' is true: "
+					+ "a shared system must map each library's locations to its agency explicitly.");
+		}
+	}
+
+	private boolean isSharedSystem(Map<String, Object> config) {
+		return Boolean.parseBoolean(String.valueOf(config.getOrDefault(SHARED_SYSTEM, Boolean.FALSE)));
+	}
+
+	/**
+	 * Required on a dedicated system, forbidden on a shared one.
+	 *
+	 * @see #validateSharedSystem
+	 */
+	private void checkDefaultAgencyCode(Map<String, Object> config, List<String> missing) {
+		if (isSharedSystem(config)) {
+			return;
+		}
+
+		checkPresent(config, "default-agency-code", missing);
+	}
+
 	private void validateSierra(Map<String, Object> config) {
 		List<String> missing = new ArrayList<>();
 		checkPresent(config, "base-url", missing);
 		checkPresent(config, "key", missing);
 		checkPresent(config, "secret", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 		checkPresent(config, "page-size", missing);
 
 		throwIfMissing("Sierra", missing);
@@ -63,7 +103,7 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "alma-url", missing);
 		checkPresent(config, "apikey", missing);
 		checkPresent(config, "institution-code", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 
 		throwIfMissing("Alma", missing);
 	}
@@ -72,7 +112,7 @@ public class HostLmsConfigValidator {
 		List<String> missing = new ArrayList<>();
 		checkPresent(config, "base-url", missing);
 		checkPresent(config, "apikey", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 		throwIfMissing("Folio", missing);
 	}
 
@@ -86,7 +126,7 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "logon-user-id", missing);
 		checkPresent(config, "staff-username", missing);
 		checkPresent(config, "staff-password", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 
 		// Check the nested objects. This is a good opportunity to extend to do more specific analysis
 		if (!config.containsKey("papi") || !(config.get("papi") instanceof Map)) {
@@ -128,8 +168,13 @@ public class HostLmsConfigValidator {
 		return warnings;
 	}
 
+	private boolean isPresent(Map<String, Object> config, String key) {
+		return config.containsKey(key) && config.get(key) != null
+			&& !config.get(key).toString().isBlank();
+	}
+
 	private void checkPresent(Map<String, Object> config, String key, List<String> missingList) {
-		if (!config.containsKey(key) || config.get(key) == null || config.get(key).toString().isBlank()) {
+		if (!isPresent(config, key)) {
 			missingList.add(key);
 		}
 	}
