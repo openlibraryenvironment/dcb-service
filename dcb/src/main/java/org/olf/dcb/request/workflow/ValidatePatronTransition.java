@@ -10,12 +10,14 @@ import java.util.Optional;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.workflow.exceptions.AgencyNotParticipatingInBorrowingException;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
 import io.micronaut.context.BeanProvider;
@@ -143,7 +145,24 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 		return locationToAgencyMappingService
 			.resolveAgencyForPatronHomeLocation(systemCode, homeLibraryCode)
 			.doOnNext(locatedAgency -> log.debug("Located agency {}", locatedAgency))
+			.flatMap(ValidatePatronTransition::assertParticipatesInBorrowing)
 			.map(pi::setResolvedAgency);
+	}
+
+	/**
+	 * Re-check what preflight already checked.
+	 * <p>
+	 * ResolvePatronPreflightCheck is the only other place this is asserted and it can
+	 * be switched off entirely. Nothing else between there and hold placement looks
+	 * again, so on a shared system a patron of a co-tenant library that is not in the
+	 * consortium could have an interlending request placed on their behalf.
+	 */
+	private static Mono<DataAgency> assertParticipatesInBorrowing(DataAgency agency) {
+		if (!Boolean.TRUE.equals(agency.getIsBorrowingAgency())) {
+			return Mono.error(new AgencyNotParticipatingInBorrowingException(agency.getCode()));
+		}
+
+		return Mono.just(agency);
 	}
 
 	/**

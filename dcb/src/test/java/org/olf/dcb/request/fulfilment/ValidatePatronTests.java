@@ -30,6 +30,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
@@ -176,6 +177,60 @@ public class ValidatePatronTests {
 		assertThat(validatedPatronRequest, is(notNullValue()));
 		assertThat(validatedPatronRequest, hasResolvedAgency(agency));
 		assertThat(patronRequest, hasStatus(PATRON_VERIFIED));
+	}
+
+	@Test
+	void shouldFailWhenTheAgencyDoesNotParticipateInBorrowing() {
+		// ResolvePatronPreflightCheck already refuses this, but it can be switched off
+		// and nothing else between there and hold placement looks again. On a shared
+		// system that means placing an interlending request on behalf of a co-tenant
+		// library that is not in the consortium.
+		final var localId = "915374";
+
+		final var hostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
+
+		final var nonParticipatingAgency = agencyFixture.defineAgency(
+			DataAgency.builder()
+				.id(randomUUID())
+				.code("not-borrowing-agency")
+				.name("Not Borrowing Agency")
+				.hostLms(hostLms)
+				.isSupplyingAgency(true)
+				.isBorrowingAgency(false)
+				.build());
+
+		final var patron = patronFixture.definePatron(localId, "not-borrowing-library", hostLms);
+
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
+			BORROWING_HOST_LMS_CODE, 10, 25, "DCB", "15");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			BORROWING_HOST_LMS_CODE, "not-borrowing-library", nonParticipatingAgency.getCode());
+
+		var patronRequest = savePatronRequest(patron);
+
+		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
+			SierraPatronRecord.builder()
+				.id(Integer.parseInt(localId))
+				.patronType(15)
+				.homeLibraryCode("not-borrowing-library")
+				.barcodes(List.of("647647746"))
+				.names(List.of("Bob"))
+				.build());
+
+		// Act
+		final var exception = assertThrows(RuntimeException.class,
+			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(ctx -> validatePatronTransition.attempt(ctx))
+				.block());
+
+		// Assert
+		final var expectedMessage
+			= "Agency \"not-borrowing-agency\" is not participating in borrowing";
+
+		assertThat(exception, hasMessage(expectedMessage));
+
+		checkPatronRequestHasError(patronRequest.getId(), expectedMessage);
 	}
 
 	@Test
