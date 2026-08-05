@@ -637,254 +637,160 @@ Two caveats:
 
 ## 7. What has been implemented
 
-Branch `feat/shared-system-support`, cut from `main`. Four changes: the system-identity
-primitive, one patron→agency resolver, one shared-system flag, and the filter that depends
-on the first of those.
+Branch `feat/shared-system-support`, cut from `main`, 17 commits in two passes.
 
-### 7.1 One system-identity primitive (H2)
+Verified at the tip: `./gradlew :dcb:test` — **965 tests across 179 suites, 0 failures,
+0 errors, 2 skipped** (both pre-existing in `services.k_int.test.mockserver.ProxyTest`),
+5m33s. Nothing was changed to make an existing test pass.
 
-`HostLmsClient.getClientId()` now carries a written contract — *two clients addressing the
-same system MUST return equal values, two addressing different systems MUST NOT* — together
-with why it matters, because nothing at the adapter makes the consequences visible.
+### 7.1 First pass — the three primitives and the filter
+
+**One system-identity primitive (H2).** `HostLmsClient.getClientId()` now carries a written
+contract: two clients addressing the same system MUST return equal values, two addressing
+different systems MUST NOT. Nothing at the adapter makes the consequences visible, so the
+contract says what they are.
 
 | Adapter | Before | After |
 |---|---|---|
-| Alma | `""` | `alma-url` resolved to `/` |
-| Koha | `hostLms.getCode()` | `api-url` resolved to `/` |
-| Sierra | root URI | root URI, qualified |
+| Alma | `""` — every tenant compared equal to every other | `alma-url` resolved to `/` |
+| Koha | `hostLms.getCode()` — never detected a shared server | `api-url` resolved to `/` |
+| Sierra | root URI | unchanged, qualified |
 | FOLIO | root URI resolved | unchanged, qualified |
 | Polaris | base URL resolved | unchanged, qualified |
-| ORS appliance | (inherited Host LMS code) | NCIP endpoint qualified by `ncip-system-id` |
-| `AbstractHostLmsClient` | Host LMS code | unchanged, qualified, documented as a fallback that cannot detect sharing |
-| Dummy | Host LMS code | unchanged; `base-url-qualifier` now overrides it outright so a test can model two records on one notional server |
+| ORS appliance | inherited Host LMS code | NCIP endpoint qualified by `ncip-system-id` |
+| `AbstractHostLmsClient` | Host LMS code | unchanged, documented as a fallback that cannot detect sharing |
+| Dummy | Host LMS code | unchanged; `base-url-qualifier` now overrides it so a test can model two records on one notional server |
 
-The `base-url-qualifier` mechanism moved from `HostLmsService` into
-`HostLmsClient.qualifySystemIdentity`, where adapters that front several logical systems on
-one transport URL can apply it themselves. `HostLmsService.getHostLmsBaseUrl`,
-`getHostLmsQualifiedBaseUrl`, `qualifiedBaseUrl` and the `BASE_URL` / `BASE_URL_QUALIFIER`
-constants are gone — `getHostLmsBaseUrl` had no callers at all.
+`base-url-qualifier` moved from `HostLmsService` into `HostLmsClient.qualifySystemIdentity`.
+`getHostLmsBaseUrl` (no callers), `getHostLmsQualifiedBaseUrl`, `qualifiedBaseUrl` and the
+`BASE_URL`/`BASE_URL_QUALIFIER` constants are gone.
 
-ORS is the case that justifies keeping a qualifier: one appliance fronts several libraries
-on one endpoint, and those libraries can genuinely lend to each other, so they must not
-collapse into one identity. It defaults to the NCIP SystemId and still honours an explicit
-`base-url-qualifier` (which `DcbProfileRegistrationService` sets to the peer's self slug).
-Its `getClientId()` catches configuration failures and degrades to the Host LMS code rather
-than throwing — this method feeds equality comparisons in workflow routing, and an exception
-there would abort a patron request over a config gap.
+**One patron→agency resolver (H4).**
+`LocationToAgencyMappingService.resolveAgencyForPatronHomeLocation` is the single answer to
+"which library is this patron from". `LocalPatronService` and `ValidatePatronTransition` both
+call it; the transition's private copy — which skipped the context hierarchy and the wildcard
+— is deleted, along with `ReferenceValueMappingService` and `AgencyRepository` from its
+constructor. `NoAgencyFoundException` had no remaining users and is gone.
 
-### 7.2 One patron→agency resolver (H4)
+**One shared-system flag (H5).** `shared-system: true` disables `getDefaultAgencyCode()` and
+drops the `Location:*` wildcard from the lookup. `HostLmsConfigValidator` rejects the flag
+combined with `default-agency-code`, and no longer *requires* `default-agency-code` when it is
+set — every adapter used to demand one unconditionally, which made a correctly configured
+shared system unrepresentable through the admin UI.
 
-`LocationToAgencyMappingService.resolveAgencyForPatronHomeLocation(hostLmsCode,
-homeLibraryCode)` is now the single answer to "which library is this patron from".
+**`SameServerItemFilter` (H1).** Rewritten to compare `HostLmsClient`s rather than a config
+key, which is what made it fail on Koha (`api-url`) and Alma (`alma-url`) — `Mono.map` signals
+NPE when its mapper returns null, and `filterWhen` propagated that out, aborting resolution for
+the whole cluster. Now a total predicate: unresolvable codes exclude and log rather than raise.
 
-- `LocalPatronService.findAgencyForPatron` delegates to it — `findHomeLocationMapping` and
-  its local `findDefaultAgencyCode` are gone, and `AgencyService` has dropped out of that
-  class's constructor.
-- `ValidatePatronTransition.resolveHomeLibraryCodeFromSystemToAgencyCode` delegates to it.
-  Its private `findAgencyForLocation` and `findOneAgencyByCode` are deleted, along with
-  `ReferenceValueMappingService` and `AgencyRepository` from its constructor.
+### 7.2 Second pass — Koha, workflow routing, and the rest
 
-The transition previously called `referenceValueMappingService.findMapping` directly, with
-no context hierarchy and no wildcard. Preflight and validation now cannot disagree by
-construction.
+**The Koha adapter was never instantiable.** `KohaHostLmsClient` carried no scope annotation,
+so `getClientFor` failed with `NoSuchBeanException`. Two constructor arguments could not have
+been satisfied either: `KohaClientConfig` has no bean definition, and the injected
+`KohaApiClient` was overwritten immediately by the factory and never used. Found by
+`HostLmsClientConstructionTests`, which now builds every adapter through the container from
+stored configuration — an adapter whose only coverage constructs it with mocks can carry
+unsatisfiable injection points indefinitely.
 
-One behavioural consequence worth stating: the transition used to raise
-`NoAgencyFoundException` when a resolved agency code had no matching row, and
-`UnableToResolveAgencyProblem` when no code resolved at all. It now raises
-`UnableToResolveAgencyProblem` in both cases, matching what `LocalPatronService` always did.
-That is what the preflight checks already catch (`PATRON_NOT_ASSOCIATED_WITH_AGENCY`), so
-the failure surfaces more usefully than before. `NoAgencyFoundException` now has no
-remaining users.
+**Koha could not tell its own tenants apart (1a, 1b).** `mapKohaPatronToDcbPatron` never read
+`library_id` back, and `mapKohaItemToDcbItem` used Koha's `location` — a shelving classifier
+every branch shares — as the item's location. Both now use the branch. Fixed an NPE found
+while testing: the suppressed-from-DCB check compared an `Integer` with `==` against 42, which
+unboxes and throws for any item without `not_for_loan_status`, and `getItems` swallowed that
+via `onErrorContinue` so the item silently vanished from availability.
 
-### 7.3 One shared-system flag (H5)
+**Koha placed virtual records per Host LMS (1c).** The virtual item now goes to the borrowing
+branch via `CreateItemCommand.patronHomeLocation`, falling back to `virtual-item-library-code`.
+The virtual patron moves from `default-agency-code` — which named a co-tenant library and read
+config directly, bypassing the shared-system guard — to `sharing-library-code`, which is what
+"a borrower outside this Koha" actually means and is correctly one value per system.
 
-`shared-system: true` on a Host LMS config. From that one fact:
+**RET-LOCAL required only two of three roles (H3).** `WorkflowConstants` defines it as all
+three being on one system; `setPatronRequestWorkflow` compared only lender and pickup, so a
+patron on a third system still routed to `LOCAL_WORKFLOW` — where `placeSingularRequest`
+resolves its client from the borrowing identity and hands it another system's bib and item ids.
+`WorkflowSelectionTests` is new and covers each workflow plus the shared-system permutations.
 
-- `HostLmsClient.getDefaultAgencyCode()` returns `null` on a shared system, so neither
-  patron resolution path can fall back to a single agency for an unrecognised location.
-- `LocationToAgencyMappingService` drops the `*` wildcard from the lookup list on a shared
-  system, so `Location:* → AGENCY:x` cannot sweep every co-tenant — including libraries
-  outside the consortium — onto one agency.
-- `HostLmsConfigValidator` rejects `shared-system: true` combined with
-  `default-agency-code` outright, and stops *requiring* `default-agency-code` when the flag
-  is set. Previously all four validated adapters demanded it unconditionally, which made a
-  correctly-configured shared system unrepresentable through the admin UI.
+**Everything else.** Borrowing participation is re-asserted in `ValidatePatronTransition`
+(2b); the wildcard is now suppressed when the system cannot be identified rather than failing
+open; the double agency resolution in `validatePatronIdentity` is gone; item filters carry
+explicit `@Order` (H8); `HostLmsConfigValidator`'s rule is reused by `DCBStartupEventListener`,
+which raises an alarm rather than refusing to boot; `Location.code`'s false `@Column(unique)`
+and `PolarisConfig`'s unread `default-agency-code` are removed (H9).
 
-The wildcard decision and the context hierarchy are read from a single `HostLmsClient`
-rather than two lookups (`LocationLookupRules`), because this sits on the per-item
-availability path.
+**Unmapped-location alarms** are now one per Host LMS with the codes accumulated in the
+details, rather than one alarm code per location. While changing it: the alarm was never
+actually raised — `raise()` returns a `Mono` whose result was discarded without subscribing, so
+this condition has been silent since it was written.
 
-Note the enforcement split: the *runtime* guards apply however the config arrived, but the
-*validator* only guards the GraphQL create/update path. Config-file import and direct DB
-seeding still bypass it.
+### 7.3 Tests added
 
-### 7.4 `SameServerItemFilter` (H1, and part of H8)
-
-Rewritten to compare `HostLmsClient`s rather than a config key, which is what made it fail
-on Koha (`api-url`) and Alma (`alma-url`) — `Mono.map` signals `NullPointerException` when
-its mapper returns null, and `filterWhen` propagated that straight out, aborting resolution
-for the entire cluster.
-
-It is now a total predicate. Missing or unresolvable Host LMS codes exclude the item and log
-rather than raising, so no single unattributable item can abort a resolution, and the
-outcome no longer depends on where the filter happens to land in the composite's ordering. A
-short-circuit was added for the common case — same Host LMS code means the ordinary
-shared-system shape (one Koha, sixty libraries) and needs no client lookup at all.
-
-### 7.5 Tests
-
-Neither the filter nor the identity contract had any test coverage. Both now do.
-
-`SameServerItemFilterTests` (`@DcbTest`, 6 cases): co-tenant agency on one Host LMS is
-included; separate server included; second Host LMS on the same server excluded; separately
-qualified systems on one URL included; item with no Host LMS excluded without raising;
-unknown and null borrowing Host LMS excluded without raising.
-
-`HostLmsClientIdentityTests` (Mockito, 11 cases): separate Alma tenants no longer compare
-equal and cosmetic URL differences no longer separate them; two Host LMS records on one Koha
-do compare equal while separate Koha servers do not; qualifier separates logical systems on
-one URL and a blank qualifier is inert; `shared-system` withholds the default agency code,
-a dedicated system still provides it, and the flag parses from a string (config arrives as
-JSON from the UI and YAML from imports).
-
-### 7.6 Verification
-
-`./gradlew :dcb:test` — **938 tests across 173 suites, 0 failures, 0 errors, 2 skipped**
-(both skipped are pre-existing in `services.k_int.test.mockserver.ProxyTest`), 6m40s.
-
-Nothing was changed to make existing tests pass. Of note, the tests that most directly cover
-the reworked paths were already green and stayed green: `LocationToAgencyMappingServiceTests`
-(wildcard behaviour preserved for dedicated systems), `ValidatePatronTests` — including
-`shouldUseDefaultAgencyFallbackWhenNoHomeLibrary`, which exercises the default-agency route
-that §7.3 now suppresses on shared systems only — `ResolvePatronPreflightCheckTests`, and
-`PatronRequestResolutionServiceTests`.
+`HostLmsClientIdentityTests` (11), `SameServerItemFilterTests` (6),
+`HostLmsClientConstructionTests` (4), `KohaMappingTests` (8), `WorkflowSelectionTests` (7),
+`ItemFilterOrderingTests` (1), `HostLmsConfigValidatorTests` (4), `AlarmsServiceTests` (2),
+plus one case in `ValidatePatronTests`. None of these areas had any coverage before.
 
 ---
 
 ## 8. What remains
 
-Nothing below is started. Ordered by what blocks a real deployment.
+### The onboarding gap — deferred by decision
 
-### Blocking for scenario 1 (60+ libraries on one Koha)
+**`LocationService.memoize` is still dead code (H6).** Its guard requires
+`location.getAgency()`, which no adapter sets, so it rejects exactly the unmapped locations its
+javadoc says it exists to capture. Fixing it means deriving generated location IDs from
+`(hostLmsCode, locationCode)` instead of `(agencyCode, locationCode)`, which needs a Flyway
+migration to re-key existing dynamically-created rows.
 
-**Koha still cannot tell its own tenants apart.** Findings 1a and 1b are untouched and are
-the reason scenario 1 does not work today, independently of everything fixed above:
+Deferred deliberately rather than overlooked. **The practical consequence: onboarding a shared
+system means enumerating its branches by hand** — for Koha, against `/api/v1/libraries` — and
+creating the location-to-agency mappings from that list. The unmapped-location alarm (§7.2) now
+tells an operator which codes are missing, which covers part of the same need.
 
-- `KohaHostLmsClient.mapKohaPatronToDcbPatron` still never sets `localHomeLibraryCode`, so
-  every Koha patron resolves through the default-agency fallback. With `shared-system: true`
-  that fallback now returns null, so instead of silently attributing all 60 libraries to one
-  agency, patron resolution will fail outright with `UnableToResolveAgencyProblem`. **That is
-  a better failure, not a fix** — it is loud instead of wrong, but Koha borrowing does not
-  work until `library_id` is read back.
-- `mapKohaItemToDcbItem` still uses Koha's `location` (a shelving classifier) as the branch
-  while `home_library_id` sits unused.
+It also depends on `Item.sourceHostLmsCode` being populated by every adapter, which it is not.
 
-Both fixes are written out in §4 and are small. They were left out of this pass because the
-scope was the three cross-cutting primitives plus the filter, and because they want an
-adapter-level test each, which needs Koha fixtures that do not exist yet (see below).
+### Known limitations worth deciding on
 
-**Koha virtual-record config is still single-library** (1c). `virtual-item-library-code`,
-`sharing-library-code` and the `default-agency-code` read at `KohaHostLmsClient:134` are
-scalars on the Host LMS. That last one reads `getConfig()` directly rather than going
-through `getDefaultAgencyCode()`, so it bypasses the shared-system guard entirely and yields
-an empty `library_id`. Either route it through the accessor or — better, per §4 — resolve
-the branch per request from the borrowing agency.
+**DCB refuses to lend from a patron's own library to a different pickup.**
+`setPatronRequestWorkflow` raises `UnsupportedWorkflowProblem` for "same supplying and
+borrowing library, different pickup library" before any system comparison. On a 60-library Koha
+that is ordinary behaviour — a patron at branch A borrowing branch A's copy but collecting at
+branch B — and it is rejected outright. Pinned by a test so the limitation is visible; whether
+to support it is a product decision.
 
-**No Koha or Alma test fixtures.** `HostLmsFixture` has helpers for Sierra, Polaris, dummy
-and ORS but not Koha or Alma, so `SameServerItemFilterTests` proves the same-server rule
-through Sierra records and the identity tests construct Koha and Alma clients directly with
-Mockito. That is adequate for the identity contract and inadequate for anything that
-exercises those adapters through the container. Adding the fixtures is a prerequisite for
-the Koha work above.
+**Resolution does not say why an item was excluded.** The audit carries `allItems` and
+`filteredItems` so the difference is visible, but not the reason. A filter cannot annotate an
+item through `Function<Item, Publisher<Boolean>>`; carrying reasons needs `ItemFilter` to return
+a decision rather than a boolean.
 
-Related: `KohaHostLmsClient` takes `KohaClientConfig` as a constructor dependency, but that
-class carries no bean annotation and its only constructor takes a `HostLms`. Whether
-Micronaut can construct a Koha client through `HostLmsService.getClientFor` at all needs
-checking before writing container-level Koha tests — `KohaApiClientImpl` builds its own
-config with `new KohaClientConfig(hostLms)`, which suggests the injected one may never have
-worked.
+**Sierra's identity is not resolved to `/`** the way every other adapter's is, so
+`https://sierra.example.com` and `https://sierra.example.com/` would be treated as two systems.
+Left alone deliberately: it is proven behaviour in production and normalising it could merge
+two Sierra instances that differ only by path. Worth doing with a test, not blind.
 
-### Correctness, both scenarios
+### Not addressed
 
-**H3 — RET-LOCAL routing still ignores the patron's system.**
-`RequestWorkflowContextHelper.setPatronRequestWorkflow` compares only lender and pickup
-clients. Patron on one system with lender and pickup on another still routes to
-`LOCAL_WORKFLOW`, where `placeSingularRequest` resolves its client from the borrowing
-identity and sends it the other system's bib and item IDs. The three-way comparison is
-written out in §2; it was left out because it changes workflow selection and wants its own
-permutation tests over `RequestWorkflowContextHelper`, which has none today.
+- **Unbounded per-item fan-out (H7).** `KohaHostLmsClient.getItems` still issues an unbounded
+  `flatMap` with a `getActiveHoldsForItem` call per item. A title held at sixty branches is
+  sixty-plus concurrent calls to one server per availability check, per user.
+- **Ingest is not deduplicated** across two Host LMS records on one Sierra. Confirm whether the
+  host-scoped `SourceRecordRepository` keying makes duplicate clustering intentional first.
+- **Config-file import** (`DCBConfigurationService`) imports locations and mappings, not Host
+  LMS records, so it needs no shared-system rule. The startup path that does seed Host LMS
+  records is covered.
 
-Note this bug's blast radius *grew* with §7.1: Alma clients used to compare equal to each
-other by accident, and Koha clients never compared equal at all. Both now report system
-identity honestly, so this branch of the router is reachable in configurations where it
-previously was not.
+### Scenario status
 
-**H6 — `LocationService.memoize` is still dead code.** The guard requires
-`location.getAgency()`, which no adapter sets, so it rejects exactly the unmapped locations
-it exists to capture. This is the onboarding tool for 60 branches and the discovery
-mechanism for an unfamiliar shared Sierra. The fix in §2 changes the generated location ID
-keying, so it needs a migration for existing memoized rows — that is why it is not in this
-pass. It also depends on `Item.sourceHostLmsCode` being populated by every adapter, which
-it currently is not.
+**Scenario 1 (60+ libraries on one Koha).** The blockers are cleared: the adapter constructs,
+patrons and items carry their branch, virtual records are placed per request, and intra-Koha
+lending routes to RET-LOCAL. Still required before it can run: onboarding the branch mappings
+by hand, and the fan-out limit under real load. Note that intra-Koha lending is governed by
+Koha's own circulation rules, not DCB's loan policy or canonical item type mappings — a
+consortium decision, not a defect.
 
-**2b — `isBorrowingAgency` is still enforced only in `ResolvePatronPreflightCheck`**, which
-is switchable via `dcb.requests.preflight-checks.resolve-patron.enabled`.
-`ValidatePatronTransition` does not re-assert it. Now that both stages share a resolver
-(§7.2), adding the assertion is a few lines in one place.
-
-**H8 — filter ordering is still undefined.** `SameServerItemFilter` no longer raises, so the
-specific hazard is gone, but no `ItemFilter` carries `@Order` and the composite's behaviour
-still depends on Micronaut's bean ordering. Add `@Order` and put cheap synchronous filters
-first.
-
-**H9 — `Location.code` is still annotated `@Column(unique = true)`** while the Flyway schema
-has no such constraint. Harmless at runtime, misleading to read. Drop the annotation; do not
-add the constraint.
-
-### Consistency and hygiene
-
-- **Sierra's identity is not resolved to `/`** the way FOLIO, Polaris, Alma and Koha are, so
-  `https://sierra.example.com` and `https://sierra.example.com/` would be treated as two
-  systems. The existing comment claims resolution happens; it does not. Left alone
-  deliberately — it is proven behaviour in production and normalising it could merge two
-  Sierra instances that differ only by path. Worth doing, worth doing with a test.
-- **`ValidatePatronTransition` resolves the agency twice.** `findLocalPatron` calls
-  `localPatronService.findLocalPatronAndAgency`, which resolves the agency and discards it,
-  then `resolveHomeLibraryCodeFromSystemToAgencyCode` resolves it again. That predates this
-  work, but now that both go through the same resolver the second call is provably redundant
-  and can take the agency from the tuple.
-- **`NoAgencyFoundException` has no remaining users** and can be deleted.
-- **Config-file import bypasses `HostLmsConfigValidator`** (§7.3). `DCBConfigurationService`
-  should apply the same shared-system rules.
-- **`PolarisConfig.defaultAgencyCode` is bound but never read.** Dead field; Polaris uses
-  the interface default, so it does respect the shared-system flag.
-
-### Scenario 2 specifics still open
-
-- The same-server exclusion is silent. `Item` carries `decisionLogEntries` precisely so a
-  resolution audit can explain itself; the filter should write one.
-- Ingest is not deduplicated across two Host LMS records on one Sierra. Confirm whether the
-  host-scoped `SourceRecordRepository` keying makes duplicate clustering intentional before
-  changing anything.
-- The `LOCATION_TO_AGENCY_FAILURE` alarm still fires one webhook per distinct unmapped
-  location code on first sighting. Bounded, but a 60-branch first ingest is a notification
-  flood. Batch into one digest alarm per Host LMS.
-
-### Known gap in what was built
-
-`LocationToAgencyMappingService.lookupRulesFor` falls back to `sharedSystem = false` when
-the Host LMS client cannot be loaded, which re-enables the wildcard. This matches the
-pre-existing behaviour of the context-hierarchy lookup it replaced, and reaching it requires
-both a transient client failure *and* a wildcard mapping that should not exist on a shared
-system — but it is a safety control failing open, and the safe direction is to suppress the
-wildcard whenever the system cannot be identified.
-
-### Test coverage to add alongside
-
-- `SameServerItemFilterTests` — currently nonexistent. Same-code/same-server,
-  different-code/same-server, different-server, null-code, and one case per adapter's
-  `getClientId()`.
-- `RequestWorkflowContextHelperTests` — the three-party permutation in H3.
-- A shared-system integration test: one Host LMS, three agencies, borrow across two of them,
-  assert RET-LOCAL and assert no virtual records are created.
-- Koha: patron home library round-trip (1a) and item branch mapping (1b).
+**Scenario 2 (shared Sierra, one participant and one not).** The mechanisms were already
+correct; the risk was configuration silently including the non-participant, and both routes to
+that — `default-agency-code` and `Location:*` — are now closed on a shared system, refused by
+the admin API, and flagged at startup. Model the non-participating library as an explicit
+agency with both participation flags false.
