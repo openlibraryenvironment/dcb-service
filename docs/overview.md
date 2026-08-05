@@ -1,0 +1,12 @@
+# Overview
+
+DCB coordinates direct consortial borrowing across member library systems. It ingests catalogue
+metadata, resolves live availability, and drives NCIP request lifecycles.
+
+DCB Profile NCIP2.02+ membership is invitation-controlled. DCB pulls an ORS tenant's authoritative
+public directory and creates its internal HostLMS, Agency, Library, and Location bindings atomically.
+Public contracts never expose the internal HostLMS adapter class.
+
+Generic OAI-PMH catalogue ingest resumes from the highest source datestamp observed. FOLIO retains its
+existing internal-clock resumption behaviour because its second-resolution timestamps require separate
+handling.

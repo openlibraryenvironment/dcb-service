@@ -68,7 +68,9 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 		}
 
 		// Setting the status to completed should cause the cleanup routine to fire which will do all the work we need to FINALISE the request
-		Status old_state = patronRequest.getStatus();
+		if (patronRequest.getOutcome() == null) {
+			patronRequest.setOutcome(PatronRequest.Outcome.UNKNOWN);
+		}
 		patronRequest.setStatus(Status.COMPLETED);
 		return patronRequestAuditService.addAuditEntry(patronRequest, "Manual cleanup actioned.")
 			.thenReturn(ctx);

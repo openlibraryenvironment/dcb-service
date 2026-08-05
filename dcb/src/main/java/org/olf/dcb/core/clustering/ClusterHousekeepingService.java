@@ -25,14 +25,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
-import services.k_int.features.FeatureFlag;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.scheduling.processor.AppTask;
 
 @Slf4j
 @Singleton
 @ExecuteOn(TaskExecutors.BLOCKING)
-@FeatureFlag(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)
+// @FeatureFlag(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)
 public class ClusterHousekeepingService {
 
 	private static final int BATCH_SIZE = 2000;
@@ -69,6 +68,9 @@ public class ClusterHousekeepingService {
 					toProcess.add(id);
 				} catch (IllegalArgumentException ex) {
 					// Invalid UUID somehow. Ignore.
+				} finally {
+					// Remove from the queue
+					queue.remove();
 				}
 			}
 
@@ -150,7 +152,7 @@ public class ClusterHousekeepingService {
 
 	@AppTask
 	@Scheduled(initialDelay = "10s")
-	protected void reprocess() {
+	public void reprocess() {
 		
 		if (completed) {
 			// NOOP

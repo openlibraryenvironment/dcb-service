@@ -18,7 +18,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
@@ -82,6 +81,8 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	private static final String CONFIG_METADATA_PREFIX = "metadata-prefix";
 
 	private static final String CONFIG_OAI_SET = "oai-set";
+
+	private static final String STATE_HIGHEST_RECORD_TIMESTAMP = "highestRecordTimestamp";
 	
 	private static final String PARAM_METADATA_PREFIX = "metadataPrefix";
 
@@ -158,6 +159,14 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	
 	protected void setIdentifierSeparator(String identifierSeparator) {
 		this.identifierSeparator = identifierSeparator;
+	}
+
+	/**
+	 * Observed source datestamps are the safe generic checkpoint because a provider may
+	 * publish records after DCB's fetch clock has advanced beyond their datestamps.
+	 */
+	protected OaiPmhResumptionPolicy resumptionPolicy() {
+		return OaiPmhResumptionPolicy.HIGHEST_TIMESTAMP;
 	}
 	
 	@Override
@@ -292,19 +301,27 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 				
 				var records = response.records();
 				log.info("Fetched a chunk of {} records for {}", records.size(), lms.getName());
+				state.highest_record_timestamp = highestRecordTimestampSeen(
+					Instant.ofEpochMilli(state.highest_record_timestamp), records).toEpochMilli();
 				
 				final String resumptionToken = response.resumptionToken();
 				
 				if ( ( resumptionToken == null ) || ( resumptionToken.length() == 0 ) ) {
 
-					log.info("{} ingest Terminating cleanly - run out of bib results - new timestamp is {}", lms.getName(), state.request_start_time);
+					Instant nextFrom = nextHarvestFrom(
+						resumptionPolicy(),
+						Instant.ofEpochMilli(state.request_start_time),
+						Instant.ofEpochMilli(state.highest_record_timestamp));
+					log.info("{} ingest terminating cleanly - next OAI from is {} using policy {}",
+						lms.getName(), nextFrom, resumptionPolicy());
 	
-					// Make a note of the time at which we started this run, so we know where
-					// to pick up from next time
-					state.storred_state.put("cursor", "deltaSince:" + state.request_start_time);
+					// OAI-PMH from is inclusive. Generic sources replay the observed boundary;
+					// the FOLIO override deliberately retains the historical clock checkpoint.
+					state.storred_state.put("cursor", "deltaSince:" + nextFrom.toEpochMilli());
 					state.storred_state.put("name", lms.getName());
 					
 					state.storred_state.remove("resumptionToken");
+					state.storred_state.remove(STATE_HIGHEST_RECORD_TIMESTAMP);
 	
 					log.info("No more results to fetch from OAI-PMH at {} - saving state as {}", lms.getName(), state);
 					
@@ -325,6 +342,9 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 						state.storred_state.put("cursor", "bootstrap:" + state.offset);
 					}
 					state.storred_state.put("resumptionToken", resumptionToken);
+					// Persist the observed high-water mark so token-expiry recovery or a
+					// process restart cannot fall back to the consumer clock.
+					state.storred_state.put(STATE_HIGHEST_RECORD_TIMESTAMP, state.highest_record_timestamp);
 				}
 
 				log.info("fetching next page of OAI-PMH data {}",state);
@@ -480,6 +500,15 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			}
 		} else {
 			log.info("Start a fresh ingest");
+		}
+
+		Object storedHighestTimestamp = current_state.get(STATE_HIGHEST_RECORD_TIMESTAMP);
+		if (storedHighestTimestamp instanceof Number timestamp) {
+			generator_state.highest_record_timestamp = timestamp.longValue();
+		} else if (storedHighestTimestamp != null) {
+			generator_state.highest_record_timestamp = Long.parseLong(storedHighestTimestamp.toString());
+		} else {
+			generator_state.highest_record_timestamp = generator_state.sinceMillis;
 		}
 
 		// Make a note of the time before we start
@@ -648,7 +677,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		);
 	}
 
-	private Mono<JsonNode> reactiveObjectMap ( @NonNull Object obj ) {
+	private Mono<JsonNode> reactiveObjectMap ( Object obj ) {
 		try {
 			return Mono.justOrEmpty( objectMapper.writeValueToTree(obj) );
 		} catch ( IOException e ) {
@@ -657,19 +686,14 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	}
 	
 	private ListRecordsParams buildNextParams(Optional<ListRecordsParams> currentParams, JsonArray currentResults, ListRecordsResponse fullResponse, Instant fetchTime) {
-		final Instant highestTimestamFromParams = currentParams
+		final Instant highestTimestampFromParams = currentParams
 				.map( ListRecordsParams::getHighestRecordTimestampSeen )
 				.orElseGet( () -> Instant.ofEpochSecond(0) );
 
-		final Instant highestRecordTimestampSeen = Optional.ofNullable( fullResponse )
+		final Instant highestRecordTimestampSeen = Optional.ofNullable(fullResponse)
 				.map( ListRecordsResponse::records )
-				.filter( Predicate.not(List::isEmpty) )
-				.map( list -> list.get(list.size() - 1) )
-				.map( OaiRecord::header )
-				.map( Header::datestamp )
-				.filter( ds -> ds.isAfter(highestTimestamFromParams) )
-				.orElse(highestTimestamFromParams);
-		;
+				.map(records -> highestRecordTimestampSeen(highestTimestampFromParams, records))
+				.orElse(highestTimestampFromParams);
 
 
 		// Always preserve the "start" params even if we have a resumption. This allows for better handling
@@ -686,9 +710,9 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 				.orElse(null);
 
 		if (resToken == null) {
-			// II: I really don't like this - it's subject to clock skew and all sorts of crap - much better to keep the highest
-			// timestamp seen from this source and use that as a from date.
-			lrp = lrp.from(fetchTime); // Set from to "now" to perform delta.
+			// OAI-PMH "from" is inclusive. HIGHEST_TIMESTAMP therefore deliberately
+			// replays records in the boundary second rather than risking unseen records.
+			lrp = lrp.from(nextHarvestFrom(resumptionPolicy(), fetchTime, highestRecordTimestampSeen));
 		}
 
 		// Add the token to the builder (possibly nulling out)
@@ -697,6 +721,30 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 				.hostCode(lms.getCode())
 				.highestRecordTimestampSeen(highestRecordTimestampSeen)
 				.build();
+	}
+
+	static Instant highestRecordTimestampSeen(Instant previousHighest, List<OaiRecord> records) {
+		return Optional.ofNullable(records)
+			.orElseGet(Collections::emptyList)
+			.stream()
+			.filter(Objects::nonNull)
+			.map(OaiRecord::header)
+			.filter(Objects::nonNull)
+			.map(Header::datestamp)
+			.filter(Objects::nonNull)
+			.max(Instant::compareTo)
+			.filter(timestamp -> timestamp.isAfter(previousHighest))
+			.orElse(previousHighest);
+	}
+
+	static Instant nextHarvestFrom(
+		OaiPmhResumptionPolicy policy,
+		Instant fetchTime,
+		Instant highestRecordTimestampSeen
+	) {
+		return policy == OaiPmhResumptionPolicy.INTERNAL_CLOCK
+			? fetchTime
+			: highestRecordTimestampSeen;
 	}
 	
 	@Override

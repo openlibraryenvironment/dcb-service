@@ -17,3 +17,17 @@ scripts/bootstrap_folio_test.sh
 scripts/bootstrap_folio_test2.sh
 scripts/bootstrap-*
 /myScripts
+
+# Application log output (dcb/logs/ when running locally)
+logs/
+
+# dcb_setup.sh profiles hold Keycloak secrets and API keys for real
+# environments. Only the template is committed.
+scripts/profiles/*.env
+!scripts/profiles/*.env.template
+
+# Escape hatch for configuration bundles that cannot be genericised.
+scripts/config/private-*/
+
+# Don't commit your local agent doctrine. Agreement on a project Agents.md file is pending
+/CLAUDE.md

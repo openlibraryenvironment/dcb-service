@@ -11,6 +11,8 @@ import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.audit.ProcessAuditService;
+import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.ingest.model.IngestRecord;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -31,7 +33,7 @@ import services.k_int.micronaut.PublisherTransformation;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
-@MicronautTest(transactional = false, rebuildContext = true)
+@MicronautTest(transactional = false, rebuildContext = true, contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 @TestInstance(PER_CLASS)
 @Slf4j
 class IngestTests {
@@ -48,6 +50,11 @@ class IngestTests {
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
+	
+	private Flux<BibRecord> getIngestStream() {
+		return ingestService.getBibRecordStream()
+			.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest"));
+	}
 
 	@BeforeAll
 	void beforeAll(MockServerClient mock) {
@@ -61,7 +68,7 @@ class IngestTests {
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
 		var mockSierra = SierraTestUtils.mockFor(mock, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		// Mock bibs returned by the sierra system for ingest.
 		mockSierra.whenRequest(req -> req.withMethod("GET").withPath("/iii/sierra-api/v6/bibs/*"))
@@ -81,7 +88,7 @@ class IngestTests {
 	@Test
 	void ingestFromSierra() {
 		// Run the ingest process
-		final var bibs =  ingestService.getBibRecordStream().collectList().block();
+		final var bibs =  getIngestStream().collectList().block();
 
 		// Assertion changed to 9 after adding filter condition to bib record processing. We now drop records
 		// with a null title on the floor. 10 input records, 1 with a null title = 9 records after ingest.
@@ -92,7 +99,7 @@ class IngestTests {
 	@Property(name="tests.enableLimiter", value = "true")
 	void ingestFromSierraWithLimiter() {
 		// Run the ingest process again, but with the limiter bean.
-		final var bibs =  manyValuesFrom(ingestService.getBibRecordStream());
+		final var bibs =  manyValuesFrom(getIngestStream());
 
 		// Should limit the returned items to 5 but because one of them has a null title, we drop it giving a count of 4
 		// Sometimes the null title record is not dropped, so there could be 5 records

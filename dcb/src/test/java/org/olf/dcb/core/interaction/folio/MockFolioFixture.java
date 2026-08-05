@@ -16,6 +16,7 @@ import org.olf.dcb.test.MockServerCommonRequests;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.Builder;
 import lombok.Value;
+import org.olf.dcb.test.TestResourceLoaderProvider;
 
 public class MockFolioFixture {
 	private final MockServer mockServer;
@@ -24,6 +25,13 @@ public class MockFolioFixture {
 	public MockFolioFixture(MockServerClient mockServerClient, String host, String apiKey) {
 		this.commonRequests = new MockServerCommonRequests(host, apiKey);
 		this.mockServer = new MockServer(mockServerClient, commonRequests);
+	}
+
+	public MockFolioFixture(MockServerClient mockServerClient, TestResourceLoaderProvider testResourceLoaderProvider,
+													String host, String apiKey) {
+		this.commonRequests = new MockServerCommonRequests(host, apiKey);
+		this.mockServer = new MockServer(mockServerClient, commonRequests,
+			testResourceLoaderProvider.forBasePath("classpath:mock-responses/folio/"));
 	}
 
 	void mockHoldingsByInstanceId(String instanceId, Holding... holdings) {
@@ -130,6 +138,25 @@ public class MockFolioFixture {
 
 	private static String renewTransactionPath(String transactionId) {
 		return "/dcbService/transactions/%s/renew".formatted(transactionId);
+	}
+
+	public void mockQueryItemsByBarcode(String barcode, String jsonResourcePath) {
+		mockServer.mockGet("/inventory/items", "query", "barcode==\"" + barcode + "\"",
+			okJson(mockServer.getResource(jsonResourcePath)));
+	}
+
+	public void mockQueryItemsByBarcode(String barcode, HttpResponse response) {
+		mockServer.mockGet("/inventory/items", "query", "barcode==\"" + barcode + "\"", response);
+	}
+
+	public void mockQueryInstancesByHoldingsRecordId(String holdingsRecordId, String jsonResourcePath) {
+		mockServer.mockGet("/inventory/instances", "query", "holdingsRecords.id==\"" + holdingsRecordId + "\"",
+			okJson(mockServer.getResource(jsonResourcePath)));
+	}
+
+	public void mockQueryInstancesByHoldingsRecordId(String holdingsRecordId, HttpResponse response) {
+		mockServer.mockGet("/inventory/instances", "query", "holdingsRecords.id==\"" + holdingsRecordId + "\"",
+			response);
 	}
 
 	@Serdeable

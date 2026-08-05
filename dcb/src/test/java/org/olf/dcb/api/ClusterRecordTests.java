@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -61,7 +62,7 @@ class ClusterRecordTests {
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
 
 		var mockSierra = SierraTestUtils.mockFor(mock, BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		// Mock bibs returned by the sierra system for ingest.
 		final var resourceLoader = testResourceLoaderProvider.forBasePath("classpath:mock-responses/sierra/");
@@ -78,7 +79,9 @@ class ClusterRecordTests {
 	@Test
 	void getClusterRecords() {
 		// Arrange
-		var list = ingestService.getBibRecordStream().collectList().block();
+		var list = ingestService.getBibRecordStream()
+				.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest"))
+				.collectList().block();
 
 		final var blockingClient = httpClient.toBlocking();
 		final var request = HttpRequest.GET("/clusters?page=0&size=10");
@@ -111,6 +114,7 @@ class ClusterRecordTests {
 			hasIdentifier("ISSN", "1234-5678 online"),
 			hasIdentifier("LCCN", "68009551"),
 			hasIdentifier("GOLDRUSH", "basiccircuittheorybycharlesadesoerandernestskuh                  1969876    mca                              "),
+			hasIdentifier("GOLDRUSH::TITLE", "basiccircuittheorybycharlesadesoerandernestskuh"),
 			// hasIdentifier("BLOCKING_TITLE", "basic circuit theory charles desoer ernest kuh"),
 			hasIdentifier("BLOCKING_TITLE", "basic circuit theory"),
 			// hasIdentifier("BLOCKING_WORK_TITLE", "basic circuit theory charles desoer ernest kuh"),

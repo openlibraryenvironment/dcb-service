@@ -1,0 +1,13 @@
+dcb:
+  peer-auth:
+    enabled: true
+    ncip:
+      enabled: true
+    local-identity:
+      id: dcb
+      issuer: https://dcb.example/peer-auth
+      subject: ORS:DCB
+      key-id: key-1
+      public-jwk: public
+      private-jwk: private
+      token-lifetime: PT5M

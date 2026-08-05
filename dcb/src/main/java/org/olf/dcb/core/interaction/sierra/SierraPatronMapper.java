@@ -64,7 +64,7 @@ public class SierraPatronMapper {
 		return manuallyBlocked || automaticallyBlocked;
 	}
 
-	private static boolean hasCode(@Nullable Block blockInfo) {
+	private static boolean hasCode(Block blockInfo) {
 		final var blockCode = getValueOrNull(blockInfo, Block::getCode);
 
 		return isNotEmpty(blockCode) && isNotHyphen(blockCode);

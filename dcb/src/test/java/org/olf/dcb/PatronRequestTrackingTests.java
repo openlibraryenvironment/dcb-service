@@ -173,7 +173,7 @@ public class PatronRequestTrackingTests {
 		final String SECRET = "patron-request-tracking-tests-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, baseUrl)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		hostLmsFixture.createSierraHostLms(hostLmsCode, KEY, SECRET, baseUrl, "item");
 	}

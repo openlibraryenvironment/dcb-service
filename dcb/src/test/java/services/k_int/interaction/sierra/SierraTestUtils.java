@@ -142,7 +142,18 @@ public interface SierraTestUtils {
 		}
 		
 		private TimerTask revoker;
-		
+
+		/**
+		 * validitySeconds is wall clock from this call, not per request: a timer revokes the issued
+		 * token once it elapses and every later call to this host gets a 401. It therefore has to
+		 * exceed the whole runtime of the calling test class, not the runtime of one test.
+		 *
+		 * Callers used to pass 60, which was fine while classes were quick and became a
+		 * load-dependent flake once they were not - a class that ran long started failing partway
+		 * through with "Unexpected response from" and a 401, most visibly in the workflow API
+		 * suites. Several classes now routinely exceed 60s. Prefer the 3600 used by the single
+		 * argument overload above.
+		 */
 		public MockSierraV6Host setValidCredentials( final String basicAuthHash, final String returnToken, final long validitySeconds ) {
 			if (revoker != null) {
 				try {

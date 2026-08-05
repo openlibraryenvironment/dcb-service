@@ -1,6 +1,5 @@
 package org.olf.dcb.ingest.marc;
 
-import static services.k_int.features.Features.featureIsEnabled;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.concatSubfieldData;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.extractOrderedSubfields;
 import static services.k_int.integration.marc4j.Marc4jRecordUtils.interpretLanguages;
@@ -25,7 +24,6 @@ import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
-import org.olf.dcb.core.clustering.ImprovedRecordClusteringService;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.ingest.IngestSource;
@@ -88,9 +86,9 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		  enrichWithTitleInformation(ingestRecord, marcRecord);
 			enrichWithBlockingTitle(ingestRecord, marcRecord);
 			
-			if (!featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)) {
+//			if (!featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING)) {
 				enrichWithBlockingWorkTitle(ingestRecord, marcRecord);
-			}
+//			}
   		// Identifiers
 	  	enrichWithIdentifiers(ingestRecord, marcRecord);
   		// Author(s)
@@ -455,7 +453,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	  						seen_identifier_types.add(idns);
 	
 		  				final int confidence = switch ( idns ) {
-			  				case "LCCN" -> featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING) ? 0 : 10;
+			  				case "LCCN" -> 0;
 				  			case "ISBN" -> 11; // All ISBNs are untrustworthy at this stage - unless there is only 1
 					  		case "ISSN" -> first_occurrence_of_type ? 0 : 11;
 						  	default -> 12;
@@ -586,7 +584,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 			.map( StringUtils::trimToNull )
 			.map( grVal -> Identifier.build(id -> id.namespace(NS_GOLDRUSH).value(grk.getText())));
 		
-		if ( featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING) ) {
+//		if ( featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING) ) {
 			// Add just the Goldrush title as well.
 			identifierStream = Stream.concat(identifierStream, grk.getParts().entrySet().stream()
 					.filter(e -> "Title".equalsIgnoreCase( e.getKey() ))
@@ -603,7 +601,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 //					.namespace(NS_GOLDRUSH + "::" + e.getKey().toUpperCase())
 //					.value( "" + e.getValue().toLowerCase() )))); // NEED TO FILTER NULLS..
 		
-		}
+//		}
 		
 		identifierStream
 			.forEach(ingestRecord::addIdentifiers);
@@ -899,7 +897,6 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	}
 
 
-	@SuppressWarnings("unchecked")
 	private void addToCanonicalMetadata(String property, VariableField vf, String tags,
 			Map<String, Object> canonical_metadata) {
 

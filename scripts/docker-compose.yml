@@ -1,9 +1,9 @@
-services:
+﻿services:
   elasticsearch:
     # THIS IMAGE IS BUILD AND PUBLISHED FROM THE KI-OKAPI-GITOPS REPO - docker-buildfiles subdir
     #  
-    # image: docker.elastic.co/elasticsearch/elasticsearch:8.7.0  # Use latest version available
-    image: docker.libsdev.k-int.com/knowledgeintegration/folio-es:8.7.0  # Use latest version available
+    # image: docker.elastic.co/elasticsearch/elasticsearch:9.4.2  # Use latest version available
+    image: docker.libsdev.k-int.com/knowledgeintegration/folio-es:9.4.2  # Use latest version available
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
@@ -40,6 +40,110 @@ services:
         limits:
           memory: 8g
 
+  # Elasticsearch 9, for use with the Micronaut 5 client (elasticsearch-java 9.x).
+  # The 9.x client sends `compatible-with=9`, which the 8.7.0 server above rejects
+  # with HTTP 400, so the two are mutually exclusive -- run one or the other.
+  # Opt-in: `docker compose --profile es9 up -d`
+  # Separate volume on purpose: ES 9 cannot read an 8.x data directory.
+  elasticsearch9:
+    profiles: ["es9"]
+    build:
+      context: .
+      dockerfile: es9-icu.Dockerfile
+    image: dcb-es9-icu:9.4.0
+    container_name: elasticsearch9
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=elastic
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+    ports:
+      - "9200:9200"
+    volumes:
+      - es9_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s -u elastic:elastic http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+      timeout: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+
+  # OpenSearch 2.x -- mirrors the production backend (AWS Fargate).
+  # Opt-in: `docker compose --profile os2 up -d --build opensearch`
+  # Point DCB at it with OPENSEARCH_HTTP_HOSTS (and leave ELASTICSEARCH_HTTP_HOSTS
+  # unset -- configure one backend, not both).
+  opensearch:
+    profiles: ["os2"]
+    build:
+      context: .
+      dockerfile: os2-icu.Dockerfile
+    image: dcb-os2-icu:2.19.1
+    container_name: opensearch
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g
+    ports:
+      - "9200:9200"
+    volumes:
+      - os2_data:/usr/share/opensearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+      timeout: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+
+  # Opt-in only: `docker compose --profile persistent-db up -d`.
+  #
+  # DCB has no other database since the Micronaut Test Resources plugin was
+  # removed from dcb/build.gradle -- nothing provisions Postgres automatically
+  # any more, so `./gradlew run` needs this (or some other Postgres) running.
+  # `scripts/local_dev.sh` starts it for you; see docs/local-development.md.
+  #
+  # Credentials match the defaults in dcb/src/main/resources/application-development.yml,
+  # so no datasource environment variables are needed in the common case.
+  postgres:
+    profiles: ["persistent-db"]
+    image: postgres:18
+    container_name: dcb-postgres
+    environment:
+      - POSTGRES_USER=dcb
+      - POSTGRES_PASSWORD=dcb
+      - POSTGRES_DB=dcb
+    # -N 200 matches the connection ceiling the test suite provisions; the R2DBC
+    # pool alone is configured for maxSize 40.
+    command: ["postgres", "-N", "200"]
+    ports:
+      # Host port is overridable because a native/WSL Postgres commonly already
+      # owns 5432 and would silently shadow this container. Set DCB_PG_PORT to
+      # move it, and pass the same value to DCB as DB_PORT.
+      - "${DCB_PG_PORT:-5432}:5432"
+    volumes:
+      # postgres:18+ expects a single mount at /var/lib/postgresql and puts the
+      # cluster in a version subdirectory. Mounting /var/lib/postgresql/data (the
+      # pre-18 convention) makes the entrypoint refuse to start.
+      - dcb_pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dcb -d dcb"]
+      interval: 5s
+      retries: 10
+      start_period: 10s
+      timeout: 5s
+
 volumes:
   elastic_data:
+  es9_data:
+  os2_data:
+  dcb_pg_data:
 

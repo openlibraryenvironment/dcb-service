@@ -35,7 +35,6 @@ public interface JpaQuerySpecificationBuilder<T,S> {
 		}
 	};
 
-	@SuppressWarnings("unchecked")
 	private static <R, Q extends QueryNode> JpaQuerySpecificationBuilder<R, Q> getBuilderForNode( Q queryNode ) {
 		
 		Objects.requireNonNull(queryNode);

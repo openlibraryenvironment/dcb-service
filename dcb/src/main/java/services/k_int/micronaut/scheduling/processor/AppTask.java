@@ -7,10 +7,13 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import io.micronaut.context.annotation.Executable;
+
 /**
  * An annotation for signalling this as an ApplicationSchedule
  */
 @Documented
+@Executable(processOnStartup = true)
 @Retention(RUNTIME)
 @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})
 public @interface AppTask {

@@ -31,6 +31,10 @@ public class MockServerCommonRequests {
 		return baselineRequest("PUT", path);
 	}
 
+	public HttpRequest patch(String path) {
+		return baselineRequest("PATCH", path);
+	}
+
 	public HttpRequest delete(String path) {
 		return baselineRequest("DELETE", path);
 	}

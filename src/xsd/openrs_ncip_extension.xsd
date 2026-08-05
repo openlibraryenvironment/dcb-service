@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="https://openrs.org/ncip/fallback-host"
+  xmlns:dcb="https://openrs.org/ncip/fallback-host"
+  elementFormDefault="qualified">
+
+  <xs:element name="ShippingContext" type="dcb:ShippingContextType"/>
+
+  <xs:complexType name="ShippingContextType">
+    <xs:sequence>
+      <xs:element name="SchemaVersion" type="xs:positiveInteger"/>
+      <xs:element name="WorkflowCode" type="xs:string"/>
+      <xs:element name="RouteMode" type="xs:string"/>
+      <xs:element name="Patron" type="dcb:PatronType"/>
+      <xs:element name="BorrowingLibrary" type="dcb:EndpointType"/>
+      <xs:element name="Supplier" type="dcb:EndpointType"/>
+      <xs:element name="PickupDestination" type="dcb:PickupDestinationType"/>
+      <xs:element name="Provenance" type="dcb:ProvenanceType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PatronType">
+    <xs:sequence>
+      <xs:element name="Barcode" type="xs:string"/>
+      <xs:element name="SystemCode" type="xs:string"/>
+      <xs:element name="AgencyCode" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="EndpointType">
+    <xs:sequence>
+      <xs:element name="SystemCode" type="xs:string"/>
+      <xs:element name="AgencyCode" type="xs:string"/>
+      <xs:element name="AgencyName" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PickupDestinationType">
+    <xs:sequence>
+      <xs:element name="Kind" type="xs:string"/>
+      <xs:element name="Owner" type="dcb:EndpointType"/>
+      <xs:element name="DcbLocationId" type="xs:string" minOccurs="0"/>
+      <xs:element name="DcbLocationCode" type="xs:string" minOccurs="0"/>
+      <xs:element name="LocalLocationCode" type="xs:string"/>
+      <xs:element name="DisplayName" type="xs:string"/>
+      <xs:element name="Address" type="dcb:AddressType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="AddressType">
+    <xs:sequence>
+      <xs:element name="Formatted" type="xs:string"/>
+      <xs:element name="Scope" type="xs:string"/>
+      <xs:element name="Source" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ProvenanceType">
+    <xs:sequence>
+      <xs:element name="Source" type="xs:string"/>
+      <xs:element name="SelectedPickupValue" type="xs:string" minOccurs="0"/>
+      <xs:element name="SelectedPickupCodeContext" type="xs:string" minOccurs="0"/>
+      <xs:element name="SelectedPickupContext" type="xs:string" minOccurs="0"/>
+      <xs:element name="RequestCreatedAt" type="xs:dateTime" minOccurs="0"/>
+      <xs:element name="LocationLastImportedAt" type="xs:dateTime" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
+

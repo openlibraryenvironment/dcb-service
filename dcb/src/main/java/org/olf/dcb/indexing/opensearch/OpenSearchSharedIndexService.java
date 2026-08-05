@@ -13,6 +13,7 @@ import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
+import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
@@ -66,22 +67,52 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	
 	private final String indexName;
 	private final int indexVersion; 
+	private final int numberOfReplicas;
 	
-	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
+	private final SharedIndexBackendInfo backendInfo;
+
+	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs, SharedIndexBackendInfo backendInfo) {
 		super(recordClusteringService, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
+		this.backendInfo = backendInfo;
 		this.indexName = conf.name();
+		this.numberOfReplicas = conf.effectiveNumberOfReplicas();
 		if (conf.version().isEmpty()) {
 			this.indexVersion = SharedIndexConfiguration.LATEST_INDEX_VERSION;
 		} else {
 			this.indexVersion = conf.version().get();
 		}
 	}
-	
+
 	@PostConstruct
 	void init() {
 		log.info("Using Opensearch Indexing service");
+		reportBackendVersion();
+	}
+
+	// Report which server we are actually talking to. Client/server compatibility is a
+	// recurring upgrade hazard, and establishing a deployment's backend version otherwise
+	// requires credentials for that cluster. Best-effort: a failure here must never stop
+	// the service starting, so it only downgrades to a warning.
+	private void reportBackendVersion() {
+		try {
+			client.info()
+				.whenComplete((info, error) -> {
+					if (error != null) {
+						log.warn("Could not determine the OpenSearch server version", error);
+						return;
+					}
+
+					final var version = info.version();
+					backendInfo.record(version.distribution(), version.number());
+
+					log.info("Shared index backend: {} {}", version.distribution(), version.number());
+				});
+		}
+		catch (Exception e) {
+			log.warn("Could not determine the OpenSearch server version", e);
+		}
 	}
 
 	@Override
@@ -119,6 +150,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		return checkIndex()	
 			.map(BooleanResponse::value)
 			.flatMap( exists -> (exists ? updateMappings() : createNewIndex()) )
+			.then(Mono.defer(this::reconcileNumberOfReplicas))
 			.then(Mono.defer(() -> restoreRefresh().then() ));
 	}
 	
@@ -183,7 +215,18 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
   	JsonParser settingsParser = mapper.jsonProvider().createParser(settingsInputStream);
   	IndexSettings indexSettings = IndexSettings._DESERIALIZER.deserialize(settingsParser, mapper);
   	
-  	return indexSettings;
+		return indexSettings.toBuilder()
+			.index(indexSettings.index().toBuilder()
+				.numberOfReplicas(numberOfReplicas)
+				.build())
+			.build();
+	}
+
+	private Mono<Boolean> reconcileNumberOfReplicas() {
+		log.info("Setting OpenSearch index {} replica count to {}", realIndexName(), numberOfReplicas);
+
+		return changeIndexSettings(realIndexName(), settings -> settings
+			.index(index -> index.numberOfReplicas(numberOfReplicas)));
 	}
 	
 	private Mono<CreateIndexResponse> createIndex() {
@@ -332,11 +375,17 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	}
 	
 	private Mono<Boolean> changeIndexSettings(Function<IndexSettings.Builder, ObjectBuilder<IndexSettings>> settings) {
+		return changeIndexSettings(indexName, settings);
+	}
+
+	private Mono<Boolean> changeIndexSettings(
+		String targetIndex,
+		Function<IndexSettings.Builder, ObjectBuilder<IndexSettings>> settings) {
 		
 		try {
 			return Mono.fromFuture(
 					client.indices()
-					.putSettings( s -> s.index(indexName)
+					.putSettings( s -> s.index(targetIndex)
 						.settings(settings)))
 				.map(AcknowledgedResponseBase::acknowledged)
         .onErrorResume( e -> {

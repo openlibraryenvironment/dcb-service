@@ -50,6 +50,9 @@ public class RequestWorkflowContext {
 	String lenderAgencyCode;
 	String lenderSystemCode;
 	Agency lenderAgency;
+	// The supplier/lender Host LMS, loaded so SUPPLIER-role capability and tracking
+	// can be resolved per-host (mirrors patronSystem for the borrower side).
+	DataHostLms lenderSystem;
 
 	PatronIdentity patronHomeIdentity;
 	PatronIdentity patronVirtualIdentity;

@@ -36,6 +36,10 @@ public class MockServerCommonResponses {
 		return response().withStatusCode(500).withBody(json(body, APPLICATION_JSON));
 	}
 
+	public static HttpResponse badRequest() {
+		return response().withStatusCode(400).withBody("Something was wrong with the request");
+	}
+
 	public static HttpResponse badRequest(Object body) {
 		return response().withStatusCode(400).withBody(json(body));
 	}

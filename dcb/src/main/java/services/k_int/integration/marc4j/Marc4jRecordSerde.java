@@ -14,34 +14,21 @@ import org.marc4j.marc.impl.MarcFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-
 import io.micronaut.context.annotation.Requires;
-import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.serde.Decoder;
 import io.micronaut.serde.Encoder;
-import io.micronaut.serde.LimitingStream;
 import io.micronaut.serde.Serde;
-import io.micronaut.serde.SerdeRegistry;
-import io.micronaut.serde.config.SerdeConfiguration;
-import io.micronaut.serde.jackson.JacksonDecoder;
 import jakarta.inject.Singleton;
 
 @Requires(classes = Record.class)
 @Singleton
-public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> implements Serde<Record> {
+public class Marc4jRecordSerde implements Serde<Record> {
 	
 	// Instanciate the default class here. Works better with native compilation.
 	private static final MarcFactory factory = new MarcFactoryImpl();
 	
-	private final SerdeConfiguration serdeConfiguration;
-	private final SerdeRegistry registry;
-
 	private static Logger log = LoggerFactory.getLogger(Marc4jRecordSerde.class);
 
 	private static final String KEY_LEADER = "leader";
@@ -60,14 +47,7 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 
 	private static final Pattern REGEX_CTRLFIELD = Pattern.compile( "00[0-9]" );
 	private static final Pattern REGEX_DATAFIELD = Pattern.compile( "((0[1-9])|[1-9][0-9])[0-9]" );
-  // The space is important - some sunfields use " ".
-	private static final Pattern REGEX_SUBFIELD = Pattern.compile( "[a-z0-9 ]" );
 
-	public Marc4jRecordSerde(@NonNull SerdeConfiguration serdeConfiguration, @NonNull SerdeRegistry registry) {
-		this.serdeConfiguration = serdeConfiguration;
-		this.registry = registry;
-	}
-	
 	@Override
 	public void serialize(Encoder enc, EncoderContext context, Argument<? extends Record> type, final Record record)
 		throws IOException {
@@ -362,13 +342,5 @@ public class Marc4jRecordSerde extends JsonDeserializer<org.marc4j.marc.Record> 
 			}
 		}
 
-	}
-
-	@Override
-	public Record deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JacksonException {
-		
-		Decoder decoder = JacksonDecoder.create(p, LimitingStream.limitsFromConfiguration(serdeConfiguration));
-		final Argument<Record> type = Argument.of(Record.class);
-		return this.deserialize(decoder, registry.newDecoderContext(Record.class), type);
 	}
 }

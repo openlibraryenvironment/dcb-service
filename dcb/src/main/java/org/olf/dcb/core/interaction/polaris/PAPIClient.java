@@ -7,7 +7,9 @@ import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.valueOf;
+import static java.time.ZoneOffset.UTC;
 import static java.util.Collections.singletonList;
+import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_PATRON_ADDRESS_CHECK_YEARS;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_POLARIS;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -16,6 +18,7 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.HostLms;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -160,6 +163,10 @@ public class PAPIClient {
 			.patronCode(parseInt(patron.getLocalPatronType()))
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
 			.birthdate("1999-11-01")
+			// Stamp the address check date well into the future so the patron is born without the
+			// block Polaris otherwise derives from a past date. The create has no override, so on
+			// systems with local rules this may be clamped - the post-create override handles that.
+			.addrCheckDate(LocalDate.now(UTC).plusYears(VIRTUAL_PATRON_ADDRESS_CHECK_YEARS).toString())
 			// Polaris requires these fields,
 			// we call the API to extract defaults
 			// or fallback to empty strings if not
@@ -192,6 +199,38 @@ public class PAPIClient {
 			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
 			.doOnSuccess(patronUpdateResult -> log.debug("PatronUpdateResult: {}", patronUpdateResult))
 			.map(patronUpdateResult -> barcode);
+	}
+
+	/**
+	 * Updates a virtual patron's expiry and/or address check dates via the PAPI patron update
+	 * (PUT /patron/{barcode}). Unlike the Application Services profile PATCH, PatronUpdateData
+	 * carries both dates. A null date is omitted, so only the supplied dates change. Returns TRUE
+	 * when Polaris reports success (error code 0).
+	 */
+	public Mono<Boolean> patronRegistrationUpdateDates(String barcode, String expirationDate, String addrCheckDate) {
+		log.info("patronRegistrationUpdateDates barcode={} expiry={} addrCheck={}", barcode, expirationDate, addrCheckDate);
+
+		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
+
+		final var body = PatronRegistration.builder()
+			.logonBranchID(polarisConfig.getLogonBranchId())
+			.logonUserID(polarisConfig.getLogonUserId())
+			.logonWorkstationID(polarisConfig.getServicesWorkstationId())
+			.expirationDate(expirationDate)
+			.addrCheckDate(addrCheckDate)
+			.build();
+
+		return client.createRequest(PUT, path)
+			// passing empty patron credentials will allow public requests without patron auth
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
+			.map(request -> request.body(body))
+			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
+			.map(result -> getValue(result, PatronUpdateResult::getPapiErrorCode, -1) == 0)
+			.doOnNext(ok -> log.debug("patronRegistrationUpdateDates {} success={}", barcode, ok))
+			.onErrorResume(e -> {
+				log.error("Error updating patron {} dates: {}", barcode, e.getMessage(), e);
+				return Mono.just(FALSE);
+			});
 	}
 
 	public Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(String barcode) {
@@ -722,9 +761,12 @@ public class PAPIClient {
 		private Integer eReceiptOptionID;
 		@JsonProperty("PatronCode")
 		private Integer patronCode;
+		// Omitted when null so a dates-only update does not blank the other date
 		@JsonProperty("ExpirationDate")
+		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String expirationDate;
 		@JsonProperty("AddrCheckDate")
+		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String addrCheckDate;
 		@JsonProperty("GenderID")
 		private Integer genderID;

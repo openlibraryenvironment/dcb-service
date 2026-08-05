@@ -160,6 +160,7 @@ public interface PatronRequestRepository {
         SELECT
             pr.id,
             CAST(pr.status_code AS VARCHAR) as status,
+            CAST(pr.outcome_code AS VARCHAR) as outcome,
             CAST(pr.next_expected_status AS VARCHAR) as next_expected_status,
             pr.elapsed_time_in_current_status as time_in_state,
             pr.error_message,
@@ -197,6 +198,7 @@ public interface PatronRequestRepository {
         SELECT
             pr.id,
             CAST(pr.status_code AS VARCHAR) as status,
+            CAST(pr.outcome_code AS VARCHAR) as outcome,
             CAST(pr.next_expected_status AS VARCHAR) as next_expected_status,
             pr.elapsed_time_in_current_status as time_in_state,
             pr.error_message,

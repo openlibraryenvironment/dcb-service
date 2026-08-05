@@ -15,7 +15,7 @@ public class DcbError extends DcbException {
 	
 	private static Logger log = LoggerFactory.getLogger(DcbError.class);
 	
-	private DcbError( @NonNull String message, @Nullable Throwable cause, boolean enableSuppression) {
+	private DcbError( String message, Throwable cause, boolean enableSuppression) {
 		super(message, cause, enableSuppression, log.isDebugEnabled());
 	}
 

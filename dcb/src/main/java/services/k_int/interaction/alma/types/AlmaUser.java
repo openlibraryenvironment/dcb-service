@@ -44,4 +44,7 @@ public class AlmaUser {
 	List<UserIdentifier> identifiers;
 	@Nullable
 	String expirationDate;
+	@ToString.Include
+	@JsonProperty("user_blocks")
+	List<AlmaUserBlock> user_blocks;
 }

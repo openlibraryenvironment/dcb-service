@@ -64,12 +64,19 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
-@Property(name = "dcb.resolution.live-availability.timeout", value = "PT1S")
+// PT1S was too tight under Micronaut 5: the first resolution's cold start (Sierra client
+// init, TLS CONNECT through the MockServer proxy, and per-item agency lookups) takes ~1.3s,
+// so the live-availability race lost to the timeout and returned an empty item list. Raised
+// to PT5S for cold-start headroom; shouldNotWaitForSlowResponseForAvailability keeps proving
+// the timeout fires by delaying its mock well beyond this (see that test).
+@Property(name = "dcb.resolution.live-availability.timeout", value = "PT5S")
 class PatronRequestResolutionServiceTests {
 	private final String CATALOGUING_HOST_LMS_CODE = "resolution-cataloguing";
 	private final String CIRCULATING_HOST_LMS_CODE = "resolution-circulating";
 	private final String BORROWING_HOST_LMS_CODE = "resolution-borrowing";
 	private final String SAME_SERVER_SUPPLYING_HOST_LMS_CODE = "same-server-hostlms";
+	private final String QUALIFIED_BORROWING_HOST_LMS_CODE = "qualified-borrowing-hostlms";
+	private final String QUALIFIED_SUPPLYING_HOST_LMS_CODE = "qualified-supplying-hostlms";
 
 	private final String SUPPLYING_AGENCY_CODE = "supplying-agency";
 	private final String BORROWING_AGENCY_CODE = "borrowing-agency";
@@ -112,7 +119,7 @@ class PatronRequestResolutionServiceTests {
 		final var secret = "resolution-system-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, baseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient, host);
 
@@ -132,6 +139,12 @@ class PatronRequestResolutionServiceTests {
 		// create a supplying host LMS that is on the same server as the borrower
 		hostLmsFixture.createSierraHostLms(SAME_SERVER_SUPPLYING_HOST_LMS_CODE, key,
 			secret, baseUrl, "item");
+
+		hostLmsFixture.createSierraHostLms(QUALIFIED_BORROWING_HOST_LMS_CODE, key,
+			secret, baseUrl, "item", "borrowing-tenant");
+
+		hostLmsFixture.createSierraHostLms(QUALIFIED_SUPPLYING_HOST_LMS_CODE, key,
+			secret, baseUrl, "item", "supplying-tenant");
 	}
 
 	@BeforeEach
@@ -162,6 +175,9 @@ class PatronRequestResolutionServiceTests {
 		// For simplicity all sierra item types are expected to be on 1 in this class
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			cataloguingHostLms.getCode(), 1, 1, "loanable-item");
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			QUALIFIED_SUPPLYING_HOST_LMS_CODE, 1, 1, "loanable-item");
 	}
 
 	@Test
@@ -451,10 +467,12 @@ class PatronRequestResolutionServiceTests {
 		final var unavailableItemId = "372656";
 		final var unavailableItemBarcode = "6256486473634";
 
+		// Delay must exceed the class live-availability timeout (PT5S) so the response is
+		// abandoned; 8s clears it even after the ~1.3s Micronaut 5 cold start.
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
 			checkedOutItem(unavailableItemId, unavailableItemBarcode),
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
-		), 2000);
+		), 8000);
 
 		// Act
 		final var parameters = standardParametersFor(clusterRecord);
@@ -588,6 +606,68 @@ class PatronRequestResolutionServiceTests {
 		assertThat(resolution, allOf(
 			notNullValue(),
 			hasNoChosenItem()
+		));
+	}
+
+	@Test
+	void shouldNotExcludeItemWhenSharedBaseUrlHasDifferentQualifiers() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+		final var clusterRecord = createClusterRecord(bibRecordId);
+		final var sourceRecordId = "774421";
+
+		bibRecordFixture.createBibRecord(bibRecordId,
+			hostLmsFixture.findByCode(QUALIFIED_SUPPLYING_HOST_LMS_CODE).getId(),
+			sourceRecordId, clusterRecord);
+
+		final var availableItemId = "qualified-item-1";
+		final var availableItemBarcode = "qualified-barcode-1";
+		final var itemLocationCode = "qualified-item-location";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(availableItemId, availableItemBarcode, itemLocationCode)
+		));
+
+		final var qualifiedBorrowingAgencyCode = "qualified-borrowing-agency";
+		final var qualifiedSupplyingAgencyCode = "qualified-supplying-agency";
+
+		final var qualifiedBorrowingAgency = agencyFixture.defineAgency(
+			qualifiedBorrowingAgencyCode, qualifiedBorrowingAgencyCode,
+			hostLmsFixture.findByCode(QUALIFIED_BORROWING_HOST_LMS_CODE));
+
+		agencyFixture.defineAgency(qualifiedSupplyingAgencyCode, qualifiedSupplyingAgencyCode,
+			hostLmsFixture.findByCode(QUALIFIED_SUPPLYING_HOST_LMS_CODE));
+
+		final var qualifiedPickupLocation = locationFixture.createPickupLocation(
+			randomUUID(), "Qualified Pickup Location", "qualified-pickup-location",
+			qualifiedBorrowingAgency);
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			QUALIFIED_SUPPLYING_HOST_LMS_CODE, itemLocationCode,
+			qualifiedSupplyingAgencyCode);
+
+		// Act
+		final var parameters = ResolutionParameters.builder()
+			.borrowingAgencyCode(qualifiedBorrowingAgencyCode)
+			.borrowingHostLmsCode(QUALIFIED_BORROWING_HOST_LMS_CODE)
+			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
+			.pickupLocationCode(getValueOrNull(qualifiedPickupLocation,
+				Location::getId, UUID::toString))
+			.pickupAgencyCode(qualifiedBorrowingAgencyCode)
+			.excludedSupplyingAgencyCodes(emptyList())
+			.build();
+
+		final var resolution = resolve(parameters);
+
+		// Assert
+		assertThat(resolution, allOf(
+			notNullValue(),
+			hasChosenItem(
+				hasHostLmsCode(QUALIFIED_SUPPLYING_HOST_LMS_CODE),
+				hasLocalId(availableItemId),
+				hasBarcode(availableItemBarcode),
+				hasAgencyCode(qualifiedSupplyingAgencyCode)
+			)
 		));
 	}
 

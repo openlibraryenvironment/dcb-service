@@ -28,6 +28,7 @@ public class PatronStatusMapper {
 			projection.status(),
 			discoveryStatus,
 			discoveryStatus.getFriendlyDescription(),
+			projection.outcome(),
 			projection.nextExpectedStatus(),
 			projection.timeInState(),
 			projection.errorMessage(),

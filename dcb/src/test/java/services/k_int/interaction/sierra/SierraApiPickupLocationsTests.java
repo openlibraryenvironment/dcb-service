@@ -44,7 +44,7 @@ class SierraApiPickupLocationsTests {
 		final var secret = "pickup-locations-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, baseUrl)
-			.setValidCredentials(key, secret, token, 60);
+			.setValidCredentials(key, secret, token, 3600);
 
 		sierraPickupLocationsFixture = sierraApiFixtureProvider.pickupLocations(mockServerClient, host);
 

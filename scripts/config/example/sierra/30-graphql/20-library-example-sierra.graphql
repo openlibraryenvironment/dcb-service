@@ -1,0 +1,33 @@
+mutation {
+  createLibrary(input: {
+    agencyCode: "example-sierra"
+    hostLmsCode: "EXAMPLE_SIERRA"
+    isSupplyingAgency: true
+    isBorrowingAgency: true
+    fullName: "Example Sierra Library"
+    shortName: "Example Sierra"
+    abbreviatedName: "ESL"
+    address: "2 Example Avenue"
+    longitude: -1.470850
+    latitude: 53.381130
+    type: "ACADEMIC"
+    backupDowntimeSchedule: ""
+    supportHours: ""
+    discoverySystem: ""
+    patronWebsite: ""
+    hostLmsConfiguration: ""
+    contacts: [
+      {
+        firstName: "Grace"
+        lastName: "Example"
+        role: "Library Services Administrator"
+        isPrimaryContact: true
+        email: "grace.example@example.org"
+      }
+    ]
+  }) {
+    id
+    fullName
+    agencyCode
+  }
+}

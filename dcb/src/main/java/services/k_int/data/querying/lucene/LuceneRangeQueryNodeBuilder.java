@@ -81,7 +81,6 @@ public class LuceneRangeQueryNodeBuilder<T> implements JpaQuerySpecificationBuil
 			LocalDateTime.class.isAssignableFrom(type);
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
 	private Predicate buildNumericRangePredicate(
 		Path<?> path,
 		CriteriaBuilder cb,
@@ -142,7 +141,6 @@ public class LuceneRangeQueryNodeBuilder<T> implements JpaQuerySpecificationBuil
 		}
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
 	private Predicate buildDateTimeRangePredicate(
 		Path<?> path,
 		CriteriaBuilder cb,

@@ -28,6 +28,10 @@ public record PatronRequestSummary(
 	@Nullable String status,
 	@Nullable PatronRequestDiscoveryStatus discoveryStatus,
 	@Nullable String statusDescription,
+	// From main: the terminal outcome of the request, independent of the patron-facing
+	// status mapping above. Kept alongside rather than folded in -- a discovery service
+	// that renders discoveryStatus still wants to know how a finished request ended.
+	@Nullable String outcome,
 	@Nullable String nextExpectedStatus,
 	@Nullable Long timeInState,
 	@Nullable String errorMessage,

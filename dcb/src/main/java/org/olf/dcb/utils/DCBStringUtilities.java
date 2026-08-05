@@ -4,18 +4,19 @@ import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 
 import java.text.Normalizer;
 import java.util.Collections;
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.olf.dcb.core.clustering.ImprovedRecordClusteringService;
-
 import io.micronaut.core.util.StringUtils;
 import jakarta.validation.constraints.NotNull;
-import static services.k_int.features.Features.featureIsEnabled;
 import services.k_int.utils.UUIDUtils;
 
 public class DCBStringUtilities {
@@ -68,24 +69,7 @@ public class DCBStringUtilities {
 		if (inputString == null)
 			return null;
 		
-		// Under a feature flag we need to branch and make sure the string is ordered. 
-		// This should be removed when we are confident this is better and just use the "new" route.
-		if (featureIsEnabled(ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING))
-			return generateNewBlockingString(inputString, qualifiers);
-		
-		// Feature not enabled. Drop through to the previous method 
-		// Replace Names
-		return Stream.concat(
-			qualifiers.stream()
-				.map(DCBStringUtilities::toNoneDiacriticAlphaNumeric),
-			Stream.of(NAMES.matcher(toNoneDiacriticAlphaNumeric(inputString)).replaceAll("$2 $1"))
-		)
-    .filter(Objects::nonNull)
-		.map(String::trim)														// Trim
-		.map(String::toLowerCase)											// Lowercase
-		.flatMap(SPLITTING_DELIMETER::splitAsStream)	// Split
-		.filter(Predicate.not(stopwords::contains)) 	// Remove stop words
-		.collect(Collectors.joining(" "));						// Rejoin with single spacing.
+		return generateNewBlockingString(inputString, qualifiers);
 	}
 	
 	private static String generateNewBlockingString(final String inputString, @NotNull List<String> qualifiers) {

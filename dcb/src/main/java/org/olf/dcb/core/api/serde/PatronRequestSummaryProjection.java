@@ -23,6 +23,8 @@ import java.util.UUID;
 public record PatronRequestSummaryProjection(
 	@NotNull UUID id,
 	@Nullable String status,
+	// From main's outcome_code. Selected, not derived, so it belongs here.
+	@Nullable String outcome,
 	@Nullable String nextExpectedStatus,
 	@Nullable Long timeInState,
 	@Nullable String errorMessage,

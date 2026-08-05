@@ -1,0 +1,33 @@
+mutation {
+  createLibrary(input: {
+    agencyCode: "example-ors"
+    hostLmsCode: "EXAMPLE_ORS"
+    isSupplyingAgency: true
+    isBorrowingAgency: true
+    fullName: "Example ORS Appliance Library"
+    shortName: "Example ORS"
+    abbreviatedName: "EORS"
+    address: "3 Example Close"
+    longitude: -1.548567
+    latitude: 53.801277
+    type: "ACADEMIC"
+    backupDowntimeSchedule: ""
+    supportHours: ""
+    discoverySystem: ""
+    patronWebsite: ""
+    hostLmsConfiguration: ""
+    contacts: [
+      {
+        firstName: "Alan"
+        lastName: "Example"
+        role: "Library Services Administrator"
+        isPrimaryContact: true
+        email: "alan.example@example.org"
+      }
+    ]
+  }) {
+    id
+    fullName
+    agencyCode
+  }
+}

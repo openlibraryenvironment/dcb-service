@@ -6,12 +6,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.olf.dcb.test.DcbTestContainerContextBuilder;
 
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE, ElementType.TYPE})
 @ExtendWith(MockServerMicronautJunit5Extension.class)
-@MicronautTest(transactional = false)
+@MicronautTest(transactional = false, contextBuilder = DcbTestContainerContextBuilder.class)
 public @interface MockServerMicronautTest {
 }

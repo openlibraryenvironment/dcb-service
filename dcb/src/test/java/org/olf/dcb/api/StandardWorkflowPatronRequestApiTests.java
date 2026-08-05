@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.awaitility.core.ConditionTimeoutException;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterAll;
@@ -139,9 +140,9 @@ class StandardWorkflowPatronRequestApiTests {
 		final String SECRET = "patron-request-secret";
 
 		SierraTestUtils.mockFor(mockServerClient, BORROWING_BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 		SierraTestUtils.mockFor(mockServerClient, SUPPLYING_BASE_URL)
-			.setValidCredentials(KEY, SECRET, TOKEN, 60);
+			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
 		locationFixture.deleteAll();
 		agencyFixture.deleteAll();
@@ -194,7 +195,10 @@ class StandardWorkflowPatronRequestApiTests {
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("2745326", "i", null);
 
 		// borrowing agency service
+		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
+
 		final var bibPatch = BibPatch.builder()
+			.fixedFields(fixedFields)
 			.authors(List.of("Stafford Beer"))
 			.titles(List.of("Brain of the Firm"))
 			.build();
@@ -249,6 +253,67 @@ class StandardWorkflowPatronRequestApiTests {
 	@AfterAll
 	void tearDown() {
 		patronRequestApiClient.removeTokenFromValidTokens();
+	}
+
+	/**
+	 * The container and its database are gone by the time a failure is read, so anything not in the
+	 * assertion message is unavailable for diagnosis. Capture the state that explains why the
+	 * request stopped where it did.
+	 */
+	private String describeRequest(UUID patronRequestId,
+		PatronRequest.Status expectedStatus) {
+
+		final var description = new StringBuilder()
+			.append("Request ").append(patronRequestId)
+			.append(" did not reach ").append(expectedStatus);
+
+		try {
+			final var patronRequest = patronRequestsFixture.findById(patronRequestId);
+
+			description.append("\n  status=").append(patronRequest.getStatus())
+				.append(" previousStatus=").append(patronRequest.getPreviousStatus())
+				.append("\n  errorMessage=").append(patronRequest.getErrorMessage())
+				.append("\n  localRequestStatus=").append(patronRequest.getLocalRequestStatus())
+				.append(" localItemStatus=").append(patronRequest.getLocalItemStatus());
+
+			try {
+				final var supplierRequest = supplierRequestsFixture.findFor(patronRequest);
+
+				description.append("\n  supplierRequest localStatus=")
+					.append(supplierRequest.getLocalStatus())
+					.append(" localItemStatus=").append(supplierRequest.getLocalItemStatus());
+			}
+			catch (Exception e) {
+				description.append("\n  supplierRequest unavailable: ").append(e);
+			}
+
+			description.append("\n  audits (oldest first):");
+
+			patronRequestsFixture.findAuditEntries(patronRequest).stream()
+				.sorted(Comparator.comparing(PatronRequestAudit::getAuditDate,
+					Comparator.nullsFirst(Comparator.naturalOrder())))
+				.forEach(audit -> {
+					description.append("\n    ")
+						.append(audit.getAuditDate())
+						.append(" ").append(audit.getFromStatus())
+						.append(" -> ").append(audit.getToStatus())
+						.append(" : ").append(audit.getBriefDescription());
+
+					// The audit data carries the response status and body for a failed host LMS
+					// call, which is the only way to tell a mock that did not match from one that
+					// did not respond in time. Only worth printing for the entry that errored.
+					if (audit.getToStatus() == PatronRequest.Status.ERROR
+						&& audit.getAuditData() != null) {
+
+						description.append("\n        auditData=").append(audit.getAuditData());
+					}
+				});
+		}
+		catch (Exception e) {
+			description.append("\n  unable to describe request: ").append(e);
+		}
+
+		return description.toString();
 	}
 
 	@Test
@@ -340,8 +405,12 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat(placedPatronRequest.getRequestor().getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 
 		log.info("Waiting for placed....");
+		// 20s was too tight once the whole suite runs together under Micronaut 5, whose
+		// first-request cold start is slower; the request was still short of
+		// REQUEST_PLACED_AT_BORROWING_AGENCY when the budget expired, and the workflow
+		// still running into the next test's cleanup then cascaded into FK violations.
 		AdminApiClient.AdminAccessPatronRequest fetchedPatronRequest = await()
-			.atMost(20, SECONDS)
+			.atMost(30, SECONDS)
 			.until(
 				() -> adminApiClient.getPatronRequestViaAdminApi(placedPatronRequest.getId()),
 					isPlacedAtBorrowingAgency());
@@ -494,10 +563,16 @@ class StandardWorkflowPatronRequestApiTests {
 				.build());
 
 		log.info("Waiting for placed at supplying agency");
-		await()
-			.atMost(10, SECONDS)
-			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
-				hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		try {
+			await()
+				.atMost(10, SECONDS)
+				.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
+					hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+		}
+		catch (ConditionTimeoutException e) {
+			throw new AssertionError(describeRequest(placedPatronRequest.getId(),
+				REQUEST_PLACED_AT_SUPPLYING_AGENCY), e);
+		}
 
 		final var updatedLocalSupplyingItemId = "4737553";
 		final var updatedLocalSupplyingItemBarcode = "276425536";
@@ -543,10 +618,18 @@ class StandardWorkflowPatronRequestApiTests {
 
 		trackingFixture.trackRequest(placedPatronRequest.getId());
 
-		final var fetchedPatronRequest = await()
-			.atMost(5, SECONDS)
-			.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
-				hasStatus(REQUEST_PLACED_AT_BORROWING_AGENCY));
+		final PatronRequest fetchedPatronRequest;
+
+		try {
+			fetchedPatronRequest = await()
+				.atMost(5, SECONDS)
+				.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
+					hasStatus(REQUEST_PLACED_AT_BORROWING_AGENCY));
+		}
+		catch (ConditionTimeoutException e) {
+			throw new AssertionError(describeRequest(placedPatronRequest.getId(),
+				REQUEST_PLACED_AT_BORROWING_AGENCY), e);
+		}
 
 		assertThat(fetchedPatronRequest, is(notNullValue()));
 

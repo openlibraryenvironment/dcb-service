@@ -83,14 +83,12 @@ public class IndexSynch implements Job<UUID>, JobChunkProcessor {
 		return JOB_NAME;
 	}
 	
-	@NonNull
 	private JobParameters getInitialParameters() {
 		return JobParameters.builder()
 			.cutoff(Instant.now())
 			.build();
 	}
 	
-	@NonNull
 	private JobParameters parseParams( JsonNode json ) {
 		
 		if (json == null) return getInitialParameters();
@@ -104,7 +102,6 @@ public class IndexSynch implements Job<UUID>, JobChunkProcessor {
 		return getInitialParameters();
 	}
 	
-	@Nullable
 	private JsonNode paramsToJson( JobParameters params ) {
 		try {
 			return mapper.writeValueToTree(params);

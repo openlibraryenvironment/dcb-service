@@ -9,6 +9,7 @@ import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 
 import org.junit.jupiter.api.*;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.core.interaction.polaris.MockPolarisFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -21,7 +22,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @Slf4j
 @MockServerMicronautTest
-@MicronautTest(transactional = false, rebuildContext = true)
+@MicronautTest(transactional = false, rebuildContext = true, contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 @TestInstance(PER_CLASS)
 class PolarisIngestTests {
 	private static final String HOST_LMS_CODE = "ingest-service-service-tests";
@@ -67,7 +68,8 @@ class PolarisIngestTests {
 		mockPolarisFixture.mockGetPagedBibs();
 
 		// Act
-		final var bibs = manyValuesFrom(ingestService.getBibRecordStream());
+		final var bibs = manyValuesFrom(ingestService.getBibRecordStream()
+				.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest")));
 
 		// Assert
 

@@ -129,6 +129,15 @@ public interface CoreBibliographicMetadata {
 	
 	@Nullable
 	public default Author getAuthor() {
+		final Object author = getCanonicalMetadata().get(MD_AUTHOR);
+
+		if (author instanceof Map<?, ?> authorMap) {
+			final Object name = authorMap.get("name");
+			if (name instanceof String authorName) {
+				return Author.builder().name(authorName).build();
+			}
+		}
+
 		return getMetadataValue(MD_AUTHOR, Author.class);
 	}
 

@@ -28,7 +28,7 @@ import services.k_int.interaction.sierra.FixedField.FixedFieldBuilder;
 
 @DcbTest
 @Slf4j
-@MicronautTest(propertySources = "classpath:generic-filter-config.yml")
+@MicronautTest(propertySources = "classpath:generic-filter-config.yml", contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 public class GenericRulesTest {
 		
 	@Inject

@@ -479,6 +479,7 @@ public class BorrowingAgencyService {
 			.pickupAgency(ctx.getPickupAgency())
 			.note(note)
 			.patronRequestId(patronRequest.getId().toString())
+			.requestingAgencyCode(ctx.getPatronAgencyCode())
 			.title(bibRecordTitle)
 			.supplyingAgencyCode(supplyingAgencyCode)
 			.supplyingLocalItemId(supplierRequest.getLocalItemId())

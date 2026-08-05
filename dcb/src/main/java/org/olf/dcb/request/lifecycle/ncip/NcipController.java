@@ -1,0 +1,151 @@
+package org.olf.dcb.request.lifecycle.ncip;
+
+import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
+
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.MediaType;
+import io.micronaut.http.MutableHttpResponse;
+import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Post;
+import io.micronaut.security.annotation.Secured;
+import org.olf.dcb.core.interaction.ncip.NcipProtocol;
+import org.olf.dcb.core.interaction.ncip.NcipSchemaPath;
+import org.olf.dcb.core.interaction.ncip.NcipSchemaValidator;
+import org.olf.dcb.request.lifecycle.ncip.peerauth.NcipPeerAuthGuard;
+import org.olf.dcb.request.lifecycle.tracking.InboundLifecycleMessageHandler;
+import reactor.core.publisher.Mono;
+
+@Controller("/ncip/v2_02")
+@Secured(IS_ANONYMOUS)
+public class NcipController {
+	private final InboundLifecycleMessageHandler inboundLifecycleMessageHandler;
+	private final NcipInboundXmlMapper inboundXmlMapper;
+	private final NcipResponseBuilder responseBuilder;
+	private final NcipSchemaValidator schemaValidator;
+	private final NcipPeerAuthGuard peerAuthGuard;
+
+	public NcipController(
+		InboundLifecycleMessageHandler inboundLifecycleMessageHandler,
+		NcipInboundXmlMapper inboundXmlMapper,
+		NcipResponseBuilder responseBuilder,
+		NcipPeerAuthGuard peerAuthGuard) {
+
+		this(
+			inboundLifecycleMessageHandler,
+			inboundXmlMapper,
+			responseBuilder,
+			new NcipSchemaValidator(NcipSchemaPath.schemaPath()),
+			peerAuthGuard);
+	}
+
+	NcipController(
+		InboundLifecycleMessageHandler inboundLifecycleMessageHandler,
+		NcipInboundXmlMapper inboundXmlMapper,
+		NcipResponseBuilder responseBuilder,
+		NcipSchemaValidator schemaValidator,
+		NcipPeerAuthGuard peerAuthGuard) {
+
+		this.inboundLifecycleMessageHandler = inboundLifecycleMessageHandler;
+		this.inboundXmlMapper = inboundXmlMapper;
+		this.responseBuilder = responseBuilder;
+		this.schemaValidator = schemaValidator;
+		this.peerAuthGuard = peerAuthGuard;
+	}
+
+	@Post(consumes = {
+		MediaType.APPLICATION_XML,
+		MediaType.TEXT_XML
+	}, produces = MediaType.APPLICATION_XML)
+	public Mono<MutableHttpResponse<String>> receive(
+		HttpRequest<?> request,
+		@Body String xml) {
+
+		return receive(request, xml, true);
+	}
+
+	Mono<MutableHttpResponse<String>> receive(@Body String xml) {
+		return receive(HttpRequest.POST("/ncip/v2_02", xml), xml, false);
+	}
+
+	private Mono<MutableHttpResponse<String>> receive(
+		HttpRequest<?> request,
+		String xml,
+		boolean enforcePeerAuth) {
+
+		final NcipInboundMessage ncipMessage;
+
+		try {
+			schemaValidator.validate(xml);
+			ncipMessage = inboundXmlMapper.map(xml);
+		}
+		catch (RuntimeException e) {
+			return Mono.just(xmlResponse(responseBuilder.problem(messageFrom(e))));
+		}
+
+		final var authProblem = enforcePeerAuth
+			? peerAuthGuard.problem(request, ncipMessage)
+			: Mono.just(java.util.Optional.<MutableHttpResponse<String>>empty());
+
+		return authProblem.flatMap(problem -> problem
+			.map(Mono::just)
+			.orElseGet(() -> inboundLifecycleMessageHandler.handle(
+				new NcipInboundMessageMapper().map(ncipMessage))
+			.thenReturn(successResponseFor(ncipMessage))
+			.onErrorResume(error -> Mono.just(problemResponseFor(ncipMessage, error)))));
+	}
+
+	private MutableHttpResponse<String> successResponseFor(
+		NcipInboundMessage message) {
+
+		if (NcipProtocol.REQUEST_ITEM_RESPONSE.equals(message.messageKind())
+			|| NcipProtocol.ACCEPT_ITEM_RESPONSE.equals(message.messageKind())) {
+			return HttpResponse.noContent();
+		}
+
+		return xmlResponse(switch (message.messageKind()) {
+			case NcipProtocol.ITEM_REQUESTED -> responseBuilder.itemRequestedResponse();
+			case NcipProtocol.CANCEL_REQUEST_ITEM -> responseBuilder.cancelRequestItemResponse(
+				message.hostRequestId());
+			case NcipProtocol.ITEM_SHIPPED -> responseBuilder.itemShippedResponse();
+			case NcipProtocol.ITEM_RECEIVED -> responseBuilder.itemReceivedResponse();
+			case NcipProtocol.ITEM_CHECKED_IN -> responseBuilder.itemCheckedInResponse();
+			case NcipProtocol.ITEM_CHECKED_OUT -> responseBuilder.itemCheckedOutResponse();
+			default -> responseBuilder.problem(
+				"Unsupported NCIP message: " + message.messageKind());
+		});
+	}
+
+	private MutableHttpResponse<String> problemResponseFor(
+		NcipInboundMessage message,
+		Throwable error) {
+
+		return xmlResponse(switch (message.messageKind()) {
+			case NcipProtocol.ITEM_REQUESTED -> responseBuilder.itemRequestedProblem(
+				messageFrom(error));
+			case NcipProtocol.CANCEL_REQUEST_ITEM -> responseBuilder.cancelRequestItemProblem(
+				messageFrom(error));
+			case NcipProtocol.ITEM_SHIPPED -> responseBuilder.itemShippedProblem(
+				messageFrom(error));
+			case NcipProtocol.ITEM_RECEIVED -> responseBuilder.itemReceivedProblem(
+				messageFrom(error));
+			case NcipProtocol.ITEM_CHECKED_IN -> responseBuilder.itemCheckedInProblem(
+				messageFrom(error));
+			case NcipProtocol.ITEM_CHECKED_OUT -> responseBuilder.itemCheckedOutProblem(
+				messageFrom(error));
+			default -> responseBuilder.problem(messageFrom(error));
+		});
+	}
+
+	private static MutableHttpResponse<String> xmlResponse(String body) {
+		return HttpResponse.ok(body)
+			.contentType(MediaType.APPLICATION_XML_TYPE);
+	}
+
+	private static String messageFrom(Throwable error) {
+		return error.getMessage() != null
+			? error.getMessage()
+			: error.getClass().getSimpleName();
+	}
+}

@@ -57,7 +57,7 @@ public class SourceRecordsController {
 		return Mono.from(sourceRecordRepository.findAllByDateUpdatedAfter(effectiveSince, sortedPageable));
 	}
 
-	private Pageable withDateUpdatedSort(@Nullable Pageable pageable) {
+	private Pageable withDateUpdatedSort(Pageable pageable) {
 		final Pageable base = pageable == null ? Pageable.from(0, DEFAULT_PAGE_SIZE) : pageable;
 
 		return base.order(Sort.Order.desc("dateUpdated"));

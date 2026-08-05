@@ -54,6 +54,25 @@ public class Patron {
 	private String state;
 	private Boolean isActive;
 
+	// Non fatal problems the host LMS client hit while creating or fetching this patron.
+	// These are surfaced into the patron request audit so that library staff can intervene
+	// before the problem turns into a failed virtual checkout.
+	@Nullable private List<String> warnings;
+
+	public Patron addWarning(String warning) {
+		if (warnings == null) {
+			warnings = new ArrayList<>();
+		}
+
+		warnings.add(warning);
+
+		return this;
+	}
+
+	public boolean hasWarnings() {
+		return warnings != null && !warnings.isEmpty();
+	}
+
 	public boolean isEligible() {
 		return !Objects.equals(canonicalPatronType, "NOT_ELIGIBLE");
 	}

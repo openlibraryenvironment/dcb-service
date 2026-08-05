@@ -22,6 +22,7 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
+import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
@@ -1216,6 +1217,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// List<UserIdentifier> user_identifiers;
 		localBarcodes.add(almaUser.getPrimary_id());
 
+		boolean isActive = almaUser.getStatus() != null && "ACTIVE".equalsIgnoreCase(almaUser.getStatus().getValue());
+		boolean isDeleted = almaUser.getStatus() != null && "DELETED".equalsIgnoreCase(almaUser.getStatus().getValue());
+
+
 		return Patron.builder()
 			.localId(localIds) // list
 			.localNames(localNames)
@@ -1475,21 +1480,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.doOnNext(loc -> loc.setLibraryCode(libraryCode));
 	}
 
-//	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
-//		log.debug("Fetching Alma item by barcode: {}", barcode);
-//
-//		return client.retrieveItemBarcodeOnly(barcode)
-//			.flatMap(item -> {
-//				if (item == null) {
-//					log.warn("No item found in Alma for barcode: {}", barcode);
-//					return Mono.empty();
-//				}
-//				return Mono.just(mapAlmaItemToHostLmsItem(item.getItemData()));
-//			})
-//			.doOnError(e -> log.error("Failed to fetch item by barcode {} from Alma: {}", barcode, e.getMessage()));
-//	}
-
-
 @Override
 public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 	log.debug("Fetching Alma item by barcode: {}", barcode);
@@ -1545,6 +1535,7 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 				final String newExpirationDateStr = newExpiryDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "Z";
 
 				almaUser.setExpirationDate(newExpirationDateStr);
+				almaUser.setStatus(CodeValuePair.builder().value("ACTIVE").build());
 
 				return client.updateUserDetails(almaUser.getPrimary_id(), almaUser)
 					.map(updatedUser -> {

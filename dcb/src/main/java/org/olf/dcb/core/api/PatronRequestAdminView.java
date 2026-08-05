@@ -36,7 +36,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 			new Requestor(patron.getId().toString(), patron.getHomeLibraryCode(),
 				Identity.fromList(patron.getPatronIdentities())),
 			SupplierRequest.fromList(supplierRequests),
-			new Status(patronRequest.getStatus(), patronRequest.getErrorMessage()),
+			new Status(patronRequest.getStatus(), patronRequest.getOutcome(), patronRequest.getErrorMessage()),
 			new LocalRequest(patronRequest.getLocalRequestId(),
 				patronRequest.getLocalRequestStatus(),
 				patronRequest.getLocalItemId(),
@@ -57,7 +57,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	@Serdeable
 	record Identity(String localId, String hostLmsCode, Boolean homeIdentity) {
 
-		private static Identity from(PatronIdentity patronIdentity) {
+		static Identity from(PatronIdentity patronIdentity) {
 			return new Identity(patronIdentity.getLocalId(), patronIdentity.getHostLms().code,
 				patronIdentity.getHomeIdentity());
 		}
@@ -71,7 +71,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	@Serdeable
 	record SupplierRequest(UUID id, Item item, String hostLmsCode,
 		String status, String localHoldId, String localHoldStatus) {
-		private static SupplierRequest from(
+		static SupplierRequest from(
 			org.olf.dcb.core.model.SupplierRequest supplierRequest) {
 
 			return new SupplierRequest(supplierRequest.getId(),
@@ -84,7 +84,7 @@ record PatronRequestAdminView(UUID id, Citation citation,
 				supplierRequest.getLocalStatus());
 		}
 
-		private static List<SupplierRequest> fromList(
+		static List<SupplierRequest> fromList(
 			List<org.olf.dcb.core.model.SupplierRequest> supplierRequests) {
 
 			return supplierRequests.stream()
@@ -119,7 +119,8 @@ record PatronRequestAdminView(UUID id, Citation citation,
 	record Item(String id, String localItemBarcode, String localItemLocationCode) {}
 
 	@Serdeable
-	record Status(org.olf.dcb.core.model.PatronRequest.Status code, String errorMessage) {}
+	record Status(org.olf.dcb.core.model.PatronRequest.Status code,
+		org.olf.dcb.core.model.PatronRequest.Outcome outcome, String errorMessage) {}
 
 	@Serdeable
 	record LocalRequest(String id, String status, String itemId, String bibId) {}
