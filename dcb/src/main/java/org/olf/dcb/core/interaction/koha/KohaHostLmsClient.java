@@ -535,16 +535,27 @@ public class KohaHostLmsClient implements HostLmsClient {
 					dueDate = Instant.parse(kohaItem.getCheckout().getDueDate());
 				}
 
-				// Deriving the location. Can we do better here - look at the others, maybe we can do something new
-				Location derivedLocation = kohaItem.getLocation() != null
+				// Koha's "location" is a shelving classifier - REF, STACKS, JUV - and every
+				// branch on a shared server uses the same set of them, so it can never
+				// identify which library owns an item. The branch is home_library_id, with
+				// holding_library_id as the fallback for an item currently away from home.
+				// See Item, which documents the two as distinct concepts.
+				final var owningBranch = kohaItem.getHomeLibraryId() != null
+					? kohaItem.getHomeLibraryId()
+					: kohaItem.getHoldingLibraryId();
+
+				Location derivedLocation = owningBranch != null
 					? Location.builder()
-					.code(kohaItem.getLocation())
-					.name(kohaItem.getLocation())
+					.code(owningBranch)
+					.name(owningBranch)
 					.build()
 					: null;
 
 				// Suppression needs work. assume a "42" in the not for loan means local only for now.
-				boolean isSuppressedFromDCB = kohaItem.getNotForLoanStatus() == 42;
+				// Integer, not int: comparing with == unboxes and throws on any item that has
+				// no not_for_loan_status, which getItems then swallows via onErrorContinue -
+				// the item simply disappears from availability with nothing to show why.
+				boolean isSuppressedFromDCB = Integer.valueOf(42).equals(kohaItem.getNotForLoanStatus());
 				Boolean isSuppressed = kohaItem.getWithdrawn() != null && kohaItem.getWithdrawn() > 0 || isSuppressedFromDCB;
 
 				return Item.builder()
@@ -552,6 +563,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 					.status(new ItemStatus(dcbStatusCode))
 					.dueDate(dueDate)
 					.location(derivedLocation)
+					.shelvingLocation(kohaItem.getLocation())
 					.barcode(kohaItem.getExternalId())
 					.callNumber(kohaItem.getCallnumber())
 					.isRequestable(isRequestable)
