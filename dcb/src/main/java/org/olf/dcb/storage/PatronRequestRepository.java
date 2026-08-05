@@ -74,6 +74,15 @@ public interface PatronRequestRepository {
 	@Query(value = "SELECT pr.* from patron_request pr, patron_identity pi, host_lms h where pr.patron_id = pi.patron_id and pi.host_lms_id = h.id and h.code = :patronSystem and pi.local_id = :patronId and pi.home_identity=true order by pr.date_updated", countQuery = "SELECT count(pr.id) from patron_request pr, patron_identity pi, host_lms h where pr.patron_id = pi.patron_id and pi.host_lms_id = h.id and h.code = :patronSystem and pi.local_id = :patronId and pi.home_identity=true", nativeQuery = true)
 	Publisher<Page<PatronRequest>> findRequestsForPatron(String patronSystem, String patronId, Pageable pageable);
 
+	/**
+	 * One request, ONLY when it belongs to the given patron (same home-identity
+	 * join as findRequestsForPatron) — the ownership check for self-service
+	 * actions like patron-initiated cancellation. Empty = not found OR not yours;
+	 * deliberately indistinguishable so ids can't be probed.
+	 */
+	@Query(value = "SELECT pr.* from patron_request pr, patron_identity pi, host_lms h where pr.id = :patronRequestId and pr.patron_id = pi.patron_id and pi.host_lms_id = h.id and h.code = :patronSystem and pi.local_id = :patronId and pi.home_identity=true", nativeQuery = true)
+	Publisher<PatronRequest> findOwnedRequest(UUID patronRequestId, String patronSystem, String patronId);
+
 
 	@Introspected
 	public record ScheduledTrackingRecord(UUID id, @Nullable String status_code, @Nullable Instant next_scheduled_poll) {	};

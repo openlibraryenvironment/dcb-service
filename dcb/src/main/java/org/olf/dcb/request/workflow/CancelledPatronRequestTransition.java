@@ -37,7 +37,9 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class CancelledPatronRequestTransition implements PatronRequestStateTransition {
-	private static final List<Status> POSSIBLE_SOURCE_STATUS = List.of( // Not yet loaned
+	// Public: PatronRequestCancellationService gates patron-initiated cancels on
+	// exactly the states this transition can recover from — one source of truth.
+	public static final List<Status> POSSIBLE_SOURCE_STATUS = List.of( // Not yet loaned
 		Status.REQUEST_PLACED_AT_BORROWING_AGENCY,
 		Status.REQUEST_PLACED_AT_PICKUP_AGENCY,
 		Status.PICKUP_TRANSIT,
