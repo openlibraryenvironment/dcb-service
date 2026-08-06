@@ -2154,28 +2154,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<JsonNode> fetchBibs(BibsPagedGetParams params) {
-
-		if (polarisConfig.isUseNewBibChunkIngest()) {
-			return synch_GetUpdatedBibsThenFetchBibs(params); // new logic
-		}
-
-		return Mono.from(PAPIService.synch_BibsPagedGetRaw(params)); // existing logic
+		return synch_GetUpdatedBibsThenFetchBibs(params);
 	}
 
 
 	public Mono<JsonNode> synch_GetUpdatedBibsThenFetchBibs(BibsPagedGetParams params) {
 
-		// assume this is a full harvest on face value
-		var isFullHarvest = true;
-
-		// if the last chunk appeared we see this value..
-		final var startDateModifiedPresent = params.getStartdatemodified() != null;
-
-		// now make our assumption
-		isFullHarvest = !startDateModifiedPresent;
-
-		if (isFullHarvest) {
-			// carry on as normal
+		// A null cursor means we have nothing to resume from, so this is the initial load
+		if (params.getStartdatemodified() == null) {
 			return Mono.from(PAPIService.synch_BibsPagedGetRaw(params));
 		}
 

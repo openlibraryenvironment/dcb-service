@@ -71,17 +71,6 @@ public class PolarisConfig {
 	private Map<String,String> shelfLocationPolicyMap;
 
 	/**
-	 * Optional - to provide flexibility to enable/disable a new way of fetching bib chunks
-	 * importantly anything other than 'true' will signal false upstream
-	 * only by specifying true will we use this 'new way'
-	 */
-	@JsonProperty("use-new-bib-chunk-ingest")
-	private Boolean useNewBibChunkIngest;
-	public Boolean isUseNewBibChunkIngest() {
-		return valueWithDefault(useNewBibChunkIngest, Boolean.class, false);
-	}
-
-	/**
 	 * Handling of the "double delete" policy
 	 * If enabled then we can "hard delete" records such as virtual items
 	 * Otherwise default to the "soft delete" approach to records
