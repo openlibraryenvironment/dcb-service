@@ -357,13 +357,6 @@ public class PAPIClient {
 
 		String dateStr = Optional.ofNullable(params.getStartdatemodified())
 					.map( inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString() )
-					// .map( inst -> {
-          //    // Convert the instant to a string without the timezone
-          //    // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-          //    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-          //    LocalDateTime localDateTime = LocalDateTime.ofInstant(inst, ZoneOffset.UTC);
-          //    return(formatter.format(localDateTime));
-          // })
 					.orElse(null);
 
     log.info("get page : {} {} {}",lms.getCode(),params, dateStr);
@@ -374,9 +367,18 @@ public class PAPIClient {
 
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, Integer lastId, Integer nrecs) {
+		final String enddatemodified = startdatemodified == null ? null : LocalDate.now(UTC).plusDays(1).toString();
+		return synch_BibsPagedGetRaw(startdatemodified, enddatemodified, lastId, nrecs);
+	}
+
+	@SingleResult
+	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, String enddatemodified,
+		Integer lastId, Integer nrecs) {
+
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
 		return createRequest(GET, path, uri -> uri
 				.queryParam("startdatemodified", startdatemodified)
+				.queryParam("enddatemodified", enddatemodified)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
@@ -385,10 +387,11 @@ public class PAPIClient {
 
 	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsPagedGet.htm
 	@SingleResult
-	public Publisher<GetBibsPagedResult> synch_GetUpdatedBibsPaged(String startdatemodified, Integer nrecs) {
+	public Publisher<GetBibsPagedResult> synch_GetUpdatedBibsPaged(String startdatemodified, Integer nrecs, Integer lastId) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "updated", "paged");
 		return createRequest(GET, path, uri -> uri
 			.queryParam("updatedate", startdatemodified)
+			.queryParam("lastid", lastId)
 			.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))))

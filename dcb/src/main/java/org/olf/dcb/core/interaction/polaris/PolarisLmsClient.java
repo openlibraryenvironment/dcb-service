@@ -176,6 +176,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	//  No longer needed as DCB_BORROWING_FLOW is the same as the default behaviour
 	//	private static final String DCB_BORROWING_FLOW = "DCB";
 	private static final String ILL_BORROWING_FLOW = "ILL";
+
+	// Synch_BibsByIDGet accepts at most 50 ids per call.
+	private static final int BIBS_BY_ID_LIMIT = 50;
+
+	// The amount at which we should rewind the startdatemodified to cover the chuck again
+	private static final Duration HARVEST_WATERMARK_OVERLAP = Duration.ofHours(1);
+
+	// Duration which constitutes a jump, the harvest should be crawling over bibs
+	private static final Duration WATERMARK_LEAP_ALARM = Duration.ofDays(7);
+
 	private final PolarisConfig polarisConfig;
 	
 	private final R2dbcOperations r2dbcOperations;
@@ -2028,26 +2038,28 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 							.cast( JsonArray.class )
 							.flatMap( jsonArr -> {
 
-								// If we have a full page, then we assume there is a subsequent page
-								boolean is_last_chunk =  jsonArr.size() != apiParams.getNrecs();
-								
 								try {
-									
+
 									// if is_last_chunk we should set startdatemodified to the highest startdatemodified we have seen so far
 									// so that in the next run we start with the most recently modified record.
 
 									// If we don't do this, and the records go 1, 2, 3, 4, 5, 6 in the first pass, leaving next-id = 6
 									// and the next page of data is 1,2,3,4,5,6.... 2,3,4,2,6 then the ingest will pick up at record 6 and skip
-									// the edits for 2,3,4,4.. which will cause problems. 
+									// the edits for 2,3,4,4.. which will cause problems.
 
-									boolean isLastChunk = jsonArr.size() != apiParams.getNrecs();
+									// Completeness is decided by the ID page, never by the row count. Synch_BibsByIDGet
+									// omits bibs that no longer exist, so rows can be shorter than a full page while the
+									// walk is still mid-flight; treating that as "finished" advances the date cursor past
+									// ids we have not visited. IdsReturned is only present on the updated-bibs path.
+									final var idsReturnedNode = bibsPaged.get("IdsReturned");
+									final int idsReturned = idsReturnedNode != null
+										? idsReturnedNode.getIntValue()
+										: jsonArr.size();
 
-									// if the last chunk had already seen the highest date modified, we've transitioned to fetching updated records
-									if ( extParams.getStartdatemodified() != null && polarisConfig.isUseNewBibChunkIngest()) {
-										isLastChunk = true;
-									}
+									boolean isLastChunk = idsReturned != apiParams.getNrecs();
 
-									log.info("Got page of size {} from polaris, requested {}, therefore isLastChunk={}",jsonArr.size(), apiParams.getNrecs(), isLastChunk);
+									log.info("Got page of size {} from polaris ({} ids), requested {}, therefore isLastChunk={}",
+										jsonArr.size(), idsReturned, apiParams.getNrecs(), isLastChunk);
 									
 									final var builder = SourceRecordImportChunk.builder()
 											.lastChunk( isLastChunk );
@@ -2083,7 +2095,33 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 								if ( isLastChunk ) {
 									// If this is the last chunk, set the highest updated date seen, null out our transient and set recno to 0;
-									extParams.setStartdatemodified(extParams.getHighestDateUpdatedSeen());
+									// The id walk is complete, so every record modified since the cursor has now been
+									// visited and the highest date seen across the whole walk is safe to adopt.
+									final Instant startDateModified = extParams.getStartdatemodified();
+									final Instant highestSeen = extParams.getHighestDateUpdatedSeen();
+
+									if ( highestSeen == null ) {
+										// If we dont have a highest seen cursor then this will retrigger a full harvest
+										// We only want to be triggering that when the job_checkpoint row for the host has been dropped
+										log.warn("POLARIS_HARVEST_NO_DATES :: Host: {} startdatemodified: {} held - {} records " +
+											"fetched, none with a parseable ModificationDate",
+											lms.getCode(), startDateModified, jsonArr.size());
+									}
+									else if ( startDateModified == null || highestSeen.isAfter(startDateModified) ) {
+
+										if ( startDateModified != null
+											&& Duration.between(startDateModified, highestSeen).compareTo(WATERMARK_LEAP_ALARM) > 0 ) {
+
+											// If the harvest jumps more than the WATERMARK_LEAP_ALARM, this isn't the expected functionality
+											// The harvest should crawl through the bibs that have been fetched, so we set the startdate to an hour before what the highest seen modified file
+											log.error("POLARIS_WATERMARK_LEAP :: Host: {} cursor moved {} -> {} on {} records - " +
+												"edits in the skipped interval will not be harvested",
+												lms.getCode(), startDateModified, highestSeen, jsonArr.size());
+										}
+
+										extParams.setStartdatemodified(highestSeen.minus(HARVEST_WATERMARK_OVERLAP));
+									}
+
 									extParams.setLastId(Integer.valueOf(0));
                   extParams.setPagesInCurrentCheckpoint(Integer.valueOf(0));
                   extParams.setCheckpointDate(Instant.now());
@@ -2143,45 +2181,73 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		// We've transitioned to fetching updated bibs
 
-		String dateStr = Optional.of(params.getStartdatemodified())
-			.map(inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString())
-			//    "ErrorMessage" : "SqlDateTime overflow. Must be between 1/1/1753 12:00:00 AM and 12/31/9999 11:59:59 PM.",
-			.orElse(Instant.parse("1753-01-01T00:00:00Z").toString());
+		final String dateStr = params.getStartdatemodified()
+			.truncatedTo(ChronoUnit.MILLIS)
+			.toString();
 
-		log.info("get page : {} {} {}", lms.getCode(), params, dateStr);
+		// Synch_BibsUpdatedPagedGet pages by BIB ID, so lastid is the continuation cursor within a single date window.
+		final int lastId = params.getLastId() == null ? 0 : params.getLastId();
 
-		/*
-			RESTRICTION:
-			No more than 50 bibliographic records may be requested at a time. Bibliographic record IDs must be numeric.
-			If a bibliographic record requested does not exist, a row will not be returned.
-			https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378
-		*/
-		int nrecs = params.getNrecs();
+		final int nrecs = params.getNrecs();
 
-		if (nrecs > 50) {
-			log.warn("synch_GetUpdatedBibsThenFetchBibs : nrecs > 50, setting to 50");
-			nrecs = 50;
-		}
+		log.info("get updated bibs : {} lastid={} since={} nrecs={}", lms.getCode(), lastId, dateStr, nrecs);
 
-		// importantly we are passing the date here so that even if there are more than 50 bibs to fetch
-		// we will pick up from the last modified date next time
-		return Mono.from(PAPIService.synch_GetUpdatedBibsPaged(dateStr, nrecs))
-			.flatMapMany(response -> Flux.fromIterable(response.getBibIDListRows()))
-			.map(PAPIClient.BibIDListRow::getBibliographicRecordID)
-			.filter(Objects::nonNull)
-			.take(50) // Only take the first 50 valid IDs
-			.collectList()
-			.flatMap(batch -> {
-				if (batch.isEmpty()) {
+		return Mono.from(PAPIService.synch_GetUpdatedBibsPaged(dateStr, nrecs, lastId))
+			.flatMap(response -> {
+
+				final var ids = Optional.ofNullable(response.getBibIDListRows())
+					.orElseGet(List::of)
+					.stream()
+					.map(PAPIClient.BibIDListRow::getBibliographicRecordID)
+					.filter(Objects::nonNull)
+					.toList();
+
+				if (ids.isEmpty()) {
 					return Mono.just(JsonNode.nullNode()); // Nothing to fetch
 				}
 
-				String idParam = batch.stream()
-					.map(String::valueOf)
-					.collect(Collectors.joining(","));
+				/*
+					RESTRICTION:
+					No more than 50 bibliographic records may be requested at a time. Bibliographic record IDs must be numeric.
+					If a bibliographic record requested does not exist, a row will not be returned.
+					https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378
 
-				return Mono.from(PAPIService.synch_BibsByIDGetRaw(idParam));
+					Changed this so that we're no longer truncating the ids that have been fetched, which caused a bunch to be missed
+				*/
+				return Flux.fromIterable(ids)
+					.buffer(BIBS_BY_ID_LIMIT)
+					.concatMap(batch -> Mono.from(PAPIService.synch_BibsByIDGetRaw(
+						batch.stream()
+							.map(String::valueOf)
+							.collect(Collectors.joining(",")))))
+					.collectList()
+					.map(responses -> mergeBibRows(responses, ids));
 			});
+	}
+
+	// Flatten the batched bibs we fetched and appened with metadata used (LastId, IdsReturned and GetBibsPagedRows)
+	// Previously we just based the number of bibs based on the number of rows, however since it also returns deleted bibs, this was incorrect
+	// Therefore we just the requestedIds as the marker of how many ids we have fetch
+	private JsonNode mergeBibRows(List<JsonNode> responses, List<Integer> requestedIds) {
+
+		final List<JsonNode> rows = new ArrayList<>();
+
+		for (JsonNode response : responses) {
+			var arr = response.get("GetBibsByIDRows");
+			if (arr == null) arr = response.get("GetBibsPagedRows");
+			if (arr != null && arr.isArray()) arr.values().forEach(rows::add);
+		}
+
+		// The only signal DCB ever receives that a bib was deleted, .deleted(false) is hardcoded in initIngestRecordBuilder
+		if (rows.size() < requestedIds.size()) {
+			log.warn("{} Synch_BibsByIDGet returned {} rows for {} ids - {} bibs no longer exist",
+				lms.getCode(), rows.size(), requestedIds.size(), requestedIds.size() - rows.size());
+		}
+
+		return JsonNode.createObjectNode(Map.of(
+			"GetBibsPagedRows", JsonNode.createArrayNode(rows),
+			"LastID",           JsonNode.createNumberNode(requestedIds.get(requestedIds.size() - 1)),
+			"IdsReturned",      JsonNode.createNumberNode(requestedIds.size())));
 	}
 
 	private Instant convertMSJsonDate(String msDate) {
