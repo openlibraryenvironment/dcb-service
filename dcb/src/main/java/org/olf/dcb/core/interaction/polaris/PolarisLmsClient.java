@@ -2048,9 +2048,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									// the edits for 2,3,4,4.. which will cause problems.
 
 									// Completeness is decided by the ID page, never by the row count. Synch_BibsByIDGet
-									// omits bibs that no longer exist, so rows can be shorter than a full page while the
-									// walk is still mid-flight; treating that as "finished" advances the date cursor past
-									// ids we have not visited. IdsReturned is only present on the updated-bibs path.
+									// omits bibs that no longer exist, so rows can be shorter than a full page
 									final var idsReturnedNode = bibsPaged.get("IdsReturned");
 									final int idsReturned = idsReturnedNode != null
 										? idsReturnedNode.getIntValue()
@@ -2103,8 +2101,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									if ( highestSeen == null ) {
 										// If we dont have a highest seen cursor then this will retrigger a full harvest
 										// We only want to be triggering that when the job_checkpoint row for the host has been dropped
-										log.warn("POLARIS_HARVEST_NO_DATES :: Host: {} startdatemodified: {} held - {} records " +
-											"fetched, none with a parseable ModificationDate",
+										log.warn("POLARIS_HARVEST_NO_DATES :: Host: {} startdatemodified: {} held - {} records fetched, none with a parseable ModificationDate",
 											lms.getCode(), startDateModified, jsonArr.size());
 									}
 									else if ( startDateModified == null || highestSeen.isAfter(startDateModified) ) {
@@ -2114,8 +2111,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 											// If the harvest jumps more than the WATERMARK_LEAP_ALARM, this isn't the expected functionality
 											// The harvest should crawl through the bibs that have been fetched, so we set the startdate to an hour before what the highest seen modified file
-											log.error("POLARIS_WATERMARK_LEAP :: Host: {} cursor moved {} -> {} on {} records - " +
-												"edits in the skipped interval will not be harvested",
+											log.error("POLARIS_WATERMARK_LEAP :: Host: {} cursor moved {} -> {} on {} records, skipped records will not be harvested",
 												lms.getCode(), startDateModified, highestSeen, jsonArr.size());
 										}
 
