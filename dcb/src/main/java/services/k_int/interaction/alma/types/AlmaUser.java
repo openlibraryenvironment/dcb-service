@@ -42,7 +42,9 @@ public class AlmaUser {
 	@ToString.Include
 	@JsonProperty("user_identifier")
 	List<UserIdentifier> identifiers;
+	// Alma calls this "expiry_date"  and we need the mapping
 	@Nullable
+	@JsonProperty("expiry_date")
 	String expirationDate;
 	@ToString.Include
 	@JsonProperty("user_blocks")
