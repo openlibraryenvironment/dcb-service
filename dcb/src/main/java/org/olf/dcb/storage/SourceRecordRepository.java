@@ -74,6 +74,15 @@ public interface SourceRecordRepository {
 	@NonNull
 	Publisher<SourceRecord> findByHostLmsIdAndRemoteIdLike(@NonNull UUID hostLmsId, @NonNull String remoteId);
 
+	/**
+	 * Streams every remote id held for a Host LMS. Deliberately not @SingleResult and deliberately
+	 * not a List - a large catalogue is millions of rows, and reconciliation only needs to fold them
+	 * into a bounded membership structure, never hold them all as objects.
+	 */
+	@Vetoed
+	@NonNull
+	Publisher<String> findRemoteIdsByHostLmsId(@NonNull UUID hostLmsId);
+
   @SingleResult
   @NonNull
   Publisher<Integer> deleteAllByHostLmsId( UUID hostLmsId );

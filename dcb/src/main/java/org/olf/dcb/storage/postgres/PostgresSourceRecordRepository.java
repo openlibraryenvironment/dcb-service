@@ -29,6 +29,9 @@ public interface PostgresSourceRecordRepository extends ReactiveStreamsPageableR
 	@Query(value = "select count(*) count from source_record where host_lms_id = :hostLmsId", nativeQuery = true)
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
 
+	@Query(value = "select remote_id from source_record where host_lms_id = :hostLmsId", nativeQuery = true)
+	public Publisher<String> findRemoteIdsByHostLmsId(UUID hostLmsId);
+
 //	@NonNull
 //	@SingleResult
 //	@Query("SELECT * FROM source_record WHERE host_lms_id = :hostLmsId AND remote_id LIKE :remoteId")

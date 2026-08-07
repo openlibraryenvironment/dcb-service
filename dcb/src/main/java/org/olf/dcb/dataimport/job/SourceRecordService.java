@@ -137,6 +137,38 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 		}
 	}
 	
+	// Reconciliation can emit far more records than a harvest chunk, so it is committed in bounded
+	// batches rather than one transaction spanning the whole sweep.
+	private static final int RECONCILE_BATCH_SIZE = 100;
+
+	/**
+	 * Fetch and store the records a source holds but DCB does not.
+	 *
+	 * This is the counterpart to fixing a stalled harvest: resuming correctly stops the bleeding,
+	 * but records skipped earlier stay invisible because delta harvesting only surfaces changes
+	 * after the watermark. Sources that cannot enumerate themselves return nothing and this is a
+	 * no-op for them.
+	 */
+	public Mono<Long> reconcileSource( SourceRecordDataSource datasource, UUID hostLmsId ) {
+
+		log.info("Starting reconciliation sweep for [{}]", datasource.getName());
+
+		return datasource.findMissingRecords( sourceRecords.findRemoteIdsByHostLmsId(hostLmsId) )
+			.buffer(RECONCILE_BATCH_SIZE)
+			.concatMap(this::saveReconciledBatch)
+			.reduce(0L, Long::sum)
+			.doOnSuccess( count -> log.info("Reconciliation for [{}] stored {} previously missing records",
+				datasource.getName(), count) )
+			.doOnError( e -> log.error("Reconciliation for [{}] failed", datasource.getName(), e) );
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected Mono<Long> saveReconciledBatch( List<SourceRecord> batch ) {
+		return Flux.fromIterable(batch)
+			.concatMap(this::save)
+			.count();
+	}
+
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<SourceRecord> save ( SourceRecord srcRec ) {
 		return Mono.from(sourceRecords.saveOrUpdate(srcRec))

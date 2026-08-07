@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.verify.VerificationTimes.exactly;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.time.Instant;
@@ -33,6 +34,7 @@ import io.micronaut.serde.ObjectMapper;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
@@ -309,6 +311,84 @@ class PolarisHarvestChunkTests {
 		assertThat(error, is(notNullValue()));
 	}
 
+	/**
+	 * Reconciliation exists because unwedging a harvest does not recover what it previously skipped.
+	 * It must probe only the gaps - a sweep that re-fetches the whole catalogue is just a slower
+	 * full harvest.
+	 */
+	@Test
+	void reconciliationFetchesOnlyTheBibsDcbIsMissing() {
+		// Arrange - Polaris holds 1..5, DCB holds 1, 3 and 5
+		mockPolarisFixture.mockGetMaxBibId(maxBibIdResponse(5));
+		mockPolarisFixture.mockGetBibsById("2,4", bibsByIdResponse(2, 4));
+
+		// Act
+		final var recovered = manyValuesFrom(
+			client.findMissingRecords(Flux.just("1", "3", "5")));
+
+		// Assert
+		assertThat(recovered, hasSize(2));
+		assertThat(recovered.stream().map(SourceRecord::getRemoteId).toList(),
+			contains("2", "4"));
+
+		mockPolarisFixture.verifyGetBibsById("2,4");
+		mockPolarisFixture.verifyGetBibsByIdCalledTimes(exactly(1));
+	}
+
+	/**
+	 * Most gap ids are ids that never existed or were purged. Synch_BibsByIDGet returns no row for
+	 * those, which must be treated as normal rather than as an error.
+	 */
+	@Test
+	void reconciliationToleratesIdsThatNoLongerExist() {
+		// Arrange - gaps at 2 and 4, but only 2 still exists in Polaris
+		mockPolarisFixture.mockGetMaxBibId(maxBibIdResponse(5));
+		mockPolarisFixture.mockGetBibsById("2,4", bibsByIdResponse(2));
+
+		// Act
+		final var recovered = manyValuesFrom(
+			client.findMissingRecords(Flux.just("1", "3", "5")));
+
+		// Assert
+		assertThat(recovered, hasSize(1));
+		assertThat(recovered.get(0).getRemoteId(), is("2"));
+	}
+
+	/**
+	 * A healthy host must cost exactly one request - the max id probe - and nothing more.
+	 */
+	@Test
+	void reconciliationDoesNothingWhenDcbHoldsEveryBib() {
+		// Arrange
+		mockPolarisFixture.mockGetMaxBibId(maxBibIdResponse(3));
+
+		// Act
+		final var recovered = manyValuesFrom(
+			client.findMissingRecords(Flux.just("1", "2", "3")));
+
+		// Assert
+		assertThat(recovered, hasSize(0));
+		mockPolarisFixture.verifyGetBibsByIdCalledTimes(exactly(0));
+	}
+
+	/**
+	 * Non numeric remote ids cannot participate in a bib id membership check. They must be skipped
+	 * with a warning, not blow up the sweep.
+	 */
+	@Test
+	void reconciliationSkipsNonNumericRemoteIds() {
+		// Arrange - "not-a-bib-id" cannot be placed in the bit set, so 1..3 all read as gaps
+		mockPolarisFixture.mockGetMaxBibId(maxBibIdResponse(3));
+		mockPolarisFixture.mockGetBibsById("1,2,3", bibsByIdResponse(1, 2, 3));
+
+		// Act
+		final var recovered = manyValuesFrom(
+			client.findMissingRecords(Flux.just("not-a-bib-id")));
+
+		// Assert
+		assertThat(recovered, hasSize(3));
+	}
+
 	// ---- helpers -------------------------------------------------------------------------------
 
 	private List<String> remoteIds(SourceRecordImportChunk chunk) {
@@ -357,6 +437,12 @@ class PolarisHarvestChunkTests {
 		return """
 			{ "PAPIErrorCode": 0, "ErrorMessage": null, "GetBibsByIDRows": [%s] }"""
 			.formatted(rows(bibIds));
+	}
+
+	private static String maxBibIdResponse(int maxBibId) {
+		return """
+			{ "PAPIErrorCode": 0, "ErrorMessage": null, "BibIDListRows": [ { "BibliographicRecordID": %d } ] }"""
+			.formatted(maxBibId);
 	}
 
 	private static String updatedBibsResponse(int... bibIds) {

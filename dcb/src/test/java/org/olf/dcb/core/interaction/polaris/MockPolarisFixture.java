@@ -320,6 +320,10 @@ public class MockPolarisFixture {
 			.withQueryStringParameter("bibids", bibIds), responseBody);
 	}
 
+	public void mockGetMaxBibId(Object responseBody) {
+		mockServer.mockGet(paths.protectedPapiService("/string/synch/bibs/maxid"), responseBody);
+	}
+
 	public void mockGetPagedBibsServerError(Integer lastId) {
 		mockServer.mock(pagedBibsRequest()
 			.withQueryStringParameter("lastid", String.valueOf(lastId)), serverError());

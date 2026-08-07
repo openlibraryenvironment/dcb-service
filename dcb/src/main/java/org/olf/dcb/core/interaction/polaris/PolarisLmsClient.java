@@ -28,6 +28,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -180,8 +181,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	// Synch_BibsByIDGet accepts at most 50 ids per call.
 	private static final int BIBS_BY_ID_LIMIT = 50;
 
-	// The amount at which we should rewind the startdatemodified to cover the chuck again
-	private static final Duration HARVEST_WATERMARK_OVERLAP = Duration.ofHours(1);
+	// How far to rewind startdatemodified when the delta window rolls forward - see
+	// PolarisConfig.getHarvestWatermarkOverlap(). Every minute of overlap is re-harvested on every
+	// cycle and the import job runs on a two minute fixed delay, so this is a recurring cost.
 
 	// Duration which constitutes a jump, the harvest should be crawling over bibs
 	private static final Duration WATERMARK_LEAP_ALARM = Duration.ofDays(7);
@@ -2136,7 +2138,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												lms.getCode(), startDateModified, highestSeen, jsonArr.size());
 										}
 
-										extParams.setStartdatemodified(highestSeen.minus(HARVEST_WATERMARK_OVERLAP));
+										extParams.setStartdatemodified(
+											highestSeen.minus(polarisConfig.getHarvestWatermarkOverlap()));
 									}
 
 									extParams.setLastId(Integer.valueOf(0));
@@ -2263,6 +2266,94 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			"GetBibsPagedRows", JsonNode.createArrayNode(rows),
 			"LastID",           JsonNode.createNumberNode(nextCursor),
 			"IdsReturned",      JsonNode.createNumberNode(requestedIds.size())));
+	}
+
+	/**
+	 * Re-fetch bibs that Polaris holds but DCB does not.
+	 *
+	 * Unwedging a harvest does not recover records it previously skipped: delta mode only ever
+	 * surfaces records modified after the watermark, and skipped records are older than it. The only
+	 * alternatives are a full re-harvest (checkpoint reset) or this sweep, which fetches the gaps and
+	 * nothing else. Ids that never existed simply return no row, which is harmless.
+	 *
+	 * Membership is a BitSet over the bib id space rather than a Set of ids - bounded at one bit per
+	 * bib (~125KB for a million record catalogue) instead of millions of boxed objects.
+	 */
+	public Flux<SourceRecord> findMissingRecords(Publisher<String> knownRemoteIds) {
+
+		return PAPIService.synch_BibsMaxIDGet()
+			.flatMapMany(maxBibId -> Flux.from(knownRemoteIds)
+				// reduceWith, not reduce: the accumulator must be created per subscription, never
+				// captured from enclosing scope and re-used across them.
+				.reduceWith(() -> new BitSet(maxBibId + 1), (held, remoteId) -> {
+					try {
+						final int id = Integer.parseInt(remoteId.trim());
+						if (id > 0 && id <= maxBibId) held.set(id);
+					}
+					catch (NumberFormatException e) {
+						log.warn("{} non numeric source record remote id [{}], ignored by reconciliation",
+							lms.getCode(), remoteId);
+					}
+					return held;
+				})
+				.flatMapMany(held -> {
+					final int missing = maxBibId - held.cardinality();
+
+					log.info("POLARIS_RECONCILE :: Host: {} maxBibId {}, DCB holds {}, {} ids to probe",
+						lms.getCode(), maxBibId, held.cardinality(), missing);
+
+					if ( missing > maxBibId / 2 ) {
+						// Be honest about the economics: the sweep costs one request per 50 gaps, a full
+						// harvest costs one per nrecs rows. Sparse damage favours the sweep, wide damage
+						// does not.
+						log.warn("POLARIS_RECONCILE_WIDE :: Host: {} is missing {} of {} bibs. Resetting the "
+							+ "checkpoint for a full re-harvest will cost fewer requests than this sweep ({} vs {})",
+							lms.getCode(), missing, maxBibId, maxBibId / 90, missing / BIBS_BY_ID_LIMIT);
+					}
+
+					final Instant fetchedAt = Instant.now();
+
+					// Lazily generated, so the gap list is never materialised. concatMap keeps this
+					// strictly sequential - a reconciliation sweep must not stampede a library server.
+					return Flux.range(1, maxBibId)
+						.filter(id -> !held.get(id))
+						.buffer(BIBS_BY_ID_LIMIT)
+						.concatMap(batch -> fetchBibBatch(batch, fetchedAt));
+				}));
+	}
+
+	private Flux<SourceRecord> fetchBibBatch(List<Integer> bibIds, Instant fetchedAt) {
+
+		final var idParam = bibIds.stream()
+			.map(String::valueOf)
+			.collect(Collectors.joining(","));
+
+		return Mono.from(PAPIService.synch_BibsByIDGetRaw(idParam))
+			.flatMapMany(response -> {
+				var rows = response.get("GetBibsByIDRows");
+				if (rows == null) rows = response.get("GetBibsPagedRows");
+
+				if (rows == null || !rows.isArray()) {
+					return Flux.empty();
+				}
+
+				final List<SourceRecord> records = new ArrayList<>();
+				rows.values().forEach(rawJson -> {
+					try {
+						records.add(SourceRecord.builder()
+							.hostLmsId(lms.getId())
+							.lastFetched(fetchedAt)
+							.remoteId(rawJson.get("BibliographicRecordID").coerceStringValue())
+							.sourceRecordData(rawJson)
+							.build());
+					}
+					catch (Throwable t) {
+						log.error("Error creating SourceRecord from reconciliation JSON", t);
+					}
+				});
+
+				return Flux.fromIterable(records);
+			});
 	}
 
 	// The shape getChunk expects when a delta window has no further updates. Emitting this rather than

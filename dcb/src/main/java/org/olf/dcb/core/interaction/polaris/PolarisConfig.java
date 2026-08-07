@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -69,6 +70,18 @@ public class PolarisConfig {
 	 */
 	@JsonProperty("shelfLocationPolicyMap")
 	private Map<String,String> shelfLocationPolicyMap;
+
+	/**
+	 * Minutes to rewind the harvest watermark by when the delta window rolls forward.
+	 * Covers records modified during an id walk and clock skew between DCB and Polaris.
+	 * Every minute configured here is re-harvested on EVERY cycle, and the source record import
+	 * job runs on a two minute fixed delay - so keep this tight. Default 15.
+	 */
+	@JsonProperty("harvest-watermark-overlap-minutes")
+	private Integer harvestWatermarkOverlapMinutes;
+	public Duration getHarvestWatermarkOverlap() {
+		return Duration.ofMinutes(valueWithDefault(harvestWatermarkOverlapMinutes, Integer.class, 15));
+	}
 
 	/**
 	 * Handling of the "double delete" policy
