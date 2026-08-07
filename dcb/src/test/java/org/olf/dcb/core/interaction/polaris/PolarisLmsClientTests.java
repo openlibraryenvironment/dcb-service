@@ -1732,11 +1732,55 @@ class PolarisLmsClientTests {
 		final var receivedBibId = singleValueFrom(client.createBib(
 			Bib.builder()
 				.title("title")
-				.canonicalItemType("CIRCAV")
 				.build()));
 
 		// Assert
 		assertThat(receivedBibId, is(convertIntegerToString(bibId)));
+	}
+
+	@Test
+	void shouldCreateBibWithMaterialTypeFromSourceRecord() {
+		// DCB-2215: a video recording has to reach Polaris with leader position 06 set to 'g',
+		// otherwise Polaris types the virtual bib as a book by default
+		// Arrange
+		final var bibId = generateNumericLocalId();
+
+		mockPolarisFixture.mockCreateBib(bibId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var receivedBibId = singleValueFrom(client.createBib(
+			Bib.builder()
+				.title("title")
+				.typeOfRecord("g")
+				.build()));
+
+		// Assert
+		assertThat(receivedBibId, is(convertIntegerToString(bibId)));
+
+		mockPolarisFixture.verifyCreateBibBodyContains("00000cgm a2200000 a 4500");
+	}
+
+	@Test
+	void shouldCreateBibWithBookMaterialTypeWhenSourceTypeIsUnknown() {
+		// Arrange
+		final var bibId = generateNumericLocalId();
+
+		mockPolarisFixture.mockCreateBib(bibId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var receivedBibId = singleValueFrom(client.createBib(
+			Bib.builder()
+				.title("title")
+				.build()));
+
+		// Assert
+		assertThat(receivedBibId, is(convertIntegerToString(bibId)));
+
+		mockPolarisFixture.verifyCreateBibBodyContains("00000cam a2200000 a 4500");
 	}
 
 	@Test
