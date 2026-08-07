@@ -11,6 +11,7 @@ import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,10 +45,17 @@ public class DiscoveryLibrariesController {
 	@Operation(summary = "List libraries",
 		description = "Anonymous directory of libraries (code, host LMS code, name, lat/long) for discovery: "
 			+ "the institution picker at login and 'nearest library' resolution. Coordinates may be null; "
-			+ "consumers that need them (nearest library) filter accordingly.")
+			+ "consumers that need them (nearest library) filter accordingly. "
+			+ "By default only libraries enabled for borrowing are returned, because a patron from a "
+			+ "non-borrowing agency cannot place a request. Pass includeAll=true for the whole directory.")
 	@Get
-	public Mono<List<LibraryGeo>> list() {
-		return Flux.from(agencyRepository.queryAll())
+	public Mono<List<LibraryGeo>> list(
+		@QueryValue(defaultValue = "false") boolean includeAll) {
+
+		final var agencies = includeAll
+			? agencyRepository.queryAll()
+			: agencyRepository.findAllBorrowingAgencies();
+		return Flux.from(agencies)
 			.flatMap(this::toLibraryGeo)
 			.collectList();
 	}
