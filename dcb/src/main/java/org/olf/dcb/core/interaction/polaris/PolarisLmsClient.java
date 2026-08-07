@@ -2012,28 +2012,32 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						 int lastId = bibsPaged.get("LastID") != null ? bibsPaged.get("LastID").getIntValue() : 0;
 
 						 return Mono.just( bibsPaged )
-							.mapNotNull( itemPage -> {
+							// A malformed page must ERROR, never vanish. An empty Mono here ends the job run
+							// without saving a checkpoint, which freezes lastId and startdatemodified forever
+							// and can only be cleared by deleting the job_checkpoint row by hand. Erroring
+							// aborts this run and retries on the next schedule with the checkpoint intact.
+							.<JsonNode>handle( (itemPage, sink) -> {
 								var entries = itemPage.get("GetBibsPagedRows");
-								if (entries == null) {
-									log.warn("[.GetBibsPagedRows] property received from polaris is null");
 
+								if (entries == null) {
 									// Try the other property
 									entries = itemPage.get("GetBibsByIDRows");
-
-									if (entries == null) {
-										log.warn("[.GetBibsByIDRows] property received from polaris is null");
-									}
 								}
 
-								return entries;
-							})
-							.filter( entries -> {
-								if (entries.isArray()) {
-									return true;
+								if (entries == null) {
+									sink.error(new IllegalStateException(
+										"Polaris response for %s contained neither [.GetBibsPagedRows] nor [.GetBibsByIDRows]"
+											.formatted(lms.getCode())));
+									return;
 								}
-								
-								log.warn("[.GetBibsPagedRows] property received from polaris is not an array");
-								return false;
+
+								if (!entries.isArray()) {
+									sink.error(new IllegalStateException(
+										"Polaris [.GetBibsPagedRows] for %s was not an array".formatted(lms.getCode())));
+									return;
+								}
+
+								sink.next(entries);
 							})
 							.cast( JsonArray.class )
 							.flatMap( jsonArr -> {
@@ -2047,17 +2051,33 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									// and the next page of data is 1,2,3,4,5,6.... 2,3,4,2,6 then the ingest will pick up at record 6 and skip
 									// the edits for 2,3,4,4.. which will cause problems.
 
-									// Completeness is decided by the ID page, never by the row count. Synch_BibsByIDGet
-									// omits bibs that no longer exist, so rows can be shorter than a full page
+									// Completeness is decided by the cursor, never by the row count.
+									//
+									//  - Delta path: Synch_BibsUpdatedPagedGet returns only ids that exist, so a short
+									//    id page genuinely means the end of the window. IdsReturned is set by mergeBibRows.
+									//
+									//  - Full harvest: Synch_BibsPagedGet pages an ID *window* and omits ids that do not
+									//    exist ("If a bibliographic record requested does not exist, a row will not be
+									//    returned"), so rows run short at the first gap - long before the end of the
+									//    catalogue. Terminating on row count there strands every bib above that gap,
+									//    because delta mode only ever surfaces records modified after the watermark.
+									final int requestLastId = apiParams.getLastId() == null ? 0 : apiParams.getLastId();
 									final var idsReturnedNode = bibsPaged.get("IdsReturned");
-									final int idsReturned = idsReturnedNode != null
-										? idsReturnedNode.getIntValue()
-										: jsonArr.size();
 
-									boolean isLastChunk = idsReturned != apiParams.getNrecs();
+									final boolean isLastChunk;
 
-									log.info("Got page of size {} from polaris ({} ids), requested {}, therefore isLastChunk={}",
-										jsonArr.size(), idsReturned, apiParams.getNrecs(), isLastChunk);
+									if ( idsReturnedNode != null ) {
+										isLastChunk = idsReturnedNode.getIntValue() != apiParams.getNrecs();
+									}
+									else {
+										// Correct whether a page is "the next N existing records" or an ID window: an
+										// empty page means we ran off the end, and a cursor that fails to advance means
+										// we are done - which also stops expand() spinning against the library's server.
+										isLastChunk = jsonArr.size() == 0 || lastId <= requestLastId;
+									}
+
+									log.info("Got page of size {} from polaris (requested {}, lastid {} -> {}), therefore isLastChunk={}",
+										jsonArr.size(), apiParams.getNrecs(), requestLastId, lastId, isLastChunk);
 									
 									final var builder = SourceRecordImportChunk.builder()
 											.lastChunk( isLastChunk );
@@ -2109,9 +2129,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 										if ( startDateModified != null
 											&& Duration.between(startDateModified, highestSeen).compareTo(WATERMARK_LEAP_ALARM) > 0 ) {
 
-											// If the harvest jumps more than the WATERMARK_LEAP_ALARM, this isn't the expected functionality
-											// The harvest should crawl through the bibs that have been fetched, so we set the startdate to an hour before what the highest seen modified file
-											log.error("POLARIS_WATERMARK_LEAP :: Host: {} cursor moved {} -> {} on {} records, skipped records will not be harvested",
+											// ALARM ONLY - the cursor still moves below regardless. The harvest is expected to
+											// crawl, so a jump this large means either a long DCB outage or a window we
+											// failed to walk. Investigate before assuming records were skipped.
+											log.warn("POLARIS_WATERMARK_LEAP :: Host: {} cursor moved {} -> {} on {} records, skipped records will not be harvested",
 												lms.getCode(), startDateModified, highestSeen, jsonArr.size());
 										}
 
@@ -2185,7 +2206,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.toList();
 
 				if (ids.isEmpty()) {
-					return Mono.just(JsonNode.nullNode()); // Nothing to fetch
+					// A well formed empty page, NOT a null node. getChunk must always emit a chunk so that
+					// the checkpoint gets written - otherwise lastId stays pinned at the previous page and
+					// the harvest is wedged permanently. An empty page drives isLastChunk, which resets
+					// lastId to 0 and rolls startdatemodified forward, so the harvest self heals.
+					return Mono.just(emptyBibPage(lastId));
 				}
 
 				/*
@@ -2207,9 +2232,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			});
 	}
 
-	// Flatten the batched bibs we fetched and appened with metadata used (LastId, IdsReturned and GetBibsPagedRows)
-	// Previously we just based the number of bibs based on the number of rows, however since it also returns deleted bibs, this was incorrect
-	// Therefore we just the requestedIds as the marker of how many ids we have fetch
+	// Flatten the batched bibs we fetched and append the metadata getChunk needs (LastID, IdsReturned,
+	// GetBibsPagedRows). Row count is not a completeness signal: Synch_BibsByIDGet omits bibs that no
+	// longer exist, so the requested id count is the only honest measure of how much of the window we
+	// consumed.
 	private JsonNode mergeBibRows(List<JsonNode> responses, List<Integer> requestedIds) {
 
 		final List<JsonNode> rows = new ArrayList<>();
@@ -2226,10 +2252,26 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				lms.getCode(), rows.size(), requestedIds.size(), requestedIds.size() - rows.size());
 		}
 
+		// max(), not the last element. expand() has no iteration ceiling, so a cursor that can move
+		// backwards is an unbounded request loop against a library's PAPI server.
+		final int nextCursor = requestedIds.stream()
+			.mapToInt(Integer::intValue)
+			.max()
+			.orElse(0);
+
 		return JsonNode.createObjectNode(Map.of(
 			"GetBibsPagedRows", JsonNode.createArrayNode(rows),
-			"LastID",           JsonNode.createNumberNode(requestedIds.get(requestedIds.size() - 1)),
+			"LastID",           JsonNode.createNumberNode(nextCursor),
 			"IdsReturned",      JsonNode.createNumberNode(requestedIds.size())));
+	}
+
+	// The shape getChunk expects when a delta window has no further updates. Emitting this rather than
+	// a null node is what allows a wedged harvest to recover without an operator deleting the checkpoint.
+	private JsonNode emptyBibPage(int lastId) {
+		return JsonNode.createObjectNode(Map.of(
+			"GetBibsPagedRows", JsonNode.createArrayNode(List.of()),
+			"LastID",           JsonNode.createNumberNode(lastId),
+			"IdsReturned",      JsonNode.createNumberNode(0)));
 	}
 
 	private Instant convertMSJsonDate(String msDate) {

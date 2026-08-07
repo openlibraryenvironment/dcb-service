@@ -365,27 +365,23 @@ public class PAPIClient {
 		return synch_BibsPagedGetRaw( dateStr, params.getLastId(), params.getNrecs() );
 	}
 
+	// No enddatemodified: an open ended range is what a harvest wants. Bounding it to a bare LocalDate
+	// against an ISO-8601 instant startdatemodified silently truncates anything modified after the
+	// boundary, because PAPI assumes midnight when the time element is missing.
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, Integer lastId, Integer nrecs) {
-		final String enddatemodified = startdatemodified == null ? null : LocalDate.now(UTC).plusDays(1).toString();
-		return synch_BibsPagedGetRaw(startdatemodified, enddatemodified, lastId, nrecs);
-	}
-
-	@SingleResult
-	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, String enddatemodified,
-		Integer lastId, Integer nrecs) {
 
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
 		return createRequest(GET, path, uri -> uri
 				.queryParam("startdatemodified", startdatemodified)
-				.queryParam("enddatemodified", enddatemodified)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(JsonNode.class))));
 	}
 
-	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsPagedGet.htm
+	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsUpdatedPagedGet.htm
+	// Returns bib IDs only. lastid is the continuation cursor within a single updatedate window.
 	@SingleResult
 	public Publisher<GetBibsPagedResult> synch_GetUpdatedBibsPaged(String startdatemodified, Integer nrecs, Integer lastId) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "updated", "paged");
