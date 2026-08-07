@@ -50,6 +50,11 @@ public interface AgencyRepository {
 
 	Publisher<DataAgency> queryAll();
 
+	// Agencies a patron can actually borrow through. A null flag is not participating,
+	// matching ResolvePatronPreflightCheck's reading of is_borrowing_agency.
+	@Query(value = "SELECT * from agency where is_borrowing_agency is true order by name", nativeQuery = true)
+	Publisher<DataAgency> findAllBorrowingAgencies();
+
 	Publisher<Void> delete(UUID id);
 
 	Publisher<Void> deleteByCode(@NotNull String code);
