@@ -27,6 +27,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -2266,6 +2267,51 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			"GetBibsPagedRows", JsonNode.createArrayNode(rows),
 			"LastID",           JsonNode.createNumberNode(nextCursor),
 			"IdsReturned",      JsonNode.createNumberNode(requestedIds.size())));
+	}
+
+	/**
+	 * A Polaris harvest that has stopped writing checkpoints is almost always stuck behind an id
+	 * cursor that no longer matches anything in its date window. Rewinding the cursor re-walks that
+	 * window, which is idempotent, and deliberately does NOT clear startdatemodified - that would
+	 * trigger a full catalogue harvest off the back of what may be a false positive.
+	 */
+	@Override
+	public Optional<JsonNode> nudgeStalledCheckpoint(JsonNode checkpoint, Duration stallThreshold) {
+		try {
+			final var params = objectMapper.readValueFromTree(checkpoint, ExtendedBibsPagedGetParams.class);
+
+			final Instant checkpointDate = params.getCheckpointDate();
+
+			// Pre-MR-1 checkpoints predate this field. Nothing to measure against, so leave it alone
+			// and let the next successful chunk stamp one.
+			if ( checkpointDate == null ) return Optional.empty();
+
+			if ( Duration.between(checkpointDate, Instant.now()).compareTo(stallThreshold) < 0 ) {
+				return Optional.empty();
+			}
+
+			if ( params.getLastId() == null || params.getLastId() == 0 ) {
+				// Already at the start of the window, so no cursor rewind can help. Something else is
+				// wrong - a failing upstream call, or a source with genuinely nothing to do.
+				log.error("POLARIS_CHECKPOINT_STALLED :: Host: {} has not progressed since {} and the id "
+					+ "cursor is already 0, a nudge cannot help - investigate", lms.getCode(), checkpointDate);
+				return Optional.empty();
+			}
+
+			log.warn("POLARIS_CHECKPOINT_NUDGE :: Host: {} has not progressed since {}, resetting lastId {} "
+				+ "-> 0. Window {} is retained, so this re-walks it rather than starting a full harvest",
+				lms.getCode(), checkpointDate, params.getLastId(), params.getStartdatemodified());
+
+			params.setLastId(Integer.valueOf(0));
+			params.setCheckpointDate(Instant.now());
+
+			return Optional.of(objectMapper.writeValueToTree(params));
+		}
+		catch (IOException e) {
+			log.error("Could not read Polaris checkpoint for {} while checking for a stall",
+				lms.getCode(), e);
+			return Optional.empty();
+		}
 	}
 
 	/**

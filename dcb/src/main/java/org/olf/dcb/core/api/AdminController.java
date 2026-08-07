@@ -12,12 +12,14 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Collectors;
 
+import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Value;
 import org.olf.dcb.core.api.serde.ImportCommand;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.ProcessState;
 import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.core.svc.HouseKeepingService;
+import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater;
 import org.olf.dcb.indexing.SharedIndexLiveUpdater.ReindexOp;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
@@ -41,6 +43,7 @@ import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -73,6 +76,12 @@ public class AdminController {
 	private final DCBConfigurationService configurationService;
 	private final Optional<SharedIndexLiveUpdater> sharedIndexUpdater;
 	private final HouseKeepingService housekeeping;
+	// BeanProvider, not a direct injection. SourceRecordService registers entity event listeners and
+	// carries the scheduled import tasks, and a controller is instantiated when the embedded server
+	// starts - injecting it directly pulls all of that into every context that has an HTTP server,
+	// including API tests, which then fail on data the ingest job created underneath them.
+	// HostLmsService already holds this same bean this way, for the same reason.
+	private final BeanProvider<SourceRecordService> sourceRecordServiceProvider;
 	private final Environment env;
 	private final TrackingHelpers trackingHelpers;
 	private final Long globalActiveRequestLimit;
@@ -87,6 +96,7 @@ public class AdminController {
 			DCBConfigurationService configurationService, 
 			BibRepository bibRepository,
 			Optional<SharedIndexLiveUpdater> sharedIndexUpdater, HouseKeepingService housekeeping,
+			BeanProvider<SourceRecordService> sourceRecordServiceProvider,
       Environment env, TrackingHelpers trackingHelpers, @Value("${dcb.globals.active-request-limit:25}") Long globalActiveRequestLimit, @Value("${dcb.tracking.interval:5m}") String globalTrackingInterval) {
 
 		this.patronRequestService = patronRequestService;
@@ -98,6 +108,7 @@ public class AdminController {
 		this.bibRepository = bibRepository;
 		this.sharedIndexUpdater = sharedIndexUpdater;
 		this.housekeeping = housekeeping;
+		this.sourceRecordServiceProvider = sourceRecordServiceProvider;
 		this.env = env;
 		this.trackingHelpers = trackingHelpers;
 		this.globalActiveRequestLimit = globalActiveRequestLimit;
@@ -224,6 +235,55 @@ public class AdminController {
 			.map(HttpResponse.accepted()::<String>body);
 	}
 	
+	/**
+	 * Re-fetch the records a Host LMS holds but DCB does not, without a full re-harvest.
+	 *
+	 * Repairing a stalled harvest does not recover what it previously skipped - delta harvesting only
+	 * surfaces records modified after the watermark, and skipped records are older than it.
+	 *
+	 * 202 rather than a result: the sweep is thousands of sequential requests against the target
+	 * system and must not be held open by an HTTP request. Poll /admin/sourceImport/status.
+	 */
+	@Post(uri = "/sourceImport/{hostLmsCode}/reconcile", produces = APPLICATION_JSON)
+	public Mono<MutableHttpResponse<String>> reconcileSourceRecords(@PathVariable String hostLmsCode,
+		@QueryValue("reason") @Nullable String reason, @Nullable Authentication authentication) {
+
+		log.warn("Source record reconciliation requested for [{}] by [{}], reason [{}]",
+			hostLmsCode, nameOf(authentication), reason);
+
+		return sourceRecordServiceProvider.get()
+			.startReconciliation(hostLmsCode)
+			.map(HttpResponse.accepted()::<String>body);
+	}
+
+	/**
+	 * Clear a source import checkpoint so the next scheduled run starts a full harvest.
+	 *
+	 * The heavy remedy - it re-walks the entire catalogue of the target system - so prefer
+	 * reconcile when the damage is partial. Synchronous because it deletes a single row.
+	 */
+	@Post(uri = "/sourceImport/{hostLmsCode}/resetCheckpoint", produces = APPLICATION_JSON)
+	public Mono<MutableHttpResponse<String>> resetSourceImportCheckpoint(@PathVariable String hostLmsCode,
+		@QueryValue("reason") @Nullable String reason, @Nullable Authentication authentication) {
+
+		log.warn("Source import checkpoint reset requested for [{}] by [{}], reason [{}]",
+			hostLmsCode, nameOf(authentication), reason);
+
+		return sourceRecordServiceProvider.get()
+			.resetCheckpointFor(hostLmsCode)
+			.map(HttpResponse.ok()::<String>body);
+	}
+
+	@Get(uri = "/sourceImport/status", produces = APPLICATION_JSON)
+	public Mono<Map<String, Object>> getSourceImportRecoveryStatus() {
+		return Mono.just(sourceRecordServiceProvider.get().getReconcileStatus());
+	}
+
+	// Both recovery actions are destructive enough to want an audit trail of who asked for them.
+	private static String nameOf(Authentication authentication) {
+		return authentication != null ? authentication.getName() : "User not detected";
+	}
+
 	@Post(uri = "/validateClusters", produces = APPLICATION_JSON)
 	public Mono<MutableHttpResponse<String>> validateClusters() {
 		return housekeeping

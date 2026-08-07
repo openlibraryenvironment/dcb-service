@@ -1,5 +1,6 @@
 package org.olf.dcb.dataimport.job;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import org.olf.dcb.dataimport.job.model.SourceRecord;
@@ -30,5 +31,21 @@ public interface SourceRecordDataSource extends Named, ConcurrencyGroupAware {
 	 */
 	default Flux<SourceRecord> findMissingRecords( Publisher<String> knownRemoteIds ) {
 		return Flux.empty();
+	}
+
+	/**
+	 * Decide whether a stored checkpoint has stopped making progress and, if it can be corrected
+	 * cheaply, return the corrected version.
+	 *
+	 * Checkpoints are opaque JSON owned by the source, so only the source can read its own progress
+	 * marker or know which part of it is safe to rewind. The watchdog just applies what comes back.
+	 *
+	 * Implementations must return a checkpoint that re-walks work already done rather than one that
+	 * triggers a full re-harvest - a false positive must never stampede the upstream system.
+	 *
+	 * @return the corrected checkpoint, or empty when not stalled or not correctable
+	 */
+	default Optional<JsonNode> nudgeStalledCheckpoint( JsonNode checkpoint, Duration stallThreshold ) {
+		return Optional.empty();
 	}
 }

@@ -12,6 +12,7 @@ import static org.mockserver.verify.VerificationTimes.exactly;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -389,6 +390,70 @@ class PolarisHarvestChunkTests {
 		assertThat(recovered, hasSize(3));
 	}
 
+	/**
+	 * The watchdog's remedy: rewind the id cursor, keep the date window. Re-walking a window is
+	 * idempotent, whereas clearing the window would start a full catalogue harvest off the back of
+	 * what might be a false positive.
+	 */
+	@Test
+	void stalledCheckpointIsNudgedByRewindingTheCursorOnly() {
+		// Arrange - last progress an hour ago, cursor parked mid window
+		final var windowStart = Instant.ofEpochMilli(MOD_BASE);
+		final var checkpoint = deltaCheckpoint(windowStart, 4471903,
+			Instant.now().minus(Duration.ofHours(1)));
+
+		// Act
+		final var nudged = client.nudgeStalledCheckpoint(checkpoint, Duration.ofMinutes(30));
+
+		// Assert
+		assertThat("A stalled checkpoint must be corrected", nudged.isPresent(), is(true));
+
+		final var params = readCheckpoint(nudged.get());
+
+		assertThat("Cursor rewinds to the start of the window", params.getLastId(), is(0));
+		assertThat("The date window must be retained, not cleared into a full harvest",
+			params.getStartdatemodified(), is(windowStart));
+	}
+
+	@Test
+	void freshCheckpointIsLeftAlone() {
+		// Arrange
+		final var checkpoint = deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 4471903, Instant.now());
+
+		// Act / Assert
+		assertThat(client.nudgeStalledCheckpoint(checkpoint, Duration.ofMinutes(30)).isPresent(),
+			is(false));
+	}
+
+	/**
+	 * A stall with the cursor already at 0 is not a cursor problem, so there is nothing safe to
+	 * rewind. It must alarm and escalate rather than invent a remedy.
+	 */
+	@Test
+	void stalledCheckpointIsNotNudgedWhenTheCursorIsAlreadyAtTheStart() {
+		// Arrange
+		final var checkpoint = deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0,
+			Instant.now().minus(Duration.ofHours(1)));
+
+		// Act / Assert
+		assertThat(client.nudgeStalledCheckpoint(checkpoint, Duration.ofMinutes(30)).isPresent(),
+			is(false));
+	}
+
+	/**
+	 * Checkpoints written before checkpointDate existed carry no progress marker, so there is
+	 * nothing to measure a stall against.
+	 */
+	@Test
+	void checkpointWithoutAProgressMarkerIsLeftAlone() {
+		// Arrange - deltaCheckpoint without a checkpointDate
+		final var checkpoint = deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 4471903);
+
+		// Act / Assert
+		assertThat(client.nudgeStalledCheckpoint(checkpoint, Duration.ofMinutes(30)).isPresent(),
+			is(false));
+	}
+
 	// ---- helpers -------------------------------------------------------------------------------
 
 	private List<String> remoteIds(SourceRecordImportChunk chunk) {
@@ -407,12 +472,26 @@ class PolarisHarvestChunkTests {
 		}
 	}
 
+	private ExtendedBibsPagedGetParams readCheckpoint(JsonNode checkpoint) {
+		try {
+			return objectMapper.readValueFromTree(checkpoint, ExtendedBibsPagedGetParams.class);
+		}
+		catch (Exception e) {
+			throw new IllegalStateException("Could not read checkpoint", e);
+		}
+	}
+
 	private JsonNode deltaCheckpoint(Instant startDateModified, Integer lastId) {
+		return deltaCheckpoint(startDateModified, lastId, null);
+	}
+
+	private JsonNode deltaCheckpoint(Instant startDateModified, Integer lastId, Instant checkpointDate) {
 		try {
 			return objectMapper.writeValueToTree(ExtendedBibsPagedGetParams.builder()
 				.startdatemodified(startDateModified)
 				.highestDateUpdatedSeen(startDateModified)
 				.lastId(lastId)
+				.checkpointDate(checkpointDate)
 				.hostCode(HOST_LMS_CODE)
 				.build());
 		}
