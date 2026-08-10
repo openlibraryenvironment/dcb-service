@@ -40,6 +40,13 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 	// The ingest sources need constants
 	private static final String INGEST_SOURCE_CLASS_FOLIO = "org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource";
 	private static final String INGEST_SOURCE_CLASS_ALMA = "org.olf.dcb.core.interaction.alma.AlmaOaiPmhIngestSource";
+	private static final String INGEST_SOURCE_CLASS_KOHA = "org.olf.dcb.core.interaction.koha.KohaOaiPmhIngestSource";
+	private static final String INGEST_SOURCE_CLASS_ORS_APPLIANCE = "org.olf.dcb.core.interaction.ors.ORSApplianceOaiPmhIngestSource";
+
+	// Sierra and Polaris are their own ingest source (the client class implements
+	// MarcIngestSource), so they deliberately have no entry here. The Foundation
+	// connector has no harvester at all yet.
+	private static final String CLASS_ORS_APPLIANCE = "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS";
 
 	public CreateHostLmsDataFetcher(HostLmsRepository hostLmsRepository,
 																	HostLmsService hostLmsService,
@@ -86,6 +93,13 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 				ingestSourceClass = INGEST_SOURCE_CLASS_FOLIO;
 			} else if (lmsClientClass.toLowerCase().contains("alma")) {
 				ingestSourceClass = INGEST_SOURCE_CLASS_ALMA;
+			} else if (lmsClientClass.toLowerCase().contains("koha")) {
+				ingestSourceClass = INGEST_SOURCE_CLASS_KOHA;
+			} else if (CLASS_ORS_APPLIANCE.equals(lmsClientClass)) {
+				// Matched exactly rather than by substring: the appliance client
+				// lives under request.lifecycle.ncip, so a loose "ncip" test would
+				// also catch anything else in that package.
+				ingestSourceClass = INGEST_SOURCE_CLASS_ORS_APPLIANCE;
 			}
 		}
 
