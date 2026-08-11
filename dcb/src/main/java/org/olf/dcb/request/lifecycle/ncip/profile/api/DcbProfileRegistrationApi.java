@@ -60,6 +60,30 @@ public final class DcbProfileRegistrationApi {
 
 	@Serdeable
 	@Introspected
+	public record ReadinessCheck(
+		String code,
+		String status,
+		String message,
+		String remediation
+	) {
+	}
+
+	@Serdeable
+	@Introspected
+	public record ReadinessResponse(
+		boolean ready,
+		String profile,
+		int profileVersion,
+		String dcbBaseUrl,
+		List<ReadinessCheck> checks
+	) {
+		public ReadinessResponse {
+			checks = checks == null ? List.of() : List.copyOf(checks);
+		}
+	}
+
+	@Serdeable
+	@Introspected
 	public record InvitationMetadata(
 		UUID invitationId,
 		String profile,

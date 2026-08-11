@@ -94,6 +94,11 @@ registration proof to call non-consuming `POST /membership-validations`, then at
 `POST /memberships`. Redemption requires a printable institution address, pulls the ORS public directory, and creates HostLMS, Agency, Library
 and selected Locations only after all prerequisites and conflicts pass.
 
+`GET /api/v1/dcb-profile-ncip2/readiness` reports safe, administrator-only checks for the
+public DCB URL, NCIP identity, peer authentication and signing identity. Invitation issuance
+returns `503 PROFILE_REGISTRATION_NOT_READY` until every check passes. Neither endpoint returns
+signing key material.
+
 DCB pulls approved metadata every 15 minutes. Administrators can call
 `POST /memberships/{id}/sync`, approve or reject sensitive changes, and revoke membership. Sensitive
 issuer, JWKS, NCIP/OAI origin, or selected-symbol changes remain pending while the last approved

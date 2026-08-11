@@ -52,6 +52,7 @@ public class DcbProfileRegistrationService {
 	private final DcbProfileRegistrationProperties properties;
 	private final DcbPeerAuthProperties peerAuthProperties;
 	private final NcipIdentityConfiguration ncipIdentity;
+	private final DcbProfileReadinessService readinessService;
 
 	public DcbProfileRegistrationService(
 		DcbProfileMembershipRepository membershipRepository,
@@ -63,7 +64,8 @@ public class DcbProfileRegistrationService {
 		DcbProfileDirectoryPullService directoryPullService,
 		DcbProfileRegistrationProperties properties,
 		DcbPeerAuthProperties peerAuthProperties,
-		NcipIdentityConfiguration ncipIdentity
+		NcipIdentityConfiguration ncipIdentity,
+		DcbProfileReadinessService readinessService
 	) {
 		this.membershipRepository = membershipRepository;
 		this.hostLmsRepository = hostLmsRepository;
@@ -75,12 +77,14 @@ public class DcbProfileRegistrationService {
 		this.properties = properties;
 		this.peerAuthProperties = peerAuthProperties;
 		this.ncipIdentity = ncipIdentity;
+		this.readinessService = readinessService;
 	}
 
 	public DcbProfileRegistrationApi.InvitationResponse issue(
 		DcbProfileRegistrationApi.IssueInvitationRequest request,
 		String actor
 	) {
+		readinessService.requireReady();
 		String profile = blank(request.profile())
 			? DcbProfileRegistrationApi.PROFILE_ID
 			: request.profile().trim();

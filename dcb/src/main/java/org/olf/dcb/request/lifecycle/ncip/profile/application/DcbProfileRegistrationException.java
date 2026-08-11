@@ -45,6 +45,11 @@ public class DcbProfileRegistrationException extends RuntimeException {
 			HttpStatus.BAD_GATEWAY, code, message, null, code, true);
 	}
 
+	public static DcbProfileRegistrationException notReady(String code, String message) {
+		return new DcbProfileRegistrationException(
+			HttpStatus.SERVICE_UNAVAILABLE, code, message, null, code, true);
+	}
+
 	public HttpStatus status() {
 		return status;
 	}
