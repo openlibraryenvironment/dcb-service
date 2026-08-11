@@ -672,11 +672,21 @@ call it; the transition's private copy — which skipped the context hierarchy a
 — is deleted, along with `ReferenceValueMappingService` and `AgencyRepository` from its
 constructor. `NoAgencyFoundException` had no remaining users and is gone.
 
-**One shared-system flag (H5).** `shared-system: true` disables `getDefaultAgencyCode()` and
-drops the `Location:*` wildcard from the lookup. `HostLmsConfigValidator` rejects the flag
-combined with `default-agency-code`, and no longer *requires* `default-agency-code` when it is
-set — every adapter used to demand one unconditionally, which made a correctly configured
-shared system unrepresentable through the admin UI.
+**One shared-system flag (H5).** `shared-system: true` suppresses the default-agency fallback
+in `LocationToAgencyMappingService.findDefaultAgencyCode` and drops the `Location:*` wildcard
+from the lookup. `HostLmsConfigValidator` rejects the flag combined with `default-agency-code`,
+and no longer *requires* `default-agency-code` when it is set — every adapter used to demand one
+unconditionally, which made a correctly configured shared system unrepresentable through the
+admin UI.
+
+The guard sits on the *fallback*, not on `HostLmsClient.getDefaultAgencyCode()`. An earlier
+revision put it on the accessor, which nulled the value for `ORSApplianceHostLMS` too — and that
+adapter reads the same config key as the agency it names in every NCIP `party` element, not as a
+fallback for an unmapped location. A shared appliance is the case the flag exists to support, so
+guarding the accessor broke NCIP patron lookup on exactly the configuration it was written for.
+One key, two meanings; only one of them is invalidated by sharing. The appliance is likewise
+exempt from the validator's conflict rule, and `validateOrsAppliance` requires the key whether or
+not the record is shared.
 
 **`SameServerItemFilter` (H1).** Rewritten to compare `HostLmsClient`s rather than a config
 key, which is what made it fail on Koha (`api-url`) and Alma (`alma-url`) — `Mono.map` signals
@@ -712,6 +722,12 @@ patron on a third system still routed to `LOCAL_WORKFLOW` — where `placeSingul
 resolves its client from the borrowing identity and hands it another system's bib and item ids.
 `WorkflowSelectionTests` is new and covers each workflow plus the shared-system permutations.
 
+**Per-item fan-out at the supplier (H7).** `KohaHostLmsClient.getItems` chained three unbounded
+`flatMap`s, and `mapKohaItemToDcbItem` issues a `getActiveHoldsForItem` per item — so one
+availability check on a title held at sixty branches was sixty concurrent calls to one Koha, per
+user. Bounded at four. Pinned by a test that measures peak in-flight calls, which reads 60
+without the limit.
+
 **Everything else.** Borrowing participation is re-asserted in `ValidatePatronTransition`
 (2b); the wildcard is now suppressed when the system cannot be identified rather than failing
 open; the double agency resolution in `validatePatronIdentity` is gone; item filters carry
@@ -723,6 +739,13 @@ and `PolarisConfig`'s unread `default-agency-code` are removed (H9).
 details, rather than one alarm code per location. While changing it: the alarm was never
 actually raised — `raise()` returns a `Mono` whose result was discarded without subscribing, so
 this condition has been silent since it was written.
+
+The accumulation is a single `INSERT … ON CONFLICT DO UPDATE` on `PostgresAlarmRepository`, not
+a read-modify-write in Java. The condition is reported one location at a time from the per-item
+availability path, so every reporter arrives at once and a Java-side merge keeps only the last
+writer's set — measured at 60 concurrent reporters, which is the shape of a first ingest against
+a sixty-branch Koha. `xmax = 0` distinguishes insert from update so only first sighting notifies,
+and the array is capped so a jsonb column fed from a per-item path is not an unbounded collection.
 
 ### 7.3 Tests added
 
@@ -771,9 +794,6 @@ two Sierra instances that differ only by path. Worth doing with a test, not blin
 
 ### Not addressed
 
-- **Unbounded per-item fan-out (H7).** `KohaHostLmsClient.getItems` still issues an unbounded
-  `flatMap` with a `getActiveHoldsForItem` call per item. A title held at sixty branches is
-  sixty-plus concurrent calls to one server per availability check, per user.
 - **Ingest is not deduplicated** across two Host LMS records on one Sierra. Confirm whether the
   host-scoped `SourceRecordRepository` keying makes duplicate clustering intentional first.
 - **Config-file import** (`DCBConfigurationService`) imports locations and mappings, not Host

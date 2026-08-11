@@ -52,6 +52,17 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private static final String DEFAULT_FIRST_NAME = "DCB";
 	private static final String DEFAULT_LAST_NAME = "VPATRON";
 
+	/**
+	 * How many items getItems enriches at once.
+	 * <p>
+	 * mapKohaItemToDcbItem issues a getActiveHoldsForItem per item, so an unbounded
+	 * flatMap turns one availability check into one API call per holding. A title
+	 * held at sixty branches of a shared Koha is then sixty concurrent calls to a
+	 * single server, per check, per user - and co-tenancy is exactly what makes the
+	 * holding count large while the server count stays at one.
+	 */
+	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
+
 	public KohaHostLmsClient(
 		@Parameter HostLms hostLms,
 		ReferenceValueMappingService referenceValueMappingService,
@@ -437,9 +448,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return client.getItemsForBiblio(bibId)
 			.flatMapMany(Flux::fromArray)
-			.flatMap(this::mapKohaItemToDcbItem)
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
-			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
+			.flatMap(this::mapKohaItemToDcbItem, ITEM_ENRICHMENT_CONCURRENCY)
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
+				ITEM_ENRICHMENT_CONCURRENCY)
+			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType,
+				ITEM_ENRICHMENT_CONCURRENCY)
 			.onErrorContinue((throwable, item) -> log.warn("Mapping error for Koha item {}: {}", item, throwable.getMessage()))
 			.collectList();
 	}

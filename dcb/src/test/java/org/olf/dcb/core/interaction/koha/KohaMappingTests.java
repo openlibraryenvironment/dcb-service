@@ -1,7 +1,9 @@
 package org.olf.dcb.core.interaction.koha;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,7 +11,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +33,7 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 /**
  * How Koha records become DCB records.
@@ -199,6 +205,45 @@ class KohaMappingTests {
 			.build()).block();
 
 		assertThat(captor.getValue().getLibraryId(), is("DCB-SHARING"));
+	}
+
+	@Test
+	void shouldNotCallKohaOncePerHoldingAllAtOnce() {
+		// getItems issues a getActiveHoldsForItem per item. Unbounded, a title held at
+		// sixty branches of a shared Koha is sixty concurrent calls to one server, per
+		// availability check, per user - and co-tenancy is what makes the holding count
+		// large while the server count stays at one.
+		final var holdings = 60;
+		final var inFlight = new AtomicInteger();
+		final var peakInFlight = new AtomicInteger();
+
+		final var kohaItems = IntStream.range(0, holdings)
+			.mapToObj(index -> KohaItem.builder()
+				.itemId((long) index)
+				.biblioId(42L)
+				.externalId("barcode-" + index)
+				.homeLibraryId("BRANCH-%02d".formatted(index))
+				.build())
+			.toArray(KohaItem[]::new);
+
+		when(apiClient.getItemsForBiblio("42")).thenReturn(Mono.just(kohaItems));
+
+		when(apiClient.getActiveHoldsForItem(any())).thenAnswer(invocation ->
+			Mono.fromCallable(() -> {
+					peakInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+					return new Object[0];
+				})
+				// Hold the call open so overlapping requests actually overlap
+				.delayElement(Duration.ofMillis(20))
+				.doOnNext(response -> inFlight.decrementAndGet())
+				.subscribeOn(Schedulers.boundedElastic()));
+
+		final var items = client.getItems(BibRecord.builder().sourceRecordId("42").build()).block();
+
+		assertThat("Every holding is still mapped", items, hasSize(holdings));
+
+		assertThat("Concurrent calls to one Koha must stay bounded",
+			peakInFlight.get(), is(lessThanOrEqualTo(4)));
 	}
 
 	private KohaItem createVirtualItem(String patronHomeLocation) {

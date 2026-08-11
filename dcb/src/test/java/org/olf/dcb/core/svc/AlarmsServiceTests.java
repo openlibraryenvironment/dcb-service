@@ -2,14 +2,15 @@ package org.olf.dcb.core.svc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import org.olf.dcb.test.DataAccess;
 import org.olf.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
 
 /**
@@ -77,17 +80,44 @@ class AlarmsServiceTests {
 		return codes.stream().map(String::valueOf).toList();
 	}
 
+	@Test
+	void shouldNotLoseValuesReportedConcurrently() {
+		// The condition is reported one location at a time from the per-item
+		// availability path, so every reporter arrives at once. A read-modify-write
+		// in Java keeps only the last writer's set; this is the case that proves the
+		// accumulation happens in the database.
+		final var locationCodes = IntStream.range(0, 60)
+			.mapToObj("BRANCH-%02d"::formatted)
+			.toList();
+
+		Flux.fromIterable(locationCodes)
+			.flatMap(this::raiseAccumulating, locationCodes.size())
+			.then()
+			.block();
+
+		final var alarms = allAlarms();
+
+		assertThat("Concurrent reporters share one alarm", alarms, hasSize(1));
+
+		assertThat("Every concurrently reported location survives",
+			unmappedCodesOf(alarms.get(0)), containsInAnyOrder(locationCodes.toArray()));
+	}
+
 	private void raiseFor(String locationCode) {
-		singleValueFrom(alarmsService.raiseAccumulating(Alarm.builder()
+		raiseAccumulating(locationCode).block();
+	}
+
+	private Mono<Void> raiseAccumulating(String locationCode) {
+		return alarmsService.raiseAccumulating(Alarm.builder()
 				.id(UUIDUtils.generateAlarmId(ALARM_CODE))
 				.code(ALARM_CODE)
 				.expires(Instant.now().plus(Duration.ofDays(5)))
 				.build(),
-			"unmappedLocationCodes", locationCode));
+			"unmappedLocationCodes", locationCode);
 	}
 
 	private List<Alarm> allAlarms() {
-		return reactor.core.publisher.Flux.from(alarmRepository.queryAll())
+		return Flux.from(alarmRepository.queryAll())
 			.collectList()
 			.block();
 	}

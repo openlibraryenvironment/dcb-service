@@ -441,7 +441,7 @@ public class RequestWorkflowContextHelper {
 			.map( _systems -> rwc.setPatronRequest( pr.setActiveWorkflow(LOCAL_WORKFLOW) ))
 
 			.onErrorResume( e -> {
-				final var message = "DCB-WORKFLOW-HOSTLMS-FK-RESOLUTION: failed to compare lender and pickup Host LMS clients; falling back to agency-code workflow default. "
+				final var message = "DCB-WORKFLOW-HOSTLMS-FK-RESOLUTION: failed to compare lender, pickup and patron Host LMS clients; falling back to agency-code workflow default. "
 					+ e.getMessage();
 				log.warn(message, e);
 				rwc.getWorkflowMessages().add(message);

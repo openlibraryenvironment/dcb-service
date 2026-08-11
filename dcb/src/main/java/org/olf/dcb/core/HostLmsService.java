@@ -220,26 +220,6 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	/**
-	 * Is this Host LMS shared by more than one participating library?
-	 *
-	 * @see HostLmsClient#isSharedSystem()
-	 */
-	public Mono<Boolean> isSharedSystem(String hostLmsCode) {
-		return getClientFor(hostLmsCode)
-			.map(HostLmsClient::isSharedSystem)
-			.defaultIfEmpty(Boolean.FALSE)
-			.onErrorResume(error -> {
-				// An unknown or unloadable Host LMS must not decide policy. Assume
-				// dedicated so callers keep their existing single-tenant behaviour;
-				// whatever is actually broken will surface on its own path.
-				log.warn("Unable to determine whether Host LMS '{}' is shared ({}); assuming dedicated",
-					hostLmsCode, error.toString());
-
-				return Mono.just(Boolean.FALSE);
-			});
-	}
-
-	/**
 	 * Retrieves useful details about the host lms in relation to ingest and import 
 	 * @param id the identifier for the host lms you want the information about
 	 * @return A map containing the relevant information

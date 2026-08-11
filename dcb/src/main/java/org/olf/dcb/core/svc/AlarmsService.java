@@ -9,17 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import java.net.URL;
 
 import io.micronaut.http.HttpRequest;
@@ -95,53 +90,26 @@ public class AlarmsService {
 	 * <p>
 	 * The accumulated set is capped: it exists to tell an operator what to go and fix,
 	 * not to be a log.
+	 * <p>
+	 * The merge is done by the database in a single statement rather than read into
+	 * Java and written back. Callers report one occurrence at a time from concurrent
+	 * per-item paths, and under that concurrency a read-modify-write loses most of
+	 * the values - every writer computes its set from a stale read.
 	 */
 	@Transactional
-	public Mono<Alarm> raiseAccumulating(Alarm alarm, String detailKey, String value) {
+	public Mono<Void> raiseAccumulating(Alarm alarm, String detailKey, String value) {
 
-		return Mono.from(alarmRepository.findById(alarm.getId()))
-			.cast(Alarm.class)
-			.flatMap(existingAlarm -> {
-				existingAlarm.setLastSeen(Instant.now());
-				existingAlarm.setExpires(alarm.getExpires());
-				existingAlarm.incrementRepeatCount();
-				existingAlarm.setAlarmDetails(
-					withValueAdded(existingAlarm.getAlarmDetails(), detailKey, value));
-
-				return Mono.from(alarmRepository.update(existingAlarm)).cast(Alarm.class);
-			})
-			.switchIfEmpty(Mono.defer(() -> {
-				alarm.setAlarmDetails(withValueAdded(alarm.getAlarmDetails(), detailKey, value));
-
-				return createNewAlarm(alarm)
-					.flatMap(dbalarm -> optionallyNotify(dbalarm.getCode(), "ACTIVATED")
-						.thenReturn(dbalarm));
-			}));
+		return Mono.from(alarmRepository.accumulateDetailValue(alarm.getId(), alarm.getCode(),
+				Instant.now(), alarm.getExpires(), detailKey, value, MAX_ACCUMULATED_VALUES))
+			.flatMap(inserted -> Boolean.TRUE.equals(inserted)
+				// Only the call that created the alarm notifies. Every subsequent
+				// occurrence is another value inside the same condition, and the point
+				// of accumulating is that it does not produce another notification.
+				? optionallyNotify(alarm.getCode(), "ACTIVATED").then()
+				: Mono.empty());
 	}
 
 	private static final int MAX_ACCUMULATED_VALUES = 100;
-
-	private static Map<String, Object> withValueAdded(Map<String, Object> alarmDetails,
-		String detailKey, String value) {
-
-		final var updated = alarmDetails == null
-			? new LinkedHashMap<String, Object>()
-			: new LinkedHashMap<>(alarmDetails);
-
-		final var existing = updated.get(detailKey);
-
-		final Set<String> values = existing instanceof Collection<?> collection
-			? collection.stream().map(String::valueOf).collect(Collectors.toCollection(TreeSet::new))
-			: new TreeSet<>();
-
-		if (values.size() < MAX_ACCUMULATED_VALUES) {
-			values.add(value);
-		}
-
-		updated.put(detailKey, List.copyOf(values));
-
-		return updated;
-	}
 
   @Transactional
 	public Mono<Alarm> createNewAlarm(Alarm alarm) {
