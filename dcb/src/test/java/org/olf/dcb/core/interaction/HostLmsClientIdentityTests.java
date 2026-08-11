@@ -3,7 +3,6 @@ package org.olf.dcb.core.interaction;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -183,16 +182,22 @@ class HostLmsClientIdentityTests {
 	@Nested
 	class SharedSystemFlag {
 		@Test
-		void shouldWithholdDefaultAgencyCodeOnASharedSystem() {
-			// The default agency is what silently attributes every co-tenant library's
-			// unmapped patrons - including libraries outside the consortium - to one
-			// agency. It has no safe meaning on a shared system.
+		void shouldStillReportDefaultAgencyCodeOnASharedSystem() {
+			// The accessor returns the raw configured value and does not judge it. The
+			// dangerous meaning of this key - "the agency to assume when a location
+			// does not map" - is a resolution concern, and it is suppressed for a
+			// shared system in LocationToAgencyMappingService.findDefaultAgencyCode.
+			//
+			// Guarding it here instead also nulled it for ORSApplianceHostLMS, which
+			// reads the same key as the agency it names in every NCIP party element,
+			// and so broke patron lookup on exactly the shared appliances the flag is
+			// meant to support.
 			final var client = clientWithConfig(Map.<String, Object>of(
 				"shared-system", true,
 				"default-agency-code", "some-agency"));
 
 			assertThat(client.isSharedSystem(), is(true));
-			assertThat(client.getDefaultAgencyCode(), is(nullValue()));
+			assertThat(client.getDefaultAgencyCode(), is("some-agency"));
 		}
 
 		@Test

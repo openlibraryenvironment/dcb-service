@@ -17,5 +17,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 public class Bib {
 	private String title;
 	private String author;
-	private String canonicalItemType;
+
+	// This is what determines the material type of a virtual bib at the host LMS
+	private String typeOfRecord;
 }

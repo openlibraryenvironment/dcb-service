@@ -80,14 +80,19 @@ public interface HostLmsClient
 			String.valueOf(getConfig().getOrDefault(SHARED_SYSTEM, Boolean.FALSE)));
 	}
 
+	/**
+	 * The raw configured value, whatever the adapter uses it for.
+	 * <p>
+	 * Deliberately unguarded. Most adapters only ever reach this through
+	 * {@code LocationToAgencyMappingService.findDefaultAgencyCode}, where it means
+	 * "the agency to assume when a patron's home location does not map" - and that
+	 * is where the shared-system guard belongs, because that is the meaning a
+	 * shared system invalidates. But ORSApplianceHostLMS reads it directly as the
+	 * agency it names in every NCIP party element, and a shared appliance needs
+	 * that identity as much as a dedicated one. Nulling it here broke NCIP patron
+	 * lookup on exactly the shared appliances this flag exists to support.
+	 */
 	default String getDefaultAgencyCode() {
-		// A shared system has no meaningful default agency. Returning one here would
-		// attribute every unmapped patron of every co-tenant library to whichever
-		// agency happened to be configured.
-		if (isSharedSystem()) {
-			return null;
-		}
-
 		return (String) getConfig().get("default-agency-code");
 	}
 

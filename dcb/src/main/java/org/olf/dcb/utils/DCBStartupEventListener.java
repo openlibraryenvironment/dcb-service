@@ -187,7 +187,9 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	 * worse trade than raising it where operators already look.
 	 */
 	private void warnAboutSharedSystemConflict(ConfigHostLms hostLms) {
-		if (!HostLmsConfigValidator.hasSharedSystemConflict(hostLms.getClientConfig())) {
+		final var lmsClientClass = tolerateNoType(hostLms.getType());
+
+		if (!HostLmsConfigValidator.hasSharedSystemConflict(lmsClientClass, hostLms.getClientConfig())) {
 			return;
 		}
 

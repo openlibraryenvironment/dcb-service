@@ -18,6 +18,7 @@ import io.micronaut.http.exceptions.HttpStatusException;
  */
 class HostLmsConfigValidatorTests {
 	private static final String SIERRA = "org.olf.dcb.core.interaction.sierra.SierraLmsClient";
+	private static final String ORS_APPLIANCE = "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS";
 
 	private final HostLmsConfigValidator validator = new HostLmsConfigValidator();
 
@@ -63,9 +64,45 @@ class HostLmsConfigValidatorTests {
 			"shared-system", "true",
 			"default-agency-code", "some-agency");
 
-		assertThat(HostLmsConfigValidator.hasSharedSystemConflict(conflicting), is(true));
-		assertThat(HostLmsConfigValidator.hasSharedSystemConflict(Map.of()), is(false));
-		assertThat(HostLmsConfigValidator.hasSharedSystemConflict(null), is(false));
+		assertThat(HostLmsConfigValidator.hasSharedSystemConflict(SIERRA, conflicting), is(true));
+		assertThat(HostLmsConfigValidator.hasSharedSystemConflict(SIERRA, Map.of()), is(false));
+		assertThat(HostLmsConfigValidator.hasSharedSystemConflict(SIERRA, null), is(false));
+	}
+
+	@Test
+	void shouldAllowADefaultAgencyOnASharedAppliance() {
+		// The appliance reads default-agency-code as the agency it names in every NCIP
+		// party element, not as a fallback for an unmapped location. An appliance
+		// fronting several libraries - which is what shared-system says - needs that
+		// identity exactly as much as one fronting a single library.
+		final var config = orsApplianceConfig();
+		config.put("shared-system", true);
+		config.put("default-agency-code", "some-agency");
+
+		assertThat(HostLmsConfigValidator.hasSharedSystemConflict(ORS_APPLIANCE, config), is(false));
+
+		assertDoesNotThrow(() -> validator.validate(ORS_APPLIANCE, config));
+	}
+
+	@Test
+	void shouldRequireADefaultAgencyOnASharedApplianceToo() {
+		final var config = orsApplianceConfig();
+		config.put("shared-system", true);
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(ORS_APPLIANCE, config));
+
+		assertThat(exception.getMessage(), containsString("default-agency-code"));
+	}
+
+	private Map<String, Object> orsApplianceConfig() {
+		final Map<String, Object> config = new HashMap<>();
+
+		config.put("base-url", "https://appliance.example.com");
+		config.put("ncip-endpoint-url", "https://appliance.example.com/ncip");
+		config.put("ncip-system-id", "any-system");
+
+		return config;
 	}
 
 	private Map<String, Object> sierraConfig() {

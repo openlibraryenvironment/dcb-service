@@ -19,7 +19,6 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.request.workflow.exceptions.UnableToResolveAgencyProblem;
 
-import graphql.com.google.common.base.Predicates;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -101,7 +100,8 @@ public class LocationToAgencyMappingService {
 
 		// Deliberately detached rather than composed into the caller: this sits on the
 		// per-item availability path, and an operator-facing notice is not worth making
-		// item mapping wait on a write.
+		// item mapping wait on a write. Safe to fire concurrently - the accumulation
+		// is a single atomic statement, not a read-modify-write.
 		alarmsService.raiseAccumulating(Alarm.builder()
 					.id(UUIDUtils.generateAlarmId(alarmCode))
 					.code(alarmCode)
@@ -110,7 +110,7 @@ public class LocationToAgencyMappingService {
 					.build(),
 				"unmappedLocationCodes", locationCode.toUpperCase())
 			.subscribe(
-				raised -> log.debug("Recorded unmapped location {} against {}", locationCode, alarmCode),
+				ignored -> { },
 				error -> log.warn("Unable to record unmapped location {} against {}",
 					locationCode, alarmCode, error));
 	}
@@ -213,36 +213,6 @@ public class LocationToAgencyMappingService {
 		return configured;
 	}
 
-	public Mono<List<String>> getContextHierarchyFor(String context) {
-		return getContextHierarchyFor( context, List.of(context));
-	}
-
-	/**
-	 * A way to fetch a context hierarchy for a given context.
-	 */
-	public Mono<List<String>> getContextHierarchyFor(String context, List<String> defaults) {
-
-		// guard clause for non-hostlms contexts
-		if ("DCB".equals(context)) return Mono.justOrEmpty(defaults);
-
-		return hostLmsService.getClientFor(context)
-			// Keep non-null & non-empty lists
-			.mapNotNull(hostLmsClient -> (List<String>) hostLmsClient.getConfig().get(KEY_CONTEXT_HIERARCHY))
-			.filter(Predicates.not(List::isEmpty))
-			// Fallback for non-null & non-empty lists
-			.switchIfEmpty(Mono.defer(() -> {
-				log.debug("[CONTEXT-HIERARCHY-EMPTY] " +
-					"- Fetching 'contextHierarchy' returned an EMPTY list for context: '{}'", context);
-				return Mono.justOrEmpty(defaults);
-			}))
-			// Fallback for error
-			.onErrorResume(error -> {
-				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
-					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
-				return Mono.justOrEmpty(defaults);
-			});
-	}
-
 	/**
 	 * Resolve the agency a patron belongs to from their home library code.
 	 * <p>
@@ -278,10 +248,23 @@ public class LocationToAgencyMappingService {
 			.switchIfEmpty(UnableToResolveAgencyProblem.raiseError(homeLibraryCode, hostLmsCode));
 	}
 
+	/**
+	 * The agency to assume when a patron's home location does not map to one.
+	 * <p>
+	 * Suppressed on a shared system, which is the whole point of the flag: standing
+	 * one agency in for an unrecognised location there attributes every co-tenant
+	 * library's patrons - including libraries outside the consortium entirely - to
+	 * whichever agency happened to be configured, with nothing to say it happened.
+	 * <p>
+	 * The guard is here rather than on {@link HostLmsClient#getDefaultAgencyCode()}
+	 * because this fallback is the only meaning a shared system invalidates. The
+	 * appliance reads the same config key as its NCIP identity and still needs it.
+	 */
 	public Mono<String> findDefaultAgencyCode(String hostLmsCode) {
 		log.debug("Attempting to use default agency for Host LMS: {}", hostLmsCode);
 
 		return hostLmsService.getClientFor(hostLmsCode)
+			.filter(client -> !client.isSharedSystem())
 			.flatMap(client -> justOrEmpty(getValueOrNull(client, HostLmsClient::getDefaultAgencyCode)))
 			.doOnSuccess(defaultAgencyCode -> log.debug(
 				"Found default agency code {} for Host LMS {}", defaultAgencyCode, hostLmsCode))
