@@ -3,8 +3,7 @@ package org.olf.dcb.utils;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static services.k_int.utils.UUIDUtils.nameUUIDFromNamespaceAndString;
 
-import java.time.Duration;
-import java.time.Instant;
+
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -16,14 +15,11 @@ import java.util.Optional;
 
 import io.micronaut.management.endpoint.info.*;
 
-import java.net.URL;
 
-import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Grant;
 import org.olf.dcb.core.model.StatusCode;
 import org.olf.dcb.core.model.config.ConfigHostLms;
-import org.olf.dcb.graphql.validation.HostLmsConfigValidator;
 import org.olf.dcb.storage.GrantRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.StatusCodeRepository;
@@ -56,9 +52,6 @@ import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 
 import org.olf.dcb.tracking.PollingConfig;
 import org.olf.dcb.core.svc.AlarmsService;
-
-import services.k_int.utils.UUIDUtils;
-
 
 @Slf4j
 @Singleton
