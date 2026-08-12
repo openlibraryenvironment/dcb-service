@@ -10,6 +10,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -1220,9 +1221,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// List<UserIdentifier> user_identifiers;
 		localBarcodes.add(almaUser.getPrimary_id());
 
-		boolean isActive = almaUser.getStatus() != null && "ACTIVE".equalsIgnoreCase(almaUser.getStatus().getValue());
-		boolean isDeleted = almaUser.getStatus() != null && "DELETED".equalsIgnoreCase(almaUser.getStatus().getValue());
+		// An absent status is treated as active — only an explicit INACTIVE/DELETED blocks the patron.
+		final var status = almaUser.getStatus() != null ? almaUser.getStatus().getValue() : null;
+		final var isDeleted = "DELETED".equalsIgnoreCase(status);
+		final var isActive = !isDeleted && !"INACTIVE".equalsIgnoreCase(status);
 
+		final var expiryDate = parseAlmaExpiryDate(almaUser.getExpirationDate(), almaUser.getPrimary_id());
 
 		return Patron.builder()
 			.localId(localIds) // list
@@ -1230,19 +1234,39 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.localBarcodes(localBarcodes)
 			.uniqueIds(uniqueIds)
 			.localPatronType(almaUser.getUser_group().getValue())
-			.expiryDate(almaUser.getExpirationDate() != null ?
-				java.sql.Timestamp.valueOf(LocalDate.parse(almaUser.getExpirationDate().replace("Z", "")).atStartOfDay())
-				: null)//	.localHomeLibraryCode(almaUser.get)
+			.expiryDate(expiryDate != null ? Timestamp.valueOf(expiryDate.atStartOfDay()) : null)
+			//	.localHomeLibraryCode(almaUser.get)
 			// .canonicalPatronType
 			// .localItemId
 			// .localItemLocationId
-			.isDeleted(Boolean.FALSE)
+			.isDeleted(isDeleted)
 			.isBlocked(Boolean.FALSE)
 			// .city
 			// .postalCode
 			// .state
-			.isActive(Boolean.TRUE)
+			.isActive(isActive)
 			.build();
+	}
+
+	private LocalDate parseAlmaExpiryDate(String rawExpiryDate, String primaryId) {
+		if (rawExpiryDate == null || rawExpiryDate.isBlank()) {
+			return null;
+		}
+
+		final var trimmed = rawExpiryDate.trim();
+		// Strip a time portion if one is present, then the trailing zone designator.
+		final var datePart = trimmed.contains("T")
+			? trimmed.substring(0, trimmed.indexOf('T'))
+			: trimmed.replace("Z", "");
+
+		try {
+			return LocalDate.parse(datePart);
+		} catch (DateTimeParseException e) {
+			log.error("Failed to parse Alma expiry date \"{}\" for patron {}. Patron will be mapped without an expiry date.",
+				rawExpiryDate, primaryId, e);
+
+			return null;
+		}
 	}
 
 	public Mono<PingResponse> ping() {
@@ -1542,42 +1566,37 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 		.doOnError(e -> log.error("Failed to fetch item by barcode {} from Alma: {}", barcode, e.getMessage()));
 }
 	private Mono<AlmaUser> checkAndUpdateExpiryIfNeeded(AlmaUser almaUser) {
-		if (almaUser.getExpirationDate() == null) {
-			log.warn("Alma Patron {} has no expiration date. Cannot check expiry.", almaUser.getPrimary_id());
+		final var patronExpiryDate = parseAlmaExpiryDate(almaUser.getExpirationDate(), almaUser.getPrimary_id());
+
+		if (patronExpiryDate == null) {
+			log.warn("Alma Patron {} has no usable expiration date. Cannot check expiry.", almaUser.getPrimary_id());
 			return Mono.just(almaUser);
 		}
 
-		// Alma doesn't always like the "Z".
-		try {
-			final String rawDate = almaUser.getExpirationDate().replace("Z", "");
-			final var patronExpiryDate = LocalDate.parse(rawDate);
+		final var now = LocalDate.now(ZoneOffset.UTC);
+		final var expiryThreshold = now.plusDays(30);
 
-			final var now = LocalDate.now(ZoneOffset.UTC);
-			final var expiryThreshold = now.plusDays(30);
-
-			if (patronExpiryDate.isBefore(expiryThreshold)) {
-				final var newExpiryDate = now.plusDays(120);
-				final String newExpirationDateStr = newExpiryDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "Z";
-
-				almaUser.setExpirationDate(newExpirationDateStr);
-				almaUser.setStatus(CodeValuePair.builder().value("ACTIVE").build());
-
-				return client.updateUserDetails(almaUser.getPrimary_id(), almaUser)
-					.map(updatedUser -> {
-						log.debug("Successfully extended expiry date for Alma virtual patron {} to {}",
-							almaUser.getPrimary_id(), newExpirationDateStr);
-						return updatedUser;
-					})
-					.onErrorResume(e -> {
-						log.error("ERROR: Failed to extend expiry date for Alma virtual patron {}. Continuing with existing expiry. Error: {}",
-							almaUser.getPrimary_id(), e.getMessage());
-						return Mono.just(almaUser);
-					});
-			}
-		} catch (Exception e) {
-			log.error("ERROR: Failed to parse expiry date '{}' for Alma virtual patron {}. Continuing with existing data. Error: {}",
-				almaUser.getExpirationDate(), almaUser.getPrimary_id(), e.getMessage());
+		if (!patronExpiryDate.isBefore(expiryThreshold)) {
+			return Mono.just(almaUser);
 		}
-		return Mono.just(almaUser);
+
+		final var newExpiryDate = now.plusDays(120);
+		// Alma doesn't always like the "Z", but does accept it on the way back in.
+		final String newExpirationDateStr = newExpiryDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "Z";
+
+		almaUser.setExpirationDate(newExpirationDateStr);
+		almaUser.setStatus(CodeValuePair.builder().value("ACTIVE").build());
+
+		return client.updateUserDetails(almaUser.getPrimary_id(), almaUser)
+			.map(updatedUser -> {
+				log.debug("Successfully extended expiry date for Alma virtual patron {} to {}",
+					almaUser.getPrimary_id(), newExpirationDateStr);
+				return updatedUser;
+			})
+			.onErrorResume(e -> {
+				log.error("ERROR: Failed to extend expiry date for Alma virtual patron {}. Continuing with existing expiry. Error: {}",
+					almaUser.getPrimary_id(), e.getMessage());
+				return Mono.just(almaUser);
+			});
 	}
 }
