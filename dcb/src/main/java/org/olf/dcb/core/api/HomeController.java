@@ -4,6 +4,7 @@ import static io.micronaut.http.MediaType.TEXT_PLAIN;
 
 import java.security.Principal;
 
+import org.olf.dcb.security.OpenToAllPrincipals;
 import org.olf.dcb.security.RoleNames;
 
 import io.micronaut.http.annotation.Controller;
@@ -26,6 +27,10 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "Management API")
 public class HomeController {
 
+	@OpenToAllPrincipals(justification =
+		"Echoes the CALLER'S OWN principal name and nothing else. It confers no authority, "
+			+ "reads no data, and two callers cannot see each other's answer — so 'anyone who "
+			+ "is authenticated' is the actual intent here rather than an unnoticed default.")
 	@Produces(TEXT_PLAIN)
 	@Get
 	public String index(Principal principal) {
