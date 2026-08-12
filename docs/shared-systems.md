@@ -323,7 +323,112 @@ sixty times as useful.
 
 ---
 
-## 9. Known limitations
+## 9. Who can see what
+
+A shared system changes what "my library's data" means, and the admin applications had
+assumed it meant "everything on my Host LMS". On a system serving one library those are the
+same sentence. On one serving sixty they are not, so DCB now decides this itself rather than
+trusting each screen to ask the right question.
+
+### The rule
+
+**Roles decide whether a limit applies. The agency claim decides what it contains.** Both
+halves matter, and treating either as the whole rule breaks one of the two applications.
+
+| Role | Sees |
+|---|---|
+| `ADMIN`, `CONSORTIUM_ADMIN` | Everything in the consortium, as today |
+| `LIBRARY_ADMIN`, `LIBRARY_READ_ONLY` | Only the libraries named in their `code` claim |
+
+Consortium staff hold an agency claim too — they are people who work at libraries — so
+limiting by the claim alone would cut them off from the consortium they administer. Limiting
+by role alone would leave library users seeing everything, which is the problem being solved.
+
+### What is limited
+
+| Data | Scoped by | Notes |
+|---|---|---|
+| Patron requests | Borrowing **or** supplying agency | Both sides: the borrowing and supplying screens are two views of one query |
+| Patron identities | The patron's resolved library | Virtual patrons DCB creates for itself have no library and stay visible |
+| Reference value mappings — reading | Your Host LMS | See below |
+| Reference value mappings — editing | Your Host LMS **and**, where the mapping names a library, your library | See below |
+| Host LMS configuration | Your own system only | Contains API keys and passwords |
+
+**Deliberately not limited:** locations, and bibliographic records. Locations are directory
+data that the product shares on purpose — the staff request form offers other libraries'
+pickup locations, and a pickup-anywhere request's pickup location belongs to a third library
+by definition. Bibliographic records are shared across the system they were contributed from.
+
+### Mappings, in more detail
+
+Reading is scoped to your Host LMS rather than to your library. Most mappings — patron types,
+item types — describe the *system* rather than any one of its tenants, and a library needs to
+read the ones governing its own circulation even when it shares that system. Knowing which
+agency a branch code maps to is not a secret.
+
+Changing one is. A library administrator may edit a mapping only when all of these hold:
+
+1. the consortium has not set `DENY_LIBRARY_MAPPING_EDIT`;
+2. the mapping is on a Host LMS one of their libraries sits on;
+3. where the mapping names a library (a `Location → AGENCY` mapping), it names one of theirs.
+
+The third condition is what stops one co-tenant re-pointing another's branch mapping at its
+own agency — the exact misattribution `shared-system` exists to prevent, which was previously
+reachable through the admin UI. Mappings that name no library stop at condition 2: any
+library on that system may edit them, and a consortium that does not want that has the
+functional setting.
+
+### Host LMS credentials
+
+A Host LMS client configuration holds API keys, secrets and staff passwords. The libraries
+list is fetched with no filter to populate dropdowns, and it selects that configuration — so
+every signed-in user's browser was receiving every consortium member's ILS credentials in
+order to render a list of library names. Consortium staff still see them; a library user sees
+the configuration of their own system and nothing else.
+
+### Administering more than one library
+
+Someone can be responsible for several libraries without administering the consortium — most
+obviously whoever runs a shared Koha on behalf of some of its members. The `code` claim may
+therefore name several agencies, as a list or as one comma-separated value, and DCB Admin for
+Libraries shows a **library selector** in its header when it does.
+
+The selector does not appear for anybody with a single library, which is almost everybody. A
+picker with one entry implies a choice that does not exist.
+
+This is the alternative to making such a person a consortium administrator, which would give
+them every library in order to give them six.
+
+### Impact on the two applications
+
+**DCB Admin — no impact expected.** Its users hold `ADMIN` or `CONSORTIUM_ADMIN` and are
+unrestricted by every rule above. The one visible change is that the Host LMS detail page now
+shows whether a system is marked shared, because that flag changes how the default agency
+code beside it behaves.
+
+If your consortium issues `LIBRARY_ADMIN` to someone who uses DCB Admin, they will now see
+only their own library's requests and configuration there. That is the intended behaviour of
+the role rather than a side effect, but it is worth knowing before anyone reports it.
+
+**DCB Admin for Libraries — very limited impact for an ordinary single-library user.** Their
+screens were already scoped to their library by convention; the difference is that the
+scoping is now enforced by the service instead of requested by the browser. On a *dedicated*
+system the results are identical.
+
+On a **shared** system the results change, and that is the point: the borrowing views stop
+showing co-tenant libraries' requests, the request detail page names the correct borrowing
+library instead of an arbitrary one, and mappings belonging to other libraries can no longer
+be edited.
+
+> **Before deploying.** A user who is not a consortium administrator and whose token carries
+> no `code` claim will now see nothing rather than everything. This is deliberate — a control
+> that opens when it cannot identify you is not a control — but it means your identity
+> provider must issue `code` for every `LIBRARY_ADMIN` and `LIBRARY_READ_ONLY`. Check that
+> before rolling out.
+
+---
+
+## 10. Known limitations
 
 **DCB will not lend a patron their own library's copy when the pickup is elsewhere.** A
 patron at branch A of a sixty-library Koha, collecting at branch B, is supplied from branch C
@@ -348,9 +453,15 @@ of actioning it.
 can each have a `MAIN`; one library cannot have two. This matches how DCB derives a location's
 internal identity, from the agency code and the location code together.
 
+**Request audit entries are not scoped to a library.** Everything else in §9 is, but an audit
+reaches its library only through the request, the requesting identity and then the agency, and
+at that depth the database rejects the generated column names as too long. Closing it needs
+the borrowing library recorded on the request itself. Audit entries carry patron barcodes and
+names, so on a shared system treat the audit view as consortium-wide until that is done.
+
 ---
 
-## 10. Configuration reference
+## 11. Configuration reference
 
 Keys relevant to shared systems, on the Host LMS client config:
 
@@ -369,3 +480,17 @@ Agency-level settings:
 |---|---|
 | `isSupplyingAgency` | This library lends through DCB. `false` drops its items from availability. |
 | `isBorrowingAgency` | This library borrows through DCB. `false` refuses its patrons. |
+
+Identity provider claims, which decide what a signed-in user can see (§9):
+
+| Claim | Meaning |
+|---|---|
+| `code` | The agency, or agencies, this user administers. A single value, a list, or one comma-separated value. Required for every `LIBRARY_ADMIN` and `LIBRARY_READ_ONLY`. |
+| `agencyCodes` | Accepted alongside `code`, for providers that cannot make an existing single-valued claim into a list. |
+| roles | `ADMIN` and `CONSORTIUM_ADMIN` see the whole consortium; every other role is limited to the claim. |
+
+Consortium functional settings:
+
+| Setting | Meaning |
+|---|---|
+| `DENY_LIBRARY_MAPPING_EDIT` | When enabled, library administrators cannot edit mappings at all. When disabled, they can edit their own — see §9. |

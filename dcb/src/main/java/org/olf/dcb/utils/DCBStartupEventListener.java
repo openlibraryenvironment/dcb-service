@@ -158,8 +158,6 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 	private void saveConfigHostLms(ConfigHostLms hostLms) {
 		log.debug("make sure {}/{}/{} exists in DB", hostLms.getId(), hostLms.getName(), hostLms);
 
-		warnAboutSharedSystemConflict(hostLms);
-
 		final var db_representation = DataHostLms.builder()
 			.id(hostLms.getId())
 			.code(hostLms.getCode())
@@ -174,36 +172,6 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 		// we don't want to proceed until this is done
 		hostLmsRepository.saveOrUpdate(db_representation).block();
 		log.debug("Save complete");
-	}
-
-	/**
-	 * Host LMS records seeded from application configuration never pass through
-	 * HostLmsConfigValidator, so a contradiction the admin API would refuse can still
-	 * arrive this way.
-	 * <p>
-	 * Deliberately not fatal. The runtime already declines to use a default agency on
-	 * a shared system, so the combination is harmless - what was dangerous about it
-	 * was going unmentioned. Refusing to boot over a configuration typo would be a
-	 * worse trade than raising it where operators already look.
-	 */
-	private void warnAboutSharedSystemConflict(ConfigHostLms hostLms) {
-		final var lmsClientClass = tolerateNoType(hostLms.getType());
-
-		if (!HostLmsConfigValidator.hasSharedSystemConflict(lmsClientClass, hostLms.getClientConfig())) {
-			return;
-		}
-
-		final var alarmCode = "CONFIG." + hostLms.getCode() + ".SHARED_SYSTEM_DEFAULT_AGENCY";
-
-		log.error("Host LMS {} declares shared-system and a default-agency-code. {} "
-			+ "The default agency will be ignored.", hostLms.getCode(), HostLmsConfigValidator.SHARED_SYSTEM_CONFLICT_DETAIL);
-
-		alarmsService.raise(Alarm.builder()
-				.id(UUIDUtils.generateAlarmId(alarmCode))
-				.code(alarmCode)
-				.expires(Instant.now().plus(Duration.ofDays(5)))
-				.build())
-			.subscribe();
 	}
 
 	private static String tolerateNoType(Class<?> type) {

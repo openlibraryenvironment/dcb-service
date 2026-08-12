@@ -5,7 +5,6 @@ import java.util.List;
 
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import jakarta.persistence.criteria.From;
-import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 
@@ -75,39 +74,47 @@ public record QueryPath(List<String> joins, String property, MatchMode matchMode
 			: resolve(root).in(values);
 	}
 
+	/**
+	 * Matches any of the given values, and also rows where the path resolves to
+	 * nothing.
+	 * <p>
+	 * For an access scope this says "or it belongs to nobody". Use it only where an
+	 * unattributed row is genuinely not anybody's private data - a record DCB created
+	 * for itself rather than one whose owner simply was not recorded.
+	 */
+	public <T> QuerySpecification<T> isAnyOfOrAbsent(Collection<String> values) {
+		return (root, query, criteriaBuilder) -> {
+			final var path = resolve(root);
+
+			return values.isEmpty()
+				? criteriaBuilder.isNull(path)
+				: criteriaBuilder.or(path.in(values), criteriaBuilder.isNull(path));
+		};
+	}
+
+	/**
+	 * Each specification adds its own joins.
+	 * <p>
+	 * Reusing a join another specification already made would be preferable, but
+	 * Micronaut Data's criteria implementation raises "Not supported operation!" from
+	 * {@code Join.getAttribute()}, so there is no way to ask an existing join what it
+	 * joined. Recognising it by anything else means casting to Micronaut's own path
+	 * types, which is a heavier coupling than the problem deserves.
+	 * <p>
+	 * What that costs, against a to-many association only: two predicates on the same
+	 * association read as "some row matches A and some row matches B" rather than "one
+	 * row matches both", and a match on several rows can repeat the parent. Both were
+	 * true of the hand-written specifications this replaced. For the access scopes
+	 * built on it the looser reading is still sound - a request whose supplier is mine
+	 * is mine to see, whatever else the caller filtered on.
+	 */
 	private Path<String> resolve(From<?, ?> root) {
 		From<?, ?> from = root;
 
 		for (String join : joins) {
-			from = joinOnce(from, join);
+			from = from.join(join, JoinType.LEFT);
 		}
 
 		return from.get(property);
-	}
-
-	/**
-	 * Reuse a join this query already has rather than adding a second one.
-	 * <p>
-	 * Two specifications naming the same association used to each add their own join.
-	 * Against a to-many association that multiplies rows - a request with two supplier
-	 * requests comes back twice - and it quietly changes what an AND means: separate
-	 * joins ask "some supplier request matches A and some supplier request matches B",
-	 * a shared join asks "one supplier request matches both". The second reading is the
-	 * one callers expect, and it is the one that makes an access-scope predicate
-	 * actually restrict a filter the caller supplied rather than sitting beside it.
-	 */
-	private static From<?, ?> joinOnce(From<?, ?> from, String association) {
-		// An explicit loop rather than a stream: getJoins() is generic over a captured
-		// type, and every way of expressing "find the first, else create one" through
-		// Optional needs a cast the compiler will not accept.
-		for (Join<?, ?> existing : from.getJoins()) {
-			if (association.equals(existing.getAttribute().getName())
-				&& existing.getJoinType() == JoinType.LEFT) {
-
-				return existing;
-			}
-		}
-
-		return from.join(association, JoinType.LEFT);
 	}
 }

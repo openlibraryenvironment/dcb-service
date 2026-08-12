@@ -7,12 +7,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.olf.dcb.core.model.PatronRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import graphql.schema.DataFetchingEnvironment;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
+import services.k_int.data.querying.QueryPath;
 
 /**
  * Which libraries' data a GraphQL request is allowed to see.
@@ -36,8 +36,6 @@ public final class AgencyAccessScope {
 	/**
 	 * Roles that see the whole consortium regardless of which agency they belong to.
 	 * <p>
-	 * Deliberately not LIBRARY_ADMIN. That role administers a library, not the
-	 * consortium, and it is the role DCB Admin for Libraries issues.
 	 */
 	private static final Set<String> UNRESTRICTED_ROLES = Set.of("ADMIN", "CONSORTIUM_ADMIN");
 
@@ -45,13 +43,76 @@ public final class AgencyAccessScope {
 	}
 
 	/**
-	 * Narrow a patron request query to the agencies this user may see.
+	 * How a patron request is attributed to a library: the one that borrowed it, and
+	 * the one that supplied it.
+	 * <p>
+	 * Both sides, because the two are different screens over the same query - the
+	 * borrowing grid filters on the patron's agency and the supplying grid on the
+	 * supplier's, and a scope covering only one would empty the other.
+	 * <p>
+	 * Pickup is not included. Under pickup-anywhere a third library handles the item
+	 * and has a fair claim to see the request, so this is a candidate for extension.
+	 */
+	public static final List<QueryPath> PATRON_REQUEST_OWNERSHIP = List.of(
+		QUERY_PATHS.get("patronAgencyCode"),
+		QUERY_PATHS.get("supplyingAgencyCode"));
+
+	/**
+	 * A patron identity belongs to the library the patron was resolved to.
+	 * <p>
+	 * Identities with no resolved agency are permitted. Only home identities carry one
+	 * - PatronService says so explicitly - so the virtual patrons DCB creates at
+	 * supplying and pickup libraries have none, and a rule reading the agency alone
+	 * would hide the pickup patron from the borrowing library that displays it on its
+	 * own request. What is left visible is a DCB-generated record that belongs to no
+	 * library; what is now hidden is another library's real patron.
+	 * <p>
+	 */
+	public static final List<QueryPath> PATRON_IDENTITY_OWNERSHIP = List.of(
+		QueryPath.joining("resolvedAgency").matching("code"));
+
+	// Locations are deliberately not scoped. They are directory data and are shared them across
+	// libraries on purpose, including in discovery apps and DCB Admin for Libraries staff requesting.
+	// PUA also makes it actively harmful to restrict who can view pickup locations.
+
+	/**
+	 * Narrow a query to the agencies this caller may see.
+	 * <p>
+	 * Applied to every query on the resource, not only the ones a list screen sends.
+	 * A grid that filters itself is a convention; a detail route asking for one record
+	 * by id is the same query with a different filter, and before this it returned
+	 * whatever id it was given. Scoping the fetcher rather than the caller means both
+	 * are covered by the same rule and neither can be the one that forgets.
 	 *
 	 * @param specification the filter the client asked for, or null for "everything"
+	 * @param ownership how this resource is attributed to a library; any one matching
+	 * is enough
 	 * @return the specification to actually run
 	 */
-	public static QuerySpecification<PatronRequest> restrict(DataFetchingEnvironment env,
-		QuerySpecification<PatronRequest> specification) {
+	public static <T> QuerySpecification<T> restrict(DataFetchingEnvironment env,
+		QuerySpecification<T> specification, List<QueryPath> ownership) {
+
+		return scope(env, specification, ownership, false);
+	}
+
+	/**
+	 * As {@link #restrict}, but also permits rows whose ownership path resolves to
+	 * nothing.
+	 * <p>
+	 * Only for resources where an unattributed row belongs to nobody rather than to
+	 * somebody unrecorded - the virtual patrons DCB creates for itself, which carry no
+	 * agency by design.
+	 */
+	public static <T> QuerySpecification<T> restrictAllowingUnattributed(
+		DataFetchingEnvironment env, QuerySpecification<T> specification,
+		List<QueryPath> ownership) {
+
+		return scope(env, specification, ownership, true);
+	}
+
+	private static <T> QuerySpecification<T> scope(DataFetchingEnvironment env,
+		QuerySpecification<T> specification, List<QueryPath> ownership,
+		boolean allowUnattributed) {
 
 		if (isUnrestricted(env)) {
 			return specification;
@@ -63,37 +124,19 @@ public final class AgencyAccessScope {
 			// Not a consortium role and no agency claim. Returning everything here would
 			// make the whole control decorative, so this is a deliberate closed failure -
 			// it should be read as "this token does not say who you are".
-			log.warn("Patron request query from a caller with neither a consortium role "
-				+ "nor an agency claim; returning nothing");
+			log.warn("Query from a caller with neither a consortium role nor an agency "
+				+ "claim; returning nothing");
 		}
 
-		final var permitted = forAgencies(visible);
+		final var permitted = ownership.stream()
+			.<QuerySpecification<T>>map(path -> allowUnattributed
+				? path.isAnyOfOrAbsent(visible)
+				: path.isAnyOf(visible))
+			.reduce(QuerySpecification::or)
+			.orElseThrow(() -> new IllegalArgumentException(
+				"A resource with no ownership paths cannot be scoped"));
 
 		return specification == null ? permitted : specification.and(permitted);
-	}
-
-	/**
-	 * Requests a set of agencies may see: the ones they borrowed, and the ones they
-	 * supplied.
-	 * <p>
-	 * Both sides, because the two are different screens over the same query - the
-	 * borrowing grid filters on the patron's agency and the supplying grid on the
-	 * supplier's, and a scope covering only one would empty the other.
-	 * <p>
-	 * Pickup is not included. Under pickup-anywhere a third library handles the item
-	 * and has a fair claim to see the request, but PatronRequest records the pickup
-	 * location as a bare identifier rather than an association, so there is no path to
-	 * join. No screen depends on it today; it needs the relation before it can be
-	 * added, not a cleverer predicate.
-	 */
-	private static QuerySpecification<PatronRequest> forAgencies(Collection<String> agencyCodes) {
-		final QuerySpecification<PatronRequest> borrowed
-			= QUERY_PATHS.get("patronAgencyCode").isAnyOf(agencyCodes);
-
-		final QuerySpecification<PatronRequest> supplied
-			= QUERY_PATHS.get("supplyingAgencyCode").isAnyOf(agencyCodes);
-
-		return borrowed.or(supplied);
 	}
 
 	public static boolean isUnrestricted(DataFetchingEnvironment env) {
@@ -119,4 +162,12 @@ public final class AgencyAccessScope {
 
 		return roles != null ? roles : List.of();
 	}
+
+	/**
+	 * Context key under which the Host LMS records this caller administers are
+	 * memoised. Resolving them means a query per claimed agency, and the answer is
+	 * asked for once per Host LMS in a response - a library list of a hundred would
+	 * otherwise repeat it a hundred times.
+	 */
+	public static final String PERMITTED_HOST_LMS_IDS = "permittedHostLmsIds";
 }

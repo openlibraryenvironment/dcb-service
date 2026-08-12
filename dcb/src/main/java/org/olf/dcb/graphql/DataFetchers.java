@@ -24,7 +24,11 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.model.Sort;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
 import graphql.schema.DataFetcher;
+import graphql.schema.DataFetchingEnvironment;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import io.micronaut.core.annotation.TypeHint;
 import io.micronaut.core.annotation.TypeHint.AccessType;
 import jakarta.inject.Singleton;
@@ -81,8 +85,12 @@ public class DataFetchers {
 	private final PostgresSourceRecordRepository postgresSourceRecordRepository;
 	private final PostgresAlarmRepository postgresAlarmRepository;
 	private final QueryService qs;
+	private final AgencyScopeResolver agencyScopeResolver;
+	private final MappingAccessService mappingAccessService;
 
-	public DataFetchers(PostgresAgencyRepository postgresAgencyRepository,
+	public DataFetchers(AgencyScopeResolver agencyScopeResolver,
+											MappingAccessService mappingAccessService,
+											PostgresAgencyRepository postgresAgencyRepository,
 											AgencyGroupMemberRepository agencyGroupMemberRepository,
 											PostgresPatronRequestRepository postgresPatronRequestRepository,
 											PostgresSupplierRequestRepository postgresSupplierRequestRepository,
@@ -111,6 +119,8 @@ public class DataFetchers {
 											PostgresAlarmRepository postgresAlarmRepository,
 											QueryService qs) {
 		this.qs = qs;
+		this.agencyScopeResolver = agencyScopeResolver;
+		this.mappingAccessService = mappingAccessService;
 		this.postgresAgencyRepository = postgresAgencyRepository;
 		this.agencyGroupMemberRepository = agencyGroupMemberRepository;
 		this.postgresPatronRequestRepository = postgresPatronRequestRepository;
@@ -219,7 +229,8 @@ public class DataFetchers {
 				? qs.<PatronRequest>evaluate(query, PatronRequest.class)
 				: null;
 
-			final var spec = AgencyAccessScope.restrict(env, requested);
+			final var spec = AgencyAccessScope.restrict(env, requested,
+				AgencyAccessScope.PATRON_REQUEST_OWNERSHIP);
 
 			if (spec == null) {
 				return Mono.from(postgresPatronRequestRepository.findAll(pageable)).toFuture();
@@ -318,12 +329,20 @@ public class DataFetchers {
 
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue());
                 
-                        if ((query != null) && (query.length() > 0)) {
-                                var spec = qs.evaluate(query, PatronIdentity.class);
-                                return Mono.from(postgresPatronIdentityRepository.findAll(spec, pageable)).toFuture();
+                        // Barcodes and names. The request detail page looks one up by local id,
+                        // which is a lookup anyone could make for any patron in the consortium.
+                        final var requested = ((query != null) && (query.length() > 0))
+                                ? qs.<PatronIdentity>evaluate(query, PatronIdentity.class)
+                                : null;
+
+                        final var spec = AgencyAccessScope.restrictAllowingUnattributed(env, requested,
+                                AgencyAccessScope.PATRON_IDENTITY_OWNERSHIP);
+
+                        if (spec == null) {
+                                return Mono.from(postgresPatronIdentityRepository.findAll(pageable)).toFuture();
                         }
-                        
-                        return Mono.from(postgresPatronIdentityRepository.findAll(pageable)).toFuture();
+
+                        return Mono.from(postgresPatronIdentityRepository.findAll(spec, pageable)).toFuture();
                 };
         }
 
@@ -449,6 +468,9 @@ public class DataFetchers {
                         log.debug("getLocationsDataFetcher({},{},{})", pageno,pagesize,query);
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue()).order(order, orderBy);
 
+                        // Deliberately unscoped - see AgencyAccessScope. Locations are shared
+                        // across libraries by design, and a pickup-anywhere request's pickup
+                        // location belongs to a third library by definition.
                         if ((query != null) && (query.length() > 0)) {
                                 var spec = qs.evaluate(query, Location.class);
                                 return Mono.from(postgresLocationRepository.findAll(spec, pageable)).toFuture();
@@ -674,69 +696,64 @@ public class DataFetchers {
 			// Creates the sorting direction
 			Sort.Order.Direction orderBy = Sort.Order.Direction.valueOf(direction);
 
-			// This is special handling for lastImported sort to ensure that it is sorted NULLS LAST in DESC order
-			// Implemented in data fetcher as I was unable to implement at repository level
-			// Postgres seems to do NULLS FIRST by default for descending order
-			if (order.equals("lastImported")) {
-				if ((query != null) && (query.length() > 0)) {
-					var spec = qs.evaluate(query, ReferenceValueMapping.class);
+			final var requested = ((query != null) && (query.length() > 0))
+				? qs.<ReferenceValueMapping>evaluate(query, ReferenceValueMapping.class)
+				: null;
 
-					// Fetch all records based on the specification, preserving the query
-					Integer finalPageno = pageno;
-					Integer finalPagesize = pagesize;
-					return Mono.from(postgresReferenceValueMappingRepository.findAll(spec, Pageable.unpaged()))
-						.flatMap(page -> {
-							// Sort the records with lastImported values NULLS LAST and respect the sort direction
-							List<ReferenceValueMapping> sortedList = page.getContent().stream()
-								.sorted(orderBy == Sort.Order.Direction.DESC
-									? Comparator.comparing(ReferenceValueMapping::getLastImported,
-									Comparator.nullsLast(Comparator.reverseOrder()))
-									: Comparator.comparing(ReferenceValueMapping::getLastImported,
-									Comparator.nullsLast(Comparator.naturalOrder())))
-								.collect(Collectors.toList());
+			final Integer finalPageno = pageno;
+			final Integer finalPagesize = pagesize;
+			final String finalOrder = order;
 
-							// Then applies pagination
-							int fromIndex = finalPageno * finalPagesize;
-							int toIndex = Math.min(fromIndex + finalPagesize, sortedList.size());
-							List<ReferenceValueMapping> paginatedList = sortedList.subList(fromIndex, toIndex);
-							Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno, finalPagesize), (long) sortedList.size());
-							return Mono.just(resultPage);
-						}).toFuture();
-				}
-
-				// If no query is provided, fetch all records
-				Integer finalPageno1 = pageno;
-				Integer finalPagesize1 = pagesize;
-				return Mono.from(postgresReferenceValueMappingRepository.findAll(Pageable.unpaged()))
-					.flatMap(page -> {
-						// Sort the records with lastImported values NULLS LAST and respect the sort direction
-						List<ReferenceValueMapping> sortedList = page.getContent().stream()
-							.sorted(orderBy == Sort.Order.Direction.DESC
-								? Comparator.comparing(ReferenceValueMapping::getLastImported,
-								Comparator.nullsLast(Comparator.reverseOrder()))
-								: Comparator.comparing(ReferenceValueMapping::getLastImported,
-								Comparator.nullsLast(Comparator.naturalOrder())))
-							.collect(Collectors.toList());
-
-						// Then apply pagination
-						int fromIndex = finalPageno1 * finalPagesize1;
-						int toIndex = Math.min(fromIndex + finalPagesize1, sortedList.size());
-						List<ReferenceValueMapping> paginatedList = sortedList.subList(fromIndex, toIndex);
-						Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(finalPageno1, finalPagesize1), (long) sortedList.size());
-						return Mono.just(resultPage);
-					}).toFuture();
-			} else {
-				// If it's not a last imported sort, we don't want to do the above as it's not great for performance.
-				// So we should just handle it as usual.
-				Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
-					.order(order, orderBy);
-				if ((query != null) && (query.length() > 0)) {
-					var spec = qs.evaluate(query, ReferenceValueMapping.class);
-					return Mono.from(postgresReferenceValueMappingRepository.findAll(spec, pageable)).toFuture();
-				}
-				return Mono.from(postgresReferenceValueMappingRepository.findAll(pageable)).toFuture();
-			}
+			// Narrowed to the systems this caller administers before any of the three
+			// query paths below runs, so none of them can be the one that forgets
+			return mappingAccessService.restrict(env, requested)
+				.flatMap(spec -> findReferenceValueMappings(spec, finalOrder, orderBy,
+					finalPageno, finalPagesize))
+				.toFuture();
 		};
+	}
+
+	private Mono<Page<ReferenceValueMapping>> findReferenceValueMappings(
+		Optional<QuerySpecification<ReferenceValueMapping>> spec, String order,
+		Sort.Order.Direction orderBy, Integer pageno, Integer pagesize) {
+
+		// This is special handling for lastImported sort to ensure that it is sorted NULLS LAST in DESC order
+		// Implemented in data fetcher as I was unable to implement at repository level
+		// Postgres seems to do NULLS FIRST by default for descending order
+		if (order.equals("lastImported")) {
+			final var everything = spec
+				.map(s -> Mono.from(postgresReferenceValueMappingRepository.findAll(s, Pageable.unpaged())))
+				.orElseGet(() -> Mono.from(postgresReferenceValueMappingRepository.findAll(Pageable.unpaged())));
+
+			return everything.flatMap(page -> {
+				// Sort the records with lastImported values NULLS LAST and respect the sort direction
+				List<ReferenceValueMapping> sortedList = page.getContent().stream()
+					.sorted(orderBy == Sort.Order.Direction.DESC
+						? Comparator.comparing(ReferenceValueMapping::getLastImported,
+						Comparator.nullsLast(Comparator.reverseOrder()))
+						: Comparator.comparing(ReferenceValueMapping::getLastImported,
+						Comparator.nullsLast(Comparator.naturalOrder())))
+					.collect(Collectors.toList());
+
+				// Then applies pagination
+				int fromIndex = pageno * pagesize;
+				int toIndex = Math.min(fromIndex + pagesize, sortedList.size());
+				List<ReferenceValueMapping> paginatedList = fromIndex >= sortedList.size()
+					? List.of()
+					: sortedList.subList(fromIndex, toIndex);
+				Page<ReferenceValueMapping> resultPage = Page.of(paginatedList, Pageable.from(pageno, pagesize), (long) sortedList.size());
+				return Mono.just(resultPage);
+			});
+		}
+
+		// If it's not a last imported sort, we don't want to do the above as it's not great for performance.
+		// So we should just handle it as usual.
+		Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
+			.order(order, orderBy);
+
+		return spec
+			.map(s -> Mono.from(postgresReferenceValueMappingRepository.findAll(s, pageable)))
+			.orElseGet(() -> Mono.from(postgresReferenceValueMappingRepository.findAll(pageable)));
 	}
 
 
@@ -809,6 +826,64 @@ public class DataFetchers {
 		};
 	}
 
+
+	/**
+	 * A Host LMS client configuration, but only to callers entitled to it.
+	 * <p>
+	 * The config holds API keys, secrets and staff passwords. The libraries query is
+	 * called with an empty filter to populate filter dropdowns, and it selects this
+	 * field - so every authenticated user's browser was receiving every consortium
+	 * member's ILS credentials to render a list of library names. DCB Admin for
+	 * Libraries takes care to mask a library's own credentials behind a reveal control;
+	 * that is beside the point when everyone else's arrive in the same payload.
+	 * <p>
+	 * Consortium staff keep full visibility - they administer these systems. A library
+	 * user sees the configuration of the Host LMS their own agency sits on, which is
+	 * the one the service page is built to show them, and nothing else. Redacted means
+	 * absent rather than blanked: a partial object invites a reader to trust the fields
+	 * that survived.
+	 */
+	public DataFetcher<CompletableFuture<Map<String, Object>>> getHostLmsClientConfigDataFetcher() {
+		return env -> {
+			final DataHostLms hostLms = env.getSource();
+			final var clientConfig = getValueOrNull(hostLms, DataHostLms::getClientConfig);
+
+			if (clientConfig == null || AgencyAccessScope.isUnrestricted(env)) {
+				return CompletableFuture.completedFuture(clientConfig);
+			}
+
+			return agencyScopeResolver.permittedHostLmsIds(env)
+				.map(permitted -> permitted.contains(hostLms.getId())
+					? clientConfig
+					: Map.<String, Object>of())
+				.defaultIfEmpty(Map.of())
+				.toFuture();
+		};
+	}
+
+	/**
+	 * The library a patron identity was resolved to.
+	 * <p>
+	 * Fetched by id rather than returned off the identity because Micronaut Data
+	 * materialises the relation with only its identifier populated - handing that back
+	 * gives a caller an agency whose code is null.
+	 * <p>
+	 * Exposed so callers stop deriving the borrowing library from the patron's Host
+	 * LMS. Asking which agencies sit on a system and taking the first works by accident
+	 * on a dedicated system and is wrong on every shared one.
+	 */
+	public DataFetcher<CompletableFuture<DataAgency>> getResolvedAgencyForPatronIdentityDataFetcher() {
+		return env -> {
+			final PatronIdentity identity = env.getSource();
+
+			final var agencyId = getValueOrNull(identity, PatronIdentity::getResolvedAgency,
+				DataAgency::getId);
+
+			return agencyId == null
+				? CompletableFuture.completedFuture(null)
+				: Mono.from(postgresAgencyRepository.findById(agencyId)).toFuture();
+		};
+	}
 
 	public DataFetcher<CompletableFuture<DataAgency>> getAgencyForLibraryDataFetcher() {
 		return env -> {
