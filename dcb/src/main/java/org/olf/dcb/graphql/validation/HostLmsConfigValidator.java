@@ -1,5 +1,7 @@
 package org.olf.dcb.graphql.validation;
 
+import static org.olf.dcb.core.interaction.HostLmsClient.SHARED_SYSTEM;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.List;
@@ -45,6 +47,8 @@ public class HostLmsConfigValidator {
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "clientConfig cannot be null or empty.");
 		}
 
+		validateSharedSystem(lmsClientClass, clientConfig);
+
 		switch (lmsClientClass) {
 			case CLASS_SIERRA -> validateSierra(clientConfig);
 			case CLASS_ALMA -> validateAlma(clientConfig);
@@ -58,12 +62,69 @@ public class HostLmsConfigValidator {
 		}
 	}
 
+	/**
+	 * A shared system hosts several participating libraries, so no single agency can
+	 * stand in for an unrecognised location. Accepting a default agency code here
+	 * would let it silently attribute every co-tenant's patrons - including libraries
+	 * outside the consortium entirely - to one library, with nothing to indicate that
+	 * anything had gone wrong. Refuse the combination rather than ignore it.
+	 */
+	private void validateSharedSystem(String lmsClientClass, Map<String, Object> config) {
+		if (hasSharedSystemConflict(lmsClientClass, config)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, SHARED_SYSTEM_CONFLICT_DETAIL);
+		}
+	}
+
+	/**
+	 * The contradiction described by {@link #validateSharedSystem}, as a predicate.
+	 * <p>
+	 * Scoped by client class because 'default-agency-code' does not mean the same
+	 * thing everywhere. For most adapters it is a fallback: the agency to assume
+	 * when a patron's home location does not map, which is precisely what a shared
+	 * system cannot have. For the OpenRS appliance it is an identity - the agency
+	 * DCB names in the NCIP party element on every LookupUser and LookupItemSet -
+	 * and an appliance fronting several libraries needs it exactly as much as one
+	 * fronting a single library does.
+	 * <p>
+	 * Host LMS records also arrive from application configuration at startup, which
+	 * never passes through this validator. That path cannot reasonably refuse to boot
+	 * over it, but it can say so - see DCBStartupEventListener.
+	 */
+	public static boolean hasSharedSystemConflict(String lmsClientClass, Map<String, Object> config) {
+		if (config == null || CLASS_ORS_APPLIANCE.equals(lmsClientClass)) {
+			return false;
+		}
+
+		return isSharedSystem(config) && isPresent(config, "default-agency-code");
+	}
+
+	public static final String SHARED_SYSTEM_CONFLICT_DETAIL
+		= "Invalid Configuration. 'default-agency-code' cannot be set when 'shared-system' is true: "
+			+ "a shared system must map each library's locations to its agency explicitly.";
+
+	private static boolean isSharedSystem(Map<String, Object> config) {
+		return Boolean.parseBoolean(String.valueOf(config.getOrDefault(SHARED_SYSTEM, Boolean.FALSE)));
+	}
+
+	/**
+	 * Required on a dedicated system, forbidden on a shared one.
+	 *
+	 * @see #validateSharedSystem
+	 */
+	private void checkDefaultAgencyCode(Map<String, Object> config, List<String> missing) {
+		if (isSharedSystem(config)) {
+			return;
+		}
+
+		checkPresent(config, "default-agency-code", missing);
+	}
+
 	private void validateSierra(Map<String, Object> config) {
 		List<String> missing = new ArrayList<>();
 		checkPresent(config, "base-url", missing);
 		checkPresent(config, "key", missing);
 		checkPresent(config, "secret", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 		checkPresent(config, "page-size", missing);
 
 		throwIfMissing("Sierra", missing);
@@ -75,7 +136,7 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "alma-url", missing);
 		checkPresent(config, "apikey", missing);
 		checkPresent(config, "institution-code", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 
 		throwIfMissing("Alma", missing);
 	}
@@ -84,7 +145,7 @@ public class HostLmsConfigValidator {
 		List<String> missing = new ArrayList<>();
 		checkPresent(config, "base-url", missing);
 		checkPresent(config, "apikey", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 		throwIfMissing("Folio", missing);
 	}
 
@@ -98,7 +159,7 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "logon-user-id", missing);
 		checkPresent(config, "staff-username", missing);
 		checkPresent(config, "staff-password", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 
 		// Check the nested objects. This is a good opportunity to extend to do more specific analysis
 		if (!config.containsKey("papi") || !(config.get("papi") instanceof Map)) {
@@ -129,10 +190,12 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "api-url", missing);
 		checkPresent(config, "client_id", missing);
 		checkPresent(config, "client_secret", missing);
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 		checkPresent(config, "sharing-library-code", missing);
+		// No virtual-item-location-code. KohaHostLmsClient.createItem sets the branch and
+		// nothing else, so demanding a shelving location made it required configuration
+		// that no code path ever read. Alma keeps its own key - that one is used.
 		checkPresent(config, "virtual-item-library-code", missing);
-		checkPresent(config, "virtual-item-location-code", missing);
 
 		throwIfMissing("Koha", missing);
 	}
@@ -146,7 +209,7 @@ public class HostLmsConfigValidator {
 	 */
 	private void validateFoundation(Map<String, Object> config) {
 		List<String> missing = new ArrayList<>();
-		checkPresent(config, "default-agency-code", missing);
+		checkDefaultAgencyCode(config, missing);
 
 		final String protocol = foundationBaseProtocol(config);
 
@@ -184,6 +247,10 @@ public class HostLmsConfigValidator {
 	 * The NCIP keys are accepted in kebab-case and camelCase because
 	 * NcipHostLmsConfiguration reads both - configuration written by the DCB
 	 * profile registration flow uses kebab-case.
+	 * <p>
+	 * 'default-agency-code' is unconditionally required here, including on a shared
+	 * appliance. Unlike everywhere else it is not a resolution fallback but the
+	 * agency DCB names in the NCIP party element - see hasSharedSystemConflict.
 	 */
 	private void validateOrsAppliance(Map<String, Object> config) {
 		List<String> missing = new ArrayList<>();
@@ -222,11 +289,6 @@ public class HostLmsConfigValidator {
 		return value instanceof Map ? (Map<String, Object>) value : null;
 	}
 
-	private boolean isPresent(Map<String, Object> config, String key) {
-		return config != null
-			&& config.get(key) != null
-			&& !config.get(key).toString().isBlank();
-	}
 
 	// "Warn but allow"
 	public List<String> findConfigurationWarnings(String lmsClientClass, Map<String, Object> clientConfig) {
@@ -285,6 +347,12 @@ public class HostLmsConfigValidator {
 		return warnings;
 	}
 
+	/** Null-tolerant: validateFoundation asks this about nested objects that may not exist. */
+	private static boolean isPresent(Map<String, Object> config, String key) {
+		return config != null && config.get(key) != null
+			&& !config.get(key).toString().isBlank();
+	}
+
 	private void checkPresent(Map<String, Object> config, String key, List<String> missingList) {
 		checkPresent(config, key, missingList, "");
 	}
@@ -295,7 +363,7 @@ public class HostLmsConfigValidator {
 	 * appears nowhere in their config.
 	 */
 	private void checkPresent(Map<String, Object> config, String key, List<String> missingList, String keyPrefix) {
-		if (!config.containsKey(key) || config.get(key) == null || config.get(key).toString().isBlank()) {
+		if (!isPresent(config, key)) {
 			missingList.add(keyPrefix + key);
 		}
 	}

@@ -3,7 +3,9 @@ package org.olf.dcb.request.lifecycle.ncip;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Creator;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
+import lombok.extern.slf4j.Slf4j;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
@@ -39,6 +41,7 @@ import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 
+@Slf4j
 @Prototype
 public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	public static final String NCIP_ENDPOINT_URL_KEY
@@ -90,6 +93,32 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 				NcipHostLmsConfiguration.NCIP_SYSTEM_ID,
 				NcipHostLmsConfiguration.NCIP_AGENCY_ID).stream(),
 			NcipPeerAuthProfile.settings().stream()).toList();
+	}
+
+	/**
+	 * One appliance can front several libraries on a single NCIP endpoint. The
+	 * NCIP SystemId is what names the logical circulation system behind that shared
+	 * endpoint, so it qualifies the endpoint URL unless an explicit
+	 * base-url-qualifier has been configured (registration sets one to the peer's
+	 * self slug).
+	 */
+	@Override
+	public @NonNull String getClientId() {
+		try {
+			return qualifySystemIdentity(
+				hostLmsConfiguration.endpointUriFor(getHostLms()).resolve("/").toString(),
+				hostLmsConfiguration.ncipSystemIdFor(getHostLms()));
+		}
+		catch (RuntimeException configurationProblem) {
+			// getClientId feeds equality comparisons in workflow routing and item
+			// resolution. Throwing from there would abort a patron request over a
+			// configuration gap, so degrade to the per-record fallback instead.
+			log.warn("Unable to derive system identity for Host LMS {} ({}); "
+					+ "falling back to Host LMS code, shared appliances will not be detected",
+				getHostLmsCode(), configurationProblem.toString());
+
+			return super.getClientId();
+		}
 	}
 
 	@Override

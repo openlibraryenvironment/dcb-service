@@ -42,9 +42,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
-	public static final String BASE_URL = "base-url";
-	public static final String BASE_URL_QUALIFIER = "base-url-qualifier";
-
 	private final DataHostLms NULL_DATA_HOST_LMS = new DataHostLms() ;
 	private final Mono<DataHostLms> NULL_MONO_DATA_HOST_LMS = Mono.just(NULL_DATA_HOST_LMS);
 	private final JsonNode EMPTY_JSON_NODE = JsonNode.createObjectNode(new HashMap<String, JsonNode>());
@@ -221,36 +218,6 @@ public class HostLmsService implements IngestSourcesProvider {
 		// Need to fetch all bibs, soft delete them and then expunge the source records from the database.
 		
 	}
-
-	/**
-	 * Retrieves the base URL configuration for a given host LMS code.
-	 *
-	 * @param hostLmsCode the code identifying the host LMS
-	 * @return Mono containing the base URL, or null if not found
-	 */
-	public Mono<String> getHostLmsBaseUrl(String hostLmsCode) {
-		return getClientFor(hostLmsCode)
-			.map(HostLmsClient::getConfig)
-			.map(config -> (String) config.get(BASE_URL));
-	}
-
-	public Mono<String> getHostLmsQualifiedBaseUrl(String hostLmsCode) {
-		return getClientFor(hostLmsCode)
-			.map(HostLmsClient::getConfig)
-			.map(HostLmsService::qualifiedBaseUrl);
-	}
-
-	private static String qualifiedBaseUrl(Map<String, Object> config) {
-		final var baseUrl = (String) config.get(BASE_URL);
-		final var qualifier = config.get(BASE_URL_QUALIFIER);
-		final var qualifierText = qualifier != null ? qualifier.toString().trim() : "";
-
-		return qualifierText.isEmpty()
-			? baseUrl
-			: baseUrl + "#" + qualifierText;
-	}
-	
-
 
 	/**
 	 * Retrieves useful details about the host lms in relation to ingest and import 

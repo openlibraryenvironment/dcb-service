@@ -627,6 +627,10 @@ type PatronIdentity {
   canonicalPtype: String
   localHomeLibraryCode: String
   lastValidated: String
+  # The library this patron belongs to, resolved from their home location during
+  # patron validation. The only place a request records it: patronHostlmsCode names
+  # the system, which on a shared one is every co-tenant rather than any of them.
+  resolvedAgency: Agency
 }
 
 type Location {

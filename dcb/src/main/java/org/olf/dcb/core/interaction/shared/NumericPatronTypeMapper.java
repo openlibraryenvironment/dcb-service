@@ -2,7 +2,7 @@ package org.olf.dcb.core.interaction.shared;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
 
-import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.svc.HostLmsContextService;
 import org.olf.dcb.storage.NumericRangeMappingRepository;
 
 import jakarta.inject.Singleton;
@@ -16,12 +16,12 @@ import java.util.List;
 @Singleton
 public class NumericPatronTypeMapper {
 	private final NumericRangeMappingRepository numericRangeMappingRepository;
-	private final HostLmsService hostLmsService;
+	private final HostLmsContextService hostLmsContextService;
 
 	public NumericPatronTypeMapper(NumericRangeMappingRepository numericRangeMappingRepository,
-		HostLmsService hostLmsService) {
+		HostLmsContextService hostLmsContextService) {
 		this.numericRangeMappingRepository = numericRangeMappingRepository;
-		this.hostLmsService = hostLmsService;
+		this.hostLmsContextService = hostLmsContextService;
 	}
 
 	public Mono<String> mapLocalPatronTypeToCanonical(String localSystemCode, String localPatronTypeCode, String localId) {
@@ -69,30 +69,22 @@ public class NumericPatronTypeMapper {
 	}
 
 	/**
-	 * A way to fetch a context hierarchy for a given context.
+	 * The contexts to search for a patron type mapping.
+	 * <p>
+	 * Delegates to the one reader rather than keeping a private copy, so a Host LMS
+	 * configured with a context hierarchy resolves patron types through the same
+	 * contexts as its locations. The two used to be read separately and could
+	 * disagree.
+	 * <p>
+	 * The DCB guard stays here: HostLmsContextService treats DCB as a legitimate
+	 * context because it is the target mappings resolve into, but a patron whose
+	 * <em>local</em> system is DCB is a caller error and must not be quietly mapped.
 	 */
 	private Mono<List<String>> getContextHierarchyFor(String context) {
-
-		// guard clause for non-hostlms contexts
 		if ("DCB".equals(context)) {
 			return Mono.error(new UnableToConvertLocalPatronTypeException("DCB used as a local context"));
 		}
 
-		return hostLmsService.getClientFor(context)
-			.map(hostLmsClient -> (List<String>) hostLmsClient.getConfig().get("contextHierarchy"))
-			// filter out non-null & non-empty lists
-			.filter(list -> list != null && !list.isEmpty())
-			// Fallback for non-null & non-empty lists
-			.switchIfEmpty(Mono.defer(() -> {
-				log.debug("[CONTEXT-HIERARCHY-EMPTY] " +
-					"- Fetching 'contextHierarchy' returned an EMPTY list for context: '{}'", context);
-				return Mono.just(List.of(context));
-			}))
-			// Fallback for error
-			.onErrorResume(error -> {
-				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
-					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
-				return Mono.just(List.of(context));
-			});
+		return hostLmsContextService.contextHierarchyFor(context);
 	}
 }

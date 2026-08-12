@@ -58,6 +58,25 @@ public interface AlarmRepository {
 			;
 	}
 
+	/**
+	 * Upsert an alarm, adding one value to a set held under {@code detailKey} in its
+	 * details, and report whether the alarm was created by this call.
+	 * <p>
+	 * A set of related occurrences - the unmapped location codes on one Host LMS -
+	 * is reported one occurrence at a time from a concurrent per-item path. Reading
+	 * the alarm, adding to the set in Java and writing it back loses most of the
+	 * values under that concurrency: every writer computes from a stale read and the
+	 * last write wins. The merge therefore happens in the database, in one statement.
+	 *
+	 * @return true when this call inserted the alarm, false when it updated an
+	 * existing one - so the caller can notify only on first sighting
+	 */
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> accumulateDetailValue(@NonNull UUID id, String code,
+		@NonNull Instant now, Instant expires, @NonNull String detailKey,
+		@NonNull String value, int maxValues);
+
 	@NonNull
 	Publisher<Alarm> findByExpiresBefore(@NonNull Instant now);
 

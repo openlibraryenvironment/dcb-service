@@ -20,8 +20,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PolarisConfig {
-	@JsonProperty("default-agency-code")
-	private String defaultAgencyCode;
+	// No default-agency-code here on purpose. Polaris reads it, but through
+	// HostLmsClient.getDefaultAgencyCode against the raw client config - which is also
+	// where the shared-system guard lives. A second binding of the same key here was
+	// never read and would only invite someone to use the unguarded one.
 	@JsonProperty("roles")
 	private List<String> roles;
 	@JsonProperty("ingest")

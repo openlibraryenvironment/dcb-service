@@ -29,15 +29,17 @@ public class UpdateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 
 	private final R2dbcOperations r2dbcOperations;
 
-	private final ConsortiumService consortiumService;
+	private final MappingAccessService mappingAccessService;
 
 	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
 
-	public UpdateReferenceValueMappingDataFetcher(ReferenceValueMappingRepository referenceValueMappingRepository, R2dbcOperations r2dbcOperations, ConsortiumService consortiumService) {
+	public UpdateReferenceValueMappingDataFetcher(ReferenceValueMappingRepository referenceValueMappingRepository,
+		R2dbcOperations r2dbcOperations, MappingAccessService mappingAccessService) {
+
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.r2dbcOperations = r2dbcOperations;
-		this.consortiumService = consortiumService;
+		this.mappingAccessService = mappingAccessService;
 	}
 	@Override
 	public CompletableFuture<ReferenceValueMapping> get(DataFetchingEnvironment env) {
@@ -64,35 +66,30 @@ public class UpdateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 			log.warn("updateReferenceValueMappingDataFetcher: Access denied for user {}: user does not have the required role to update a referenceValueMapping.", userString);
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");		}
 
-		final boolean isLibraryAdminOnly = roles.contains("LIBRARY_ADMIN") &&
-			!roles.contains("ADMIN") &&
-			!roles.contains("CONSORTIUM_ADMIN"); // Detects if we are dealing with a library user.
-
-		Mono<Void> libraryAdminPermissionCheck = isLibraryAdminOnly ?
-			consortiumService.isEnabled(FunctionalSettingType.DENY_LIBRARY_MAPPING_EDIT)
-				.flatMap(isDenyEnabled -> {
-					if (isDenyEnabled) {
-						log.warn("updateReferenceValueMappingDataFetcher: Access denied for user {}: library mapping editing has been disabled by consortium administrator.", userString);
-						return Mono.error(new HttpStatusException(HttpStatus.FORBIDDEN,
-							"Library mapping editing has been disabled by your consortium administrator."));
-					}
-					return Mono.empty();
-				}) :
-			Mono.empty();
-
-		Mono<ReferenceValueMapping> transactionMono = libraryAdminPermissionCheck.then(Mono.from(r2dbcOperations.withTransaction(status ->
-			Mono.from(referenceValueMappingRepository.findById(id))
-				.flatMap(referenceValueMapping -> {
-					if (toValue != null) {
-						referenceValueMapping.setToValue(toValue);
-					}
-					referenceValueMapping.setLastEditedBy(userString);
-					changeReferenceUrl.ifPresent(referenceValueMapping::setChangeReferenceUrl);
-					changeCategory.ifPresent(referenceValueMapping::setChangeCategory);
-					reason.ifPresent(referenceValueMapping::setReason);
-					return Mono.from(referenceValueMappingRepository.update(referenceValueMapping));
-				})
-		)));
+		// Entitlement is decided against the mapping being edited, not against the
+		// request alone. The role check above says this user may edit mappings; it says
+		// nothing about whether this is one of theirs, and a library administrator
+		// sending another library's id used to be obeyed.
+		Mono<ReferenceValueMapping> transactionMono = Mono.from(referenceValueMappingRepository.findById(id))
+			.switchIfEmpty(Mono.error(() -> new HttpStatusException(HttpStatus.NOT_FOUND,
+				"No reference value mapping found with id " + id)))
+			.flatMap(existing -> mappingAccessService.assertMayEdit(env, existing)
+				.doOnError(refusal -> log.warn(
+					"updateReferenceValueMappingDataFetcher: refused edit of mapping {} for user {}: {}",
+					id, userString, refusal.getMessage()))
+				.then(Mono.from(r2dbcOperations.withTransaction(status ->
+					Mono.from(referenceValueMappingRepository.findById(id))
+						.flatMap(referenceValueMapping -> {
+							if (toValue != null) {
+								referenceValueMapping.setToValue(toValue);
+							}
+							referenceValueMapping.setLastEditedBy(userString);
+							changeReferenceUrl.ifPresent(referenceValueMapping::setChangeReferenceUrl);
+							changeCategory.ifPresent(referenceValueMapping::setChangeCategory);
+							reason.ifPresent(referenceValueMapping::setReason);
+							return Mono.from(referenceValueMappingRepository.update(referenceValueMapping));
+						})
+				))));
 
 		return transactionMono.toFuture();
 	}

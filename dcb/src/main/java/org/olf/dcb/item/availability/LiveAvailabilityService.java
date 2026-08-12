@@ -23,6 +23,7 @@ import org.olf.dcb.availability.job.AvailabilityCheckJob;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.request.resolution.AvailabilityDateCalculator;
@@ -186,8 +187,13 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bibRecord,
 		List<Tag> parentTags, AvailabilityOptions options) {
 
-		return hostLmsService.getClientFor(bibRecord.getSourceSystemId())
-		  .flatMap(hostLms -> checkBibAvailabilityAtHost(bibRecord, parentTags, hostLms, options))
+		// Resolved as the record rather than straight to a client because recording the
+		// locations items were reported at needs the DataHostLms itself. getClientFor(UUID)
+		// does exactly this lookup internally, so this costs nothing extra.
+		return hostLmsService.findById(bibRecord.getSourceSystemId())
+			.flatMap(sourceSystem -> hostLmsService.getClientFor(sourceSystem)
+				.flatMap(hostLms -> checkBibAvailabilityAtHost(bibRecord, parentTags, hostLms,
+					sourceSystem, options)))
 			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
 	
@@ -204,7 +210,8 @@ public class LiveAvailabilityService {
 	}
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bib,
-		List<Tag> parentTags, HostLmsClient hostLms, AvailabilityOptions options) {
+		List<Tag> parentTags, HostLmsClient hostLms, DataHostLms sourceSystem,
+		AvailabilityOptions options) {
 
 		final var timeout = getValueOrNull(options, AvailabilityOptions::timeout);
 		final var filters = getValueOrNull(options, AvailabilityOptions::filters);
@@ -218,7 +225,8 @@ public class LiveAvailabilityService {
 		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )
 			.flatMap( start -> hostLms.getItems(bib)
 					.flatMapIterable(identity())
-					.flatMap(this::memoizeLocationFromItem)
+					.flatMap(item -> memoizeLocationFromItem(item, sourceSystem),
+						LOCATION_MEMOIZATION_CONCURRENCY)
 					.filter(conditionallyFilter(filters, Item::notSuppressed))
 					.filter(conditionallyFilter(filters, Item::notDeleted))
 					.filter(conditionallyFilter(filters, Item::hasAgency))
@@ -254,13 +262,39 @@ public class LiveAvailabilityService {
 			.orElse(liveData);
 	}
 
-	private Mono<Item> memoizeLocationFromItem(Item item) {
+	/**
+	 * How many locations are recorded concurrently.
+	 * <p>
+	 * memoize is a database round trip per item, and a shared system is exactly where
+	 * the item count per bib is largest - a title held at sixty branches of one Koha is
+	 * sixty writes competing for the R2DBC pool, per bib, per concurrent user. This is
+	 * a diagnostic side effect of answering an availability question and must not be
+	 * able to starve the question itself.
+	 */
+	private static final int LOCATION_MEMOIZATION_CONCURRENCY = 4;
 
-		if ( item.getLocation() == null )
+	/**
+	 * Remember where an item was reported, so an operator can see which branches still
+	 * need a location-to-agency mapping.
+	 * <p>
+	 * The agency is passed through as-is, null included: an item whose location did not
+	 * map is the one worth recording. See LocationService.memoize.
+	 */
+	private Mono<Item> memoizeLocationFromItem(Item item, DataHostLms sourceSystem) {
+		if (item.getLocation() == null) {
 			return Mono.just(item);
+		}
 
-		return Mono.just(item.getLocation())
-			.flatMap(loc -> locationService.memoize(loc) )
+		return locationService.memoize(item.getLocation(), item.getAgency(), sourceSystem)
+			// Recording a location is a diagnostic aid, not part of answering the
+			// availability question. Losing an item because the note could not be
+			// written would be a worse outcome than not writing the note.
+			.onErrorResume(error -> {
+				log.warn("Unable to record location {} seen on {}",
+					item.getLocationCode(), sourceSystem.getCode(), error);
+
+				return Mono.empty();
+			})
 			.thenReturn(item);
 	}
 

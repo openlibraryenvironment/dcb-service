@@ -79,10 +79,17 @@ public class CreateLocationDataFetcher implements DataFetcher<CompletableFuture<
 				.switchIfEmpty(Mono.error(new EntityCreationException(
 					"Location creation failed: associated Host LMS not found. You must supply a valid Host LMS code.")))
 				.flatMap(hostLms -> LocationInputValidator.validateInput(input_map, hostLms)
-					.then(Mono.from(locationRepository.existsByCode(code)))
+					// Scoped to the agency, not the whole installation. The generated id is
+					// derived from (agency code, location code), so that is the scope in
+					// which two locations can actually collide - and a global check refused
+					// codes that were free, which on a shared system is the normal case:
+					// sixty branches of one Koha cannot all be stopped from having a "MAIN"
+					// because one library elsewhere in the consortium got there first.
+					.then(Mono.from(locationRepository.existsByCodeAndAgency(code, agency)))
 					.flatMap(codeExists -> {
 						if (codeExists) {
-							return Mono.error(new IllegalArgumentException("Location with this code already exists"));
+							return Mono.error(new IllegalArgumentException(
+								"Location with this code already exists for agency " + agencyCode));
 						}
 						return localId != null ?
 							Mono.from(locationRepository.existsByLocalIdAndHostSystem(localId, hostLms))

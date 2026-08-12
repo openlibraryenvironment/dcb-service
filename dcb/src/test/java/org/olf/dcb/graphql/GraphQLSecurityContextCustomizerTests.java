@@ -33,4 +33,41 @@ class GraphQLSecurityContextCustomizerTests {
 
 		assertEquals(List.of(), roles);
 	}
+
+	@Test
+	void extractsTheSingleAgencyClaimAdminForLibrariesAlreadyIssues() {
+		var agencies = GraphQLSecurityContextCustomizer.agencyCodesFrom(Map.of(
+			"code", "springfield"));
+
+		assertEquals(List.of("springfield"), agencies);
+	}
+
+	@Test
+	void extractsSeveralAgenciesForSomebodyResponsibleForMoreThanOneLibrary() {
+		// The administrator of a shared Koha acting for some of its tenants. Not a
+		// consortium administrator - they must get exactly these libraries and no more.
+		var agencies = GraphQLSecurityContextCustomizer.agencyCodesFrom(Map.of(
+			"code", List.of("springfield", "shelbyville")));
+
+		assertEquals(List.of("springfield", "shelbyville"), agencies);
+	}
+
+	@Test
+	void acceptsAgencyCodesAlongsideTheScalarClaim() {
+		// For providers that cannot turn an existing scalar claim into a list
+		var agencies = GraphQLSecurityContextCustomizer.agencyCodesFrom(Map.of(
+			"code", "springfield",
+			"agencyCodes", List.of("shelbyville", "ogdenville")));
+
+		assertEquals(List.of("springfield", "shelbyville", "ogdenville"), agencies);
+	}
+
+	@Test
+	void missingAgencyClaimReturnsEmptyCollection() {
+		// Empty means "this token does not say who you are", not "no restriction"
+		var agencies = GraphQLSecurityContextCustomizer.agencyCodesFrom(Map.of(
+			"sub", "user-id"));
+
+		assertEquals(List.of(), agencies);
+	}
 }
