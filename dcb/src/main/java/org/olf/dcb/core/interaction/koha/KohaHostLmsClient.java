@@ -500,12 +500,18 @@ public class KohaHostLmsClient implements HostLmsClient {
 	/**
 	 * Which branch a virtual item is created at.
 	 * <p>
-	 * The virtual item is the incoming loan, so it belongs at the branch the patron
-	 * will collect it from. virtual-item-library-code is a single value on the Host
-	 * LMS, which is fine for a Koha serving one library and wrong for one serving
-	 * sixty - every library's incoming loans would materialise at whichever branch
-	 * was configured. patronHomeLocation carries the borrower's own branch, so it
-	 * wins wherever the caller knows it.
+	 * The borrowing patron's <em>home</em> branch, not the pickup branch.
+	 * BorrowingAgencyService builds CreateItemCommand from the borrowing patron
+	 * identity's localHomeLibraryCode, so that is what patronHomeLocation carries and
+	 * that is what this returns. Under RET-PUA the two differ and the virtual item is
+	 * created at the patron's home branch rather than where they will collect it;
+	 * putting it at the pickup branch would mean threading the pickup location through
+	 * CreateItemCommand, which is a change to the shared command shape.
+	 * <p>
+	 * virtual-item-library-code remains the fallback for when the caller does not know
+	 * the branch. It is a single value on the Host LMS, which is fine for a Koha
+	 * serving one library and wrong for one serving sixty - every library's incoming
+	 * loans would otherwise materialise at whichever branch was configured.
 	 */
 	private String virtualItemLibraryFor(CreateItemCommand cic) {
 		final var patronHomeLocation = getValueOrNull(cic, CreateItemCommand::getPatronHomeLocation);
@@ -610,6 +616,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 					.localItemType(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
 					.localItemTypeCode(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
 					.suppressed(isSuppressed)
+					// The system the item came from, as opposed to owningContext, which is
+					// overwritten with the agency's Host LMS once the location resolves. When
+					// the location does not resolve there is no agency and so no owning
+					// context, and this is then the only record of where the item came from -
+					// which is exactly the case an operator has to diagnose on a shared system.
+					.sourceHostLmsCode(getHostLmsCode())
 					.owningContext(getHostLms().getCode())
 					.build();
 			});

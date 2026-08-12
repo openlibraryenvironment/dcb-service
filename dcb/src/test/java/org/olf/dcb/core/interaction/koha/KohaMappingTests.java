@@ -57,8 +57,7 @@ class KohaMappingTests {
 			"client_id", "any-id",
 			"client_secret", "any-secret",
 			"sharing-library-code", "DCB-SHARING",
-			"virtual-item-library-code", "DCB-VIRTUAL",
-			"virtual-item-location-code", "DCB-VIRTUAL-LOC"));
+			"virtual-item-library-code", "DCB-VIRTUAL"));
 
 		apiClient = mock(KohaApiClient.class);
 		referenceValueMappingService = mock(ReferenceValueMappingService.class);

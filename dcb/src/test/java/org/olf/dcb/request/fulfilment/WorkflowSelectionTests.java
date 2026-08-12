@@ -103,10 +103,15 @@ class WorkflowSelectionTests {
 
 	@Test
 	void shouldRefuseToLendFromThePatronsOwnLibraryToAnotherPickup() {
-		// A standing limitation, recorded here because it bites hardest on a shared
-		// system: a patron at one branch of a 60-library Koha borrowing that branch's
-		// own copy but collecting at another branch is ordinary behaviour there, and
-		// DCB rejects it outright before any system comparison happens.
+		// Reached only if something outside resolution selected this combination.
+		// ExcludeFromSameAgencyItemFilter drops items from the borrower's own agency
+		// whenever the pickup is elsewhere, so resolution never produces it - a patron
+		// at one branch of a 60-library Koha collecting at another branch is sourced
+		// from a third branch instead of from their own shelf.
+		//
+		// Pinned because the two behaviours have to be understood together: the routing
+		// cost is real and visible to borrowers, while this error is the safety net
+		// under it, and removing either without the other breaks the pair.
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> workflowFor("shared-first", "shared-second", "shared-first"));
 

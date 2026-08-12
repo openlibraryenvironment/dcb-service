@@ -27,20 +27,22 @@ import services.k_int.utils.UUIDUtils;
 @Slf4j
 @Singleton
 public class LocationToAgencyMappingService {
-	private static final String KEY_CONTEXT_HIERARCHY = "contextHierarchy";
 	private final AgencyService agencyService;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final HostLmsService hostLmsService;
+	private final HostLmsContextService hostLmsContextService;
 	private final AlarmsService alarmsService;
 
 	public LocationToAgencyMappingService(AgencyService agencyService,
 		ReferenceValueMappingService referenceValueMappingService,
 		HostLmsService hostLmsService,
+		HostLmsContextService hostLmsContextService,
     AlarmsService alarmsService) {
 
 		this.agencyService = agencyService;
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.hostLmsService = hostLmsService;
+		this.hostLmsContextService = hostLmsContextService;
 		this.alarmsService = alarmsService;
 	}
 
@@ -133,84 +135,27 @@ public class LocationToAgencyMappingService {
 			return empty();
 		}
 
-		return lookupRulesFor(fromContext)
-			.flatMap(rules -> referenceValueMappingService.findMappingUsingHierarchyWithFallback(
-				fromCategory, rules.sourceContexts(), rules.lookupCodesFor(locationCode), "AGENCY", "DCB"));
+		return hostLmsContextService.forContext(fromContext)
+			.flatMap(mappingContext -> referenceValueMappingService.findMappingUsingHierarchyWithFallback(
+				fromCategory, mappingContext.sourceContexts(),
+				lookupCodesFor(locationCode, mappingContext.sharedSystem()), "AGENCY", "DCB"));
 	}
 
 	/**
-	 * How a given context resolves locations: which contexts to search, and whether
-	 * the wildcard fallback is safe.
+	 * Which location codes to try, in order.
 	 * <p>
-	 * Both answers come from the same Host LMS, so they are read from a single
-	 * client rather than fetching one per question - this sits on the per-item
-	 * availability path.
-	 */
-	private record LocationLookupRules(List<String> sourceContexts, boolean sharedSystem) {
-		List<String> lookupCodesFor(String locationCode) {
-			// Allow implementers to specify wildcards that will match all locations. Look for the
-			// specific location before falling back to looking for any wildcard.
-			//
-			// A wildcard says "every location on this system belongs to one agency", which is
-			// exactly wrong on a shared system - it sweeps every co-tenant library, including ones
-			// not in the consortium at all, onto whichever agency happened to be configured. A
-			// shared system must map each location explicitly.
-			return sharedSystem
-				? List.of(locationCode)
-				: List.of(locationCode, "*");
-		}
-	}
-
-	private Mono<LocationLookupRules> lookupRulesFor(String context) {
-		final var defaults = List.of(context);
-
-		// guard clause for non-hostlms contexts
-		if ("DCB".equals(context)) {
-			return Mono.just(new LocationLookupRules(defaults, false));
-		}
-
-		return hostLmsService.getClientFor(context)
-			.map(client -> new LocationLookupRules(
-				contextHierarchyOf(client, context, defaults), client.isSharedSystem()))
-			.switchIfEmpty(Mono.fromSupplier(() -> unidentifiedSystem(context, defaults)))
-			.onErrorResume(error -> {
-				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
-					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
-				return Mono.just(unidentifiedSystem(context, defaults));
-			});
-	}
-
-	/**
-	 * What to assume when the Host LMS behind a context cannot be loaded.
+	 * Implementers can specify a wildcard matching every location, so look for the
+	 * specific code before falling back to it.
 	 * <p>
-	 * The wildcard collapses every location on a system onto one agency, which is only
-	 * ever safe on a system serving one library. If we cannot tell which kind of system
-	 * this is, we cannot tell whether that is safe - and the two outcomes are not
-	 * equally bad. Suppressing it means an item or patron fails to map and says so;
-	 * allowing it means silently attributing a co-tenant library's holdings or borrowers
-	 * to a library they have nothing to do with.
+	 * A wildcard says "every location on this system belongs to one agency", which is
+	 * exactly wrong on a shared system - it sweeps every co-tenant library, including
+	 * ones not in the consortium at all, onto whichever agency happened to be
+	 * configured. A shared system must map each location explicitly.
 	 */
-	private static LocationLookupRules unidentifiedSystem(String context, List<String> defaults) {
-		log.warn("Could not determine whether '{}' is a shared system; "
-			+ "suppressing the wildcard location mapping for this lookup", context);
-
-		return new LocationLookupRules(defaults, true);
-	}
-
-	@SuppressWarnings("unchecked")
-	private static List<String> contextHierarchyOf(HostLmsClient client, String context,
-		List<String> defaults) {
-
-		final var configured = (List<String>) client.getConfig().get(KEY_CONTEXT_HIERARCHY);
-
-		if (configured == null || configured.isEmpty()) {
-			log.debug("[CONTEXT-HIERARCHY-EMPTY] " +
-				"- Fetching 'contextHierarchy' returned an EMPTY list for context: '{}'", context);
-
-			return defaults;
-		}
-
-		return configured;
+	private static List<String> lookupCodesFor(String locationCode, boolean sharedSystem) {
+		return sharedSystem
+			? List.of(locationCode)
+			: List.of(locationCode, "*");
 	}
 
 	/**

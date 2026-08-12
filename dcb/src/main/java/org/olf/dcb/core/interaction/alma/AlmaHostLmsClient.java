@@ -1310,11 +1310,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
 					: null;
 
-				// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
-				// through a service that creates missing location records in the host lms and where possible derives agency but
-				// where not flags the location record as needing attention.
-				Location derivedLocation = almaItem.getItemData().getLocation() != null
-					? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLocation().getValue())
+				// Alma's "library" is the branch that owns the item. Alma's "location" is the
+				// shelving location within it - REF, STACKS, JUV - and every library on a
+				// tenant draws from the same vocabulary, so it can never identify which
+				// library an item belongs to. This used to build the item's Location from
+				// the shelving location, which meant location-to-agency mapping was being
+				// asked to map "STACKS" to a library.
+				final var itemData = almaItem.getItemData();
+
+				final var owningLibrary = itemData.getLibrary() != null
+					? itemData.getLibrary().getValue()
+					: null;
+
+				final var shelvingLocation = itemData.getLocation() != null
+					? itemData.getLocation().getValue()
+					: null;
+
+				Location derivedLocation = owningLibrary != null
+					? locationForLibraryCode(owningLibrary)
 					: null;
 
 				Boolean derivedSuppression = ((almaItem.getBibData().getSuppressFromPublishing() != null) &&
@@ -1325,8 +1338,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.status(derivedItemStatus)
 					// In alma we need to query the Loans API to get the due date
 					.dueDate(due_back_instant)
-					// alma library = library of the item, location = shelving location
 					.location(derivedLocation)
+					.shelvingLocation(shelvingLocation)
 					.barcode(almaItem.getItemData().getBarcode())
 					.callNumber(almaItem.getHoldingData().getCallNumber())
 					.isRequestable(isRequestable)
@@ -1339,6 +1352,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.canonicalItemType(null)
 					.deleted(null)
 					.suppressed(derivedSuppression)
+					// The system the item came from, as opposed to owningContext, which is
+					// overwritten with the agency's Host LMS once the location resolves. When
+					// the location does not resolve there is no agency and so no owning
+					// context, and this is then the only record of where the item came from.
+					.sourceHostLmsCode(getHostLmsCode())
 					.owningContext(getHostLms().getCode())
 					// Need to query loans API for this
 					.availableDate(null)
@@ -1410,12 +1428,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return hostLmsItem;
 	}
 
-	// Alma talks about "libraries" for the location where an item "belongs" and
-	// "Location" for the shelving location. These semantics don't line up neatly.
-	// Whenever we see an alma library code in the context of a hostLms code we 
-	// should check the DCB location repository and create a location record if
-	// none exists
-	private Location checkLibraryCodeInDCBLocationRegistry(String almaLibraryCode) {
+	/**
+	 * The DCB Location standing for an Alma library.
+	 * <p>
+	 * Was named checkLibraryCodeInDCBLocationRegistry, which described what its comment
+	 * wished it did rather than what it does - it builds a transient Location and
+	 * checks nothing. Recording locations DCB has not seen before is
+	 * LocationService.memoize's job, reached from the availability path, so the name is
+	 * now what the method is.
+	 */
+	private Location locationForLibraryCode(String almaLibraryCode) {
 		return Location.builder()
 			.id(UUIDUtils.generateLocationId(hostLms.getCode(), almaLibraryCode))
 			.code(almaLibraryCode)

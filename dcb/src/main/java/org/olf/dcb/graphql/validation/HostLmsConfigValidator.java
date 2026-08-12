@@ -192,8 +192,10 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "client_secret", missing);
 		checkDefaultAgencyCode(config, missing);
 		checkPresent(config, "sharing-library-code", missing);
+		// No virtual-item-location-code. KohaHostLmsClient.createItem sets the branch and
+		// nothing else, so demanding a shelving location made it required configuration
+		// that no code path ever read. Alma keeps its own key - that one is used.
 		checkPresent(config, "virtual-item-library-code", missing);
-		checkPresent(config, "virtual-item-location-code", missing);
 
 		throwIfMissing("Koha", missing);
 	}

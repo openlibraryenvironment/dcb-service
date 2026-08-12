@@ -67,7 +67,7 @@ public class HostLmsFixture {
 		clientConfig.put("client_secret", "koha-client-secret");
 		clientConfig.put("sharing-library-code", "DCB-SHARING");
 		clientConfig.put("virtual-item-library-code", "DCB-VIRTUAL");
-		clientConfig.put("virtual-item-location-code", "DCB-VIRTUAL-LOC");
+		// Koha has no virtual-item-location-code - it sets the branch and nothing else
 		clientConfig.putAll(extraConfig);
 
 		return createHostLms(randomUUID(), code, KohaHostLmsClient.class,
