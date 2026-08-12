@@ -8,6 +8,15 @@ micronaut:
   server:
     cors:
       enabled: true
+      # Pin the origins. With CORS enabled and no allowed-origins, Micronaut permits
+      # ANY origin. That was tolerable while every caller was a server holding a bearer
+      # token; it is not now that browsers are first-class clients of this deployment.
+      # Note reconnoitre is NOT listed and must not be: patron traffic reaches DCB
+      # through wayfinder server-side, never from a patron's browser.
+      configurations:
+        admin-uis:
+          allowed-origins:
+            - ${DCB_CORS_ADMIN_ORIGINS:http://localhost:3000}
   application:
     name: dcb
   router:
@@ -221,6 +230,29 @@ graphql:
     enabled: false
 
 dcb:
+  # Discovery services DCB will accept patron assertions from.
+  #
+  # A discovery service authenticates with a Keycloak client credential holding the
+  # DISCOVERY_SERVICE role — that proves WHO is calling. It does not prove WHICH
+  # PATRON, so the patron travels as a separately-signed, short-lived assertion in the
+  # X-OpenRS-Patron-Assertion header, and this is its trust anchor. DCB verifies it and
+  # then enforces per-patron ownership itself, rather than trusting the caller to.
+  #
+  # Disabled by default: a deployment that has not been configured for discovery must
+  # fail closed, not behave as though it has been.
+  discovery:
+    enabled: ${DCB_DISCOVERY_ENABLED:false}
+    # The audience a patron assertion must name. This DCB, not another one.
+    audience: ${DCB_DISCOVERY_AUDIENCE:dcb}
+    # DCB's own cap on assertion validity, enforced regardless of the issuer's `exp`.
+    # A long-lived assertion is a bearer token by another name.
+    max-assertion-lifetime: ${DCB_DISCOVERY_MAX_ASSERTION_LIFETIME:PT2M}
+    # Onboard a service per environment in ki-okapi-gitops, e.g.
+    # trusted-services:
+    #   - service-id: wayfinder
+    #     issuer: https://wayfinder.example.org
+    #     jwks-uri: https://wayfinder.example.org/.well-known/jwks.json
+    trusted-services: []
   security:
     internal-endpoints:
       ip-patterns:

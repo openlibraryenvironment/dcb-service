@@ -54,6 +54,19 @@ public abstract class AbstractHostLmsClient implements HostLmsClient {
 		return Mono.empty();
 	}
 
+	/**
+	 * WARNING: this default is a SILENT NO-OP, not a cancellation. FoundationClient and
+	 * ORSApplianceHostLMS inherit it, so for those systems an empty result means nothing
+	 * was cancelled.
+	 *
+	 * Every caller MUST treat an empty result as failure. PatronRequestCancellationService
+	 * does (switchIfEmpty -> CancellationFailedException) because reporting success to a
+	 * patron whose hold is still live is the worst outcome available. The supplier and
+	 * pickup cleanup paths (SupplyingAgencyService, PickupAgencyService,
+	 * ResolveNextSupplierTransition) currently do NOT, and should be given the same
+	 * treatment under their own ticket — changing this default to raise would alter those
+	 * flows and needs its own test sweep, so it is deliberately not done here.
+	 */
 	@Override
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
 		return Mono.empty();

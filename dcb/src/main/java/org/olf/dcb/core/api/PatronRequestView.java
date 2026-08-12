@@ -22,7 +22,10 @@ public class PatronRequestView {
 	Requestor requestor;
 	String requesterNote;
 
-	static PatronRequestView from(PatronRequest patronRequest) {
+	// Public because DiscoveryPatronRequestsController lives in the .discovery
+	// sub-package and returns the same view for its place endpoint. One view shape for
+	// "a request was placed", whichever surface placed it.
+	public static PatronRequestView from(PatronRequest patronRequest) {
 		final var identity = Identity.fromList(patronRequest.getPatron().getPatronIdentities());
 
 		return new PatronRequestView(patronRequest.getId(),

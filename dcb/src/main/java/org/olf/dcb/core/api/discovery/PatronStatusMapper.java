@@ -14,13 +14,37 @@ public class PatronStatusMapper {
 	private PatronStatusMapper() {}
 
 	/**
+	 * The PATRON-facing shape.
+	 *
+	 * {@code errorMessage} is deliberately DROPPED. It is populated from
+	 * {@code determineMessage(throwable)} in PatronRequestWorkflowService — raw
+	 * internal exception text, truncated to 255 chars, routinely carrying LMS
+	 * hostnames, API response bodies and internal class names. A patron cannot act on
+	 * any of it; {@code discoveryStatus == ERROR_SCENARIO} plus its prose ("please see
+	 * a librarian") is the whole useful payload.
+	 */
+	public static PatronRequestSummary enrichForPatron(PatronRequestSummaryProjection projection) {
+		return build(projection, null);
+	}
+
+	/**
+	 * The STAFF shape. Same record, {@code errorMessage} retained — a librarian can
+	 * act on it, and the endpoints using this are gated on staff roles.
+	 */
+	public static PatronRequestSummary enrichForStaff(PatronRequestSummaryProjection projection) {
+		return build(projection, projection.errorMessage());
+	}
+
+	/**
 	 * Turns what the query selected into what the API returns: adds the coarse
 	 * patron-facing status and its prose, and falls back to the raw pickup location
 	 * code when the code resolves to no known location.
 	 * The raw DCB {@code status} is carried through untouched — discovery services
 	 * that want to do their own mapping still get the real state machine value.
 	 */
-	public static PatronRequestSummary enrich(PatronRequestSummaryProjection projection) {
+	private static PatronRequestSummary build(PatronRequestSummaryProjection projection,
+		String errorMessage) {
+
 		final var discoveryStatus = toDisplayStatus(parseStatus(projection.status()));
 
 		return new PatronRequestSummary(
@@ -31,7 +55,7 @@ public class PatronStatusMapper {
 			projection.outcome(),
 			projection.nextExpectedStatus(),
 			projection.timeInState(),
-			projection.errorMessage(),
+			errorMessage,
 			projection.title(),
 			projection.pickupLocationCode(),
 			projection.pickupLocationName() != null

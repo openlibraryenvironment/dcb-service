@@ -3,11 +3,8 @@ package org.olf.dcb.core.api;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 
 import java.util.List;
-import java.util.UUID;
 
-import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.AgencyRepository;
-import org.olf.dcb.storage.HostLmsRepository;
 
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -22,10 +19,17 @@ import reactor.core.publisher.Mono;
 
 /**
  * Anonymous, non-sensitive library directory for discovery services: code,
- * host LMS code and lat/long only
+ * host LMS code, name and lat/long only.
  *
  * Discovery will use it to resolve "the library nearest to me" into a concrete
- * hostLms code it can scope a search by.
+ * hostLms code it can scope a search by, and to render the institution picker at
+ * login.
+ *
+ * This is the ONLY anonymous endpoint in the discovery surface, so treat it as
+ * such: one query, cached, and nothing added to the payload that is not already
+ * public information about a library. It must never grow contact details,
+ * configuration, or anything a competitor or an attacker could use to map the
+ * consortium's internals.
  */
 @Controller("/discovery/libraries")
 @Secured(IS_ANONYMOUS)
@@ -34,12 +38,9 @@ import reactor.core.publisher.Mono;
 public class DiscoveryLibrariesController {
 
 	private final AgencyRepository agencyRepository;
-	private final HostLmsRepository hostLmsRepository;
 
-	public DiscoveryLibrariesController(AgencyRepository agencyRepository,
-			HostLmsRepository hostLmsRepository) {
+	public DiscoveryLibrariesController(AgencyRepository agencyRepository) {
 		this.agencyRepository = agencyRepository;
-		this.hostLmsRepository = hostLmsRepository;
 	}
 
 	@Operation(summary = "List libraries",
@@ -48,27 +49,20 @@ public class DiscoveryLibrariesController {
 			+ "consumers that need them (nearest library) filter accordingly. "
 			+ "By default only libraries enabled for borrowing are returned, because a patron from a "
 			+ "non-borrowing agency cannot place a request. Pass includeAll=true for the whole directory.")
+	// ONE indexed query per call. Not cached: @Cacheable is used nowhere else in this
+	// codebase and its interaction with a reactive return type is unproven here, which
+	// is not a thing to introduce on a security branch. The pool exhaustion came from
+	// 2N+1 queries, not from one — if this ever needs a cache, follow the hand-rolled
+	// bounded-Caffeine idiom in LiveAvailabilityService, and rate-limit /discovery/**
+	// at the ingress regardless.
 	@Get
 	public Mono<List<LibraryGeo>> list(
 		@QueryValue(defaultValue = "false") boolean includeAll) {
 
-		final var agencies = includeAll
-			? agencyRepository.queryAll()
-			: agencyRepository.findAllBorrowingAgencies();
-		return Flux.from(agencies)
-			.flatMap(this::toLibraryGeo)
+		return Flux.from(agencyRepository.findLibraryDirectory(includeAll))
+			.map(entry -> new LibraryGeo(entry.code(), entry.hostLmsCode(),
+				entry.name(), entry.latitude(), entry.longitude()))
 			.collectList();
-	}
-
-	// queryAll() does not fetch the hostLms association, so resolve its code
-	// explicitly — same workaround the /agencies endpoint uses.
-	private Mono<LibraryGeo> toLibraryGeo(DataAgency agency) {
-		return Mono.from(agencyRepository.findHostLmsIdById(agency.getId()))
-			.flatMap(hostLmsId -> Mono.from(hostLmsRepository.findById(hostLmsId)))
-			.map(hostLms -> new LibraryGeo(agency.getCode(), hostLms.getCode(),
-				agency.getName(), agency.getLatitude(), agency.getLongitude()))
-			.doOnError(error -> log.warn("Could not resolve host LMS for agency {}", agency.getCode(), error))
-			.onErrorResume(error -> Mono.empty());
 	}
 
 	@Serdeable

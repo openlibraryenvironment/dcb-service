@@ -75,12 +75,36 @@ public interface PatronRequestRepository {
 	Publisher<Page<PatronRequest>> findRequestsForPatron(String patronSystem, String patronId, Pageable pageable);
 
 	/**
-	 * One request, ONLY when it belongs to the given patron (same home-identity
-	 * join as findRequestsForPatron) — the ownership check for self-service
-	 * actions like patron-initiated cancellation. Empty = not found OR not yours;
-	 * deliberately indistinguishable so ids can't be probed.
+	 * One request, ONLY when it belongs to the given patron — the ownership check for
+	 * self-service actions like patron-initiated cancellation. Empty = not found OR
+	 * not yours; deliberately indistinguishable so ids cannot be probed.
+	 *
+	 * THE ownership predicate for patron self-service. {@link #findSummariesForPatron}
+	 * uses exactly the same join, so "which requests are mine" and "may I cancel this
+	 * one" can never disagree.
+	 *
+	 * Keyed on pr.patron_id plus the patron's HOME identity at the asserted Host LMS.
+	 * NOT on requesting_identity_id, which looks more precise and is wrong for this
+	 * purpose: that column is @Nullable and only populated later in the workflow by
+	 * ValidatePatronTransition, so a join through it silently hides a request the
+	 * patron has just placed (SUBMITTED_TO_DCB, PATRON_VERIFIED) from their own list.
+	 * patron_id is set at creation and never null.
+	 *
+	 * The Patron row is one human; its home identity is who they are. A caller that can
+	 * assert (hostLmsCode, localId) matching that home identity IS that human, so the
+	 * request is theirs. DISTINCT guards the data-integrity edge case of a Patron
+	 * carrying two home_identity rows.
 	 */
-	@Query(value = "SELECT pr.* from patron_request pr, patron_identity pi, host_lms h where pr.id = :patronRequestId and pr.patron_id = pi.patron_id and pi.host_lms_id = h.id and h.code = :patronSystem and pi.local_id = :patronId and pi.home_identity=true", nativeQuery = true)
+	@Query(value = """
+		SELECT DISTINCT pr.*
+		FROM patron_request pr
+		JOIN patron_identity pi ON pr.patron_id = pi.patron_id
+		JOIN host_lms h ON pi.host_lms_id = h.id
+		WHERE pr.id = :patronRequestId
+		  AND h.code = :patronSystem
+		  AND pi.local_id = :patronId
+		  AND pi.home_identity = true
+		""", nativeQuery = true)
 	Publisher<PatronRequest> findOwnedRequest(UUID patronRequestId, String patronSystem, String patronId);
 
 
@@ -184,7 +208,14 @@ public interface PatronRequestRepository {
         JOIN patron_identity pi ON pr.requesting_identity_id = pi.id
         LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
         WHERE pr.patron_hostlms_code = :hostLmsCode
-          AND pi.local_barcode LIKE CONCAT('%', :patronBarcode, '%')
+          -- local_barcode holds either a bare barcode or a list literal
+          -- "[b1, b2, b3]" (see PatronIdentity.getParsedBarcodes). Match an ELEMENT
+          -- EXACTLY. This was LIKE '%barcode%', which matched substrings: a barcode
+          -- of '1' returned every patron at this Host LMS whose barcode contained a
+          -- '1', along with their titles and pickup locations.
+          AND :patronBarcode = ANY (
+                string_to_array(translate(pi.local_barcode, '[] ', ''), ',')
+              )
           AND pr.status_code IN (
               'SUBMITTED_TO_DCB',
               'PATRON_VERIFIED',
@@ -222,17 +253,28 @@ public interface PatronRequestRepository {
         JOIN patron_identity pi ON pr.requesting_identity_id = pi.id
         LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
         WHERE pr.patron_hostlms_code = :hostLmsCode
-          AND pi.local_barcode LIKE CONCAT('%', :patronBarcode, '%')
+          -- local_barcode holds either a bare barcode or a list literal
+          -- "[b1, b2, b3]" (see PatronIdentity.getParsedBarcodes). Match an ELEMENT
+          -- EXACTLY. This was LIKE '%barcode%', which matched substrings: a barcode
+          -- of '1' returned every patron at this Host LMS whose barcode contained a
+          -- '1', along with their titles and pickup locations.
+          AND :patronBarcode = ANY (
+                string_to_array(translate(pi.local_barcode, '[] ', ''), ',')
+              )
         ORDER BY pr.date_updated DESC
     """, nativeQuery = true)
 	Flux<PatronRequestSummaryProjection> findAllRequestsForPatronByBarcode(String hostLmsCode, String patronBarcode);
 
-	// Paged summary of a patron's own requests, keyed by the identity claims a
-	// discovery-service JWT carries. Same joins/filters as findRequestsForPatron,
-	// but projected to PatronRequestSummary because the raw PatronRequest entity
+	// Paged summary of a patron's own requests, keyed by the identity DCB verified from
+	// a discovery service's patron assertion. Uses THE ownership predicate — the same
+	// join as findOwnedRequest above, so "which requests are mine" and "may I cancel
+	// this one" can never disagree. See that method for why it is patron_id and not
+	// requesting_identity_id.
+	//
+	// Projected to PatronRequestSummaryProjection because the raw PatronRequest entity
 	// has no serializable introspection (returning it 500s at render time).
 	@Query(value = """
-        SELECT
+        SELECT DISTINCT
             pr.id,
             CAST(pr.status_code AS VARCHAR) as status,
             CAST(pr.outcome_code AS VARCHAR) as outcome,
@@ -255,7 +297,7 @@ public interface PatronRequestRepository {
           AND pi.home_identity = true
         ORDER BY pr.date_updated DESC
     """, countQuery = """
-        SELECT count(pr.id)
+        SELECT count(DISTINCT pr.id)
         FROM patron_request pr
         JOIN patron_identity pi ON pr.patron_id = pi.patron_id
         JOIN host_lms h ON pi.host_lms_id = h.id

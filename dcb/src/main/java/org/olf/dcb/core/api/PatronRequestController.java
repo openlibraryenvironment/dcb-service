@@ -8,7 +8,6 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
-import io.micronaut.security.authentication.Authentication;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,7 +26,6 @@ import org.olf.dcb.core.api.serde.RequestedTitleStat;
 import org.olf.dcb.core.api.serde.TopRequestorStat;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
-import org.olf.dcb.request.fulfilment.PatronRequestCancellationService;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
@@ -42,21 +40,36 @@ import reactor.function.TupleUtils;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
 
 import org.olf.dcb.security.RoleNames;
 
+/**
+ * The STAFF and SERVICE surface for patron requests. Default-DENY.
+ *
+ * This controller places holds, checks items out and mutates the state machine. It
+ * previously defaulted to IS_AUTHENTICATED, which is not a permission but a claim
+ * about the whole Keycloak realm — "every principal this realm will ever
+ * authenticate may place a hold as an arbitrary patron". That invariant is
+ * maintained in Keycloak config by people who never read this file, and it broke
+ * the moment discovery credentials joined the realm: /place, /place/walkup,
+ * /place/expeditedCheckout, /rollback and /update were all reachable by any
+ * authenticated principal, including one held by a patron's browser.
+ *
+ * Every method is now gated by an explicit role set, either by this default or by
+ * its own @Secured. The patron-facing surface lives on
+ * {@link org.olf.dcb.core.api.discovery.DiscoveryPatronRequestsController}, and
+ * DISCOVERY_SERVICE must never appear here.
+ */
 @Controller("/patrons/requests")
 @Validated
-@Secured(IS_AUTHENTICATED)
+@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, RoleNames.INTERNAL_API})
 @Tag(name = "Patron Request API")
 @Slf4j
 public class PatronRequestController {
@@ -64,7 +77,6 @@ public class PatronRequestController {
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflowService workflowService;
 	private final CleanupPatronRequestTransition cleanupPatronRequestTransition;
-	private final PatronRequestCancellationService patronRequestCancellationService;
 
 	private final TrackingService trackingService;
 
@@ -72,14 +84,12 @@ public class PatronRequestController {
 			PatronRequestRepository patronRequestRepository,
 			PatronRequestWorkflowService workflowService,
 			CleanupPatronRequestTransition cleanupPatronRequestTransition,
-			PatronRequestCancellationService patronRequestCancellationService,
 			TrackingService trackingService) {
 
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.workflowService = workflowService;
 		this.cleanupPatronRequestTransition = cleanupPatronRequestTransition;
-		this.patronRequestCancellationService = patronRequestCancellationService;
 		this.trackingService = trackingService;
 	}
 	
@@ -196,7 +206,9 @@ public class PatronRequestController {
 			? patronRequestRepository.findAllRequestsForPatronByBarcode(hostLmsCode, barcode)
 			: patronRequestRepository.findActiveRequestsForPatronByBarcode(hostLmsCode, barcode);
 
-		return rawRequests.map(PatronStatusMapper::enrich);
+		// Staff enrichment: errorMessage is retained here because a librarian can act
+		// on it. The patron-facing path deliberately drops it.
+		return rawRequests.map(PatronStatusMapper::enrichForStaff);
 	}
 
 	@Error
@@ -206,82 +218,11 @@ public class PatronRequestController {
 			.build());
 	}
 
-	/**
-	 * Patron-initiated cancellation, self-scoped exactly like {@link #list}: the
-	 * request must belong to the token's patron. The service cancels the
-	 * patron's own borrowing-side hold; the forced tracking update then lets the
-	 * normal cancellation transition converge the request state promptly instead
-	 * of waiting for the next scheduled poll. 202: the CANCELLED state lands
-	 * asynchronously via the state machine, never from this call.
-	 */
-	@SingleResult
-	@Post(value = "/{patronRequestId}/cancel", consumes = APPLICATION_JSON)
-	public Mono<HttpResponse<CancellationAccepted>> cancelOwnPatronRequest(
-			@NotNull final UUID patronRequestId, Authentication authentication) {
-
-		final Map<String, Object> claims = authentication.getAttributes();
-		final Object patronHomeSystem = claims.get("localSystemCode");
-		final Object patronHomeId = claims.get("localSystemPatronId");
-
-		if (patronHomeSystem == null || patronHomeId == null) {
-			return Mono.just(HttpResponse.badRequest());
-		}
-
-		return patronRequestCancellationService
-			.cancelOwnRequest(patronRequestId, patronHomeSystem.toString(), patronHomeId.toString())
-			.flatMap(patronRequest -> trackingService.forceUpdate(patronRequestId)
-				// The hold IS cancelled; a slow poll must not turn success into a 500.
-				.onErrorResume(error -> {
-					log.warn("Post-cancellation tracking update failed for {}", patronRequestId, error);
-					return Mono.just(patronRequestId);
-				}))
-			.map(id -> HttpResponse.accepted().body(new CancellationAccepted(id)));
-	}
-
-	@Error
-	public HttpResponse<Map<String, String>> onCancellationNotAllowed(
-			PatronRequestCancellationService.CancellationNotAllowedException exception) {
-
-		return HttpResponse.status(io.micronaut.http.HttpStatus.CONFLICT)
-			.body(Map.of("code", "NOT_CANCELLABLE", "message", exception.getMessage()));
-	}
-
-	@Serdeable
-	public record CancellationAccepted(UUID id) {
-	}
-
-	// PATRON is safe here: identity comes exclusively from the caller's own JWT
-	// claims below — a patron token can only ever retrieve that patron's requests.
-	// Returns PatronRequestSummary (not the raw entity): the entity has no
-	// serializable introspection, so the previous Page<PatronRequest> shape
-	// could never actually render for a non-empty page.
-	@Secured({ADMINISTRATOR, RoleNames.PATRON})
-	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
-			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
-			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })
-	@Get("/{?pageable*}")
-	public Mono<Page<PatronRequestSummary>> list(@Parameter(hidden = true) @Valid Pageable pageable,
-			Authentication authentication) {
-
-		Map<String, Object> claims = authentication.getAttributes();
-		log.info("list requests for {}", claims);
-		Object patron_home_system = claims.get("localSystemCode");
-		Object patron_home_id = claims.get("localSystemPatronId");
-
-		if (pageable == null) {
-			pageable = Pageable.from(0, 100);
-		}
-
-		if ((patron_home_system != null) && (patron_home_id != null)) {
-			log.debug("Finding requests for {} {}", patron_home_system, patron_home_id);
-			return Mono.from(patronRequestRepository.findSummariesForPatron(patron_home_system.toString(),
-					patron_home_id.toString(), pageable))
-				.map(page -> page.map(PatronStatusMapper::enrich));
-		} else {
-			log.debug("Missing values for patron requests");
-			return Mono.empty();
-		}
-	}
+	// The patron-facing "my requests" list and patron-initiated cancellation used to
+	// live here, gated on a PATRON role. Both moved to
+	// org.olf.dcb.core.api.discovery.DiscoveryPatronRequestsController: on a
+	// controller whose class default is a staff role set, a patron-shaped endpoint is
+	// one forgotten annotation away from granting patrons everything else in the file.
 
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
 	@Get("/stats/top-requestors")
