@@ -58,15 +58,14 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 					.or(() -> stringAttribute(attributes, "preferred_username"))
 					.orElse(prefName);
 				Collection<String> roles = rolesFrom(auth.getRoles(), attributes);
-
-				// Log the userID and roles
-				log.debug("Roles: {}, Username: {}, Email: {}, User ID: {}", roles, prefName, email, userID);
+				Collection<String> agencyCodes = agencyCodesFrom(attributes);
 
 				putIfPresent(context, "currentUser", userID);
 				putIfPresent(context, "userName", prefName);
 				putIfPresent(context, "userEmail", email);
 				putIfPresent(context, "userFullName", name);
 				context.put("roles", roles);
+				context.put(AGENCY_CODES, agencyCodes);
 			});
 			return executionInput;
 		});
@@ -84,17 +83,46 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 		}
 	}
 
+	/** Context key for the agencies a request may see data for. */
+	public static final String AGENCY_CODES = "agencyCodes";
+
+	/**
+	 * The agencies this user is responsible for.
+	 * <p>
+	 * DCB Admin for Libraries has always read a single {@code code} claim to decide
+	 * which library the user belongs to, so that is the claim read here - but as a
+	 * collection rather than a scalar. A person can administer more than one library:
+	 * whoever runs a shared Koha on behalf of several of its tenants is not a
+	 * consortium administrator and must not be given consortium-wide access, but
+	 * neither do they belong to exactly one agency.
+	 * <p>
+	 * {@code addValues} accepts a string or a list, so a single-valued {@code code}
+	 * claim and a multi-valued one both work and the identity provider decides which
+	 * to issue. {@code agencyCodes} is accepted alongside it for providers that cannot
+	 * make an existing scalar claim multi-valued.
+	 * <p>
+	 * An empty result is not "no restriction" - see AgencyAccessScope, where it means
+	 * the opposite.
+	 */
+	static Collection<String> agencyCodesFrom(Map<String, Object> attributes) {
+		Set<String> agencyCodes = new LinkedHashSet<>();
+		addValues(agencyCodes, attributes.get("code"));
+		addValues(agencyCodes, attributes.get(AGENCY_CODES));
+		return new ArrayList<>(agencyCodes);
+	}
+
 	static Collection<String> rolesFrom(Collection<String> authenticationRoles, Map<String, Object> attributes) {
 		Set<String> roles = new LinkedHashSet<>();
-		addRoles(roles, authenticationRoles);
-		addRoles(roles, attributes.get("roles"));
+		addValues(roles, authenticationRoles);
+		addValues(roles, attributes.get("roles"));
 		addRolesFromMap(roles, attributes.get("realm_access"));
 		addResourceAccessRoles(roles, attributes.get("resource_access"));
 		addZitadelProjectRoles(roles, attributes);
 		return new ArrayList<>(roles);
 	}
 
-	private static void addRoles(Set<String> roles, Object value) {
+	/** Tolerates a claim issued either as a single string or as a list of them. */
+	private static void addValues(Set<String> roles, Object value) {
 		if (value instanceof Collection<?> collection) {
 			collection.stream()
 				.filter(String.class::isInstance)
@@ -109,7 +137,7 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 	@SuppressWarnings("unchecked")
 	private static void addRolesFromMap(Set<String> roles, Object value) {
 		if (value instanceof Map<?, ?> map) {
-			addRoles(roles, ((Map<String, Object>) map).get("roles"));
+			addValues(roles,((Map<String, Object>) map).get("roles"));
 		}
 	}
 
@@ -134,7 +162,7 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 				.forEach(roles::add);
 		}
 		else {
-			addRoles(roles, value);
+			addValues(roles,value);
 		}
 	}
 }

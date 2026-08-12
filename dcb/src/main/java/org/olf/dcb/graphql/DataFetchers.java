@@ -211,12 +211,21 @@ public class DataFetchers {
 				.from(pageno.intValue(), pagesize.intValue())
 				.order(order, orderBy);
                 
-			if ((query != null) && (query.length() > 0)) {
-				var spec = qs.evaluate(query, PatronRequest.class);
-				return Mono.from(postgresPatronRequestRepository.findAll(spec, pageable)).toFuture();
+			// The filter the caller asked for, narrowed to what they are allowed to see.
+			// Applied here rather than trusted to the caller: the previous arrangement ran
+			// the client's query verbatim, so the scoping DCB Admin for Libraries did in
+			// its own queries was a convention that could be dropped by anyone who looked.
+			final var requested = ((query != null) && (query.length() > 0))
+				? qs.<PatronRequest>evaluate(query, PatronRequest.class)
+				: null;
+
+			final var spec = AgencyAccessScope.restrict(env, requested);
+
+			if (spec == null) {
+				return Mono.from(postgresPatronRequestRepository.findAll(pageable)).toFuture();
 			}
-                        
-			return Mono.from(postgresPatronRequestRepository.findAll(pageable)).toFuture();
+
+			return Mono.from(postgresPatronRequestRepository.findAll(spec, pageable)).toFuture();
 		};
 	}
 
