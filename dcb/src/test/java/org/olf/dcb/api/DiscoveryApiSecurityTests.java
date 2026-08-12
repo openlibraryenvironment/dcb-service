@@ -3,11 +3,13 @@ package org.olf.dcb.api;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.oneOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.DISCOVERY_SERVICE;
+import static org.olf.dcb.security.RoleNames.LIBRARY_READ_ONLY;
 
 import java.util.List;
 import java.util.Map;
@@ -44,6 +46,7 @@ class DiscoveryApiSecurityTests {
 	private static final String DISCOVERY_TOKEN = "discovery-service-token";
 	private static final String ADMIN_TOKEN = "discovery-tests-admin-token";
 	private static final String ROLELESS_TOKEN = "discovery-tests-roleless-token";
+	private static final String READ_ONLY_TOKEN = "discovery-tests-read-only-token";
 
 	private static final UUID SOME_REQUEST_ID = randomUUID();
 
@@ -70,13 +73,55 @@ class DiscoveryApiSecurityTests {
 		TestStaticTokenValidator.add(DISCOVERY_TOKEN, "wayfinder", List.of(DISCOVERY_SERVICE));
 		TestStaticTokenValidator.add(ADMIN_TOKEN, "an-admin", List.of(ADMINISTRATOR));
 		TestStaticTokenValidator.add(ROLELESS_TOKEN, "nobody", List.of());
+		TestStaticTokenValidator.add(READ_ONLY_TOKEN, "front-desk", List.of(LIBRARY_READ_ONLY));
 	}
 
+	/**
+	 * LIBRARY_READ_ONLY means read-only CONFIGURATION, not read-only circulation.
+	 * dcb-admin-for-libraries confines those users to /requesting/*, which is exactly
+	 * where staff requesting, walk-ups and expedited checkout live, so front-desk staff
+	 * hold this role and place requests all day. Tightening the controller default
+	 * without these three explicit grants 403s them, which is a regression this pins.
+	 *
+	 * A 400/404 here is fine and expected: it means authorisation PASSED and the empty
+	 * body then failed validation. What must never come back is 401 or 403.
+	 */
+	@Test
+	void readOnlyLibraryStaffCanStillReachThePlacementRoutes() {
+		for (final var uri : List.of(
+				"/patrons/requests/place",
+				"/patrons/requests/place/walkup",
+				"/patrons/requests/place/expeditedCheckout")) {
+
+			final var status = statusOfRejectedPost(uri, READ_ONLY_TOKEN);
+
+			assertThat(uri + " must remain reachable for front-desk staff", status,
+				is(not(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN))));
+		}
+	}
+
+	/** ...but they must not be able to rewrite request state. */
+	@Test
+	void readOnlyLibraryStaffCannotMutateRequestState() {
+		for (final var uri : List.of(
+				"/patrons/requests/" + SOME_REQUEST_ID + "/rollback",
+				"/patrons/requests/" + SOME_REQUEST_ID + "/transition/cleanup")) {
+
+			assertThat(uri, statusOfRejectedPost(uri, READ_ONLY_TOKEN),
+				is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
+		}
+	}
+
+	/**
+	 * POSTs an empty body and reports the status. Every route here rejects an empty body,
+	 * so a non-auth failure (400/404) is the signal that authorisation PASSED -- which is
+	 * exactly what the read-only tests below need to distinguish from a 401/403.
+	 */
 	private HttpStatus statusOfRejectedPost(String uri, String token) {
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> client.toBlocking().exchange(
 				HttpRequest.POST(uri, Map.of()).bearerAuth(token)),
-			uri + " must not be reachable with this token");
+			uri + " unexpectedly succeeded with an empty body");
 
 		return exception.getStatus();
 	}

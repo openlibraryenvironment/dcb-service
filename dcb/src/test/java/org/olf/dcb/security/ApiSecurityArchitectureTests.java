@@ -57,25 +57,15 @@ class ApiSecurityArchitectureTests {
 		Post.class, Put.class, Patch.class, Delete.class);
 
 	/**
-	 * KNOWN OPEN ROUTE, recorded rather than hidden.
+	 * Deliberately EMPTY, and it should stay that way.
 	 *
-	 * POST /patrons/requests/resolution/preview is @Secured(IS_ANONYMOUS) and predates
-	 * this test, which found it. It is listed here so the rule below can pass while the
-	 * finding stays visible and greppable, exactly as @OpenToAllPrincipals does for the
-	 * other case.
-	 *
-	 * It is NOT benign, and this entry should be deleted rather than extended:
-	 *   - it runs full resolution, which makes live availability calls out to member LMS
-	 *     APIs, so an unauthenticated POST is an amplification vector into libraries we
-	 *     do not own ("Do Not DDOS the Libraries");
-	 *   - it returns allItemsFromAvailability / filteredItems / sortedItems, i.e.
-	 *     item-level holdings across the consortium, to anyone who asks.
-	 *
-	 * Securing it needs a decision about its callers (ResolutionApiClient in the test
-	 * suite, and possibly implementation tooling), which is why it is not done here.
+	 * This briefly held PatronRequestResolutionController, which this test found to be
+	 * @Secured(IS_ANONYMOUS) while running full resolution against member LMS APIs and
+	 * returning consortium-wide item detail. It has since been secured, so the exemption
+	 * is gone. Adding an entry here means shipping a known-open route on the staff API:
+	 * do it only with a reason written down, and treat it as a defect to be removed.
 	 */
-	private static final Set<String> KNOWN_OPEN_STAFF_ROUTES = Set.of(
-		"PatronRequestResolutionController");
+	private static final Set<String> KNOWN_OPEN_STAFF_ROUTES = Set.of();
 
 	private List<Route> routes;
 

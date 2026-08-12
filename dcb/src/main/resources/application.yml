@@ -7,16 +7,28 @@ micronaut:
     bootstrap: true
   server:
     cors:
+      # Deliberately left permissive HERE, and pinned per environment instead.
+      #
+      # With no `configurations` block Micronaut allows any origin. Pinning it in this
+      # file cannot work: DCB Admin and DCB Admin for Libraries are separate origins,
+      # each differs per environment, and both reach dcb-service cross-origin from a
+      # browser (VITE_DCB_API_BASE). A default baked in here is either wrong everywhere
+      # or an outage waiting for whoever forgets the override.
+      #
+      # It is also low-value as a control: dcb-service authenticates with
+      # `Authorization: Bearer`, never a cookie, so a hostile page cannot obtain a token
+      # and the browser will not attach one on its behalf. CORS protects the browser
+      # user, not this API.
+      #
+      # To pin it in a deployment (ki-okapi-gitops), list every admin origin explicitly:
+      #
+      #   micronaut.server.cors.configurations.admin-uis.allowed-origins:
+      #     - https://admin.dcb.example.org
+      #     - https://libraries.dcb.example.org
+      #
+      # Do NOT list reconnoitre: patron traffic reaches dcb-service through wayfinder
+      # server-side, never from a patron's browser.
       enabled: true
-      # Pin the origins. With CORS enabled and no allowed-origins, Micronaut permits
-      # ANY origin. That was tolerable while every caller was a server holding a bearer
-      # token; it is not now that browsers are first-class clients of this deployment.
-      # Note reconnoitre is NOT listed and must not be: patron traffic reaches DCB
-      # through wayfinder server-side, never from a patron's browser.
-      configurations:
-        admin-uis:
-          allowed-origins:
-            - ${DCB_CORS_ADMIN_ORIGINS:http://localhost:3000}
   application:
     name: dcb
   router:

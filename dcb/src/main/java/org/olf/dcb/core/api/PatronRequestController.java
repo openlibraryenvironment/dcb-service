@@ -47,6 +47,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
+import static org.olf.dcb.security.RoleNames.LIBRARY_READ_ONLY;
 
 import org.olf.dcb.security.RoleNames;
 
@@ -149,6 +150,20 @@ public class PatronRequestController {
 		return patronRequestService.initialiseRollback(patronRequestId);
 	}
 
+	/**
+	 * LIBRARY_READ_ONLY is included on the three placement routes DELIBERATELY, and the
+	 * role name is the reason it needs saying: it means read-only CONFIGURATION, not
+	 * read-only circulation. dcb-admin-for-libraries confines those users to
+	 * /requesting/*, which is precisely where staff requesting, walk-ups and expedited
+	 * checkout live, so front-desk staff hold this role and place requests all day.
+	 * Excluding it here 403s them.
+	 *
+	 * It is NOT on update/rollback/cleanup: those rewrite request state, are reached
+	 * from /patronRequests/* which the same UI blocks for this role, and are genuinely
+	 * not read-only work.
+	 */
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY,
+		RoleNames.INTERNAL_API})
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequest(
@@ -163,6 +178,8 @@ public class PatronRequestController {
 	/**
 	 * For situations such as on-site borrowing. Must include item due date in response.
 	 */
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY,
+		RoleNames.INTERNAL_API})
 	@SingleResult
 	@Post(value = "/place/expeditedCheckout", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequestExpeditedCheckout(
@@ -178,6 +195,8 @@ public class PatronRequestController {
 	 * A new version of walk-up requesting using the item barcode.
 	 * Separate API for now as this is in preview.
 	 */
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY,
+		RoleNames.INTERNAL_API})
 	@SingleResult
 	@Post(value = "/place/walkup", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placeWalkUpRequest(

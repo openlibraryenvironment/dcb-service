@@ -2,7 +2,10 @@ package org.olf.dcb.core.api;
 
 import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
+import static org.olf.dcb.security.RoleNames.INTEROP_TESTER;
+import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
 import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItem;
 import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItems;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -27,10 +30,25 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+/**
+ * Resolution preview: "which item would DCB choose for these parameters, and why".
+ *
+ * Staff and implementation tooling only. It was @Secured(IS_ANONYMOUS), which was not
+ * benign on two counts:
+ *
+ *   - it runs FULL resolution, which makes live availability calls out to member LMS
+ *     APIs. An unauthenticated POST was therefore an amplification vector into
+ *     libraries we do not own, and one anybody could aim.
+ *   - it returns allItemsFromAvailability / filteredItems / sortedItems, i.e.
+ *     item-level holdings across the consortium, to whoever asked.
+ *
+ * INTEROP_TESTER is included because diagnosing "why did it pick that item" is exactly
+ * what implementation testing needs, matching ImplementationToolsController.
+ */
 @Slf4j
 @Controller("/patrons/requests/resolution")
 @Validated
-@Secured(IS_ANONYMOUS)
+@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, INTEROP_TESTER})
 @Tag(name = "Patron Request Resolution API")
 public class PatronRequestResolutionController {
 	@Inject
