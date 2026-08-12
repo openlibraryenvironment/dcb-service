@@ -1,0 +1,39 @@
+name: dcb-service-docs
+version: true
+title: DCB Service Documentation
+nav:
+  - modules/ROOT/nav.adoc
+ext:
+  collector:
+    run:
+      - command: "JAVA_TOOL_OPTIONS=\
+          -Dmicronaut.openapi.views.spec=\
+            scalar.enabled=true,\
+            scalar.js.url=../scalar/res/,\
+            scalar.spec.url=../swagger/\\${filename}\
+           \ ./gradlew -q compileJava generateAntoraYml"
+        shell: true
+
+    scan:
+       
+       # Scan directory relative to the repository root
+       - dir: dcb/build/classes/java/main/META-INF/swagger
+         files: '*.yml'
+         clean: true
+
+         # Into is anotra bucket not a physical directory
+         into:
+           dir: modules/api/attachments/swagger
+
+
+       # Scan directory relative to the repository root
+       - dir: dcb/build/classes/java/main/META-INF/swagger/views/scalar
+         clean: true
+
+         # Into is anotra bucket not a physical directory
+         into:
+           dir: modules/api/attachments/scalar
+
+       
+       - dir: 'dcb/build/generated-docs'
+
