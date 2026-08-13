@@ -7,27 +7,6 @@ micronaut:
     bootstrap: true
   server:
     cors:
-      # Deliberately left permissive HERE, and pinned per environment instead.
-      #
-      # With no `configurations` block Micronaut allows any origin. Pinning it in this
-      # file cannot work: DCB Admin and DCB Admin for Libraries are separate origins,
-      # each differs per environment, and both reach dcb-service cross-origin from a
-      # browser (VITE_DCB_API_BASE). A default baked in here is either wrong everywhere
-      # or an outage waiting for whoever forgets the override.
-      #
-      # It is also low-value as a control: dcb-service authenticates with
-      # `Authorization: Bearer`, never a cookie, so a hostile page cannot obtain a token
-      # and the browser will not attach one on its behalf. CORS protects the browser
-      # user, not this API.
-      #
-      # To pin it in a deployment (ki-okapi-gitops), list every admin origin explicitly:
-      #
-      #   micronaut.server.cors.configurations.admin-uis.allowed-origins:
-      #     - https://admin.dcb.example.org
-      #     - https://libraries.dcb.example.org
-      #
-      # Do NOT list reconnoitre: patron traffic reaches dcb-service through wayfinder
-      # server-side, never from a patron's browser.
       enabled: true
   application:
     name: dcb
@@ -259,11 +238,30 @@ dcb:
     # DCB's own cap on assertion validity, enforced regardless of the issuer's `exp`.
     # A long-lived assertion is a bearer token by another name.
     max-assertion-lifetime: ${DCB_DISCOVERY_MAX_ASSERTION_LIFETIME:PT2M}
-    # Onboard a service per environment in ki-okapi-gitops, e.g.
+    # Onboard a service per environment, in whichever repository holds this
+    # deployment's configuration. Two equivalent forms; use whichever your hosting
+    # supports. See docs/discovery-service-approach.md section 7.
+    #
+    # 1. YAML, where a config file can be mounted (k8s ConfigMap, mounted volume):
+    #
     # trusted-services:
-    #   - service-id: wayfinder
-    #     issuer: https://wayfinder.example.org
-    #     jwks-uri: https://wayfinder.example.org/.well-known/jwks.json
+    #   - service-id: your-discovery-service
+    #     issuer: https://discovery.example.org
+    #     jwks-uri: https://discovery.example.org/.well-known/jwks.json
+    #
+    # 2. JSON in ONE environment variable, where it cannot (ECS/Fargate task
+    #    definitions, plain docker). Same kebab-case keys:
+    #
+    #    DCB_DISCOVERY_TRUSTED_SERVICES_JSON=[{"service-id":"your-discovery-service",
+    #      "issuer":"https://discovery.example.org",
+    #      "jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]
+    #
+    # A list of objects CANNOT be expressed as indexed environment variables --
+    # Micronaut resolves DCB_DISCOVERY_TRUSTED_SERVICES_0_SERVICE_ID to
+    # dcb.discovery.trusted-services.0.service-id, and list binding needs the
+    # trusted-services[0].service-id form. Hence the JSON value. Malformed JSON fails
+    # startup deliberately: a trust anchor that binds nothing silently is
+    # indistinguishable from one nobody configured.
     trusted-services: []
   security:
     internal-endpoints:

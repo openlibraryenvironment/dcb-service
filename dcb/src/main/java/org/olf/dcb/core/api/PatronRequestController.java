@@ -8,6 +8,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.security.authentication.Authentication;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +41,7 @@ import reactor.function.TupleUtils;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static io.micronaut.http.HttpResponse.badRequest;
@@ -221,6 +223,41 @@ public class PatronRequestController {
 		@Parameter(description = "The Patron's Barcode") @QueryValue String barcode,
 		@Parameter(description = "Filter mode: 'active' (default) or 'all'") @QueryValue(defaultValue = "active") @Nullable String mode) {
 
+		return requestsForPatronBarcode(hostLmsCode, barcode, mode);
+	}
+
+	/**
+	 * LEGACY. The path this route shipped on, and the one EBSCO Locate calls in
+	 * production with its ADMIN service credential. Locate is closed-source and outside
+	 * this workspace, so the rename to /patrons/requests/{hostLmsCode} would have 404'd a
+	 * live integration; the rename was cosmetic, the security work was the role set.
+	 *
+	 * A SEPARATE METHOD rather than a second uri on the one above, because @Secured is
+	 * per-method: the exception is for an ADMIN service credential, so this alias admits
+	 * ADMINISTRATOR and nothing else. CONSORTIUM_ADMIN reached the old path historically
+	 * and has no caller that needs it -- it uses the current path like everyone else.
+	 *
+	 * Delete when EBSCO confirms it has moved. See
+	 * docs/discovery-service-approach.md section 8.
+	 */
+	@Secured(ADMINISTRATOR)
+	@Operation(
+		summary = "List Requests by Patron Barcode (legacy path)",
+		description = "Deprecated alias of GET /patrons/requests/{hostLmsCode}, retained for an "
+			+ "existing integration. Use the current path."
+	)
+	@Get(value = "/patrons/{hostLmsCode}/requests")
+	public Flux<PatronRequestSummary> getPatronRequestsByBarcodeLegacyPath(
+		@Parameter(description = "The Host LMS Code") String hostLmsCode,
+		@Parameter(description = "The Patron's Barcode") @QueryValue String barcode,
+		@Parameter(description = "Filter mode: 'active' (default) or 'all'") @QueryValue(defaultValue = "active") @Nullable String mode) {
+
+		return requestsForPatronBarcode(hostLmsCode, barcode, mode);
+	}
+
+	private Flux<PatronRequestSummary> requestsForPatronBarcode(String hostLmsCode, String barcode,
+		String mode) {
+
 		final var rawRequests = "all".equalsIgnoreCase(mode)
 			? patronRequestRepository.findAllRequestsForPatronByBarcode(hostLmsCode, barcode)
 			: patronRequestRepository.findActiveRequestsForPatronByBarcode(hostLmsCode, barcode);
@@ -242,6 +279,54 @@ public class PatronRequestController {
 	// org.olf.dcb.core.api.discovery.DiscoveryPatronRequestsController: on a
 	// controller whose class default is a staff role set, a patron-shaped endpoint is
 	// one forgotten annotation away from granting patrons everything else in the file.
+
+	/**
+	 * LEGACY. Retained for EBSCO Locate, which calls this in production with an ADMIN
+	 * service credential and cannot be changed -- it is closed-source and outside this
+	 * workspace, so the compatibility audit that cleared the admin UIs could not see it.
+	 *
+	 * Do not build anything new on this. It self-scopes off localSystemCode /
+	 * localSystemPatronId claims ON THE CALLER'S OWN TOKEN, which is the confused-deputy
+	 * shape the discovery work exists to replace: the caller's credential decides which
+	 * patron's requests come back. It is tolerable here ONLY because ADMINISTRATOR can
+	 * already read every request in the consortium through the barcode route and GraphQL,
+	 * so the claims lookup grants no authority the role does not already have.
+	 *
+	 * A service credential carries no patron claims, so for one it returns an empty page
+	 * rather than failing -- which is exactly what it did before this branch, and is why
+	 * this must NOT be "fixed" into returning everything.
+	 *
+	 * The replacement is GET /discovery/requests, where the patron is a verified
+	 * assertion rather than a claim on the caller's own token. Delete this when EBSCO
+	 * has moved. See docs/discovery-service-approach.md section 8.
+	 */
+	@Secured(ADMINISTRATOR)
+	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
+			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
+			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })
+	@Get("/{?pageable*}")
+	public Mono<Page<PatronRequest>> list(@Parameter(hidden = true) @Valid Pageable pageable,
+			Authentication authentication) {
+
+		Map<String, Object> claims = authentication.getAttributes();
+		Object patron_home_system = claims.get("localSystemCode");
+		Object patron_home_id = claims.get("localSystemPatronId");
+
+		if (pageable == null) {
+			pageable = Pageable.from(0, 100);
+		}
+
+		if ((patron_home_system != null) && (patron_home_id != null)) {
+			log.debug("Finding requests for {} {}", patron_home_system, patron_home_id);
+			return Mono.from(patronRequestRepository.findRequestsForPatron(patron_home_system.toString(),
+					patron_home_id.toString(), pageable));
+		} else {
+			// No patron claims on the caller's token: an empty page, as before. Not an
+			// error, and deliberately not "everything".
+			log.debug("No patron claims on the calling token; returning an empty page");
+			return Mono.empty();
+		}
+	}
 
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
 	@Get("/stats/top-requestors")

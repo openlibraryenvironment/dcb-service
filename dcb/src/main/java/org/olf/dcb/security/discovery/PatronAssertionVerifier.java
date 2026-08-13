@@ -19,8 +19,8 @@ import lombok.extern.slf4j.Slf4j;
  * Turns the {@code X-OpenRS-Patron-Assertion} header into a
  * {@link PatronAssertion} DCB has actually verified.
  *
- * WHY THIS EXISTS. A discovery service's own credential says only "wayfinder is
- * calling". If DCB accepted the patron identity as a plain parameter alongside it,
+ * WHY THIS EXISTS. A discovery service's own credential says only "this discovery
+ * service is calling". If DCB accepted the patron identity as a plain parameter alongside it,
  * DCB would hold the authority while the caller decided how to spend it — the
  * confused-deputy problem — and per-patron ownership would stop being enforceable
  * here. Instead the caller signs a short-lived assertion with its own key, and DCB

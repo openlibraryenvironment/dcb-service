@@ -52,7 +52,7 @@ class PatronRequestCancellationServiceTests {
 
 	private PatronRequestCancellationService service;
 
-	private static final String ASSERTED_BY = "wayfinder";
+	private static final String ASSERTED_BY = "a-discovery-service";
 
 	private static PatronRequest requestInState(Status status) {
 		return PatronRequest.builder()

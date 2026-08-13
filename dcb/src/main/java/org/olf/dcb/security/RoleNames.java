@@ -9,8 +9,8 @@ public interface RoleNames {
 	public static final String INTEROP_TESTER = "INTEROP_TESTER";
 
 	/**
-	 * A discovery service BACKEND — wayfinder, or a third party's server-side
-	 * integration. Held by a confidential client credential that never reaches a
+	 * A discovery service BACKEND — first party or third party, but always
+	 * server-side. Held by a confidential client credential that never reaches a
 	 * browser, and never by a patron.
 	 *
 	 * This role authenticates the CALLER. It does not identify a patron: the patron

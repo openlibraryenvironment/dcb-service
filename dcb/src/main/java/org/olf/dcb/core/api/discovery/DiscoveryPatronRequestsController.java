@@ -213,7 +213,7 @@ public class DiscoveryPatronRequestsController {
 	/**
 	 * Preflight rejections. @Error handlers are per-controller, not global, so without
 	 * this a preflight failure on the discovery place endpoint would surface as a 500
-	 * rather than the failedChecks body wayfinder already knows how to translate.
+	 * rather than the failedChecks body discovery clients already know how to translate.
 	 * Same shape as PatronRequestController.onCheckFailure deliberately: one contract.
 	 */
 	@Error

@@ -36,8 +36,8 @@ import io.micronaut.http.HttpRequest;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PatronAssertionVerifierTests {
 
-	private static final String ISSUER = "https://wayfinder.test.invalid";
-	private static final String SERVICE_ID = "wayfinder";
+	private static final String ISSUER = "https://discovery.test.invalid";
+	private static final String SERVICE_ID = "a-discovery-service";
 	private static final String AUDIENCE = "dcb";
 
 	private static RSAKey signingKey;
@@ -45,8 +45,10 @@ class PatronAssertionVerifierTests {
 
 	@BeforeAll
 	static void generateKeys() throws Exception {
-		signingKey = new RSAKeyGenerator(2048).keyID("wayfinder-1").generate();
-		otherKey = new RSAKeyGenerator(2048).keyID("wayfinder-1").generate();
+		// Deliberately the SAME kid on both: anAssertionSignedByTheWrongKeyIsRejected
+		// proves verification turns on the key, not on a matching key id.
+		signingKey = new RSAKeyGenerator(2048).keyID("discovery-1").generate();
+		otherKey = new RSAKeyGenerator(2048).keyID("discovery-1").generate();
 	}
 
 	// ---- subject under test, wired the way the bean container wires it ----
@@ -166,7 +168,7 @@ class PatronAssertionVerifierTests {
 
 	@Test
 	void anAssertionForAnotherAudienceIsRejected() throws Exception {
-		// A wayfinder-signed assertion meant for a different DCB must not work here.
+		// A correctly-signed assertion meant for a different DCB must not work here.
 		final var wrongAudience = spec();
 		wrongAudience.audience = "some-other-dcb";
 
@@ -239,7 +241,7 @@ class PatronAssertionVerifierTests {
 	@Test
 	void aDuplicateIssuerRefusesToStart() {
 		final var first = new DiscoveryServiceProperties.TrustedService();
-		first.setServiceId("wayfinder");
+		first.setServiceId(SERVICE_ID);
 		first.setIssuer(ISSUER);
 		first.setJwks(Map.of("keys", List.of()));
 

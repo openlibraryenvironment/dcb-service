@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.oneOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 import static org.olf.dcb.security.RoleNames.DISCOVERY_SERVICE;
 import static org.olf.dcb.security.RoleNames.LIBRARY_READ_ONLY;
 
@@ -47,6 +48,7 @@ class DiscoveryApiSecurityTests {
 	private static final String ADMIN_TOKEN = "discovery-tests-admin-token";
 	private static final String ROLELESS_TOKEN = "discovery-tests-roleless-token";
 	private static final String READ_ONLY_TOKEN = "discovery-tests-read-only-token";
+	private static final String CONSORTIUM_ADMIN_TOKEN = "discovery-tests-consortium-admin-token";
 
 	private static final UUID SOME_REQUEST_ID = randomUUID();
 
@@ -70,10 +72,12 @@ class DiscoveryApiSecurityTests {
 
 	@BeforeAll
 	void beforeAll() {
-		TestStaticTokenValidator.add(DISCOVERY_TOKEN, "wayfinder", List.of(DISCOVERY_SERVICE));
+		TestStaticTokenValidator.add(DISCOVERY_TOKEN, "a-discovery-service", List.of(DISCOVERY_SERVICE));
 		TestStaticTokenValidator.add(ADMIN_TOKEN, "an-admin", List.of(ADMINISTRATOR));
 		TestStaticTokenValidator.add(ROLELESS_TOKEN, "nobody", List.of());
 		TestStaticTokenValidator.add(READ_ONLY_TOKEN, "front-desk", List.of(LIBRARY_READ_ONLY));
+		TestStaticTokenValidator.add(CONSORTIUM_ADMIN_TOKEN, "a-consortium-admin",
+			List.of(CONSORTIUM_ADMIN));
 	}
 
 	/**
@@ -213,6 +217,94 @@ class DiscoveryApiSecurityTests {
 				.header("X-OpenRS-Patron-Assertion", "home-lms:patron-1")));
 
 		assertThat(exception.getStatus(), is(HttpStatus.UNAUTHORIZED));
+	}
+
+	// ---- the legacy EBSCO Locate surface must keep working ----
+
+	/**
+	 * EBSCO Locate is an existing production integration holding an ADMIN service
+	 * credential. It is closed-source and outside this workspace, so the compatibility
+	 * audit that cleared the admin UIs could not see it, and the barcode route was
+	 * renamed underneath it. Both URIs are served; this pins the legacy one, because a
+	 * "tidy up the duplicate path" commit would take a live integration down and nothing
+	 * else in the build would notice.
+	 */
+	@Test
+	void theLegacyLocateBarcodeRouteIsStillServed() {
+		final var response = client.toBlocking().exchange(
+			HttpRequest.GET("/patrons/requests/patrons/some-host-lms/requests?barcode=1234")
+				.bearerAuth(ADMIN_TOKEN));
+
+		assertThat(response.getStatus(), is(HttpStatus.OK));
+	}
+
+	@Test
+	void theCurrentBarcodeRouteIsServedToo() {
+		final var response = client.toBlocking().exchange(
+			HttpRequest.GET("/patrons/requests/some-host-lms?barcode=1234").bearerAuth(ADMIN_TOKEN));
+
+		assertThat(response.getStatus(), is(HttpStatus.OK));
+	}
+
+	/**
+	 * The legacy claims-scoped browse endpoint, also retained for Locate. What matters
+	 * is that ADMIN still gets past authorisation: an empty result for a credential
+	 * carrying no patron claims is the pre-existing behaviour and is not a regression.
+	 */
+	@Test
+	void theLegacyBrowseRouteStillAuthorisesAnAdminCredential() {
+		final var status = statusOfGet("/patrons/requests", ADMIN_TOKEN);
+
+		assertThat(status, is(not(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN))));
+	}
+
+	/** Locate's ADMIN grant is the exception; it does not extend to anything else. */
+	@Test
+	void theLegacyRoutesAreNotOpenToADiscoveryCredential() {
+		for (final var uri : List.of(
+				"/patrons/requests/patrons/some-host-lms/requests?barcode=1234",
+				"/patrons/requests")) {
+
+			assertThat(uri, statusOfGet(uri, DISCOVERY_TOKEN),
+				is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
+		}
+	}
+
+	/**
+	 * The exception is for ONE ADMIN service credential, so the legacy surface admits
+	 * ADMINISTRATOR and nothing else -- not even CONSORTIUM_ADMIN, which reaches the
+	 * current barcode path and has no need of the old one. Pinned because the obvious
+	 * "tidy" is to fold the alias back onto the current method and inherit its wider
+	 * role set, which would quietly widen the exception.
+	 */
+	@Test
+	void theLegacySurfaceIsAdminOnly() {
+		for (final var uri : List.of(
+				"/patrons/requests/patrons/some-host-lms/requests?barcode=1234",
+				"/patrons/requests")) {
+
+			assertThat(uri, statusOfGet(uri, CONSORTIUM_ADMIN_TOKEN),
+				is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
+		}
+	}
+
+	/** ...while the current barcode path keeps the role set it has always had. */
+	@Test
+	void theCurrentBarcodeRouteIsStillOpenToConsortiumAdmins() {
+		final var response = client.toBlocking().exchange(
+			HttpRequest.GET("/patrons/requests/some-host-lms?barcode=1234")
+				.bearerAuth(CONSORTIUM_ADMIN_TOKEN));
+
+		assertThat(response.getStatus(), is(HttpStatus.OK));
+	}
+
+	/** Reports the status of a GET whether it succeeded or failed. */
+	private HttpStatus statusOfGet(String uri, String token) {
+		try {
+			return client.toBlocking().exchange(HttpRequest.GET(uri).bearerAuth(token)).getStatus();
+		} catch (HttpClientResponseException e) {
+			return e.getStatus();
+		}
 	}
 
 	// ---- the anonymous directory stays anonymous ----
