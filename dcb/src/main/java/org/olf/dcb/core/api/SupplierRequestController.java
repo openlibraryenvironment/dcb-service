@@ -17,10 +17,10 @@ import org.olf.dcb.tracking.TrackingService;
 import reactor.core.publisher.Mono;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -43,7 +43,11 @@ import org.olf.dcb.core.interaction.HostLmsRequest;
 import javax.annotation.Nullable;
 
 @Validated
-@Secured(IS_AUTHENTICATED)
+// Default-DENY, matching PatronRequestController. Every route here is already
+// explicitly CONSORTIUM_ADMIN, so this changes no current behaviour — it removes the
+// trap, which is that the NEXT method added inherits "any authenticated principal",
+// and the realm now issues credentials to discovery services.
+@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR})
 @Controller("/suppliers/requests")
 @Tag(name = "Supplier Request API")
 @Slf4j

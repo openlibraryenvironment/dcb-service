@@ -21,6 +21,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.api.discovery.PatronStatusMapper;
 import org.olf.dcb.core.api.serde.PatronRequestSummary;
 import org.olf.dcb.core.api.serde.RequestedTitleStat;
 import org.olf.dcb.core.api.serde.TopRequestorStat;
@@ -45,14 +46,33 @@ import java.util.UUID;
 
 import static io.micronaut.http.HttpResponse.badRequest;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
-import static io.micronaut.security.rules.SecurityRule.IS_AUTHENTICATED;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
+import static org.olf.dcb.security.RoleNames.LIBRARY_READ_ONLY;
 
+import org.olf.dcb.security.RoleNames;
+
+/**
+ * The STAFF and SERVICE surface for patron requests. Default-DENY.
+ *
+ * This controller places holds, checks items out and mutates the state machine. It
+ * previously defaulted to IS_AUTHENTICATED, which is not a permission but a claim
+ * about the whole Keycloak realm — "every principal this realm will ever
+ * authenticate may place a hold as an arbitrary patron". That invariant is
+ * maintained in Keycloak config by people who never read this file, and it broke
+ * the moment discovery credentials joined the realm: /place, /place/walkup,
+ * /place/expeditedCheckout, /rollback and /update were all reachable by any
+ * authenticated principal, including one held by a patron's browser.
+ *
+ * Every method is now gated by an explicit role set, either by this default or by
+ * its own @Secured. The patron-facing surface lives on
+ * {@link org.olf.dcb.core.api.discovery.DiscoveryPatronRequestsController}, and
+ * DISCOVERY_SERVICE must never appear here.
+ */
 @Controller("/patrons/requests")
 @Validated
-@Secured(IS_AUTHENTICATED)
+@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, RoleNames.INTERNAL_API})
 @Tag(name = "Patron Request API")
 @Slf4j
 public class PatronRequestController {
@@ -64,7 +84,7 @@ public class PatronRequestController {
 	private final TrackingService trackingService;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
-			PatronRequestRepository patronRequestRepository, 
+			PatronRequestRepository patronRequestRepository,
 			PatronRequestWorkflowService workflowService,
 			CleanupPatronRequestTransition cleanupPatronRequestTransition,
 			TrackingService trackingService) {
@@ -132,6 +152,20 @@ public class PatronRequestController {
 		return patronRequestService.initialiseRollback(patronRequestId);
 	}
 
+	/**
+	 * LIBRARY_READ_ONLY is included on the three placement routes DELIBERATELY, and the
+	 * role name is the reason it needs saying: it means read-only CONFIGURATION, not
+	 * read-only circulation. dcb-admin-for-libraries confines those users to
+	 * /requesting/*, which is precisely where staff requesting, walk-ups and expedited
+	 * checkout live, so front-desk staff hold this role and place requests all day.
+	 * Excluding it here 403s them.
+	 *
+	 * It is NOT on update/rollback/cleanup: those rewrite request state, are reached
+	 * from /patronRequests/* which the same UI blocks for this role, and are genuinely
+	 * not read-only work.
+	 */
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY,
+		RoleNames.INTERNAL_API})
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequest(
@@ -146,6 +180,8 @@ public class PatronRequestController {
 	/**
 	 * For situations such as on-site borrowing. Must include item due date in response.
 	 */
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY,
+		RoleNames.INTERNAL_API})
 	@SingleResult
 	@Post(value = "/place/expeditedCheckout", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequestExpeditedCheckout(
@@ -161,6 +197,8 @@ public class PatronRequestController {
 	 * A new version of walk-up requesting using the item barcode.
 	 * Separate API for now as this is in preview.
 	 */
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY,
+		RoleNames.INTERNAL_API})
 	@SingleResult
 	@Post(value = "/place/walkup", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placeWalkUpRequest(
@@ -179,20 +217,55 @@ public class PatronRequestController {
 		summary = "List Requests by Patron Barcode",
 		description = "Returns a list of patron requests associated with a specific barcode and Host LMS."
 	)
-	@Get(value = "/patrons/{hostLmsCode}/requests")
+	@Get(value = "/{hostLmsCode}")
 	public Flux<PatronRequestSummary> getPatronRequestsByBarcode(
 		@Parameter(description = "The Host LMS Code") String hostLmsCode,
 		@Parameter(description = "The Patron's Barcode") @QueryValue String barcode,
 		@Parameter(description = "Filter mode: 'active' (default) or 'all'") @QueryValue(defaultValue = "active") @Nullable String mode) {
 
-
-		if ("all".equalsIgnoreCase(mode)) {
-			return patronRequestRepository.findAllRequestsForPatronByBarcode(hostLmsCode, barcode);
-		} else {
-			return patronRequestRepository.findActiveRequestsForPatronByBarcode(hostLmsCode, barcode);
-		}
+		return requestsForPatronBarcode(hostLmsCode, barcode, mode);
 	}
 
+	/**
+	 * LEGACY. The path this route shipped on, and the one EBSCO Locate calls in
+	 * production with its ADMIN service credential. Locate is closed-source and outside
+	 * this workspace, so the rename to /patrons/requests/{hostLmsCode} would have 404'd a
+	 * live integration; the rename was cosmetic, the security work was the role set.
+	 *
+	 * A SEPARATE METHOD rather than a second uri on the one above, because @Secured is
+	 * per-method: the exception is for an ADMIN service credential, so this alias admits
+	 * ADMINISTRATOR and nothing else. CONSORTIUM_ADMIN reached the old path historically
+	 * and has no caller that needs it -- it uses the current path like everyone else.
+	 *
+	 * Delete when EBSCO confirms it has moved. See
+	 * docs/discovery-service-approach.md section 8.
+	 */
+	@Secured(ADMINISTRATOR)
+	@Operation(
+		summary = "List Requests by Patron Barcode (legacy path)",
+		description = "Deprecated alias of GET /patrons/requests/{hostLmsCode}, retained for an "
+			+ "existing integration. Use the current path."
+	)
+	@Get(value = "/patrons/{hostLmsCode}/requests")
+	public Flux<PatronRequestSummary> getPatronRequestsByBarcodeLegacyPath(
+		@Parameter(description = "The Host LMS Code") String hostLmsCode,
+		@Parameter(description = "The Patron's Barcode") @QueryValue String barcode,
+		@Parameter(description = "Filter mode: 'active' (default) or 'all'") @QueryValue(defaultValue = "active") @Nullable String mode) {
+
+		return requestsForPatronBarcode(hostLmsCode, barcode, mode);
+	}
+
+	private Flux<PatronRequestSummary> requestsForPatronBarcode(String hostLmsCode, String barcode,
+		String mode) {
+
+		final var rawRequests = "all".equalsIgnoreCase(mode)
+			? patronRequestRepository.findAllRequestsForPatronByBarcode(hostLmsCode, barcode)
+			: patronRequestRepository.findActiveRequestsForPatronByBarcode(hostLmsCode, barcode);
+
+		// Staff enrichment: errorMessage is retained here because a librarian can act
+		// on it. The patron-facing path deliberately drops it.
+		return rawRequests.map(PatronStatusMapper::enrichForStaff);
+	}
 
 	@Error
 	public HttpResponse<ChecksFailure> onCheckFailure(PreflightCheckFailedException exception) {
@@ -201,6 +274,32 @@ public class PatronRequestController {
 			.build());
 	}
 
+	// The patron-facing "my requests" list and patron-initiated cancellation used to
+	// live here, gated on a PATRON role. Both moved to
+	// org.olf.dcb.core.api.discovery.DiscoveryPatronRequestsController: on a
+	// controller whose class default is a staff role set, a patron-shaped endpoint is
+	// one forgotten annotation away from granting patrons everything else in the file.
+
+	/**
+	 * LEGACY. Retained for EBSCO Locate, which calls this in production with an ADMIN
+	 * service credential and cannot be changed -- it is closed-source and outside this
+	 * workspace, so the compatibility audit that cleared the admin UIs could not see it.
+	 *
+	 * Do not build anything new on this. It self-scopes off localSystemCode /
+	 * localSystemPatronId claims ON THE CALLER'S OWN TOKEN, which is the confused-deputy
+	 * shape the discovery work exists to replace: the caller's credential decides which
+	 * patron's requests come back. It is tolerable here ONLY because ADMINISTRATOR can
+	 * already read every request in the consortium through the barcode route and GraphQL,
+	 * so the claims lookup grants no authority the role does not already have.
+	 *
+	 * A service credential carries no patron claims, so for one it returns an empty page
+	 * rather than failing -- which is exactly what it did before this branch, and is why
+	 * this must NOT be "fixed" into returning everything.
+	 *
+	 * The replacement is GET /discovery/requests, where the patron is a verified
+	 * assertion rather than a claim on the caller's own token. Delete this when EBSCO
+	 * has moved. See docs/discovery-service-approach.md section 8.
+	 */
 	@Secured(ADMINISTRATOR)
 	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
@@ -210,7 +309,6 @@ public class PatronRequestController {
 			Authentication authentication) {
 
 		Map<String, Object> claims = authentication.getAttributes();
-		log.info("list requests for {}", claims);
 		Object patron_home_system = claims.get("localSystemCode");
 		Object patron_home_id = claims.get("localSystemPatronId");
 
@@ -223,7 +321,9 @@ public class PatronRequestController {
 			return Mono.from(patronRequestRepository.findRequestsForPatron(patron_home_system.toString(),
 					patron_home_id.toString(), pageable));
 		} else {
-			log.debug("Missing values for patron requests");
+			// No patron claims on the caller's token: an empty page, as before. Not an
+			// error, and deliberately not "everything".
+			log.debug("No patron claims on the calling token; returning an empty page");
 			return Mono.empty();
 		}
 	}
