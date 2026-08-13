@@ -22,10 +22,14 @@ import java.util.concurrent.CompletableFuture;
 public class CreateReferenceValueMappingDataFetcher implements DataFetcher<CompletableFuture<ReferenceValueMapping>> {
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final R2dbcOperations r2dbcOperations;
+	private final MappingAccessService mappingAccessService;
 
-	public CreateReferenceValueMappingDataFetcher(ReferenceValueMappingRepository referenceValueMappingRepository, R2dbcOperations r2dbcOperations) {
+	public CreateReferenceValueMappingDataFetcher(ReferenceValueMappingRepository referenceValueMappingRepository,
+		R2dbcOperations r2dbcOperations, MappingAccessService mappingAccessService) {
+
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.r2dbcOperations = r2dbcOperations;
+		this.mappingAccessService = mappingAccessService;
 	}
 
 	private Mono<Void> checkForDuplicateMapping(String fromValue, String fromContext, String toContext,
@@ -175,9 +179,16 @@ public class CreateReferenceValueMappingDataFetcher implements DataFetcher<Compl
 		changeCategory.ifPresent(rvm::setChangeCategory);
 		reason.ifPresent(rvm::setReason);
 
-		return Mono.from(r2dbcOperations.withTransaction(status ->
-			checkForDuplicateMapping(fromValue, fromContext, toContext, fromCategory, toCategory)
-				.then(Mono.from(referenceValueMappingRepository.saveOrUpdate(rvm))))
-		).toFuture();
+		// Checked against the mapping being created, not just the caller's role. Without
+		// it a library administrator could create Location:THEIR-BRANCH -> AGENCY:mine on
+		// a co-tenant's branch, which is the same misattribution editing was closed for.
+		return mappingAccessService.assertMayEdit(env, rvm)
+			.doOnError(refusal -> log.warn(
+				"createReferenceValueMappingDataFetcher: refused creation of {}:{}:{} for user {}: {}",
+				fromContext, fromCategory, fromValue, userString, refusal.getMessage()))
+			.then(Mono.from(r2dbcOperations.withTransaction(status ->
+				checkForDuplicateMapping(fromValue, fromContext, toContext, fromCategory, toCategory)
+					.then(Mono.from(referenceValueMappingRepository.saveOrUpdate(rvm)))))
+			).toFuture();
 	}
 }

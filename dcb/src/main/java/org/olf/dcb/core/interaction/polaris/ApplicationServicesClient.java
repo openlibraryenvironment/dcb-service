@@ -10,7 +10,6 @@ import static java.lang.String.valueOf;
 import static java.time.ZoneOffset.UTC;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Collections.singletonList;
-import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.*;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Continue;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowReply.Retain;
@@ -27,6 +26,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
@@ -521,9 +521,9 @@ class ApplicationServicesClient {
 	public Mono<Integer> createBibliographicRecord(Bib bib) {
 		final var path = createPath("bibliographicrecords");
 
-		final var canonicalItemType = getValueOrNull(bib, Bib::getCanonicalItemType);
-		final String leader = decideLeaderValue(canonicalItemType);
-		log.debug("Creating bibliographic record with leader: {}", leader);
+		final var typeOfRecord = getValueOrNull(bib, Bib::getTypeOfRecord);
+		final String leader = buildLeader(typeOfRecord);
+		log.debug("Creating bibliographic record with typeOfRecord: {} leader: {}", typeOfRecord, leader);
 
 		return createRequest(POST, path, uri -> uri.queryParam("type", "create"))
 			.map(request -> request.body(DtoBibliographicCreationData.builder()
@@ -532,7 +532,7 @@ class ApplicationServicesClient {
 				.doNotOverlay(TRUE)
 				.record(DtoMARC21Record.builder()
 					.leader(leader)
-					.controlfields(List.of(DtoMARC21ControlField.builder().tag("008").data(randomAlphanumeric(24)).build()))
+					.controlfields(List.of(DtoMARC21ControlField.builder().tag("008").data(build008()).build()))
 					.datafields( List.of( DtoMARC21DataField.builder()
 						.tag("245").ind1("0").ind2("0")
 						.subfields( List.of(DtoMARC21Subfield.builder().code("a").data(bib.getTitle()).build()) )
@@ -540,14 +540,48 @@ class ApplicationServicesClient {
 			.flatMap(request -> client.retrieve(request, Argument.of(Integer.class)));
 	}
 
-	private static String decideLeaderValue(String canonicalItemType) {
-		String leader;
-		if ("CIRCAV".equals(canonicalItemType)) {
-			leader = VIRTUAL_BIB_AV_LEADER;
-		} else {
-			leader = VIRTUAL_BIB_BOOKS_LEADER;
-		}
-		return leader;
+	/**
+	 * Build a 24 character MARC 21 leader, carrying the source record's type of record
+	 * through to position 06. That is the byte the host LMS reads to determine the material
+	 * type of the record, so a DVD ('g') or a sound recording ('i'/'j') has to arrive here
+	 * intact or the record gets typed as a book by default.
+	 */
+	static String buildLeader(String typeOfRecord) {
+		final char type = (typeOfRecord != null && !typeOfRecord.isBlank())
+			? typeOfRecord.charAt(0)
+			// Only fall back to language material when the source gave us nothing
+			: 'a';
+
+		return "00000"        // 00-04 record length, recalculated on ingest
+			+ "c"               // 05 record status: corrected or revised
+			+ type              // 06 type of record: the source material type
+			+ "m"               // 07 bibliographic level: monograph
+			+ " "               // 08 type of control: no specified type
+			+ "a"               // 09 character coding scheme: unicode
+			+ "22"              // 10-11 indicator count and subfield code count
+			+ "00000"           // 12-16 base address of data, recalculated on ingest
+			+ " "               // 17 encoding level: full level
+			+ "a"               // 18 descriptive cataloguing form: AACR2
+			+ " "               // 19 multipart resource record level
+			+ "4500";           // 20-23 entry map
+	}
+
+	/**
+	 * Build a 40 character MARC 21 008. We do not hold reliable publication data at the point
+	 * a virtual bib is created, so uncoded positions use the MARC fill character '|'
+	 */
+	static String build008() {
+		final String dateEntered = ofPattern("yyMMdd").withZone(UTC).format(Instant.now());
+
+		return dateEntered
+			+ "n"             // 06 no dates given
+			+ "||||"          // 07-10 date 1 uncoded
+			+ "||||"          // 11-14 date 2 uncoded
+			+ "xx "           // 15-17 place of publication unknown
+			+ "|".repeat(17)  // 18-34 material specific, uncoded
+			+ "und"           // 35-37 language undetermined
+			+ "|"             // 38 modified record
+			+ "d";            // 39 cataloguing source: other
 	}
 
 	public Mono<WorkflowResponse> deleteBibliographicRecord(String id) {

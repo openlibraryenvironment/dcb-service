@@ -698,11 +698,25 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
     public String itemBarcode;
   }
 
+	/**
+	 * Deliberately keyed on the Host LMS code rather than the configured base-url,
+	 * unlike every real adapter. A dummy has no server behind it, and fixtures
+	 * freely give several dummy Host LMS records the same placeholder URL - keying
+	 * on that would make every dummy compare equal and route everything to
+	 * RET-LOCAL. So by default each configured dummy is its own system.
+	 * <p>
+	 * Setting base-url-qualifier overrides the identity outright, which is how a
+	 * test models two dummy Host LMS records sharing one notional server: give them
+	 * the same qualifier.
+	 */
 	@Override
 	public @NonNull String getClientId() {
-		// Workflow routing compares HostLmsClient ids to detect when different
-		// agencies are backed by the same configured system. Dummy clients must
-		// therefore identify the configured Host LMS, not the dummy client class.
+		final var qualifier = getConfig().get(BASE_URL_QUALIFIER);
+
+		if (qualifier != null && !qualifier.toString().trim().isEmpty()) {
+			return qualifier.toString().trim();
+		}
+
 		return Optional.ofNullable(getHostLmsCode()).orElse("DUMMY_DEV_CLIENT");
 	}
 

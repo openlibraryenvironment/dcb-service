@@ -1461,7 +1461,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
-		return rootUri.resolve("/").toString();
+		return qualifySystemIdentity(rootUri.resolve("/").toString());
 	}
 
   @Override

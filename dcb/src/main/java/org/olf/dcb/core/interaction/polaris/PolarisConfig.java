@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -20,8 +21,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PolarisConfig {
-	@JsonProperty("default-agency-code")
-	private String defaultAgencyCode;
+	// No default-agency-code here on purpose. Polaris reads it, but through
+	// HostLmsClient.getDefaultAgencyCode against the raw client config - which is also
+	// where the shared-system guard lives. A second binding of the same key here was
+	// never read and would only invite someone to use the unguarded one.
 	@JsonProperty("roles")
 	private List<String> roles;
 	@JsonProperty("ingest")
@@ -71,14 +74,15 @@ public class PolarisConfig {
 	private Map<String,String> shelfLocationPolicyMap;
 
 	/**
-	 * Optional - to provide flexibility to enable/disable a new way of fetching bib chunks
-	 * importantly anything other than 'true' will signal false upstream
-	 * only by specifying true will we use this 'new way'
+	 * Minutes to rewind the harvest watermark by when the delta window rolls forward.
+	 * Covers records modified during an id walk and clock skew between DCB and Polaris.
+	 * Every minute configured here is re-harvested on EVERY cycle, and the source record import
+	 * job runs on a two minute fixed delay - so keep this tight. Default 15.
 	 */
-	@JsonProperty("use-new-bib-chunk-ingest")
-	private Boolean useNewBibChunkIngest;
-	public Boolean isUseNewBibChunkIngest() {
-		return valueWithDefault(useNewBibChunkIngest, Boolean.class, false);
+	@JsonProperty("harvest-watermark-overlap-minutes")
+	private Integer harvestWatermarkOverlapMinutes;
+	public Duration getHarvestWatermarkOverlap() {
+		return Duration.ofMinutes(valueWithDefault(harvestWatermarkOverlapMinutes, Integer.class, 15));
 	}
 
 	/**

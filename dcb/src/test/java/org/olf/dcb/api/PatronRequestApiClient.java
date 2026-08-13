@@ -110,15 +110,11 @@ class PatronRequestApiClient {
 		@Nullable Citation citation;
 		@Nullable Requestor requestor;
 		@Nullable PickupLocation pickupLocation;
-		@Nullable Status status;
+		// Mirrors PatronRequestView: the place response carries the status as the bare
+		// state machine name, not the {code, errorMessage} object the admin view returns.
+		@Nullable String status;
+		@Nullable String activeWorkflow;
 		@Nullable LocalRequest localRequest;
-
-		@Serdeable
-		@Value
-		public static class Status {
-			@Nullable String code;
-			@Nullable String errorMessage;
-		}
 
 		@Serdeable
 		@Value

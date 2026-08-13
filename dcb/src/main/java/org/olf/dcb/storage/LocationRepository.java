@@ -50,6 +50,38 @@ public interface LocationRepository {
 	@SingleResult
 	Publisher<Location> findOneByCode(@NotNull @NonNull String code);
 
+	/**
+	 * A location code is only unique within the system it came from: two Host LMS can
+	 * both have a "MAIN", and sixty branches of one shared Koha all have a "STACKS".
+	 * Anything looking a location up by the code an ILS reported must scope the lookup
+	 * by that system, or it will find whichever row happened to be inserted first.
+	 * <p>
+	 * There is no index behind this. The location table carries no index but its
+	 * primary key, so {@link #findOneByCode} and {@link #existsByCode} already scan it
+	 * the same way, and the table holds branches rather than anything that grows with
+	 * traffic. LocationService caches the answer, so this runs once per location rather
+	 * than once per item.
+	 */
+	@NonNull
+	@SingleResult
+	Publisher<Location> findOneByHostSystemAndCode(@NotNull @NonNull DataHostLms hostSystem,
+		@NotNull @NonNull String code);
+
+	/**
+	 * Whether this agency already has a location with this code.
+	 * <p>
+	 * Agency-scoped rather than global, because that is the scope the identity actually
+	 * has: a location's generated id is derived from (agency code, location code), so
+	 * two locations can only collide when both parts match. A global check refused
+	 * codes that were free - a shared system's sixty branches cannot all be prevented
+	 * from having a "MAIN" because one library elsewhere in the consortium got there
+	 * first.
+	 */
+	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsByCodeAndAgency(@NotNull @NonNull String code,
+		@NotNull @NonNull DataAgency agency);
+
 	Publisher<Void> delete(UUID id);
 
 	@NonNull

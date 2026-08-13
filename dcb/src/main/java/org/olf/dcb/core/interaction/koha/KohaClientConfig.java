@@ -18,9 +18,13 @@ public class KohaClientConfig {
 	private static final HostLmsPropertyDefinition CLIENT_ID = stringPropertyDefinition("client_id", "Client ID for OAuth for the Koha system", TRUE);
 	private static final HostLmsPropertyDefinition CLIENT_SECRET = stringPropertyDefinition("client_secret", "Client Secret for OAuth for the Koha system", TRUE);
 	private static final HostLmsPropertyDefinition DCB_SHARING_LIBRARY_CODE
-		= stringPropertyDefinition("sharing-library-code", "Library used to ship resources outside of Koha", TRUE); // We might be able to avoid needing this and the below, but let's check.
-	// If we can get the patron's home location code we can create it there. But use these for now.
-	private static final HostLmsPropertyDefinition VIRTUAL_ITEM_LOCATION_CODE = stringPropertyDefinition("virtual-item-location-code", "The location at which virtual items will be created", TRUE);
+		= stringPropertyDefinition("sharing-library-code", "Library used to ship resources outside of Koha", TRUE);
+	// The branch a virtual item is created at, used only when the borrowing patron's own
+	// branch is unknown - see KohaHostLmsClient.virtualItemLibraryFor.
+	//
+	// There is deliberately no virtual-item-location-code here. Koha's createItem sets
+	// home_library_id and holding_library_id and nothing else; a shelving location was
+	// never sent, so the key was required configuration that no code path read.
 	private static final HostLmsPropertyDefinition VIRTUAL_ITEM_LIBRARY_CODE = stringPropertyDefinition("virtual-item-library-code", "The library at which virtual items will be created", TRUE);
 
 
@@ -55,9 +59,4 @@ public class KohaClientConfig {
 	public String getVirtualItemLibraryCode() {
 		return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);
 	}
-
-	public String getVirtualItemLocationCode() {
-		return VIRTUAL_ITEM_LOCATION_CODE.getRequiredConfigValue(hostLms);
-	}
-
 }

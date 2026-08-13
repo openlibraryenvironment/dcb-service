@@ -425,13 +425,23 @@ public class RequestWorkflowContextHelper {
 		final Mono<HostLmsClient> resolvePickupLms = resolveHostLmsClientForAgency(
 			"pickup", pickupAc, rwc.getPickupAgency());
 
-		return Mono.zip(resolveLenderLms, resolvePickupLms) // Empty sources will complete to error...
+		final Mono<HostLmsClient> resolvePatronLms = resolveHostLmsClientForAgency(
+			"patron", patronAc, rwc.getPatronAgency());
 
-			.filter(TupleUtils.predicate((ls, ps ) -> ls.compareTo( ps ) == 0)) // We resolved LMS clients and can compare them.
+		return Mono.zip(resolveLenderLms, resolvePickupLms, resolvePatronLms) // Empty sources will complete to error...
+
+			// RET-LOCAL means one party: WorkflowConstants defines it as the patron,
+			// pickup and lending roles all being within a single system. Comparing only
+			// lender and pickup made a request local whenever those two agencies shared a
+			// system even when the patron was somewhere else entirely - and RET-LOCAL then
+			// hands placeSingularRequest the borrowing identity's client together with the
+			// other system's bib and item ids.
+			.filter(TupleUtils.predicate((ls, ps, bs) ->
+				ls.compareTo(ps) == 0 && ls.compareTo(bs) == 0))
 			.map( _systems -> rwc.setPatronRequest( pr.setActiveWorkflow(LOCAL_WORKFLOW) ))
 
 			.onErrorResume( e -> {
-				final var message = "DCB-WORKFLOW-HOSTLMS-FK-RESOLUTION: failed to compare lender and pickup Host LMS clients; falling back to agency-code workflow default. "
+				final var message = "DCB-WORKFLOW-HOSTLMS-FK-RESOLUTION: failed to compare lender, pickup and patron Host LMS clients; falling back to agency-code workflow default. "
 					+ e.getMessage();
 				log.warn(message, e);
 				rwc.getWorkflowMessages().add(message);

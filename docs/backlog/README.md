@@ -2,6 +2,8 @@
 
 ## High priority
 
+- [DCB NCIP onboarding](current/dcb-ncip-onboarding.md): add an admin-only hub
+  readiness and ORS Appliance invitation workflow under Service Information.
 - [NCIP acknowledgement profile hardening](current/ncip-acknowledgement-profile-hardening.md):
   define response semantics and failure tests.
 - [Durable inbound evidence inbox](current/durable-inbound-evidence-inbox.md):

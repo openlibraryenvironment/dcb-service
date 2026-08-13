@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import org.olf.dcb.core.clustering.ImprovedRecordClusteringService;
 import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
@@ -33,7 +32,6 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import services.k_int.features.Features;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.micronaut.PublisherTransformationService;
 import services.k_int.micronaut.concurrency.ConcurrencyGroupService;
@@ -47,7 +45,7 @@ public class IngestService implements Runnable, ApplicationEventListener<Applica
 	public static final String TRANSFORMATIONS_BIBS = "ingest-bibs";
 	
 	public static int getProcessVersion() {
-		return Features.featureIsEnabled( ImprovedRecordClusteringService.FEATURE_IMPROVED_CLUSTERING ) ? 5 : 3;
+		return 5;
 	}
 		
 	@Value("${dcb.shutdown.maxwait:0}")

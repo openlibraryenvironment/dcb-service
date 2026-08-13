@@ -498,8 +498,10 @@ for dir in "${BUNDLE_DIR}/${group}"/*/; do
 			done
 			;;
 		object-rulesets)
+			# The group is named object-rulesets; the endpoint is /object-rules.
+			# ObjectRulesetController is @Controller("/object-rules")
 			for f in "$dir"*.json; do
-				post_json "$(basename "$f")" "/object-rulesets" "$(render "$f")"
+				post_json "$(basename "$f")" "/object-rules" "$(render "$f")"
 			done
 			;;
 		graphql)

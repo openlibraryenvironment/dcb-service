@@ -9,11 +9,13 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.Order;
 import jakarta.inject.Singleton;
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Mono;
 
 @Singleton
+@Order(ItemFilter.SAME_AGENCY_ORDER)
 @AllArgsConstructor
 public class ExcludeFromSameAgencyItemFilter implements ItemFilter {
 	private final ConsortiumService consortiumService;

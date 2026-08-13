@@ -23,6 +23,17 @@ public interface HostLmsClient
 	extends Comparable<HostLmsClient>,
 		CanPlaceSupplyingAgencyRequest,
 		CanPlaceBorrowingAgencyRequest {
+
+	/** Marks a Host LMS that hosts more than one participating library. */
+	String SHARED_SYSTEM = "shared-system";
+
+	/**
+	 * Distinguishes logical circulation systems that share one transport URL.
+	 * Only needed by adapters (NCIP appliances, gateways) where the URL alone
+	 * does not identify the system.
+	 */
+	String BASE_URL_QUALIFIER = "base-url-qualifier";
+
 	Mono<HostLmsRenewal> renew(@NonNull HostLmsRenewal hostLmsRenewal);
 
 	Mono<LocalRequest> updateHoldRequest(@NonNull LocalRequest localRequest);
@@ -55,6 +66,32 @@ public interface HostLmsClient
 		return Mono.error(new NotImplementedException("fetchConfigurationFromAPI is not currently implemented"));
 	}
 
+	/**
+	 * Does this Host LMS host more than one participating library?
+	 * <p>
+	 * On a shared system an agency can only ever be identified by a specific local
+	 * location/branch code. Any mechanism that collapses "unknown location" onto a
+	 * single agency - a default agency code, a wildcard location mapping - silently
+	 * attributes every co-tenant to one library, so those mechanisms are disabled
+	 * when this is set.
+	 */
+	default boolean isSharedSystem() {
+		return Boolean.parseBoolean(
+			String.valueOf(getConfig().getOrDefault(SHARED_SYSTEM, Boolean.FALSE)));
+	}
+
+	/**
+	 * The raw configured value, whatever the adapter uses it for.
+	 * <p>
+	 * Deliberately unguarded. Most adapters only ever reach this through
+	 * {@code LocationToAgencyMappingService.findDefaultAgencyCode}, where it means
+	 * "the agency to assume when a patron's home location does not map" - and that
+	 * is where the shared-system guard belongs, because that is the meaning a
+	 * shared system invalidates. But ORSApplianceHostLMS reads it directly as the
+	 * agency it names in every NCIP party element, and a shared appliance needs
+	 * that identity as much as a dedicated one. Nulling it here broke NCIP patron
+	 * lookup on exactly the shared appliances this flag exists to support.
+	 */
 	default String getDefaultAgencyCode() {
 		return (String) getConfig().get("default-agency-code");
 	}
@@ -171,7 +208,30 @@ public interface HostLmsClient
 
 	@NonNull
 	String getClientId();
-	
+
+	/**
+	 * Append the configured {@link #BASE_URL_QUALIFIER} to a system identity so that
+	 * adapters fronting several logical systems on one transport URL can still tell
+	 * them apart. Returns the identity unchanged when no qualifier applies.
+	 *
+	 * @param defaultQualifier used when no qualifier is configured; may be null
+	 */
+	default String qualifySystemIdentity(String systemIdentity, String defaultQualifier) {
+		final var configured = getConfig().get(BASE_URL_QUALIFIER);
+
+		final var qualifier = configured != null
+			? configured.toString().trim()
+			: (defaultQualifier != null ? defaultQualifier.trim() : "");
+
+		return qualifier.isEmpty()
+			? systemIdentity
+			: systemIdentity + "#" + qualifier;
+	}
+
+	default String qualifySystemIdentity(String systemIdentity) {
+		return qualifySystemIdentity(systemIdentity, null);
+	}
+
 	@Override
 	default int compareTo(HostLmsClient o) {
 		return getClientId().compareTo(o.getClientId());

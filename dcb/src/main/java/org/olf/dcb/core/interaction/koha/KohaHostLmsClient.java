@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.koha;
 
 import io.micronaut.context.annotation.Parameter;
+import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.Patron;
@@ -35,6 +36,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * */
 
 @Slf4j
+@Prototype
 public class KohaHostLmsClient implements HostLmsClient {
 
 	private final HostLms hostLms;
@@ -50,11 +52,21 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private static final String DEFAULT_FIRST_NAME = "DCB";
 	private static final String DEFAULT_LAST_NAME = "VPATRON";
 
+	/**
+	 * How many items getItems enriches at once.
+	 * <p>
+	 * mapKohaItemToDcbItem issues a getActiveHoldsForItem per item, so an unbounded
+	 * flatMap turns one availability check into one API call per holding. A title
+	 * held at sixty branches of a shared Koha is then sixty concurrent calls to a
+	 * single server, per check, per user - and co-tenancy is exactly what makes the
+	 * holding count large while the server count stays at one.
+	 */
+	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
+
 	public KohaHostLmsClient(
 		@Parameter HostLms hostLms,
-		KohaApiClient client, // is this needed any more??
 		ReferenceValueMappingService referenceValueMappingService,
-		KohaClientFactory kohaClientFactory, KohaClientConfig kohaClientConfig,
+		KohaClientFactory kohaClientFactory,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
 		LocationToAgencyMappingService locationToAgencyMappingService) {
 		this.hostLms = hostLms;
@@ -62,7 +74,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
-		this.config = kohaClientConfig;
+		// Built here rather than injected, as Alma does. KohaClientConfig has no bean
+		// definition and its only constructor takes the HostLms, so it could never have
+		// been satisfied as an injection point.
+		this.config = new KohaClientConfig(hostLms);
 		}
 
 	/*** General operations - are we missing any? A version check would be useful. possibly implementer also***/
@@ -80,7 +95,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public String getClientId() {
-		return hostLms.getCode();
+		// The Koha server, not the Host LMS code: several DCB Host LMS records can
+		// point at one Koha, and returning the code would hide that from the
+		// same-server checks entirely.
+		return qualifySystemIdentity(config.getApiUrl().resolve("/").toString());
 	}
 
 	@Override
@@ -124,11 +142,13 @@ public class KohaHostLmsClient implements HostLmsClient {
 		String lastName = (patron.getLocalNames() != null && patron.getLocalNames().size() > 1)
 			? patron.getLocalNames().get(patron.getLocalNames().size() - 1) : DEFAULT_LAST_NAME;
 
-		// Koha POST /api/v1/patrons strictly requires surname, library_id, and category_id
-		// We will need to define a default library for virtual patrons
-		// then we have the joy of the shared libraries ....
-		// and we MUST be able to distinguish DCB patrons from real ones
-		String libraryId = getConfig().getOrDefault("default-agency-code", "").toString();
+		// Koha POST /api/v1/patrons strictly requires surname, library_id, and category_id.
+		// A virtual patron stands for a borrower outside this Koha, which is precisely
+		// what the sharing library represents - so one scalar is the right shape here
+		// even on a shared server. The default agency code is not: it names one of the
+		// co-tenant libraries, and reading it from config directly also bypassed the
+		// shared-system guard on getDefaultAgencyCode.
+		String libraryId = getDcbSharingLibraryCode();
 		String categoryId = patron.getLocalPatronType() != null ? patron.getLocalPatronType() : "DCB";
 
 		KohaPatron kohaPatron = new KohaPatron(
@@ -272,6 +292,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.localNames(List.of(kohaPatron.getFirstname(), kohaPatron.getSurname()))
 			.localBarcodes(kohaPatron.getCardnumber() != null ? List.of(kohaPatron.getCardnumber()) : List.of())
 			.localPatronType(kohaPatron.getCategoryId())
+			// The Koha branch is the only thing distinguishing co-tenant libraries on a
+			// shared server, and it is what location-to-agency mappings are keyed on.
+			// Without it every patron falls through to the default agency, which on a
+			// 60-library Koha means every patron belongs to whichever library was
+			// configured there.
+			.localHomeLibraryCode(kohaPatron.getLibraryId())
 			.isActive(true)
 			.build();
 	}
@@ -422,9 +448,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return client.getItemsForBiblio(bibId)
 			.flatMapMany(Flux::fromArray)
-			.flatMap(this::mapKohaItemToDcbItem)
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
-			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
+			.flatMap(this::mapKohaItemToDcbItem, ITEM_ENRICHMENT_CONCURRENCY)
+			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
+				ITEM_ENRICHMENT_CONCURRENCY)
+			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType,
+				ITEM_ENRICHMENT_CONCURRENCY)
 			.onErrorContinue((throwable, item) -> log.warn("Mapping error for Koha item {}: {}", item, throwable.getMessage()))
 			.collectList();
 	}
@@ -440,7 +468,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.info("Koha: Creating virtual item for bibId: {}, barcode: {}", bibId, barcode);
 
-		final String targetLibraryCode = config.getVirtualItemLibraryCode();
+		final String targetLibraryCode = virtualItemLibraryFor(cic);
 //		final Integer virtualNotForLoanStatus = -1; // We might need to make this configurable
 
 		return getMappedItemType(cic.getCanonicalItemType())
@@ -467,6 +495,35 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.map(this::mapKohaItemToHostLmsItem)
 			.doOnSuccess(item -> log.info("Successfully created Koha virtual item: {}", item.getLocalId()))
 			.doOnError(e -> log.error("Failed to create Koha virtual item for bib {}: {}", bibId, e.getMessage()));
+	}
+
+	/**
+	 * Which branch a virtual item is created at.
+	 * <p>
+	 * The borrowing patron's <em>home</em> branch, not the pickup branch.
+	 * BorrowingAgencyService builds CreateItemCommand from the borrowing patron
+	 * identity's localHomeLibraryCode, so that is what patronHomeLocation carries and
+	 * that is what this returns. Under RET-PUA the two differ and the virtual item is
+	 * created at the patron's home branch rather than where they will collect it;
+	 * putting it at the pickup branch would mean threading the pickup location through
+	 * CreateItemCommand, which is a change to the shared command shape.
+	 * <p>
+	 * virtual-item-library-code remains the fallback for when the caller does not know
+	 * the branch. It is a single value on the Host LMS, which is fine for a Koha
+	 * serving one library and wrong for one serving sixty - every library's incoming
+	 * loans would otherwise materialise at whichever branch was configured.
+	 */
+	private String virtualItemLibraryFor(CreateItemCommand cic) {
+		final var patronHomeLocation = getValueOrNull(cic, CreateItemCommand::getPatronHomeLocation);
+
+		if (isBlank(patronHomeLocation)) {
+			log.debug("No patron home location on {}, falling back to virtual-item-library-code",
+				cic.getPatronRequestId());
+
+			return config.getVirtualItemLibraryCode();
+		}
+
+		return patronHomeLocation;
 	}
 
 	Mono<String> getMappedItemType(String itemTypeCode) {
@@ -522,16 +579,27 @@ public class KohaHostLmsClient implements HostLmsClient {
 					dueDate = Instant.parse(kohaItem.getCheckout().getDueDate());
 				}
 
-				// Deriving the location. Can we do better here - look at the others, maybe we can do something new
-				Location derivedLocation = kohaItem.getLocation() != null
+				// Koha's "location" is a shelving classifier - REF, STACKS, JUV - and every
+				// branch on a shared server uses the same set of them, so it can never
+				// identify which library owns an item. The branch is home_library_id, with
+				// holding_library_id as the fallback for an item currently away from home.
+				// See Item, which documents the two as distinct concepts.
+				final var owningBranch = kohaItem.getHomeLibraryId() != null
+					? kohaItem.getHomeLibraryId()
+					: kohaItem.getHoldingLibraryId();
+
+				Location derivedLocation = owningBranch != null
 					? Location.builder()
-					.code(kohaItem.getLocation())
-					.name(kohaItem.getLocation())
+					.code(owningBranch)
+					.name(owningBranch)
 					.build()
 					: null;
 
 				// Suppression needs work. assume a "42" in the not for loan means local only for now.
-				boolean isSuppressedFromDCB = kohaItem.getNotForLoanStatus() == 42;
+				// Integer, not int: comparing with == unboxes and throws on any item that has
+				// no not_for_loan_status, which getItems then swallows via onErrorContinue -
+				// the item simply disappears from availability with nothing to show why.
+				boolean isSuppressedFromDCB = Integer.valueOf(42).equals(kohaItem.getNotForLoanStatus());
 				Boolean isSuppressed = kohaItem.getWithdrawn() != null && kohaItem.getWithdrawn() > 0 || isSuppressedFromDCB;
 
 				return Item.builder()
@@ -539,6 +607,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 					.status(new ItemStatus(dcbStatusCode))
 					.dueDate(dueDate)
 					.location(derivedLocation)
+					.shelvingLocation(kohaItem.getLocation())
 					.barcode(kohaItem.getExternalId())
 					.callNumber(kohaItem.getCallnumber())
 					.isRequestable(isRequestable)
@@ -547,6 +616,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 					.localItemType(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
 					.localItemTypeCode(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
 					.suppressed(isSuppressed)
+					// The system the item came from, as opposed to owningContext, which is
+					// overwritten with the agency's Host LMS once the location resolves. When
+					// the location does not resolve there is no agency and so no owning
+					// context, and this is then the only record of where the item came from -
+					// which is exactly the case an operator has to diagnose on a shared system.
+					.sourceHostLmsCode(getHostLmsCode())
 					.owningContext(getHostLms().getCode())
 					.build();
 			});

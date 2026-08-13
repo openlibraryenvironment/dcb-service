@@ -19,6 +19,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -55,7 +56,9 @@ class FolioIngestTests {
 		mockOaiResponse(mockServerClient, "fake-folio", "example-oai-response.xml");
 
 		// Act
-		final List<BibRecord> ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
+		final List<BibRecord> ingestedBibRecords = manyValuesFrom(
+			ingestService.getBibRecordStream()
+				.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest")));
 
 		// Assert
 		assertThat(ingestedBibRecords, hasSize(2));

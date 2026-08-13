@@ -78,6 +78,39 @@ public class AlarmsService {
 			);
 	}	
 
+	/**
+	 * Raise an alarm that stands for a set of related occurrences, accumulating the
+	 * distinct values seen under a single code.
+	 * <p>
+	 * Some conditions are naturally one-per-thing - an unmapped location, say - but
+	 * an alarm per thing means a webhook post per thing. Bringing a shared system
+	 * with sixty branches online would announce every unmapped code separately. This
+	 * keeps one alarm and one notification per condition, and puts the individual
+	 * values in the details where an operator can read the whole list at once.
+	 * <p>
+	 * The accumulated set is capped: it exists to tell an operator what to go and fix,
+	 * not to be a log.
+	 * <p>
+	 * The merge is done by the database in a single statement rather than read into
+	 * Java and written back. Callers report one occurrence at a time from concurrent
+	 * per-item paths, and under that concurrency a read-modify-write loses most of
+	 * the values - every writer computes its set from a stale read.
+	 */
+	@Transactional
+	public Mono<Void> raiseAccumulating(Alarm alarm, String detailKey, String value) {
+
+		return Mono.from(alarmRepository.accumulateDetailValue(alarm.getId(), alarm.getCode(),
+				Instant.now(), alarm.getExpires(), detailKey, value, MAX_ACCUMULATED_VALUES))
+			.flatMap(inserted -> Boolean.TRUE.equals(inserted)
+				// Only the call that created the alarm notifies. Every subsequent
+				// occurrence is another value inside the same condition, and the point
+				// of accumulating is that it does not produce another notification.
+				? optionallyNotify(alarm.getCode(), "ACTIVATED").then()
+				: Mono.empty());
+	}
+
+	private static final int MAX_ACCUMULATED_VALUES = 100;
+
   @Transactional
 	public Mono<Alarm> createNewAlarm(Alarm alarm) {
 		alarm.setLastSeen(Instant.now());

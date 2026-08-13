@@ -59,10 +59,13 @@ public class Location implements Auditable {
 	@DateUpdated
 	private Instant dateUpdated;
 
+	// Not unique, despite what this once claimed. Location codes are only unique
+	// within a system: two Host LMS can both have a "MAIN", and sixty branches on one
+	// shared Koha all have a "STACKS". The Flyway schema has never carried the
+	// constraint, so the annotation only ever misled the reader.
 	@NotNull
 	@NonNull
 	@Size(max = 200)
-	@Column(unique = true)
 	private String code;
 
 	@NotNull

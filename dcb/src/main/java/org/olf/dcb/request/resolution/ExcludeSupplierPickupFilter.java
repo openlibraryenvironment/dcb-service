@@ -9,11 +9,13 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.Item;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.Order;
 import jakarta.inject.Singleton;
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Mono;
 
 @Singleton
+@Order(ItemFilter.SUPPLIER_PICKUP_ORDER)
 @AllArgsConstructor
 public class ExcludeSupplierPickupFilter implements ItemFilter {
 	private final ConsortiumService consortiumService;

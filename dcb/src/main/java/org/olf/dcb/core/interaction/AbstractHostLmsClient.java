@@ -54,6 +54,19 @@ public abstract class AbstractHostLmsClient implements HostLmsClient {
 		return Mono.empty();
 	}
 
+	/**
+	 * WARNING: this default is a SILENT NO-OP, not a cancellation. FoundationClient and
+	 * ORSApplianceHostLMS inherit it, so for those systems an empty result means nothing
+	 * was cancelled.
+	 *
+	 * Every caller MUST treat an empty result as failure. PatronRequestCancellationService
+	 * does (switchIfEmpty -> CancellationFailedException) because reporting success to a
+	 * patron whose hold is still live is the worst outcome available. The supplier and
+	 * pickup cleanup paths (SupplyingAgencyService, PickupAgencyService,
+	 * ResolveNextSupplierTransition) currently do NOT, and should be given the same
+	 * treatment under their own ticket — changing this default to raise would alter those
+	 * flows and needs its own test sweep, so it is deliberately not done here.
+	 */
 	@Override
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
 		return Mono.empty();
@@ -196,13 +209,20 @@ public abstract class AbstractHostLmsClient implements HostLmsClient {
 		return Mono.empty();
 	}
 
+	/**
+	 * Fallback identity for adapters that have not declared how to identify their
+	 * system. The Host LMS code is unique per record, so this is safe in the sense
+	 * that two systems never compare equal - but it can never detect that two Host
+	 * LMS records share one server. Subclasses reaching a real system over HTTP
+	 * MUST override with the system's URL. See {@link HostLmsClient#getClientId()}.
+	 */
 	@Override
 	public @NonNull String getClientId() {
 		final var hostLmsCode = getHostLmsCode();
 
-		return hostLmsCode != null
+		return qualifySystemIdentity(hostLmsCode != null
 			? hostLmsCode
-			: getClass().getSimpleName();
+			: getClass().getSimpleName());
 	}
 
 	@Override

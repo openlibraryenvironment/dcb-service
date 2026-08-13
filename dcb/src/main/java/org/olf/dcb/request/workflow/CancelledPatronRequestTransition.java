@@ -237,7 +237,10 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 		};
 	}
 
-	private static Boolean isRequestCancelled(String status) {
+	// Public: PatronRequestCancellationService uses this as its idempotency guard, so a
+	// repeated patron cancellation does not re-hit the LMS. Same reasoning as
+	// POSSIBLE_SOURCE_STATUS above — one definition of "this hold is already gone".
+	public static Boolean isRequestCancelled(String status) {
 		return HOLD_CANCELLED.equals(status) || HOLD_MISSING.equals(status);
 	}
 

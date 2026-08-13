@@ -10,6 +10,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -1094,7 +1095,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public @NonNull String getClientId() {
-			return "";
+		// Resolving "/" forces URI.toString to construct a fresh representation
+		// rather than echoing whatever string the config supplied, so two tenants
+		// configured with cosmetically different URLs still compare correctly.
+		return qualifySystemIdentity(config.getBaseUrl().resolve("/").toString());
 	}
 
 	@Override
@@ -1217,9 +1221,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// List<UserIdentifier> user_identifiers;
 		localBarcodes.add(almaUser.getPrimary_id());
 
-		boolean isActive = almaUser.getStatus() != null && "ACTIVE".equalsIgnoreCase(almaUser.getStatus().getValue());
-		boolean isDeleted = almaUser.getStatus() != null && "DELETED".equalsIgnoreCase(almaUser.getStatus().getValue());
+		// An absent status is treated as active — only an explicit INACTIVE/DELETED blocks the patron.
+		final var status = almaUser.getStatus() != null ? almaUser.getStatus().getValue() : null;
+		final var isDeleted = "DELETED".equalsIgnoreCase(status);
+		final var isActive = !isDeleted && !"INACTIVE".equalsIgnoreCase(status);
 
+		final var expiryDate = parseAlmaExpiryDate(almaUser.getExpirationDate(), almaUser.getPrimary_id());
 
 		return Patron.builder()
 			.localId(localIds) // list
@@ -1227,19 +1234,39 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.localBarcodes(localBarcodes)
 			.uniqueIds(uniqueIds)
 			.localPatronType(almaUser.getUser_group().getValue())
-			.expiryDate(almaUser.getExpirationDate() != null ?
-				java.sql.Timestamp.valueOf(LocalDate.parse(almaUser.getExpirationDate().replace("Z", "")).atStartOfDay())
-				: null)//	.localHomeLibraryCode(almaUser.get)
+			.expiryDate(expiryDate != null ? Timestamp.valueOf(expiryDate.atStartOfDay()) : null)
+			//	.localHomeLibraryCode(almaUser.get)
 			// .canonicalPatronType
 			// .localItemId
 			// .localItemLocationId
-			.isDeleted(Boolean.FALSE)
+			.isDeleted(isDeleted)
 			.isBlocked(Boolean.FALSE)
 			// .city
 			// .postalCode
 			// .state
-			.isActive(Boolean.TRUE)
+			.isActive(isActive)
 			.build();
+	}
+
+	private LocalDate parseAlmaExpiryDate(String rawExpiryDate, String primaryId) {
+		if (rawExpiryDate == null || rawExpiryDate.isBlank()) {
+			return null;
+		}
+
+		final var trimmed = rawExpiryDate.trim();
+		// Strip a time portion if one is present, then the trailing zone designator.
+		final var datePart = trimmed.contains("T")
+			? trimmed.substring(0, trimmed.indexOf('T'))
+			: trimmed.replace("Z", "");
+
+		try {
+			return LocalDate.parse(datePart);
+		} catch (DateTimeParseException e) {
+			log.error("Failed to parse Alma expiry date \"{}\" for patron {}. Patron will be mapped without an expiry date.",
+				rawExpiryDate, primaryId, e);
+
+			return null;
+		}
 	}
 
 	public Mono<PingResponse> ping() {
@@ -1307,11 +1334,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
 					: null;
 
-				// This follows the pattern seen elsewhere.. its not great.. We need to divert all these kinds of calls
-				// through a service that creates missing location records in the host lms and where possible derives agency but
-				// where not flags the location record as needing attention.
-				Location derivedLocation = almaItem.getItemData().getLocation() != null
-					? checkLibraryCodeInDCBLocationRegistry(almaItem.getItemData().getLocation().getValue())
+				// Alma's "library" is the branch that owns the item. Alma's "location" is the
+				// shelving location within it - REF, STACKS, JUV - and every library on a
+				// tenant draws from the same vocabulary, so it can never identify which
+				// library an item belongs to. This used to build the item's Location from
+				// the shelving location, which meant location-to-agency mapping was being
+				// asked to map "STACKS" to a library.
+				final var itemData = almaItem.getItemData();
+
+				final var owningLibrary = itemData.getLibrary() != null
+					? itemData.getLibrary().getValue()
+					: null;
+
+				final var shelvingLocation = itemData.getLocation() != null
+					? itemData.getLocation().getValue()
+					: null;
+
+				Location derivedLocation = owningLibrary != null
+					? locationForLibraryCode(owningLibrary)
 					: null;
 
 				Boolean derivedSuppression = ((almaItem.getBibData().getSuppressFromPublishing() != null) &&
@@ -1322,8 +1362,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.status(derivedItemStatus)
 					// In alma we need to query the Loans API to get the due date
 					.dueDate(due_back_instant)
-					// alma library = library of the item, location = shelving location
 					.location(derivedLocation)
+					.shelvingLocation(shelvingLocation)
 					.barcode(almaItem.getItemData().getBarcode())
 					.callNumber(almaItem.getHoldingData().getCallNumber())
 					.isRequestable(isRequestable)
@@ -1336,6 +1376,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.canonicalItemType(null)
 					.deleted(null)
 					.suppressed(derivedSuppression)
+					// The system the item came from, as opposed to owningContext, which is
+					// overwritten with the agency's Host LMS once the location resolves. When
+					// the location does not resolve there is no agency and so no owning
+					// context, and this is then the only record of where the item came from.
+					.sourceHostLmsCode(getHostLmsCode())
 					.owningContext(getHostLms().getCode())
 					// Need to query loans API for this
 					.availableDate(null)
@@ -1407,12 +1452,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return hostLmsItem;
 	}
 
-	// Alma talks about "libraries" for the location where an item "belongs" and
-	// "Location" for the shelving location. These semantics don't line up neatly.
-	// Whenever we see an alma library code in the context of a hostLms code we 
-	// should check the DCB location repository and create a location record if
-	// none exists
-	private Location checkLibraryCodeInDCBLocationRegistry(String almaLibraryCode) {
+	/**
+	 * The DCB Location standing for an Alma library.
+	 * <p>
+	 * Was named checkLibraryCodeInDCBLocationRegistry, which described what its comment
+	 * wished it did rather than what it does - it builds a transient Location and
+	 * checks nothing. Recording locations DCB has not seen before is
+	 * LocationService.memoize's job, reached from the availability path, so the name is
+	 * now what the method is.
+	 */
+	private Location locationForLibraryCode(String almaLibraryCode) {
 		return Location.builder()
 			.id(UUIDUtils.generateLocationId(hostLms.getCode(), almaLibraryCode))
 			.code(almaLibraryCode)
@@ -1517,42 +1566,37 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 		.doOnError(e -> log.error("Failed to fetch item by barcode {} from Alma: {}", barcode, e.getMessage()));
 }
 	private Mono<AlmaUser> checkAndUpdateExpiryIfNeeded(AlmaUser almaUser) {
-		if (almaUser.getExpirationDate() == null) {
-			log.warn("Alma Patron {} has no expiration date. Cannot check expiry.", almaUser.getPrimary_id());
+		final var patronExpiryDate = parseAlmaExpiryDate(almaUser.getExpirationDate(), almaUser.getPrimary_id());
+
+		if (patronExpiryDate == null) {
+			log.warn("Alma Patron {} has no usable expiration date. Cannot check expiry.", almaUser.getPrimary_id());
 			return Mono.just(almaUser);
 		}
 
-		// Alma doesn't always like the "Z".
-		try {
-			final String rawDate = almaUser.getExpirationDate().replace("Z", "");
-			final var patronExpiryDate = LocalDate.parse(rawDate);
+		final var now = LocalDate.now(ZoneOffset.UTC);
+		final var expiryThreshold = now.plusDays(30);
 
-			final var now = LocalDate.now(ZoneOffset.UTC);
-			final var expiryThreshold = now.plusDays(30);
-
-			if (patronExpiryDate.isBefore(expiryThreshold)) {
-				final var newExpiryDate = now.plusDays(120);
-				final String newExpirationDateStr = newExpiryDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "Z";
-
-				almaUser.setExpirationDate(newExpirationDateStr);
-				almaUser.setStatus(CodeValuePair.builder().value("ACTIVE").build());
-
-				return client.updateUserDetails(almaUser.getPrimary_id(), almaUser)
-					.map(updatedUser -> {
-						log.debug("Successfully extended expiry date for Alma virtual patron {} to {}",
-							almaUser.getPrimary_id(), newExpirationDateStr);
-						return updatedUser;
-					})
-					.onErrorResume(e -> {
-						log.error("ERROR: Failed to extend expiry date for Alma virtual patron {}. Continuing with existing expiry. Error: {}",
-							almaUser.getPrimary_id(), e.getMessage());
-						return Mono.just(almaUser);
-					});
-			}
-		} catch (Exception e) {
-			log.error("ERROR: Failed to parse expiry date '{}' for Alma virtual patron {}. Continuing with existing data. Error: {}",
-				almaUser.getExpirationDate(), almaUser.getPrimary_id(), e.getMessage());
+		if (!patronExpiryDate.isBefore(expiryThreshold)) {
+			return Mono.just(almaUser);
 		}
-		return Mono.just(almaUser);
+
+		final var newExpiryDate = now.plusDays(120);
+		// Alma doesn't always like the "Z", but does accept it on the way back in.
+		final String newExpirationDateStr = newExpiryDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "Z";
+
+		almaUser.setExpirationDate(newExpirationDateStr);
+		almaUser.setStatus(CodeValuePair.builder().value("ACTIVE").build());
+
+		return client.updateUserDetails(almaUser.getPrimary_id(), almaUser)
+			.map(updatedUser -> {
+				log.debug("Successfully extended expiry date for Alma virtual patron {} to {}",
+					almaUser.getPrimary_id(), newExpirationDateStr);
+				return updatedUser;
+			})
+			.onErrorResume(e -> {
+				log.error("ERROR: Failed to extend expiry date for Alma virtual patron {}. Continuing with existing expiry. Error: {}",
+					almaUser.getPrimary_id(), e.getMessage());
+				return Mono.just(almaUser);
+			});
 	}
 }

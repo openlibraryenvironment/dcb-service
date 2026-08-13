@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.olf.dcb.request.lifecycle.ncip.profile.application.DcbProfileRegistrationException;
+import org.olf.dcb.request.lifecycle.ncip.profile.application.DcbProfileReadinessService;
 import org.olf.dcb.request.lifecycle.ncip.profile.application.DcbProfileRegistrationService;
 import org.olf.dcb.security.RoleNames;
 
@@ -32,14 +33,32 @@ import org.olf.dcb.security.RoleNames;
 @Tag(name = "DCB Profile NCIP2.02+ membership")
 public class DcbProfileRegistrationController {
 	private final DcbProfileRegistrationService registrationService;
+	private final DcbProfileReadinessService readinessService;
 	private final SecurityService securityService;
 
 	public DcbProfileRegistrationController(
 		DcbProfileRegistrationService registrationService,
+		DcbProfileReadinessService readinessService,
 		SecurityService securityService
 	) {
 		this.registrationService = registrationService;
+		this.readinessService = readinessService;
 		this.securityService = securityService;
+	}
+
+	@Get(value = "/readiness", produces = MediaType.APPLICATION_JSON)
+	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
+	@Operation(
+		summary = "Check DCB Profile NCIP2.02+ onboarding readiness",
+		description = "Returns safe configuration checks required before issuing a membership invitation.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Readiness evaluated",
+				content = @Content(schema = @Schema(implementation = DcbProfileRegistrationApi.ReadinessResponse.class))),
+			@ApiResponse(responseCode = "403", description = "DCB administrator required")
+		}
+	)
+	public DcbProfileRegistrationApi.ReadinessResponse readiness() {
+		return readinessService.readiness();
 	}
 
 	@Post(value = "/membership-invitations", consumes = MediaType.APPLICATION_JSON, produces = MediaType.APPLICATION_JSON)
@@ -52,6 +71,8 @@ public class DcbProfileRegistrationController {
 			@ApiResponse(responseCode = "201", description = "Invitation issued",
 				content = @Content(schema = @Schema(implementation = DcbProfileRegistrationApi.InvitationResponse.class))),
 			@ApiResponse(responseCode = "400", description = "Invalid invitation policy",
+				content = @Content(schema = @Schema(implementation = DcbProfileRegistrationApi.Problem.class))),
+			@ApiResponse(responseCode = "503", description = "DCB onboarding is not ready",
 				content = @Content(schema = @Schema(implementation = DcbProfileRegistrationApi.Problem.class))),
 			@ApiResponse(responseCode = "403", description = "DCB administrator required")
 		}

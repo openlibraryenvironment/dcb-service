@@ -13,6 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -69,7 +70,8 @@ class FolioOaiReadTimeoutTests {
 					.getResource("example-oai-response.xml"), TEXT_XML));
 
 		// Act
-		final List<BibRecord> ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream());
+		final List<BibRecord> ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream()
+				.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest")));
 
 		// Assert -- completing at all proves the 10 min read timeout was applied, not the 1s global
 		assertThat(ingestedBibRecords, hasSize(2));

@@ -221,6 +221,48 @@ graphql:
     enabled: false
 
 dcb:
+  # Discovery services DCB will accept patron assertions from.
+  #
+  # A discovery service authenticates with a Keycloak client credential holding the
+  # DISCOVERY_SERVICE role — that proves WHO is calling. It does not prove WHICH
+  # PATRON, so the patron travels as a separately-signed, short-lived assertion in the
+  # X-OpenRS-Patron-Assertion header, and this is its trust anchor. DCB verifies it and
+  # then enforces per-patron ownership itself, rather than trusting the caller to.
+  #
+  # Disabled by default: a deployment that has not been configured for discovery must
+  # fail closed, not behave as though it has been.
+  discovery:
+    enabled: ${DCB_DISCOVERY_ENABLED:false}
+    # The audience a patron assertion must name. This DCB, not another one.
+    audience: ${DCB_DISCOVERY_AUDIENCE:dcb}
+    # DCB's own cap on assertion validity, enforced regardless of the issuer's `exp`.
+    # A long-lived assertion is a bearer token by another name.
+    max-assertion-lifetime: ${DCB_DISCOVERY_MAX_ASSERTION_LIFETIME:PT2M}
+    # Onboard a service per environment, in whichever repository holds this
+    # deployment's configuration. Two equivalent forms; use whichever your hosting
+    # supports. See docs/discovery-service-approach.md section 7.
+    #
+    # 1. YAML, where a config file can be mounted (k8s ConfigMap, mounted volume):
+    #
+    # trusted-services:
+    #   - service-id: your-discovery-service
+    #     issuer: https://discovery.example.org
+    #     jwks-uri: https://discovery.example.org/.well-known/jwks.json
+    #
+    # 2. JSON in ONE environment variable, where it cannot (ECS/Fargate task
+    #    definitions, plain docker). Same kebab-case keys:
+    #
+    #    DCB_DISCOVERY_TRUSTED_SERVICES_JSON=[{"service-id":"your-discovery-service",
+    #      "issuer":"https://discovery.example.org",
+    #      "jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]
+    #
+    # A list of objects CANNOT be expressed as indexed environment variables --
+    # Micronaut resolves DCB_DISCOVERY_TRUSTED_SERVICES_0_SERVICE_ID to
+    # dcb.discovery.trusted-services.0.service-id, and list binding needs the
+    # trusted-services[0].service-id form. Hence the JSON value. Malformed JSON fails
+    # startup deliberately: a trust anchor that binds nothing silently is
+    # indistinguishable from one nobody configured.
+    trusted-services: []
   security:
     internal-endpoints:
       ip-patterns:

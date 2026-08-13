@@ -17,6 +17,7 @@ import services.k_int.jobs.JobChunk;
 @RequiredArgsConstructor
 public class SourceRecordImportJob implements Job<SourceRecord> {
 
+	@lombok.Getter
 	final SourceRecordDataSource datasource;
 
 	@Override
