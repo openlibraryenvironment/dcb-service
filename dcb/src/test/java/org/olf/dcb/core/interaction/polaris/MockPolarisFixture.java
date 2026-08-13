@@ -15,6 +15,7 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.Times;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
+import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.ItemRecordFull;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHold;
@@ -298,6 +299,62 @@ public class MockPolarisFixture {
 	public void mockGetPagedBibs() {
 		mockServer.mockGet(paths.protectedPapiService("/string/synch/bibs/MARCXML/paged/*"),
 			"bibs-slice-0-9.json");
+	}
+
+	/*
+	 Harvest v2 endpoints. PolarisLmsClient.getChunk drives two distinct flows:
+	   - full harvest  : Synch_BibsPagedGet     (/synch/bibs/MARCXML/paged), paged by lastid
+	   - delta harvest : Synch_BibsUpdatedPagedGet (/synch/bibs/updated/paged) for ids, then
+	                     Synch_BibsByIDGet      (/synch/bibs/MARCXML) in batches of 50 for the rows
+	 Each is matched on its continuation cursor so a test can queue distinct pages for one endpoint.
+	*/
+
+	public void mockGetPagedBibs(Integer lastId, Object responseBody) {
+		mockServer.mock(pagedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
+	}
+
+	public void mockGetUpdatedBibs(Integer lastId, Object responseBody) {
+		mockServer.mock(updatedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
+	}
+
+	public void mockGetBibsById(String bibIds, Object responseBody) {
+		mockServer.mock(bibsByIdRequest()
+			.withQueryStringParameter("bibids", bibIds), responseBody);
+	}
+
+	public void mockGetMaxBibId(Object responseBody) {
+		mockServer.mockGet(paths.protectedPapiService("/string/synch/bibs/maxid"), responseBody);
+	}
+
+	public void mockGetPagedBibsServerError(Integer lastId) {
+		mockServer.mock(pagedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)), serverError());
+	}
+
+	public void verifyGetBibsById(String bibIds) {
+		mockServer.verify(bibsByIdRequest().withQueryStringParameter("bibids", bibIds));
+	}
+
+	public void verifyGetBibsByIdCalledTimes(VerificationTimes times) {
+		mockServer.verify(bibsByIdRequest(), times);
+	}
+
+	public void verifyGetUpdatedBibsCalledTimes(VerificationTimes times) {
+		mockServer.verify(updatedBibsRequest(), times);
+	}
+
+	private HttpRequest pagedBibsRequest() {
+		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/MARCXML/paged"));
+	}
+
+	private HttpRequest updatedBibsRequest() {
+		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/updated/paged"));
+	}
+
+	private HttpRequest bibsByIdRequest() {
+		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/MARCXML"));
 	}
 
 	void mockStartWorkflow(WorkflowResponse response) {

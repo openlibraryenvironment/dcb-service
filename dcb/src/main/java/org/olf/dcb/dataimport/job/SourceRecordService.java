@@ -7,8 +7,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
@@ -36,6 +38,8 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
 import services.k_int.jobs.JobChunk;
 import services.k_int.jobs.JobChunkProcessor;
@@ -137,6 +141,176 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 		}
 	}
 	
+	// Reconciliation can emit far more records than a harvest chunk, so it is committed in bounded
+	// batches rather than one transaction spanning the whole sweep.
+	private static final int RECONCILE_BATCH_SIZE = 100;
+
+	// A healthy source writes a checkpoint on every chunk, and the import job runs every two
+	// minutes, so half an hour without one means the job is not progressing.
+	private static final Duration CHECKPOINT_STALL_THRESHOLD = Duration.ofMinutes(30);
+
+	/**
+	 * Detect source imports that have stopped writing checkpoints and ask the source to correct
+	 * itself.
+	 *
+	 * A run that produces no chunk ends without saving a checkpoint, which is indistinguishable from
+	 * success in the logs. checkpointDate is therefore the only progress signal available, and
+	 * because it lives inside the source's own checkpoint JSON only the source can read it - hence
+	 * nudgeStalledCheckpoint rather than logic here.
+	 *
+	 * Nudges are deliberately conservative. Anything a nudge cannot fix is alarmed and left for an
+	 * operator, because the only stronger remedy is a full re-harvest and that must never fire
+	 * automatically across a fleet of library systems.
+	 */
+	@AppTask
+	@ExecuteOn(TaskExecutors.BLOCKING)
+	@Scheduled(initialDelay = "5m", fixedDelay = "15m")
+	public void stalledCheckpointWatchdog() {
+
+		log.debug("Checking source import checkpoints for stalls");
+
+		getSourceRecordDataSources()
+			.concatMap(this::nudgeIfStalled)
+			.transformDeferred(lockService.withLockOrEmpty("checkpoint-watchdog"))
+			.subscribe(
+				jobId -> log.info("Nudged stalled checkpoint for job [{}]", jobId),
+				error -> log.error("Checkpoint stall watchdog failed", error));
+	}
+
+	private Mono<UUID> nudgeIfStalled( SourceRecordImportJob job ) {
+
+		final var jobId = job.getId();
+
+		return jobService.findCheckpoint(jobId)
+			.flatMap( checkpoint -> Mono.justOrEmpty(
+				job.getDatasource().nudgeStalledCheckpoint(checkpoint, CHECKPOINT_STALL_THRESHOLD)) )
+			.flatMap( nudged -> jobService.replaceCheckpoint(jobId, nudged) )
+			.thenReturn(jobId)
+			.onErrorResume( error -> {
+				// One source failing must not stop the watchdog reaching the others.
+				log.error("Could not evaluate checkpoint for job [{}]", jobId, error);
+				return Mono.empty();
+			});
+	}
+
+	/**
+	 * Fetch and store the records a source holds but DCB does not.
+	 *
+	 * This is the counterpart to fixing a stalled harvest: resuming correctly stops the bleeding,
+	 * but records skipped earlier stay invisible because delta harvesting only surfaces changes
+	 * after the watermark. Sources that cannot enumerate themselves return nothing and this is a
+	 * no-op for them.
+	 */
+	public Mono<Long> reconcileSource( SourceRecordDataSource datasource, UUID hostLmsId ) {
+
+		log.info("Starting reconciliation sweep for [{}]", datasource.getName());
+
+		return datasource.findMissingRecords( sourceRecords.findRemoteIdsByHostLmsId(hostLmsId) )
+			.buffer(RECONCILE_BATCH_SIZE)
+			.concatMap(this::saveReconciledBatch)
+			.reduce(0L, Long::sum)
+			.doOnSuccess( count -> log.info("Reconciliation for [{}] stored {} previously missing records",
+				datasource.getName(), count) )
+			.doOnError( e -> log.error("Reconciliation for [{}] failed", datasource.getName(), e) );
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected Mono<Long> saveReconciledBatch( List<SourceRecord> batch ) {
+		return Flux.fromIterable(batch)
+			.concatMap(this::save)
+			.count();
+	}
+
+	// Single flight, across the whole estate rather than per host. A sweep issues thousands of
+	// sequential requests at one library's server, and this is a rare break-glass operation, so
+	// serialising it is the dumbest thing that is obviously safe - and it means no guard keyed on
+	// a host code, which would be a dynamic map key for no benefit.
+	// volatile because the check outside the synchronized block must see another thread's write.
+	private volatile Mono<String> reconciliation;
+
+	// Bounded: fixed keys, written by the sweep and read by the admin API. Never keyed by record.
+	private final Map<String, Object> reconcileStatusReport = new ConcurrentHashMap<>();
+
+	/**
+	 * Kick off a reconciliation sweep and return as soon as it has started.
+	 *
+	 * The sweep itself is unbounded in wall clock time - a large catalogue with wide damage is
+	 * thousands of sequential requests - so it must never be awaited by an HTTP request. The caller
+	 * gets an acknowledgement; progress is read from {@link #getReconcileStatus()}.
+	 */
+	public Mono<String> startReconciliation( String hostLmsCode ) {
+
+		if (reconciliation == null) {
+			synchronized (this) {
+				if (reconciliation == null) {
+
+					reconcileStatusReport.put("status", "Running");
+					reconcileStatusReport.put("hostLmsCode", hostLmsCode);
+					reconcileStatusReport.put("startTime", Instant.now().toString());
+					reconcileStatusReport.remove("recordsRecovered");
+					reconcileStatusReport.remove("lastError");
+
+					reconciliation = Mono.<String>create(report -> {
+						log.info("Starting reconciliation sweep for [{}]", hostLmsCode);
+						report.success("Reconciliation for %s started at [%s]".formatted(hostLmsCode, Instant.now()));
+
+						resolveDataSource(hostLmsCode)
+							.flatMap(TupleUtils.function(this::reconcileSource))
+							.doOnSuccess(count -> reconcileStatusReport.put("recordsRecovered", count))
+							.doOnError(error -> reconcileStatusReport.put("lastError", String.valueOf(error.getMessage())))
+							.doOnTerminate(() -> {
+								reconciliation = null;
+								reconcileStatusReport.put("status", "Not Active");
+								reconcileStatusReport.put("endTime", Instant.now().toString());
+							})
+							.subscribe(
+								count -> log.info("Reconciliation for [{}] recovered {} records", hostLmsCode, count),
+								error -> log.error("Reconciliation for [{}] failed", hostLmsCode, error));
+
+					}).cache();
+				}
+			}
+		}
+		else {
+			log.info("Reconciliation already running. NOOP");
+		}
+
+		return reconciliation;
+	}
+
+	public Map<String, Object> getReconcileStatus() {
+		return reconcileStatusReport;
+	}
+
+	/**
+	 * Clear a source import checkpoint so the next scheduled run starts from the beginning.
+	 *
+	 * The heavy remedy - it re-walks the entire catalogue of the target system - so it stays
+	 * operator triggered and never automatic. Prefer reconciliation when the damage is partial.
+	 * Fast enough to answer synchronously; it deletes one row.
+	 */
+	public Mono<String> resetCheckpointFor( String hostLmsCode ) {
+
+		return lmsService.getIngestSourceFor(hostLmsCode)
+			.flatMap(ingestSource -> createJobInstanceForSource(ingestSource, true))
+			.flatMap(job -> jobService.resetJob(job.getId())
+				.thenReturn("Checkpoint cleared for %s. The next scheduled run will start a full harvest."
+					.formatted(hostLmsCode)))
+			.switchIfEmpty(Mono.error(new IllegalArgumentException(
+				"No source record import job could be resolved for %s".formatted(hostLmsCode))));
+	}
+
+	private Mono<Tuple2<SourceRecordDataSource, UUID>> resolveDataSource( String hostLmsCode ) {
+
+		return lmsService.findByCode(hostLmsCode)
+			.flatMap(hostLms -> lmsService.getIngestSourceFor(hostLms)
+				.filter(SourceRecordDataSource.class::isInstance)
+				.cast(SourceRecordDataSource.class)
+				.map(datasource -> Tuples.of(datasource, hostLms.getId())))
+			.switchIfEmpty(Mono.error(new IllegalArgumentException(
+				"No source record data source could be resolved for %s".formatted(hostLmsCode))));
+	}
+
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<SourceRecord> save ( SourceRecord srcRec ) {
 		return Mono.from(sourceRecords.saveOrUpdate(srcRec))

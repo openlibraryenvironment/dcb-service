@@ -64,6 +64,28 @@ public class ReactiveJobRunnerService {
 			.then();
 	}
 	
+	/**
+	 * Read the stored checkpoint for a job. Exposed for the stall watchdog and for operator tooling.
+	 */
+	@Transactional(readOnly = true)
+	public Mono<JsonNode> findCheckpoint( @NonNull final UUID jobId ) {
+		return Mono.from( checkpoints.findCheckpointByJobId(jobId) );
+	}
+
+	/**
+	 * Overwrite a job's checkpoint out of band.
+	 *
+	 * Normal progress is written by processChunkAndSaveCheckpoint so that a failed chunk cannot
+	 * advance the cursor. This is strictly for recovery, where the stored checkpoint is itself the
+	 * thing preventing progress.
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Mono<JsonNode> replaceCheckpoint( @NonNull final UUID jobId, @NonNull final JsonNode checkpoint ) {
+		return Mono.from( checkpoints.saveCheckpointForJobId(jobId, checkpoint) )
+			.doOnSuccess( saved -> log.warn("Checkpoint for job [{}] was replaced out of band with [{}]",
+				jobId, saved.getValue()) );
+	}
+
 	private <T extends JobChunk<?>> Predicate<BeanDefinition<JobChunkProcessor>> processorApplicableFor( final Class<T> type ) {
 		return beanDef -> {
 			return Stream.of( beanDef.classValues(ApplicableChunkTypes.class) )

@@ -357,13 +357,6 @@ public class PAPIClient {
 
 		String dateStr = Optional.ofNullable(params.getStartdatemodified())
 					.map( inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString() )
-					// .map( inst -> {
-          //    // Convert the instant to a string without the timezone
-          //    // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-          //    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-          //    LocalDateTime localDateTime = LocalDateTime.ofInstant(inst, ZoneOffset.UTC);
-          //    return(formatter.format(localDateTime));
-          // })
 					.orElse(null);
 
     log.info("get page : {} {} {}",lms.getCode(),params, dateStr);
@@ -372,8 +365,12 @@ public class PAPIClient {
 		return synch_BibsPagedGetRaw( dateStr, params.getLastId(), params.getNrecs() );
 	}
 
+	// No enddatemodified: an open ended range is what a harvest wants. Bounding it to a bare LocalDate
+	// against an ISO-8601 instant startdatemodified silently truncates anything modified after the
+	// boundary, because PAPI assumes midnight when the time element is missing.
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, Integer lastId, Integer nrecs) {
+
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
 		return createRequest(GET, path, uri -> uri
 				.queryParam("startdatemodified", startdatemodified)
@@ -383,16 +380,34 @@ public class PAPIClient {
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(JsonNode.class))));
 	}
 
-	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsPagedGet.htm
+	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsUpdatedPagedGet.htm
+	// Returns bib IDs only. lastid is the continuation cursor within a single updatedate window.
 	@SingleResult
-	public Publisher<GetBibsPagedResult> synch_GetUpdatedBibsPaged(String startdatemodified, Integer nrecs) {
+	public Publisher<GetBibsPagedResult> synch_GetUpdatedBibsPaged(String startdatemodified, Integer nrecs, Integer lastId) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "updated", "paged");
 		return createRequest(GET, path, uri -> uri
 			.queryParam("updatedate", startdatemodified)
+			.queryParam("lastid", lastId)
 			.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth)
 			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))))
 			.doOnNext(result -> log.info("Result of synch_GetUpdatedBibsPaged {}",result));
+	}
+
+	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsMaxIDGet.htm
+	// Upper bound of the bib id space, used by reconciliation to size its membership check.
+	// Only covers records with a "final" status, which is the same population the harvest sees.
+	@SingleResult
+	public Mono<Integer> synch_BibsMaxIDGet() {
+		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "maxid");
+		return createRequest(GET, path, uri -> {})
+			.flatMap(authFilter::ensureStaffAuth)
+			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))))
+			.mapNotNull(result -> Optional.ofNullable(result.getBibIDListRows())
+				.filter(rows -> !rows.isEmpty())
+				.map(rows -> rows.get(0).getBibliographicRecordID())
+				.orElse(null))
+			.doOnNext(maxId -> log.info("Polaris max bib id for {} is {}", lms.getCode(), maxId));
 	}
 
 	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsByIDGet.htm#papiservicesynchdiscovery_454418000_1271378
