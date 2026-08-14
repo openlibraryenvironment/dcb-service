@@ -47,6 +47,7 @@ import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_ERROR;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_OK;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_CANCELLED;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_CLOSED;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_NOT_RESOLVED;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.ROLE_BORROWER;
@@ -59,6 +60,7 @@ import static org.olf.dcb.core.interaction.folio.TransactionStatus.AWAITING_PICK
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CANCELLED;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CLOSED;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.CREATED;
+import static org.olf.dcb.core.interaction.folio.TransactionStatus.ERROR;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.ITEM_CHECKED_IN;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.ITEM_CHECKED_OUT;
 import static org.olf.dcb.core.interaction.folio.TransactionStatus.OPEN;
@@ -972,8 +974,78 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return getTransactionStatus(localRequestId)
 			.doOnSuccess(transactionStatus -> log.debug("got transaction {} status {}",  localRequestId, transactionStatus))
-			.map(transactionStatus -> mapToHostLmsItem(localItemId, transactionStatus, currentHoldCount))
+			.flatMap(transactionStatus -> {
+				final var fromTransaction = mapToHostLmsItem(localItemId, transactionStatus, currentHoldCount);
+
+				if (!CANCELLED.equals(getValueOrNull(transactionStatus, TransactionStatus::getStatus))) {
+					return Mono.just(fromTransaction);
+				}
+
+				return itemFromInventory(localItemId, currentHoldCount)
+					.defaultIfEmpty(fromTransaction);
+			})
 			.onErrorResume(TransactionNotFoundException.class, t -> missingHostLmsItem(localItemId));
+	}
+
+	/**
+	 * Where the item actually is, once the transaction can no longer say.
+	 * <p>
+	 * A CANCELLED transaction is terminal and reports nothing useful about the item - and it is DCB that
+	 * made it terminal, cancelling the lender hold so the returning item is not re-captured
+	 * (HandleCancelledRequestItemOut). Inventory is a separate channel that survives that: FOLIO leaves
+	 * the item <em>In transit</em> (reason "DCB cancelled") until it is physically checked in at the
+	 * owning library, whereupon it becomes <em>Available</em>.
+	 * <p>
+	 * That is precisely the "the item is home" signal a request parked in AWAITING_RETURN_TO_SUPPLIER is
+	 * waiting for, so read it rather than giving up and stranding the request - which is what forced the
+	 * borrowing library to keep its virtual records indefinitely, or worse, tempted us into deleting them
+	 * early.
+	 * <p>
+	 * Only for CANCELLED. Every other transaction status is still authoritatively the transaction's, and
+	 * CLOSED already maps to AVAILABLE. Empty if inventory does not know the item - a borrower's record
+	 * lives in mod-circulation-item, not inventory - so the caller keeps the transaction's answer.
+	 */
+	private Mono<HostLmsItem> itemFromInventory(String localItemId, Integer currentHoldCount) {
+		if (isEmpty(localItemId)) {
+			return Mono.empty();
+		}
+
+		final var query = exactEqualityQuery("id", localItemId);
+
+		final var request = authorisedRequest(GET, PATH_INVENTORY_ITEMS)
+			.uri(uriBuilder -> uriBuilder.queryParam("query", query));
+
+		return makeRequest(request, Argument.of(InventoryItemCollection.class))
+			.flatMap(itemsCollection -> {
+				if (isEmpty(itemsCollection.getItems())) {
+					log.debug("Cancelled transaction for item {} and inventory does not know it - "
+						+ "keeping the transaction's answer", localItemId);
+
+					return Mono.<HostLmsItem>empty();
+				}
+
+				final var item = itemsCollection.getItems().iterator().next();
+				final var rawStatus = getValue(item, InventoryItem::getStatus,
+					InventoryItemStatus::getName, "Unknown");
+
+				log.debug("Cancelled transaction for item {} - inventory reports {}", localItemId, rawStatus);
+
+				return Mono.just(HostLmsItem.builder()
+					.localId(localItemId)
+					.status(mapFolioInventoryItemStatus(rawStatus))
+					.rawStatus(rawStatus)
+					.barcode(item.getBarcode())
+					.renewalCount(0)
+					.holdCount(currentHoldCount != null ? currentHoldCount : 0)
+					.build());
+			})
+			// Tracking must not break because inventory is unavailable; fall back to the transaction.
+			.onErrorResume(error -> {
+				log.warn("Could not read inventory for item {} after transaction cancellation: {}",
+					localItemId, error.getMessage());
+
+				return Mono.empty();
+			});
 	}
 
 	private static int determineHoldCount(TransactionStatus transactionStatus) {
@@ -1167,16 +1239,31 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				String currentStatus = txStatus.getStatus();
 				log.debug("Current status for transaction {}: {}", localRequestId, currentStatus);
 
-				// If it's already closed don't try and close it again
-				if (CLOSED.equals(currentStatus)) {
+				// Nothing to do if the transaction is already terminal - idempotent cleanup that avoids
+				// trying (and failing) to CLOSE or CANCEL a CLOSED/CANCELLED/ERROR transaction, which is
+				// exactly what happens when finalisation cleanup re-runs deleteHold after we already
+				// cancelled the hold at park time.
+				if (CLOSED.equals(currentStatus) || CANCELLED.equals(currentStatus) || ERROR.equals(currentStatus)) {
 					return Mono.just(RESULT_OK);
 				}
+				// The clean path is CLOSED (item returned). mod-dcb only permits that once the item is
+				// physically back, so while the item is still out (e.g. transaction OPEN after a patron
+				// cancellation mid-transit) this is rejected. We must NOT leave the transaction active:
+				// left OPEN, mod-dcb re-captures the item when it is checked back in at the supplier and
+				// ships it out to the borrower again. Fall back to CANCELLED to release the hold - the
+				// supplier item then returns to AVAILABLE in inventory (mod-dcb releases it on cancel).
 				return updateTransactionStatus(localRequestId, TransactionStatus.CLOSED)
 					.thenReturn(RESULT_OK_CLOSED)
-					.onErrorResume(e -> {
-						log.error("Failed to CLOSE mod-dcb transaction {}. API does not support this transition from {}. Error: {}",
-							localRequestId, currentStatus, e.getMessage());
-						return Mono.just(RESULT_OK_NOT_RESOLVED); // Put a more specific message in here in future
+					.onErrorResume(closeError -> {
+						log.warn("Could not CLOSE mod-dcb transaction {} from {} (item still out) - cancelling it to release the hold. Close error: {}",
+							localRequestId, currentStatus, closeError.getMessage());
+						return updateTransactionStatus(localRequestId, TransactionStatus.CANCELLED)
+							.thenReturn(RESULT_OK_CANCELLED)
+							.onErrorResume(cancelError -> {
+								log.error("Failed to CANCEL mod-dcb transaction {} from {} after CLOSE was rejected. Error: {}",
+									localRequestId, currentStatus, cancelError.getMessage());
+								return Mono.just(RESULT_OK_NOT_RESOLVED);
+							});
 					});
 			})
 			.onErrorResume(TransactionNotFoundException.class, e -> {
@@ -1362,9 +1449,15 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	}
 
+	// N.B. no canReportItemReturnedAfterHoldTerminated override. mod-dcb cannot report the return - a
+	// CANCELLED lender transaction is terminal and findTransactionByItemIdAndStatusNotInClosed excludes
+	// it, so the physical check-in event can never reach it - but getItem no longer depends on mod-dcb
+	// for this. It falls back to Inventory, which does report the return (see itemFromInventory), so
+	// FOLIO takes the same wait-for-the-real-item path as every other supplier.
+
 	@Override
 	public @NonNull String getClientId() {
-		
+
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.

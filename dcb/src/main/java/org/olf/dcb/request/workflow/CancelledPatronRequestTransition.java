@@ -37,14 +37,14 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class CancelledPatronRequestTransition implements PatronRequestStateTransition {
-	// Public: PatronRequestCancellationService gates patron-initiated cancels on
-	// exactly the states this transition can recover from — one source of truth.
-	public static final List<Status> POSSIBLE_SOURCE_STATUS = List.of( // Not yet loaned
+	// Item is still at the supplier in these states, so cancelling and finalising the request is
+	// non-destructive (no virtual records to orphan). Once the item is "out" (PICKUP_TRANSIT /
+	// RECEIVED_AT_PICKUP / READY_FOR_PICKUP) cancellation is instead parked by
+	// HandleCancelledRequestItemOut in AWAITING_RETURN_TO_SUPPLIER and finalised only once the item
+	// is back at the supplier.
+	private static final List<Status> POSSIBLE_SOURCE_STATUS = List.of(
 		Status.REQUEST_PLACED_AT_BORROWING_AGENCY,
-		Status.REQUEST_PLACED_AT_PICKUP_AGENCY,
-		Status.PICKUP_TRANSIT,
-		Status.RECEIVED_AT_PICKUP,
-		Status.READY_FOR_PICKUP
+		Status.REQUEST_PLACED_AT_PICKUP_AGENCY
 	);
 	public static final String NOT_YET_LOANED_AND_MISSING_LOCAL_HOLD = "CancelledPatronRequest : LOCAL_HOLD_MISSING";
 	public static final String NOT_YET_LOANED_AND_CANCELLED_LOCAL_HOLD = "CancelledPatronRequest : LOCAL_HOLD_CANCELLED";
@@ -290,22 +290,24 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 	}
 
 	private static String getReasonForCancellation(Status status, String localRequestStatus) {
-		boolean isNotYetLoaned = isNotYetLoaned(status);
+		boolean isItemStillAtSupplier = isItemStillAtSupplier(status);
 		boolean isLocalBorrowingRequestMissing = isLocalBorrowingRequestMissing(localRequestStatus);
 		boolean isLocalBorrowingRequestCancelled = isLocalBorrowingRequestCancelled(localRequestStatus);
 
-		if (isNotYetLoaned && isLocalBorrowingRequestMissing) {
+		if (isItemStillAtSupplier && isLocalBorrowingRequestMissing) {
 			return NOT_YET_LOANED_AND_MISSING_LOCAL_HOLD;
 		}
 
-		else if (isNotYetLoaned && isLocalBorrowingRequestCancelled) {
+		else if (isItemStillAtSupplier && isLocalBorrowingRequestCancelled) {
 			return NOT_YET_LOANED_AND_CANCELLED_LOCAL_HOLD;
 		}
 
 		return PATRON_REQUEST_NOT_CANCELLED;
 	}
 
-	private static boolean isNotYetLoaned(Status requestStatus) {
+	// The item has not yet shipped and is still recallable at the supplier. Once it is "out" the
+	// cancellation is parked in AWAITING_RETURN_TO_SUPPLIER by HandleCancelledRequestItemOut instead.
+	private static boolean isItemStillAtSupplier(Status requestStatus) {
 		return POSSIBLE_SOURCE_STATUS.contains(requestStatus);
 	}
 

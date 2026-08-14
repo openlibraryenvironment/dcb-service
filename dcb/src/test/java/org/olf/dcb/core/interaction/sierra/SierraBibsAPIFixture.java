@@ -37,6 +37,14 @@ public class SierraBibsAPIFixture {
 		mockServer.replaceMock(mockServerCommonRequests.delete(getBibPath(bibId)), noContent());
 	}
 
+	public void verifyDeleteBibRequestMade(String bibId) {
+		mockServer.verify(mockServerCommonRequests.delete(getBibPath(bibId)));
+	}
+
+	public void verifyDeleteBibRequestNeverMade(String bibId) {
+		mockServer.verifyNever(mockServerCommonRequests.delete(getBibPath(bibId)));
+	}
+
 	private static String bibsPath() {
 		return "/iii/sierra-api/v6/bibs";
 	}

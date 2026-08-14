@@ -205,6 +205,14 @@ public class SierraItemsAPIFixture {
 		mockServer.verify(putItem(expectedItemId));
 	}
 
+	public void verifyDeleteItemRequestMade(String expectedItemId) {
+		mockServer.verify(deleteItemRecord(expectedItemId));
+	}
+
+	public void verifyDeleteItemRequestNeverMade(String expectedItemId) {
+		mockServer.verifyNever(deleteItemRecord(expectedItemId));
+	}
+
 	@Serdeable
 	@Data
 	@Builder

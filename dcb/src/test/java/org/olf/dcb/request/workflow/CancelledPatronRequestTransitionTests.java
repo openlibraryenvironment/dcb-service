@@ -10,6 +10,9 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.READY_FOR_PICKUP;
+import static org.olf.dcb.core.model.PatronRequest.Status.RECEIVED_AT_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
@@ -35,6 +38,7 @@ import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
@@ -415,6 +419,24 @@ class CancelledPatronRequestTransitionTests {
 			.toList();
 
 		assertThat(auditList, hasSize(1));
+	}
+
+	@Test
+	void shouldNotBeApplicableWhenItemIsOutSoRequestIsRoutedToReturnTransitInstead() {
+		// Once the item is "out" the cancellation must be handled by HandleCancelledRequestItemOut
+		// (which parks the request in AWAITING_RETURN_TO_SUPPLIER), so this transition must NOT claim
+		// these states.
+		for (final var outStatus : List.of(PICKUP_TRANSIT, RECEIVED_AT_PICKUP, READY_FOR_PICKUP)) {
+			final var ctx = new RequestWorkflowContext()
+				.setPatronRequest(PatronRequest.builder()
+					.id(randomUUID())
+					.status(outStatus)
+					.localRequestStatus(HOLD_MISSING)
+					.build());
+
+			assertThat("Should not be applicable when item is out and status is " + outStatus,
+				cancelledPatronRequestTransition.isApplicableFor(ctx), is(false));
+		}
 	}
 
 	private PatronRequest attemptCancelledPatronRequestTransition(PatronRequest patronRequest) {

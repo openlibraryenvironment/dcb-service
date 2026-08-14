@@ -183,24 +183,29 @@ public interface HostLmsClient
 	}
 
 	/**
-	 * A stable identifier for the physical system this client talks to.
+	 * Once DCB has terminated the supplier hold for an item that is physically out, can this system still
+	 * tell us that the item came home?
 	 * <p>
-	 * <strong>Contract:</strong> two clients addressing the same system MUST return
-	 * equal values, and two clients addressing different systems MUST NOT. This is
-	 * the only shared-system primitive DCB has: {@link #compareTo} is built on it,
-	 * workflow routing decides RET-LOCAL versus RET-STD/RET-PUA with it, and item
-	 * resolution excludes same-server supply with it.
+	 * Sierra / Polaris / Alma answer true (the default): the real inventory item is tracked independently
+	 * of the hold, so it keeps reporting until it is checked back in and becomes AVAILABLE. That is a
+	 * trustworthy "physically back" signal, so a cancelled-while-out request waits in
+	 * AWAITING_RETURN_TO_SUPPLIER for it.
 	 * <p>
-	 * For an adapter that reaches its system over HTTP the base URL is the natural
-	 * answer - resolve it ("/") first so URI.toString produces a comparable form.
-	 * Where several logical systems share one URL, wrap it in
-	 * {@link #qualifySystemIdentity}.
+	 * FOLIO answers false: getItem derives the item status from the mod-dcb transaction, and terminating
+	 * the hold makes that transaction terminal, so it reports CANCELLED forever and can never report
+	 * AVAILABLE. Such a request still parks - it is simply flagged as needing a human to release it.
 	 * <p>
-	 * Returning the Host LMS code is only correct for an adapter that cannot be
-	 * shared (the dev/test double); for a real adapter it means a shared server is
-	 * never detected. Returning a constant is never correct - it makes every
-	 * instance of that adapter compare equal to every other.
+	 * <b>This must never gate cleanup or finalisation.</b> It describes what the SUPPLIER can observe and
+	 * says nothing about whether it is safe to delete the BORROWER's virtual records. An earlier revision
+	 * used it to cancel a FOLIO-supplied request immediately; that deleted a Polaris borrower's virtual
+	 * item while the real item was still out and got the library billed for a lost item - precisely the
+	 * bug DCB-2193 exists to fix. Its only legitimate use is deciding whether a parked request needs
+	 * flagging for manual release.
 	 */
+	default boolean canReportItemReturnedAfterHoldTerminated() {
+		return true;
+	}
+
 	@NonNull
 	String getClientId();
 

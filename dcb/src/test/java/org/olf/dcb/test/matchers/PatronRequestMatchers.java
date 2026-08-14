@@ -22,6 +22,10 @@ public class PatronRequestMatchers {
 		return hasProperty("status", is(expectedStatus));
 	}
 
+	public static Matcher<PatronRequest> hasOutcome(PatronRequest.Outcome expectedOutcome) {
+		return hasProperty("outcome", is(expectedOutcome));
+	}
+
 	public static Matcher<PatronRequest> hasResolutionCount(Integer expectedCount) {
 		return hasProperty("resolutionCount", is(expectedCount));
 	}

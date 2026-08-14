@@ -66,6 +66,20 @@ class PatronRequestApiClient {
 		return blockingClient.exchange(request, UUID.class);
 	}
 
+	HttpResponse<UUID> cleanupPatronRequest(UUID patronRequestId) {
+		return cleanupPatronRequest(patronRequestId, false);
+	}
+
+	HttpResponse<UUID> cleanupPatronRequest(UUID patronRequestId, boolean force) {
+		final var blockingClient = httpClient.toBlocking();
+
+		final var request = HttpRequest.POST(
+				"/patrons/requests/" + patronRequestId + "/transition/cleanup?force=" + force, patronRequestId)
+			.bearerAuth(accessToken);
+
+		return blockingClient.exchange(request, UUID.class);
+	}
+
 	HttpResponse<UUID> rollbackPatronRequest(UUID patronRequestId) {
 		final var blockingClient = httpClient.toBlocking();
 

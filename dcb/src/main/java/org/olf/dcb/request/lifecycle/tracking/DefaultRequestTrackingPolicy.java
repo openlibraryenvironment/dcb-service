@@ -82,6 +82,10 @@ public class DefaultRequestTrackingPolicy implements RequestTrackingPolicy {
 		return switch (status) {
 			case REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED ->
 				EnumSet.of(LifecycleRole.SUPPLIER);
+			// Parked after a cancellation while the item was out. The only thing that releases it is the
+			// supplier reporting the real item back, so nothing else is worth polling. An event-driven
+			// supplier is not polled at all here and must release via inbound lifecycle evidence.
+			case AWAITING_RETURN_TO_SUPPLIER -> EnumSet.of(LifecycleRole.SUPPLIER);
 			case REQUEST_PLACED_AT_BORROWING_AGENCY,
 				REQUEST_PLACED_AT_PICKUP_AGENCY,
 				PICKUP_TRANSIT,
