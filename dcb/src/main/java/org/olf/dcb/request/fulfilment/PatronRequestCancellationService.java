@@ -36,7 +36,17 @@ public class PatronRequestCancellationService {
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 
-	private static final List<Status> POSSIBLE_SOURCE_STATUS = List.of( // Not yet loaned
+	/**
+	 * The states a patron may cancel from: the request exists at the borrowing system and the item
+	 * has not been loaned. Anything later is the state machine's business, not the patron's.
+	 * <p>
+	 * Deliberately wider than {@code CancelledPatronRequestTransition}'s own source states, which
+	 * DCB-2193 narrowed to the two where the item is still at the supplier. In the other three the
+	 * item is already out, so the cancellation is parked in AWAITING_RETURN_TO_SUPPLIER by
+	 * HandleCancelledRequestItemOut and released once the item is home - it is still a cancellation
+	 * the patron is allowed to ask for, which is why this list is its own.
+	 */
+	private static final List<Status> CANCELLABLE_STATUS = List.of(
 		Status.REQUEST_PLACED_AT_BORROWING_AGENCY,
 		Status.REQUEST_PLACED_AT_PICKUP_AGENCY,
 		Status.PICKUP_TRANSIT,
@@ -75,7 +85,7 @@ public class PatronRequestCancellationService {
 	private Mono<CancellationResult> cancelLocalHold(PatronRequest patronRequest, String patronId,
 		String assertingService) {
 
-		if (POSSIBLE_SOURCE_STATUS.contains(patronRequest.getStatus())
+		if (!CANCELLABLE_STATUS.contains(patronRequest.getStatus())
 			|| patronRequest.getLocalRequestId() == null
 			|| patronRequest.getPatronHostlmsCode() == null) {
 

@@ -112,7 +112,11 @@ public class PatronStatusMapper {
 					 ARCHIVED
 				-> PatronRequestDiscoveryStatus.COMPLETED;
 
-			case CANCELLED -> PatronRequestDiscoveryStatus.CANCELLED;
+			// AWAITING_RETURN_TO_SUPPLIER is a cancellation parked until the item is back with the
+			// supplier (DCB-2193), and it releases to CANCELLED. Nothing was supplied and nothing
+			// was returned by the patron - who never received the item - so COMPLETED would both
+			// read as false ("Returned and completed") and later flip backwards to CANCELLED.
+			case CANCELLED, AWAITING_RETURN_TO_SUPPLIER -> PatronRequestDiscoveryStatus.CANCELLED;
 
 			case ERROR -> PatronRequestDiscoveryStatus.ERROR_SCENARIO;
 
