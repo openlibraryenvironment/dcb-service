@@ -2457,33 +2457,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
-		// https://stlouis-training.polarislibrary.com/Polaris.ApplicationServices/help/itemrecords/post_blocking_note
 		log.info("Polaris prevent renewal {}", prc);
-
 		final Integer illLocationId = polarisConfig.getIllLocationId();
-		final String blockingNoteText = "A hold has been placed on this item by a patron at the owning library. Please do not renew";
-		final Integer createNewNoteId = 1; // Polaris only seems to accept 1 for this value, which is a bit weird. It doesn't like 255
 
-		// First, try and use the ILL location ID, if it is present.
-		// This is the same location ID that we use to create virtual items (see addItemRecord)
-		// Thus it is an important part of the Polaris config, and we can use it to avoid having to fetch the item.
-		return ApplicationServices.placeItemBlock(prc.getItemId(), createNewNoteId, blockingNoteText, illLocationId)
-			.doOnSuccess(v -> log.debug("Successfully placed blocking note using default ILL Location ID {}", illLocationId))
-			// If this doesn't work, we instead grab the actual item and thus its branch
+		// Try the configured ILL Location ID first
+		return applyRenewalPrevention(prc.getItemId(), illLocationId)
 			.onErrorResume(error -> {
-				log.info("Failed to place block using ILL Location ID {}. Fetching item record to determine correct branch. Error: {}",
+				log.info("Failed to prevent renewal using ILL Location ID {}. Fetching item record to determine correct branch. Error: {}",
 					illLocationId, error.getMessage());
+
+				// Fall back to fetching the actual item branch ID
 				return ApplicationServices.itemrecords(prc.getItemId(), TRUE)
 					.flatMap(item -> {
 						Integer assignedBranchID = item.getAssignedBranchID();
 						log.debug("Retrying renewal prevention with actual AssignedBranchID {}", assignedBranchID);
-						// Retry with the confirmed branch ID
-						return ApplicationServices.placeItemBlock(
-							prc.getItemId(),
-							createNewNoteId,
-							blockingNoteText,
-							assignedBranchID
-						);
+						return applyRenewalPrevention(prc.getItemId(), assignedBranchID);
 					});
 			});
 	}
@@ -2530,6 +2518,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.build());
 }
 
+
+	private Mono<Void> applyRenewalPrevention(String itemId, Integer branchId) {
+		final Integer createNewNoteId = 1;
+
+		return ApplicationServices.updateItemRenewalLimit(itemId, 0, branchId)
+			.flatMap(limitUpdated -> {
+				final String noteText = limitUpdated
+					? "A hold has been placed on this item by a patron at the owning library. The renewal limit has been set to 0. Please do not renew"
+					: "A hold has been placed on this item by a patron at the owning library. The renewal limit has not been set to 0 because of a failure. Please do not renew";
+
+				return ApplicationServices.placeItemBlock(itemId, createNewNoteId, noteText, branchId);
+			});
+	}
 
   public Mono<PingResponse> ping() {
     Instant start = Instant.now();

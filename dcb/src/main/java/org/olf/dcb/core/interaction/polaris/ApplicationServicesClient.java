@@ -1,9 +1,6 @@
 package org.olf.dcb.core.interaction.polaris;
 
-import static io.micronaut.http.HttpMethod.DELETE;
-import static io.micronaut.http.HttpMethod.GET;
-import static io.micronaut.http.HttpMethod.POST;
-import static io.micronaut.http.HttpMethod.PUT;
+import static io.micronaut.http.HttpMethod.*;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.valueOf;
@@ -29,11 +26,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1502,6 +1495,23 @@ class ApplicationServicesClient {
 				// Assuming we want to handle not found as missing by default here
 				.onErrorResume(error -> handleItemNotFoundError(TRUE, identifier, error))
 			));
+	}
+
+	public Mono<Boolean> updateItemRenewalLimit(String itemId, Integer renewalLimit, Integer overrideOrgId) {
+		final var path = createPathWithOrgOverride(overrideOrgId, "itemrecords", itemId);
+		final var patchBody = Map.of("RenewalLimit", renewalLimit);
+
+		return createRequest(PATCH, path, uri -> {})
+			.map(request -> request.body(patchBody))
+			.flatMap(request -> client.retrieve(request, Argument.of(String.class)))
+			.map(response -> {
+				log.debug("Successfully updated renewal limit to {} for item {}.", renewalLimit, itemId);
+				return true;
+			})
+			.onErrorResume(error -> {
+				log.warn("Failed to update renewal limit for item {}: {}", itemId, error.getMessage());
+				return Mono.just(false);
+			});
 	}
 
 	@Builder
