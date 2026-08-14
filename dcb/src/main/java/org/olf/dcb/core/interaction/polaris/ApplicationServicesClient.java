@@ -1504,6 +1504,85 @@ class ApplicationServicesClient {
 			));
 	}
 
+	/**
+	 * Sets the renewal limit on an existing item record, which is how renewal prevention is
+	 * enforced, through the same add or update item record workflow that puts the initial renewal
+	 * limit on a virtual item.
+	 * <p>
+	 * PATCH itemrecords/{id} looks like the obvious call and its DtoUpdateItem body does declare
+	 * RenewalLimit, but Polaris answers 200 with an empty body and leaves the item unchanged. An
+	 * endpoint that reports success without doing the work is worse than one that refuses, so the
+	 * change is made through the workflow and then read back.
+	 *
+	 * @param currentItemStatusId the item's current status, sent unchanged so that setting the
+	 *                            renewal limit does not move the item
+	 * @return completes when Polaris has applied the change, errors when it has not
+	 */
+	public Mono<Void> updateItemRenewalLimit(String itemId, Integer renewalLimit,
+		Integer currentItemStatusId) {
+
+		final var path = createPath("workflow");
+		final var itemRecordType = 8;
+		final var itemRecordData = 6;
+
+		return createRequest(POST, path, uri -> {})
+			.map(request -> {
+				final var body = WorkflowRequest.builder()
+					.workflowRequestType(itemRecordType)
+					.txnUserID(TransactingPolarisUserID)
+					.txnBranchID(TransactingBranchID)
+					.txnWorkstationID(TransactingWorkstationID)
+					.requestExtension(RequestExtension.builder()
+						.workflowRequestExtensionType(itemRecordData)
+						.data(RequestExtensionData.builder()
+							.itemRecordID(Integer.valueOf(itemId))
+							.originalItemStatusID(currentItemStatusId)
+							.itemStatusID(currentItemStatusId)
+							.renewalLimit(renewalLimit)
+							.build())
+						.build())
+					.build();
+
+				return request.body(body);
+			})
+			.flatMap(request -> saveItemRequest(request, null))
+			.then(confirmRenewalLimitWasApplied(itemId, renewalLimit));
+	}
+
+	/**
+	 * Polaris has already been seen to report success for this change without making it, and
+	 * renewal prevention is a promise to the owning library: claiming it is done when it is not is
+	 * worse than failing, because the failure path warns staff and audits the request. So the item
+	 * is read back and a limit that did not stick is an error.
+	 * <p>
+	 * A response carrying no renewal limit at all is not treated as a failure - it is the absence
+	 * of evidence rather than evidence the update was lost.
+	 */
+	private Mono<Void> confirmRenewalLimitWasApplied(String itemId, Integer expectedRenewalLimit) {
+		return itemrecords(itemId, FALSE)
+			.flatMap(item -> {
+				final var appliedRenewalLimit = getValueOrNull(item.getBibInfo(), BibInfo::getRenewalLimit);
+
+				if (appliedRenewalLimit == null) {
+					log.debug("{} reported no renewal limit for item {}, so the update to {} cannot be confirmed",
+						client.getHostLmsCode(), itemId, expectedRenewalLimit);
+
+					return Mono.<Void>empty();
+				}
+
+				if (!appliedRenewalLimit.equals(expectedRenewalLimit)) {
+					return Mono.<Void>error(new PolarisWorkflowException(
+						"Renewal limit for item %s in %s is still %d after being set to %d"
+							.formatted(itemId, client.getHostLmsCode(), appliedRenewalLimit, expectedRenewalLimit)));
+				}
+
+				log.debug("{} confirmed a renewal limit of {} for item {}",
+					client.getHostLmsCode(), appliedRenewalLimit, itemId);
+
+				return Mono.<Void>empty();
+			});
+	}
+
 	@Builder
 	@Data
 	@AllArgsConstructor

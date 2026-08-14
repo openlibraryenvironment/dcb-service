@@ -124,6 +124,35 @@ class PatronRequestCancellationServiceTests {
 		verify(borrowingClient, never()).cancelHoldRequest(any());
 	}
 
+	/**
+	 * DCB-2193 narrowed CancelledPatronRequestTransition to the two states where the item is still
+	 * at the supplier. A patron may still cancel once the item is out: HandleCancelledRequestItemOut
+	 * parks that in AWAITING_RETURN_TO_SUPPLIER until the item is home. This service therefore keeps
+	 * its own, wider list, and this is the boundary that must not drift.
+	 */
+	@Test
+	void aRequestWaitingOnTheHoldShelfCanStillBeCancelled() {
+		when(patronRequestRepository.findOwnedRequest(eq(REQUEST_ID), eq("lms-a"), eq("p-123")))
+			.thenReturn(Mono.just(requestInState(Status.READY_FOR_PICKUP)));
+
+		final var result = cancel("p-123").block();
+
+		assertFalse(result.alreadyCancelled());
+		verify(borrowingClient).cancelHoldRequest(any());
+	}
+
+	@Test
+	void aParkedCancellationIsNotCancelledAgain() {
+		// AWAITING_RETURN_TO_SUPPLIER already means "cancelled, waiting for the item to come back"
+		when(patronRequestRepository.findOwnedRequest(eq(REQUEST_ID), eq("lms-a"), eq("p-123")))
+			.thenReturn(Mono.just(requestInState(Status.AWAITING_RETURN_TO_SUPPLIER)));
+
+		assertThrows(PatronRequestCancellationService.CancellationNotAllowedException.class,
+			() -> cancel("p-123").block());
+
+		verify(borrowingClient, never()).cancelHoldRequest(any());
+	}
+
 	@Test
 	void aRequestWithoutALocalHoldIsRefused() {
 		final var noHoldYet = PatronRequest.builder()

@@ -76,6 +76,21 @@ class PatronStatusMapperTests {
 			PatronStatusMapper.enrichForPatron(unresolved).pickupLocationName());
 	}
 
+	/**
+	 * AWAITING_RETURN_TO_SUPPLIER is a cancellation parked until the item is back at the supplier
+	 * (DCB-2193), and it releases to CANCELLED. Showing it as COMPLETED would tell the patron
+	 * "Returned and completed" about an item they never received, and would then flip backwards to
+	 * CANCELLED when the park released.
+	 */
+	@Test
+	void aCancellationWaitingOnTheItemStillReadsAsCancelled() {
+		final var summary = PatronStatusMapper.enrichForPatron(
+			projection("AWAITING_RETURN_TO_SUPPLIER", null));
+
+		assertEquals(PatronRequestDiscoveryStatus.CANCELLED, summary.discoveryStatus());
+		assertEquals("This request was cancelled.", summary.statusDescription());
+	}
+
 	/** A corrupt status_code is an error, not a new state to guess a meaning for. */
 	@Test
 	void anUnknownStatusBecomesTheErrorScenario() {

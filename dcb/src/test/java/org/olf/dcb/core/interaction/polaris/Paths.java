@@ -13,6 +13,12 @@ class Paths {
 		return applicationServices("/itemrecords/" + itemId);
 	}
 
+	// A blocking note carries the organisation that owns the item, rather than the configured default
+	String itemBlockingNote(Integer organisationId, Integer itemId) {
+		return applicationServicesForOrganisation(organisationId,
+			"/itemrecords/%d/blockingnote".formatted(itemId));
+	}
+
 	String getItemByBarcode(Integer localItemId) {
 		return applicationServices("/barcodes/items/" + localItemId);
 	}
@@ -50,7 +56,11 @@ class Paths {
 	}
 
 	String applicationServices(String path) {
-		return baseApplicationServices("/polaris/73/1" + path);
+		return applicationServicesForOrganisation(73, path);
+	}
+
+	String applicationServicesForOrganisation(Integer organisationId, String path) {
+		return baseApplicationServices("/polaris/%d/1%s".formatted(organisationId, path));
 	}
 
 	String baseApplicationServices(String path) {
