@@ -1,11 +1,15 @@
 package org.olf.dcb.request.fulfilment;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequest.Status;
+
+
 import org.olf.dcb.request.workflow.CancelledPatronRequestTransition;
 import org.olf.dcb.storage.PatronRequestRepository;
 
@@ -31,6 +35,14 @@ public class PatronRequestCancellationService {
 	private final PatronRequestRepository patronRequestRepository;
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
+
+	private static final List<Status> POSSIBLE_SOURCE_STATUS = List.of( // Not yet loaned
+		Status.REQUEST_PLACED_AT_BORROWING_AGENCY,
+		Status.REQUEST_PLACED_AT_PICKUP_AGENCY,
+		Status.PICKUP_TRANSIT,
+		Status.RECEIVED_AT_PICKUP,
+		Status.READY_FOR_PICKUP
+	);
 
 	public PatronRequestCancellationService(PatronRequestRepository patronRequestRepository,
 		HostLmsService hostLmsService, PatronRequestAuditService patronRequestAuditService) {
@@ -63,7 +75,7 @@ public class PatronRequestCancellationService {
 	private Mono<CancellationResult> cancelLocalHold(PatronRequest patronRequest, String patronId,
 		String assertingService) {
 
-		if (!CancelledPatronRequestTransition.POSSIBLE_SOURCE_STATUS.contains(patronRequest.getStatus())
+		if (POSSIBLE_SOURCE_STATUS.contains(patronRequest.getStatus())
 			|| patronRequest.getLocalRequestId() == null
 			|| patronRequest.getPatronHostlmsCode() == null) {
 
