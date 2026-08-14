@@ -119,4 +119,25 @@ public class Library implements Auditable {
 
 	@Nullable
 	private String targetLoanToBorrowRatio;
+
+	// --- Patron-facing brand (N-1.3) -------------------------------------------
+	//
+	// No name field is added: fullName, shortName and abbreviatedName already exist.
+	// No second URL either — patronWebsite is the logo's link target.
+	//
+	// No welcome copy at this level. It resolves outward through the brand chain, so
+	// a library that supplies none keeps the consortium's.
+
+	@Nullable
+	@Size(max = 400)
+	private String brandLogoUrl;
+
+	@Nullable
+	@Size(max = 255)
+	private String brandLogoAlt;
+
+	/** See {@link Consortium#getDefaultThemeName()}. Validated on write, tolerated on read. */
+	@Nullable
+	@Size(max = 64)
+	private String defaultThemeName;
 }

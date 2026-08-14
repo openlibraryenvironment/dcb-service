@@ -6,6 +6,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
+import org.olf.dcb.core.branding.BrandingValidator;
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.storage.ConsortiumRepository;
 
@@ -27,12 +28,17 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 
 	private final R2dbcOperations r2dbcOperations;
 
+	private final BrandingValidator brandingValidator;
+
 	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
 
-	public UpdateConsortiumDataFetcher(ConsortiumRepository consortiumRepository, R2dbcOperations r2dbcOperations) {
+	public UpdateConsortiumDataFetcher(ConsortiumRepository consortiumRepository,
+		R2dbcOperations r2dbcOperations, BrandingValidator brandingValidator) {
+
 		this.consortiumRepository = consortiumRepository;
 		this.r2dbcOperations = r2dbcOperations;
+		this.brandingValidator = brandingValidator;
 	}
 
 	@Override
@@ -77,6 +83,33 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			log.warn("updateConsortiumDataFetcher: Access denied for user {}: user does not have the required role to update a consortium.", userString);
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");		}
 
+		// Patron-facing brand (N-1.3). Read and validated BEFORE the transaction opens, so
+		// a bad logo URL costs no database round trip and cannot leave a half-applied form.
+		//
+		// These follow a different absent/blank rule from the fields above, and deliberately:
+		// a key that is present but blank CLEARS the field, because an administrator who has
+		// uploaded the wrong mark has to be able to remove it. Everything else here treats
+		// absent and blank alike and can therefore only ever be overwritten, never unset.
+		boolean brandLogoUrlSupplied = input_map.containsKey("brandLogoUrl");
+		String brandLogoUrl = brandLogoUrlSupplied
+			? brandingValidator.logoUrl(asString(input_map.get("brandLogoUrl")))
+			: null;
+
+		boolean brandLogoAltSupplied = input_map.containsKey("brandLogoAlt");
+		String brandLogoAlt = brandLogoAltSupplied
+			? brandingValidator.text(asString(input_map.get("brandLogoAlt")))
+			: null;
+
+		boolean patronWelcomeSupplied = input_map.containsKey("patronWelcome");
+		String patronWelcome = patronWelcomeSupplied
+			? brandingValidator.text(asString(input_map.get("patronWelcome")))
+			: null;
+
+		boolean defaultThemeNameSupplied = input_map.containsKey("defaultThemeName");
+		String defaultThemeName = defaultThemeNameSupplied
+			? brandingValidator.themeName(asString(input_map.get("defaultThemeName")))
+			: null;
+
 		Mono<Consortium> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(consortiumRepository.findById(id))
 				.flatMap(consortium -> {
@@ -103,6 +136,18 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 						consortium.setAboutImageUploader(aboutImageUploader);
 						consortium.setAboutImageUploaderEmail(aboutImageUploaderEmail);
 					}
+					if (brandLogoUrlSupplied) {
+						consortium.setBrandLogoUrl(brandLogoUrl);
+					}
+					if (brandLogoAltSupplied) {
+						consortium.setBrandLogoAlt(brandLogoAlt);
+					}
+					if (patronWelcomeSupplied) {
+						consortium.setPatronWelcome(patronWelcome);
+					}
+					if (defaultThemeNameSupplied) {
+						consortium.setDefaultThemeName(defaultThemeName);
+					}
 					consortium.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(consortium::setChangeReferenceUrl);
 					changeCategory.ifPresent(consortium::setChangeCategory);
@@ -112,5 +157,10 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 		));
 
 		return transactionMono.toFuture();
+	}
+
+	/** GraphQL sends an explicit null as a present key with a null value. */
+	private static String asString(Object value) {
+		return value == null ? null : value.toString();
 	}
 }

@@ -111,4 +111,32 @@ public class Consortium implements Auditable {
 	@Nullable
 	private String aboutImageUploaderEmail; // Info about upload
 
+	// --- Patron-facing brand (N-1.3) -------------------------------------------
+	//
+	// Distinct from headerImageUrl (36x36) and aboutImageUrl (48x48), which are
+	// dcb-admin-ui chrome icons. This is the mark a patron sees in the discovery
+	// app's brand lockup, and the two are different assets at different sizes.
+
+	@Nullable
+	@Size(max = 400)
+	private String brandLogoUrl;
+
+	@Nullable
+	@Size(max = 255)
+	private String brandLogoAlt;
+
+	/** Patron-facing copy. NOT {@link #description}, which is staff-facing prose. */
+	@Nullable
+	@Size(max = 500)
+	private String patronWelcome;
+
+	/**
+	 * A theme from the discovery app's registry, not a colour. Validated on write
+	 * against a configured vocabulary and tolerated on read — an unrecognised name
+	 * falls back to the default brand rather than breaking the patron app.
+	 */
+	@Nullable
+	@Size(max = 64)
+	private String defaultThemeName;
+
 }
