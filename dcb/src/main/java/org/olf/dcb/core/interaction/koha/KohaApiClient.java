@@ -264,6 +264,31 @@ public interface KohaApiClient {
 		return post("/api/v1/checkouts/" + checkoutId + "/renewals", Map.of(), KohaCheckout.class);
 	}
 
+	/**
+	 * The current (not checked in) checkouts for an item. An item on loan has exactly one.
+	 * <p>
+	 * API: GET /api/v1/checkouts?q={"item_id":&lt;item_id&gt;}
+	 * <p>
+	 * Koha's list endpoints take their filter as a JSON query in the q parameter; item_id is an
+	 * integer in the checkout schema, so it is sent unquoted.
+	 */
+	default Mono<KohaCheckout[]> getCheckoutsForItem(String itemId) {
+		return get("/api/v1/checkouts", KohaCheckout[].class,
+			Map.of("q", "{\"item_id\":%s}".formatted(itemId)));
+	}
+
+	/**
+	 * Ask Koha whether a checkout can be renewed, and why not.
+	 * <p>
+	 * API: GET /api/v1/checkouts/{checkout_id}/allows_renewal
+	 * <p>
+	 * Renewal eligibility comes from circulation rules and system preferences that live in the
+	 * Koha instance, so this endpoint is the only authority on whether a renewal will be refused.
+	 */
+	default Mono<KohaRenewability> allowsRenewal(String checkoutId) {
+		return get("/api/v1/checkouts/" + checkoutId + "/allows_renewal", KohaRenewability.class);
+	}
+
 
 
 }

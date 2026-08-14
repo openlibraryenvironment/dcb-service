@@ -6,6 +6,7 @@ import org.olf.dcb.core.model.HostLms;
 import java.net.URI;
 import java.util.List;
 
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
@@ -26,6 +27,20 @@ public class KohaClientConfig {
 	// home_library_id and holding_library_id and nothing else; a shelving location was
 	// never sent, so the key was required configuration that no code path read.
 	private static final HostLmsPropertyDefinition VIRTUAL_ITEM_LIBRARY_CODE = stringPropertyDefinition("virtual-item-library-code", "The library at which virtual items will be created", TRUE);
+
+	/**
+	 * The collection code DCB stamps on a virtual item to stop it being renewed, which has to
+	 * match the value this Koha lists in its ItemsDeniedRenewal system preference. Optional
+	 * because it only matters where renewal prevention is in use, and because a Koha that has
+	 * not been configured for it is better served by the default than by failing to start.
+	 * See KohaHostLmsClient.preventRenewalOnLoan for what the library has to configure.
+	 */
+	private static final HostLmsPropertyDefinition NO_RENEW_COLLECTION_CODE = stringPropertyDefinition(
+		"no-renew-collection-code",
+		"Collection code (items.ccode) DCB sets to deny renewal, matching this Koha's ItemsDeniedRenewal system preference",
+		FALSE);
+
+	public static final String DEFAULT_NO_RENEW_COLLECTION_CODE = "DCB_NO_RENEW";
 
 
 
@@ -58,5 +73,10 @@ public class KohaClientConfig {
 
 	public String getVirtualItemLibraryCode() {
 		return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);
+	}
+
+	public String getNoRenewCollectionCode() {
+		return NO_RENEW_COLLECTION_CODE.getOptionalValueFrom(
+			hostLms.getClientConfig(), DEFAULT_NO_RENEW_COLLECTION_CODE);
 	}
 }

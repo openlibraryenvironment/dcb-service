@@ -52,6 +52,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private static final String DEFAULT_FIRST_NAME = "DCB";
 	private static final String DEFAULT_LAST_NAME = "VPATRON";
 
+	// How a DCB created item is recognised in Koha, both when creating one and before writing to
+	// one - the two have to agree, or renewal prevention refuses every item DCB made
+	private static final String DCB_VIRTUAL_ITEM_CALL_NUMBER = "DCB_VIRTUAL_COLLECTION";
+
+	private static final String DO_NOT_RENEW_NOTE = "Hold placed by owning library. Do not renew.";
+
 	/**
 	 * How many items getItems enriches at once.
 	 * <p>
@@ -484,7 +490,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 					// Koha admins might need to do this for us and then we can use a "DCB_VIRTUAL" item type to hide them from OPAC
 //					.notForLoanStatus(virtualNotForLoanStatus) // This could also make it so that virtual items are NOT requestable by local patrons.
 					// But we need to check it won't break checkouts (or that we can override) Override can be done via confirmation token so one to experiment with
-					.callnumber("DCB_VIRTUAL_COLLECTION")
+					.callnumber(DCB_VIRTUAL_ITEM_CALL_NUMBER)
 					.internalNotes("Virtual item = created by DCB")
 					.publicNotes("Virtual item = created by DCB")
 					.build();
@@ -834,9 +840,171 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	/*** Renewal operations ***/
 
+	/**
+	 * Stops the borrowing patron renewing a virtual item, because the owning library now has a
+	 * hold on the real one.
+	 *
+	 * <h2>Onboarding requirement - every participating Koha must be configured for this</h2>
+	 *
+	 * Koha has no per-item renewal limit to lower. Renewal is decided by
+	 * {@code C4::Circulation::CanBookBeRenewed}, and its only item level hook is the
+	 * <strong>{@code ItemsDeniedRenewal}</strong> system preference: a YAML map of item columns to
+	 * values that may not be renewed. DCB stamps a collection code on the item; the Koha
+	 * administrator must list it, or nothing is prevented:
+	 *
+	 * <pre>
+	 * ItemsDeniedRenewal:
+	 *   ccode: [DCB_NO_RENEW]
+	 * </pre>
+	 *
+	 * The value is the {@code no-renew-collection-code} Host LMS property (default
+	 * {@code DCB_NO_RENEW}) and it must match the system preference exactly. It should also exist
+	 * as a CCODE authorised value, so staff see a meaningful collection rather than a bare code.
+	 *
+	 * <h2>Why a collection code and not the not-for-loan status</h2>
+	 *
+	 * <ul>
+	 *   <li>{@code notforloan} blocks <em>checkout</em>, not renewal. It only ever denies a
+	 *       renewal when the library happens to have listed it in {@code ItemsDeniedRenewal},
+	 *       so relying on it means relying on configuration we did not ask for.</li>
+	 *   <li>DCB reads any non-zero not-for-loan status as {@link HostLmsItem#ITEM_MISSING}
+	 *       (see {@code deriveItemStatusForHostLmsItem}), and nothing clears the flag. The
+	 *       borrower's item would never read AVAILABLE or TRANSIT again, so
+	 *       {@code HandleBorrowerRequestReturnTransit} could not fire and the request would be
+	 *       stranded in LOANED after the patron returned the book.</li>
+	 *   <li>{@code ccode} is inert for DCB's own status derivation, and unused by this adapter
+	 *       otherwise, so marking it changes renewability and nothing else.</li>
+	 * </ul>
+	 *
+	 * The marker cannot be a permanent property of virtual items: DCB renews through
+	 * {@code POST /checkouts/{id}/renewals}, which goes through the same eligibility check, so a
+	 * blanket rule would block legitimate renewals too. It is applied only when a hold is detected.
+	 *
+	 * <p>Because the system preference is deployment state DCB cannot see, the outcome is verified
+	 * against Koha rather than assumed - see {@link #confirmRenewalIsDenied}.
+	 */
 	@Override
 	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
-		return Mono.error(new NotImplementedException("This functionality has not yet been implemented for Koha"));
+		log.info("Koha: preventRenewalOnLoan({})", prc);
+
+		final String itemId = prc.getItemId();
+
+		if (isBlank(itemId)) {
+			return Mono.error(new IllegalArgumentException("Item ID is required to prevent renewal in Koha"));
+		}
+
+		return client.getItem(itemId)
+			.flatMap(kohaItem -> denyRenewalOfItem(itemId, kohaItem))
+			// Deferred so that nothing is asked of Koha until the item has actually been marked
+			.then(Mono.defer(() -> confirmRenewalIsDenied(itemId)));
+	}
+
+	/**
+	 * Marks the item as denied renewal, and tells staff why in the same call.
+	 * <p>
+	 * Only the changed fields are sent. Koha has no item PATCH, so an update is a PUT of the whole
+	 * item, and echoing back the item as read would both overwrite anything changed in Koha since
+	 * the read and send computed fields (effective_item_type_id and its siblings) that the update
+	 * rejects because they are not item columns.
+	 */
+	private Mono<KohaItem> denyRenewalOfItem(String itemId, KohaItem currentItem) {
+		if (!DCB_VIRTUAL_ITEM_CALL_NUMBER.equals(currentItem.getCallnumber())) {
+			return raiseError(Problem.builder()
+				.withTitle("Refusing to prevent renewal on an item DCB did not create")
+				.withDetail("Item %s in %s does not carry the %s call number"
+					.formatted(itemId, getHostLmsCode(), DCB_VIRTUAL_ITEM_CALL_NUMBER))
+				.with("itemId", itemId)
+				.with("hostLmsCode", getHostLmsCode())
+				.build());
+		}
+
+		final var biblioId = getValueOrNull(currentItem, KohaItem::getBiblioId);
+
+		if (biblioId == null) {
+			return raiseError(Problem.builder()
+				.withTitle("Koha item cannot be updated without its biblio")
+				.withDetail("Item %s in %s was returned without a biblio_id"
+					.formatted(itemId, getHostLmsCode()))
+				.with("itemId", itemId)
+				.build());
+		}
+
+		final var update = KohaItem.builder()
+			.collectionCode(config.getNoRenewCollectionCode())
+			.internalNotes(withDoNotRenewNote(currentItem.getInternalNotes()))
+			.build();
+
+		return client.updateItem(String.valueOf(biblioId), itemId, update);
+	}
+
+	/**
+	 * Renewal prevention can fire more than once for the same request, so the note is added only
+	 * when it is not already there - otherwise it grows without bound.
+	 */
+	private static String withDoNotRenewNote(String existingNotes) {
+		if (isBlank(existingNotes)) {
+			return DO_NOT_RENEW_NOTE;
+		}
+
+		if (existingNotes.contains(DO_NOT_RENEW_NOTE)) {
+			return existingNotes;
+		}
+
+		return existingNotes + " | " + DO_NOT_RENEW_NOTE;
+	}
+
+	/**
+	 * Asks Koha whether the loan can still be renewed, and fails when it can.
+	 * <p>
+	 * Setting the marker is not the same as preventing the renewal: it only works if this Koha
+	 * lists the collection code in ItemsDeniedRenewal. Reporting prevention we did not achieve is
+	 * worse than failing, because the failure is audited against the request and the borrowing
+	 * library is told the loan cannot be renewed here.
+	 * <p>
+	 * An item with no current checkout is not a failure - there is no renewal to prevent - but it
+	 * leaves the marker unverified, so it is logged as such.
+	 */
+	private Mono<Void> confirmRenewalIsDenied(String itemId) {
+		return client.getCheckoutsForItem(itemId)
+			.flatMap(checkouts -> {
+				if (checkouts == null || checkouts.length == 0) {
+					log.warn("Koha item {} in {} has no current checkout, so renewal prevention could not be confirmed",
+						itemId, getHostLmsCode());
+
+					return Mono.<Void>empty();
+				}
+
+				return client.allowsRenewal(String.valueOf(checkouts[0].getCheckoutId()))
+					.flatMap(renewability -> renewalStillAllowed(renewability)
+						? renewalNotPrevented(itemId, renewability)
+						: confirmed(itemId, renewability));
+			});
+	}
+
+	private static boolean renewalStillAllowed(KohaRenewability renewability) {
+		// A missing answer is not a denial: fail closed rather than assume the loan is protected
+		return !Boolean.FALSE.equals(getValueOrNull(renewability, KohaRenewability::getAllowsRenewal));
+	}
+
+	private Mono<Void> renewalNotPrevented(String itemId, KohaRenewability renewability) {
+		return raiseError(Problem.builder()
+			.withTitle("Koha still allows this loan to be renewed")
+			.withDetail(("Item %s in %s was marked with collection code %s, but Koha reports the loan as "
+				+ "renewable. Check that this Koha's ItemsDeniedRenewal system preference contains "
+				+ "ccode: [%s]")
+				.formatted(itemId, getHostLmsCode(), config.getNoRenewCollectionCode(),
+					config.getNoRenewCollectionCode()))
+			.with("itemId", itemId)
+			.with("hostLmsCode", getHostLmsCode())
+			.with("renewability", String.valueOf(renewability))
+			.build());
+	}
+
+	private Mono<Void> confirmed(String itemId, KohaRenewability renewability) {
+		log.info("Koha confirmed renewal is denied for item {} in {}, reason: {}",
+			itemId, getHostLmsCode(), renewability.getError());
+
+		return Mono.empty();
 	}
 
 	@Override
