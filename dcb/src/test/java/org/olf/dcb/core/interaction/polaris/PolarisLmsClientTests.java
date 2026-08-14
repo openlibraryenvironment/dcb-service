@@ -104,6 +104,7 @@ import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.AnswerData;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.AnswerExtension;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibInfo;
@@ -124,6 +125,7 @@ import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksRe
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronValidateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisWorkflowException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
@@ -2025,6 +2027,65 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldPreventRenewalByTakingTheRenewalLimitToZero() {
+		// Arrange
+		final var localItemId = generateNumericLocalId();
+		final var checkedOutStatusId = 2;
+		final var assignedBranchId = 92;
+
+		// The item is fetched before the update, and read back afterwards to confirm the new limit
+		mockPolarisFixture.mockGetItemOnce(localItemId,
+			itemWithRenewalLimit(localItemId, checkedOutStatusId, assignedBranchId, 2));
+
+		mockPolarisFixture.mockGetItemOnce(localItemId,
+			itemWithRenewalLimit(localItemId, checkedOutStatusId, assignedBranchId, 0));
+
+		mockItemWorkflow(localItemId);
+
+		mockPolarisFixture.mockPlaceItemBlockingNote(assignedBranchId, localItemId);
+
+		// Act
+		preventRenewal(localItemId);
+
+		// Assert
+		mockPolarisFixture.verifyWorkflowBodyContains("\"RenewalLimit\":0");
+
+		// The status has to go back unchanged, otherwise the update moves the item
+		mockPolarisFixture.verifyWorkflowBodyContains("\"OriginalItemStatusID\":%d".formatted(checkedOutStatusId));
+
+		mockPolarisFixture.verifyItemBlockingNoteContains(assignedBranchId, localItemId,
+			"The renewal limit has been set to 0");
+	}
+
+	@Test
+	void shouldTellStaffNotToRenewWhenPolarisReportsSuccessWithoutChangingTheRenewalLimit() {
+		// Arrange
+		final var localItemId = generateNumericLocalId();
+		final var checkedOutStatusId = 2;
+		final var assignedBranchId = 92;
+
+		// Polaris has been seen to accept an item update and leave the renewal limit alone
+		mockPolarisFixture.mockGetItem(localItemId,
+			itemWithRenewalLimit(localItemId, checkedOutStatusId, assignedBranchId, 2));
+
+		mockItemWorkflow(localItemId);
+
+		mockPolarisFixture.mockPlaceItemBlockingNote(assignedBranchId, localItemId);
+
+		// Act
+		final var exception = assertThrows(PolarisWorkflowException.class,
+			() -> preventRenewal(localItemId));
+
+		// Assert
+		assertThat(exception, messageContains(
+			"Renewal limit for item %d in %s is still 2 after being set to 0"
+				.formatted(localItemId, CATALOGUING_HOST_LMS_CODE)));
+
+		mockPolarisFixture.verifyItemBlockingNoteContains(assignedBranchId, localItemId,
+			"The renewal limit has not been set to 0 because of a failure");
+	}
+
+	@Test
 	void shouldBeAbleToUpdatePatronRequest() {
 		// Arrange
 		final var localItemId = generateNumericLocalId();
@@ -2072,6 +2133,27 @@ class PolarisLmsClientTests {
 			.build();
 
 		return singleValueFrom(client.deleteItem(deleteItemCommand));
+	}
+
+	private static ItemRecordFull itemWithRenewalLimit(Integer itemId, Integer itemStatusId,
+		Integer assignedBranchId, Integer renewalLimit) {
+
+		return ItemRecordFull.builder()
+			.itemRecordID(itemId)
+			.itemStatusID(itemStatusId)
+			.assignedBranchID(assignedBranchId)
+			.bibInfo(BibInfo.builder()
+				.renewalLimit(renewalLimit)
+				.build())
+			.build();
+	}
+
+	private void preventRenewal(Integer localItemId) {
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		singleValueFrom(client.preventRenewalOnLoan(PreventRenewalCommand.builder()
+			.itemId(convertIntegerToString(localItemId))
+			.build()));
 	}
 
 	private String updateItemStatus(Integer localItemId) {

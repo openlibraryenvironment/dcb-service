@@ -240,6 +240,27 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.getItem(itemId), expectedItem);
 	}
 
+	/**
+	 * Queues a single GET item response, so consecutive calls describe consecutive fetches - a
+	 * renewal limit update reads the item before the change and again to confirm it.
+	 */
+	public void mockGetItemOnce(Integer itemId, ItemRecordFull expectedItem) {
+		mockServer.mock(commonRequests.get(paths.getItem(itemId)), expectedItem, Times.once());
+	}
+
+	public void mockPlaceItemBlockingNote(Integer organisationId, Integer itemId) {
+		mockServer.replaceMock(commonRequests.post(paths.itemBlockingNote(organisationId, itemId)),
+			okJson(ApplicationServicesClient.BlockingNoteResponse.builder()
+				.itemRecordID(itemId)
+				.success(true)
+				.build()));
+	}
+
+	public void verifyItemBlockingNoteContains(Integer organisationId, Integer itemId, String fragment) {
+		mockServer.verify(commonRequests.post(paths.itemBlockingNote(organisationId, itemId))
+			.withBody(subString(fragment)));
+	}
+
 	public void mockGetItemServerErrorResponse(Integer itemId) {
 		mockServer.mockGet(paths.getItem(itemId), serverError());
 	}

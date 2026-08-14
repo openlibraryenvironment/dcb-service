@@ -182,6 +182,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	// Synch_BibsByIDGet accepts at most 50 ids per call.
 	private static final int BIBS_BY_ID_LIMIT = 50;
 
+	// Polaris creates a new blocking note rather than replacing one when the note id is 1
+	private static final Integer CREATE_NEW_BLOCKING_NOTE = 1;
+	private static final Integer NO_RENEWALS = 0;
+	private static final String RENEWAL_PREVENTED_NOTE =
+		"A hold has been placed on this item by a patron at the owning library. The renewal limit has been set to 0. Please do not renew";
+	private static final String RENEWAL_NOT_PREVENTED_NOTE =
+		"A hold has been placed on this item by a patron at the owning library. The renewal limit has not been set to 0 because of a failure. Please do not renew";
+
 	// How far to rewind startdatemodified when the delta window rolls forward - see
 	// PolarisConfig.getHarvestWatermarkOverlap(). Every minute of overlap is re-harvested on every
 	// cycle and the import job runs on a two minute fixed delay, so this is a recurring cost.
@@ -2458,22 +2466,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
 		log.info("Polaris prevent renewal {}", prc);
-		final Integer illLocationId = polarisConfig.getIllLocationId();
 
-		// Try the configured ILL Location ID first
-		return applyRenewalPrevention(prc.getItemId(), illLocationId)
-			.onErrorResume(error -> {
-				log.info("Failed to prevent renewal using ILL Location ID {}. Fetching item record to determine correct branch. Error: {}",
-					illLocationId, error.getMessage());
+		final var itemId = prc.getItemId();
 
-				// Fall back to fetching the actual item branch ID
-				return ApplicationServices.itemrecords(prc.getItemId(), TRUE)
-					.flatMap(item -> {
-						Integer assignedBranchID = item.getAssignedBranchID();
-						log.debug("Retrying renewal prevention with actual AssignedBranchID {}", assignedBranchID);
-						return applyRenewalPrevention(prc.getItemId(), assignedBranchID);
-					});
-			});
+		// Both halves of this are item specific: the workflow has to send the current status back
+		// unchanged, and the blocking note has to be posted to the organisation that owns the item.
+		return ApplicationServices.itemrecords(itemId, FALSE)
+			.flatMap(item -> applyRenewalPrevention(itemId, item));
 	}
 
 	// DCB-2175
@@ -2519,17 +2518,40 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 }
 
 
-	private Mono<Void> applyRenewalPrevention(String itemId, Integer branchId) {
-		final Integer createNewNoteId = 1;
+	/**
+	 * The renewal limit is what actually stops the renewal; the blocking note tells staff why.
+	 * The note is only placed once Polaris has confirmed the limit, so the note can never claim
+	 * something the item record does not say.
+	 */
+	private Mono<Void> applyRenewalPrevention(String itemId, ItemRecordFull item) {
+		// Virtual items are assigned to the ILL location, which is the fallback when Polaris
+		// reports no branch for the item at all
+		final var branchId = item.getAssignedBranchID() != null
+			? item.getAssignedBranchID()
+			: polarisConfig.getIllLocationId();
 
-		return ApplicationServices.updateItemRenewalLimit(itemId, 0, branchId)
-			.flatMap(limitUpdated -> {
-				final String noteText = limitUpdated
-					? "A hold has been placed on this item by a patron at the owning library. The renewal limit has been set to 0. Please do not renew"
-					: "A hold has been placed on this item by a patron at the owning library. The renewal limit has not been set to 0 because of a failure. Please do not renew";
+		return ApplicationServices.updateItemRenewalLimit(itemId, NO_RENEWALS, item.getItemStatusID())
+			// Only the limit failing warrants the warning note; re-raising skips the note below
+			.onErrorResume(error -> warnStaffRenewalNotPrevented(itemId, branchId, error))
+			.then(ApplicationServices.placeItemBlock(itemId, CREATE_NEW_BLOCKING_NOTE,
+				RENEWAL_PREVENTED_NOTE, branchId));
+	}
 
-				return ApplicationServices.placeItemBlock(itemId, createNewNoteId, noteText, branchId);
-			});
+	/**
+	 * DCB could not stop the renewal itself, so the only remaining protection is telling staff.
+	 * The note is best effort - the workflow needs to see the original failure either way, so that
+	 * the request is audited and marked as not renewable.
+	 */
+	private Mono<Void> warnStaffRenewalNotPrevented(String itemId, Integer branchId, Throwable cause) {
+		return ApplicationServices.placeItemBlock(itemId, CREATE_NEW_BLOCKING_NOTE,
+				RENEWAL_NOT_PREVENTED_NOTE, branchId)
+			.onErrorResume(noteError -> {
+				log.error("Could not place a do not renew note on item {} at branch {}",
+					itemId, branchId, noteError);
+
+				return Mono.empty();
+			})
+			.then(Mono.<Void>error(cause));
 	}
 
   public Mono<PingResponse> ping() {
