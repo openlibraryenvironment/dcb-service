@@ -171,5 +171,49 @@
     "methods": [
       { "name": "setPrettyPrint", "parameterTypes": [ "boolean" ] }
     ]
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.Response",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.Response$Error",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.Response$Request",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.Response$ErrorCode",
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.ListRecordsResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.ListRecordsResponse$ResumptionToken",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.OaiRecord",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.OaiRecord$Metadata",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.OaiRecord$Header",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
   }
 ]
