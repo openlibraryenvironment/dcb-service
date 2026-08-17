@@ -34,6 +34,7 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import reactor.core.publisher.Mono;
 
 @Controller("/patron/auth")
@@ -60,7 +61,7 @@ public class PatronAuthController {
 			@ExampleObject(name = "BASIC/BARCODE+NAME", description = "Sierra only", value = "{\"agencyCode\": \"ab6\", \"patronPrinciple\": \"BAR789012\", \"secret\": \"John Doe\"}"),
 			@ExampleObject(name = "BASIC/BARCODE+PASSWORD", description = "Polaris only", value = "{\"agencyCode\": \"ab6\", \"patronPrinciple\": \"BAR789012\", \"secret\": \"password123\"}") }), required = true))
 	public Mono<HttpResponse<LocalPatronDetails>> patronAuth(@Body @Valid PatronCredentials request) {
-		log.info("REST, verify patron {}", request);
+		log.info("REST, verify patron for agency {}", request.agencyCode);
 		return Mono.from(agencyRepository.findOneByCode(request.agencyCode)).flatMap(this::addHostLms)
 				.flatMap(agency -> patronAuth(request, agency)).switchIfEmpty(Mono.defer(() -> {
 					return invalid(request);
@@ -96,6 +97,7 @@ public class PatronAuthController {
 		@Schema(name = "patronPrinciple", description = "Patrons barcode or unique identifier", type = "string", example = "BAR789012")
 		String patronPrinciple;
 		@Schema(name = "secret", description = "Patrons PIN, name or password", type = "string", example = "1234")
+		@ToString.Exclude
 		String secret;
 	}
 

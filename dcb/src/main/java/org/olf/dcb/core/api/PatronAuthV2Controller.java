@@ -31,6 +31,7 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import reactor.core.publisher.Mono;
 
 
@@ -77,7 +78,7 @@ public class PatronAuthV2Controller {
 			required = true
 		))
 	public Mono<HttpResponse<LocalPatronDetails>> patronAuth(@Body @Valid V2PatronCredentials request) {
-		log.info("RESTv2, verify patron {}", request);
+		log.info("RESTv2, verify patron {}", request.getPrincipal());
 
 		if ( ( request.getPrincipal() == null ) || ( request.getPrincipal().length() < 1 ) || ( request.getPrincipal().indexOf('/') == -1 ) )
 			return Mono.empty();
@@ -123,6 +124,7 @@ public class PatronAuthV2Controller {
 		@Schema(name = "principal", description = "The principal and their home agency in the format AGENCY/patronid", type = "string", example = "ab6")
 		String principal;
 		@Schema(name = "credentials", description = "Patrons PIN, name or password", type = "string", example = "1234")
+		@ToString.Exclude
 		String credentials;
 		@Schema(name = "as", description = "The identity to assume as an identifier, using the same authority as the principal if just patronid or with a different authority as AUTHORITY/patronid", type = "string", example = "1234")
 		String as;
