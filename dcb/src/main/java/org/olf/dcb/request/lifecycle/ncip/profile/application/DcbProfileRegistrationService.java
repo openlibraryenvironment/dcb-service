@@ -196,6 +196,12 @@ public class DcbProfileRegistrationService {
 		try {
 			ValidatedRegistration validated = directoryPullService.pull(membership);
 			if (validated.descriptorHash().equals(membership.getApprovedDescriptorHash())) {
+				if (hostConfigurationChanged(membership, validated)) {
+					return applyValidated(
+						membership,
+						validated,
+						"DCB Profile NCIP2.02+ configuration reconciliation");
+				}
 				Instant now = Instant.now();
 				membership
 					.setState(DcbProfileMembershipState.ACTIVE)
@@ -224,6 +230,28 @@ public class DcbProfileRegistrationService {
 			recordSyncFailure(membership, exception);
 			throw exception;
 		}
+	}
+
+	private boolean hostConfigurationChanged(
+		DcbProfileMembership membership,
+		ValidatedRegistration validated
+	) {
+		String agencyCode = policyText(membership, "agencyCode");
+		UUID hostId = membership.getHostLmsId() != null
+			? membership.getHostLmsId()
+			: UUIDUtils.generateHostLmsId(policyText(membership, "hostLmsCode"));
+		Map<String, Object> expected = clientConfig(membership, validated, agencyCode);
+		return Mono.from(hostLmsRepository.findById(hostId))
+			.map(host -> configurationsDiffer(host.getClientConfig(), expected))
+			.defaultIfEmpty(true)
+			.block();
+	}
+
+	static boolean configurationsDiffer(
+		Map<String, Object> actual,
+		Map<String, Object> expected
+	) {
+		return !expected.equals(actual);
 	}
 
 	public DcbProfileRegistrationApi.MembershipResponse approveChange(UUID membershipId) {

@@ -1,7 +1,9 @@
 package org.olf.dcb.request.lifecycle.ncip.profile.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -25,6 +27,16 @@ import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
 
 class DcbProfileRegistrationServiceTests {
+	@Test
+	void detectsGeneratedHostConfigurationDrift() {
+		Map<String, Object> expected = Map.of(
+			"capabilities", DcbProfileRegistrationService.lifecycleCapabilities());
+
+		assertFalse(DcbProfileRegistrationService.configurationsDiffer(expected, expected));
+		assertTrue(DcbProfileRegistrationService.configurationsDiffer(Map.of(), expected));
+		assertTrue(DcbProfileRegistrationService.configurationsDiffer(null, expected));
+	}
+
 	@Test
 	void configuresRegisteredOrsPeersForDeclarativeNcipLifecycle() {
 		assertEquals(
