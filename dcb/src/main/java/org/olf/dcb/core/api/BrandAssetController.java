@@ -17,6 +17,7 @@ import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Consumes;
+import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Part;
@@ -133,8 +134,39 @@ public class BrandAssetController {
 			.defaultIfEmpty(HttpResponse.notFound());
 	}
 
+	/**
+	 * Carry the refusal's own words to the caller.
+	 *
+	 * Without this the response body is a bare problem detail — {@code {"type":"about:blank",
+	 * "status":400}} — and every sentence {@link BrandAssetValidator} writes is discarded
+	 * before it reaches anyone. That matters more here than it usually does: the whole
+	 * argument for validating on the server is that the client's claims about the bytes are
+	 * worthless, and it is undone if the administrator is then told only that something
+	 * failed. "The image is 6000x4000; the limit is 4096 pixels on either edge" is
+	 * actionable; a status code is not.
+	 *
+	 * Verified against the running stack rather than assumed: an SVG renamed to .png was
+	 * refused with the right STATUS and an empty body, which the admin form would have
+	 * rendered as its generic fallback forever.
+	 *
+	 * Scoped to this controller, so no other route's error shape changes.
+	 */
+	@Error(exception = HttpStatusException.class)
+	public HttpResponse<Refusal> refused(HttpStatusException exception) {
+		return HttpResponse.<Refusal>status(exception.getStatus())
+			.body(new Refusal(exception.getMessage()));
+	}
+
 	/** What an upload returns: the URL to store, and enough to show a confirmation. */
 	@Serdeable
 	public record UploadedAsset(String url, String contentType, int bytes) {
+	}
+
+	/**
+	 * Named {@code message} because that is what both admin forms already read, and
+	 * because the field is the entire point of the type.
+	 */
+	@Serdeable
+	public record Refusal(String message) {
 	}
 }
