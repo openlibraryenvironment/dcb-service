@@ -125,6 +125,29 @@ public class Consortium implements Auditable {
 	@Size(max = 255)
 	private String brandLogoAlt;
 
+	/**
+	 * A SQUARE mark, for the app bar and the favicon (R-17d).
+	 *
+	 * Its own field rather than a rendering hint on {@link #brandLogoUrl}, because a
+	 * lockup needs horizontal room and a 32px box does not have any: sharing the column
+	 * produces a squashed lockup in the chrome of every page.
+	 */
+	@Nullable
+	@Size(max = 400)
+	private String brandHeaderIconUrl;
+
+	/**
+	 * The canvas behind the discovery app's landing hero (R-17d).
+	 *
+	 * Consortium level only, and there is deliberately no library equivalent: a mark
+	 * identifies an organisation and belongs at every level of the brand chain, a canvas
+	 * does not. Text over it renders on a token scrim, so the frontend's contrast gate
+	 * keeps measuring a token rather than a photograph an administrator uploaded.
+	 */
+	@Nullable
+	@Size(max = 400)
+	private String brandBackgroundImageUrl;
+
 	/** Patron-facing copy. NOT {@link #description}, which is staff-facing prose. */
 	@Nullable
 	@Size(max = 500)

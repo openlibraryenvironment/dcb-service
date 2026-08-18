@@ -6,6 +6,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
+import org.olf.dcb.core.branding.BrandAssetCleanup;
 import org.olf.dcb.core.branding.BrandingValidator;
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.storage.ConsortiumRepository;
@@ -30,15 +31,19 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 
 	private final BrandingValidator brandingValidator;
 
+	private final BrandAssetCleanup brandAssetCleanup;
+
 	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
 
 	public UpdateConsortiumDataFetcher(ConsortiumRepository consortiumRepository,
-		R2dbcOperations r2dbcOperations, BrandingValidator brandingValidator) {
+		R2dbcOperations r2dbcOperations, BrandingValidator brandingValidator,
+		BrandAssetCleanup brandAssetCleanup) {
 
 		this.consortiumRepository = consortiumRepository;
 		this.r2dbcOperations = r2dbcOperations;
 		this.brandingValidator = brandingValidator;
+		this.brandAssetCleanup = brandAssetCleanup;
 	}
 
 	@Override
@@ -95,6 +100,18 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			? brandingValidator.logoUrl(asString(input_map.get("brandLogoUrl")))
 			: null;
 
+		// R-17d. Same absent/blank rule as the logo, and the same validator: an uploaded
+		// asset path and a CDN URL are both acceptable and everything else is not.
+		boolean brandHeaderIconUrlSupplied = input_map.containsKey("brandHeaderIconUrl");
+		String brandHeaderIconUrl = brandHeaderIconUrlSupplied
+			? brandingValidator.logoUrl(asString(input_map.get("brandHeaderIconUrl")))
+			: null;
+
+		boolean brandBackgroundImageUrlSupplied = input_map.containsKey("brandBackgroundImageUrl");
+		String brandBackgroundImageUrl = brandBackgroundImageUrlSupplied
+			? brandingValidator.logoUrl(asString(input_map.get("brandBackgroundImageUrl")))
+			: null;
+
 		boolean brandLogoAltSupplied = input_map.containsKey("brandLogoAlt");
 		String brandLogoAlt = brandLogoAltSupplied
 			? brandingValidator.text(asString(input_map.get("brandLogoAlt")))
@@ -109,6 +126,12 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 		String defaultThemeName = defaultThemeNameSupplied
 			? brandingValidator.themeName(asString(input_map.get("defaultThemeName")))
 			: null;
+
+		// What each brand image pointed at before this edit, so the objects it stops
+		// referencing can be removed. Collected inside the transaction, acted on after it
+		// commits: deleting an object for an update that then rolls back would leave a
+		// row pointing at a 404.
+		final var replacedAssets = new java.util.ArrayList<BrandAssetCleanup.Change>();
 
 		Mono<Consortium> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(consortiumRepository.findById(id))
@@ -137,10 +160,22 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 						consortium.setAboutImageUploaderEmail(aboutImageUploaderEmail);
 					}
 					if (brandLogoUrlSupplied) {
+						replacedAssets.add(new BrandAssetCleanup.Change(
+							consortium.getBrandLogoUrl(), brandLogoUrl));
 						consortium.setBrandLogoUrl(brandLogoUrl);
 					}
 					if (brandLogoAltSupplied) {
 						consortium.setBrandLogoAlt(brandLogoAlt);
+					}
+					if (brandHeaderIconUrlSupplied) {
+						replacedAssets.add(new BrandAssetCleanup.Change(
+							consortium.getBrandHeaderIconUrl(), brandHeaderIconUrl));
+						consortium.setBrandHeaderIconUrl(brandHeaderIconUrl);
+					}
+					if (brandBackgroundImageUrlSupplied) {
+						replacedAssets.add(new BrandAssetCleanup.Change(
+							consortium.getBrandBackgroundImageUrl(), brandBackgroundImageUrl));
+						consortium.setBrandBackgroundImageUrl(brandBackgroundImageUrl);
 					}
 					if (patronWelcomeSupplied) {
 						consortium.setPatronWelcome(patronWelcome);
@@ -156,7 +191,12 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 				})
 		));
 
-		return transactionMono.toFuture();
+		// Cleanup runs after the commit and can never fail the edit: BrandAssetCleanup
+		// swallows a failed delete deliberately, and a leaked object costs one image.
+		return transactionMono
+			.flatMap(consortium -> brandAssetCleanup.removeReplaced(replacedAssets)
+				.thenReturn(consortium))
+			.toFuture();
 	}
 
 	/** GraphQL sends an explicit null as a present key with a null value. */

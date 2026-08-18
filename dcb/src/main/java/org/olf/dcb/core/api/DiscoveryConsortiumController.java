@@ -63,7 +63,8 @@ public class DiscoveryConsortiumController {
 
 	@Operation(summary = "The consortium brand",
 		description = "The consortium's patron-facing brand for a discovery interface: display name, "
-			+ "logo and its alt text, patron welcome copy and the theme name. Every field except the "
+			+ "logo and its alt text, an optional square header icon, an optional landing "
+			+ "background, patron welcome copy and the theme name. Every field except the "
 			+ "name may be null - a consortium that has uploaded no mark is rendered by its name. "
 			+ "themeName must be tolerated on read: an unrecognised value falls back to the consumer's "
 			+ "default rather than failing. Returns 404 on an instance with no consortium, where a "
@@ -85,6 +86,23 @@ public class DiscoveryConsortiumController {
 		String name,
 		@Nullable String logoUrl,
 		@Nullable String logoAlt,
+		/**
+		 * A square mark for the app bar and the favicon (R-17d). Distinct from the logo,
+		 * which is a lockup: a consumer that has only one of the two should use the logo
+		 * for the lockup slot and nothing for the icon slot, rather than squashing one
+		 * into the other.
+		 */
+		@Nullable String headerIconUrl,
+		/**
+		 * The canvas behind a landing hero (R-17d). DECORATIVE — it carries no
+		 * information, so a consumer renders it with an empty alt or as a CSS background,
+		 * and text over it belongs on a scrim so that contrast is measured against a
+		 * known colour rather than against whatever was uploaded.
+		 *
+		 * Consortium level only. There is no library equivalent and there should not be:
+		 * a mark identifies an organisation, a canvas does not.
+		 */
+		@Nullable String backgroundImageUrl,
 		@Nullable String welcome,
 		@Nullable String themeName) {
 
@@ -102,6 +120,8 @@ public class DiscoveryConsortiumController {
 				consortium.getBrandLogoUrl() == null
 					? null
 					: alt(consortium),
+				consortium.getBrandHeaderIconUrl(),
+				consortium.getBrandBackgroundImageUrl(),
 				consortium.getPatronWelcome(),
 				consortium.getDefaultThemeName());
 		}

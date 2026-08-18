@@ -323,6 +323,12 @@ input UpdateConsortiumInput {
 	# string CLEARS the field; omitting the key leaves it alone.
 	brandLogoUrl: String
 	brandLogoAlt: String
+	# R-17d. The header icon is a SQUARE mark for the app bar and the favicon, not a
+	# small logo: the logo is a lockup and a 32x32 box has no horizontal room. The
+	# background is the canvas behind the landing hero, consortium level only.
+	# Both accept an absolute http(s) URL or a path under this service's asset prefix.
+	brandHeaderIconUrl: String
+	brandBackgroundImageUrl: String
 	# Patron-facing copy under the search box. NOT `description`, which is staff prose.
 	patronWelcome: String
 	# A name from the discovery app's theme registry, not a colour. Rejected on write
@@ -751,6 +757,9 @@ type Consortium {
 	# Patron-facing brand (N-1.3), read by dcb-admin-ui's consortium form.
 	brandLogoUrl: String
 	brandLogoAlt: String
+	# R-17d — square app-bar mark, and the landing canvas.
+	brandHeaderIconUrl: String
+	brandBackgroundImageUrl: String
 	patronWelcome: String
 	defaultThemeName: String
 }

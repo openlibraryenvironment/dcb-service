@@ -79,6 +79,36 @@ class DiscoveryConsortiumApiTests {
 		assertThat(brand.logoAlt(), is(nullValue()));
 		assertThat(brand.welcome(), is(nullValue()));
 		assertThat(brand.themeName(), is(nullValue()));
+		assertThat(brand.headerIconUrl(), is(nullValue()));
+		assertThat(brand.backgroundImageUrl(), is(nullValue()));
+	}
+
+	/**
+	 * R-17d. The header icon is a separate field from the logo rather than a size of it:
+	 * a lockup put in a 32px box is a squashed lockup, and a consumer that only has the
+	 * logo should render nothing in the icon slot rather than the wrong thing.
+	 *
+	 * The background is decorative and carries no alt text, deliberately — there is no
+	 * backgroundAlt here and there should not be. A mark identifies an organisation; a
+	 * canvas does not, and labelling one gives a screen reader something to read out that
+	 * means nothing.
+	 */
+	@Test
+	void shouldReturnTheHeaderIconAndBackgroundSeparatelyFromTheLogo() {
+		// Arrange
+		consortiumFixture.createConsortiumWithBrandImages("MOBIUS",
+			"https://example.com/mobius-lockup.png",
+			"https://example.com/mobius-icon.png",
+			"/discovery/brand-assets/" + "c".repeat(64) + ".jpg");
+
+		// Act
+		final var brand = getBrand();
+
+		// Assert
+		assertThat(brand.logoUrl(), is("https://example.com/mobius-lockup.png"));
+		assertThat(brand.headerIconUrl(), is("https://example.com/mobius-icon.png"));
+		assertThat(brand.backgroundImageUrl(),
+			is("/discovery/brand-assets/" + "c".repeat(64) + ".jpg"));
 	}
 
 	/**

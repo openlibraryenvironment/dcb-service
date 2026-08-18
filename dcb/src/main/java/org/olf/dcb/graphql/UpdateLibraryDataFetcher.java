@@ -6,6 +6,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
+import org.olf.dcb.core.branding.BrandAssetCleanup;
 import org.olf.dcb.core.branding.BrandingValidator;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.LibraryRepository;
@@ -30,15 +31,19 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 	private final BrandingValidator brandingValidator;
 
+	private final BrandAssetCleanup brandAssetCleanup;
+
 	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
 
 	public UpdateLibraryDataFetcher(LibraryRepository libraryRepository,
-		R2dbcOperations r2dbcOperations, BrandingValidator brandingValidator) {
+		R2dbcOperations r2dbcOperations, BrandingValidator brandingValidator,
+		BrandAssetCleanup brandAssetCleanup) {
 
 		this.libraryRepository = libraryRepository;
 		this.r2dbcOperations = r2dbcOperations;
 		this.brandingValidator = brandingValidator;
+		this.brandAssetCleanup = brandAssetCleanup;
 	}
 
 	@Override
@@ -115,6 +120,10 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			: null;
 
 
+		// Collected inside the transaction, acted on after it commits — see the same
+		// comment in UpdateConsortiumDataFetcher.
+		final var replacedAssets = new java.util.ArrayList<BrandAssetCleanup.Change>();
+
 		Mono<Library> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(libraryRepository.findById(id))
 				.flatMap(library -> {
@@ -161,6 +170,8 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 						library.setType(type);
 					}
 					if (brandLogoUrlSupplied) {
+						replacedAssets.add(new BrandAssetCleanup.Change(
+							library.getBrandLogoUrl(), brandLogoUrl));
 						library.setBrandLogoUrl(brandLogoUrl);
 					}
 					if (brandLogoAltSupplied) {
@@ -178,7 +189,10 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 				})
 		));
 
-		return transactionMono.toFuture();
+		return transactionMono
+			.flatMap(library -> brandAssetCleanup.removeReplaced(replacedAssets)
+				.thenReturn(library))
+			.toFuture();
 	}
 
 	/** GraphQL sends an explicit null as a present key with a null value. */

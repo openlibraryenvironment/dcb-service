@@ -237,6 +237,12 @@ dependencies {
   implementation("io.micronaut.aws:micronaut-aws-secretsmanager")
   implementation("io.micronaut.aws:micronaut-aws-sdk-v2")  // Required for AWS SDK v2
 
+	// Brand asset storage (R-17b). No new vendor: this is the same AWS SDK v2 the line
+	// above already brings, behind Micronaut's own ObjectStorageOperations, and it speaks
+	// the S3 API — so MinIO in docker-compose and S3 (or R2) in a deployment are the same
+	// code path with a different endpoint. Version comes from the Micronaut platform BOM.
+	implementation("io.micronaut.objectstorage:micronaut-object-storage-aws")
+
 	// implementation project(':openrs-core')
 }
 

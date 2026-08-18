@@ -263,6 +263,31 @@ dcb:
     # startup deliberately: a trust anchor that binds nothing silently is
     # indistinguishable from one nobody configured.
     trusted-services: []
+  # Uploaded brand assets (R-17b, R-17c). The consortium and library brand columns store
+  # a URL either way; this decides whether an administrator can also UPLOAD one instead of
+  # pointing at a CDN they already run. Both routes are first-class: a consortium with a
+  # brand team and a CDN must not be made to re-upload, and one with neither must not be
+  # told to go and find hosting before it can have a logo.
+  #
+  # BLANK BUCKET DISABLES UPLOADS ENTIRELY, and does so cleanly: the upload route is
+  # absent from the running service rather than present and failing, and the admin forms
+  # fall back to the CDN control. That is the correct default for a deployment that has
+  # not been given object storage.
+  branding:
+    assets:
+      # An S3-API bucket. MinIO in docker-compose, S3 or R2 in a deployment — same code,
+      # different endpoint, which is the point of speaking the API rather than the vendor.
+      bucket: ${DCB_BRANDING_ASSETS_BUCKET:}
+      prefix: ${DCB_BRANDING_ASSETS_PREFIX:brand/}
+      # Also the one site-relative form BrandingValidator accepts. Changing it after
+      # assets exist orphans every stored URL, so it is here to be read, not tuned.
+      public-path-prefix: ${DCB_BRANDING_ASSETS_PATH_PREFIX:/discovery/brand-assets/}
+      # Generous for a mark and for a landing background, small enough that an upload is
+      # not a way to fill a bucket.
+      max-bytes: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
+      # A decompression-bomb limit, not a taste limit: checked from the image header
+      # before a single pixel is decoded.
+      max-dimension: ${DCB_BRANDING_ASSETS_MAX_DIMENSION:4096}
   security:
     internal-endpoints:
       ip-patterns:

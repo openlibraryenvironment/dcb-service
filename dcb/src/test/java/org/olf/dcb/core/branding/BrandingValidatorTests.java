@@ -108,11 +108,59 @@ class BrandingValidatorTests {
 			is("somebody-elses-theme"));
 	}
 
+	// --- R-17d: one new accepted form, and every old rejection kept ----------------
+	//
+	// An uploaded asset is served from a path this service owns, which is exactly the
+	// site-relative form every test above exists to reject. So the rule is widened by one
+	// case and not relaxed: the prefix AND the shape of the key the store actually mints.
+
+	@Test
+	void shouldAcceptAPathUnderOurOwnAssetPrefix() {
+		final var uploaded = "/discovery/brand-assets/"
+			+ "0".repeat(64) + ".png";
+
+		assertThat(validator.logoUrl(uploaded), is(uploaded));
+	}
+
+	@Test
+	void shouldAcceptAJpegAssetPath() {
+		final var uploaded = "/discovery/brand-assets/" + "a".repeat(64) + ".jpg";
+
+		assertThat(validator.logoUrl(uploaded), is(uploaded));
+	}
+
+	/**
+	 * The prefix check is not "starts with". A prefix test that can be walked out of is
+	 * not a prefix test, and this is the string that proves it.
+	 */
+	@Test
+	void shouldRejectATraversalOutOfTheAssetPrefix() {
+		assertBadRequest(() -> validator.logoUrl("/discovery/brand-assets/../../etc/passwd"));
+	}
+
+	/**
+	 * Under the prefix but not a key this service ever minted. Accepting it would make
+	 * the prefix a namespace anyone could write into by guessing a path.
+	 */
+	@Test
+	void shouldRejectSomethingUnderThePrefixThatIsNotAnAssetKey() {
+		assertBadRequest(() -> validator.logoUrl("/discovery/brand-assets/logo.png"));
+		assertBadRequest(() -> validator.logoUrl("/discovery/brand-assets/" + "0".repeat(64) + ".svg"));
+		assertBadRequest(() -> validator.logoUrl("/discovery/brand-assets/" + "0".repeat(63) + ".png"));
+	}
+
+	/** Every other site-relative path is still refused, exactly as before. */
+	@Test
+	void shouldStillRejectAnyOtherSiteRelativePath() {
+		assertBadRequest(() -> validator.logoUrl("/discovery/brand-assets-evil/x.png"));
+		assertBadRequest(() -> validator.logoUrl("/uploads/" + "0".repeat(64) + ".png"));
+	}
+
 	private static BrandingValidator validatorAccepting(String... themeNames) {
 		final var properties = new BrandingProperties();
 		properties.setThemeNames(List.of(themeNames));
 
-		return new BrandingValidator(properties);
+		return new BrandingValidator(properties, new BrandAssetProperties());
 	}
 
 	private static void assertBadRequest(Runnable action) {
