@@ -215,5 +215,9 @@
     "name": "services.k_int.interaction.oaipmh.OaiRecord$Header",
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true
+  },
+  {
+    "name": "org.olf.dcb.indexing.model.ClusterRecordIndexDoc",
+    "allPublicMethods": true
   }
 ]
