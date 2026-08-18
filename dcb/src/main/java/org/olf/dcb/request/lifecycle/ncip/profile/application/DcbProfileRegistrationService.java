@@ -529,6 +529,7 @@ public class DcbProfileRegistrationService {
 		config.put("oai-endpoint-url", validated.oaiEndpoint());
 		config.put("metadata-prefix", "marcxml");
 		config.put("ingest", policyBoolean(membership, "ingestAllowed"));
+		config.put("capabilities", lifecycleCapabilities());
 		config.put("default-agency-code", agencyCode);
 		config.put("ncip-system-id", validated.ncipSystemId());
 		config.put("ncip-agency-id", validated.ncipAgencyId());
@@ -538,6 +539,18 @@ public class DcbProfileRegistrationService {
 		config.put("ncip-peer-jwks-url", validated.jwksUrl());
 		config.put("ncip-peer-audience", validated.inboundAudience());
 		return config;
+	}
+
+	static Map<String, Object> lifecycleCapabilities() {
+		return Map.of(
+			"supplying-agency-request", Map.of(
+				"strategy", "declarative", "protocol", "ncip-v202"),
+			"borrowing-agency-request", Map.of(
+				"strategy", "declarative", "protocol", "ncip-v202"),
+			"supplier-tracking", Map.of(
+				"mode", "event-driven", "protocol", "ncip-v202"),
+			"borrower-tracking", Map.of(
+				"mode", "event-driven", "protocol", "ncip-v202"));
 	}
 
 	private void validateObjectConflicts(

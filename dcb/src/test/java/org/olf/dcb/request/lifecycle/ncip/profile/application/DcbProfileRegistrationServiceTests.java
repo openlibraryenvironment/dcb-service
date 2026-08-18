@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.request.lifecycle.ncip.NcipIdentityConfiguration;
 import org.olf.dcb.request.lifecycle.ncip.peerauth.DcbPeerAuthProperties;
@@ -24,6 +25,34 @@ import org.olf.dcb.storage.LocationRepository;
 import reactor.core.publisher.Mono;
 
 class DcbProfileRegistrationServiceTests {
+	@Test
+	void configuresRegisteredOrsPeersForDeclarativeNcipLifecycle() {
+		assertEquals(
+			Map.of(
+				"strategy", "declarative",
+				"protocol", "ncip-v202"),
+			DcbProfileRegistrationService.lifecycleCapabilities()
+				.get("supplying-agency-request"));
+		assertEquals(
+			Map.of(
+				"strategy", "declarative",
+				"protocol", "ncip-v202"),
+			DcbProfileRegistrationService.lifecycleCapabilities()
+				.get("borrowing-agency-request"));
+		assertEquals(
+			Map.of(
+				"mode", "event-driven",
+				"protocol", "ncip-v202"),
+			DcbProfileRegistrationService.lifecycleCapabilities()
+				.get("supplier-tracking"));
+		assertEquals(
+			Map.of(
+				"mode", "event-driven",
+				"protocol", "ncip-v202"),
+			DcbProfileRegistrationService.lifecycleCapabilities()
+				.get("borrower-tracking"));
+	}
+
 	@Test
 	void blocksDirectInvitationIssuanceWhenTheDcbNodeIsNotReady() {
 		DcbProfileMembershipRepository membershipRepository = mock(DcbProfileMembershipRepository.class);
