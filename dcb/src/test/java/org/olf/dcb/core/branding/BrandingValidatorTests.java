@@ -156,6 +156,39 @@ class BrandingValidatorTests {
 		assertBadRequest(() -> validator.logoUrl("/uploads/" + "0".repeat(64) + ".png"));
 	}
 
+	/**
+	 * The admin-chrome images now pass through this validator too, and that is a change to
+	 * columns holding live production data. These are the values MOBIUS actually has in
+	 * consortium.header_image_url and consortium.about_image_url today.
+	 *
+	 * If this test ever fails, the next consortium edit in production starts being rejected
+	 * over a field the administrator did not touch.
+	 */
+	@Test
+	void shouldAcceptTheBlobUrlsAlreadyStoredInProduction() {
+		final var header = "https://djlwg7trj3cacjdl.public.blob.vercel-storage.com/"
+			+ "consortiumMOBIUSuserCasey%20Henderson-gumS5rLc7TlM9wMI5xlXC167lurg5x.png";
+
+		final var about = "https://djlwg7trj3cacjdl.public.blob.vercel-storage.com/"
+			+ "consortiumMOBIUSuserCasey%20Henderson-B6LRGChh4s8v5bQnztEksQrYIJFAwF.png";
+
+		assertThat("Percent-encoding in the path must survive untouched",
+			validator.logoUrl(header), is(header));
+		assertThat(validator.logoUrl(about), is(about));
+	}
+
+	/**
+	 * The reason for validating them at all. These were storable in header_image_url until
+	 * now, and it was survivable only because the column is rendered behind authentication -
+	 * which is also the one thing stopping it being reused for the patron-facing brand.
+	 */
+	@Test
+	void shouldRefuseInAdminChromeWhatItRefusesInPatronBrand() {
+		assertBadRequest(() -> validator.logoUrl("javascript:alert(1)"));
+		assertBadRequest(() -> validator.logoUrl("data:image/png;base64,iVBORw0KGgo="));
+		assertBadRequest(() -> validator.logoUrl("//evil.example.org/logo.png"));
+	}
+
 	private static BrandingValidator validatorAccepting(String... themeNames) {
 		final var properties = new BrandingProperties();
 		properties.setThemeNames(List.of(themeNames));

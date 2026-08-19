@@ -73,14 +73,35 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			input_map.get("websiteUrl").toString() : null;
 		String catalogueSearchUrl = input_map.containsKey("catalogueSearchUrl") ?
 			input_map.get("catalogueSearchUrl").toString() : null;
-		String headerImageUrl = input_map.containsKey("headerImageUrl") ?
-			input_map.get("headerImageUrl").toString() : null;
-		String headerImageUploader = env.getGraphQlContext().get("userName");
-		String headerImageUploaderEmail = env.getGraphQlContext().get("userEmail");
-		String aboutImageUrl = input_map.containsKey("aboutImageUrl") ?
-			input_map.get("aboutImageUrl").toString() : null;
-		String aboutImageUploader = env.getGraphQlContext().get("userName");
-		String aboutImageUploaderEmail = env.getGraphQlContext().get("userEmail");
+		// The admin-chrome images. VALIDATED with the same rule as the patron-facing brand
+		// fields below, and that is a change: they used to be stored exactly as supplied.
+		//
+		// They render as the src of an <img> in DCB Admin, so `javascript:` and `data:`
+		// have no legitimate use in them either, and an absolute URL means every
+		// administrator's browser fetches from a host we do not control. Being behind
+		// authentication made an unvalidated value survivable, not correct - and it is the
+		// one thing stopping these columns being reused for the patron-facing brand, which
+		// is where they should end up.
+		//
+		// Existing values are absolute https:// URLs to blob storage, which this accepts
+		// unchanged. Blank still clears, and clearing now takes the uploader with it.
+		boolean headerImageUrlSupplied = input_map.containsKey("headerImageUrl");
+		String headerImageUrl = headerImageUrlSupplied
+			? brandingValidator.logoUrl(asString(input_map.get("headerImageUrl")))
+			: null;
+
+		boolean aboutImageUrlSupplied = input_map.containsKey("aboutImageUrl");
+		String aboutImageUrl = aboutImageUrlSupplied
+			? brandingValidator.logoUrl(asString(input_map.get("aboutImageUrl")))
+			: null;
+
+		// Provenance for the image above, from VERIFIED CLAIMS rather than the request
+		// body - a caller cannot say somebody else uploaded their image. Bounded to the
+		// column width because an identity provider decides how long a name or an address
+		// is, and a 200-character limit somebody else controls is a failed insert waiting
+		// to happen.
+		String uploader = truncate(env.getGraphQlContext().get("userName"), UPLOADER_MAX);
+		String uploaderEmail = truncate(env.getGraphQlContext().get("userEmail"), UPLOADER_MAX);
 		Collection<String> roles = env.getGraphQlContext().get("roles");
 
 		// Check if the user has the required role to edit consortium information
@@ -148,16 +169,22 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 					if (websiteUrl != null) {
 						consortium.setWebsiteUrl(websiteUrl);
 					}
-					// If a new URL is provided, set the user info for the upload so we know who uploaded it
-					if (headerImageUrl != null) {
+					// Who uploaded the image, recorded alongside it - and REMOVED WITH IT.
+					//
+					// The uploader's name and email address are personal data whose only
+					// purpose is saying where the current image came from. Left behind when
+					// the image is cleared, they are personal data about a member of staff
+					// retained past the thing it describes, which is exactly what storage
+					// limitation forbids. Clearing the URL therefore clears both.
+					if (headerImageUrlSupplied) {
 						consortium.setHeaderImageUrl(headerImageUrl);
-						consortium.setHeaderImageUploader(headerImageUploader);
-						consortium.setHeaderImageUploaderEmail(headerImageUploaderEmail);
+						consortium.setHeaderImageUploader(headerImageUrl == null ? null : uploader);
+						consortium.setHeaderImageUploaderEmail(headerImageUrl == null ? null : uploaderEmail);
 					}
-					if (aboutImageUrl != null) {
+					if (aboutImageUrlSupplied) {
 						consortium.setAboutImageUrl(aboutImageUrl);
-						consortium.setAboutImageUploader(aboutImageUploader);
-						consortium.setAboutImageUploaderEmail(aboutImageUploaderEmail);
+						consortium.setAboutImageUploader(aboutImageUrl == null ? null : uploader);
+						consortium.setAboutImageUploaderEmail(aboutImageUrl == null ? null : uploaderEmail);
 					}
 					if (brandLogoUrlSupplied) {
 						replacedAssets.add(new BrandAssetCleanup.Change(
@@ -202,5 +229,24 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 	/** GraphQL sends an explicit null as a present key with a null value. */
 	private static String asString(Object value) {
 		return value == null ? null : value.toString();
+	}
+
+	/** Width of consortium.header_image_uploader and its email, and their about_ twins. */
+	private static final int UPLOADER_MAX = 200;
+
+	/**
+	 * Bound a claim to the column that will hold it.
+	 *
+	 * The identity provider decides how long a display name or an address is, and it is
+	 * maintained by people who do not read this codebase. A value longer than the column
+	 * would fail the insert and take the whole consortium edit with it - over provenance,
+	 * which is the least important thing in the form.
+	 */
+	private static String truncate(String value, int max) {
+		if (value == null) {
+			return null;
+		}
+
+		return value.length() <= max ? value : value.substring(0, max);
 	}
 }

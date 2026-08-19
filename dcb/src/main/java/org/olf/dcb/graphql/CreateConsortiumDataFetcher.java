@@ -14,6 +14,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.exceptions.ConsortiumCreationException;
+import org.olf.dcb.core.branding.BrandingValidator;
 
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumContact;
@@ -51,12 +52,14 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 	private RoleRepository roleRepository;
 	private ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository;
 	private R2dbcOperations r2dbcOperations;
+	private final BrandingValidator brandingValidator;
 
 	public CreateConsortiumDataFetcher(ConsortiumRepository consortiumRepostory, LibraryGroupRepository libraryGroupRepository,
 																		 ConsortiumContactRepository consortiumContactRepository, PersonRepository personRepository,
 																		 ConsortiumFunctionalSettingRepository consortiumFunctionalSettingRepository,
 																		 FunctionalSettingRepository functionalSettingRepository, RoleRepository roleRepository,
-																		 R2dbcOperations r2dbcOperations) {
+																		 R2dbcOperations r2dbcOperations, BrandingValidator brandingValidator) {
+		this.brandingValidator = brandingValidator;
 		this.consortiumRepository = consortiumRepostory;
 		this.libraryGroupRepository = libraryGroupRepository;
 		this.consortiumContactRepository = consortiumContactRepository;
@@ -111,13 +114,18 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 									.map(Object::toString)
 									.orElse("");
 
-								String headerImageUrl = Optional.ofNullable(input_map.get("headerImageUrl"))
-									.map(Object::toString)
-									.orElse("");
+								// Validated exactly as the update path validates them. A rule enforced
+								// on edit but not on create is a rule with a way round it: create the
+								// consortium carrying the value you wanted, and never edit that field.
+								String headerImageUrl = brandingValidator.logoUrl(
+									Optional.ofNullable(input_map.get("headerImageUrl"))
+										.map(Object::toString)
+										.orElse(""));
 
-								String aboutImageUrl = Optional.ofNullable(input_map.get("aboutImageUrl"))
-									.map(Object::toString)
-									.orElse("");
+								String aboutImageUrl = brandingValidator.logoUrl(
+									Optional.ofNullable(input_map.get("aboutImageUrl"))
+										.map(Object::toString)
+										.orElse(""));
 
 								String catalogueSearchUrl = Optional.ofNullable(input_map.get("catalogueSearchUrl"))
 									.map(Object::toString)
