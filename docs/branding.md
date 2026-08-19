@@ -358,6 +358,22 @@ falls back to the default rather than white-screening the patron app.
 **`patron_welcome` is not `description`.** That is prose about the consortium, written for
 staff and shown in DCB Admin. This is patron-facing copy under the search box.
 
+**`idx_library_agency_id` is part of the brand change, not housekeeping.**
+`AgencyRepository.findLibraryDirectory` reaches `library` from `agency` through a `LEFT JOIN
+LATERAL` to pick up the library's mark — LATERAL rather than a plain join because
+`library.agency_id` carries no unique constraint, so two library rows against one agency
+would duplicate that agency in the directory that renders the login picker. That join runs
+once per agency row, and `/discovery/libraries` is anonymous.
+
+The table is bounded by the consortium's membership — hundreds, not millions — so the
+sequential scans this replaces would not have been an outage. But it is an unindexed foreign
+key reached once per row on an unauthenticated endpoint, and the index is cheaper than the
+argument about whether it matters.
+
+It was dropped when this branch was rewritten, while the comment in `AgencyRepository`
+naming it survived. Restored in `V8_73_002`, which has run nowhere, so the file was still
+free to change.
+
 ### `header_image_url` and `about_image_url`: merged, and the uploader columns dropped
 
 `consortium` also carried `header_image_url` (rendered 36×36 in DCB Admin's app bar) and

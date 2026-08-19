@@ -5,3 +5,8 @@
 alter table library add brand_logo_url varchar(400);
 alter table library add brand_logo_alt varchar(255);
 alter table library add default_theme_name varchar(64);
+
+-- Serves the LATERAL join AgencyRepository.findLibraryDirectory adds, which reaches
+-- library from agency once per agency row on an anonymous endpoint. See
+-- docs/branding.md, "Migration choices".
+create index if not exists idx_library_agency_id on library (agency_id);
