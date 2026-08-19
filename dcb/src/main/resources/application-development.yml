@@ -43,10 +43,40 @@ hosts:
 #            keycloak:
 #              url: ${KEYCLOAK_CERT_URL:""}
 
+# Brand asset uploads against the MinIO in scripts/docker-compose.yml (R-17b).
+#
+#   docker compose --profile brand-assets up -d
+#
+# DEVELOPMENT ONLY. A deployment sets DCB_BRANDING_ASSETS_BUCKET and supplies real AWS
+# region and credentials through its own environment; none of the values below are
+# defaults anybody should inherit.
+#
+# Credentials and region are deliberately NOT here. Micronaut passes the AWS SDK's default
+# provider chains straight through, so both come from the environment - see the export
+# lines in scripts/docker-compose.yml. Putting a key in a tracked file to save three
+# exports is how a real one eventually ends up in one.
+#
+# path-style-access-enabled is not optional against MinIO. The AWS SDK addresses buckets
+# as virtual hosts by default - http://bucket.endpoint/ - which resolves to nothing here,
+# so without this every call fails in a way that looks like a broken endpoint rather than
+# a wrong addressing mode.
+aws:
+  s3:
+    path-style-access-enabled: true
+  services:
+    s3:
+      endpoint-override: ${DCB_MINIO_ENDPOINT:`http://localhost:9000`}
+
 dcb:
+  branding:
+    assets:
+      # Matches the bucket scripts/docker-compose.yml creates. Blank in application.yml,
+      # so uploads stay off unless a deployment opts in.
+      bucket: ${DCB_BRANDING_ASSETS_BUCKET:dcb-brand-assets}
+
   itemresolver:
     code: Geo
-    
+
   #  index:
   #    name: mobius-si
 

@@ -9,23 +9,28 @@ micronaut:
     cors:
       enabled: true
     multipart:
-      # Brand asset upload is the only multipart route in this service, and BOTH of these
-      # are load-bearing. Verified against micronaut-http-server 5.0.2 rather than
-      # remembered: MultipartConfiguration.isEnabled() returns false when the property is
-      # unset, and DEFAULT_MAX_FILE_SIZE is 1048576.
+      # Brand asset upload is the only multipart route in this service, and both of these
+      # are load-bearing. Neither is a precaution - each was checked by removing it and
+      # watching BrandAssetApiTests fail.
       #
-      # Left unset, the 1MB framework cap would silently override the 2MB
-      # dcb.branding.assets.max-bytes below it, and the refusal would happen while the
-      # server was decoding the request - before routing, so BrandAssetUploadController's
-      # @Error handler never runs and the administrator gets a bare problem detail with no
-      # sentence in it. That is exactly the failure the refusal-body handler exists to
-      # prevent, reintroduced one layer up.
+      # enabled: Micronaut 5 defaults this to FALSE, and @Consumes(MULTIPART_FORM_DATA) on
+      # the route does NOT override it - with this line removed all eight upload tests
+      # fail. Confirmed against micronaut-http-server 5.0.2:
+      # MultipartConfiguration.isEnabled() returns false when the property is unset.
       #
-      # Kept in step with dcb.branding.assets.max-bytes through the same variable: two
-      # limits governing one upload must not be settable independently.
+      # max-file-size: DEFAULT_MAX_FILE_SIZE is 1048576, so without this the 1MB framework
+      # cap silently overrides the 2MB dcb.branding.assets.max-bytes below, and the refusal
+      # happens while the server decodes the request - before routing, so
+      # BrandAssetUploadController's @Error handler never runs and the administrator gets a
+      # bare problem detail with no sentence in it. Kept in step with max-bytes through the
+      # same variable: two limits governing one upload must not drift apart.
+      #
+      # There is no max-request-size here on purpose: MultipartConfiguration has no such
+      # property (it carries location, maxFileSize, enabled, disk, mixed and threshold, and
+      # nothing else). The server-wide micronaut.server.max-request-size defaults to 10MB,
+      # comfortably above this cap. Raise that one too if max-bytes is ever set above 10MB.
       enabled: true
       max-file-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
-      max-request-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
   application:
     name: dcb
   router:
@@ -242,7 +247,7 @@ dcb:
   # Discovery services DCB will accept patron assertions from.
   #
   # A discovery service authenticates with a Keycloak client credential holding the
-  # DISCOVERY_SERVICE role — that proves WHO is calling. It does not prove WHICH
+  # DISCOVERY_SERVICE role â€” that proves WHO is calling. It does not prove WHICH
   # PATRON, so the patron travels as a separately-signed, short-lived assertion in the
   # X-OpenRS-Patron-Assertion header, and this is its trust anchor. DCB verifies it and
   # then enforces per-patron ownership itself, rather than trusting the caller to.
@@ -293,7 +298,7 @@ dcb:
   # not been given object storage.
   branding:
     assets:
-      # An S3-API bucket. MinIO in docker-compose, S3 or R2 in a deployment — same code,
+      # An S3-API bucket. MinIO in docker-compose, S3 or R2 in a deployment â€” same code,
       # different endpoint, which is the point of speaking the API rather than the vendor.
       bucket: ${DCB_BRANDING_ASSETS_BUCKET:}
       prefix: ${DCB_BRANDING_ASSETS_PREFIX:brand/}
