@@ -8,6 +8,15 @@ micronaut:
   server:
     cors:
       enabled: true
+    multipart:
+      # The framework default is 1MB, and it is applied while the request is being decoded -
+      # before routing, so an over-cap upload never reaches a controller that could explain
+      # why. Pinned to the same variable as dcb.branding.assets.max-bytes so the two limits
+      # governing one upload cannot drift apart. Applies to location and mapping import too.
+      #
+      # There is deliberately no `enabled` here: absent is not the same as false, and only
+      # an explicit false refuses. See docs/branding.md.
+      max-file-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
   application:
     name: dcb
   router:
@@ -114,6 +123,16 @@ info:
     code: ${dcb.env.code:Unknown - set DCB_ENV_CODE}
     description: ${dcb.env.description:Unknown - set DCB_ENV_DESCRIPTION}
   dcb:
+    # Whether this deployment can accept a brand image upload, so DCB Admin can offer the
+    # control or not rather than offering one that will always 404.
+    #
+    # Without this the admin forms have no way to tell "uploads are off here" from "that
+    # upload failed": store=none removes the routes entirely, and a 404 carries no message
+    # for BrandImageField to show. The administrator would get a generic failure every
+    # time, forever, on a deployment that turned uploads off on purpose.
+    branding:
+      assets:
+        store: ${dcb.branding.assets.store:}
     circulation:
       tracking-profile: ${dcb.circulation.tracking-profile:}
     itemresolver:
@@ -263,6 +282,26 @@ dcb:
     # startup deliberately: a trust anchor that binds nothing silently is
     # indistinguishable from one nobody configured.
     trusted-services: []
+  # Uploaded brand assets (R-17b, R-17c). docs/branding.md covers the ways an image gets
+  # in and what each one needs.
+  branding:
+    assets:
+      # database - images are stored in Postgres. Needs no infrastructure of its own.
+      # none     - the upload routes are ABSENT from the running service, and brand fields
+      #            still accept an absolute CDN URL. For a deployment that would rather not
+      #            keep images in its database; nothing else about branding changes.
+      store: ${DCB_BRANDING_ASSETS_STORE:database}
+      # How long an unreferenced upload is kept. An administrator uploads and then saves
+      # the URL with a separate mutation, so an asset is legitimately unreferenced in
+      # between: too short and the sweep deletes the image somebody is still choosing.
+      orphan-grace-period: ${DCB_BRANDING_ASSETS_ORPHAN_GRACE:24h}
+      # Changing this after assets exist orphans every stored URL: it is the one
+      # site-relative form BrandingValidator accepts. Here to be read, not tuned.
+      public-path-prefix: ${DCB_BRANDING_ASSETS_PATH_PREFIX:/discovery/brand-assets/}
+      max-bytes: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
+      # A decompression-bomb limit, not a taste limit - read from the image header before
+      # any pixel is decoded.
+      max-dimension: ${DCB_BRANDING_ASSETS_MAX_DIMENSION:4096}
   security:
     internal-endpoints:
       ip-patterns:

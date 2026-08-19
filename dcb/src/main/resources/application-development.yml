@@ -43,10 +43,13 @@ hosts:
 #            keycloak:
 #              url: ${KEYCLOAK_CERT_URL:""}
 
+# Brand asset uploads need no development configuration at all: they are stored in the
+# same Postgres everything else uses. That is most of the point of storing them there.
+
 dcb:
   itemresolver:
     code: Geo
-    
+
   #  index:
   #    name: mobius-si
 

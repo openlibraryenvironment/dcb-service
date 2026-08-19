@@ -136,6 +136,36 @@ public class ConsortiumFixture {
 		return persistConsortium(createConsortiumFor(libraryGroup));
 	}
 
+	/** A consortium carrying the patron-facing brand from N-1.3. */
+	public Consortium createConsortiumWithBrand(String displayName, String logoUrl,
+		String logoAlt, String welcome, String themeName) {
+
+		final var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
+
+		return persistConsortium(createConsortiumFor(libraryGroup)
+			.setDisplayName(displayName)
+			.setBrandLogoUrl(logoUrl)
+			.setBrandLogoAlt(logoAlt)
+			.setPatronWelcome(welcome)
+			.setDefaultThemeName(themeName));
+	}
+
+	/**
+	 * A consortium carrying the two brand images that are not the logo (R-17d): a square
+	 * header icon for the app bar, and the canvas behind the landing hero.
+	 */
+	public Consortium createConsortiumWithBrandImages(String displayName, String logoUrl,
+		String headerIconUrl, String backgroundImageUrl) {
+
+		final var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
+
+		return persistConsortium(createConsortiumFor(libraryGroup)
+			.setDisplayName(displayName)
+			.setBrandLogoUrl(logoUrl)
+			.setBrandHeaderIconUrl(headerIconUrl)
+			.setBrandBackgroundImageUrl(backgroundImageUrl));
+	}
+
 	private LibraryGroup persistLibraryGroup(LibraryGroup libraryGroup) {
 		var saved = singleValueFrom(libraryGroupRepository.save(libraryGroup));
 		log.debug("Persisted library group: {}", saved);

@@ -100,12 +100,12 @@ update_consortium() {
     local UPDATES_MADE=0
     # These are the fields that can potentially be updated
     local fields=(
-        "headerImageUrl"
-        "headerImageUploader"
-        "headerImageUploaderEmail"
-        "aboutImageUrl"
-        "aboutImageUploader"
-        "aboutImageUploaderEmail"
+        "brandLogoUrl"
+        "brandLogoAlt"
+        "brandHeaderIconUrl"
+        "brandBackgroundImageUrl"
+        "patronWelcome"
+        "defaultThemeName"
         "description"
         "catalogueSearchUrl"
         "websiteUrl"
@@ -142,12 +142,12 @@ update_consortium() {
             query: "mutation UpdateConsortium($input: UpdateConsortiumInput!) {
                 updateConsortium(input: $input) {
                     id
-                    headerImageUrl
-                    headerImageUploader
-                    headerImageUploaderEmail
-                    aboutImageUrl
-                    aboutImageUploader
-                    aboutImageUploaderEmail
+                    brandLogoUrl
+                    brandLogoAlt
+                    brandHeaderIconUrl
+                    brandBackgroundImageUrl
+                    patronWelcome
+                    defaultThemeName
                     description
                     catalogueSearchUrl
                     websiteUrl

@@ -93,22 +93,62 @@ public class Consortium implements Auditable {
 	@Nullable
 	private String changeReferenceUrl;
 
+	// --- Brand (N-1.3) ---------------------------------------------------------
+	//
+	// One set of marks for every app, patron-facing and staff-facing alike. This
+	// replaced headerImageUrl/aboutImageUrl and their uploader columns in
+	// V9_0_004: those held the same two images under admin-domain names, and the
+	// uploader pair held a member of staff's name and email address on a row that
+	// every authenticated principal can read. Provenance now comes from
+	// data_change_log, which the audit trigger on this table writes for free and
+	// which is behind a role check.
+
+	/** The larger mark: a lockup where there is room for one, and the login-screen image. */
 	@Nullable
-	private String headerImageUrl; // Image for DCB Admin app header, 36x36
+	@Size(max = 400)
+	private String brandLogoUrl;
 
 	@Nullable
-	private String headerImageUploader; // Info about upload
+	@Size(max = 255)
+	private String brandLogoAlt;
 
+	/**
+	 * A SQUARE mark, for the app bar and the favicon (R-17d), in every DCB app.
+	 *
+	 * Its own field rather than a rendering hint on {@link #brandLogoUrl}, because a
+	 * lockup needs horizontal room and a 32px box does not have any: sharing the column
+	 * produces a squashed lockup in the chrome of every page. It is NOT a separate field
+	 * per app — dcb-admin-ui rendering it at 36px and a discovery app at 28px is CSS, not
+	 * a different image, and no consortium wants its own mark to differ between them.
+	 */
 	@Nullable
-	private String headerImageUploaderEmail; // Info about upload
+	@Size(max = 400)
+	private String brandHeaderIconUrl;
 
+	/**
+	 * The canvas behind the discovery app's landing hero (R-17d).
+	 *
+	 * Consortium level only, and there is deliberately no library equivalent: a mark
+	 * identifies an organisation and belongs at every level of the brand chain, a canvas
+	 * does not. Text over it renders on a token scrim, so the frontend's contrast gate
+	 * keeps measuring a token rather than a photograph an administrator uploaded.
+	 */
 	@Nullable
-	private String aboutImageUrl; // Image for "About" section, 48x48
+	@Size(max = 400)
+	private String brandBackgroundImageUrl;
 
+	/** Patron-facing copy. NOT {@link #description}, which is staff-facing prose. */
 	@Nullable
-	private String aboutImageUploader; // Image for "About" section, 48x48
+	@Size(max = 500)
+	private String patronWelcome;
 
+	/**
+	 * A theme from the discovery app's registry, not a colour. Validated on write
+	 * against a configured vocabulary and tolerated on read — an unrecognised name
+	 * falls back to the default brand rather than breaking the patron app.
+	 */
 	@Nullable
-	private String aboutImageUploaderEmail; // Info about upload
+	@Size(max = 64)
+	private String defaultThemeName;
 
 }

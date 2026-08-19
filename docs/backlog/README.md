@@ -15,5 +15,10 @@
   controlled rollout evidence and backout plan.
 - [Admin UI inbound audit review](current/admin-ui-inbound-audit-review.md):
   review operator presentation and vocabulary.
+- Object storage for brand assets: reinstate an S3-API `BrandAssetStore` as a third value
+  for `dcb.branding.assets.store`, for estates that already run a bucket. Removed in
+  favour of Postgres so uploads need no infrastructure; see `docs/branding.md`. Bring back
+  the Caffeine cache as a decorator at the same time, since there will be two
+  implementations wanting it.
 
 Completed spikes and phases live in `done/`.

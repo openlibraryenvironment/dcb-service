@@ -114,8 +114,10 @@ input ConsortiumInput {
 	name: String!
 	groupName: String!
 	dateOfLaunch: String!
-	headerImageUrl: String
-	aboutImageUrl: String
+	# The brand marks (N-1.3). These replaced headerImageUrl/aboutImageUrl in V9_0_004:
+	# the square header mark and the larger mark, one set for every DCB app.
+	brandHeaderIconUrl: String
+	brandLogoUrl: String
 	description: String
 	catalogueSearchUrl: String
 	websiteUrl: String
@@ -304,12 +306,6 @@ input UpdateConsortialMaxLoansInput {
 
 input UpdateConsortiumInput {
 	id: ID!
-	headerImageUrl: String
-	headerImageUploader: String
-	headerImageUploaderEmail: String
-	aboutImageUrl: String
-	aboutImageUploader: String
-	aboutImageUploaderEmail: String
 	description: String
 	catalogueSearchUrl: String
 	websiteUrl: String
@@ -318,6 +314,21 @@ input UpdateConsortiumInput {
 	changeCategory: String!
 	changeReferenceUrl: String
 	contacts: [UpdatePersonInput]
+	# The brand (N-1.3), one set of marks for every DCB app. Sending an explicit null or
+	# an empty string CLEARS the field; omitting the key leaves it alone.
+	brandLogoUrl: String
+	brandLogoAlt: String
+	# R-17d. The header icon is a SQUARE mark for the app bar and the favicon, not a
+	# small logo: the logo is a lockup and a 32x32 box has no horizontal room. The
+	# background is the canvas behind the landing hero, consortium level only.
+	# Both accept an absolute http(s) URL or a path under this service's asset prefix.
+	brandHeaderIconUrl: String
+	brandBackgroundImageUrl: String
+	# Patron-facing copy under the search box. NOT `description`, which is staff prose.
+	patronWelcome: String
+	# A name from the discovery app's theme registry, not a colour. Rejected on write
+	# if it is not in dcb.branding.theme-names.
+	defaultThemeName: String
 }
 
 input UpdateLocationInput {
@@ -353,6 +364,11 @@ input UpdateLibraryInput {
 	type: String
 	patronWebsite: String
 	discoverySystem: String
+	# Patron-facing brand (N-1.3). patronWebsite above is the logo's link target, so
+	# there is no second URL here. Explicit null or empty string clears the field.
+	brandLogoUrl: String
+	brandLogoAlt: String
+	defaultThemeName: String
 }
 
 input UpdatePersonInput {
@@ -677,6 +693,10 @@ type Library {
 	principalLabel: String
 	secretLabel: String
 	targetLoanToBorrowRatio: String
+	# Patron-facing brand (N-1.3), read by dcb-admin-for-libraries' library form.
+	brandLogoUrl: String
+	brandLogoAlt: String
+	defaultThemeName: String
 }
 
 type LibraryContact {
@@ -714,12 +734,6 @@ type Consortium {
 	name: String!
 	libraryGroup: LibraryGroup!
 	dateOfLaunch: String
-	headerImageUrl: String
-	headerImageUploader: String
-	headerImageUploaderEmail: String
-	aboutImageUrl: String
-	aboutImageUploader: String
-	aboutImageUploaderEmail: String
 	description: String
 	catalogueSearchUrl: String
 	websiteUrl: String
@@ -729,6 +743,16 @@ type Consortium {
 	changeReferenceUrl: String
 	changeCategory: String
 	functionalSettings: [FunctionalSetting]
+	# The brand (N-1.3), read by dcb-admin-ui's consortium form and served to patrons
+	# by /discovery/consortium. There is deliberately no uploader field: who changed a
+	# mark is in dataChangeLog, not on this type.
+	brandLogoUrl: String
+	brandLogoAlt: String
+	# R-17d — square app-bar mark, and the landing canvas.
+	brandHeaderIconUrl: String
+	brandBackgroundImageUrl: String
+	patronWelcome: String
+	defaultThemeName: String
 }
 
 type ConsortiumContact {

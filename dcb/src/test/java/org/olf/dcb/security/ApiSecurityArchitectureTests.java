@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,8 @@ import org.junit.jupiter.api.TestInstance;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.io.service.ServiceDefinition;
 import io.micronaut.core.io.service.SoftServiceLoader;
+import io.micronaut.http.MediaType;
+import io.micronaut.http.annotation.Consumes;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.HttpMethodMapping;
@@ -329,5 +332,67 @@ class ApiSecurityArchitectureTests {
 			dcb-service accepts: their identity travels as a signed assertion that DCB \
 			verifies, and the calling service authenticates separately. Found: \
 			""" + patronRoles);
+	}
+
+	/**
+	 * Multipart decoding is a WHOLE-SERVER capability. It cannot be scoped to a route:
+	 * micronaut.server.multipart.enabled is resolved into a final field on
+	 * RoutingInBoundHandler, a Netty channel handler sitting in the pipeline before any route
+	 * is matched, so by the time a controller is known the decision has been taken.
+	 *
+	 * It is on by default - the property being ABSENT is not the same as it being false, and
+	 * only an explicit false refuses (with 415). So every deployment of this service can
+	 * decode multipart whether it meant to or not, which is precisely why this rule exists.
+	 *
+	 * EVERY route that can reach it must name its roles. An open one would let any caller
+	 * make the server buffer and parse a multipart body on demand, which is a
+	 * denial-of-service primitive rather than a feature.
+	 *
+	 * Deliberately not "there is exactly one". Writing that first was instructive: it found
+	 * LocationController#importLocations and UploadedMappingsController#post, which have been
+	 * on main far longer than brand asset upload and are in daily use. Multipart is not new
+	 * here, and a rule that pretended otherwise would have been a rule about one branch
+	 * rather than about the server.
+	 */
+	@Test
+	void everyMultipartRouteNamesItsRoles() {
+		final var open = routes.stream()
+			.filter(ApiSecurityArchitectureTests::consumesMultipart)
+			.filter(route -> route.effectiveRules().contains(SecurityRule.IS_ANONYMOUS)
+				|| route.effectiveRules().contains(SecurityRule.IS_AUTHENTICATED)
+				|| route.effectiveRules().isEmpty())
+			.map(route -> route.describe() + " -> " + route.effectiveRules())
+			.toList();
+
+		assertTrue(open.isEmpty(),
+			"""
+			Multipart decoding is enabled for the whole server, because Micronaut resolves \
+			micronaut.server.multipart.enabled into a final field on the Netty channel \
+			handler before any route is matched and cannot scope it to one controller. \
+			Every route that can reach it must therefore name its roles:
+
+			""" + String.join("\n", open));
+	}
+
+	/**
+	 * A body-carrying route that consumes multipart. Reads both forms - @Consumes on the
+	 * method or its class, and the consumes member of @Post.
+	 *
+	 * GET is excluded because a GET has no request body to decode.
+	 * UploadedMappingsController carries a CLASS-level @Consumes(MULTIPART_FORM_DATA), which
+	 * merged metadata then reports on its @Get methods too; counting those would be
+	 * reporting an annotation rather than a capability.
+	 */
+	private static boolean consumesMultipart(Route route) {
+		if (!route.mutating()) {
+			return false;
+		}
+
+		final var metadata = route.methodMetadata();
+
+		return Stream.concat(
+				Arrays.stream(metadata.stringValues(Consumes.class)),
+				Arrays.stream(metadata.stringValues(Post.class, "consumes")))
+			.anyMatch(MediaType.MULTIPART_FORM_DATA::equalsIgnoreCase);
 	}
 }

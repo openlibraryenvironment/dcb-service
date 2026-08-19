@@ -6,6 +6,8 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
+import org.olf.dcb.core.branding.BrandAssetCleanup;
+import org.olf.dcb.core.branding.BrandingValidator;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.LibraryRepository;
 
@@ -27,12 +29,21 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 	private final R2dbcOperations r2dbcOperations;
 
+	private final BrandingValidator brandingValidator;
+
+	private final BrandAssetCleanup brandAssetCleanup;
+
 	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
 
-	public UpdateLibraryDataFetcher(LibraryRepository libraryRepository, R2dbcOperations r2dbcOperations) {
+	public UpdateLibraryDataFetcher(LibraryRepository libraryRepository,
+		R2dbcOperations r2dbcOperations, BrandingValidator brandingValidator,
+		BrandAssetCleanup brandAssetCleanup) {
+
 		this.libraryRepository = libraryRepository;
 		this.r2dbcOperations = r2dbcOperations;
+		this.brandingValidator = brandingValidator;
+		this.brandAssetCleanup = brandAssetCleanup;
 	}
 
 	@Override
@@ -90,6 +101,28 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		Float longitude = input_map.containsKey("longitude") ?
 			((Number) input_map.get("longitude")).floatValue() : null;
 
+		// Patron-facing brand (N-1.3). Validated before the transaction opens; a key that
+		// is present but blank CLEARS the field, so a library that uploaded the wrong mark
+		// can remove it. See UpdateConsortiumDataFetcher for the full reasoning.
+		boolean brandLogoUrlSupplied = input_map.containsKey("brandLogoUrl");
+		String brandLogoUrl = brandLogoUrlSupplied
+			? brandingValidator.logoUrl(asString(input_map.get("brandLogoUrl")))
+			: null;
+
+		boolean brandLogoAltSupplied = input_map.containsKey("brandLogoAlt");
+		String brandLogoAlt = brandLogoAltSupplied
+			? brandingValidator.text(asString(input_map.get("brandLogoAlt")))
+			: null;
+
+		boolean defaultThemeNameSupplied = input_map.containsKey("defaultThemeName");
+		String defaultThemeName = defaultThemeNameSupplied
+			? brandingValidator.themeName(asString(input_map.get("defaultThemeName")))
+			: null;
+
+
+		// Collected inside the transaction, acted on after it commits — see the same
+		// comment in UpdateConsortiumDataFetcher.
+		final var replacedAssets = new java.util.ArrayList<BrandAssetCleanup.Change>();
 
 		Mono<Library> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(libraryRepository.findById(id))
@@ -136,6 +169,17 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 					if (type != null) {
 						library.setType(type);
 					}
+					if (brandLogoUrlSupplied) {
+						replacedAssets.add(new BrandAssetCleanup.Change(
+							library.getBrandLogoUrl(), brandLogoUrl));
+						library.setBrandLogoUrl(brandLogoUrl);
+					}
+					if (brandLogoAltSupplied) {
+						library.setBrandLogoAlt(brandLogoAlt);
+					}
+					if (defaultThemeNameSupplied) {
+						library.setDefaultThemeName(defaultThemeName);
+					}
 					library.setLastEditedBy(userString);
 					changeReferenceUrl.ifPresent(library::setChangeReferenceUrl);
 					changeCategory.ifPresent(library::setChangeCategory);
@@ -145,6 +189,14 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 				})
 		));
 
-		return transactionMono.toFuture();
+		return transactionMono
+			.flatMap(library -> brandAssetCleanup.removeReplaced(replacedAssets)
+				.thenReturn(library))
+			.toFuture();
+	}
+
+	/** GraphQL sends an explicit null as a present key with a null value. */
+	private static String asString(Object value) {
+		return value == null ? null : value.toString();
 	}
 }
