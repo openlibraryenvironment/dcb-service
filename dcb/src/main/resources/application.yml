@@ -9,9 +9,16 @@ micronaut:
     cors:
       enabled: true
     multipart:
-      # Brand asset upload is the only multipart route in this service, and both of these
-      # are load-bearing. Neither is a precaution - each was checked by removing it and
-      # watching BrandAssetApiTests fail.
+      # THIS IS NOT ONLY FOR BRAND ASSETS. LocationController#importLocations
+      # (/locations/upload) and UploadedMappingsController#post (/uploadedMappings/upload)
+      # have consumed multipart for far longer, have no test between them, and no
+      # multipart configuration existed anywhere in this repository until this block. On
+      # Micronaut 5 that means both were almost certainly inoperative - see
+      # everyMultipartRouteNamesItsRoles in ApiSecurityArchitectureTests, which enumerates
+      # them.
+      #
+      # Both settings are load-bearing. Neither is a precaution - each was checked by
+      # removing it and watching BrandAssetApiTests fail.
       #
       # enabled: Micronaut 5 defaults this to FALSE, and @Consumes(MULTIPART_FORM_DATA) on
       # the route does NOT override it - with this line removed all eight upload tests
