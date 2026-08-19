@@ -323,3 +323,96 @@ Setting `store: none` after assets exist leaves the rows in place but removes th
 that serves them, so any brand field holding a `/discovery/brand-assets/` path will 404
 until it is pointed at an absolute URL. Switch back and they work again; nothing is
 deleted.
+
+## Migration choices
+
+The reasoning behind the schema, kept here rather than in the migration files. A comment
+sitting next to `alter table` cannot be reviewed when the code it describes changes, and
+one of these went stale a single commit after it was written.
+
+Migrations: `V8_73_001` (consortium columns), `V8_73_002` (library columns), `V8_74_001`
+(the `brand_asset` table).
+
+### Why the brand fields are their own columns
+
+**One consortium migration, not two.** `V8_73_001` and a later `V8_73_003` added six
+nullable columns to one table, split only because they were authored weeks apart. Neither
+had run anywhere, so the boundary was still a free choice — it stops being one the moment a
+migration is applied. Folded into one.
+
+**A logo and a header icon are different assets, not one asset at two sizes.** A logo is a
+lockup — a mark and a wordmark side by side, needing horizontal room. Dropped into a 32px
+square it becomes an illegible smear. That is why `brand_header_icon_url` is a column and
+not a rendering hint.
+
+**A background is consortium-only.** A mark identifies an organisation and belongs at every
+level of the brand chain; a canvas does not. A per-library background would repaint the
+whole page every time a patron changed scope, which is motion rather than identity.
+
+**No colour column.** An operator-typed hex can fail WCAG contrast and nothing would catch
+it. `default_theme_name` names a theme from a registry whose every brand × mode pairing is
+measured by a failing test — choosing from a tested list removes the failure mode instead of
+mitigating it. Validated on write, tolerated on read: a name this build no longer ships
+falls back to the default rather than white-screening the patron app.
+
+**`patron_welcome` is not `description`.** That is prose about the consortium, written for
+staff and shown in DCB Admin. This is patron-facing copy under the search box.
+
+### The open question: `header_image_url` and `about_image_url`
+
+`consortium` already carried `header_image_url` (rendered 36×36 in DCB Admin's app bar) and
+`about_image_url` (48px tall on the landing card), each with uploader-provenance columns
+beside it. The brand columns above sit next to them and look like duplication.
+
+**The reason originally given was wrong** and is recorded here so it is not repeated: it
+claimed a patron-facing mark is "a different asset at a different size". It is not.
+symposia-ui renders its square mark at 28–32px and DCB Admin renders `header_image_url` at
+36×36 — that is CSS, not a different image, and a consortium wanting its mark to differ
+between its own apps is not a requirement anybody has.
+
+**The second reason was validation, and that one has since been removed.**
+`header_image_url` used to be stored exactly as supplied while the `brand_*` columns passed
+through `BrandingValidator`. Both now use the same validator, on create and on update, so
+this no longer separates them either.
+
+**So the columns should probably merge**, with `header_image_url` serving every app's header
+and `about_image_url` the larger login-screen mark. What is left to decide is not technical:
+
+- the admin pair carries `*_uploader` and `*_uploader_email`; the patron set carries
+  `brand_logo_alt`. Both survive a merge — they are separate columns — but the surviving
+  URL column becomes patron-facing, and personal data next to a patron-facing column
+  deserves a second look;
+- `about` is an admin-domain name for what would become the patron login mark;
+- it is a schema change against live data, so it needs a look at what every consortium
+  currently holds before the columns move.
+
+### Why uploaded images live in Postgres
+
+Requiring an S3-API bucket made uploading conditional on infrastructure a deployment may not
+have and a developer almost certainly does not — a container, credentials, an endpoint
+override and an addressing mode before anybody could exercise the route. Postgres is already
+provisioned everywhere DCB runs, including in every test.
+
+The size objection does not survive the numbers. Four columns can reference an uploaded
+asset, so at 500 libraries the referenced set is 503 images, each capped at 2 MB before
+storage — a bounded fraction of a database holding 20 million bibliographic records. What is
+*not* bounded by those columns is uploads nobody saves, which is what the sweep is for.
+
+Object storage remains a reasonable option for estates that already run a bucket and is
+expected back as a third value for `dcb.branding.assets.store`.
+
+### Details in `brand_asset` that look removable and are not
+
+**`asset_key` is the SHA-256 of the content.** Rows are therefore written once and never
+updated: identical bytes are the same key, different bytes are a different row. That is what
+lets the served URL be immutable and cached for a year, why there is no version column, and
+why `size_bytes` cannot drift from `bytes`.
+
+**`storage external` on the `bytes` column.** PNG and JPEG are already compressed, so
+Postgres would attempt pglz on every insert, fail to shrink anything, and store the value out
+of line regardless. `EXTERNAL` skips the wasted attempt — same storage, less CPU on the one
+path that writes two megabytes at a time.
+
+**No index beyond the primary key.** Every read is by key and the sweep runs once daily; an
+index on `date_created` would be maintained by every insert in order to serve one statement a
+day.

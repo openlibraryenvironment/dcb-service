@@ -1,6 +1,6 @@
-
--- Now we have DCB Admin for Libraries, libraries may also want to customise their own DCB apps
--- It is important that we can ship a custom OpenRS experience without relying on vercel blob
+-- Patron-facing brand for a library (N-1.3), the second level of the brand chain.
+-- Additive and nullable: rewrites no rows.
+-- Why a library has a mark but no background: docs/branding.md, "Migration choices".
 
 alter table library add brand_logo_url varchar(400);
 alter table library add brand_logo_alt varchar(255);
