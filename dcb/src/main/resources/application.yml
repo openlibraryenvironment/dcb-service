@@ -123,6 +123,16 @@ info:
     code: ${dcb.env.code:Unknown - set DCB_ENV_CODE}
     description: ${dcb.env.description:Unknown - set DCB_ENV_DESCRIPTION}
   dcb:
+    # Whether this deployment can accept a brand image upload, so DCB Admin can offer the
+    # control or not rather than offering one that will always 404.
+    #
+    # Without this the admin forms have no way to tell "uploads are off here" from "that
+    # upload failed": store=none removes the routes entirely, and a 404 carries no message
+    # for BrandImageField to show. The administrator would get a generic failure every
+    # time, forever, on a deployment that turned uploads off on purpose.
+    branding:
+      assets:
+        store: ${dcb.branding.assets.store:}
     circulation:
       tracking-profile: ${dcb.circulation.tracking-profile:}
     itemresolver:

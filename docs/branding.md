@@ -69,6 +69,21 @@ deployment. That is most of the reason they are stored there.
 | `DCB_BRANDING_ASSETS_STORE` | `database` | `none` removes the upload routes |
 | `DCB_BRANDING_ASSETS_ORPHAN_GRACE` | `24h` | How long an unsaved upload is kept — see Orphans |
 
+### Telling the admin apps whether uploads are available
+
+`/info` carries `dcb.branding.assets.store`, anonymously, which is how DCB Admin decides
+whether to render an upload control at all:
+
+```bash
+curl -s $DCB/info | jq .dcb.branding.assets.store    # "database" or "none"
+```
+
+Without it the forms cannot tell "uploads are off here" from "that upload failed" —
+`store: none` removes the routes, and the resulting 404 carries no message for the form to
+show, so an administrator would get a generic failure every time on a deployment that
+turned uploads off on purpose. `BrandingCapabilityInfoTests` pins the key, because a key
+nobody asserts is a key somebody renames.
+
 ## Run-book: verifying branding against a running DCB
 
 The automated tests cover the pieces. This is the end-to-end check — the one that catches
