@@ -79,7 +79,7 @@ public class DatabaseBrandAssetStore implements BrandAssetStore {
 		final var key = asset.key();
 
 		return Mono.from(repository.upsert(key, asset.contentType(), asset.bytes(),
-				asset.size(), clock.instant()))
+				clock.instant()))
 			.doOnNext(written -> log.info("Stored brand asset {} ({} bytes, {}){}",
 				key, asset.size(), asset.contentType(),
 				written == 0 ? " - already present" : ""))

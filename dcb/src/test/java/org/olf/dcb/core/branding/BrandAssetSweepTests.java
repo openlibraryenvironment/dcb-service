@@ -17,10 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.Library;
-import org.olf.dcb.core.model.StoredBrandAsset;
 import org.olf.dcb.storage.BrandAssetRepository;
 import org.olf.dcb.storage.ConsortiumRepository;
 import org.olf.dcb.storage.LibraryRepository;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
@@ -62,12 +62,17 @@ class BrandAssetSweepTests {
 	@Inject
 	private LibraryRepository libraries;
 
+	@Inject
+	private ConsortiumFixture consortiumFixture;
+
 	@BeforeEach
 	void beforeEach() {
-		singleValueFrom(Flux.from(consortia.queryAll())
-			.concatMap(consortium -> consortia.delete(consortium.getId()))
-			.then()
-			.thenReturn("done"));
+		// Through the fixture, not consortiumRepository.delete: consortium_functional_setting
+		// has a foreign key to consortium, and most of the suite leaves a consortium with
+		// settings attached. Deleting the consortium directly raises 23503 and takes every
+		// test in this class with it - which is invisible when the class runs alone, because
+		// nothing else has made one.
+		consortiumFixture.deleteAll();
 
 		singleValueFrom(Flux.from(libraries.queryAll())
 			.concatMap(library -> libraries.delete(library.getId()))
@@ -157,7 +162,7 @@ class BrandAssetSweepTests {
 		final var key = UUID.randomUUID().toString().replace("-", "").repeat(2) + ".png";
 
 		singleValueFrom(assets.upsert(key, BrandAssetValidator.PNG,
-			new byte[] { 1, 2, 3 }, 3, UPLOADED));
+			new byte[] { 1, 2, 3 }, UPLOADED));
 
 		return key;
 	}

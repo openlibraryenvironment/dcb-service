@@ -29,7 +29,7 @@ import reactor.core.publisher.Flux;
 /**
  * Where "who changed this brand image" lives, now that it is not on the consortium row.
  *
- * V8_74_002 dropped {@code header_image_uploader} and its email twin, and their
+ * V9_0_004 dropped {@code header_image_uploader} and its email twin, and their
  * {@code about_} counterparts: a member of staff's name and address, stored beside the
  * image on a row every authenticated principal could read, with no retention rule. The
  * replacement is the audit trigger that already covers every other change to this table.

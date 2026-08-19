@@ -25,6 +25,9 @@ import lombok.ToString;
  * and different bytes are a different row. That is what lets the served URL be immutable
  * and cached for a year, and it is why there is no version column here.
  *
+ * <p>There is no size field either. {@code bytes.length} is the size, and a stored copy of
+ * it would be written on every upload and read by nothing.
+ *
  * <p>{@code bytes} is deliberately excluded from {@code toString} by the class-level
  * {@code onlyExplicitlyIncluded} — a two-megabyte image in a log line helps nobody.
  */
@@ -49,10 +52,6 @@ public class StoredBrandAsset {
 
 	@NonNull
 	private byte[] bytes;
-
-	@ToString.Include
-	@NonNull
-	private Integer sizeBytes;
 
 	@NonNull
 	private Instant dateCreated;

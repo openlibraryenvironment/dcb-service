@@ -4,12 +4,15 @@
 
 create table brand_asset (
 	-- SHA-256 hex plus an extension. Content-addressed, so rows are written once and
-	-- never updated - hence no version column, and size_bytes cannot drift from bytes.
+	-- never updated - hence no version column.
 	asset_key    varchar(80) primary key,
 
 	content_type varchar(64) not null,
 	bytes        bytea       not null,
-	size_bytes   integer     not null,
+
+	-- Only the sweep reads this. There is deliberately no size column: it would be
+	-- written on every upload and read by nothing, and octet_length(bytes) answers the
+	-- one-off question while pg_total_relation_size answers the capacity one better.
 	date_created timestamp   not null
 );
 

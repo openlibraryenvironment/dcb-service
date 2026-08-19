@@ -39,8 +39,8 @@ CONSORTIUM_DISPLAY_NAME=$(prompt_with_default "Enter consortium display Name" "$
 CONSORTIUM_WEBSITE=$(prompt_with_default "Enter consortium website URL" "https://${CONSORTIUM_NAME,,}.org")
 CONSORTIUM_CATALOG_URL=$(prompt_with_default "Enter consortium search catalogue URL" "https://search${CONSORTIUM_NAME,,}.org/")
 CONSORTIUM_DESCRIPTION=$(prompt_with_default "Enter consortium description" "")
-CONSORTIUM_HEADER_IMAGE_URL=$(prompt_with_default "Enter URL for app header image (consortium icon, displayed in the top left)" "")
-CONSORTIUM_ABOUT_IMAGE_URL=$(prompt_with_default "Enter URL for 'About' section image (consortium logo, on the login/logout screen)" "")
+CONSORTIUM_BRAND_HEADER_ICON_URL=$(prompt_with_default "Enter URL for the square header mark (consortium icon, displayed in the top left)" "")
+CONSORTIUM_BRAND_LOGO_URL=$(prompt_with_default "Enter URL for the consortium logo (the larger mark, on the login/logout screen)" "")
 
 # Prompt for consortium contact details
 echo "Configuring consortium contact:"
@@ -179,8 +179,8 @@ CONSORTIUM_PAYLOAD=$(jq -n \
     --arg description "$CONSORTIUM_DESCRIPTION" \
     --arg firstName "$CONTACT_FIRST_NAME" \
     --arg lastName "$CONTACT_LAST_NAME" \
-    --arg headerImageUrl "$CONSORTIUM_HEADER_IMAGE_URL" \
-    --arg aboutImageUrl "$CONSORTIUM_ABOUT_IMAGE_URL" \
+    --arg brandHeaderIconUrl "$CONSORTIUM_BRAND_HEADER_ICON_URL" \
+    --arg brandLogoUrl "$CONSORTIUM_BRAND_LOGO_URL" \
     --arg reason "Adding the consortium" \
     --arg changeCategory "Initial setup" \
     --arg role "$CONTACT_ROLE" \
@@ -201,8 +201,8 @@ CONSORTIUM_PAYLOAD=$(jq -n \
                 catalogueSearchUrl: $catalogueSearchUrl,
                 dateOfLaunch: $dateOfLaunch,
                 description: $description,
-                headerImageUrl: $headerImageUrl,
-                aboutImageUrl: $aboutImageUrl,
+                brandHeaderIconUrl: $brandHeaderIconUrl,
+                brandLogoUrl: $brandLogoUrl,
                 reason: $reason,
                 changeCategory: $changeCategory,
                 contacts: [{

@@ -78,7 +78,7 @@ public interface AgencyRepository {
 	 * on a deployment that has not filled the fields in.
 	 *
 	 * Still ONE query. The lateral is an index lookup on library.agency_id per agency
-	 * row — see V8_73_002 for the index — against a table bounded by the consortium's
+	 * row — see V9_0_002 for the index — against a table bounded by the consortium's
 	 * membership, not by the corpus.
 	 */
 	@Query(value = """

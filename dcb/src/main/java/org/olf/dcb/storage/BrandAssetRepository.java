@@ -27,7 +27,7 @@ public interface BrandAssetRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Long> upsert(@NonNull String assetKey, @NonNull String contentType,
-		@NonNull byte[] bytes, int sizeBytes, @NonNull Instant now);
+		@NonNull byte[] bytes, @NonNull Instant now);
 
 	/**
 	 * Delete stored assets that no brand field refers to and that are older than the

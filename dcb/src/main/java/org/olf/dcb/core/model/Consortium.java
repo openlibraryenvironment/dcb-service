@@ -97,7 +97,7 @@ public class Consortium implements Auditable {
 	//
 	// One set of marks for every app, patron-facing and staff-facing alike. This
 	// replaced headerImageUrl/aboutImageUrl and their uploader columns in
-	// V8_74_002: those held the same two images under admin-domain names, and the
+	// V9_0_004: those held the same two images under admin-domain names, and the
 	// uploader pair held a member of staff's name and email address on a row that
 	// every authenticated principal can read. Provenance now comes from
 	// data_change_log, which the audit trigger on this table writes for free and

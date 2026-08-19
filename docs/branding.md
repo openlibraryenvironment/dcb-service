@@ -232,7 +232,8 @@ store, serve route, and the frontend's own URL handling — actually joins up.
 Upload an image (step 4) and do **not** save it anywhere.
 
 ```sql
-select asset_key, size_bytes, date_created from brand_asset order by date_created desc limit 5;
+select asset_key, octet_length(bytes) as size_bytes, date_created
+from brand_asset order by date_created desc limit 5;
 ```
 
 **Expect** the row present. It stays for `DCB_BRANDING_ASSETS_ORPHAN_GRACE` (24h by
@@ -245,7 +246,7 @@ unsaved one from this step is not.
 
 ```sql
 -- Should stay flat over time. Growth here means the sweep is not running.
-select count(*), pg_size_pretty(sum(size_bytes)::bigint) from brand_asset;
+select count(*), pg_size_pretty(pg_total_relation_size('brand_asset')) from brand_asset;
 ```
 
 ### 13. Turning uploads off leaves the CDN route working
@@ -330,14 +331,30 @@ The reasoning behind the schema, kept here rather than in the migration files. A
 sitting next to `alter table` cannot be reviewed when the code it describes changes, and
 one of these went stale a single commit after it was written.
 
-Migrations: `V8_73_001` (consortium columns), `V8_73_002` (library columns), `V8_74_001`
-(the `brand_asset` table), `V8_74_002` (the merge, below).
+Migrations: `V9_0_001` (consortium columns), `V9_0_002` (library columns), `V9_0_003`
+(the `brand_asset` table), `V9_0_004` (the merge, below).
+
+**Why `V9_0` and not `V8_7x`.** The prefix names the release a migration ships in —
+`V8_71_001` was committed six days before `v8.71.0` was tagged and went out in it, and
+`V8_72_001` landed two days after and is still waiting. The next release is v9.0.0, because
+it carries the breaking JDK 25 and Micronaut 5 upgrade, so these four are `V9_0_*`. They
+were authored as `V8_73_*` and `V8_74_*` across a long-lived branch, which named three
+releases that will never exist; none had run anywhere, so the numbers were still free.
+
+`V8_72_001` is the one exception and is deliberately left alone. It has been on `main`
+since 2026-07-25 and has almost certainly been applied on the dev fleet, and renaming an
+applied migration makes Flyway refuse to start with *"Detected applied migration not
+resolved locally"*. v9.0.0 therefore ships one `V8_72_*` alongside four `V9_0_*`. Ordering
+is unaffected either way: `out-of-order: true` is set in `application.yml`, so the version
+carries no ordering authority at all — its only job is to tell a reader which release a
+change belongs to, which is exactly why a number naming a release that never happened is
+worth fixing while it still can be.
 
 ### Why the brand fields are their own columns
 
-**One consortium migration, not two.** `V8_73_001` and a later `V8_73_003` added six
-nullable columns to one table, split only because they were authored weeks apart. Neither
-had run anywhere, so the boundary was still a free choice — it stops being one the moment a
+**One consortium migration, not two.** `V9_0_001` and a later migration added six nullable
+columns to one table, split only because they were authored weeks apart. Neither had run
+anywhere, so the boundary was still a free choice — it stops being one the moment a
 migration is applied. Folded into one.
 
 **A logo and a header icon are different assets, not one asset at two sizes.** A logo is a
@@ -371,14 +388,14 @@ key reached once per row on an unauthenticated endpoint, and the index is cheape
 argument about whether it matters.
 
 It was dropped when this branch was rewritten, while the comment in `AgencyRepository`
-naming it survived. Restored in `V8_73_002`, which has run nowhere, so the file was still
+naming it survived. Restored in `V9_0_002`, which has run nowhere, so the file was still
 free to change.
 
 ### `header_image_url` and `about_image_url`: merged, and the uploader columns dropped
 
 `consortium` also carried `header_image_url` (rendered 36×36 in DCB Admin's app bar) and
 `about_image_url` (48px tall on the landing card), each with an uploader name and an
-uploader email address beside it. `V8_74_002` merges the URLs into the brand columns and
+uploader email address beside it. `V9_0_004` merges the URLs into the brand columns and
 drops all six.
 
 **The reason originally given for keeping them separate was wrong**, and is recorded here so
@@ -417,12 +434,24 @@ does mean the address is still stored, in a table with no retention policy of it
 is worth revisiting alongside `data_change_log` retention generally, and is not specific to
 branding.
 
+The `update` that follows fires `audit_trigger`, which logs the two URLs a second time in
+its own row. That overlap is left in: the explicit insert is the only statement that
+captures the four uploader columns, and the only one that runs at all for a row holding an
+uploader but no URL.
+
 **This is a breaking GraphQL change.** `headerImageUrl`, `aboutImageUrl` and the four
 uploader fields are gone from `type Consortium`, `UpdateConsortiumInput` and
 `ConsortiumInput`. `ConsortiumInput` gains `brandHeaderIconUrl` and `brandLogoUrl` in their
 place, so a consortium can still be created carrying a mark. dcb-admin-ui and
 dcb-admin-for-libraries ship the consuming change on `feat/brand-upload-on-save`; deploy them
 together.
+
+Two consumers live in this repo and are updated in the same change: `scripts/libraries_setup.sh`
+sent `headerImageUrl`/`aboutImageUrl` in `ConsortiumInput`, and
+`scripts/create_functional_settings_and_update_consortium.sh` both offered the six dropped
+fields for editing and named them in its selection set. Both would have failed GraphQL
+validation on every run — the second one even if the operator skipped every image prompt,
+because a selection set is validated whether or not the field is filled in.
 
 ### Why uploaded images live in Postgres
 
@@ -443,8 +472,15 @@ expected back as a third value for `dcb.branding.assets.store`.
 
 **`asset_key` is the SHA-256 of the content.** Rows are therefore written once and never
 updated: identical bytes are the same key, different bytes are a different row. That is what
-lets the served URL be immutable and cached for a year, why there is no version column, and
-why `size_bytes` cannot drift from `bytes`.
+lets the served URL be immutable and cached for a year, and why there is no version column.
+
+**There is no size column, and an earlier draft's was removed.** It held `bytes.length` and
+was written on every upload. Nothing in the application read it back — no repository
+method, no controller, no test — and its only readers anywhere were the two operator
+queries in the run-book above. That it could never drift from `bytes` was true and was the
+wrong question: `octet_length(bytes)` gives a per-row size on demand, and
+`pg_total_relation_size('brand_asset')` answers the capacity question better than summing a
+per-row integer, because it counts the TOAST segments the bytes actually live in.
 
 **`storage external` on the `bytes` column.** PNG and JPEG are already compressed, so
 Postgres would attempt pglz on every insert, fail to shrink anything, and store the value out

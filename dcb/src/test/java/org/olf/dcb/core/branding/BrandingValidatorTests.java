@@ -157,7 +157,7 @@ class BrandingValidatorTests {
 	}
 
 	/**
-	 * These are the values MOBIUS actually holds today, which V8_74_002 carries into
+	 * These are the values MOBIUS actually holds today, which V9_0_004 carries into
 	 * brand_header_icon_url and brand_logo_url. They were stored before this validator
 	 * existed, so the migration moves unvalidated data into columns that are validated.
 	 *

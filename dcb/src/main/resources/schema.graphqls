@@ -114,7 +114,7 @@ input ConsortiumInput {
 	name: String!
 	groupName: String!
 	dateOfLaunch: String!
-	# The brand marks (N-1.3). These replaced headerImageUrl/aboutImageUrl in V8_74_002:
+	# The brand marks (N-1.3). These replaced headerImageUrl/aboutImageUrl in V9_0_004:
 	# the square header mark and the larger mark, one set for every DCB app.
 	brandHeaderIconUrl: String
 	brandLogoUrl: String

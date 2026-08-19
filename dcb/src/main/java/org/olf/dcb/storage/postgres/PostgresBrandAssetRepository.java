@@ -30,12 +30,12 @@ public interface PostgresBrandAssetRepository
 	@NonNull
 	@SingleResult
 	@Query(value = """
-		INSERT INTO brand_asset (asset_key, content_type, bytes, size_bytes, date_created)
-		VALUES (:assetKey, :contentType, :bytes, :sizeBytes, :now)
+		INSERT INTO brand_asset (asset_key, content_type, bytes, date_created)
+		VALUES (:assetKey, :contentType, :bytes, :now)
 		ON CONFLICT (asset_key) DO NOTHING
 		""", nativeQuery = true)
 	Publisher<Long> upsert(@NonNull String assetKey, @NonNull String contentType,
-		@NonNull byte[] bytes, int sizeBytes, @NonNull Instant now);
+		@NonNull byte[] bytes, @NonNull Instant now);
 
 	/**
 	 * Four columns can hold an uploaded asset, and every one of them has to be named here.
