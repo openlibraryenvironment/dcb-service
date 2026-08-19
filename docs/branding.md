@@ -69,6 +69,178 @@ deployment. That is most of the reason they are stored there.
 | `DCB_BRANDING_ASSETS_STORE` | `database` | `none` removes the upload routes |
 | `DCB_BRANDING_ASSETS_ORPHAN_GRACE` | `24h` | How long an unsaved upload is kept — see Orphans |
 
+## Run-book: verifying branding against a running DCB
+
+The automated tests cover the pieces. This is the end-to-end check — the one that catches
+a thing that only shows up when a real browser fetches a real image from a real deployment.
+
+Run it after deploying to a new environment, and after any change to
+`dcb.branding.assets.*`, the multipart settings, or `BrandingValidator`.
+
+**What you need:** a running DCB, a bearer token for a user holding `ADMIN`,
+`CONSORTIUM_ADMIN` or `LIBRARY_ADMIN`, and two image files — a PNG with transparency and
+anything that is not an image. `curl` and `psql` for the checks that look underneath.
+
+```bash
+DCB=https://dcb.example.org
+TOKEN=...                      # an admin bearer token
+```
+
+### 1. The service starts and branding is reachable
+
+```bash
+curl -s $DCB/discovery/consortium | jq .
+```
+
+**Expect** 200 and a JSON body. It is anonymous by design — a patron sees the consortium's
+brand before signing in. If this 404s, DCB is running without the branding migrations.
+
+### 2. The CDN route works with no upload at all
+
+Set a consortium logo to an absolute URL through DCB Admin, or the `updateConsortium`
+mutation, then repeat step 1.
+
+**Expect** `brandLogoUrl` echoed back exactly as entered. This path needs no configuration
+and must work even when `store: none`.
+
+### 3. Bad URLs are refused
+
+Try each of these as a logo URL:
+
+| Value | Expect |
+|---|---|
+| `javascript:alert(1)` | 400 |
+| `data:image/png;base64,iVBORw0KGgo=` | 400 |
+| `//evil.example.org/logo.png` | 400 |
+| `/discovery/brand-assets/../../etc/passwd` | 400 |
+| `/discovery/brand-assets/deadbeef.png` | 400 — right prefix, wrong key shape |
+
+**Expect** all five refused with a message naming the problem. A 500, or a success, is a
+finding. These are rendered as `<img src>` on an anonymous page for every patron.
+
+### 4. Upload succeeds and returns a site-relative URL
+
+```bash
+curl -s -X POST $DCB/brand-assets \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@logo.png" | jq .
+```
+
+**Expect** `{"url":"/discovery/brand-assets/<64 hex>.png","contentType":"image/png","bytes":N}`.
+
+- The URL is a **64-character hex digest** plus an extension. Anything else means the key
+  derivation changed and stored URLs will not validate.
+- `contentType` **matches what you uploaded**. A PNG that comes back `image/jpeg` means the
+  format-preserving re-encode has regressed.
+
+If this returns 404, `store` is `none` or the upload routes did not load. If it returns a
+bare `{"status":413}`, `micronaut.server.multipart.max-file-size` is below
+`dcb.branding.assets.max-bytes` — see the note in `application.yml`.
+
+### 5. Uploading the same file twice is idempotent
+
+Repeat step 4 with the identical file.
+
+**Expect** the **same URL**. Keys are content-addressed, so this must not create a second
+row. Confirm underneath:
+
+```sql
+select count(*) from brand_asset where asset_key = '<the key>';   -- expect 1
+```
+
+### 6. A refusal explains itself
+
+```bash
+curl -s -X POST $DCB/brand-assets \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@not-an-image.txt" -o - -w '\n%{http_code}\n'
+```
+
+**Expect** 400 **and a body containing a sentence** — "the file is not a PNG or a JPEG…".
+A bare `{"type":"about:blank","status":400}` means the error handler is not being reached,
+and an administrator would be told only that something failed.
+
+Rename an SVG to `.png` and repeat: **expect** the same refusal. The check is on magic
+bytes, not the filename.
+
+### 7. The image is served with the headers that make it safe
+
+```bash
+curl -sI $DCB/discovery/brand-assets/<key>
+```
+
+**Expect** all four:
+
+| Header | Value |
+|---|---|
+| `Content-Type` | `image/png` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Cache-Control` | `public, max-age=31536000, immutable` |
+| `Content-Disposition` | `inline` |
+
+`nosniff` matters more than usual: the object is user-supplied and served from the same
+origin as the patron interface.
+
+### 8. Serving is anonymous
+
+Repeat step 7 **without** the `Authorization` header.
+
+**Expect** 200. The sign-in page has to show the mark of the organisation asking for the
+credential. If this 401s, the patron app renders a broken image before login.
+
+### 9. Uploading is not anonymous
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST $DCB/brand-assets -F "file=@logo.png"
+```
+
+**Expect** 401, 403 or 400 — anything but 2xx. Uploading is a mutation.
+
+### 10. A traversal never reaches the store
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' "$DCB/discovery/brand-assets/../../application.yml"
+```
+
+**Expect** 404. The key shape is checked before anything is looked up.
+
+### 11. Save the URL, and confirm it renders
+
+Put the step-4 URL into the consortium logo through DCB Admin, then load the patron app
+signed out.
+
+**Expect** the logo renders. This is the only step that proves the whole chain — validator,
+store, serve route, and the frontend's own URL handling — actually joins up.
+
+### 12. The orphan sweep keeps unsaved uploads bounded
+
+Upload an image (step 4) and do **not** save it anywhere.
+
+```sql
+select asset_key, size_bytes, date_created from brand_asset order by date_created desc limit 5;
+```
+
+**Expect** the row present. It stays for `DCB_BRANDING_ASSETS_ORPHAN_GRACE` (24h by
+default) and is then removed by the daily sweep — that window exists so the sweep cannot
+delete an image an administrator is part-way through choosing.
+
+To verify the sweep rather than wait for it, check that a **referenced** asset survives:
+leave the environment a day, then confirm the asset from step 11 is still there and the
+unsaved one from this step is not.
+
+```sql
+-- Should stay flat over time. Growth here means the sweep is not running.
+select count(*), pg_size_pretty(sum(size_bytes)::bigint) from brand_asset;
+```
+
+### 13. Turning uploads off leaves the CDN route working
+
+Set `DCB_BRANDING_ASSETS_STORE=none` and restart.
+
+**Expect** `POST /brand-assets` and `GET /discovery/brand-assets/{key}` both 404 — the
+routes are absent, not failing — while step 2 still works exactly as before. Existing rows
+are untouched; set it back and they serve again.
+
 ## What is accepted, and what is not
 
 PNG and JPEG, identified by **magic bytes** — never by the filename or the declared
