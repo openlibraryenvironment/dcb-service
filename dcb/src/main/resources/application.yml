@@ -9,34 +9,29 @@ micronaut:
     cors:
       enabled: true
     multipart:
-      # THIS IS NOT ONLY FOR BRAND ASSETS. LocationController#importLocations
-      # (/locations/upload) and UploadedMappingsController#post (/uploadedMappings/upload)
-      # have consumed multipart for far longer, have no test between them, and no
-      # multipart configuration existed anywhere in this repository until this block. On
-      # Micronaut 5 that means both were almost certainly inoperative - see
-      # everyMultipartRouteNamesItsRoles in ApiSecurityArchitectureTests, which enumerates
-      # them.
+      # ONE setting, and it is the file size cap. There is deliberately no `enabled` here:
+      # multipart works when the property is ABSENT, which is how location import and
+      # mapping import have worked all along. Setting it explicitly to false is what breaks
+      # them (415), so "absent" and "false" are different states and only the explicit one
+      # is a refusal. An earlier version of this block set it to true and claimed it was
+      # required; that was wrong, and it was wrong because the experiment tested `false`
+      # rather than absence.
       #
-      # Both settings are load-bearing. Neither is a precaution - each was checked by
-      # removing it and watching BrandAssetApiTests fail.
+      # max-file-size IS required. DEFAULT_MAX_FILE_SIZE is 1048576 in
+      # micronaut-http-server 5.0.2, so without this the 1MB framework cap silently
+      # overrides the 2MB dcb.branding.assets.max-bytes below, and the refusal happens while
+      # the server decodes the request - before routing, so BrandAssetUploadController's
+      # @Error handler never runs and the administrator gets {"status":413} with no sentence
+      # in it. Kept in step with max-bytes through the same variable: two limits governing
+      # one upload must not drift apart.
       #
-      # enabled: Micronaut 5 defaults this to FALSE, and @Consumes(MULTIPART_FORM_DATA) on
-      # the route does NOT override it - with this line removed all eight upload tests
-      # fail. Confirmed against micronaut-http-server 5.0.2:
-      # MultipartConfiguration.isEnabled() returns false when the property is unset.
+      # Note this cap now applies to location and mapping import too, which previously had
+      # the 1MB default. Both take small CSV files, so 2MB is a raise rather than a limit.
       #
-      # max-file-size: DEFAULT_MAX_FILE_SIZE is 1048576, so without this the 1MB framework
-      # cap silently overrides the 2MB dcb.branding.assets.max-bytes below, and the refusal
-      # happens while the server decodes the request - before routing, so
-      # BrandAssetUploadController's @Error handler never runs and the administrator gets a
-      # bare problem detail with no sentence in it. Kept in step with max-bytes through the
-      # same variable: two limits governing one upload must not drift apart.
-      #
-      # There is no max-request-size here on purpose: MultipartConfiguration has no such
-      # property (it carries location, maxFileSize, enabled, disk, mixed and threshold, and
-      # nothing else). The server-wide micronaut.server.max-request-size defaults to 10MB,
+      # There is no max-request-size here: MultipartConfiguration has no such property (it
+      # carries location, maxFileSize, enabled, disk, mixed and threshold, and nothing
+      # else). The server-wide micronaut.server.max-request-size defaults to 10MB,
       # comfortably above this cap. Raise that one too if max-bytes is ever set above 10MB.
-      enabled: true
       max-file-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
   application:
     name: dcb

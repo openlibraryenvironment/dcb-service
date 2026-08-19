@@ -335,24 +335,24 @@ class ApiSecurityArchitectureTests {
 	}
 
 	/**
-	 * Multipart decoding is on for the WHOLE SERVER, because it cannot be turned on for one
-	 * route.
+	 * Multipart decoding is a WHOLE-SERVER capability. It cannot be scoped to a route:
+	 * micronaut.server.multipart.enabled is resolved into a final field on
+	 * RoutingInBoundHandler, a Netty channel handler sitting in the pipeline before any route
+	 * is matched, so by the time a controller is known the decision has been taken.
 	 *
-	 * Micronaut resolves micronaut.server.multipart.enabled into a final boolean field on
-	 * RoutingInBoundHandler when that handler is constructed - it is a Netty channel handler
-	 * sitting in the pipeline before any route is matched, so by the time a controller is
-	 * known the decode decision has already been taken. There is no annotation that scopes
-	 * it and no per-route override to reach for.
+	 * It is on by default - the property being ABSENT is not the same as it being false, and
+	 * only an explicit false refuses (with 415). So every deployment of this service can
+	 * decode multipart whether it meant to or not, which is precisely why this rule exists.
 	 *
-	 * So the scope is asserted here instead: EVERY route that can trigger multipart decoding
-	 * must name its roles. An open one would let any caller make the server buffer and parse
-	 * a multipart body, which is a denial-of-service primitive rather than a feature.
+	 * EVERY route that can reach it must name its roles. An open one would let any caller
+	 * make the server buffer and parse a multipart body on demand, which is a
+	 * denial-of-service primitive rather than a feature.
 	 *
 	 * Deliberately not "there is exactly one". Writing that first was instructive: it found
-	 * LocationController#importLocations and UploadedMappingsController#post, which have
-	 * been on main for far longer than brand asset upload. Multipart is not new here, and a
-	 * rule that pretended otherwise would have been a rule about this branch rather than
-	 * about the server.
+	 * LocationController#importLocations and UploadedMappingsController#post, which have been
+	 * on main far longer than brand asset upload and are in daily use. Multipart is not new
+	 * here, and a rule that pretended otherwise would have been a rule about one branch
+	 * rather than about the server.
 	 */
 	@Test
 	void everyMultipartRouteNamesItsRoles() {
