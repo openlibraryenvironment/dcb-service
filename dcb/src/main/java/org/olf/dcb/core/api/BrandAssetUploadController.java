@@ -135,11 +135,9 @@ public class BrandAssetUploadController {
 	/**
 	 * What an upload returns: the URL to store, and enough to show a confirmation.
 	 *
-	 * <p>{@code contentType} is not decoration. A PNG with no transparency is deliberately
-	 * stored as a JPEG — the same picture an order of magnitude smaller — and an
-	 * administrator who uploaded a mark expecting an alpha channel needs to be told that,
-	 * because a logo composited onto an opaque background is a visible defect on a dark
-	 * theme. The admin form is expected to surface this when it differs from what was sent.
+	 * <p>{@code contentType} always matches what was uploaded — the validator re-encodes in
+	 * the format the image arrived as and never substitutes the container. It is returned
+	 * so a form can confirm what was stored, not because it can surprise anyone.
 	 */
 	@Serdeable
 	public record UploadedAsset(String url, String contentType, int bytes) {

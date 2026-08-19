@@ -45,10 +45,12 @@ import lombok.extern.slf4j.Slf4j;
  *       decompression-bomb check: a 40 KB PNG can declare 30000x30000 and cost 3.6 GB of
  *       heap the instant something decodes it, so the refusal has to happen before the
  *       decode, not after.</li>
- *   <li><b>Re-encode</b>, last. What gets stored is what a decoder produced from the
- *       pixels, not the bytes that arrived: that drops EXIF, colour profiles, trailing
- *       payloads and every polyglot trick that depends on a parser reading past the end
- *       of the image. It also means we never store a file we could not parse.</li>
+ *   <li><b>Re-encode</b>, last, and <em>in the format the image arrived as</em>. What gets
+ *       stored is what a decoder produced from the pixels, not the bytes that arrived:
+ *       that drops EXIF, colour profiles, trailing payloads and every polyglot trick that
+ *       depends on a parser reading past the end of the image. It also means we never
+ *       store a file we could not parse. It does not change the container — see
+ *       {@link #write}.</li>
  * </ol>
  *
  * <h2>Why the allow-list is PNG and JPEG, and not WebP — decided 2026-08-18</h2>
@@ -179,28 +181,37 @@ public class BrandAssetValidator {
 	}
 
 	/**
-	 * Written back out as PNG when the image has transparency and as JPEG when it does
-	 * not.
+	 * Written back out in the format it arrived as.
 	 *
-	 * A brand mark usually has an alpha channel and must keep it — a logo re-encoded onto
-	 * an opaque white box is a visible defect on a dark theme. A photograph does not, and
-	 * a background photograph written as PNG can be several megabytes where the JPEG is a
-	 * few hundred kilobytes, on the one route where first paint matters most.
+	 * <p>The re-encode exists to drop EXIF, colour profiles, trailing payloads and every
+	 * polyglot trick that depends on a parser reading past the end of the image. Decoding
+	 * and rewriting in the <em>same</em> container does all of that. Changing the container
+	 * is a separate and optional payload optimisation, and it is not done here.
 	 *
-	 * So the stored type is decided by the image rather than by the upload: a PNG with no
-	 * transparency is stored as a JPEG, and that is the intended behaviour rather than a
-	 * surprise — it is the same picture, an order of magnitude smaller, on the route where
-	 * first paint matters most.
+	 * <h2>It used to convert, and why that was wrong</h2>
+	 *
+	 * Any image with no alpha channel was stored as a JPEG, on the reasoning that a
+	 * background photograph written back as PNG is several megabytes where the JPEG is a
+	 * few hundred kilobytes. The reasoning was sound; the signal was not.
+	 * {@code hasAlpha()} is a proxy for "is this a photograph", and it misfires on the most
+	 * common brand upload there is — a mark exported opaque, which is what Figma and
+	 * Illustrator produce unless somebody ticks the transparency box. JPEG is worst at
+	 * precisely what a logo is: flat colour, hard edges, letterforms. Those marks acquired
+	 * ringing that {@code ImageIO}'s default quality gives no dial to soften, and the
+	 * result was permanent — a content-addressed key served {@code immutable} for a year,
+	 * in the chrome of every patron page.
+	 *
+	 * <p>The size that was being optimised is bounded anyway: {@code max-bytes} caps the
+	 * pathological case, and the immutable response means a background is transferred once
+	 * per browser per year. That is a smaller cost than a permanently degraded mark.
+	 *
+	 * <p>Transparency was never at risk either way — the JPEG branch was unreachable for
+	 * any image that had an alpha channel to lose.
 	 */
-	private BrandAsset write(BufferedImage decoded, String declared) throws IOException {
-		final var transparent = decoded.getColorModel().hasAlpha();
-		final var target = transparent ? PNG : JPEG;
-
+	private BrandAsset write(BufferedImage decoded, String target) throws IOException {
 		final BufferedImage toWrite;
-		if (transparent) {
-			toWrite = decoded;
-		}
-		else {
+
+		if (JPEG.equals(target)) {
 			// JPEG cannot be written from every BufferedImage type ImageIO can produce —
 			// a TYPE_CUSTOM or an indexed model throws at write time rather than at read
 			// time. Copying into TYPE_INT_RGB is the cheap way to make that impossible.
@@ -213,10 +224,13 @@ public class BrandAssetValidator {
 				graphics.dispose();
 			}
 		}
+		else {
+			toWrite = decoded;
+		}
 
 		final var out = new ByteArrayOutputStream();
 
-		if (!ImageIO.write(toWrite, transparent ? "png" : "jpeg", out)) {
+		if (!ImageIO.write(toWrite, JPEG.equals(target) ? "jpeg" : "png", out)) {
 			throw badRequest("the image could not be re-encoded");
 		}
 
@@ -224,15 +238,11 @@ public class BrandAssetValidator {
 
 		if (bytes.length > properties.getMaxBytes()) {
 			// A re-encode can grow a file — an aggressively compressed source written
-			// back out at default quality, most often. Checked again for the same reason
+			// back out at default settings, most often. Checked again for the same reason
 			// it was checked the first time.
 			throw new HttpStatusException(HttpStatus.REQUEST_ENTITY_TOO_LARGE,
 				"the image is %d bytes once re-encoded; the limit is %d"
 					.formatted(bytes.length, properties.getMaxBytes()));
-		}
-
-		if (!target.equals(declared)) {
-			log.info("Brand asset uploaded as {} stored as {}", declared, target);
 		}
 
 		return new BrandAsset(target, bytes);

@@ -40,13 +40,27 @@ class BrandAssetValidatorTests {
 	}
 
 	/**
-	 * An opaque image is stored as a JPEG whatever it arrived as. A background photograph
-	 * written back as PNG is several megabytes where the JPEG is a few hundred kilobytes,
-	 * on the one route where first paint matters most.
+	 * An opaque PNG stays a PNG.
+	 *
+	 * This used to be stored as a JPEG, to save bytes on a background photograph. The
+	 * saving was real and the signal was not: no alpha channel is a proxy for "photograph",
+	 * and it misfires on a logo exported opaque - which is what Figma and Illustrator
+	 * produce unless somebody ticks the transparency box. JPEG is worst at flat colour and
+	 * letterforms, and the result was permanent, since the key is content-addressed and the
+	 * response is immutable for a year.
 	 */
 	@Test
-	void shouldStoreAnOpaqueImageAsAJpeg() throws IOException {
+	void shouldKeepAnOpaquePngAsAPng() throws IOException {
 		final var stored = validator.validate(png(64, 64, false));
+
+		assertThat(stored.contentType(), is(BrandAssetValidator.PNG));
+		assertThat(BrandAssetValidator.sniff(stored.bytes()), is(BrandAssetValidator.PNG));
+	}
+
+	/** The other direction: a photograph uploaded as a JPEG is not inflated into a PNG. */
+	@Test
+	void shouldKeepAJpegAsAJpeg() throws IOException {
+		final var stored = validator.validate(jpeg(64, 64));
 
 		assertThat(stored.contentType(), is(BrandAssetValidator.JPEG));
 		assertThat(BrandAssetValidator.sniff(stored.bytes()), is(BrandAssetValidator.JPEG));
@@ -181,6 +195,25 @@ class BrandAssetValidatorTests {
 
 		final var out = new ByteArrayOutputStream();
 		ImageIO.write(image, "png", out);
+
+		return out.toByteArray();
+	}
+
+	/** A JPEG, which has no alpha channel by construction. */
+	private static byte[] jpeg(int width, int height) throws IOException {
+		final var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+		final var graphics = image.createGraphics();
+		try {
+			graphics.setColor(new Color(0x33, 0x66, 0x99));
+			graphics.fillRect(0, 0, width, height);
+		}
+		finally {
+			graphics.dispose();
+		}
+
+		final var out = new ByteArrayOutputStream();
+		ImageIO.write(image, "jpeg", out);
 
 		return out.toByteArray();
 	}
