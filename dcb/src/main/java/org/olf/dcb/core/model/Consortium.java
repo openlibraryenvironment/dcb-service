@@ -93,30 +93,17 @@ public class Consortium implements Auditable {
 	@Nullable
 	private String changeReferenceUrl;
 
-	@Nullable
-	private String headerImageUrl; // Image for DCB Admin app header, 36x36
-
-	@Nullable
-	private String headerImageUploader; // Info about upload
-
-	@Nullable
-	private String headerImageUploaderEmail; // Info about upload
-
-	@Nullable
-	private String aboutImageUrl; // Image for "About" section, 48x48
-
-	@Nullable
-	private String aboutImageUploader; // Image for "About" section, 48x48
-
-	@Nullable
-	private String aboutImageUploaderEmail; // Info about upload
-
-	// --- Patron-facing brand (N-1.3) -------------------------------------------
+	// --- Brand (N-1.3) ---------------------------------------------------------
 	//
-	// Distinct from headerImageUrl (36x36) and aboutImageUrl (48x48), which are
-	// dcb-admin-ui chrome icons. This is the mark a patron sees in the discovery
-	// app's brand lockup, and the two are different assets at different sizes.
+	// One set of marks for every app, patron-facing and staff-facing alike. This
+	// replaced headerImageUrl/aboutImageUrl and their uploader columns in
+	// V8_74_002: those held the same two images under admin-domain names, and the
+	// uploader pair held a member of staff's name and email address on a row that
+	// every authenticated principal can read. Provenance now comes from
+	// data_change_log, which the audit trigger on this table writes for free and
+	// which is behind a role check.
 
+	/** The larger mark: a lockup where there is room for one, and the login-screen image. */
 	@Nullable
 	@Size(max = 400)
 	private String brandLogoUrl;
@@ -126,11 +113,13 @@ public class Consortium implements Auditable {
 	private String brandLogoAlt;
 
 	/**
-	 * A SQUARE mark, for the app bar and the favicon (R-17d).
+	 * A SQUARE mark, for the app bar and the favicon (R-17d), in every DCB app.
 	 *
 	 * Its own field rather than a rendering hint on {@link #brandLogoUrl}, because a
 	 * lockup needs horizontal room and a 32px box does not have any: sharing the column
-	 * produces a squashed lockup in the chrome of every page.
+	 * produces a squashed lockup in the chrome of every page. It is NOT a separate field
+	 * per app — dcb-admin-ui rendering it at 36px and a discovery app at 28px is CSS, not
+	 * a different image, and no consortium wants its own mark to differ between them.
 	 */
 	@Nullable
 	@Size(max = 400)

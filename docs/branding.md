@@ -331,7 +331,7 @@ sitting next to `alter table` cannot be reviewed when the code it describes chan
 one of these went stale a single commit after it was written.
 
 Migrations: `V8_73_001` (consortium columns), `V8_73_002` (library columns), `V8_74_001`
-(the `brand_asset` table).
+(the `brand_asset` table), `V8_74_002` (the merge, below).
 
 ### Why the brand fields are their own columns
 
@@ -358,33 +358,55 @@ falls back to the default rather than white-screening the patron app.
 **`patron_welcome` is not `description`.** That is prose about the consortium, written for
 staff and shown in DCB Admin. This is patron-facing copy under the search box.
 
-### The open question: `header_image_url` and `about_image_url`
+### `header_image_url` and `about_image_url`: merged, and the uploader columns dropped
 
-`consortium` already carried `header_image_url` (rendered 36×36 in DCB Admin's app bar) and
-`about_image_url` (48px tall on the landing card), each with uploader-provenance columns
-beside it. The brand columns above sit next to them and look like duplication.
+`consortium` also carried `header_image_url` (rendered 36×36 in DCB Admin's app bar) and
+`about_image_url` (48px tall on the landing card), each with an uploader name and an
+uploader email address beside it. `V8_74_002` merges the URLs into the brand columns and
+drops all six.
 
-**The reason originally given was wrong** and is recorded here so it is not repeated: it
-claimed a patron-facing mark is "a different asset at a different size". It is not.
-symposia-ui renders its square mark at 28–32px and DCB Admin renders `header_image_url` at
-36×36 — that is CSS, not a different image, and a consortium wanting its mark to differ
-between its own apps is not a requirement anybody has.
+**The reason originally given for keeping them separate was wrong**, and is recorded here so
+it is not repeated: it claimed a patron-facing mark is "a different asset at a different
+size". It is not. symposia-ui renders its square mark at 28–32px and DCB Admin rendered
+`header_image_url` at 36×36 — that is CSS, not a different image, and a consortium wanting
+its mark to differ between its own apps is not a requirement anybody has. The second reason
+was validation, and it went when both sets started passing through `BrandingValidator` on
+create and on update.
 
-**The second reason was validation, and that one has since been removed.**
-`header_image_url` used to be stored exactly as supplied while the `brand_*` columns passed
-through `BrandingValidator`. Both now use the same validator, on create and on update, so
-this no longer separates them either.
+So `header_image_url` became `brand_header_icon_url` — the square mark every app puts in its
+header — and `about_image_url` became `brand_logo_url`, the larger mark, which is what a
+login screen shows. `coalesce`, so a brand value already set wins.
 
-**So the columns should probably merge**, with `header_image_url` serving every app's header
-and `about_image_url` the larger login-screen mark. What is left to decide is not technical:
+**The uploader columns were the real reason to act.** `header_image_uploader` and
+`header_image_uploader_email`, and their `about_` twins, held a member of staff's name and
+email address on the consortium row. Three things were wrong with that at once:
 
-- the admin pair carries `*_uploader` and `*_uploader_email`; the patron set carries
-  `brand_logo_alt`. Both survive a merge — they are separate columns — but the surviving
-  URL column becomes patron-facing, and personal data next to a patron-facing column
-  deserves a second look;
-- `about` is an admin-domain name for what would become the patron login mark;
-- it is a schema change against live data, so it needs a look at what every consortium
-  currently holds before the columns move.
+- **the read surface.** `/graphql` requires `isAuthenticated()` and nothing more, and
+  `getConsortia` had no role check, so any principal the realm issues a token to — including
+  `DISCOVERY_SERVICE`, held by discovery backends that may be third party — could read
+  `{ consortia { content { headerImageUploaderEmail } } }`. Both problems are fixed: the
+  columns are gone and the fetcher now goes through `GraphQLRoles.require`;
+- **no retention rule.** Nothing ever removed them. Clearing the image left the uploader
+  behind, which is personal data outliving the only thing it described;
+- **duplication.** DCB already logs who changes a consortium. The `audit_trigger` on this
+  table writes the actor and the before/after into `data_change_log` for every column,
+  including the brand ones, and that read *is* role-checked. `ConsortiumBrandProvenanceTests`
+  pins it.
+
+**Existing values are preserved, not discarded.** Before the drop, the migration writes one
+`data_change_log` row per consortium holding all six values under `changes.old_values`, with
+`change_category = 'Schema migration'`. Provenance therefore moves into the audit trail
+rather than being lost — behind the role check, in the place provenance already lived. It
+does mean the address is still stored, in a table with no retention policy of its own; that
+is worth revisiting alongside `data_change_log` retention generally, and is not specific to
+branding.
+
+**This is a breaking GraphQL change.** `headerImageUrl`, `aboutImageUrl` and the four
+uploader fields are gone from `type Consortium`, `UpdateConsortiumInput` and
+`ConsortiumInput`. `ConsortiumInput` gains `brandHeaderIconUrl` and `brandLogoUrl` in their
+place, so a consortium can still be created carrying a mark. dcb-admin-ui and
+dcb-admin-for-libraries ship the consuming change on `feat/brand-upload-on-save`; deploy them
+together.
 
 ### Why uploaded images live in Postgres
 

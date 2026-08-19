@@ -117,13 +117,13 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 								// Validated exactly as the update path validates them. A rule enforced
 								// on edit but not on create is a rule with a way round it: create the
 								// consortium carrying the value you wanted, and never edit that field.
-								String headerImageUrl = brandingValidator.logoUrl(
-									Optional.ofNullable(input_map.get("headerImageUrl"))
+								String brandHeaderIconUrl = brandingValidator.logoUrl(
+									Optional.ofNullable(input_map.get("brandHeaderIconUrl"))
 										.map(Object::toString)
 										.orElse(""));
 
-								String aboutImageUrl = brandingValidator.logoUrl(
-									Optional.ofNullable(input_map.get("aboutImageUrl"))
+								String brandLogoUrl = brandingValidator.logoUrl(
+									Optional.ofNullable(input_map.get("brandLogoUrl"))
 										.map(Object::toString)
 										.orElse(""));
 
@@ -143,8 +143,8 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 									.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Consortium:" + input_map.get("name").toString()))
 									.name(input_map.get("name").toString())
 									.displayName(displayName)
-									.headerImageUrl(headerImageUrl)
-									.aboutImageUrl(aboutImageUrl)
+									.brandHeaderIconUrl(brandHeaderIconUrl)
+									.brandLogoUrl(brandLogoUrl)
 									.catalogueSearchUrl(catalogueSearchUrl)
 									.description(description)
 									.websiteUrl(websiteUrl)

@@ -157,9 +157,9 @@ class BrandingValidatorTests {
 	}
 
 	/**
-	 * The admin-chrome images now pass through this validator too, and that is a change to
-	 * columns holding live production data. These are the values MOBIUS actually has in
-	 * consortium.header_image_url and consortium.about_image_url today.
+	 * These are the values MOBIUS actually holds today, which V8_74_002 carries into
+	 * brand_header_icon_url and brand_logo_url. They were stored before this validator
+	 * existed, so the migration moves unvalidated data into columns that are validated.
 	 *
 	 * If this test ever fails, the next consortium edit in production starts being rejected
 	 * over a field the administrator did not touch.
@@ -178,9 +178,10 @@ class BrandingValidatorTests {
 	}
 
 	/**
-	 * The reason for validating them at all. These were storable in header_image_url until
-	 * now, and it was survivable only because the column is rendered behind authentication -
-	 * which is also the one thing stopping it being reused for the patron-facing brand.
+	 * Why the admin-chrome columns had to be validated before they could merge. Each of
+	 * these was storable in header_image_url, survivable only because that column was
+	 * rendered behind authentication - and the merged column is rendered to patrons on an
+	 * anonymous route.
 	 */
 	@Test
 	void shouldRefuseInAdminChromeWhatItRefusesInPatronBrand() {

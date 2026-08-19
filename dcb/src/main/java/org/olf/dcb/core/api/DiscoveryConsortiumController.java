@@ -30,10 +30,10 @@ import reactor.core.publisher.Mono;
  * <h2>What it deliberately does not serve</h2>
  *
  * Not `description` — that is staff-facing prose about the consortium and this is copy
- * shown to a patron under a search box. Not headerImageUrl or aboutImageUrl, which are
- * 36x36 and 48x48 admin-chrome icons rather than a brand mark. Not the functional
- * settings, the member list, or anything else on the entity: those describe how the
- * consortium is configured, and this route is anonymous.
+ * shown to a patron under a search box. Not the contacts, the functional settings, the
+ * member list, or anything else on the entity: those name people or describe how the
+ * consortium is configured, and this route is anonymous. The full entity is behind
+ * getConsortia, which requires an administrative role.
  *
  * <h2>Anonymous, and bounded by construction</h2>
  *

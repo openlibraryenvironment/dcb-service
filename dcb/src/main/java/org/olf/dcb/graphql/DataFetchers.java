@@ -289,17 +289,7 @@ public class DataFetchers {
 				.from(pageno.intValue(), pagesize.intValue())
 				.order(order, orderBy);
 
-			String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
-				.map(Object::toString)
-				.orElse("User not detected");
-
-			Collection<String> roles = env.getGraphQlContext().get("roles");
-
-			// Check if the user has the required role
-			if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN") && !roles.contains("LIBRARY_ADMIN"))) {
-				log.warn("getDataChangeLog: Access denied for user {} with roles {}: user does not have the required role to access the data change log.", userString, roles);
-				throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");
-			}
+			GraphQLRoles.require(env, "getDataChangeLog", GraphQLRoles.ADMINISTRATIVE);
 
 			if ((query != null) && (query.length() > 0)) {
 				var spec = qs.evaluate(query, DataChangeLog.class);
@@ -999,6 +989,15 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<Consortium>>> getConsortiaDataFetcher() {
 		return env -> {
+			// /graphql is behind isAuthenticated() and nothing more, so without this any
+			// principal the realm issues a token to reaches this fetcher - including
+			// DISCOVERY_SERVICE, which is held by discovery BACKENDS that may be third
+			// party. A Consortium carries `contacts`, named people with email addresses,
+			// plus the operational lastEditedBy/reason/changeReferenceUrl trail. None of
+			// that is patron-facing: the brand a discovery app legitimately needs is
+			// served anonymously, and in a bounded shape, by /discovery/consortium.
+			GraphQLRoles.require(env, "getConsortiaDataFetcher", GraphQLRoles.ADMINISTRATIVE);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
