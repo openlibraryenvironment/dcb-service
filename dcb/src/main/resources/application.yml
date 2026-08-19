@@ -272,15 +272,19 @@ dcb:
     # startup deliberately: a trust anchor that binds nothing silently is
     # indistinguishable from one nobody configured.
     trusted-services: []
-  # Uploaded brand assets (R-17b, R-17c). A BLANK BUCKET IS THE DEFAULT AND DISABLES
-  # UPLOADS: the routes are absent from the running service rather than present and
-  # failing, and brand fields still accept an absolute CDN URL.
-  #
-  # docs/branding.md covers the three ways an image gets in and what each one needs.
+  # Uploaded brand assets (R-17b, R-17c). docs/branding.md covers the ways an image gets
+  # in and what each one needs.
   branding:
     assets:
-      bucket: ${DCB_BRANDING_ASSETS_BUCKET:}
-      prefix: ${DCB_BRANDING_ASSETS_PREFIX:brand/}
+      # database - images are stored in Postgres. Needs no infrastructure of its own.
+      # none     - the upload routes are ABSENT from the running service, and brand fields
+      #            still accept an absolute CDN URL. For a deployment that would rather not
+      #            keep images in its database; nothing else about branding changes.
+      store: ${DCB_BRANDING_ASSETS_STORE:database}
+      # How long an unreferenced upload is kept. An administrator uploads and then saves
+      # the URL with a separate mutation, so an asset is legitimately unreferenced in
+      # between: too short and the sweep deletes the image somebody is still choosing.
+      orphan-grace-period: ${DCB_BRANDING_ASSETS_ORPHAN_GRACE:24h}
       # Changing this after assets exist orphans every stored URL: it is the one
       # site-relative form BrandingValidator accepts. Here to be read, not tuned.
       public-path-prefix: ${DCB_BRANDING_ASSETS_PATH_PREFIX:/discovery/brand-assets/}

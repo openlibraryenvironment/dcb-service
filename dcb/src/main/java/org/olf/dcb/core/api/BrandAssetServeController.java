@@ -41,10 +41,10 @@ import reactor.core.publisher.Mono;
  *
  * <h2>Bounded reads</h2>
  *
- * This is the only anonymous route in the service that reaches object storage, and it is
- * hit on the first paint of every patron page whose browser cache is cold. The store caches
- * what it serves — see {@code S3BrandAssetStore} — so a few hundred marks across 500
- * libraries do not become one object-storage GET per page load.
+ * This is the only anonymous route in the service that reaches the store, and it is hit on
+ * the first paint of every patron page whose browser cache is cold. The store caches what
+ * it serves — see {@code DatabaseBrandAssetStore} — so a few hundred marks across 500
+ * libraries do not become one read per page load.
  */
 @Controller("/discovery/brand-assets")
 @Requires(beans = BrandAssetStore.class)

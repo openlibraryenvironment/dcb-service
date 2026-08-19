@@ -111,7 +111,7 @@ class BrandAssetCleanupTests {
 
 		@Override
 		public Mono<String> put(BrandAsset asset) {
-			return Mono.just(S3BrandAssetStore.keyFor(asset));
+			return Mono.just(asset.key());
 		}
 
 		@Override

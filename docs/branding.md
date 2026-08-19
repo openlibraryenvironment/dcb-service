@@ -14,18 +14,28 @@ mutations, validated by `BrandingValidator`.
 They are not alternatives to choose between once. A single deployment can use all three,
 and the brand fields store a URL in every case.
 
-| | How the image reaches the patron | What the deployment needs | Set `dcb.branding.assets.bucket` |
+| | How the image reaches the patron | What the deployment needs | `dcb.branding.assets.store` |
 |---|---|---|---|
-| **1. External URL** | The customer's own CDN or web host | Nothing | No — leave blank |
-| **2. Upload to object storage** | DCB serves it from `/discovery/brand-assets/{key}` | An S3-API bucket | Yes |
-| **3. Upload, fronted by a CDN** | A CDN caches DCB's route | A bucket, plus a CDN in front of DCB | Yes |
+| **1. External URL** | The customer's own CDN or web host | Nothing | either value — this always works |
+| **2. Upload** | DCB serves it from `/discovery/brand-assets/{key}` | Nothing — it goes in Postgres | `database` *(default)* |
+| **3. Upload, fronted by a CDN** | A CDN caches DCB's route | A CDN in front of DCB | `database` |
 
-**Option 1 is the default and needs no configuration at all.** With a blank bucket the
-upload route does not exist — not "exists and returns an error", but is absent from the
-running service, because `BrandAssetUploadController` and `BrandAssetServeController` are
-both `@Requires(beans = BrandAssetStore.class)` and no store bean is created without a
-bucket. An administrator pastes an absolute `https://` URL into the brand field and that is
-the whole flow.
+**Option 1 always works and needs no configuration.** An administrator pastes an absolute
+`https://` URL into the brand field; `BrandingValidator` accepts it; nothing else is
+involved. A consortium with its own brand team and CDN is never made to re-upload.
+
+**Setting `store: none` turns option 2 off.** The upload routes then do not exist — not
+"exist and return an error", but are absent from the running service, because
+`BrandAssetUploadController` and `BrandAssetServeController` are both
+`@Requires(beans = BrandAssetStore.class)`. That is the setting for a deployment that would
+rather not keep images in its database. Option 1 is unaffected.
+
+**Uploads are stored in Postgres, and that is deliberate.** Requiring object storage made
+the feature conditional on infrastructure a deployment may not have and a developer almost
+certainly does not — a container, credentials, an endpoint override and an addressing mode
+before anybody could exercise the route at all. Object storage remains a reasonable option
+for estates that already run a bucket and is expected back as a third value for `store`; it
+was the wrong thing to require of everybody.
 
 `BrandingValidator` accepts exactly two shapes and refuses everything else:
 
@@ -50,40 +60,14 @@ Point the CDN at `/discovery/brand-assets/**` and nothing else changes.
 
 ## What uploads need
 
-```
-DCB_BRANDING_ASSETS_BUCKET      an S3-API bucket name. Blank (default) disables uploads.
-AWS_ACCESS_KEY_ID               \
-AWS_SECRET_ACCESS_KEY            > read by the AWS SDK's default provider chain, not by
-AWS_REGION                      /  Micronaut - there is no property to set instead.
-```
+Nothing. Images are stored in the same Postgres everything else uses, so there is no
+bucket, no credentials, no endpoint and no extra container — locally, in CI, or in a
+deployment. That is most of the reason they are stored there.
 
-For MinIO, R2 or Ceph, also set the endpoint and addressing mode:
-
-```yaml
-aws:
-  s3:
-    path-style-access-enabled: true
-  services:
-    s3:
-      endpoint-override: http://your-endpoint:9000
-```
-
-`path-style-access-enabled` is not optional against MinIO. The AWS SDK addresses buckets as
-virtual hosts by default — `http://bucket.endpoint/` — which resolves to nothing, so
-without it every call fails in a way that looks like a broken endpoint rather than a wrong
-addressing mode.
-
-### Locally
-
-```bash
-docker compose --profile brand-assets up -d      # in scripts/
-export AWS_ACCESS_KEY_ID=dcb
-export AWS_SECRET_ACCESS_KEY=dcbdcbdcb
-export AWS_REGION=us-east-1
-```
-
-`application-development.yml` already carries the endpoint and the bucket name; the compose
-file creates the bucket.
+| Setting | Default | |
+|---|---|---|
+| `DCB_BRANDING_ASSETS_STORE` | `database` | `none` removes the upload routes |
+| `DCB_BRANDING_ASSETS_ORPHAN_GRACE` | `24h` | How long an unsaved upload is kept — see Orphans |
 
 ## What is accepted, and what is not
 
@@ -120,21 +104,35 @@ where the controller's error handler cannot add a sentence explaining why.
 
 ## Orphans
 
-Keys are content-addressed, so replacing an asset never overwrites the old object; it
-writes a second one and leaves the first. The policy is **delete-on-replace**:
-`BrandAssetCleanup` removes the previous object when a brand field is pointed somewhere
-else. It never touches an absolute URL — a consortium's CDN is not ours to delete from —
-and it never fails an update, because an administrator whose new logo is live must not see
-an error about a stale object.
+There are two ways an uploaded image stops being needed, and they have different answers.
 
-There is no sweep, and that is deliberate: a sweep needs a scheduler, a way to know which
-keys are still referenced by any brand field on any row, and somebody to notice when it
-stops running.
+**Replaced.** Keys are content-addressed, so pointing a brand field at a new image never
+overwrites the old row — it writes a second and leaves the first. `BrandAssetCleanup`
+removes the previous one when the field changes. It never touches an absolute URL (a
+consortium's CDN is not ours to delete from) and it never fails an update, because an
+administrator whose new logo is live must not see an error about a stale row.
+
+**Never saved.** This is the one that needs a sweep. An administrator uploads, receives a
+URL, and saves it with a *separate* mutation — so an upload nobody saves is orphaned the
+moment it lands, and the replace path never sees it. Without a sweep, an authenticated
+administrator can insert unbounded 2 MB rows by uploading repeatedly and saving nothing.
+
+`BrandAssetSweep` runs daily and deletes assets that no brand field refers to. **The
+24-hour grace period is not a tuning knob**: between the upload and the mutation an asset is
+legitimately unreferenced, and sweeping without a window would delete the image somebody is
+part-way through choosing.
+
+Being able to sweep at all is a consequence of storing images in the database. The
+expensive part is knowing which keys are still referenced by any brand field on any row —
+against a bucket that means enumerating objects and cross-checking them; here it is one
+statement with two `NOT EXISTS` clauses.
 
 ## Switching storage later
 
-Moving a deployment from external URLs to uploads is additive — existing absolute URLs keep
-working. Moving *between* buckets is not automatic: stored brand URLs are site-relative
-paths under `/discovery/brand-assets/`, so the objects have to be copied to the new bucket
-or those URLs will 404. Content-addressed keys make that a straight copy, but nothing does
-it for you.
+Moving from external URLs to uploads is additive — existing absolute URLs keep working, and
+the two can be mixed indefinitely.
+
+Setting `store: none` after assets exist leaves the rows in place but removes the route
+that serves them, so any brand field holding a `/discovery/brand-assets/` path will 404
+until it is pointed at an absolute URL. Switch back and they work again; nothing is
+deleted.

@@ -43,25 +43,10 @@ hosts:
 #            keycloak:
 #              url: ${KEYCLOAK_CERT_URL:""}
 
-# Brand asset uploads against the MinIO in scripts/docker-compose.yml (R-17b).
-# Setup and the AWS_* exports it needs: docs/branding.md.
-#
-# DEVELOPMENT ONLY - none of these are defaults anybody should inherit. Credentials are
-# deliberately absent: putting a key in a tracked file to save three exports is how a real
-# one eventually ends up in one.
-aws:
-  s3:
-    path-style-access-enabled: true
-  services:
-    s3:
-      endpoint-override: ${DCB_MINIO_ENDPOINT:`http://localhost:9000`}
+# Brand asset uploads need no development configuration at all: they are stored in the
+# same Postgres everything else uses. That is most of the point of storing them there.
 
 dcb:
-  branding:
-    assets:
-      # Matches the bucket scripts/docker-compose.yml creates.
-      bucket: ${DCB_BRANDING_ASSETS_BUCKET:dcb-brand-assets}
-
   itemresolver:
     code: Geo
 

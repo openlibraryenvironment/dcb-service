@@ -1,5 +1,7 @@
 package org.olf.dcb.core.branding;
 
+import java.time.Duration;
+
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,14 +26,29 @@ import lombok.Setter;
 public class BrandAssetProperties {
 
 	/**
-	 * The S3-API bucket that holds the objects. Blank disables uploads entirely: the
-	 * upload route is absent and the admin forms fall back to the CDN control, which is
-	 * a first-class route in its own right (§R-7.4) and not a degraded mode.
+	 * Where uploaded images are kept: {@code database} or {@code none}.
+	 *
+	 * <p>{@code none} removes the upload routes from the running service — not "present and
+	 * failing", absent, because both controllers are {@code @Requires(beans =
+	 * BrandAssetStore.class)}. Brand fields still accept an absolute CDN URL, which is a
+	 * first-class way to brand a consortium (§R-7.4) and not a degraded mode. A deployment
+	 * that does not want images in its database says so and loses nothing else.
+	 *
+	 * <p>Object storage was the original implementation and will return as a third value.
+	 * It is a reasonable option for estates that already run a bucket; it was the wrong
+	 * thing to require of everybody, because it made the feature untestable without one.
 	 */
-	private String bucket = "";
+	private String store = "database";
 
-	/** Key prefix inside the bucket, so a shared bucket stays legible. */
-	private String prefix = "brand/";
+	/**
+	 * How long an unreferenced asset is kept before {@link BrandAssetSweep} removes it.
+	 *
+	 * <p>Not a tuning knob so much as a correctness one: an administrator uploads and then
+	 * saves the URL with a separate mutation, so an asset is legitimately unreferenced in
+	 * between. Too short and the sweep deletes the image somebody is part-way through
+	 * choosing.
+	 */
+	private Duration orphanGracePeriod = Duration.ofDays(1);
 
 	/**
 	 * The path uploaded assets are served from, and the one {@link BrandingValidator}

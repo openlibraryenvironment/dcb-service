@@ -53,8 +53,8 @@ import jakarta.inject.Singleton;
 public class BrandingValidator {
 
 	/**
-	 * The shape {@code S3BrandAssetStore} mints: a SHA-256 hex digest and the extension
-	 * of a format we re-encode to. Anchored at both ends on purpose.
+	 * The shape {@code BrandAsset.key()} mints: a SHA-256 hex digest and the extension of a
+	 * format we re-encode to. Anchored at both ends on purpose.
 	 */
 	private static final Pattern ASSET_KEY = Pattern.compile("[0-9a-f]{64}[.](png|jpg)");
 

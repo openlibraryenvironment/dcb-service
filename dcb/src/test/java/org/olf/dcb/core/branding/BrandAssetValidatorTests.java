@@ -168,14 +168,14 @@ class BrandAssetValidatorTests {
 		final var first = validator.validate(png(32, 32, true));
 		final var second = validator.validate(png(32, 32, true));
 
-		assertThat(S3BrandAssetStore.keyFor(first), is(S3BrandAssetStore.keyFor(second)));
-		assertThat(S3BrandAssetStore.keyFor(first).endsWith(".png"), is(true));
+		assertThat(first.key(), is(second.key()));
+		assertThat(first.key().endsWith(".png"), is(true));
 	}
 
 	@Test
 	void shouldGiveADifferentKeyToADifferentImage() throws IOException {
-		assertThat(S3BrandAssetStore.keyFor(validator.validate(png(32, 32, true)))
-				.equals(S3BrandAssetStore.keyFor(validator.validate(png(48, 48, true)))),
+		assertThat(validator.validate(png(32, 32, true)).key()
+				.equals(validator.validate(png(48, 48, true)).key()),
 			is(false));
 	}
 
