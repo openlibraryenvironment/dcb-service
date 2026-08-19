@@ -64,10 +64,10 @@ public class PAPIClient {
 	private final HostLms lms;
 	private final ConsortiumService consortiumService;
 
-	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService, HostLms lms, ConsortiumService consortiumService) {
+	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService, HostLms lms, ConsortiumService consortiumService, PolarisTokenCache tokenCache) {
 		this.client = client;
 		this.polarisConfig = polarisConfig;
-		this.authFilter = new PAPIAuthFilter(client, polarisConfig);
+		this.authFilter = new PAPIAuthFilter(client, polarisConfig, tokenCache);
 		this.lms = lms;
 
 		// Build PAPI base parameters

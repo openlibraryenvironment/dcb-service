@@ -64,6 +64,31 @@ public class MockPolarisFixture {
 				.build());
 	}
 
+	public void verifyAppServicesStaffAuthentication(VerificationTimes times) {
+		mockServer.verify(commonRequests.post(
+			paths.baseApplicationServices("/authentication/staffuser")), times);
+	}
+
+	/**
+	 * The endpoint behind PolarisLmsClient.ping() - a single Application Services GET, which makes
+	 * it the least entangled way to prove how often the auth handshake actually happens.
+	 */
+	public void mockGetHoldRequestDefaults(Integer expirationDatePeriod) {
+		mockServer.mockGet(paths.applicationServices("/holdsdefaults"),
+			ApplicationServicesClient.HoldRequestDefault.builder()
+				.expirationDatePeriod(expirationDatePeriod)
+				.build());
+	}
+
+	/**
+	 * Answers the next hold defaults request with a 401, as Polaris does when it no longer accepts
+	 * a token we are still holding. Register before mockGetHoldRequestDefaults so it matches first.
+	 */
+	public void mockGetHoldRequestDefaultsUnauthorisedOnce() {
+		mockServer.mock(commonRequests.get(paths.applicationServices("/holdsdefaults")),
+			response().withStatusCode(401), Times.once());
+	}
+
 	public void mockAppServicesStaffAuthentication() {
 		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
 			// Values taken from previously hard coded responses

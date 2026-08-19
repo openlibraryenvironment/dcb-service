@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.polaris;
 import static io.micronaut.http.HttpHeaders.AUTHORIZATION;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static org.olf.dcb.core.interaction.polaris.PolarisTokenCache.TokenKind.APPLICATION_SERVICES;
 
 import java.util.Base64;
 
@@ -22,17 +23,22 @@ import reactor.core.publisher.Mono;
 class ApplicationServicesAuthFilter {
 	private final PolarisLmsClient client;
 	private final PolarisConfig polarisConfig;
+	private final PolarisTokenCache tokenCache;
 
-	private AuthToken currentToken;
+	public ApplicationServicesAuthFilter(PolarisLmsClient client, PolarisConfig polarisConfig,
+		PolarisTokenCache tokenCache) {
 
-	public ApplicationServicesAuthFilter(PolarisLmsClient client, PolarisConfig polarisConfig) {
 		this.client = client;
 		this.polarisConfig = polarisConfig;
+		this.tokenCache = tokenCache;
 	}
 
 	Mono<MutableHttpRequest<?>> basicAuth(MutableHttpRequest<?> request) {
-		return staffAuthenticator()
-			.map(newToken -> currentToken = newToken)
+		// Cached per Host LMS rather than held here: this filter is rebuilt for every
+		// PolarisLmsClient, so anything kept on the instance would be authenticated afresh
+		// on every single request.
+		return tokenCache.get(client.getHostLmsCode(), APPLICATION_SERVICES,
+				polarisConfig.getTokenCacheTtl(), this::staffAuthenticator)
 			.map(validToken -> {
 				final var token = validToken.getAccessToken();
 				final var secret = validToken.getAccessSecret();

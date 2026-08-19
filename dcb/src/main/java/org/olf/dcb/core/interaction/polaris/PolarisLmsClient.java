@@ -55,6 +55,7 @@ import org.olf.dcb.core.interaction.CheckInItemCommand;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
@@ -201,6 +202,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	
 	private final R2dbcOperations r2dbcOperations;
 	private final Pattern msDateRegex;
+	private final PolarisTokenCache tokenCache;
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms,
@@ -209,7 +211,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
 									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
-									 ConsortiumService consortiumService) {
+									 ConsortiumService consortiumService, PolarisTokenCache tokenCache) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -221,8 +223,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.polarisConfig = convertConfig(hostLms);
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
-		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig);
-		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService);
+		this.tokenCache = tokenCache;
+		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig, tokenCache);
+		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService, tokenCache);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
@@ -1465,6 +1468,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass,
 		Boolean useGenericHttpClientResponseExceptionHandler) {
 		return Mono.from(client.exchange(request, returnClass))
+			// A cached token Polaris no longer accepts must be dropped, otherwise every request
+			// for this host keeps failing until the TTL elapses.
+			.doOnError(HttpResponsePredicates::isUnauthorised, __ -> tokenCache.invalidate(getHostLmsCode()))
 			.doOnError(logRequestAndResponseDetails(request))
 			.onErrorResume(error -> {
 
@@ -1508,6 +1514,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType))
+			// A cached token Polaris no longer accepts must be dropped, otherwise every request
+			// for this host keeps failing until the TTL elapses.
+			.doOnError(HttpResponsePredicates::isUnauthorised, __ -> tokenCache.invalidate(getHostLmsCode()))
 			.doOnError(logRequestAndResponseDetails(request))
 			// Additional request specific error handling
 			.transform(errorHandlingTransformer)

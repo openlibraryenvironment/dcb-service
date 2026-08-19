@@ -176,6 +176,15 @@ public class HostLmsFixture {
 		String staffPassword, String baseUrl, String domain, String accessId,
 		String accessKey, String defaultAgencyCode, Integer illLocationId) {
 
+		return createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain,
+			accessId, accessKey, defaultAgencyCode, illLocationId, Map.of());
+	}
+
+	public DataHostLms createPolarisHostLms(String code, String staffUsername,
+		String staffPassword, String baseUrl, String domain, String accessId,
+		String accessKey, String defaultAgencyCode, Integer illLocationId,
+		Map<String, Object> additionalConfig) {
+
 		Map<String, Object> clientConfig = new HashMap<>();
 
 		clientConfig.put("staff-username", staffUsername);
@@ -196,6 +205,11 @@ public class HostLmsFixture {
 		clientConfig.put("hold-fetching-delay", "0");
 		clientConfig.put("hold-fetching-max-retry", "0");
 
+		// Token caching is a singleton shared across every test in the suite. Off by default so
+		// one test cannot inherit another's cached token; tests that exercise it opt in via
+		// additionalConfig, which is merged after this.
+		clientConfig.put("token-cache-ttl-seconds", "0");
+
 		Map<String, Object> services = new HashMap<>();
 		services.put("product-id", "20"); // tests rely upon this value but default is 19
 		services.put("organisation-id", "73");
@@ -212,6 +226,9 @@ public class HostLmsFixture {
 		item.put("ill-location-id", illLocationId.toString());
 
 		clientConfig.put("item", item);
+
+		// Merged last so a test can override any default above
+		clientConfig.putAll(additionalConfig);
 
 		return createHostLms(randomUUID(), code, PolarisLmsClient.class,
 			Optional.of(PolarisLmsClient.class), clientConfig);

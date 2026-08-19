@@ -59,6 +59,16 @@ public class PolarisConfig {
 	private Integer holdFetchingDelay;
 	@JsonProperty("hold-fetching-max-retry")
 	private Integer holdFetchingMaxRetry;
+	/**
+	 * How long a Polaris staff auth token may be reused before we re-authenticate.
+	 *
+	 * Deliberately NOT derived from the token's AuthExpDate: Application Services omits that field
+	 * entirely in some responses and it is an undocumented bare string, so a parsed value cannot be
+	 * trusted. A conservative fixed window plus invalidate-on-401 can be. Set to 0 to disable
+	 * caching and authenticate on every request.
+	 */
+	@JsonProperty("token-cache-ttl-seconds")
+	private Integer tokenCacheTtlSeconds;
 	@JsonProperty("papi")
 	private PapiConfig papi;
 	@JsonProperty("services")
@@ -263,6 +273,11 @@ public class PolarisConfig {
 	public Integer getMaxHoldFetchingRetry(Integer defaultMaxRetry) {
 
 		return valueWithDefault(this.holdFetchingMaxRetry, Integer.class, defaultMaxRetry);
+	}
+
+	public Duration getTokenCacheTtl() {
+
+		return Duration.ofSeconds(valueWithDefault(this.tokenCacheTtlSeconds, Integer.class, 900));
 	}
 
 	public Integer getItemAvRenewalLimit()

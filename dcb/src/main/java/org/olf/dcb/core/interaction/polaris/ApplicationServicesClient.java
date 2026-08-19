@@ -78,10 +78,12 @@ class ApplicationServicesClient {
 	// ToDo align these URLs
 	public static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
 
-	ApplicationServicesClient(PolarisLmsClient client, PolarisConfig polarisConfig) {
+	ApplicationServicesClient(PolarisLmsClient client, PolarisConfig polarisConfig,
+		PolarisTokenCache tokenCache) {
+
 		this.client = client;
 		this.polarisConfig = polarisConfig;
-		this.authFilter = new ApplicationServicesAuthFilter(client, polarisConfig);
+		this.authFilter = new ApplicationServicesAuthFilter(client, polarisConfig, tokenCache);
 		this.URI_PARAMETERS = "/polaris.applicationservices/api" + polarisConfig.applicationServicesUriParameters();
 		this.TransactingPolarisUserID = polarisConfig.getLogonUserId();
 		this.TransactingWorkstationID = polarisConfig.getServicesWorkstationId();
