@@ -144,26 +144,12 @@
   # Object storage for brand asset uploads (R-17b). Opt-in:
   #   docker compose --profile brand-assets up -d
   #
-  # DCB speaks the S3 API rather than a vendor SDK, so this is the same code path a
-  # deployment runs against S3, R2 or Ceph -- only the endpoint differs. That is the whole
-  # reason for standing it up locally: without it the upload route can only ever be
-  # exercised in a deployed environment, which is where nobody wants to find out it does
-  # not work.
+  # Exists so the S3 path is exercisable locally rather than only in a deployed
+  # environment, which is where nobody wants to find out it does not work. DCB speaks the
+  # S3 API, so this is the same code path a deployment runs against S3, R2 or Ceph.
   #
-  # Leave this profile down and DCB is unaffected: a blank dcb.branding.assets.bucket
-  # removes the upload route entirely and brand fields still accept an absolute CDN URL.
-  #
-  # DCB also needs credentials and a region. Micronaut does not read those from its own
-  # configuration -- io.micronaut.aws.sdk.v2.CredentialsAndRegionFactory hands the AWS
-  # SDK's DefaultCredentialsProvider and DefaultAwsRegionProviderChain straight through --
-  # so they come from the environment, the same as they would in a deployment:
-  #
-  #   export AWS_ACCESS_KEY_ID=dcb
-  #   export AWS_SECRET_ACCESS_KEY=dcbdcbdcb
-  #   export AWS_REGION=us-east-1
-  #
-  # The endpoint and path-style addressing are already set in
-  # dcb/src/main/resources/application-development.yml.
+  # Leave the profile down and DCB is unaffected: a blank bucket removes the upload route
+  # entirely. Setup, and the AWS_* exports DCB needs alongside this: docs/branding.md.
   minio:
     profiles: ["brand-assets"]
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z

@@ -7,20 +7,16 @@ import lombok.Setter;
 /**
  * The limits and the location for uploaded brand assets (R-17b, R-17c).
  *
- * <h2>The caps are here rather than hardcoded because they are deployment facts</h2>
+ * <p>The caps are configuration rather than constants because they are deployment facts: a
+ * consortium that genuinely needs a larger canvas raises one knowingly instead of somebody
+ * patching a number. What each one is for, and the numbers behind the defaults, are in
+ * {@code docs/branding.md}.
  *
- * A background image is 200–800 KB and a header icon is a few kilobytes. The default cap
- * is generous for both and small enough that an upload cannot be used as a way to fill a
- * bucket. A deployment whose consortium genuinely needs a larger canvas raises it
- * knowingly; nobody has to patch a constant.
- *
- * <h2>The dimension cap is a decompression-bomb limit, not a taste limit</h2>
- *
- * It is checked from the image header, before any pixel is decoded — see
- * {@link BrandAssetValidator}. A 40 KB PNG can declare 30000x30000 and cost 3.6 GB of
- * heap the moment something calls {@code ImageIO.read} on it. Reading width and height
- * from the header and refusing early is the difference between a rejected upload and an
- * OutOfMemoryError that takes the service down for everyone.
+ * <p>The one thing worth repeating here, because it is a safety property and not a
+ * preference: {@code maxDimension} is a decompression-bomb limit. It is checked from the
+ * image header before any pixel is decoded — see {@link BrandAssetValidator} — because a
+ * 40 KB PNG can declare 30000x30000 and cost 3.6 GB of heap the moment something calls
+ * {@code ImageIO.read} on it.
  */
 @ConfigurationProperties("dcb.branding.assets")
 @Getter

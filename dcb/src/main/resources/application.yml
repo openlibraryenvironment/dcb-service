@@ -9,29 +9,13 @@ micronaut:
     cors:
       enabled: true
     multipart:
-      # ONE setting, and it is the file size cap. There is deliberately no `enabled` here:
-      # multipart works when the property is ABSENT, which is how location import and
-      # mapping import have worked all along. Setting it explicitly to false is what breaks
-      # them (415), so "absent" and "false" are different states and only the explicit one
-      # is a refusal. An earlier version of this block set it to true and claimed it was
-      # required; that was wrong, and it was wrong because the experiment tested `false`
-      # rather than absence.
+      # The framework default is 1MB, and it is applied while the request is being decoded -
+      # before routing, so an over-cap upload never reaches a controller that could explain
+      # why. Pinned to the same variable as dcb.branding.assets.max-bytes so the two limits
+      # governing one upload cannot drift apart. Applies to location and mapping import too.
       #
-      # max-file-size IS required. DEFAULT_MAX_FILE_SIZE is 1048576 in
-      # micronaut-http-server 5.0.2, so without this the 1MB framework cap silently
-      # overrides the 2MB dcb.branding.assets.max-bytes below, and the refusal happens while
-      # the server decodes the request - before routing, so BrandAssetUploadController's
-      # @Error handler never runs and the administrator gets {"status":413} with no sentence
-      # in it. Kept in step with max-bytes through the same variable: two limits governing
-      # one upload must not drift apart.
-      #
-      # Note this cap now applies to location and mapping import too, which previously had
-      # the 1MB default. Both take small CSV files, so 2MB is a raise rather than a limit.
-      #
-      # There is no max-request-size here: MultipartConfiguration has no such property (it
-      # carries location, maxFileSize, enabled, disk, mixed and threshold, and nothing
-      # else). The server-wide micronaut.server.max-request-size defaults to 10MB,
-      # comfortably above this cap. Raise that one too if max-bytes is ever set above 10MB.
+      # There is deliberately no `enabled` here: absent is not the same as false, and only
+      # an explicit false refuses. See docs/branding.md.
       max-file-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
   application:
     name: dcb
@@ -249,7 +233,7 @@ dcb:
   # Discovery services DCB will accept patron assertions from.
   #
   # A discovery service authenticates with a Keycloak client credential holding the
-  # DISCOVERY_SERVICE role â€” that proves WHO is calling. It does not prove WHICH
+  # DISCOVERY_SERVICE role — that proves WHO is calling. It does not prove WHICH
   # PATRON, so the patron travels as a separately-signed, short-lived assertion in the
   # X-OpenRS-Patron-Assertion header, and this is its trust anchor. DCB verifies it and
   # then enforces per-patron ownership itself, rather than trusting the caller to.
@@ -288,30 +272,21 @@ dcb:
     # startup deliberately: a trust anchor that binds nothing silently is
     # indistinguishable from one nobody configured.
     trusted-services: []
-  # Uploaded brand assets (R-17b, R-17c). The consortium and library brand columns store
-  # a URL either way; this decides whether an administrator can also UPLOAD one instead of
-  # pointing at a CDN they already run. Both routes are first-class: a consortium with a
-  # brand team and a CDN must not be made to re-upload, and one with neither must not be
-  # told to go and find hosting before it can have a logo.
+  # Uploaded brand assets (R-17b, R-17c). A BLANK BUCKET IS THE DEFAULT AND DISABLES
+  # UPLOADS: the routes are absent from the running service rather than present and
+  # failing, and brand fields still accept an absolute CDN URL.
   #
-  # BLANK BUCKET DISABLES UPLOADS ENTIRELY, and does so cleanly: the upload route is
-  # absent from the running service rather than present and failing, and the admin forms
-  # fall back to the CDN control. That is the correct default for a deployment that has
-  # not been given object storage.
+  # docs/branding.md covers the three ways an image gets in and what each one needs.
   branding:
     assets:
-      # An S3-API bucket. MinIO in docker-compose, S3 or R2 in a deployment â€” same code,
-      # different endpoint, which is the point of speaking the API rather than the vendor.
       bucket: ${DCB_BRANDING_ASSETS_BUCKET:}
       prefix: ${DCB_BRANDING_ASSETS_PREFIX:brand/}
-      # Also the one site-relative form BrandingValidator accepts. Changing it after
-      # assets exist orphans every stored URL, so it is here to be read, not tuned.
+      # Changing this after assets exist orphans every stored URL: it is the one
+      # site-relative form BrandingValidator accepts. Here to be read, not tuned.
       public-path-prefix: ${DCB_BRANDING_ASSETS_PATH_PREFIX:/discovery/brand-assets/}
-      # Generous for a mark and for a landing background, small enough that an upload is
-      # not a way to fill a bucket.
       max-bytes: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
-      # A decompression-bomb limit, not a taste limit: checked from the image header
-      # before a single pixel is decoded.
+      # A decompression-bomb limit, not a taste limit - read from the image header before
+      # any pixel is decoded.
       max-dimension: ${DCB_BRANDING_ASSETS_MAX_DIMENSION:4096}
   security:
     internal-endpoints:
