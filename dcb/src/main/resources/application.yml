@@ -8,6 +8,24 @@ micronaut:
   server:
     cors:
       enabled: true
+    multipart:
+      # Brand asset upload is the only multipart route in this service, and BOTH of these
+      # are load-bearing. Verified against micronaut-http-server 5.0.2 rather than
+      # remembered: MultipartConfiguration.isEnabled() returns false when the property is
+      # unset, and DEFAULT_MAX_FILE_SIZE is 1048576.
+      #
+      # Left unset, the 1MB framework cap would silently override the 2MB
+      # dcb.branding.assets.max-bytes below it, and the refusal would happen while the
+      # server was decoding the request - before routing, so BrandAssetUploadController's
+      # @Error handler never runs and the administrator gets a bare problem detail with no
+      # sentence in it. That is exactly the failure the refusal-body handler exists to
+      # prevent, reintroduced one layer up.
+      #
+      # Kept in step with dcb.branding.assets.max-bytes through the same variable: two
+      # limits governing one upload must not be settable independently.
+      enabled: true
+      max-file-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
+      max-request-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
   application:
     name: dcb
   router:
