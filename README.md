@@ -13,6 +13,11 @@ This module is distributed in source and pre-compiled docker container form:
 
 # Deployment
 
+> **Upgrading from 8.x to v9.0.0?** Read
+> [docs/v9-migration-guide.md](docs/v9-migration-guide.md) before you deploy. v9.0.0
+> carries migrations that are not free, an automatic re-clustering sweep, the removal of
+> the `PATRON` role, and it is not cleanly reversible.
+
 ## Secret Manager Integration
 
 By creating a bootstrap.yml file and mounting it at /bootstrap.yml, then referencing this file in an
