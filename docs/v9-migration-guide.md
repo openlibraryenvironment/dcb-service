@@ -1,4 +1,4 @@
-Chec# DCB v9.0.0 — migration guide for hosting providers
+# DCB v9.0.0 — migration guide for hosting providers
 
 For anyone running DCB from the published image on Kubernetes or AWS ECS/Fargate.
 Covers everything between **v8.71.0** (23 July 2026) and **v9.0.0**.
