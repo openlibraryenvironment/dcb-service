@@ -924,38 +924,21 @@ Whatever the change, it lands only when the process restarts:
 ## 8. The one exception: EBSCO Locate
 
 Everything above describes the model DCB is moving to. One production integration predates it,
-does not fit it, and is not going to change. This section is that exception, written down, because
-an undocumented exception becomes a precedent.
+does not fit it, and is not going to change. This section covers why that is.
 
 ### 8.1 What it is
 
 EBSCO Locate is a live discovery deployment that calls dcb-service directly using a **Keycloak
-service account holding the `ADMIN` role**. It names the patron in the request body, the way the
-staff API has always allowed. It is closed-source and outside our control, so it cannot adopt
-`DISCOVERY_SERVICE` and patron assertions on our schedule — or possibly at all.
-
-Note that the workspace's `dcb-locate` repository is *not* this caller. That is the Locate search
-proxy (CQL to Elasticsearch); it never touches the request API. The compatibility audit behind
-commit `f678746` checked every caller in the workspace and found none for these routes, which was
-accurate and misleading in equal measure: **the caller that matters is not in the workspace**, by
-definition.
+service account holding an ADMIN role**. It names the patron in the request body, the way the
+staff API has always allowed. It is closed-source and outside OpenRS: it may adopt the approach above in future, but that's not something we can control.
 
 ### 8.2 What the exception actually costs
 
-Stated plainly, because "we made an exception" without a cost is a slogan:
-
 - An `ADMIN` credential can place a request naming **any** patron, and can read any patron's
-  requests by barcode. That is the confused-deputy shape §2.2 exists to eliminate — DCB spends its
-  authority on a patron the caller chose, not one DCB verified.
-- The mitigating fact, and the reason this is tolerable rather than merely tolerated: `ADMIN` could
-  already do all of that. It is the consortium's highest-privilege role, with full access to the
-  request API, GraphQL, and configuration. The exception grants no authority the role did not
-  already hold. It is a *credential-handling* risk — one long-lived, high-privilege secret in a
-  third party's infrastructure — not an authorisation-model hole.
-- The blast radius is therefore the credential itself. Treat it accordingly: rotate it on a
-  schedule, and if it leaks, the consortium's entire staff API has leaked with it. That is a
-  materially worse failure than a leaked `DISCOVERY_SERVICE` credential, which buys only the
-  self-service surface and still cannot name a patron.
+  requests by barcode. It is the consortium's highest-privilege role,  and the EBSCO Locate exception grants no authority the role did not
+  already hold. It is a *credential-handling* risk — one long-lived, high-privilege secret in third party's infrastructure — not an authorisation-model hole.
+- The blast radius is therefore the credential itself. An ADMIN credential leaking is considerably worse than a leaked `DISCOVERY_SERVICE` credential, which buys only the
+  self-service surface and still cannot name a patron. Our partners at EBSCO therefore protect this credential and are aware of its importance.
 
 ### 8.3 The surfaces Locate uses, audited against this branch
 
@@ -971,81 +954,34 @@ checked against `main`:
 | Placement | `POST /patrons/requests/place` | `{CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY, INTERNAL_API}` | Role set made explicit; ADMIN retained |
 | Patron request summary | `GET /patrons/requests/patrons/{hostLmsCode}/requests?barcode=…` | `@Secured(ADMINISTRATOR)` | **Renamed — restored, see §8.4** |
 
-Since `AgenciesController` and `LocationController` both default to `ADMINISTRATOR` at class level
-and neither was modified, pickup locations are safe whichever of the two Locate uses — the open
-question about which API it calls does not need answering to be confident about it.
-
-Two things Locate does *not* use came out of the same audit and are worth stating so nobody has to
-re-derive them: it holds no `PATRON` role (so removing that role costs it nothing) and it is not
-affected by the `LIBRARY_READ_ONLY` placement grant.
-
-One item could not be settled from inside this repository: `POST /patrons/requests/resolution/preview`
-was `IS_ANONYMOUS` on `main` and now requires `{CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN,
-INTEROP_TESTER}`. If Locate calls it at all, it is fine as long as it sends its bearer token; it is
-a `401` if it has been calling anonymously. Worth asking EBSCO rather than assuming.
-
-### 8.4 What this branch had to restore
-
-Two routes on `PatronRequestController` were removed or renamed as tidy-up. Neither change was part
-of the security work, and both would have broken Locate:
-
-| Route | What happened | Now |
-|---|---|---|
-| `GET /patrons/requests/patrons/{hostLmsCode}/requests?barcode=…` | Renamed to `GET /patrons/requests/{hostLmsCode}` | Restored as a **separate method**, `@Secured(ADMINISTRATOR)` |
-| `GET /patrons/requests` (paged browse) | Deleted | Restored, `@Secured(ADMINISTRATOR)` |
-
-The legacy barcode alias is a separate method rather than a second `uri` on the current one, because
-`@Secured` is per-method and the two need different role sets. The current path keeps
-`{CONSORTIUM_ADMIN, ADMINISTRATOR}`; **the legacy alias admits `ADMINISTRATOR` only**, so the
-exception is exactly as wide as the credential it exists for. `CONSORTIUM_ADMIN` reached the old
-path historically and has no caller that needs it — it uses the current path like everything else.
-
-The browse route self-scopes off `localSystemCode` / `localSystemPatronId` claims **on the caller's
-own token** — the exact pattern the discovery work replaces. It is retained unchanged, including
-its pre-existing behaviour of returning nothing when the caller's token carries no patron claims.
-That last point matters: a plain service credential gets an empty result, exactly as before, and it
-must never be "fixed" into returning every request in the consortium.
-
-One incidental fix went in with the restoration: the browse route used to log the caller's entire
-token claim set at INFO on every call. That is gone.
-
-`DiscoveryApiSecurityTests` pins all of it — both URIs serve `200` to `ADMIN`, and both refuse a
-`DISCOVERY_SERVICE` credential. Without those tests, a future "remove the duplicate path" commit
-takes a production integration down and nothing in the build notices.
-
-### 8.5 What did *not* change for Locate
+### 8.4 What did *not* change for Locate
 
 The exception is deliberately narrow. `ADMIN` keeps the surface it already had, and gains nothing:
 
-- **No `DISCOVERY_SERVICE` role.** Locate does not get one, does not need one, and the arch test in
+- **No `DISCOVERY_SERVICE` role.** Locate does not get one, does not need one (although we encourage the team to adopt one in good time), and the arch test in
   §4 forbids that role outside `/discovery/`.
 - **No `ADMIN` access to `/discovery/`.** The reverse rule holds too: the discovery surface is
   reachable by `DISCOVERY_SERVICE` alone, so nobody can quietly route Locate through the new
   endpoints without doing the assertion work properly.
 - **No `IS_AUTHENTICATED` anywhere.** The default-DENY change stands. `ADMIN` is named explicitly on
   every route it reaches.
-- **The `PATRON` role is still gone.** Locate never used it; removing it costs this integration
-  nothing.
 
-### 8.6 One behaviour change EBSCO should be told about
+### 8.5 One behaviour change EBSCO Locate developers should be aware of
 
 Barcode lookup is now an **exact** match — in `PatronRequestRepository`, in the `WHERE` clause of
 both `findActiveRequestsForPatronByBarcode` and `findAllRequestsForPatronByBarcode`. It was
 `LIKE '%barcode%'`, so a barcode of `1` returned every patron at that Host LMS whose barcode
-contained a `1`, with titles and pickup locations attached. That is a data leak and the fix stands.
+contained a `1`, with titles and pickup locations attached. If this is ever being used by EBSCO Locate developers, they need to be aware of the following:
 
 If Locate sends barcodes exactly as they come from the ILS, nothing changes. If it sends a
 normalised or partial form and relied on the substring match to paper over the difference, its
-lookups will start returning empty. Worth raising in advance rather than discovering it in
-production — it is the only change on this branch that can alter Locate's *results* rather than its
-ability to make the call.
+lookups will start returning empty. 
 
-The response body also gained fields (`outcome`, `discoveryStatus`, `statusDescription`). Additive,
-and harmless to any client that ignores unknown properties.
+The response body also gained fields (`outcome`, `discoveryStatus`, `statusDescription`). Additive and harmless to any client that ignores unknown properties.
 
-### 8.7 The exit path, and holding the line
+### 8.6 Future of this exception
 
-Locate migrates the day EBSCO can hold a `DISCOVERY_SERVICE` credential and sign patron assertions.
+Ideally, Locate will migrate to using a `DISCOVERY_SERVICE` credential and sign patron assertions.
 At that point both legacy routes get deleted and the `ADMIN` service account is revoked. Until then:
 
 - **This is the only exception, and it is `ADMIN`-only.** Both legacy routes name `ADMINISTRATOR`
@@ -1053,8 +989,7 @@ At that point both legacy routes get deleted and the `ADMIN` service account is 
   folds the alias back onto the current method and it inherits the wider role set. A second
   integration asking for an `ADMIN` credential because "Locate has one" is not a precedent being
   followed, it is the exception becoming the rule. The answer is §6.
-- **Do not widen it.** No new route gets added to `PatronRequestController` on the grounds that
-  Locate might want it. Anything genuinely new belongs on the discovery surface with an assertion
+- **Do not widen it.** No new route gets added to `PatronRequestController` on the grounds that Locate might want it. Anything genuinely new belongs on the discovery surface with an assertion
   behind it.
 - **Both legacy routes are marked LEGACY in the code**, with this section named in the comment, so
   the next person to read them learns why they exist before deciding to remove them.
@@ -1075,8 +1010,3 @@ At that point both legacy routes get deleted and the `ADMIN` service account is 
   `PatronRequestCancellationServiceTests`, `PatronStatusMapperTests`, `DiscoveryLibrariesApiTests`
   — behavioural coverage of the surface.
 
-One thing this document does *not* cover, because it does not apply: **CORS**. Every `/discovery/`
-call is server-to-server, made by a backend holding a confidential credential. A patron's browser
-is never on that path, so no discovery origin belongs in `micronaut.server.cors.configurations`.
-If a discovery integration appears to need a CORS entry, the credential has reached a browser and
-the integration is wrong.
