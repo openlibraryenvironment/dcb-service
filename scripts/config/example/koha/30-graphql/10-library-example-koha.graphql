@@ -1,0 +1,33 @@
+mutation {
+  createLibrary(input: {
+    agencyCode: "example-koha"
+    hostLmsCode: "EXAMPLE_KOHA"
+    isSupplyingAgency: true
+    isBorrowingAgency: true
+    fullName: "Example Koha Library"
+    shortName: "Example Koha"
+    abbreviatedName: "EKL"
+    address: "3 Example Avenue"
+    longitude: -1.470850
+    latitude: 53.381130
+    type: "PUBLIC"
+    backupDowntimeSchedule: ""
+    supportHours: ""
+    discoverySystem: ""
+    patronWebsite: ""
+    hostLmsConfiguration: ""
+    contacts: [
+      {
+        firstName: "Grace"
+        lastName: "Example"
+        role: "Library Services Administrator"
+        isPrimaryContact: true
+        email: "grace.example@example.org"
+      }
+    ]
+  }) {
+    id
+    fullName
+    agencyCode
+  }
+}

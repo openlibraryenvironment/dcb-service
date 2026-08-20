@@ -12,6 +12,7 @@ import org.olf.dcb.core.interaction.alma.AlmaHostLmsClient;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.koha.KohaHostLmsClient;
+import org.olf.dcb.core.interaction.koha.KohaOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
@@ -61,6 +62,30 @@ public class HostLmsFixture {
 	public DataHostLms createKohaHostLms(String code, String apiUrl,
 		Map<String, Object> extraConfig) {
 
+		return createKohaHostLms(code, apiUrl, extraConfig, Optional.empty());
+	}
+
+	/**
+	 * A Koha that harvests as well as circulates.
+	 * <p>
+	 * Koha needs two URLs and they are not interchangeable: "api-url" is the REST
+	 * API, commonly the staff interface, and "base-url" is the OPAC, which is where
+	 * oai.pl is served from. Only the OPAC one is read by the ingest source, and
+	 * KohaOaiPmhIngestSource cannot be constructed without it or metadata-prefix.
+	 */
+	public DataHostLms createHarvestingKohaHostLms(String code, String apiUrl,
+		String opacBaseUrl) {
+
+		return createKohaHostLms(code, apiUrl, Map.of(
+			"base-url", opacBaseUrl,
+			"metadata-prefix", "marcxml"
+		), Optional.of(KohaOaiPmhIngestSource.class));
+	}
+
+	private DataHostLms createKohaHostLms(String code, String apiUrl,
+		Map<String, Object> extraConfig,
+		Optional<Class<KohaOaiPmhIngestSource>> ingestSourceClass) {
+
 		Map<String, Object> clientConfig = new HashMap<>();
 		clientConfig.put("api-url", apiUrl);
 		clientConfig.put("client_id", "koha-client-id");
@@ -71,7 +96,7 @@ public class HostLmsFixture {
 		clientConfig.putAll(extraConfig);
 
 		return createHostLms(randomUUID(), code, KohaHostLmsClient.class,
-			Optional.empty(), clientConfig);
+			ingestSourceClass, clientConfig);
 	}
 
 	public DataHostLms createAlmaHostLms(String code, String almaUrl) {

@@ -128,17 +128,15 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		this.rawSourceRepository = rawSourceRepository;
 		this.client = client;
 		
-		rootUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
-		
+		rootUri = UriBuilder.of(requiredClientConfig(hostLms, CLIENT_BASE_URL)).build();
+
 		this.conversionService = conversionService;
 		this.processStateService = processStateService;
 		this.objectMapper = objectMapper;
 
 		log.info("Launching OAI task : {} {}",hostLms.getCode(), hostLms.getClientConfig());
-		
-		metadataPrefix = MapUtils.getAsOptionalString(
-			lms.getClientConfig(), CONFIG_METADATA_PREFIX
-		).get();
+
+		metadataPrefix = requiredClientConfig(hostLms, CONFIG_METADATA_PREFIX);
 
 		// Obtain the set to be used for oai-pmh
 		Optional<String> configuredSet = MapUtils.getAsOptionalString(
@@ -151,6 +149,25 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		this.objectRulesService = objectRuleService;
 		this.cacheInvalidator = cacheInvalidator;
 		this.hostLmsService = hostLmsService;
+	}
+
+	/**
+	 * A client config value without which no OAI harvest can be constructed at all.
+	 * <p>
+	 * Both callers used to fail in a way that named neither the Host LMS nor the key:
+	 * a missing base-url reached UriBuilder as "Argument [uri] cannot be null", and a
+	 * missing metadata-prefix was an Optional.get() throwing "No value present". Those
+	 * surface through CreateHostLmsDataFetcher as "Ingest Check Failed: No value
+	 * present", or - once the record exists - as a harvest that never runs, so say
+	 * which key on which system is absent.
+	 */
+	static String requiredClientConfig(HostLms hostLms, String key) {
+		return Optional.ofNullable(hostLms.getClientConfig())
+			.flatMap(config -> MapUtils.getAsOptionalString(config, key))
+			.filter(StringUtils::hasText)
+			.orElseThrow(() -> new IllegalArgumentException(String.format(
+				"OAI-PMH ingest for Host LMS \"%s\" requires client config \"%s\"",
+				hostLms.getCode(), key)));
 	}
 
 	protected void setUuid5Prefix(String uuid5Prefix) {

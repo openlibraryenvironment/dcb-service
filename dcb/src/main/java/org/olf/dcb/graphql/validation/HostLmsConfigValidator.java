@@ -7,10 +7,12 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.utils.MapUtils;
 
 /** <p> This is a class for validating the config supplied for a new Host LMS.
  * </p><br>
@@ -316,6 +318,25 @@ public class HostLmsConfigValidator {
 			if (!clientConfig.containsKey("page-size")) {
 				warnings.add("Missing 'page-size' in Koha config. A default will be used for harvesting.");
 			}
+			// Neither key is read by KohaHostLmsClient, only by KohaOaiPmhIngestSource -
+			// so a Koha registered for circulation alone is a valid configuration without
+			// them, which is why this warns rather than rejecting. Without them the ingest
+			// source throws on construction and the harvest silently never runs.
+			//
+			// 'base-url' is not a duplicate of 'api-url': oai.pl is served by the OPAC,
+			// while the REST API is commonly reached through the staff interface.
+			if (ingestEnabled(clientConfig)) {
+				if (!isPresent(clientConfig, "base-url")) {
+					warnings.add("Missing 'base-url' in Koha config. OAI-PMH ingest harvests "
+						+ "<base-url>/cgi-bin/koha/oai.pl and cannot run without the OPAC URL, "
+						+ "e.g. https://catalogue.example.org.");
+				}
+				if (!isPresent(clientConfig, "metadata-prefix")) {
+					warnings.add("Missing 'metadata-prefix' in Koha config. OAI-PMH ingest cannot "
+						+ "run without it; use 'marcxml' unless this Koha's OAI-PMH:ConfFile "
+						+ "defines another MARC format.");
+				}
+			}
 		}
 		if (CLASS_FOUNDATION.equals(lmsClientClass)) {
 			// Sip2Adaptor's transport is not wired yet, so every SIP2 operation
@@ -348,6 +369,16 @@ public class HostLmsConfigValidator {
 	}
 
 	/** Null-tolerant: validateFoundation asks this about nested objects that may not exist. */
+	/**
+	 * Mirrors IngestSource.isEnabled: the key is absent on almost every Host LMS and
+	 * ingest is on by default, so only an explicit falsy value turns the OAI warnings off.
+	 */
+	private static boolean ingestEnabled(Map<String, Object> config) {
+		return MapUtils.getAsOptionalString(config, "ingest")
+			.map(StringUtils::isTrue)
+			.orElse(Boolean.TRUE);
+	}
+
 	private static boolean isPresent(Map<String, Object> config, String key) {
 		return config != null && config.get(key) != null
 			&& !config.get(key).toString().isBlank();
