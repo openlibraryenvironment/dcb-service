@@ -12,8 +12,11 @@ import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -88,6 +91,32 @@ public class PatronRequest {
 		ERROR,
     ARCHIVED;
 // CH: The paths are now in PatronRequestWorkflowPath.java
+
+		/**
+		 * Statuses that count as "in flight" for demand/volume statistics: a request that has
+		 * entered DCB but has not yet reached a terminal (completed / failed / cancelled) or
+		 * return-leg state. This is the single source of truth for the stats queries' active-request
+		 * filter; it was previously duplicated as a literal {@code status_code IN (...)} list across
+		 * several queries. Deliberately distinct from StatusCode.tracked (which drives polling and
+		 * includes terminal states).
+		 */
+		public static final Set<Status> ACTIVE_STATES = EnumSet.of(
+			SUBMITTED_TO_DCB,
+			PATRON_VERIFIED,
+			RESOLVED,
+			REQUEST_PLACED_AT_SUPPLYING_AGENCY,
+			REQUEST_PLACED_AT_BORROWING_AGENCY,
+			REQUEST_PLACED_AT_PICKUP_AGENCY,
+			CONFIRMED,
+			PICKUP_TRANSIT,
+			RECEIVED_AT_PICKUP,
+			READY_FOR_PICKUP,
+			LOANED);
+
+		/** Enum names of {@link #ACTIVE_STATES}, for binding into native stats queries. */
+		public static final Set<String> ACTIVE_STATE_CODES = ACTIVE_STATES.stream()
+			.map(Enum::name)
+			.collect(Collectors.toUnmodifiableSet());
 
 public Status getNextExpectedStatus(String activeWorkflow) {
 	return PatronRequestWorkflowPath.fromCode(activeWorkflow)

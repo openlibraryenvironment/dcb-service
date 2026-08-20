@@ -12,6 +12,7 @@ import jakarta.inject.Singleton;
 import org.reactivestreams.Publisher;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.olf.dcb.security.AgencyClaims;
 import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -89,26 +90,14 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 	/**
 	 * The agencies this user is responsible for.
 	 * <p>
-	 * DCB Admin for Libraries has always read a single {@code code} claim to decide
-	 * which library the user belongs to, so that is the claim read here - but as a
-	 * collection rather than a scalar. A person can administer more than one library:
-	 * whoever runs a shared Koha on behalf of several of its tenants is not a
-	 * consortium administrator and must not be given consortium-wide access, but
-	 * neither do they belong to exactly one agency.
-	 * <p>
-	 * {@code addValues} accepts a string or a list, so a single-valued {@code code}
-	 * claim and a multi-valued one both work and the identity provider decides which
-	 * to issue. {@code agencyCodes} is accepted alongside it for providers that cannot
-	 * make an existing scalar claim multi-valued.
-	 * <p>
-	 * An empty result is not "no restriction" - see AgencyAccessScope, where it means
-	 * the opposite.
+	 * Delegates to {@link AgencyClaims}, which the statistics endpoints read through
+	 * as well - the same token must not scope one way here and another way there.
+	 * That class documents why the claim is {@code code}, why it is read as a
+	 * collection, and why empty is not "no restriction" (see AgencyAccessScope,
+	 * where it means the opposite).
 	 */
 	static Collection<String> agencyCodesFrom(Map<String, Object> attributes) {
-		Set<String> agencyCodes = new LinkedHashSet<>();
-		addValues(agencyCodes, attributes.get("code"));
-		addValues(agencyCodes, attributes.get(AGENCY_CODES));
-		return new ArrayList<>(agencyCodes);
+		return AgencyClaims.from(attributes);
 	}
 
 	static Collection<String> rolesFrom(Collection<String> authenticationRoles, Map<String, Object> attributes) {

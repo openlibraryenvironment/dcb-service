@@ -240,6 +240,20 @@ graphql:
     enabled: false
 
 dcb:
+  # Insights - the reporting and analytics surface
+  insights:
+    enabled: ${DCB_INSIGHTS_ENABLED:true}
+    # The catalogue-wide collection queries aggregate bib_record - lots of record
+    #  These are resource limits meant to be tuned once a real system has been measured, which is why they are
+    # here rather than fixed in code. Raise concurrency only with timings in hand.
+    collection-analysis:
+      concurrency: ${DCB_INSIGHTS_COLLECTION_CONCURRENCY:1}
+      # Every figure is stale by at most this much, and the panel should say so.
+      cache-ttl: ${DCB_INSIGHTS_COLLECTION_CACHE_TTL:15m}
+      # How long a queued caller waits before 429. A cold panel opening several of these at
+      # once must queue rather than fail.
+      max-wait: ${DCB_INSIGHTS_COLLECTION_MAX_WAIT:30s}
+
   # Discovery services DCB will accept patron assertions from.
   #
   # A discovery service authenticates with a Keycloak client credential holding the

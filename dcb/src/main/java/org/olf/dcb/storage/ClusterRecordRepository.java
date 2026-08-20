@@ -5,6 +5,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.Query;
+import org.olf.dcb.core.api.serde.TopClusterStat;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.reactivestreams.Publisher;
 
@@ -15,6 +18,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import reactor.core.publisher.Flux;
 
 
 public interface ClusterRecordRepository {
@@ -132,4 +136,34 @@ public interface ClusterRecordRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Integer> reprocessOrphanedBibsWithSource();
+
+	// "Acquisition opportunities": clusters in high CONSORTIUM-WIDE demand to which this
+	// library contributes no bib record. Network demand, not just this library's own patrons -
+	// the acquisition-development signal. Takes a library code (aligned with every other stats
+	// endpoint) rather than a raw host_lms UUID.
+	@Query(
+		value = """
+        SELECT cr.id as cluster_id, cr.title, COUNT(pr.id) as request_count
+        FROM cluster_record cr
+        JOIN patron_request pr ON cr.id = pr.bib_cluster_id
+        WHERE pr.status_code != 'ERROR'
+					AND (:startDate IS NULL OR pr.date_created >= :startDate)
+					AND (:endDate IS NULL OR pr.date_created <= :endDate)
+          AND NOT EXISTS (
+              SELECT 1 FROM bib_record br
+              JOIN host_lms hl ON br.source_system_id = hl.id
+              WHERE br.contributes_to = cr.id
+                AND hl.code = :libraryCode
+          )
+        GROUP BY cr.id, cr.title
+        ORDER BY request_count DESC
+        LIMIT 20
+    """,
+		nativeQuery = true
+	)
+	Flux<TopClusterStat> findAcquisitionOpportunitiesForLibrary(String libraryCode, @Nullable Instant startDate,
+																												 @Nullable Instant endDate);
+
+
+
 }
