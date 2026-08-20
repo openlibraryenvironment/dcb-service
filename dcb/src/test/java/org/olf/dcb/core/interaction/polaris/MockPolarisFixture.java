@@ -60,8 +60,19 @@ public class MockPolarisFixture {
 				.errorMessage("string")
 				.polarisUserID(0)
 				.branchID(0)
-				.authExpDate("2023-09-18T16:40:04.652Z")
+				// Real Polaris returns Microsoft JSON dates, not ISO - the previous ISO value here
+				// was both the wrong format and already in the past.
+				.authExpDate(futureAuthExpDate())
 				.build());
+	}
+
+	/**
+	 * An AuthExpDate in the shape Polaris actually returns: Microsoft JSON, epoch millis with a
+	 * display offset. Observed live as /Date(1787240106747-0500)/ with a 24 hour lifetime.
+	 */
+	private static String futureAuthExpDate() {
+		return "/Date(%d+0000)/".formatted(
+			java.time.Instant.now().plus(java.time.Duration.ofHours(24)).toEpochMilli());
 	}
 
 	public void verifyAppServicesStaffAuthentication(VerificationTimes times) {
@@ -95,6 +106,7 @@ public class MockPolarisFixture {
 			ApplicationServicesAuthFilter.AuthToken.builder()
 				.accessToken("fzB8NAopx8CEwSQI5HqpMCTQrjWm1e1x")
 				.accessSecret("C5UnM8pmim1hfZRQ")
+				.authExpDate(futureAuthExpDate())
 				.build());
 	}
 

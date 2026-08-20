@@ -38,7 +38,9 @@ class ApplicationServicesAuthFilter {
 		// PolarisLmsClient, so anything kept on the instance would be authenticated afresh
 		// on every single request.
 		return tokenCache.get(client.getHostLmsCode(), APPLICATION_SERVICES,
-				polarisConfig.getTokenCacheTtl(), this::staffAuthenticator)
+				polarisConfig.getTokenCacheMaxTtl(),
+				token -> PolarisDates.ttlFromAuthExpDate(token.getAuthExpDate()),
+				this::staffAuthenticator)
 			.map(validToken -> {
 				final var token = validToken.getAccessToken();
 				final var secret = validToken.getAccessSecret();

@@ -75,7 +75,9 @@ class PAPIAuthFilter {
 		// held on the instance would mean re-authenticating on every single request.
 		// currentToken is still assigned because getAccessSecret reads it to sign the request.
 		return tokenCache.get(client.getHostLmsCode(), PAPI_STAFF,
-				polarisConfig.getTokenCacheTtl(), this::staffAuthenticator)
+				polarisConfig.getTokenCacheMaxTtl(),
+				token -> PolarisDates.ttlFromAuthExpDate(token.getAuthExpDate()),
+				this::staffAuthenticator)
 			.doOnSuccess(newToken -> currentToken = newToken)
 			.map(validToken -> createStaffRequest(request, validToken, isRequestPublicMethod))
 			.map(this::authorization);

@@ -22,8 +22,6 @@ import static services.k_int.utils.StringUtils.stringEquals;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -201,7 +199,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final PolarisConfig polarisConfig;
 	
 	private final R2dbcOperations r2dbcOperations;
-	private final Pattern msDateRegex;
 	private final PolarisTokenCache tokenCache;
 
 	@Creator
@@ -235,7 +232,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.client = client;
 		this.r2dbcOperations = r2dbcOperations;
 		this.objectRuleService = objectRuleService;
-		this.msDateRegex = Pattern.compile("/date\\((\\d+)([+-]\\d{4})\\)/");
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
@@ -2429,37 +2425,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Instant convertMSJsonDate(String msDate) {
-		Instant result = null;
-
-		if ( msDate == null )
-			return null;
-
-		try {
-			Matcher matcher = msDateRegex.matcher(msDate.toLowerCase());
-
-			if (matcher.matches()) {
-				long timestamp = Long.parseLong(matcher.group(1)); // 1708419632890
-				String timezoneOffset = matcher.group(2);          // -0600
-
-				// Convert timestamp to Instant
-				Instant instant = Instant.ofEpochMilli(timestamp);
-
-				// Parse the timezone offset
-				int hoursOffset = Integer.parseInt(timezoneOffset.substring(0, 3));
-				int minutesOffset = Integer.parseInt(timezoneOffset.substring(0, 1) + timezoneOffset.substring(3, 5));
-				ZoneOffset offset = ZoneOffset.ofHoursMinutes(hoursOffset, minutesOffset);
-
-				// Create an OffsetDateTime
-				OffsetDateTime dateTime = instant.atOffset(offset);
-				result = dateTime.toInstant();
-			} else {
-				log.warn("Invalid Microsoft date format: {}", msDate);
-			}
-		}
-		catch ( Exception e ) {
-			log.warn("Problem parsing polaris date: {}:{}",msDate, e.getMessage());
-		}
-		return result;
+		return PolarisDates.parseMsJsonDate(msDate);
 	}
 
 	@Override
