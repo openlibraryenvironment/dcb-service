@@ -1,0 +1,9 @@
+{
+  "id": "97676304-e805-5c14-b200-f83ea50b258f",
+  "code": "example-koha",
+  "name": "Example Koha Agency",
+  "hostLMSCode": "EXAMPLE_KOHA",
+  "authProfile": "BASIC/BARCODE+PIN",
+  "isSupplyingAgency": true,
+  "isBorrowingAgency": true
+}

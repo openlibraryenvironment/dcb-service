@@ -2,7 +2,9 @@ package org.olf.dcb.graphql.validation;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -19,6 +21,7 @@ import io.micronaut.http.exceptions.HttpStatusException;
 class HostLmsConfigValidatorTests {
 	private static final String SIERRA = "org.olf.dcb.core.interaction.sierra.SierraLmsClient";
 	private static final String ORS_APPLIANCE = "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS";
+	private static final String KOHA = "org.olf.dcb.core.interaction.koha.KohaHostLmsClient";
 
 	private final HostLmsConfigValidator validator = new HostLmsConfigValidator();
 
@@ -93,6 +96,58 @@ class HostLmsConfigValidatorTests {
 			() -> validator.validate(ORS_APPLIANCE, config));
 
 		assertThat(exception.getMessage(), containsString("default-agency-code"));
+	}
+
+	@Test
+	void shouldWarnWhenAKohaCannotHarvest() {
+		// Neither key is part of KohaClientConfig, the admin form never asked for them,
+		// and KohaOaiPmhIngestSource throws on construction without them - so a Koha
+		// created through the UI produced a Host LMS that pinged and never ingested.
+		final var warnings = validator.findConfigurationWarnings(KOHA, kohaConfig());
+
+		assertThat(warnings, hasItem(containsString("base-url")));
+		assertThat(warnings, hasItem(containsString("metadata-prefix")));
+	}
+
+	@Test
+	void shouldNotWarnAboutHarvestingWhenTheKohaIsConfiguredToIngest() {
+		final var config = kohaConfig();
+		config.put("base-url", "https://catalogue.example.org");
+		config.put("metadata-prefix", "marcxml");
+
+		final var warnings = validator.findConfigurationWarnings(KOHA, config);
+
+		assertThat(warnings, not(hasItem(containsString("base-url"))));
+		assertThat(warnings, not(hasItem(containsString("metadata-prefix"))));
+	}
+
+	@Test
+	void shouldNotWarnAboutHarvestingWhenIngestIsTurnedOff() {
+		// A member that only borrows has nothing to contribute to the shared index, so
+		// demanding OAI configuration of it would be noise rather than a warning.
+		final var config = kohaConfig();
+		config.put("ingest", "false");
+
+		final var warnings = validator.findConfigurationWarnings(KOHA, config);
+
+		assertThat(warnings, not(hasItem(containsString("base-url"))));
+		assertThat(warnings, not(hasItem(containsString("metadata-prefix"))));
+	}
+
+	private Map<String, Object> kohaConfig() {
+		final Map<String, Object> config = new HashMap<>();
+
+		// The keys KohaClientConfig itself declares required - deliberately a config
+		// that validate() accepts, so the warnings are the only thing under test.
+		config.put("api-url", "https://koha.example.org");
+		config.put("client_id", "any-client-id");
+		config.put("client_secret", "any-client-secret");
+		config.put("default-agency-code", "any-agency");
+		config.put("sharing-library-code", "DCB");
+		config.put("virtual-item-library-code", "DCB");
+		config.put("page-size", 100);
+
+		return config;
 	}
 
 	private Map<String, Object> orsApplianceConfig() {

@@ -1,0 +1,25 @@
+{
+  "id": "761359f8-1aa0-5ca9-8fc7-dfc450028bec",
+  "code": "EXAMPLE_KOHA",
+  "name": "Example Koha Library",
+  "lmsClientClass": "org.olf.dcb.core.interaction.koha.KohaHostLmsClient",
+  "ingestSourceClass": "org.olf.dcb.core.interaction.koha.KohaOaiPmhIngestSource",
+  "clientConfig": {
+    "roles": ["CATALOGUE", "CIRCULATION"],
+    "ingest": true,
+
+    "api-url": "${EXAMPLE_KOHA_API_URL}",
+    "client_id": "${EXAMPLE_KOHA_CLIENT_ID}",
+    "client_secret": "${EXAMPLE_KOHA_CLIENT_SECRET}",
+
+    "base-url": "${EXAMPLE_KOHA_OPAC_URL}",
+    "metadata-prefix": "marcxml",
+
+    "sharing-library-code": "${EXAMPLE_KOHA_SHARING_LIBRARY_CODE}",
+    "virtual-item-library-code": "${EXAMPLE_KOHA_VIRTUAL_ITEM_LIBRARY_CODE}",
+
+    "contextHierarchy": ["EXAMPLE_KOHA", "GLOBAL"],
+    "default-agency-code": "example-koha",
+    "page-size": 100
+  }
+}

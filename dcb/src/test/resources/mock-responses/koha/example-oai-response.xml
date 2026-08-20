@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type='text/xsl' href='/opac-tmpl/xslt/OAI.xslt'?><OAI-PMH xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns='http://www.openarchives.org/OAI/2.0/' xsi:schemaLocation='http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd'><responseDate>2026-08-20T13:59:35Z</responseDate><request verb='ListRecords' metadataPrefix='marcxml'>https://koha-001-a.vhosts.k-int.com/opac/oai.pl</request><ListRecords><record><header><identifier>KOHA-OAI-TEST:1</identifier><datestamp>2025-12-28T12:25:11Z</datestamp></header><metadata><record xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.loc.gov/MARC21/slim http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd' xmlns='http://www.loc.gov/MARC21/slim'>
+
+  <leader>00242nam a22000857a 4500</leader>
+  <controlfield tag='005'>20251228122511.0</controlfield>
+  <controlfield tag='008'>251228b        |||||||| |||| 00| 0 eng d</controlfield>
+  <datafield ind1=' ' tag='245' ind2=' '>
+    <subfield code='a'>Godel, Escher, Bach : an eternal golden braid</subfield>
+    <subfield code='c'>Douglas R. Hofstadter</subfield>
+  </datafield>
+  <datafield ind2=' ' tag='942' ind1=' '>
+    <subfield code='2'>ddc</subfield>
+    <subfield code='c'>BK</subfield>
+    <subfield code='n'>0</subfield>
+  </datafield>
+  <datafield tag='999' ind1=' ' ind2=' '>
+    <subfield code='c'>1</subfield>
+    <subfield code='d'>1</subfield>
+  </datafield>
+</record></metadata></record><record><header><identifier>oai:koha-001-a.vhosts.k-int.com:2</identifier><datestamp>2026-04-10T09:34:16Z</datestamp></header><metadata><record xsi:schemaLocation='http://www.loc.gov/MARC21/slim http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd' xmlns='http://www.loc.gov/MARC21/slim' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'>
+
+  <leader>01040nam a2200325   4500</leader>
+  <controlfield tag='001'>colin00000010888</controlfield>
+  <controlfield tag='005'>20260410093416.0</controlfield>
+  <controlfield tag='008'>731001s1972    miua     b    000 0 eng  </controlfield>
+  <datafield tag='035' ind1=' ' ind2=' '>
+    <subfield code='a'>73173340</subfield>
+  </datafield>
+  <datafield tag='040' ind1=' ' ind2=' '>
+    <subfield code='d'>WaOLN</subfield>
+    <subfield code='d'>UtOrBLW</subfield>
+  </datafield>
+  <datafield ind1='1' tag='100' ind2=' '>
+    <subfield code='a'>Hudgens, Betty Lenhardt.</subfield>
+  </datafield>
+  <datafield tag='245' ind1='1' ind2='0'>
+    <subfield code='a'>Kurt Vonnegut, Jr. ..., a checklist /</subfield>
+    <subfield code='c'>Introd. by Vance Bourjaily.</subfield>
+  </datafield>
+  <datafield ind2=' ' ind1=' ' tag='260'>
+    <subfield code='a'>Detroit :</subfield>
+    <subfield code='b'>Gale Research Co.,</subfield>
+    <subfield code='c'>1972.</subfield>
+  </datafield>
+  <datafield ind2='f' ind1='f' tag='999'>
+    <subfield code='i'>039c567a-daf8-561b-b82a-dcdc36b4d4aa</subfield>
+    <subfield code='s'>995c0150-8c70-593d-86a9-633b9f667a47</subfield>
+    <subfield code='c'>2</subfield>
+    <subfield code='d'>2</subfield>
+  </datafield>
+</record></metadata></record></ListRecords></OAI-PMH>
