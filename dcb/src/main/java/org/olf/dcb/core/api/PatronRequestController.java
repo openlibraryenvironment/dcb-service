@@ -22,9 +22,7 @@ import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.discovery.PatronStatusMapper;
-import org.olf.dcb.core.api.serde.PatronRequestSummary;
-import org.olf.dcb.core.api.serde.RequestedTitleStat;
-import org.olf.dcb.core.api.serde.TopRequestorStat;
+import org.olf.dcb.core.api.serde.*;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.FailedPreflightCheck;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
@@ -42,7 +40,10 @@ import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +82,7 @@ import org.olf.dcb.security.RoleNames;
 @Tag(name = "Patron Request API")
 @Slf4j
 public class PatronRequestController {
+
 	private final PatronRequestService patronRequestService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflowService workflowService;
@@ -244,6 +246,7 @@ public class PatronRequestController {
 	/**
 	 * Explicitly attempts to roll back this request by setting the previous status
 	 */
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR})
 	@SingleResult
 	@Post(value = "/{patronRequestId}/rollback", consumes = APPLICATION_JSON)
 	public Mono<UUID> rollbackPatronRequest(@NotNull final UUID patronRequestId) {
@@ -426,25 +429,6 @@ public class PatronRequestController {
 		}
 	}
 
-	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
-	@Get("/stats/top-requestors")
-	public Mono<Page<TopRequestorStat>> getTopRequestors(
-		@Nullable @QueryValue String libraryCode,
-		Pageable pageable) {
-
-		return Mono.from(patronRequestRepository.findTopRequestors(libraryCode, pageable));
-	}
-
-	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
-	@Get("/stats/top-requested-titles")
-	public Mono<Page<RequestedTitleStat>> getMostRequestedTitles(
-		@Nullable @QueryValue Instant startDate,
-		@Nullable @QueryValue Instant endDate,
-		@Nullable @QueryValue String libraryCode,
-		Pageable pageable) {
-
-		return Mono.from(patronRequestRepository.findMostRequestedTitles(startDate, endDate, libraryCode, pageable));
-	}
 
 	@Value
 	@Serdeable

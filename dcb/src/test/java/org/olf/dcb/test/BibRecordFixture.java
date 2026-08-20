@@ -1,6 +1,7 @@
 package org.olf.dcb.test;
 
 import io.micronaut.context.annotation.Prototype;
+import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
@@ -38,28 +39,39 @@ public class BibRecordFixture {
 	public void createBibRecord(UUID bibRecordId, UUID sourceSystemId,
 		String sourceRecordId, ClusterRecord clusterRecord) {
 
+		createBibRecord(bibRecordId, sourceSystemId, sourceRecordId, clusterRecord, "Book");
+	}
+
+	/**
+	 * @param derivedType null leaves the column unset, which is what an ingest that could not
+	 *   derive a type produces - derived_type is varchar(32) with no NOT NULL.
+	 */
+	public void createBibRecord(UUID bibRecordId, UUID sourceSystemId,
+		String sourceRecordId, ClusterRecord clusterRecord, @Nullable String derivedType) {
+
 		Map<String, Object> bookInfo = new HashMap<>();
 		bookInfo.put("author", Author.builder().name("Stafford Beer").build());
 		bookInfo.put("title", "Brain of the Firm");
 
-		Mono.from(bibRepository.save(
-				BibRecord
-					.builder()
-					.id(bibRecordId)
-					.dateCreated(now())
-					.dateUpdated(now())
-					.sourceRecordId(sourceRecordId)
-					.sourceSystemId(sourceSystemId)
-					.title("Brain of the Firm")
-					.contributesTo(clusterRecord)
-					.blockingTitle(generateBlockingString("Brain of the Firm"))
-					.recordStatus("a")
-					.typeOfRecord("b")
-					.derivedType("Book")
-					.canonicalMetadata(bookInfo)
-					.build()
-			))
-			.block();
+		final var bibRecord = BibRecord
+			.builder()
+			.id(bibRecordId)
+			.dateCreated(now())
+			.dateUpdated(now())
+			.sourceRecordId(sourceRecordId)
+			.sourceSystemId(sourceSystemId)
+			.title("Brain of the Firm")
+			.contributesTo(clusterRecord)
+			.blockingTitle(generateBlockingString("Brain of the Firm"))
+			.recordStatus("a")
+			.typeOfRecord("b")
+			.canonicalMetadata(bookInfo);
+
+		if (derivedType != null) {
+			bibRecord.derivedType(derivedType);
+		}
+
+		Mono.from(bibRepository.save(bibRecord.build())).block();
 	}
 
 	public void deleteAll() {
