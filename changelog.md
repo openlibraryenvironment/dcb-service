@@ -1,5 +1,189 @@
 # Changelog
 
+## Version 9.0.0
+
+### Additions
+* [Clustering]
+	* Promote Improved feature to default
+* [Dcb]
+	* add ORS appliance OAI ingest
+* [Indexing]
+	* make replica count configurable
+* [Lifecycle]
+	* add inbound evidence boundary
+* [Ncip]
+	* add profile client membership provisioning
+	* secure peer requests with JWTs
+	* complete supplier return lifecycle
+	* transport pickup routing context
+	* propagate local item and bib metadata
+	* inbound leaf - event-driven NCIP - workflow progress
+	* resolve directory agency identifiers
+	* add system id party routing
+	* qualify shared ORS host LMS endpoints
+	* consume ORS lookup item set availability
+	* add ORS appliance HostLMS adapter
+* [Requests]
+	* track terminal outcomes
+* [General]
+	* Insights for OpenRS DCB, providing key indicators and stats
+	* add DCB NCIP onboarding readiness
+	* Handle requests that are cancelled by the patron, while the item is out [DCB-2193]
+	* Provide patron cancellation endpoint for discovery
+	* Improved surface for discovery systems
+	* Wiring the imperative flow and the Foundation composition together (PR-5)
+	* Improvements for the discovery APIs
+	* map NCIP evidence by request role
+	* map NCIP borrower receipt lifecycle evidence
+	* enrich ncip item barcode payloads
+	* converge tracking events through lifecycle evidence
+	* secure NCIP peer traffic
+	* support fallback host NCIP lifecycle
+	* route ORS patron auth over NCIP
+	* complete NCIP declarative spike
+	* pivot declarative spike to NCIP
+	* guard declarative supplier cancellation cleanup
+	* handle inbound declarative lifecycle messages
+	* add ISO18626 declarative placement skeletons
+	* suppress scheduled polling for event-driven lifecycle roles
+	* add lifecycle capability activation defaults
+	* project placement evidence through lifecycle results
+	* isolate declarative request lifecycle spike
+
+### Changes
+* [Build]
+	* **BREAKING** -  DCB now requires JDK 25 and Micronaut 5. Deployments on earlier JDKs must upgrade before taking this release.
+* [Build]
+	* migrate to Micronaut 5 and JDK 25
+	* compile sources as UTF-8; strip emoji from TrackingServiceV3
+* [Chore]
+	* Rename migrations, fix usages
+	* Updated comments
+	* Testing and docs for same server changes
+	* Ensure ors-appliance LMS returns a client ID
+	* Fix object-rules typo
+	* Removed unused canonicalItemType field
+	* Update comments
+	* New development scripts and documentation
+	* Another plan update
+	* Update plan for AI agents
+	* Get rid of spike-only gitlab-ci and re-add peer auth dependency
+	* Now use DefaultHttpClientConfiguration again in FolioOaiClientConfig
+	* Update docker-compose.yml to use ES 9.4.2
+	* Remove unused code, update logs and docs
+	* Updating the plan to reflect 6b completion
+* [Ci]
+	* use quick native build for spike image
+	* publish spike native image from nativeCompile
+	* keep spike jvm publish despite native failure
+	* auto publish spike docker image
+	* run spike docker login automatically
+	* separate spike docker login job
+	* run spike branch pipeline on push
+	* enable manual spike docker publish
+* [Docs]
+	* Record what the shared-system work delivered and what remains
+	* Explain cancellation handling in DCB
+	* backlog - close NCIP declarative spike
+	* clarify request placement terminology
+	* record final delivery status (peer-auth blocked on JVM 25; A-D harness pending)
+	* integration guide - add a Foundation ILS, set up an ORS Appliance, and test both
+	* record PR-6 decomposition (6a payload layer done, 6b live flow todo)
+	* record PR-4 scope refinement (shared validation/constants, not payload builders)
+	* Unified host interaction delivery plan (profiles A-D)
+	* close inbound lifecycle convergence phase one
+	* architecture - document lifecycle evidence boundary
+	* mark ISO18626 dual declarative spike done
+* [Merge]
+	* update ISO 18626 spike from main
+* [Refactor]
+	* project lifecycle evidence by canonical role
+* [Test]
+	* branding - cover the brand asset read cache
+	* Added tests for new Marc functionality
+	* prove lifecycle tracking parity
+	* replace micronaut test resources in dcb service
+	* prove dual ISO18626 declarative agency flow
+	* cover imperative placement strategies
+
+### Fixes
+* [Alma]
+	* Map expiry_date so patron expiry is actually detected [DCB-2070]
+* [Auth]
+	* stop logging patron credentials
+	* handle generic OIDC GraphQL claims
+* [Build]
+	* set processResources duplicatesStrategy so Gradle 9 tolerates the CI git.properties
+* [Ci]
+	* package spike native image from local binary
+	* publish native spike image
+* [Deps]
+	* use released peer auth 1.4.0
+* [Graphql]
+	* filter on an association by its identifier
+* [Indexing]
+	* retain Elasticsearch document fields in native image
+	* wait for transaction completion
+* [Ingest]
+	* register OAI records for native image
+* [Lifecycle]
+	* persist supplier-side protocol (restore setProtocol)
+* [Native]
+	* initialize async logging at runtime
+	* avoid Graal pre-analysis compiler crash
+	* include Hazelcast LTS metadata reflection
+* [Ncip]
+	* reconcile generated membership configuration
+	* configure registered ORS lifecycle capabilities
+	* package validation schemas
+	* retain remote rejection details
+	* enrich accept item bibliographic title
+	* progress confirmed supplier requests without virtual patron
+* [Oai]
+	* resume from observed record timestamps
+* [Polaris]
+	* guard the second switch on itemAgencyResolutionMethod against null
+* [Security]
+	* stop logging application event payloads
+* [Tracking]
+	* exclude event-driven lifecycle roles
+* [Workflow]
+	* skip declarative virtual checkout
+	* persist supplier return completion
+* [General]
+	* A refused upload says why, instead of returning an empty problem detail
+	* Ensure discovery services can only ask for cancellations in valid statuses
+	* Use existing update item workflow for Polaris renewal prevention
+	* Koha renewal prevention implementation
+	* Use renewalLimit for Polaris renewal prevention
+	* Give the cancellation service its own status list
+	* Tighten up security rules without breaking Locate
+	* Provide "patron agency" filter option
+	* Further fixes for Alma and Koha shared systems, and improvements to location handling
+	* Update Host LMS Config validator for Koha, ORS Appliance
+	* Removed legacy ingest path
+	* Compare clients, not keys in the same server item filter
+	* Add forceUpdate to the cleanup chain
+	* Differentiated FOLIO Cancel while out from others
+	* Delete the hold, don't cancel
+	* First attempt at handling "Cancelled whilst out" requests
+	* BorrowingAgencyService localItemStatus conditional
+	* Block API on attempting to cleanup requests with "out" items
+	* Don't delete virtual item if it is billed and real item hasn't been returned
+	* Added host arg to docker run command
+	* Fix NoSuchBeanException and legacy Jackson mapper
+	* Fixes to ensure that imperative NCIP (Foundation) can still work
+	* Remove stat counters hash map, rewire to Micrometer
+	* Further NCIP fixes
+	* Fix for NCIP validator
+	* Remove test resources and fix test implementations in build.gradle
+	* Fixed failing NCIPPayload tests
+	* Remove obsolete app task assertion in test
+	* OS integration test was failing without test resources
+	* Restore and merge foundation functionality
+	* disable native image optimizations for spike build
+	* initialize slf4j providers for native image
+
 ## Version 8.71.0
 
 ### Additions
@@ -9,6 +193,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Add DTOs for Folio Inventory Items and Instances
 	* Work on docs/ncip-support-exploration-1.md
 * [Refactor]
