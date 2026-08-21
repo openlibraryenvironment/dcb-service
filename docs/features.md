@@ -1,6 +1,7 @@
 # Features
 
 - Catalogue ingest, clustering, availability, and request orchestration.
+- Versioned electronic-item availability with an unchanged legacy contract.
 - Source-aware OAI-PMH checkpoint policies with observed-timestamp resumption by default and preserved
   FOLIO clock semantics.
 - NCIP v2.02 host integration with reciprocal JWT/JWKS authentication.

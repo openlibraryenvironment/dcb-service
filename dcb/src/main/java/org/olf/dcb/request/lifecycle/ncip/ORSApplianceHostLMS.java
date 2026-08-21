@@ -26,6 +26,7 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.AvailabilityReason;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
@@ -549,6 +550,9 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			.localItemType("fallback-host-item")
 			.localItemTypeCode("fallback-host-item")
 			.canonicalItemType("CIRC")
+			.itemAccessType(snapshot.itemAccessType())
+			.electronicResourceUrl(snapshot.electronicResourceUrl())
+			.availabilityReason(snapshot.availabilityReason())
 			.deleted(false)
 			.suppressed(false)
 			.sourceHostLmsCode(getHostLmsCode())
@@ -570,7 +574,10 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 				itemId,
 				optionalText(itemInformation, "CallNumber").orElse(null),
 				optionalText(itemInformation, "LocationNameValue").orElse(null),
-				itemStatus(optionalText(itemInformation, "CirculationStatus").orElse(null))));
+				itemStatus(optionalText(itemInformation, "CirculationStatus").orElse(null)),
+				itemAccessType(itemInformation),
+				optionalText(itemInformation, "ReferenceToResource").orElse(null),
+				availabilityReason(itemInformation)));
 		}
 		return snapshots;
 	}
@@ -590,7 +597,25 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		String itemId,
 		String callNumber,
 		String locationCode,
-		ItemStatusCode status) {
+		ItemStatusCode status,
+		String itemAccessType,
+		String electronicResourceUrl,
+		AvailabilityReason availabilityReason) {
+	}
+
+	private static String itemAccessType(org.w3c.dom.Element itemInformation) {
+		return optionalExtensionText(itemInformation, "ItemAccessType")
+			.filter(value -> value.equals("P") || value.equals("E") || value.equals("?"))
+			.orElseGet(() -> optionalText(itemInformation, "ReferenceToResource").isPresent() ? "E" : "?");
+	}
+
+	private static AvailabilityReason availabilityReason(org.w3c.dom.Element itemInformation) {
+		return firstExtensionDescendant(itemInformation, "AvailabilityReason")
+			.map(element -> new AvailabilityReason(
+				element.hasAttribute("code") ? element.getAttribute("code") : null,
+				element.getTextContent().trim()))
+			.filter(reason -> !reason.label().isBlank())
+			.orElse(null);
 	}
 
 	private static org.w3c.dom.Document parse(String xml) {
@@ -618,6 +643,29 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		}
 
 		return Optional.of((org.w3c.dom.Element) nodes.item(0));
+	}
+
+	private static Optional<org.w3c.dom.Element> firstExtensionDescendant(
+		org.w3c.dom.Element element,
+		String name) {
+
+		final var nodes = element.getElementsByTagNameNS(
+			NcipPayloadBuilder.OPENRS_SHIPPING_NAMESPACE,
+			name);
+
+		return nodes.getLength() == 0
+			? Optional.empty()
+			: Optional.of((org.w3c.dom.Element) nodes.item(0));
+	}
+
+	private static Optional<String> optionalExtensionText(
+		org.w3c.dom.Element element,
+		String name) {
+
+		return firstExtensionDescendant(element, name)
+			.map(org.w3c.dom.Element::getTextContent)
+			.map(String::trim)
+			.filter(value -> !value.isBlank());
 	}
 
 	private static String requiredText(org.w3c.dom.Element element, String name) {

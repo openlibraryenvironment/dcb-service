@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.item.availability.AvailabilityResponseView;
+import org.olf.dcb.item.availability.AvailabilityResponseViewV2;
 import org.olf.dcb.item.availability.LiveAvailabilityService;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 
@@ -58,6 +59,21 @@ public class LiveAvailabilityController {
 
 		return liveAvailabilityService.checkAvailability(clusteredBibId, useCache(timeout, filters))
 			.map(report -> AvailabilityResponseView.from(report, clusteredBibId));
+	}
+
+	@Operation(
+		summary = "Live Item Availability v2",
+		description = "Check Live Item Availability including electronic-item metadata"
+	)
+	@SingleResult
+	@Get(value = "/items/availability-v2", produces = APPLICATION_JSON)
+	public Mono<AvailabilityResponseViewV2> getLiveAvailabilityV2(
+		@NotNull @QueryValue("clusteredBibId") final UUID clusteredBibId,
+		@Nullable @QueryValue("filters") final String filters) {
+		log.info("REST, getLiveAvailabilityV2: {} {}", clusteredBibId, filters);
+
+		return liveAvailabilityService.checkAvailability(clusteredBibId, useCache(timeout, filters))
+			.map(report -> AvailabilityResponseViewV2.from(report, clusteredBibId));
 	}
 
 	@Error

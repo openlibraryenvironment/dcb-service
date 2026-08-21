@@ -3,6 +3,8 @@
 DCB coordinates direct consortial borrowing across member library systems. It ingests catalogue
 metadata, resolves live availability, and drives NCIP request lifecycles.
 
+`/items/availability-v2` adds electronic-item metadata; legacy `/items/availability` retains its existing response shape.
+
 DCB Profile NCIP2.02+ membership is invitation-controlled. DCB pulls an ORS tenant's authoritative
 public directory and creates its internal HostLMS, Agency, Library, and Location bindings atomically.
 Public contracts never expose the internal HostLMS adapter class.

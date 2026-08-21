@@ -6,6 +6,26 @@
 
   <xs:element name="ShippingContext" type="dcb:ShippingContextType"/>
 
+  <xs:element name="ItemAccessType">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="P"/>
+        <xs:enumeration value="E"/>
+        <xs:enumeration value="?"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+
+  <xs:element name="AvailabilityReason">
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:string">
+          <xs:attribute name="code" type="xs:string" use="optional"/>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
   <xs:complexType name="ShippingContextType">
     <xs:sequence>
       <xs:element name="SchemaVersion" type="xs:positiveInteger"/>
@@ -66,4 +86,3 @@
     </xs:sequence>
   </xs:complexType>
 </xs:schema>
-

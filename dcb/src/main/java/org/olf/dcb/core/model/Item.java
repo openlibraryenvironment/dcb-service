@@ -48,6 +48,12 @@ public class Item implements Comparable<Item> {
 	private String localItemType;
 	private String localItemTypeCode;
 	private String canonicalItemType;
+	@Transient
+	private String itemAccessType;
+	@Transient
+	private String electronicResourceUrl;
+	@Transient
+	private AvailabilityReason availabilityReason;
 	private Boolean deleted;
 	private Boolean suppressed;
 	private DataAgency agency;

@@ -14,6 +14,8 @@ GRADLE_USER_HOME="$PWD/.gradle-codex" timeout 30m ./gradlew test --no-daemon --n
 Cross-system acceptance is in `dcb-ops/docker-local/qa-local.sh
 smoke-fallback-host-dcb-request`.
 
+Electronic availability is transient. Add fields only to `AvailabilityResponseViewV2`; never extend the fragile legacy view.
+
 ## OAI-PMH checkpoints
 
 `OaiPmhIngestSource` defaults to `HIGHEST_TIMESTAMP`: after the final resumption-token page, the next
