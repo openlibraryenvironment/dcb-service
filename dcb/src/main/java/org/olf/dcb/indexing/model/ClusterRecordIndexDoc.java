@@ -120,7 +120,10 @@ public class ClusterRecordIndexDoc {
   		.map( bib -> {  // BibAvailabilityCount
   			String lmsCode = hostLmsIdToCodeResolver.apply(bib.getSourceSystemId());
 				Collection<BibAvailabilityCount> a = availability.get(bib.getId().toString());
-  			return new NestedBibIndexDoc(bib, lmsCode, false, a);
+			boolean primary = Optional.ofNullable(cluster.getSelectedBib())
+				.map(bib.getId()::equals)
+				.orElse(false);
+			return new NestedBibIndexDoc(bib, lmsCode, primary, a);
   		})
 			.toList();
 	}

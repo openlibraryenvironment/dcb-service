@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.marc4j.marc.ControlField;
@@ -749,7 +750,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
     // Allow ourselves a way to track which version of marc ingest source created a source record.
     // Increment this seq number on significant changes to see if a record needs to be boosted
-		canonical_metadata.put("dcbMarcIngestSeq", "1");
+		canonical_metadata.put("dcbMarcIngestSeq", "2");
 
 		DataField seriesStatement = (DataField) marcRecord.getVariableField("490");
 		if ( seriesStatement != null ) {
@@ -818,7 +819,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		addToCanonicalMetadata("subjects", "651", "topical-term", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "653", "index-term-uncontrolled", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "654", "faceted", marcRecord, canonical_metadata);
-		addToCanonicalMetadata("subjects", "655", "faceted", marcRecord, canonical_metadata);
+		addToCanonicalMetadata("subjects", "655", "genre-form", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "657", "faceted", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "658", "faceted", marcRecord, canonical_metadata);
 		addToCanonicalMetadata("subjects", "662", "hierarchial-place-name", marcRecord, canonical_metadata);
@@ -844,6 +845,20 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 		addToCanonicalMetadata("physical-description", "300", null, marcRecord, canonical_metadata);
 		addToCanonicalMetadata("content-type", "336", null, marcRecord, canonical_metadata);
 		addToCanonicalMetadata("media-type", "337", null, marcRecord, canonical_metadata);
+		addToCanonicalMetadata("carrier-type", "338", null, marcRecord, canonical_metadata);
+
+		addClassificationToCanonicalMetadata("classifications", "050", "lcc", marcRecord,
+			canonical_metadata);
+		addClassificationToCanonicalMetadata("classifications", "082", "dewey", marcRecord,
+			canonical_metadata);
+		addClassificationToCanonicalMetadata("classifications", "084", "other", marcRecord,
+			canonical_metadata);
+
+		for (String tag : List.of("730", "760", "762", "765", "767", "770", "772", "773",
+			"774", "775", "776", "777", "780", "785", "786", "787")) {
+			addRelationshipsToCanonicalMetadata(tag, marcRecord, canonical_metadata);
+		}
+		addAlternateScriptsToCanonicalMetadata(marcRecord, canonical_metadata);
 
 		DataField edition_field = (DataField) marcRecord.getVariableField("250");
 		if (edition_field != null) {
@@ -900,7 +915,7 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 	private void addToCanonicalMetadata(String property, VariableField vf, String tags,
 			Map<String, Object> canonical_metadata) {
 
-		String value = ((DataField) vf).getSubfieldsAsString("a");
+		String value = joinedSubfields((DataField) vf, tags == null ? "a" : tags);
 
 		if (value != null) {
 			List<Object> the_values = (List<Object>) canonical_metadata.get(property);
@@ -923,16 +938,132 @@ public interface MarcIngestSource<T> extends IngestSource, SourceToIngestRecordC
 
 		for (VariableField vf : marcRecord.getVariableFields(tag)) {
 			DataField df = (DataField) vf;
-			Map<String, String> the_entry = new HashMap<>();
+			Map<String, Object> the_entry = new HashMap<>();
 			if (subtype != null)
 				the_entry.put("subtype", subtype);
-			the_entry.put("label", df.getSubfieldsAsString("abcdefg"));
+			String labelTags = "agents".equals(property) ? "abcdq"
+				: "subjects".equals(property) ? "abcdefghjklmnopqrstuvxyz" : "abcdefg";
+			the_entry.put("label", joinedSubfields(df, labelTags));
+			if ("agents".equals(property)) {
+				putFirstSubfield(the_entry, "role", df, 'e', '4');
+				the_entry.put("primary", tag.startsWith("1"));
+				putFirstSubfield(the_entry, "authority", df, '0', '1');
+			}
+			if ("subjects".equals(property)) {
+				String fullLabel = joinedSubfields(df, "abcdefghjklmnopqrstuvxyz");
+				if (fullLabel != null)
+					the_entry.put("fullLabel", fullLabel);
+				putFirstSubfield(the_entry, "authority", df, '0', '1');
+			}
 			the_values.add(the_entry);
 		};
 
 		if (the_values.size() > 0) {
 			canonical_metadata.put(property, the_values);
 		}
+	}
+
+	private void addClassificationToCanonicalMetadata(String property, String tag, String subtype,
+			Record marcRecord, Map<String, Object> canonical_metadata) {
+		@SuppressWarnings("unchecked")
+		List<Object> values = (List<Object>) canonical_metadata.computeIfAbsent(property,
+			ignored -> new ArrayList<>());
+
+		for (VariableField vf : marcRecord.getVariableFields(tag)) {
+			DataField df = (DataField) vf;
+			String label = joinedSubfields(df, "ab");
+			if (label == null)
+				continue;
+
+			Map<String, Object> entry = new HashMap<>();
+			entry.put("subtype", subtype);
+			entry.put("label", label);
+			putFirstSubfield(entry, "source", df, '2');
+			values.add(entry);
+		}
+
+		if (values.isEmpty())
+			canonical_metadata.remove(property);
+	}
+
+	private void putFirstSubfield(Map<String, Object> target, String property, DataField field,
+			char... codes) {
+		for (char code : codes) {
+			Subfield subfield = field.getSubfield(code);
+			if (subfield != null && StringUtils.isNotEmpty(subfield.getData())) {
+				target.put(property, subfield.getData());
+				return;
+			}
+		}
+	}
+
+	private void addRelationshipsToCanonicalMetadata(String tag, Record marcRecord,
+			Map<String, Object> canonicalMetadata) {
+		@SuppressWarnings("unchecked")
+		List<Object> relationships = (List<Object>) canonicalMetadata.computeIfAbsent("relationships",
+			ignored -> new ArrayList<>());
+		for (VariableField vf : marcRecord.getVariableFields(tag)) {
+			DataField field = (DataField) vf;
+			String label = joinedSubfields(field, "ast");
+			String identifier = joinedSubfields(field, "wxz");
+			if (label == null && identifier == null) continue;
+			Map<String, Object> relationship = new HashMap<>();
+			relationship.put("type", relationshipType(tag));
+			relationship.put("marcTag", tag);
+			if (label != null) relationship.put("label", label);
+			if (identifier != null) relationship.put("identifier", identifier);
+			putFirstSubfield(relationship, "displayText", field, 'i');
+			relationships.add(relationship);
+		}
+		if (relationships.isEmpty()) canonicalMetadata.remove("relationships");
+	}
+
+	private String relationshipType(String tag) {
+		return switch (tag) {
+			case "760", "762" -> "series";
+			case "765" -> "translation-of";
+			case "767" -> "translation";
+			case "770" -> "supplement";
+			case "772" -> "supplement-to";
+			case "773" -> "part-of";
+			case "730", "774" -> "has-part";
+			case "775" -> "other-edition";
+			case "776" -> "other-format";
+			case "777" -> "issued-with";
+			case "780" -> "preceded-by";
+			case "785" -> "succeeded-by";
+			case "786" -> "data-source";
+			default -> "related";
+		};
+	}
+
+	private void addAlternateScriptsToCanonicalMetadata(Record marcRecord,
+			Map<String, Object> canonicalMetadata) {
+		List<Object> alternateScripts = new ArrayList<>();
+		for (VariableField vf : marcRecord.getVariableFields("880")) {
+			DataField field = (DataField) vf;
+			Subfield linkage = field.getSubfield('6');
+			String label = field.getSubfields().stream()
+				.filter(subfield -> subfield.getCode() != '6')
+				.map(Subfield::getData)
+				.filter(StringUtils::isNotEmpty)
+				.collect(Collectors.joining(" "));
+			if (linkage == null || label.isBlank()) continue;
+			Map<String, Object> alternate = new HashMap<>();
+			alternate.put("linkedTag", linkage.getData().split("-")[0]);
+			alternate.put("label", label);
+			alternateScripts.add(alternate);
+		}
+		if (!alternateScripts.isEmpty()) canonicalMetadata.put("alternateScripts", alternateScripts);
+	}
+
+	private String joinedSubfields(DataField field, String codes) {
+		String value = field.getSubfields().stream()
+			.filter(subfield -> codes.indexOf(subfield.getCode()) >= 0)
+			.map(Subfield::getData)
+			.filter(StringUtils::isNotEmpty)
+			.collect(Collectors.joining(" "));
+		return value.isBlank() ? null : value;
 	}
 
 }

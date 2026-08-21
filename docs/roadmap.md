@@ -8,3 +8,4 @@
 - Consider an optional application/approval admission mode.
 - Add origin allow-list policy and richer synchronization audit.
 - Monitor OAI-PMH boundary replay volumes and provider-specific timestamp granularity.
+- Review real Discovery records and tune presentation without removing canonical transport fields.

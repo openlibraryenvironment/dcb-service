@@ -26,31 +26,31 @@ public class NestedBibIndexDoc {
 		this.bibAvailabilityCounts = bibAvailabilityCounts;
 	}
 
-	UUID getBibId() {
+	public UUID getBibId() {
 		return bib.getId();
 	}
 
-	String getTitle() {
+	public String getTitle() {
 		return bib.getTitle();
 	}
 
-	UUID getSourceSystem() {
+	public UUID getSourceSystem() {
 		return bib.getSourceSystemId();
 	}
 
-	String getSourceRecordId() {
+	public String getSourceRecordId() {
 		return bib.getSourceRecordId();
 	}
 
-	boolean isPrimary() {
+	public boolean isPrimary() {
 		return primary;
 	}
 
-	String getSourceSystemCode() {
+	public String getSourceSystemCode() {
 		return hostLmsCode;
 	}
 	
-	Collection<AvailabilityEntry> getAvailability() {
+	public Collection<AvailabilityEntry> getAvailability() {
 		return Stream.ofNullable(bibAvailabilityCounts)
 				.flatMap(Collection::stream)
 				.map( count -> {
@@ -63,7 +63,7 @@ public class NestedBibIndexDoc {
 	}
 	
 	@Serdeable
-	protected static record AvailabilityEntry(
+	public static record AvailabilityEntry(
 			String library,
 			String location,
 			String combined,
