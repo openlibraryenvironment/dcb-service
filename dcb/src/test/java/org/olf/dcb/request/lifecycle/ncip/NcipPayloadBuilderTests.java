@@ -90,6 +90,7 @@ class NcipPayloadBuilderTests {
 		assertDoesNotThrow(() -> validator.validate(xml));
 		assertThat(xml, containsString("<LookupItemSet"));
 		assertThat(xml, containsString("<BibliographicRecordIdentifier>bib-456</BibliographicRecordIdentifier>"));
+		assertThat(xml, containsString("<ItemElementType>Electronic Resource</ItemElementType>"));
 	}
 
 	@Test

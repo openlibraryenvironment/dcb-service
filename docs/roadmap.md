@@ -1,5 +1,7 @@
 # Roadmap
 
+- Merge and release `/items/availability-v2`; keep legacy response compatibility.
+
 - [Add DCB Admin NCIP onboarding readiness and invitation issuance](backlog/current/dcb-ncip-onboarding.md).
 - Add administration for membership synchronization, sensitive-change review and revocation.
 - Allow bound clients to query remote status securely.

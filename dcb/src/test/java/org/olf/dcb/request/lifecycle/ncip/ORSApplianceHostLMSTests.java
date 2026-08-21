@@ -269,6 +269,10 @@ class ORSApplianceHostLMSTests {
 		assertThat(items.getFirst().getHostLmsCode(), is("ors-host"));
 		assertThat(items.getFirst().getStatus().getCode(), is(ItemStatusCode.AVAILABLE));
 		assertThat(items.getFirst().getCanonicalItemType(), is("CIRC"));
+		assertThat(items.getFirst().getItemAccessType(), is("E"));
+		assertThat(items.getFirst().getElectronicResourceUrl(), is("https://catalogue.example/colour-of-magic"));
+		assertThat(items.getFirst().getAvailabilityReason().code(), is("LICENCE_RESTRICTED"));
+		assertThat(items.getFirst().getAvailabilityReason().label(), is("Available to library members"));
 	}
 
 	@Test
@@ -379,7 +383,7 @@ class ORSApplianceHostLMSTests {
 
 	private static String validLookupUserResponse() {
 		return """
-			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" xmlns:openrs="https://openrs.org/ncip/fallback-host" ncip:version="2.02">
 			  <LookupUserResponse>
 			    <ResponseHeader>
 			      <FromAgencyId>
@@ -408,7 +412,7 @@ class ORSApplianceHostLMSTests {
 
 	private static String validLookupItemSetResponse() {
 		return """
-			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" xmlns:openrs="https://openrs.org/ncip/fallback-host" ncip:version="2.02">
 			  <LookupItemSetResponse>
 			    <ResponseHeader>
 			      <FromAgencyId>
@@ -441,6 +445,13 @@ class ORSApplianceHostLMSTests {
 			                </LocationNameInstance>
 			              </LocationName>
 			            </Location>
+			            <ElectronicResource>
+			              <ReferenceToResource>https://catalogue.example/colour-of-magic</ReferenceToResource>
+			            </ElectronicResource>
+			            <Ext>
+			              <openrs:ItemAccessType>E</openrs:ItemAccessType>
+			              <openrs:AvailabilityReason code="LICENCE_RESTRICTED">Available to library members</openrs:AvailabilityReason>
+			            </Ext>
 			          </ItemOptionalFields>
 			        </ItemInformation>
 			      </HoldingsSet>

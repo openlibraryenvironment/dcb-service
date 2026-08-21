@@ -80,6 +80,10 @@ public class NcipPayloadBuilder {
 			document,
 			payload.bibliographicRecordIdentifier(),
 			payload.bibliographicRecordAgencyId()));
+		lookupItemSet.appendChild(value(document, "ItemElementType", "Circulation Status"));
+		lookupItemSet.appendChild(value(document, "ItemElementType", "Item Description"));
+		lookupItemSet.appendChild(value(document, "ItemElementType", "Location"));
+		lookupItemSet.appendChild(value(document, "ItemElementType", "Electronic Resource"));
 		return toXml(document);
 	}
 
