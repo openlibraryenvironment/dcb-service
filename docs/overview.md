@@ -12,3 +12,7 @@ Public contracts never expose the internal HostLMS adapter class.
 Generic OAI-PMH catalogue ingest resumes from the highest source datestamp observed. FOLIO retains its
 existing internal-clock resumption behaviour because its second-resolution timestamps require separate
 handling.
+
+Selected MARC metadata is retained as structured canonical metadata in the shared index. Public fields
+include contributors, subjects, publication, notes, series, physical/content/media/carrier description,
+classifications, relationships and alternate scripts. Cluster members include source-system and holding counts.

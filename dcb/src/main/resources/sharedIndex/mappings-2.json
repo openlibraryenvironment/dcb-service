@@ -60,6 +60,14 @@
 		},
 		"members": {
 			"properties": {
+				"availability": {
+					"properties": {
+						"combined": { "type": "keyword" },
+						"count": { "type": "integer" },
+						"library": { "type": "keyword" },
+						"location": { "type": "keyword" }
+					}
+				},
 				"bibId": {
 					"type": "keyword"
 				},
@@ -103,8 +111,17 @@
 		},
 		"metadata": {
 			"properties": {
+				"alternateScripts": {
+					"properties": {
+						"label": { "type": "text" },
+						"linkedTag": { "type": "keyword" }
+					}
+				},
 				"agents": {
 					"properties": {
+						"authority": {
+							"type": "keyword"
+						},
 						"label": {
 							"type": "text",
 							"fields": {
@@ -114,6 +131,12 @@
 									"normalizer": "preserve_punctuation_normalizer"
 								}
 							}
+						},
+						"primary": {
+							"type": "boolean"
+						},
+						"role": {
+							"type": "keyword"
 						},
 						"subtype": {
 							"type": "keyword"
@@ -134,6 +157,26 @@
 								}
 							}
 						}
+					}
+				},
+				"carrier-type": {
+					"properties": {
+						"label": {
+							"type": "text",
+							"fields": {
+								"keyword": {
+									"type": "keyword",
+									"ignore_above": 256
+								}
+							}
+						}
+					}
+				},
+				"classifications": {
+					"properties": {
+						"label": { "type": "text" },
+						"source": { "type": "keyword" },
+						"subtype": { "type": "keyword" }
 					}
 				},
 				"contents": {
@@ -237,6 +280,15 @@
 						}
 					}
 				},
+				"relationships": {
+					"properties": {
+						"displayText": { "type": "text" },
+						"identifier": { "type": "keyword" },
+						"label": { "type": "text" },
+						"marcTag": { "type": "keyword" },
+						"type": { "type": "keyword" }
+					}
+				},
 				"series": {
 					"type": "text",
 					"fields": {
@@ -248,6 +300,13 @@
 				},
 				"subjects": {
 					"properties": {
+						"authority": {
+							"type": "keyword"
+						},
+						"fullLabel": {
+							"type": "text",
+							"analyzer": "icu_folding_nopunc"
+						},
 						"label": {
 							"type": "text",
 							"analyzer": "icu_folding_nopunc",
