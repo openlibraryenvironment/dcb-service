@@ -29,6 +29,7 @@ public final class DcbProfileRegistrationApi {
 		boolean supplyingAllowed,
 		boolean ingestAllowed,
 		String authProfile,
+		List<String> allowedAuthProfiles,
 		Integer maxConsortialLoans,
 		String suppressionRulesetName,
 		String itemSuppressionRulesetName
@@ -112,6 +113,7 @@ public final class DcbProfileRegistrationApi {
 		@NotBlank String directoryUrl,
 		@NotBlank String selectedSymbol,
 		@NotEmpty List<@Valid LocationSelection> locations,
+		String authProfile,
 		@NotBlank String descriptorHash,
 		@NotBlank String idempotencyKey
 	) {

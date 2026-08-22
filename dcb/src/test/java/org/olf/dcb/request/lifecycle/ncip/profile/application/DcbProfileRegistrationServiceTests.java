@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.request.lifecycle.ncip.NcipIdentityConfiguration;
@@ -96,6 +97,8 @@ class DcbProfileRegistrationServiceTests {
 
 		assertEquals(DcbProfileRegistrationApi.PROFILE_ID, response.profile());
 		assertEquals("TECH-DEMO-001", response.policy().hostLmsCode());
+		assertEquals("BASIC/BARCODE+PIN", response.policy().authProfile());
+		assertEquals(List.of("BASIC/BARCODE+PIN"), response.policy().allowedAuthProfiles());
 		verify(readinessService).requireReady();
 		verify(membershipRepository).save(any(DcbProfileMembership.class));
 	}
@@ -130,6 +133,7 @@ class DcbProfileRegistrationServiceTests {
 				true,
 				true,
 				true,
+				null,
 				null,
 				null,
 				null,

@@ -124,7 +124,8 @@ DCB administrators issue a 30-minute, single-use invitation at
 `POST /api/v1/dcb-profile-ncip2/membership-invitations`. ORS uses the invitation and its signed
 registration proof to call non-consuming `POST /membership-validations`, then atomic
 `POST /memberships`. Redemption requires a printable institution address, pulls the ORS public directory, and creates HostLMS, Agency, Library
-and selected Locations only after all prerequisites and conflicts pass.
+and selected Locations only after all prerequisites and conflicts pass. Invitation policy may constrain
+allowed Agency authentication profiles and define the default; explicit ORS selections are proof-bound.
 
 `GET /api/v1/dcb-profile-ncip2/readiness` reports safe, administrator-only checks for the
 public DCB URL, NCIP identity, peer authentication and signing identity. Invitation issuance

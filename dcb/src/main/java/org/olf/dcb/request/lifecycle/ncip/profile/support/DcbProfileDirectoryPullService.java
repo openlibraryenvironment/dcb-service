@@ -37,7 +37,7 @@ import org.olf.dcb.request.lifecycle.ncip.peerauth.DcbPeerAuthProperties;
 public class DcbProfileDirectoryPullService {
 	private static final int MAX_DOCUMENT_BYTES = 1_048_576;
 	private static final Set<String> SENSITIVE_CHANGE_FIELDS = Set.of(
-		"issuer", "jwksUrl", "ncipOrigin", "oaiOrigin", "selectedSymbol");
+		"issuer", "jwksUrl", "ncipOrigin", "oaiOrigin", "selectedSymbol", "authProfile");
 
 	private final HttpClient httpClient;
 	private final ObjectMapper objectMapper;
@@ -61,11 +61,14 @@ public class DcbProfileDirectoryPullService {
 		DcbProfileRegistrationApi.RegistrationRequest request,
 		String proof
 	) {
+		String authProfile = DcbProfileAuthPolicy.resolve(invitation, request.authProfile());
 		ValidatedRegistration validated = resolve(
 			invitation,
 			request.directoryUrl(),
 			request.selectedSymbol(),
-			request.locations());
+			request.locations(),
+			authProfile,
+			!blank(request.authProfile()));
 		if (!MessageDigest.isEqual(
 			validated.descriptorHash().getBytes(StandardCharsets.US_ASCII),
 			request.descriptorHash().getBytes(StandardCharsets.US_ASCII))) {
@@ -88,6 +91,8 @@ public class DcbProfileDirectoryPullService {
 	}
 
 	public ValidatedRegistration pull(DcbProfileMembership membership) {
+		boolean includeAuthProfile = membership.getApprovedDescriptor() != null
+			&& membership.getApprovedDescriptor().containsKey("authProfile");
 		List<DcbProfileRegistrationApi.LocationSelection> locations = maps(
 			membership.getApprovedDescriptor() != null
 				? membership.getApprovedDescriptor().get("locations")
@@ -103,14 +108,18 @@ public class DcbProfileDirectoryPullService {
 			membership,
 			membership.getRemoteDirectoryUrl(),
 			membership.getSelectedSymbol(),
-			locations);
+			locations,
+			DcbProfileAuthPolicy.approvedOrDefault(membership),
+			includeAuthProfile);
 	}
 
 	private ValidatedRegistration resolve(
 		DcbProfileMembership invitation,
 		String directoryUrl,
 		String requestedSymbol,
-		List<DcbProfileRegistrationApi.LocationSelection> locationSelections
+		List<DcbProfileRegistrationApi.LocationSelection> locationSelections,
+		String authProfile,
+		boolean includeAuthProfile
 	) {
 		URI directoryUri = guardedUri(directoryUrl, "directoryUrl");
 		Map<String, Object> page = fetchJson(directoryUri, "DIRECTORY_UNAVAILABLE");
@@ -168,7 +177,9 @@ public class DcbProfileDirectoryPullService {
 			ncipEndpoint,
 			oaiEndpoint,
 			ncipConfig,
-			resolvedLocations);
+			resolvedLocations,
+			authProfile,
+			includeAuthProfile);
 		String descriptorHash = descriptorHash(descriptor);
 
 		return new ValidatedRegistration(
@@ -189,7 +200,8 @@ public class DcbProfileDirectoryPullService {
 			text(ncipConfig, "peerAuthSubject"),
 			text(self, "commonName"),
 			address,
-			resolvedLocations
+			resolvedLocations,
+			authProfile
 		);
 	}
 
@@ -316,13 +328,15 @@ public class DcbProfileDirectoryPullService {
 		return List.copyOf(resolved);
 	}
 
-	private Map<String, Object> descriptor(
+	Map<String, Object> descriptor(
 		Map<String, Object> self,
 		String selectedSymbol,
 		String ncipEndpoint,
 		String oaiEndpoint,
 		Map<String, Object> ncipConfig,
-		List<Map<String, Object>> locations
+		List<Map<String, Object>> locations,
+		String authProfile,
+		boolean includeAuthProfile
 	) {
 		Map<String, Object> descriptor = new LinkedHashMap<>();
 		descriptor.put("profile", DcbProfileRegistrationApi.PROFILE_ID);
@@ -331,6 +345,9 @@ public class DcbProfileDirectoryPullService {
 		descriptor.put("commonName", text(self, "commonName"));
 		descriptor.put("address", requireDirectoryAddress(self));
 		descriptor.put("selectedSymbol", selectedSymbol);
+		if (includeAuthProfile) {
+			descriptor.put("authProfile", authProfile);
+		}
 		descriptor.put("ncipEndpoint", ncipEndpoint);
 		descriptor.put("ncipOrigin", origin(ncipEndpoint));
 		descriptor.put("ncipSystemId", text(ncipConfig, "ncipSystemId"));
@@ -598,7 +615,8 @@ public class DcbProfileDirectoryPullService {
 		String peerSubject,
 		String commonName,
 		String address,
-		List<Map<String, Object>> locations
+		List<Map<String, Object>> locations,
+		String authProfile
 	) {
 	}
 }
