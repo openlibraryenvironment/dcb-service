@@ -25,6 +25,7 @@ import org.olf.dcb.request.lifecycle.ncip.profile.api.DcbProfileRegistrationApi;
 import org.olf.dcb.request.lifecycle.ncip.profile.domain.DcbProfileMembership;
 import org.olf.dcb.request.lifecycle.ncip.profile.domain.DcbProfileMembershipState;
 import org.olf.dcb.request.lifecycle.ncip.profile.persistence.DcbProfileMembershipRepository;
+import org.olf.dcb.request.lifecycle.ncip.profile.support.DcbProfileAuthPolicy;
 import org.olf.dcb.request.lifecycle.ncip.profile.support.DcbProfileDirectoryPullService;
 import org.olf.dcb.request.lifecycle.ncip.profile.support.DcbProfileDirectoryPullService.ValidatedRegistration;
 import org.olf.dcb.request.lifecycle.ncip.NcipIdentityConfiguration;
@@ -96,7 +97,9 @@ public class DcbProfileRegistrationService {
 			throw DcbProfileRegistrationException.invalid(
 				"PROFILE_NOT_SUPPORTED", "Only DCB-NCIP2.02+ version 1 is supported.", "profile");
 		}
-		validatePolicy(request.policy());
+		DcbProfileRegistrationApi.InvitationPolicy policy =
+			DcbProfileAuthPolicy.normalize(request.policy());
+		validatePolicy(policy);
 
 		UUID id = UUID.randomUUID();
 		byte[] secret = new byte[32];
@@ -111,7 +114,7 @@ public class DcbProfileRegistrationService {
 			.state(DcbProfileMembershipState.INVITED)
 			.tokenHash(hash(invitation))
 			.expiresAt(expiresAt)
-			.policy(policyMap(request.policy()))
+			.policy(policyMap(policy))
 			.issuedBy(actor)
 			.issuedAt(now)
 			.build();
@@ -124,7 +127,7 @@ public class DcbProfileRegistrationService {
 			expiresAt,
 			nodeId(),
 			properties.getNodeName(),
-			request.policy()
+			policy
 		);
 	}
 
@@ -349,7 +352,7 @@ public class DcbProfileRegistrationService {
 			.code(agencyCode)
 			.name(validated.commonName())
 			.hostLms(hostLms)
-			.authProfile(defaultText(policyTextOrNull(membership, "authProfile"), DataAgency.BASIC_BARCODE_AND_PIN))
+			.authProfile(validated.authProfile())
 			.isBorrowingAgency(policyBoolean(membership, "borrowingAllowed"))
 			.isSupplyingAgency(policyBoolean(membership, "supplyingAllowed"))
 			.maxConsortialLoans(policyInteger(membership, "maxConsortialLoans"))
@@ -453,6 +456,7 @@ public class DcbProfileRegistrationService {
 				host.setReason(reason);
 				agency
 					.setName(validated.commonName())
+					.setAuthProfile(validated.authProfile())
 					.setReason(reason);
 				library.setFullName(validated.commonName());
 				library.setShortName(limit(validated.commonName(), 32));
@@ -784,7 +788,7 @@ public class DcbProfileRegistrationService {
 	}
 
 	private DcbProfileRegistrationApi.InvitationPolicy policy(DcbProfileMembership membership) {
-		return new DcbProfileRegistrationApi.InvitationPolicy(
+		return DcbProfileAuthPolicy.normalize(new DcbProfileRegistrationApi.InvitationPolicy(
 			policyText(membership, "hostLmsCode"),
 			policyText(membership, "agencyCode"),
 			policyTextOrNull(membership, "expectedSymbol"),
@@ -792,10 +796,11 @@ public class DcbProfileRegistrationService {
 			policyBoolean(membership, "supplyingAllowed"),
 			policyBoolean(membership, "ingestAllowed"),
 			policyTextOrNull(membership, "authProfile"),
+			policyStrings(membership, "allowedAuthProfiles"),
 			policyInteger(membership, "maxConsortialLoans"),
 			policyTextOrNull(membership, "suppressionRulesetName"),
 			policyTextOrNull(membership, "itemSuppressionRulesetName")
-		);
+		));
 	}
 
 	private Map<String, Object> policyMap(DcbProfileRegistrationApi.InvitationPolicy policy) {
@@ -807,6 +812,9 @@ public class DcbProfileRegistrationService {
 		result.put("supplyingAllowed", policy.supplyingAllowed());
 		result.put("ingestAllowed", policy.ingestAllowed());
 		putIfNotNull(result, "authProfile", policy.authProfile());
+		if (policy.allowedAuthProfiles() != null && !policy.allowedAuthProfiles().isEmpty()) {
+			result.put("allowedAuthProfiles", List.copyOf(policy.allowedAuthProfiles()));
+		}
 		putIfNotNull(result, "maxConsortialLoans", policy.maxConsortialLoans());
 		putIfNotNull(result, "suppressionRulesetName", policy.suppressionRulesetName());
 		putIfNotNull(result, "itemSuppressionRulesetName", policy.itemSuppressionRulesetName());
@@ -844,6 +852,14 @@ public class DcbProfileRegistrationService {
 	private Integer policyInteger(DcbProfileMembership membership, String key) {
 		Object value = membership.getPolicy().get(key);
 		return value instanceof Number number ? number.intValue() : null;
+	}
+
+	private List<String> policyStrings(DcbProfileMembership membership, String key) {
+		Object value = membership.getPolicy().get(key);
+		if (!(value instanceof List<?> list)) {
+			return List.of();
+		}
+		return list.stream().map(item -> item == null ? null : String.valueOf(item)).toList();
 	}
 
 	private String hash(String value) {

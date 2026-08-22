@@ -38,7 +38,8 @@ Admin.
    - Agency code;
    - expected ORS symbol;
    - borrowing, supplying, and ingest permissions;
-   - optional authentication profile, loan limit, and suppression rulesets.
+   - default and allowed authentication profiles;
+   - optional loan limit and suppression rulesets.
 5. The UI validates policy dependencies before submission: borrowing or
    supplying is required, and ingest requires supplying.
 6. Explicit confirmation creates the invitation.

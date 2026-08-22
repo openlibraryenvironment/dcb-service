@@ -7,7 +7,8 @@ metadata, resolves live availability, and drives NCIP request lifecycles.
 
 DCB Profile NCIP2.02+ membership is invitation-controlled. DCB pulls an ORS tenant's authoritative
 public directory and creates its internal HostLMS, Agency, Library, and Location bindings atomically.
-Public contracts never expose the internal HostLMS adapter class.
+Public contracts never expose the internal HostLMS adapter class. Its invitation policy controls the
+default and allowed values written to the existing Agency authentication profile.
 
 Generic OAI-PMH catalogue ingest resumes from the highest source datestamp observed. FOLIO retains its
 existing internal-clock resumption behaviour because its second-resolution timestamps require separate

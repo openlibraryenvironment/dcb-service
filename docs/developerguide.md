@@ -5,6 +5,10 @@ DCB Profile NCIP2.02+ registration lives under
 validation, transactions, synchronization, and revocation. Directory/JWKS network pulls must finish
 before redemption starts its database transaction.
 
+`InvitationPolicy.authProfile` is the default. Optional `allowedAuthProfiles` constrains explicit
+`RegistrationRequest.authProfile` selections. Keep explicit selections in the canonical descriptor;
+legacy omitted selections must retain their historical descriptor shape and use the server-owned default.
+
 Run:
 
 ```bash
