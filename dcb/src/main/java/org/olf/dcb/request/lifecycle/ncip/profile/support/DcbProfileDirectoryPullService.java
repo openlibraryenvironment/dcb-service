@@ -11,6 +11,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.ObjectMapper;
 import jakarta.inject.Singleton;
 import java.net.InetAddress;
@@ -122,7 +123,9 @@ public class DcbProfileDirectoryPullService {
 		boolean includeAuthProfile
 	) {
 		URI directoryUri = guardedUri(directoryUrl, "directoryUrl");
-		Map<String, Object> page = fetchJson(directoryUri, "DIRECTORY_UNAVAILABLE");
+		Map<String, Object> page = fetchJson(
+			UriBuilder.of(directoryUri).replaceQueryParam("self", true).build(),
+			"DIRECTORY_UNAVAILABLE");
 		List<Map<String, Object>> entries = maps(page.get("content"));
 		List<Map<String, Object>> selfEntries = entries.stream()
 			.filter(entry -> bool(entry, "isSelf"))

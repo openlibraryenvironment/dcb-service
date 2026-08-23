@@ -10,6 +10,8 @@ Owns DCB-authorized invitation, validation, redemption, synchronization, review 
 
 ORS directory data is descriptive authority. DCB owns membership, DCB codes and participation policy.
 Existing HostLMS, Agency, Library and Location repositories remain authoritative for runtime objects.
+Directory pulls add `self=true` to the fetch URI so ORS applies the self-entry criterion before
+pagination. The canonical signed and stored directory URL is unchanged.
 
 Invitation policy owns the default and allowed Agency authentication profiles. An explicit ORS
 selection must be allowed and is bound into the signed descriptor. Legacy requests omit the selection

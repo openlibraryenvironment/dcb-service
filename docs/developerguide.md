@@ -5,6 +5,9 @@ DCB Profile NCIP2.02+ registration lives under
 validation, transactions, synchronization, and revocation. Directory/JWKS network pulls must finish
 before redemption starts its database transaction.
 
+Profile directory pulls request the bounded `self=true` view. Preserve the canonical directory URL
+for proof claims and membership state; apply the criterion only to the HTTP fetch URI.
+
 `InvitationPolicy.authProfile` is the default. Optional `allowedAuthProfiles` constrains explicit
 `RegistrationRequest.authProfile` selections. Keep explicit selections in the canonical descriptor;
 legacy omitted selections must retain their historical descriptor shape and use the server-owned default.

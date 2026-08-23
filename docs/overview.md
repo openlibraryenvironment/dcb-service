@@ -9,6 +9,7 @@ DCB Profile NCIP2.02+ membership is invitation-controlled. DCB pulls an ORS tena
 public directory and creates its internal HostLMS, Agency, Library, and Location bindings atomically.
 Public contracts never expose the internal HostLMS adapter class. Its invitation policy controls the
 default and allowed values written to the existing Agency authentication profile.
+Directory reads use the server-side `self=true` criterion rather than enumerating peer entries.
 
 Generic OAI-PMH catalogue ingest resumes from the highest source datestamp observed. FOLIO retains its
 existing internal-clock resumption behaviour because its second-resolution timestamps require separate
