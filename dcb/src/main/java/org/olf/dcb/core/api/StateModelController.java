@@ -16,6 +16,8 @@ import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
@@ -30,6 +32,8 @@ import reactor.core.publisher.Mono;
 @Secured(SecurityRule.IS_ANONYMOUS)
 @Validated
 @Tag(name = "State API")
+// Graphviz renders DOT, SVG, and PNG synchronously and can be CPU intensive.
+@ExecuteOn(TaskExecutors.BLOCKING)
 public class StateModelController {
 	private static final Logger log = LoggerFactory.getLogger(StateModelController.class);
 
