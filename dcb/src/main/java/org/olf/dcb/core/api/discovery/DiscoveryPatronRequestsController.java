@@ -30,6 +30,8 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
@@ -62,6 +64,8 @@ import reactor.core.publisher.Mono;
 @Secured(DISCOVERY_SERVICE)
 @Tag(name = "Discovery API")
 @Slf4j
+// Assertion verification is synchronous and may refresh trusted JWKS over bounded HTTP.
+@ExecuteOn(TaskExecutors.BLOCKING)
 public class DiscoveryPatronRequestsController {
 
 	private static final String ASSERTION_DESCRIPTION =
