@@ -8,6 +8,10 @@ Keep `ARCHITECTURE.md` current when changing module ownership, dependency rules,
 extension points, persistence ownership, external integration boundaries, or
 known architectural rules.
 
+Classify every new or changed HTTP entry point against the execution-boundary
+rule in `ARCHITECTURE.md`; synchronous waits require explicit blocking dispatch
+because their completion may need the Netty event loop occupied by the request.
+
 ## ADR First
 
 Before making dependency or CI/test-run changes, review ADRs in `docs/ADRs/`.

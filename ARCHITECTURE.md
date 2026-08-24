@@ -112,6 +112,13 @@ when creating an index and reconciles the current version at startup.
 
 ## Boundary Rules
 
+- Imperative HTTP routes that synchronously wait on database, HTTP, filesystem or
+  equivalent work must dispatch at the controller boundary with
+  `@ExecuteOn(TaskExecutors.BLOCKING)`. This keeps Netty event loops available for
+  the completions on which that work may depend. Reactive routes remain on the
+  event loop only when every reachable operation is non-blocking; reactive return
+  types alone are not proof. Do not replace this classification with a global
+  `micronaut.server.thread-selection` change.
 - DCB request state changes belong in `Handle...` workflow transitions.
 - DCB state-model documentation is generated from `PatronRequestStateTransition`
   beans through `StateModelService`. Do not maintain a parallel static state

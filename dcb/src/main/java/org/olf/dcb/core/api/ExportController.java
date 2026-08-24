@@ -22,6 +22,8 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,6 +34,8 @@ import reactor.core.publisher.Mono;
 @Controller("/export")
 @Validated
 @Secured(RoleNames.ADMINISTRATOR)
+// Export and ingest synchronously wait on reactive work, so they must not occupy a Netty event loop.
+@ExecuteOn(TaskExecutors.BLOCKING)
 @Tag(name = "Export API")
 public class ExportController {
 	@SuppressWarnings("unused")
