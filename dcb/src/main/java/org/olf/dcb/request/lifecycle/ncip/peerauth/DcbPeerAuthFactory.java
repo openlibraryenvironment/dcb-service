@@ -11,8 +11,11 @@ import jakarta.inject.Singleton;
 @Factory
 public class DcbPeerAuthFactory {
 	@Singleton
-	PeerJwksResolver peerJwksResolver() {
-		return new TrustedPeerJwksResolver();
+	PeerJwksResolver peerJwksResolver(DcbPeerAuthProperties properties) {
+		final var remoteJwks = properties.getRemoteJwks();
+		// Trusted peer endpoints can still stall; keep their network wait deployment-bounded.
+		return new TrustedPeerJwksResolver(
+			remoteJwks.getConnectTimeout(), remoteJwks.getReadTimeout());
 	}
 
 	@Singleton

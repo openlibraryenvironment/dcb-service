@@ -42,6 +42,8 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.*;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
@@ -302,6 +304,8 @@ public class AdminController {
 
 	
 	@Get(uri = "/threads", produces = MediaType.TEXT_PLAIN)
+	// JVM-wide stack and monitor inspection can pause or contend; keep it off Netty.
+	@ExecuteOn(TaskExecutors.BLOCKING)
 	public String threads() {
 	    StringBuffer threadDump = new StringBuffer(System.lineSeparator());
 	    ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();

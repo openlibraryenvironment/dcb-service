@@ -213,7 +213,8 @@ dcb:
 
 Peer authentication is **wired on both directions** and gated by config. The
 module now builds on the **Java 25** toolchain against
-`com.k_int.mn:ki-mn-peer-auth:1.4.0`, so the earlier JVM-25 blocker is resolved.
+`com.k_int.mn:ki-mn-peer-auth:1.4.2`, so the earlier JVM-25 blocker is resolved and remote JWKS
+retrieval has bounded, configurable connect/read timeouts.
 
 - **Outbound** — `NcipDeclarativeRequestTransport` signs each POST via
   `NcipPeerAuthorizationService` (Nimbus, `NimbusPeerTokenSigner`).
@@ -378,6 +379,7 @@ contamination. (Automating this as a single harness is the remaining PR-8 item.)
 | `ncip-peer-issuer` / `ncip-peer-jwks-url` / `ncip-peer-audience` | HostLms | `NcipPeerAuthProfile` | approved peer JWT metadata; required when `JWT_REQUIRED` |
 | `dcb.peer-auth.enabled` | app config | `DcbPeerAuthProperties` | master JWT/JWKS peer-auth toggle (default off) |
 | `dcb.peer-auth.ncip.enabled` | app config | `NcipPeerAuthGuard` / transport | enables peer auth for NCIP specifically |
+| `dcb.peer-auth.remote-jwks.*` | app config | `TrustedPeerJwksResolver` | connect/read timeout bounds for remote JWKS retrieval |
 | `dcb.peer-auth.local-identity.*` | app config | `DcbPeerAuthStore` | DCB's signing key, issuer, audiences, token lifetime |
 | `dcb.peer-auth.trusted-peers[]` | app config | `DcbPeerAuthStore` | accepted peers: issuer, JWKS, audiences, protocol bindings |
 

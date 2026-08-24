@@ -9,6 +9,8 @@ import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.ncip.NcipSchemaPath;
@@ -19,6 +21,8 @@ import reactor.core.publisher.Mono;
 
 @Controller("/ncip/v2_02")
 @Secured(IS_ANONYMOUS)
+// NCIP schema validation and XML parsing are synchronous and must not occupy Netty event loops.
+@ExecuteOn(TaskExecutors.BLOCKING)
 public class NcipController {
 	private final InboundLifecycleMessageHandler inboundLifecycleMessageHandler;
 	private final NcipInboundXmlMapper inboundXmlMapper;

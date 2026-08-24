@@ -13,16 +13,21 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
+import io.micronaut.scheduling.TaskExecutors;
 import jakarta.inject.Singleton;
+import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import org.olf.dcb.request.lifecycle.ncip.NcipInboundMessage;
 import org.olf.dcb.request.lifecycle.ncip.NcipPeerHostLmsResolver;
 import org.olf.dcb.request.lifecycle.ncip.NcipResponseBuilder;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 @Singleton
 public class NcipPeerAuthGuard {
@@ -30,17 +35,20 @@ public class NcipPeerAuthGuard {
 	private final NcipPeerHostLmsResolver hostLmsResolver;
 	private final PeerJwksResolver peerJwksResolver;
 	private final NcipResponseBuilder responseBuilder;
+	private final Scheduler blockingScheduler;
 
 	public NcipPeerAuthGuard(
 		DcbPeerAuthProperties properties,
 		NcipPeerHostLmsResolver hostLmsResolver,
 		PeerJwksResolver peerJwksResolver,
+		@Named(TaskExecutors.BLOCKING) Executor blockingExecutor,
 		NcipResponseBuilder responseBuilder) {
 
 		this.properties = properties;
 		this.hostLmsResolver = hostLmsResolver;
 		this.peerJwksResolver = peerJwksResolver;
 		this.responseBuilder = responseBuilder;
+		this.blockingScheduler = Schedulers.fromExecutor(blockingExecutor);
 	}
 
 	public Mono<Optional<MutableHttpResponse<String>>> problem(
@@ -48,7 +56,10 @@ public class NcipPeerAuthGuard {
 		NcipInboundMessage message) {
 
 		return hostLmsResolver.findBySystemId(message.hostLmsCode())
-			.map(hostLms -> authorize(request, message, hostLms))
+			.flatMap(hostLms -> Mono.fromCallable(() -> authorize(request, message, hostLms))
+				// The repository lookup completes asynchronously; controller @ExecuteOn cannot
+				// protect this later callback when JWT verification refreshes JWKS over HTTP.
+				.subscribeOn(blockingScheduler))
 			.onErrorResume(error -> Mono.just(Optional.of(problem(
 				HttpResponse.unauthorized(), error.getMessage()))));
 	}

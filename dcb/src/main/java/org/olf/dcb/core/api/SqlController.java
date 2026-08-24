@@ -13,6 +13,8 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,6 +24,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Validated
 @Secured(RoleNames.ADMINISTRATOR)
 @Tag(name = "Sql API")
+// Both routes use synchronous JDBC (and named queries also read a classpath resource).
+@ExecuteOn(TaskExecutors.BLOCKING)
 public class SqlController {
 	private static final Logger log = LoggerFactory.getLogger(SqlController.class);
 

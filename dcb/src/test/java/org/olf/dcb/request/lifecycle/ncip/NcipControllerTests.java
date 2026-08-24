@@ -322,6 +322,7 @@ class NcipControllerTests {
 				properties,
 				hostLmsResolverWithJwtRequiredPeer(),
 				mock(PeerJwksResolver.class),
+				Runnable::run,
 				new NcipResponseBuilder()));
 
 		final var response = controller.receive(
@@ -355,6 +356,7 @@ class NcipControllerTests {
 			new DcbPeerAuthProperties(),
 			resolver,
 			mock(PeerJwksResolver.class),
+			Runnable::run,
 			new NcipResponseBuilder());
 	}
 

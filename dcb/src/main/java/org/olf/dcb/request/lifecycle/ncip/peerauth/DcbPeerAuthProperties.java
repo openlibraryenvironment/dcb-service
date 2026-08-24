@@ -1,5 +1,6 @@
 package org.olf.dcb.request.lifecycle.ncip.peerauth;
 
+import com.k_int.peerauth.service.TrustedPeerJwksResolver;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import java.net.URI;
 import java.time.Duration;
@@ -13,6 +14,7 @@ public class DcbPeerAuthProperties {
 	private boolean enabled;
 	private Ncip ncip = new Ncip();
 	private LocalIdentity localIdentity = new LocalIdentity();
+	private RemoteJwks remoteJwks = new RemoteJwks();
 	private List<TrustedPeerConfig> trustedPeers = new ArrayList<>();
 
 	public boolean isEnabled() {
@@ -39,6 +41,14 @@ public class DcbPeerAuthProperties {
 		this.localIdentity = localIdentity != null ? localIdentity : new LocalIdentity();
 	}
 
+	public RemoteJwks getRemoteJwks() {
+		return remoteJwks;
+	}
+
+	public void setRemoteJwks(RemoteJwks remoteJwks) {
+		this.remoteJwks = remoteJwks != null ? remoteJwks : new RemoteJwks();
+	}
+
 	public List<TrustedPeerConfig> getTrustedPeers() {
 		return trustedPeers;
 	}
@@ -61,6 +71,31 @@ public class DcbPeerAuthProperties {
 
 		public void setEnabled(boolean enabled) {
 			this.enabled = enabled;
+		}
+	}
+
+	@ConfigurationProperties("remote-jwks")
+	public static class RemoteJwks {
+		// Library defaults are safe; deployment overrides remain available for local latency needs.
+		private Duration connectTimeout = TrustedPeerJwksResolver.DEFAULT_CONNECT_TIMEOUT;
+		private Duration readTimeout = TrustedPeerJwksResolver.DEFAULT_READ_TIMEOUT;
+
+		public Duration getConnectTimeout() {
+			return connectTimeout;
+		}
+
+		public void setConnectTimeout(Duration connectTimeout) {
+			this.connectTimeout = connectTimeout != null
+				? connectTimeout : TrustedPeerJwksResolver.DEFAULT_CONNECT_TIMEOUT;
+		}
+
+		public Duration getReadTimeout() {
+			return readTimeout;
+		}
+
+		public void setReadTimeout(Duration readTimeout) {
+			this.readTimeout = readTimeout != null
+				? readTimeout : TrustedPeerJwksResolver.DEFAULT_READ_TIMEOUT;
 		}
 	}
 
