@@ -20,6 +20,8 @@ import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.multipart.CompletedFileUpload;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -75,6 +77,8 @@ public class UploadedMappingsController {
 	// This method posts a file of uploaded mappings of a given mapping type and category.
 	// i.e. Reference value mappings of category ItemType
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
+	// Uploaded configuration is read and parsed synchronously when its publisher is subscribed.
+	@ExecuteOn(TaskExecutors.BLOCKING)
 	public Mono<UploadedConfigImport> post(CompletedFileUpload file, String code, String type, String category, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
 		String username = securityService.username().orElseThrow();
 			return configurationService.importConfiguration(type, category, code, file, reason, changeCategory, changeReferenceUrl, username);

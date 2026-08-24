@@ -26,6 +26,8 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.security.annotation.Secured;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -96,6 +98,8 @@ public class LocationController {
 
 	@Secured({RoleNames.CONSORTIUM_ADMIN, RoleNames.ADMINISTRATOR, RoleNames.LIBRARY_ADMIN})
 	@Post(value = "/upload", consumes = MULTIPART_FORM_DATA, produces = APPLICATION_JSON)
+	// Uploaded configuration is read and parsed synchronously when its publisher is subscribed.
+	@ExecuteOn(TaskExecutors.BLOCKING)
 	public Mono<DCBConfigurationService.UploadedConfigImport> importLocations(CompletedFileUpload file, String code, String type, String reason, @Nullable String changeCategory, @Nullable String changeReferenceUrl) {
 		// Pulling this in from the token config to avoid the use of magic strings
 		// For future reference, if we want to use something other than Keycloak, will need to figure out how to configure these additional custom fields
