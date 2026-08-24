@@ -59,11 +59,15 @@ public class DatabaseBrandAssetStore implements BrandAssetStore {
 	private final BrandAssetRepository repository;
 	private final Clock clock;
 
-	private final Cache<String, BrandAsset> served = Caffeine.newBuilder()
-		.maximumWeight(MAX_CACHE_BYTES)
-		.weigher((String key, BrandAsset asset) -> asset.size())
-		.expireAfterAccess(CACHE_TTL)
-		.build();
+	private final Cache<String, BrandAsset> served = createServedCache();
+
+	static Cache<String, BrandAsset> createServedCache() {
+		return Caffeine.newBuilder()
+			.maximumWeight(MAX_CACHE_BYTES)
+			.weigher((String key, BrandAsset asset) -> asset.size())
+			.expireAfterAccess(CACHE_TTL)
+			.build();
+	}
 
 	public DatabaseBrandAssetStore(BrandAssetRepository repository) {
 		this(repository, Clock.systemUTC());
