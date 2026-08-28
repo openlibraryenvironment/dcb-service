@@ -23,5 +23,7 @@ class DcbPeerAuthPropertiesTests {
 		assertEquals("https://dcb.example/peer-auth", properties.getLocalIdentity().getIssuer());
 		assertEquals("key-1", properties.getLocalIdentity().getKeyId());
 		assertEquals(Duration.ofMinutes(5), properties.getLocalIdentity().getTokenLifetime());
+		assertEquals(Duration.ofSeconds(1), properties.getRemoteJwks().getConnectTimeout());
+		assertEquals(Duration.ofSeconds(3), properties.getRemoteJwks().getReadTimeout());
 	}
 }

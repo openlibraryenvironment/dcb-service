@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.api.AdminController;
 import org.olf.dcb.core.api.ExportController;
+import org.olf.dcb.core.api.SqlController;
+import org.olf.dcb.request.lifecycle.ncip.NcipController;
 
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
@@ -13,10 +16,33 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 class ControllerExecutionBoundaryTests {
 	@Test
 	void exportControllerDispatchesBlockingWork() {
-		final var executeOn = ExportController.class.getAnnotation(ExecuteOn.class);
+		assertBlocking(ExportController.class);
+	}
 
-		// Removing or weakening this boundary can deadlock work needing the request event loop.
-		assertNotNull(executeOn, "ExportController must declare an execution boundary");
+	@Test
+	void ncipControllerDispatchesSynchronousXmlWork() {
+		assertBlocking(NcipController.class);
+	}
+
+	@Test
+	void sqlControllerDispatchesSynchronousJdbcWork() {
+		assertBlocking(SqlController.class);
+	}
+
+	@Test
+	void adminThreadDumpDispatchesJvmInspection() throws NoSuchMethodException {
+		final var executeOn = AdminController.class.getMethod("threads")
+			.getAnnotation(ExecuteOn.class);
+
+		assertNotNull(executeOn, "AdminController.threads must declare an execution boundary");
+		assertEquals(TaskExecutors.BLOCKING, executeOn.value());
+	}
+
+	private static void assertBlocking(Class<?> controller) {
+		final var executeOn = controller.getAnnotation(ExecuteOn.class);
+
+		// Removing or weakening these boundaries can starve work needing Netty event loops.
+		assertNotNull(executeOn, controller.getSimpleName() + " must declare an execution boundary");
 		assertEquals(TaskExecutors.BLOCKING, executeOn.value());
 	}
 }

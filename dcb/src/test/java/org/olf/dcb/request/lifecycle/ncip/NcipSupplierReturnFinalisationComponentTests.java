@@ -245,6 +245,7 @@ class NcipSupplierReturnFinalisationComponentTests {
 			new DcbPeerAuthProperties(),
 			resolver,
 			mock(PeerJwksResolver.class),
+			Runnable::run,
 			new NcipResponseBuilder());
 	}
 }

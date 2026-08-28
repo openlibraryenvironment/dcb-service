@@ -3,6 +3,9 @@ dcb:
     enabled: true
     ncip:
       enabled: true
+    remote-jwks:
+      connect-timeout: PT1S
+      read-timeout: PT3S
     local-identity:
       id: dcb
       issuer: https://dcb.example/peer-auth
