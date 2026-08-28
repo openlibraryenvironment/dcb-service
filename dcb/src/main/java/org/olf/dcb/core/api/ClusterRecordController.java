@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -33,6 +34,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.serde.ObjectMapper;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
@@ -43,9 +45,12 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 @Controller("/clusters")
 @Validated
@@ -60,17 +65,20 @@ public class ClusterRecordController {
 	private final ProcessAuditService processAuditService;
 	private final ObjectMapper objectMapper;
 	private final RecordClusteringService recordClusteringService;
+	private final Scheduler blockingScheduler;
 	
 	public ClusterRecordController(
 			BibRepository bibRepository,
 			ProcessAuditService processAuditService,
 			ObjectMapper objectMapper,
-			RecordClusteringService recordClusteringService
+			RecordClusteringService recordClusteringService,
+			@Named(TaskExecutors.BLOCKING) Executor blockingExecutor
 		) {
 		this.bibRepository = bibRepository;
 		this.processAuditService = processAuditService;
 		this.objectMapper = objectMapper;
 		this.recordClusteringService = recordClusteringService;
+		this.blockingScheduler = Schedulers.fromExecutor(blockingExecutor);
 	}
 
 	@Operation(
@@ -143,6 +151,8 @@ public class ClusterRecordController {
 								.header("Content-Disposition", "attachment; filename=\"cluster-"+id+"records.zip\"");
 					}
 				})
+				// Database emission may occur on an R2DBC thread; move later JSON/ZIP work explicitly.
+				.subscribeOn(blockingScheduler)
 				.onErrorResume( e -> {
 					return Mono.just(HttpResponse.serverError()
 						.body(("Error: " + e.getMessage()).getBytes()));
