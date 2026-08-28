@@ -19,6 +19,8 @@ import io.micronaut.http.annotation.Part;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.multipart.CompletedFileUpload;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.Operation;
@@ -93,6 +95,8 @@ public class BrandAssetUploadController {
 			+ "that arrived. Returns the site-relative URL to store in a brand field.")
 	@Post(consumes = MULTIPART_FORM_DATA)
 	@Consumes(MULTIPART_FORM_DATA)
+	// Reading, decoding, and re-encoding image bytes are synchronous operations.
+	@ExecuteOn(TaskExecutors.BLOCKING)
 	public Mono<UploadedAsset> upload(@Part("file") CompletedFileUpload file) {
 		final byte[] bytes;
 		try {
