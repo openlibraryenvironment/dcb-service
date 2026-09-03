@@ -1292,6 +1292,20 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
+	public Mono<Integer> countHoldsForPatron(String localPatronId) {
+		log.debug("countHoldsForPatron({})", localPatronId);
+
+		// Deliberately excludes ILL requests: they are governed by separate Polaris
+		// limits. Under-counting only means a request fails later, as it does today.
+		return ApplicationServices.listPatronLocalHolds(localPatronId)
+			.map(List::size)
+			// An error here must not be reported as a count of zero
+			.doOnError(error -> log.warn("Could not count holds for patron {} at {}",
+				localPatronId, getHostLmsCode(), error))
+			.onErrorResume(error -> Mono.empty());
+	}
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> PAPIService.patronValidate(patronPrinciple, secret);

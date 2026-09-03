@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.equalToObject;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
@@ -73,6 +74,17 @@ class ConsortialFolioHostLmsClientPatronTests {
 		mockFolioFixture = new MockFolioFixture(mockServerClient, "fake-folio", API_KEY);
 
 		client = hostLmsFixture.createClient(HOST_LMS_CODE);
+	}
+
+	@Test
+	void shouldNotBeAbleToCountHoldsForPatron() {
+		// mod-dcb only exposes DCB's own transactions, so FOLIO cannot report a
+		// hold count. Empty means unknown - the hold limit preflight check must
+		// decline to judge rather than treat the patron as having zero holds
+
+		final var count = singleValueFrom(client.countHoldsForPatron(randomUUID().toString()));
+
+		assertThat(count, is(nullValue()));
 	}
 
 	@Test

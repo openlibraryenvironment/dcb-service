@@ -100,6 +100,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		Boolean isSupplyingAgency = InputValues.booleanValue(input_map, "isSupplyingAgency");
 		Boolean isBorrowingAgency = InputValues.booleanValue(input_map, "isBorrowingAgency");
 		Integer maxLoansInput = InputValues.integerValue(input_map, "maxConsortialLoans");
+		Integer maxLocalHoldsInput = InputValues.integerValue(input_map, "maxLocalHolds");
 		String authProfile = InputValues.stringValue(input_map, "authProfile");
 		String hostLmsCode = InputValues.stringValue(input_map, "hostLmsCode");
 
@@ -136,6 +137,13 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		if (hostLmsCode == null) {
 			log.warn("createLibraryDataFetcher: You must provide a Host LMS code to create a library.");
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Please provide a valid Host LMS code.");
+		}
+
+		// Matches the bound updateAgency enforces. Zero would block every request from the
+		// agency in the hold limit preflight check, which is never what a librarian means.
+		if (maxLocalHoldsInput != null && maxLocalHoldsInput < 1) {
+			log.warn("createLibraryDataFetcher: maxLocalHolds must be 1 or greater, was {}.", maxLocalHoldsInput);
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Max local holds must be 1 or greater.");
 		}
 
 		// Because we have both libraries and agencies to contend with, we need to create both a library AND its corresponding agency
@@ -175,6 +183,10 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 									existingAgency.setAuthProfile(authProfile);
 									agencyUpdated = true;
 								}
+								if (maxLocalHoldsInput != null && !maxLocalHoldsInput.equals(existingAgency.getMaxLocalHolds())) {
+									existingAgency.setMaxLocalHolds(maxLocalHoldsInput);
+									agencyUpdated = true;
+								}
 
 								return agencyUpdated ? Mono.from(agencyRepository.saveOrUpdate(existingAgency)) : Mono.just(existingAgency);
 							})
@@ -191,6 +203,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 									.isBorrowingAgency(isBorrowingAgency != null ? isBorrowingAgency : Boolean.FALSE)
 									.authProfile(authProfile)
 									.maxConsortialLoans(maxLoansInput)
+									.maxLocalHolds(maxLocalHoldsInput)
 									.build();
 								return Mono.from(agencyRepository.saveOrUpdate(newAgency));
 							}));

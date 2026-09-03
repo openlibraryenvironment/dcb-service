@@ -9,6 +9,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
@@ -671,6 +672,49 @@ class PolarisLmsClientTests {
 			notNullValue(),
 			hasMessage("PAPIService returned [%d], with message: %s".formatted(errorCode, errorMessage))
 		));
+	}
+
+	@Test
+	void shouldCountLocalHoldsForPatron() {
+		// Arrange
+		final var patronId = generateNumericLocalId();
+
+		mockPolarisFixture.mockListPatronLocalHolds(patronId, List.of(
+			SysHoldRequest.builder()
+				.sysHoldRequestID(generateNumericLocalId())
+				.build(),
+			SysHoldRequest.builder()
+				.sysHoldRequestID(generateNumericLocalId())
+				.build()));
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var count = singleValueFrom(
+			client.countHoldsForPatron(convertIntegerToString(patronId)));
+
+		// Assert
+		assertThat(count, is(2));
+	}
+
+	@Test
+	void shouldReturnEmptyHoldCountWhenHoldsCannotBeFetched() {
+		// An unknown count is not a count of zero - the preflight check treats
+		// empty as "cannot judge" rather than "under the limit"
+
+		// Arrange
+		final var patronId = generateNumericLocalId();
+
+		mockPolarisFixture.mockListPatronLocalHoldsServerErrorResponse(patronId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var count = singleValueFrom(
+			client.countHoldsForPatron(convertIntegerToString(patronId)));
+
+		// Assert
+		assertThat(count, is(nullValue()));
 	}
 
 	@Test

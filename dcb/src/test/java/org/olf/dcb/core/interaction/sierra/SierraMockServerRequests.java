@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.sierra;
 
 import static org.mockserver.model.JsonBody.json;
 
+import org.mockserver.matchers.MatchType;
 import org.mockserver.model.HttpRequest;
 import org.olf.dcb.test.MockServerCommonRequests;
 
@@ -44,5 +45,9 @@ public class SierraMockServerRequests {
 
 	HttpRequest put(String subPath) {
 		return mockServerCommonRequests.put(basePath + subPath);
+	}
+
+	HttpRequest put(String subPath, String body, MatchType matchType) {
+		return put(subPath).withBody(json(body, matchType));
 	}
 }

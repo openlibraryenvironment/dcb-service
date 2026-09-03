@@ -108,4 +108,14 @@ public class DataAgency implements Agency, Auditable {
 
 	@Nullable
 	private Integer maxConsortialLoans;
+
+	/**
+	 * The limit the Host LMS places on the total number of holds a patron may have,
+	 * local holds included. We can't rely on a Host LMS exposing this: it must be provided by libraries.
+	 * <p>
+	 * One value per agency is an approximation of a limit that in Sierra varies by
+	 * P TYPE. Set it to the lowest limit in use at the agency, or leave it unset.
+	 */
+	@Nullable
+	private Integer maxLocalHolds;
 }

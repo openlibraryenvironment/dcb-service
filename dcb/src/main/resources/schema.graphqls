@@ -247,6 +247,7 @@ input LibraryInput {
 	isSupplyingAgency: Boolean
 	isBorrowingAgency: Boolean
 	maxConsortialLoans: Int
+	maxLocalHolds: Int
 	authProfile: String
 	hostLmsCode: String!
 }
@@ -422,6 +423,7 @@ input UpdateFunctionalSettingInput {
 input UpdateAgencyInput {
 	code: String!
 	maxConsortialLoans: Int
+	maxLocalHolds: Int
 	longitude: Float
 	latitude: Float
 	isSupplyingAgency: Boolean
@@ -490,6 +492,11 @@ type Agency {
 		isSupplyingAgency: Boolean
 		isBorrowingAgency: Boolean
 		maxConsortialLoans: Int
+		"""
+		The Host LMS limit on total holds per patron, local holds included. Null means
+		the agency has not told us, so DCB will not check it.
+		"""
+		maxLocalHolds: Int
 }
 
 """

@@ -1646,6 +1646,18 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public Mono<Integer> countHoldsForPatron(String localPatronId) {
+		log.debug("countHoldsForPatron({})", localPatronId);
+
+		return Mono.from(client.patronHolds(localPatronId))
+			.map(SierraPatronHoldResultSet::total)
+			// An error here must not be reported as a count of zero
+			.doOnError(error -> log.warn("Could not count holds for patron {} at {}",
+				localPatronId, getHostLmsCode(), error))
+			.onErrorResume(error -> Mono.empty());
+	}
+
+	@Override
 	public Mono<Patron> updatePatron(String localPatronId, String patronType) {
 		log.debug("updatePatron localPatronId {} patronType {}", localPatronId, patronType);
 
@@ -2152,8 +2164,24 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					return patron;
 				})
 				.onErrorResume(e -> {
-					log.warn("Failed to update Sierra patron {} expiry date: {}", patron.getFirstLocalId(), e.getMessage());
-					return Mono.just(patron); // Continue with existing patron if update fails
+					log.error("Failed to update Sierra patron {} expiry date at {}",
+						patron.getFirstLocalId(), getHostLmsCode(), e);
+
+					// An already expired patron whose renewal failed will be rejected by XCirc
+					// with an error that names the item rather than the patron. Fail here,
+					// where the cause is known, rather than placing a hold we know will be denied.
+					if (patron.getExpiryDate().before(new Date())) {
+						return Mono.error(Problem.builder()
+							.withTitle("Virtual patron has expired and could not be renewed")
+							.withDetail(e.getMessage())
+							.with("hostLmsCode", getHostLmsCode())
+							.with("localPatronId", patron.getFirstLocalId())
+							.with("expiryDate", String.valueOf(patron.getExpiryDate()))
+							.build());
+					}
+
+					// Not yet expired - the renewal can be retried on the next request
+					return Mono.just(patron);
 				});
 		}
 

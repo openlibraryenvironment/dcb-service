@@ -292,6 +292,18 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.doOnError(e -> log.error("Failed to update Koha patron {}: {}", localId, e.getMessage()));
 	}
 
+	@Override
+	public Mono<Integer> countHoldsForPatron(String localPatronId) {
+		log.debug("countHoldsForPatron({})", localPatronId);
+
+		return client.getActiveHoldsForPatron(localPatronId)
+			.map(holds -> holds != null ? holds.length : 0)
+			// An error here must not be reported as a count of zero
+			.doOnError(error -> log.warn("Could not count holds for patron {} at {}",
+				localPatronId, getHostLmsCode(), error))
+			.onErrorResume(error -> Mono.empty());
+	}
+
 	private Patron mapKohaPatronToDcbPatron(KohaPatron kohaPatron) {
 		return Patron.builder()
 			.localId(List.of(String.valueOf(kohaPatron.getPatronId())))
