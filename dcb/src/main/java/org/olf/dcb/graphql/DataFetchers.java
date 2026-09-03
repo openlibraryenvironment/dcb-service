@@ -260,12 +260,23 @@ public class DataFetchers {
 				.from(pageno.intValue(), pagesize.intValue())
 				.order(order, orderBy);
 
-			if ((query != null) && (query.length() > 0)) {
-				var spec = qs.evaluate(query, PatronRequestAudit.class);
-				return Mono.from(postgresPatronRequestAuditRepository.findAll(spec, pageable)).toFuture();
+			// Audits carried no role check and no scope at all: any authenticated caller
+			// could read every state transition of every request in the consortium, and
+			// DCB Admin for Libraries reaches one by id straight from a URL. Scoped
+			// through the request the audit belongs to - see PATRON_REQUEST_AUDIT_OWNERSHIP,
+			// which is derived from the request's own ownership rather than restated.
+			final var requested = ((query != null) && (query.length() > 0))
+				? qs.<PatronRequestAudit>evaluate(query, PatronRequestAudit.class)
+				: null;
+
+			final var spec = AgencyAccessScope.restrict(env, requested,
+				AgencyAccessScope.PATRON_REQUEST_AUDIT_OWNERSHIP);
+
+			if (spec == null) {
+				return Mono.from(postgresPatronRequestAuditRepository.findAll(pageable)).toFuture();
 			}
 
-			return Mono.from(postgresPatronRequestAuditRepository.findAll(pageable)).toFuture();
+			return Mono.from(postgresPatronRequestAuditRepository.findAll(spec, pageable)).toFuture();
 		};
 	}
 
@@ -289,7 +300,17 @@ public class DataFetchers {
 				.from(pageno.intValue(), pagesize.intValue())
 				.order(order, orderBy);
 
-			GraphQLRoles.require(env, "getDataChangeLog", GraphQLRoles.ADMINISTRATIVE);
+			// CONSORTIUM, not ADMINISTRATIVE: the latter admits LIBRARY_ADMIN, and this log
+			// is consortium-wide by construction - no agency column, no join to one, so
+			// there is no predicate that could narrow it to the caller's own library. It
+			// also carries the account-provisioning trail written by audit_trigger(), which
+			// would otherwise be readable by every account this service provisions.
+			//
+			// This is a capability removal for library administrators. Checked before it
+			// landed: dcb-admin-for-libraries has a /dataChangeLog route, but it renders
+			// "coming soon" and issues no query. When that screen is built the answer is a
+			// scoped projection, not re-widening this gate.
+			GraphQLRoles.require(env, "getDataChangeLog", GraphQLRoles.CONSORTIUM);
 
 			if ((query != null) && (query.length() > 0)) {
 				var spec = qs.evaluate(query, DataChangeLog.class);
@@ -355,12 +376,21 @@ public class DataFetchers {
                                 .from(pageno.intValue(), pagesize.intValue())
                                 .order(order, orderBy);
                 
-                        if ((query != null) && (query.length() > 0)) {
-                                var spec = qs.evaluate(query, SupplierRequest.class);
-                                return Mono.from(postgresSupplierRequestRepository.findAll(spec, pageable)).toFuture();
+                        // Scoped for the same reason the patron request fetcher is: this ran
+                        // whatever filter the client sent, so a library could read the supply
+                        // side of every other library's transactions by dropping its own filter.
+                        final var requested = ((query != null) && (query.length() > 0))
+                                ? qs.<SupplierRequest>evaluate(query, SupplierRequest.class)
+                                : null;
+
+                        final var spec = AgencyAccessScope.restrict(env, requested,
+                                AgencyAccessScope.SUPPLIER_REQUEST_OWNERSHIP);
+
+                        if (spec == null) {
+                                return Mono.from(postgresSupplierRequestRepository.findAll(pageable)).toFuture();
                         }
-                        
-                        return Mono.from(postgresSupplierRequestRepository.findAll(pageable)).toFuture();
+
+                        return Mono.from(postgresSupplierRequestRepository.findAll(spec, pageable)).toFuture();
                 };
         }
 
@@ -383,12 +413,21 @@ public class DataFetchers {
 							.from(pageno.intValue(), pagesize.intValue())
 							.order(order, orderBy);
 
-						if ((query != null) && (query.length() > 0)) {
-							var spec = qs.evaluate(query, InactiveSupplierRequest.class);
-							return Mono.from(postgresInactiveSupplierRequestRepository.findAll(spec, pageable)).toFuture();
+						// Same ownership as an active supplier request - the row is the record of
+						// an attempt that did not complete, and a failed attempt is no less the
+						// two parties' business than a successful one.
+						final var requested = ((query != null) && (query.length() > 0))
+							? qs.<InactiveSupplierRequest>evaluate(query, InactiveSupplierRequest.class)
+							: null;
+
+						final var spec = AgencyAccessScope.restrict(env, requested,
+							AgencyAccessScope.SUPPLIER_REQUEST_OWNERSHIP);
+
+						if (spec == null) {
+							return Mono.from(postgresInactiveSupplierRequestRepository.findAll(pageable)).toFuture();
 						}
 
-						return Mono.from(postgresInactiveSupplierRequestRepository.findAll(pageable)).toFuture();
+						return Mono.from(postgresInactiveSupplierRequestRepository.findAll(spec, pageable)).toFuture();
 					};
 				}
 
@@ -662,12 +701,17 @@ public class DataFetchers {
                         Pageable pageable = Pageable.from(pageno.intValue(), pagesize.intValue())
                                 .order(order, orderBy);
 
-                        if ((query != null) && (query.length() > 0)) {
-                                var spec = qs.evaluate(query, NumericRangeMapping.class);
-                                return Mono.from(postgresNumericRangeMappingRepository.findAll(spec, pageable)).toFuture();
-                        }
+                        final var requested = ((query != null) && (query.length() > 0))
+                                ? qs.<NumericRangeMapping>evaluate(query, NumericRangeMapping.class)
+                                : null;
 
-                        return Mono.from(postgresNumericRangeMappingRepository.findAll(pageable)).toFuture();
+                        // Scoped to the caller's own Host LMS systems, exactly as reference
+                        // value mappings are. This half of the pair was left open.
+                        return mappingAccessService.restrictNumericRanges(env, requested)
+                                .flatMap(spec -> spec
+                                        .map(narrowed -> Mono.from(postgresNumericRangeMappingRepository.findAll(narrowed, pageable)))
+                                        .orElseGet(() -> Mono.from(postgresNumericRangeMappingRepository.findAll(pageable))))
+                                .toFuture();
                 };
         }
 	public DataFetcher<CompletableFuture<Page<ReferenceValueMapping>>> getReferenceValueMappingsDataFetcher() {

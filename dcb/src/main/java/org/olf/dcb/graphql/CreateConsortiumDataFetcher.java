@@ -97,9 +97,24 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to create a consortium.");
 		}
 
-		return Mono.from(libraryGroupRepository.findOneByNameAndTypeIgnoreCase(input_map.get("groupName").toString(), "Consortium"))
+		final var groupName = InputValues.stringValue(input_map, "groupName");
+
+		return Mono.from(libraryGroupRepository.findOneByNameAndTypeIgnoreCase(groupName, "Consortium"))
+			// A repository that finds nothing completes EMPTY, and an empty Mono out of a
+			// data fetcher is a null in a non-nullable field. graphql-java then reports
+			// "the code involved in retrieving data has wrongly returned a null value...
+			// the parent field be set to null, or if that is non nullable that it bubble
+			// up" - which tells the administrator nothing about the group they named.
+			//
+			// The right message existed already, on the else branch below, and could
+			// never be reached: the `libraryGroup != null` test it hung on cannot be
+			// false, because a Reactor Mono does not emit null. Empty was the case, and
+			// nothing handled it.
+			.switchIfEmpty(Mono.error(new ConsortiumCreationException(
+				"Consortium creation has failed because no library group of type consortium called '"
+					+ groupName + "' was found. Create that group first, or name one that exists.")))
 			.flatMap(libraryGroup -> {
-				if (libraryGroup != null) {
+				{
 					// If a library group matching the conditions is found, we can attempt to create the associated consortium
 					return Mono.from(consortiumRepository.exists())
 						.flatMap(exists -> {
@@ -177,10 +192,6 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 									});
 							});
 						}
-				else {
-					// If not, we cannot create a consortium.
-					return Mono.error(new ConsortiumCreationException("Consortium creation has failed because a compatible library group was not found. You must supply the name of an existing LibraryGroup of type consortium."));
-				}
 				}
 			).toFuture();
 	}

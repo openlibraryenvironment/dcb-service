@@ -1,5 +1,6 @@
 package services.k_int.data.querying;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -51,6 +52,34 @@ public record QueryPath(List<String> joins, String property, MatchMode matchMode
 		public QueryPath containing(String property) {
 			return new QueryPath(joins, property, MatchMode.CONTAINS);
 		}
+	}
+
+	/**
+	 * A field that is a plain property of the entity being queried.
+	 * <p>
+	 * {@code joining().matching("localAgency")} says the same thing, but reads as a join
+	 * that forgot its argument. This exists so a no-join path does not have to look like
+	 * a mistake.
+	 */
+	public static QueryPath property(String property) {
+		return new QueryPath(List.of(), property, MatchMode.EQUALS);
+	}
+
+	/**
+	 * The same path, reached from an entity one association further out.
+	 * <p>
+	 * An audit has no agency of its own; it belongs to whoever owns the request it
+	 * audits. Rather than restate that request's ownership paths with a prefix - two
+	 * copies of one fact, which drift the first time a third owner is added - the
+	 * audit's ownership is <em>derived</em> from the request's by pushing every path
+	 * under the association that reaches it.
+	 */
+	public QueryPath under(String association) {
+		final List<String> prefixed = new ArrayList<>(joins.size() + 1);
+		prefixed.add(association);
+		prefixed.addAll(joins);
+
+		return new QueryPath(List.copyOf(prefixed), property, matchMode);
 	}
 
 	public <T> QuerySpecification<T> is(String value) {

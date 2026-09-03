@@ -2,6 +2,7 @@ package org.olf.dcb.storage;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -27,6 +28,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -268,6 +270,38 @@ class StatsQueriesTests {
 			.toList();
 
 		assertThat(buckets, hasSize(3));
+	}
+
+	@Test
+	void flowTimeSeriesBucketsAreTheSameInstantsWhateverTheJvmZone() {
+		// date_trunc returns `timestamp WITHOUT time zone`, so turning a bucket into an
+		// Instant needs a zone from somewhere. Left implicit it comes from the JVM default -
+		// the DEPLOYMENT's zone, not the column's - and every bucket shifts by that offset.
+		// A service running anywhere but UTC labels its Insights charts a day out, and this
+		// suite passes on a UTC CI runner while failing on a developer's machine in Berlin.
+		//
+		// A fixed non-UTC zone rather than the ambient one, so this fails everywhere without
+		// the fix instead of only where somebody happens to be sitting.
+		final var original = TimeZone.getDefault();
+		TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
+
+		try {
+			final var pr = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+
+			saveAudit(pr, LOANED, Instant.parse("2025-07-01T10:00:00Z"));
+
+			final var buckets = manyValuesFrom(patronRequestRepository.findStatusFlowTimeSeries(
+					"day", null, utc("2025-07-01T00:00:00Z"), utc("2025-07-02T00:00:00Z"), 1001))
+				.stream()
+				.map(TimeSeriesPoint::bucket)
+				.distinct()
+				.toList();
+
+			assertThat(buckets, contains(Instant.parse("2025-07-01T00:00:00Z")));
+		}
+		finally {
+			TimeZone.setDefault(original);
+		}
 	}
 
 	private static LocalDateTime utc(String isoInstant) {

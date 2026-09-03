@@ -394,6 +394,11 @@ public interface PatronRequestRepository {
 	// Bounds are LocalDateTime, NOT Instant: audit_date is timestamp WITHOUT time zone holding
 	// UTC, so binding UTC local date times keeps date_trunc and generate_series in the same
 	// frame as the column. :bucket is enum-owned, never caller text.
+	//
+	// The bucket comes back AT TIME ZONE 'UTC' for the same reason in reverse. TimeSeriesPoint
+	// holds an Instant, and reading one from a timestamp WITHOUT time zone takes its offset
+	// from the JVM default - the deployment's zone rather than the column's - so every bucket
+	// shifted on any host that is not UTC.
 	@Query(
 		value = """
 			WITH bucketed AS (
@@ -416,7 +421,7 @@ public interface PatronRequestRepository {
 					CAST('1 ' || :bucket AS interval)) AS g(bucket)
 				LIMIT :maxBuckets
 			)
-			SELECT grid.bucket AS bucket,
+			SELECT grid.bucket AT TIME ZONE 'UTC' AS bucket,
 			       present.series AS series,
 			       COALESCE(bucketed.count, 0) AS count
 			FROM grid

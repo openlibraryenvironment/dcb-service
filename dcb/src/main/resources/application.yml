@@ -240,6 +240,34 @@ graphql:
     enabled: false
 
 dcb:
+  # Provisioning DCB Admin for Libraries accounts from DCB Admin.
+  #
+  # ABSENT type = FEATURE OFF. No client bean is created, the libraryUsers query reports
+  # itself unavailable, and DCB Admin renders an explanation instead of a form. That is a
+  # supported state and it is the default, so this ships safely into every environment
+  # before any of them has a provisioning service account.
+  #
+  # `keycloak` is implemented. `zitadel` is NOT: its admin API shapes were not verified, so
+  # naming it produces the same legible "not configured" answer rather than a wrong client.
+  #
+  # client-secret has NO USABLE DEFAULT. Naming a provider without it fails at startup, by
+  # an explicit check in KeycloakIdentityProviderClient rather than by bean validation -
+  # a blank secret would otherwise start an application that offers the feature and refuses
+  # every account with a 401, weeks later.
+  #
+  # The service account needs view-users, query-users and manage-users from
+  # realm-management - NOT manage-realm, NOT realm-admin - plus a fine-grained map-role
+  # grant on exactly LIBRARY_ADMIN and LIBRARY_READ_ONLY. That grant is the only control
+  # that survives a compromise of this service; the enum, the Java parse and the Postgres
+  # CHECK all live here and fall together.
+  identity-provider:
+    type: ${DCB_IDENTITY_PROVIDER_TYPE:}
+    base-url: ${DCB_IDENTITY_PROVIDER_BASE_URL:}
+    realm: ${DCB_IDENTITY_PROVIDER_REALM:}
+    client-id: ${DCB_IDENTITY_PROVIDER_CLIENT_ID:}
+    client-secret: ${DCB_IDENTITY_PROVIDER_CLIENT_SECRET:}
+    project-id: ${DCB_IDENTITY_PROVIDER_PROJECT_ID:}
+
   # Insights - the reporting and analytics surface
   insights:
     enabled: ${DCB_INSIGHTS_ENABLED:true}
@@ -321,6 +349,30 @@ dcb:
       ip-patterns:
         - "127.0.0.1" # Allow IP4 127.0.0.1
         - "0:0:0:0:0:0:0:1" # Allow localhost IP6
+
+    # Which application a token is allowed to drive. See AdminUiAccessPolicy.
+    #
+    # NOTE FOR ANYONE ADDING CONFIG HERE: this is the ONE `dcb.security` key in this file
+    # and it has to stay that way. A second one further up was silently discarded - YAML
+    # keeps the last of a duplicate pair - so the admin-ui block below existed, read
+    # correctly, and configured nothing. The symptom was a security control reporting
+    # itself OFF while its environment variable was plainly set.
+    #
+    # DCB Admin is a consortium-level tool; DCB Admin for Libraries is the library-level
+    # one. They are separate OIDC clients by intent, and the token records which client
+    # obtained it in `azp` - so a LIBRARY_ADMIN token minted for DCB Admin's client can be
+    # refused outright.
+    #
+    # AN UNSET client-id DISABLES THE CHECK, deliberately: the two apps have been observed
+    # sharing one client, and enforcing against a shared client either locks out every
+    # consortium administrator or admits every library user. Set the id, run in WARN,
+    # drain the "Would deny" lines, then set ENFORCE. Mode is config, not a deploy.
+    #
+    # This is NOT a data control and does not replace one - AgencyAccessScope decides what
+    # any caller may read, whichever app they use.
+    admin-ui:
+      client-id: ${DCB_ADMIN_UI_CLIENT_ID:}
+      mode: ${DCB_ADMIN_UI_ACCESS_MODE:WARN}
   shutdown:
     # Wait up to 60s on shutdown for ingest processes to end
     maxwait: 0

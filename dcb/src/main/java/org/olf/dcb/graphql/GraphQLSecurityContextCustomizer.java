@@ -6,12 +6,15 @@ import io.micronaut.configuration.graphql.GraphQLExecutionInputCustomizer;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.security.utils.SecurityService;
 import jakarta.inject.Singleton;
 import org.reactivestreams.Publisher;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.olf.dcb.security.AdminUiAccessPolicy;
 import org.olf.dcb.security.AgencyClaims;
 import reactor.core.publisher.Mono;
 import java.util.ArrayList;
@@ -32,9 +35,13 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 	// The idea is that we inject the security service here (where the security context is available), get the username and put it in GraphQL context,
 	// and then can access it from data fetchers where we previously could not.
 
+	private final AdminUiAccessPolicy adminUiAccessPolicy;
+
 	public GraphQLSecurityContextCustomizer(
-		SecurityService securityService) {
+		SecurityService securityService,
+		AdminUiAccessPolicy adminUiAccessPolicy) {
 		this.securityService = securityService;
+		this.adminUiAccessPolicy = adminUiAccessPolicy;
 	}
 
 	@Override
@@ -48,6 +55,10 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 		// This method gets the current user's information, if present, and saves it into the GraphQl context
 		// Thus giving us access to user information when performing GraphQL operations (i.e. for data change log purposes).
 
+		// Enforced HERE, not in a fetcher, and that placement is the point: this method
+		// runs once per request before any fetcher does, so no resolver can be the one
+		// that forgets. Throwing from inside the callable aborts the execution before a
+		// single field is resolved.
 		return Mono.fromCallable(() -> {
 			GraphQLContext context = executionInput.getGraphQLContext();
 			securityService.getAuthentication().ifPresent(auth -> {
@@ -67,6 +78,22 @@ public class GraphQLSecurityContextCustomizer implements GraphQLExecutionInputCu
 				putIfPresent(context, "userFullName", name);
 				context.put("roles", roles);
 				context.put(AGENCY_CODES, agencyCodes);
+
+				// The message here does NOT reach the caller. Measured against a running
+				// service: an HttpStatusException thrown from this customizer is rendered as
+				// a bare application/problem+json body, {"type":"about:blank","status":403},
+				// with no detail. That is acceptable and is left alone - a refusal has no duty
+				// to explain the policy to the caller it is refusing - but it is recorded here
+				// so nobody debugs a missing message that was never going to appear.
+				//
+				// The reason IS in the log, attributed to the user, the roles and the client:
+				// AdminUiAccessPolicy.enforce writes it. That is where an operator looks, and
+				// DCB Admin never renders this anyway - its own guard redirects a barred
+				// account to /unauthorised before a query is ever sent.
+				adminUiAccessPolicy.enforce(prefName, roles, attributes)
+					.ifPresent(reason -> {
+						throw new HttpStatusException(HttpStatus.FORBIDDEN, reason);
+					});
 			});
 			return executionInput;
 		});
