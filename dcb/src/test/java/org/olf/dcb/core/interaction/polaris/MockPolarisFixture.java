@@ -60,8 +60,59 @@ public class MockPolarisFixture {
 				.errorMessage("string")
 				.polarisUserID(0)
 				.branchID(0)
-				.authExpDate("2023-09-18T16:40:04.652Z")
+				// Real Polaris returns Microsoft JSON dates, not ISO - the previous ISO value here
+				// was both the wrong format and already in the past.
+				.authExpDate(futureAuthExpDate())
 				.build());
+	}
+
+	/**
+	 * An AuthExpDate in the shape Polaris actually returns: Microsoft JSON, epoch millis with a
+	 * display offset. Observed live as /Date(1787240106747-0500)/ with a 24 hour lifetime.
+	 */
+	private static String futureAuthExpDate() {
+		return "/Date(%d+0000)/".formatted(
+			java.time.Instant.now().plus(java.time.Duration.ofHours(24)).toEpochMilli());
+	}
+
+	public void verifyGetHoldRequestDefaults(VerificationTimes times) {
+		mockServer.verify(commonRequests.get(paths.applicationServices("/holdsdefaults")), times);
+	}
+
+	/** Rejects every hold defaults request, to prove the retry gives up rather than looping. */
+	public void mockGetHoldRequestDefaultsAlwaysUnauthorised() {
+		mockServer.mockGet(paths.applicationServices("/holdsdefaults"), response().withStatusCode(401));
+	}
+
+	/** Rejects the credentials themselves - this must NOT be retried. */
+	public void mockAppServicesStaffAuthenticationAlwaysUnauthorised() {
+		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
+			response().withStatusCode(401));
+	}
+
+	public void verifyAppServicesStaffAuthentication(VerificationTimes times) {
+		mockServer.verify(commonRequests.post(
+			paths.baseApplicationServices("/authentication/staffuser")), times);
+	}
+
+	/**
+	 * The endpoint behind PolarisLmsClient.ping() - a single Application Services GET, which makes
+	 * it the least entangled way to prove how often the auth handshake actually happens.
+	 */
+	public void mockGetHoldRequestDefaults(Integer expirationDatePeriod) {
+		mockServer.mockGet(paths.applicationServices("/holdsdefaults"),
+			ApplicationServicesClient.HoldRequestDefault.builder()
+				.expirationDatePeriod(expirationDatePeriod)
+				.build());
+	}
+
+	/**
+	 * Answers the next hold defaults request with a 401, as Polaris does when it no longer accepts
+	 * a token we are still holding. Register before mockGetHoldRequestDefaults so it matches first.
+	 */
+	public void mockGetHoldRequestDefaultsUnauthorisedOnce() {
+		mockServer.mock(commonRequests.get(paths.applicationServices("/holdsdefaults")),
+			response().withStatusCode(401), Times.once());
 	}
 
 	public void mockAppServicesStaffAuthentication() {
@@ -70,6 +121,7 @@ public class MockPolarisFixture {
 			ApplicationServicesAuthFilter.AuthToken.builder()
 				.accessToken("fzB8NAopx8CEwSQI5HqpMCTQrjWm1e1x")
 				.accessSecret("C5UnM8pmim1hfZRQ")
+				.authExpDate(futureAuthExpDate())
 				.build());
 	}
 

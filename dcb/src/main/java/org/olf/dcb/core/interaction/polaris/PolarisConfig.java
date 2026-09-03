@@ -59,6 +59,18 @@ public class PolarisConfig {
 	private Integer holdFetchingDelay;
 	@JsonProperty("hold-fetching-max-retry")
 	private Integer holdFetchingMaxRetry;
+	/**
+	 * Ceiling on how long a Polaris staff auth token may be reused.
+	 *
+	 * The TTL itself is derived from the token's own AuthExpDate; this bounds it. A live run
+	 * against a production Polaris on 2026-08-19 established the format as Microsoft JSON
+	 * (/Date(1787240106747-0500)/) and the granted lifetime as 24 hours - far longer than we want
+	 * to hold a credential, hence the ceiling. Where the expiry is absent or unparseable this
+	 * value is used directly, so it doubles as the fallback. Set to 0 to disable caching and
+	 * authenticate on every request.
+	 */
+	@JsonProperty("token-cache-ttl-seconds")
+	private Integer tokenCacheTtlSeconds;
 	@JsonProperty("papi")
 	private PapiConfig papi;
 	@JsonProperty("services")
@@ -263,6 +275,11 @@ public class PolarisConfig {
 	public Integer getMaxHoldFetchingRetry(Integer defaultMaxRetry) {
 
 		return valueWithDefault(this.holdFetchingMaxRetry, Integer.class, defaultMaxRetry);
+	}
+
+	public Duration getTokenCacheMaxTtl() {
+
+		return Duration.ofSeconds(valueWithDefault(this.tokenCacheTtlSeconds, Integer.class, 3600));
 	}
 
 	public Integer getItemAvRenewalLimit()

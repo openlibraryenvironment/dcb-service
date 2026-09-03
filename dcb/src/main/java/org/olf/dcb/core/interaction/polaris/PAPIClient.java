@@ -64,10 +64,10 @@ public class PAPIClient {
 	private final HostLms lms;
 	private final ConsortiumService consortiumService;
 
-	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService, HostLms lms, ConsortiumService consortiumService) {
+	public PAPIClient(PolarisLmsClient client, PolarisConfig polarisConfig, ConversionService conversionService, HostLms lms, ConsortiumService consortiumService, PolarisTokenCache tokenCache) {
 		this.client = client;
 		this.polarisConfig = polarisConfig;
-		this.authFilter = new PAPIAuthFilter(client, polarisConfig);
+		this.authFilter = new PAPIAuthFilter(client, polarisConfig, tokenCache);
 		this.lms = lms;
 
 		// Build PAPI base parameters
@@ -96,9 +96,9 @@ public class PAPIClient {
 			.password(password)
 			.build();
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronValidateResult.class)))
+		return client.retrieve(createRequest(GET, path, uri -> {})
+			.flatMap( req -> authFilter.ensurePatronAuth(req, patronCredentials, FALSE)),
+			Argument.of(PatronValidateResult.class))
 			.filter(PatronValidateResult::getValidPatron)
 			.map(patronValidateResult -> Patron.builder()
 				.localId(singletonList(valueOf(patronValidateResult.getPatronID())))
@@ -126,12 +126,12 @@ public class PAPIClient {
 		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_POLARIS)
 			.flatMap(namesVisible -> {
 				final PatronRegistration body = getPatronRegistration(patron, namesVisible);
-				return createRequest(POST, path, uri -> {})
+				return client.retrieve(createRequest(POST, path, uri -> {})
 					.map(request -> request.body(body))
 					.doOnSuccess(req -> log.debug("patronRegistrationCreate body: {}", req.getBody()))
 					// passing empty patron credentials will allow public requests without patron auth
-					.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
-					.flatMap(request -> client.retrieve(request, Argument.of(PatronRegistrationCreateResult.class)));
+					.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE)),
+			Argument.of(PatronRegistrationCreateResult.class));
 			});
 	}
 
@@ -191,12 +191,12 @@ public class PAPIClient {
 			.patronCode(Integer.valueOf(patronType))
 			.build();
 
-		return client.createRequest(PUT, path)
+		return client.retrieve(client.createRequest(PUT, path)
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
 			.map(request -> request.body(body))
-			.doOnSuccess(req -> log.debug("patronRegistrationUpdate body: {}", req.getBody()))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
+			.doOnSuccess(req -> log.debug("patronRegistrationUpdate body: {}", req.getBody())),
+			Argument.of(PatronUpdateResult.class))
 			.doOnSuccess(patronUpdateResult -> log.debug("PatronUpdateResult: {}", patronUpdateResult))
 			.map(patronUpdateResult -> barcode);
 	}
@@ -220,11 +220,11 @@ public class PAPIClient {
 			.addrCheckDate(addrCheckDate)
 			.build();
 
-		return client.createRequest(PUT, path)
+		return client.retrieve(client.createRequest(PUT, path)
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.map(request -> request.body(body))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronUpdateResult.class)))
+			.map(request -> request.body(body)),
+			Argument.of(PatronUpdateResult.class))
 			.map(result -> getValue(result, PatronUpdateResult::getPapiErrorCode, -1) == 0)
 			.doOnNext(ok -> log.debug("patronRegistrationUpdateDates {} success={}", barcode, ok))
 			.onErrorResume(e -> {
@@ -238,10 +238,10 @@ public class PAPIClient {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode, "circulationblocks");
 
-		return client.createRequest(GET, path)
+		return client.retrieve(client.createRequest(GET, path)
 			// passing empty patron credentials will allow public requests without patron auth
-			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request, Argument.of(PatronCirculationBlocksResult.class)))
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
+			Argument.of(PatronCirculationBlocksResult.class))
 			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new));
 	}
 
@@ -259,11 +259,11 @@ public class PAPIClient {
 
 		log.debug("POLARIS itemCheckoutPost {}",body);
 
-		return createRequest(POST, path, uri -> {})
+		return client.retrieve(createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
 			// passing empty patron credentials will allow public requests without patron auth
-			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemOperationResult.class)))
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
+			Argument.of(ItemOperationResult.class))
 			.doOnSuccess( r -> log.debug("Result of client.retrieve itemCheckoutPost {}",r) )
 			.map(result -> checkForItemOperationError(result, "itemCheckoutPost"));
 	}
@@ -282,10 +282,10 @@ public class PAPIClient {
 
 		log.debug("POLARIS itemCheckInPost {}",body);
 
-		return createRequest(POST, path, uri -> {})
+		return client.retrieve(createRequest(POST, path, uri -> {})
 			.map(request -> request.body(body))
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemOperationResult.class)))
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(ItemOperationResult.class))
 			.doOnSuccess( r -> log.debug("Result of client.retrieve itemCheckInPost {}",r) )
 			.map(result -> checkForItemOperationError(result, "itemCheckInPost"));
 	}
@@ -315,12 +315,12 @@ public class PAPIClient {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "holdrequests", requestID, "cancelled");
 
-		return createRequest(PUT, path, uri -> uri
+		return client.retrieve(createRequest(PUT, path, uri -> uri
 			.queryParam("wsid", wsid).queryParam("userid", userid))
 			.map(request -> request.body(""))
 			// passing empty patron credentials will allow public requests without patron auth
-			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE))
-			.flatMap(request -> client.retrieve(request, Argument.of(HoldRequestCancelResult.class)))
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
+			Argument.of(HoldRequestCancelResult.class))
 			.map(result -> {
 
 				if (result.getPapiErrorCode() >= 0) {
@@ -372,12 +372,12 @@ public class PAPIClient {
 	public Publisher<JsonNode> synch_BibsPagedGetRaw(String startdatemodified, Integer lastId, Integer nrecs) {
 
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML", "paged");
-		return createRequest(GET, path, uri -> uri
+		return client.retrieve(createRequest(GET, path, uri -> uri
 				.queryParam("startdatemodified", startdatemodified)
 				.queryParam("lastid", lastId)
 				.queryParam("nrecs", nrecs))
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(JsonNode.class))));
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(JsonNode.class));
 	}
 
 	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsUpdatedPagedGet.htm
@@ -385,12 +385,12 @@ public class PAPIClient {
 	@SingleResult
 	public Publisher<GetBibsPagedResult> synch_GetUpdatedBibsPaged(String startdatemodified, Integer nrecs, Integer lastId) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "updated", "paged");
-		return createRequest(GET, path, uri -> uri
+		return client.retrieve(createRequest(GET, path, uri -> uri
 			.queryParam("updatedate", startdatemodified)
 			.queryParam("lastid", lastId)
 			.queryParam("nrecs", nrecs))
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))))
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(GetBibsPagedResult.class))
 			.doOnNext(result -> log.info("Result of synch_GetUpdatedBibsPaged {}",result));
 	}
 
@@ -400,9 +400,9 @@ public class PAPIClient {
 	@SingleResult
 	public Mono<Integer> synch_BibsMaxIDGet() {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "maxid");
-		return createRequest(GET, path, uri -> {})
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(GetBibsPagedResult.class))))
+		return client.retrieve(createRequest(GET, path, uri -> {})
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(GetBibsPagedResult.class))
 			.mapNotNull(result -> Optional.ofNullable(result.getBibIDListRows())
 				.filter(rows -> !rows.isEmpty())
 				.map(rows -> rows.get(0).getBibliographicRecordID())
@@ -414,18 +414,18 @@ public class PAPIClient {
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsByIDGetRaw(String bibids) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "MARCXML");
-		return createRequest(GET, path, uri -> uri
+		return client.retrieve(createRequest(GET, path, uri -> uri
 			.queryParam("bibids", bibids))
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(JsonNode.class))));
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(JsonNode.class));
 	}
 
 	public Mono<List<ItemGetRow>> synch_ItemGetByBibID(String localBibId) {
 		final var path = createPath(PROTECTED_PARAMETERS, "synch", "items", "bibid", localBibId);
 
-		return createRequest(GET, path, uri -> uri.queryParam("excludeecontent", false))
-			.flatMap(authFilter::ensureStaffAuth)
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(ItemGetResponse.class))))
+		return client.retrieve(createRequest(GET, path, uri -> uri.queryParam("excludeecontent", false))
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(ItemGetResponse.class))
 			.map(ItemGetResponse::getItemGetRows);
 	}
 
@@ -463,10 +463,10 @@ public class PAPIClient {
 	}
 
 	private Mono<PatronSearchRow> makePatronSearchRequest(String path, String ccl, Integer findDelay) {
-		return createRequest(GET, path, uri -> uri.queryParam("q", ccl))
+		return client.retrieve(createRequest(GET, path, uri -> uri.queryParam("q", ccl))
 			.flatMap(authFilter::ensureStaffAuth)
-			.delayElement(Duration.ofSeconds(findDelay))
-			.flatMap(request -> Mono.from(client.retrieve(request, Argument.of(PatronSearchResult.class))))
+			.delayElement(Duration.ofSeconds(findDelay)),
+			Argument.of(PatronSearchResult.class))
 			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
 			.map(checkForUniquePatronResult(path, ccl));
 	}

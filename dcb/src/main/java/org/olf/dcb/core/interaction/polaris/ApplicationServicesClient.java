@@ -78,10 +78,12 @@ class ApplicationServicesClient {
 	// ToDo align these URLs
 	public static final URI ERR0210 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0210/Polaris/UnableToLoadPatronBlocks");
 
-	ApplicationServicesClient(PolarisLmsClient client, PolarisConfig polarisConfig) {
+	ApplicationServicesClient(PolarisLmsClient client, PolarisConfig polarisConfig,
+		PolarisTokenCache tokenCache) {
+
 		this.client = client;
 		this.polarisConfig = polarisConfig;
-		this.authFilter = new ApplicationServicesAuthFilter(client, polarisConfig);
+		this.authFilter = new ApplicationServicesAuthFilter(client, polarisConfig, tokenCache);
 		this.URI_PARAMETERS = "/polaris.applicationservices/api" + polarisConfig.applicationServicesUriParameters();
 		this.TransactingPolarisUserID = polarisConfig.getLogonUserId();
 		this.TransactingWorkstationID = polarisConfig.getServicesWorkstationId();
@@ -99,10 +101,10 @@ class ApplicationServicesClient {
 		final String activationDateUTC = ZonedDateTime.now(UTC).format(ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
 		final var noteWithActivationDateUTC = addActivationDateToNote(holdRequestParameters, activationDateUTC);
 
-		return createRequest(POST, path, uri -> {})
+		return client.retrieve(createRequest(POST, path, uri -> {})
 			.zipWith(getLocalRequestBody(holdRequestParameters, activationDateUTC, noteWithActivationDateUTC))
-			.map(function(ApplicationServicesClient::addBodyToRequest))
-			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class)))
+			.map(function(ApplicationServicesClient::addBodyToRequest)),
+			Argument.of(WorkflowResponse.class))
 			.flatMap(resp -> replyIfPromptMatches(resp, ExceededTotalRequestLimit, Continue))
 			.flatMap(resp -> replyIfPromptMatches(resp, PromoteItemRequestToBib, Continue))
 			.flatMap(resp -> replyIfPromptMatches(resp, DuplicateHoldRequests, Continue))
@@ -214,8 +216,8 @@ class ApplicationServicesClient {
 		log.info("Getting hold request by id: {}", id);
 
 		final var path = createPath("holds", id);
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, LibraryHold.class, FALSE))
+		return client.exchange(createRequest(GET, path, uri -> {}),
+			LibraryHold.class, FALSE)
 			.map(HttpResponse::body)
 			.onErrorResume(error -> {
 				if ((error instanceof HttpClientResponseException) &&
@@ -244,8 +246,8 @@ class ApplicationServicesClient {
 		log.debug("Deleting hold request by id: {}", holdId);
 
 		final var path = createPath("holds", holdId);
-		return createRequest(DELETE, path, uri -> {})
-			.flatMap(request -> client.exchange(request, Boolean.class, FALSE))
+		return client.exchange(createRequest(DELETE, path, uri -> {}),
+			Boolean.class, FALSE)
 			.map(HttpResponse::body)
 			.doOnSuccess(bool -> {
 				if (Boolean.TRUE.equals(bool)) {
@@ -283,8 +285,8 @@ class ApplicationServicesClient {
 
 	Mono<Patron> getPatron(String localPatronId) {
 		final var path = createPath("patrons", localPatronId);
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, PatronData.class, TRUE))
+		return client.exchange(createRequest(GET, path, uri -> {}),
+			PatronData.class, TRUE)
 			.map(HttpResponse::body)
 			.map(data -> Patron.builder()
 				.localId(singletonList(valueOf(data.getPatronID())))
@@ -400,11 +402,10 @@ class ApplicationServicesClient {
 	private Mono<List<PatronBlockGetRow>> getPatronBlocks(Integer localPatronId) {
 		final var path = createPath("patrons", localPatronId, "blockssummary");
 
-		return createRequest(GET, path, uri -> uri
+		return client.retrieve(createRequest(GET, path, uri -> uri
 				.queryParam("logonBranchID", TransactingBranchID)
-				.queryParam("associatedblocks", false))
-			.flatMap(request -> client.retrieve(request,
-				Argument.listOf(PatronBlockGetRow.class), response -> response
+				.queryParam("associatedblocks", false)),
+			Argument.listOf(PatronBlockGetRow.class), response -> response
 					.onErrorResume(error -> {
 						log.error("Error attempting to retrieve patron blocks {} : {}",
 							localPatronId, error.getMessage());
@@ -423,15 +424,14 @@ class ApplicationServicesClient {
 									.build()
 							);
 						}
-					})
-			));
+					}));
 	}
 
 	private Mono<Integer> deletePatronBlock(Integer localPatronId, Integer blocktype, Integer blockid) {
 		final var path = createPath("patrons", localPatronId, "blocks", blocktype, blockid);
 
-		return createRequest(DELETE, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(Boolean.class)))
+		return client.retrieve(createRequest(DELETE, path, uri -> {}),
+			Argument.of(Boolean.class))
 			.doOnSuccess(bool -> {
 				if (!bool) {
 					log.warn("Deleting patron block returned false.");
@@ -446,8 +446,8 @@ class ApplicationServicesClient {
 		final var path = createPath("barcodes", "patrons", localId);
 		log.info("Getting patron barcode from patron id: {}", localId);
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(String.class)))
+		return client.retrieve(createRequest(GET, path, uri -> {}),
+			Argument.of(String.class))
 			// remove quotes
 			.map(string -> string.replace("\"", ""))
 			.doOnSuccess(barcode -> log.info("Successfully got patron barcode {} from local id {}", barcode, localId));
@@ -457,20 +457,20 @@ class ApplicationServicesClient {
 
 		final var path = createPath("ids", "patrons");
 
-		return createRequest(GET, path,
+		return client.retrieve(createRequest(GET, path,
 			uri -> uri
 				.queryParam("id", identifier)
-				.queryParam("type", identifierType))
-			.flatMap(request -> client.retrieve(request, Argument.of(String.class)));
+				.queryParam("type", identifierType)),
+			Argument.of(String.class));
 	}
 
 	public Mono<PatronDefaults> patrondefaults(Integer illLocation) {
 
 		final var path = createPath("patrondefaults");
 
-		return createRequest(GET, path,
-			uri -> uri.queryParam("orgid", illLocation))
-			.flatMap(request -> client.exchange(request, PatronDefaults.class, TRUE))
+		return client.exchange(createRequest(GET, path,
+			uri -> uri.queryParam("orgid", illLocation)),
+			PatronDefaults.class, TRUE)
 			.map(HttpResponse::body)
 			.doOnError(e -> log.debug("Error occurred when getting patron defaults", e));
 	}
@@ -480,8 +480,8 @@ class ApplicationServicesClient {
 		final var path = createPath("holdsdefaults");
 		final Integer defaultExpirationDatePeriod = 999;
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, HoldRequestDefault.class, TRUE))
+		return client.exchange(createRequest(GET, path, uri -> {}),
+			HoldRequestDefault.class, TRUE)
 			.map(HttpResponse::body)
 			.map(HoldRequestDefault::getExpirationDatePeriod)
 			.doOnError(e -> log.debug("Error occurred when getting hold request defaults", e))
@@ -499,8 +499,8 @@ class ApplicationServicesClient {
 
     final var path = createPath("holdsdefaults");
 
-    return createRequest(GET, path, uri -> {})
-      .flatMap(request -> client.exchange(request, HoldRequestDefault.class, TRUE))
+    return client.exchange(createRequest(GET, path, uri -> {}),
+			HoldRequestDefault.class, TRUE)
       .map(HttpResponse::body)
       .map(HoldRequestDefault::getExpirationDatePeriod)
       .doOnError(e -> log.debug("Error occurred when getting hold request defaults", e));
@@ -514,8 +514,8 @@ class ApplicationServicesClient {
 //		Leap client displays the list sorted by Author in ascending order.
 
 		final var path = createPath("patrons", patronId, "requests", "local");
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.listOf(SysHoldRequest.class)));
+		return client.retrieve(createRequest(GET, path, uri -> {}),
+			Argument.listOf(SysHoldRequest.class));
 	}
 
 	public Mono<Integer> createBibliographicRecord(Bib bib) {
@@ -525,7 +525,7 @@ class ApplicationServicesClient {
 		final String leader = buildLeader(typeOfRecord);
 		log.debug("Creating bibliographic record with typeOfRecord: {} leader: {}", typeOfRecord, leader);
 
-		return createRequest(POST, path, uri -> uri.queryParam("type", "create"))
+		return client.retrieve(createRequest(POST, path, uri -> uri.queryParam("type", "create"))
 			.map(request -> request.body(DtoBibliographicCreationData.builder()
 				.recordOwnerID(1)
 				.displayInPAC(FALSE)
@@ -536,8 +536,8 @@ class ApplicationServicesClient {
 					.datafields( List.of( DtoMARC21DataField.builder()
 						.tag("245").ind1("0").ind2("0")
 						.subfields( List.of(DtoMARC21Subfield.builder().code("a").data(bib.getTitle()).build()) )
-						.build())).build()).build()))
-			.flatMap(request -> client.retrieve(request, Argument.of(Integer.class)));
+						.build())).build()).build())),
+			Argument.of(Integer.class));
 	}
 
 	/**
@@ -590,7 +590,7 @@ class ApplicationServicesClient {
 		final var DeleteBibRecord = 11;
 		final var DeleteBibRecordData = 10;
 
-		return createRequest(POST, path, uri -> {
+		return client.retrieve(createRequest(POST, path, uri -> {
 		})
 			.map(request -> request.body(WorkflowRequest.builder()
 				.workflowRequestType(DeleteBibRecord)
@@ -603,8 +603,8 @@ class ApplicationServicesClient {
 						.bibRecordIDs( singletonList(Integer.valueOf(id)) )
 						.build())
 					.build())
-				.build()))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+				.build())),
+			Argument.of(WorkflowResponse.class))
 			.flatMap(resp -> handlePolarisWorkflow(resp, ConfirmBibRecordDelete, Continue));
 	}
 
@@ -624,7 +624,7 @@ class ApplicationServicesClient {
 
 		// The createItemCommand for polaris should use the home location of the patron placing the request
 		// So that the request can be routed appropriately in house
-		return Mono.zip(createRequest(POST, path, uri -> {}),
+		return saveItemRequest(Mono.zip(createRequest(POST, path, uri -> {}),
 				client.getMappedItemType(canonicalItemType))
 			.map(tuple -> {
 				final var request = tuple.getT1();
@@ -673,8 +673,7 @@ class ApplicationServicesClient {
 
 				log.info("create item workflow request: {}", body);
 				return request.body(body);
-			})
-			.flatMap(request -> saveItemRequest(request, itemBarcode));
+			}), itemBarcode);
 	}
 
 	private Integer getItemLoanPeriodCodeId(String canonicalItemType) {
@@ -727,7 +726,7 @@ class ApplicationServicesClient {
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
 
-		return createRequest(POST, path, uri -> {})
+		return saveItemRequest(createRequest(POST, path, uri -> {})
 			.map(request -> {
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
@@ -744,8 +743,7 @@ class ApplicationServicesClient {
 						.build())
 					.build();
 				return request.body(body);
-			})
-			.flatMap(request -> saveItemRequest(request, null))
+			}), null)
 			.then();
 	}
 
@@ -756,7 +754,7 @@ class ApplicationServicesClient {
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
 
-		return createRequest(POST, path, uri -> {})
+		return saveItemRequest(createRequest(POST, path, uri -> {})
 			.map(request -> {
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
@@ -776,8 +774,7 @@ class ApplicationServicesClient {
 						.build())
 					.build();
 				return request.body(body);
-			})
-			.flatMap(request -> saveItemRequest(request, null));
+			}), null);
 	}
 
 	public Mono<WorkflowResponse> deleteItemRecord(String id) {
@@ -786,7 +783,7 @@ class ApplicationServicesClient {
 		final var DeleteItemRecord = 10;
 		final var DeleteItemRecordData = 8;
 
-		return createRequest(POST, path, uri -> {
+		return client.retrieve(createRequest(POST, path, uri -> {
 		})
 			.map(request -> request.body(WorkflowRequest.builder()
 				.workflowRequestType(DeleteItemRecord)
@@ -800,8 +797,8 @@ class ApplicationServicesClient {
 						.itemRecordIDs( singletonList(Integer.valueOf(id)) )
 						.build())
 					.build())
-				.build()))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+				.build())),
+			Argument.of(WorkflowResponse.class))
 			.flatMap(response -> handlePolarisWorkflow(response, ConfirmItemRecordDelete, Continue))
 			.flatMap(response -> replyIfPromptMatches(response, BreakableDeletionLinks, Continue))
 			.flatMap(response -> handlePolarisWorkflow(response, LastCopyOrRecordOptions, Retain));
@@ -824,11 +821,11 @@ class ApplicationServicesClient {
 				promptID, "https://qa-polaris.polarislibrary.com/Polaris.ApplicationServices/help/workflow/overview");
 		}
 
-		return Mono.just(response)
+		return client.retrieve(Mono.just(response)
 			.filter(workflowResponse -> workflowResponse.getPrompt() != null)
 			.filter(workflowResponse -> Objects.equals(workflowResponse.getPrompt().getWorkflowPromptID(), promptID))
-			.flatMap(resp -> createItemWorkflowReply(resp.getWorkflowRequestGuid(), promptID, promptResult))
-			.flatMap(req -> client.retrieve(req, Argument.of(WorkflowResponse.class)))
+			.flatMap(resp -> createItemWorkflowReply(resp.getWorkflowRequestGuid(), promptID, promptResult)),
+			Argument.of(WorkflowResponse.class))
 			.switchIfEmpty(raiseError(Problem.builder()
 				.withType(ERR0210)
 				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
@@ -846,12 +843,12 @@ class ApplicationServicesClient {
 			);
 	}
 
-	private Mono<WorkflowResponse> saveItemRequest(MutableHttpRequest<WorkflowRequest> workflowRequest,
+	private Mono<WorkflowResponse> saveItemRequest(Mono<MutableHttpRequest<WorkflowRequest>> workflowRequest,
 		String itemBarcode) {
 		// https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/add_or_update_item_record
 
 		return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class))
-			.doOnError(e -> log.info("Error response for save item {}", workflowRequest, e))
+			.doOnError(e -> log.info("Error response for save item", e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> replyIfPromptMatches(response, NoDisplayInPAC, Continue))
 			// confirm the barcode changed on update (only applies to update requests)
@@ -888,8 +885,8 @@ class ApplicationServicesClient {
 	public Mono<String> getItemBarcode(String itemId) {
 		final var path = createPath("barcodes", "items", itemId);
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(String.class)))
+		return client.retrieve(createRequest(GET, path, uri -> {}),
+			Argument.of(String.class))
 			// remove quotes
 			.map(string -> string.replace("\"", ""));
 	}
@@ -897,22 +894,22 @@ class ApplicationServicesClient {
 	public Mono<List<MaterialType>> listMaterialTypes() {
 		final var path = createPath("materialtypes");
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.listOf(MaterialType.class)));
+		return client.retrieve(createRequest(GET, path, uri -> {}),
+			Argument.listOf(MaterialType.class));
 	}
 
 	public Mono<List<PolarisItemStatus>> listItemStatuses() {
 		final var path = createPath("itemstatuses");
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.listOf(PolarisItemStatus.class)));
+		return client.retrieve(createRequest(GET, path, uri -> {}),
+			Argument.listOf(PolarisItemStatus.class));
 	}
 
 	public Mono<BibliographicRecord> getBibliographicRecordByID(String localBibId) {
 		final var path = createPath("bibliographicrecords", localBibId);
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, BibliographicRecord.class, TRUE))
+		return client.exchange(createRequest(GET, path, uri -> {}),
+			BibliographicRecord.class, TRUE)
 			.map(HttpResponse::body);
 	}
 
@@ -1000,10 +997,9 @@ class ApplicationServicesClient {
 	public Mono<ItemRecordFull> itemrecords(String localItemId, Boolean handleItemNotFoundAsMissing) {
 		final var path = createPath("itemrecords", localItemId);
 
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class), response -> response
-					.onErrorResume(error -> handleItemNotFoundError(handleItemNotFoundAsMissing, localItemId, error))
-			));
+		return client.retrieve(createRequest(GET, path, uri -> {}),
+			Argument.of(ItemRecordFull.class), response -> response
+					.onErrorResume(error -> handleItemNotFoundError(handleItemNotFoundAsMissing, localItemId, error)));
 	}
 
 	private static Mono<ItemRecordFull> handleItemNotFoundError(Boolean handleItemNotFoundAsMissing,
@@ -1033,7 +1029,7 @@ class ApplicationServicesClient {
 		final var CHKIN_NORM = 1;
 		final var NumberOfFreeDaysGivenToThePatron = 0;
 
-		return getItemBarcode(itemId)
+		return createCheckInRequest(getItemBarcode(itemId)
 			.flatMap(barcode -> createRequest(POST, path, uri -> {})
 				.map(request -> request.body(WorkflowRequest.builder()
 					.workflowRequestType(CheckInWorkflowRequestType)
@@ -1049,11 +1045,10 @@ class ApplicationServicesClient {
 							.ignoreInventoryStatusMessages(FALSE)
 							.build())
 						.build())
-					.build())))
-			.flatMap(this::createCheckInRequest);
+					.build()))));
 	}
 
-	private Mono<WorkflowResponse> createCheckInRequest(MutableHttpRequest<WorkflowRequest> workflowRequest) {
+	private Mono<WorkflowResponse> createCheckInRequest(Mono<MutableHttpRequest<WorkflowRequest>> workflowRequest) {
 			return client.retrieve(workflowRequest, Argument.of(WorkflowResponse.class))
 				// Fills another request, transfer?
 				.flatMap(response -> replyIfPromptMatches(response, FillsRequestTransferPrompt, Yes))
@@ -1081,7 +1076,7 @@ class ApplicationServicesClient {
 		final var CheckOutDataWorkflowRequestExtensionType = 1;
 		final var CHKOUT_NORM = 6;
 
-		return createRequest(POST, path, uri -> {})
+		return client.retrieve(createRequest(POST, path, uri -> {})
 			.map(request -> request.body(WorkflowRequest.builder()
 				.workflowRequestType(CheckOutWorkflowRequestType)
 				.txnUserID(TransactingPolarisUserID)
@@ -1096,8 +1091,8 @@ class ApplicationServicesClient {
 						.ignorePatronBlocksCheck(bypassPatronBlocks)
 						.build())
 					.build())
-				.build()))
-			.flatMap(request -> client.retrieve(request, Argument.of(WorkflowResponse.class)))
+				.build())),
+			Argument.of(WorkflowResponse.class))
 			.map(this::validateWorkflowResponse);
 	}
 
@@ -1135,7 +1130,7 @@ class ApplicationServicesClient {
 		final var path = createPath("workflow");
 		final String activationDate = LocalDateTime.now().format( ofPattern("yyyy-MM-dd"));
 
-		return createRequest(POST, path, uri -> {})
+		return client.retrieve(createRequest(POST, path, uri -> {})
 			.zipWith(Mono.just(WorkflowRequest.builder()
 				.workflowRequestType(5)
 				.txnUserID(TransactingPolarisUserID)
@@ -1165,8 +1160,8 @@ class ApplicationServicesClient {
 						.build())
 					.build())
 				.build()))
-			.map(function(ApplicationServicesClient::addBodyToRequest))
-			.flatMap(workflowReq -> client.retrieve(workflowReq, Argument.of(WorkflowResponse.class)))
+			.map(function(ApplicationServicesClient::addBodyToRequest)),
+			Argument.of(WorkflowResponse.class))
 			.map(this::validateWorkflowResponse)
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
@@ -1178,8 +1173,8 @@ class ApplicationServicesClient {
 	public Mono<List<ILLRequest>> getIllRequest(String patronLocalId) {
 
 		final var path = createPath("patrons", patronLocalId, "requests", "ill");
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.retrieve(request, Argument.listOf(ILLRequest.class)));
+		return client.retrieve(createRequest(GET, path, uri -> {}),
+			Argument.listOf(ILLRequest.class));
 	}
 
 	public Mono<WorkflowResponse> convertToIll(Integer illLocationId, String localId) {
@@ -1188,7 +1183,7 @@ class ApplicationServicesClient {
 		final var ConvertHoldRequestToILLRequest = 20;
 		final var ConvertToILLRequestData = 16;
 
-		return createRequest(POST, path, uri -> {})
+		return convertToIllRequest(createRequest(POST, path, uri -> {})
 			.map(request -> request.body(WorkflowRequest.builder()
 				.workflowRequestType(ConvertHoldRequestToILLRequest)
 				.txnUserID(TransactingPolarisUserID)
@@ -1201,8 +1196,7 @@ class ApplicationServicesClient {
 						.skipTotalILLLimitExceededPrompt(TRUE)
 						.build())
 					.build())
-				.build()))
-			.flatMap(this::convertToIllRequest);
+				.build())));
 	}
 
 	public Mono<ILLRequestInfo> transferRequest(Integer illLocationId, Integer illRequestId) {
@@ -1211,7 +1205,7 @@ class ApplicationServicesClient {
 		final var ReceiveILLRequest = 18;
 		final var ReceiveILLData = 14;
 
-		return createRequest(POST, path, uri -> {})
+		return createTransferRequest(createRequest(POST, path, uri -> {})
 			.map(request -> request.body(WorkflowRequest.builder()
 				.workflowRequestType(ReceiveILLRequest)
 				.txnUserID(TransactingPolarisUserID)
@@ -1224,14 +1218,13 @@ class ApplicationServicesClient {
 						.circTranType(12)
 						.build())
 					.build())
-				.build()))
-			.flatMap(this::createTransferRequest);
+				.build())));
 	}
 
-	private Mono<ILLRequestInfo> createTransferRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
+	private Mono<ILLRequestInfo> createTransferRequest(Mono<MutableHttpRequest<WorkflowRequest>> workflowReq) {
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
 			.doOnSuccess(r -> log.info("Got transfer request response {}", r))
-			.doOnError(e -> log.info("Error response for transferring ILL request {}", workflowReq, e))
+			.doOnError(e -> log.info("Error response for transferring ILL request", e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, BriefItemEntry, Continue))
 			.switchIfEmpty( Mono.error(new PolarisWorkflowException(
@@ -1239,10 +1232,10 @@ class ApplicationServicesClient {
 			.map(workflowResponse -> workflowResponse.getAnswerExtension().getAnswerData().getILLRequestInfo());
 	}
 
-	private Mono<WorkflowResponse> convertToIllRequest(MutableHttpRequest<WorkflowRequest> workflowReq) {
+	private Mono<WorkflowResponse> convertToIllRequest(Mono<MutableHttpRequest<WorkflowRequest>> workflowReq) {
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
 			.doOnSuccess(ApplicationServicesClient::logSuccessfulResponseMessage)
-			.doOnError(e -> log.info("Error response for convert ILL request {}", workflowReq, e))
+			.doOnError(e -> log.info("Error response for convert ILL request", e))
 			.switchIfEmpty(Mono.error(new PolarisWorkflowException(
 				"convert ILL request failed expecting workflow response to: " + workflowReq)));
 	}
@@ -1259,10 +1252,11 @@ class ApplicationServicesClient {
 		final var path = createPath("itemrecords", id, "holds");
 		// Note that this will return bib level holds as well.
 
-		return createRequest(GET, path, uri -> uri
-			.queryParam("Limit", limit) // Make sure this is set or you will not get ANY reservation data
-			.queryParam("Offset", offset))// Introducing pagination just in case we get some crazy amount of reservations
-			.flatMap(request -> client.exchange(request, GetItemHoldsResponse.class, FALSE))
+		// Introducing pagination just in case we get some crazy amount of reservations
+		return client.exchange(createRequest(GET, path, uri -> uri
+				.queryParam("Limit", limit) // Make sure this is set or you will not get ANY reservation data
+				.queryParam("Offset", offset)),
+			GetItemHoldsResponse.class, FALSE)
 			.map(HttpResponse::body)
 			.onErrorResume(error -> {
 				// Just in case
@@ -1283,9 +1277,9 @@ class ApplicationServicesClient {
 			.text(text)
 			.build();
 
-		return createRequest(POST, path, uri -> {})
-			.map(request -> request.body(blockingNote))
-			.flatMap(request -> client.retrieve(request, Argument.of(BlockingNoteResponse.class)))
+		return client.retrieve(createRequest(POST, path, uri -> {})
+			.map(request -> request.body(blockingNote)),
+			Argument.of(BlockingNoteResponse.class))
 			.flatMap(response -> {
 				if (response.isSuccess()) {
 					log.debug("Successfully placed blocking note on item {}. Response: {}", itemId, response);
@@ -1309,8 +1303,8 @@ class ApplicationServicesClient {
 	 */
 	public Mono<Patron> getVirtualPatronAndCheckExpiry(String localPatronId) {
 		final var path = createPath("patrons", localPatronId);
-		return createRequest(GET, path, uri -> {})
-			.flatMap(request -> client.exchange(request, PatronData.class, TRUE))
+		return client.exchange(createRequest(GET, path, uri -> {}),
+			PatronData.class, TRUE)
 			.map(HttpResponse::body)
 			// Call the expiry check logic
 			.flatMap(this::checkAndUpdateExpiryIfNeeded)
@@ -1492,16 +1486,15 @@ class ApplicationServicesClient {
 
 		final var path = createPath("itemrecords", identifier);
 
-		return createRequest(GET, path, uri -> {
+		return client.retrieve(createRequest(GET, path, uri -> {
 			// If it's a barcode, pass the query parameter to tell Polaris
 			if (isBarcode) {
 				uri.queryParam("isBarcode", true);
 			}
-		})
-			.flatMap(request -> client.retrieve(request, Argument.of(ItemRecordFull.class), response -> response
+		}),
+			Argument.of(ItemRecordFull.class), response -> response
 				// Assuming we want to handle not found as missing by default here
-				.onErrorResume(error -> handleItemNotFoundError(TRUE, identifier, error))
-			));
+				.onErrorResume(error -> handleItemNotFoundError(TRUE, identifier, error)));
 	}
 
 	/**
@@ -1525,7 +1518,7 @@ class ApplicationServicesClient {
 		final var itemRecordType = 8;
 		final var itemRecordData = 6;
 
-		return createRequest(POST, path, uri -> {})
+		return saveItemRequest(createRequest(POST, path, uri -> {})
 			.map(request -> {
 				final var body = WorkflowRequest.builder()
 					.workflowRequestType(itemRecordType)
@@ -1544,8 +1537,7 @@ class ApplicationServicesClient {
 					.build();
 
 				return request.body(body);
-			})
-			.flatMap(request -> saveItemRequest(request, null))
+			}), null)
 			.then(confirmRenewalLimitWasApplied(itemId, renewalLimit));
 	}
 

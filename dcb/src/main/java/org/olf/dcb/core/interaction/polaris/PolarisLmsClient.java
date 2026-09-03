@@ -22,8 +22,6 @@ import static services.k_int.utils.StringUtils.stringEquals;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -37,6 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -55,6 +54,7 @@ import org.olf.dcb.core.interaction.CheckInItemCommand;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
@@ -200,7 +200,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final PolarisConfig polarisConfig;
 	
 	private final R2dbcOperations r2dbcOperations;
-	private final Pattern msDateRegex;
+	private final PolarisTokenCache tokenCache;
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms,
@@ -209,7 +209,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
 									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
-									 ConsortiumService consortiumService) {
+									 ConsortiumService consortiumService, PolarisTokenCache tokenCache) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -221,8 +221,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.polarisConfig = convertConfig(hostLms);
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
-		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig);
-		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService);
+		this.tokenCache = tokenCache;
+		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig, tokenCache);
+		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService, tokenCache);
 		this.itemMapper = itemMapper;
 		this.ingestHelper = new IngestHelper(this, hostLms, processStateService);
 		this.processStateService = processStateService;
@@ -232,7 +233,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.client = client;
 		this.r2dbcOperations = r2dbcOperations;
 		this.objectRuleService = objectRuleService;
-		this.msDateRegex = Pattern.compile("/date\\((\\d+)([+-]\\d{4})\\)/");
 	}
 
 	private PolarisConfig convertConfig(HostLms hostLms) {
@@ -1470,73 +1470,151 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	/**
+	 * The one place a rejected token is recovered from.
+	 *
+	 * Retry has to sit ABOVE request construction, not around the send: by the time a request is
+	 * built it has already been signed - Application Services sets the Authorization header and
+	 * PAPIAuthFilter rewrites the URI to embed the token - so replaying the request alone would
+	 * just resend the token Polaris has already refused. Re-subscribing the request Mono mints a
+	 * fresh request and re-reads the token cache, which is why these methods take a Mono.
+	 *
+	 * It also has to sit above the error mapping below, which converts every failure into an
+	 * UnexpectedHttpResponseProblem and would hide the 401 from the filter.
+	 *
+	 * Safe for POST/PUT/DELETE: unlike a read timeout, a 401 means Polaris definitively did not
+	 * process the request, so there is nothing to duplicate.
+	 */
+	private Retry reauthenticateOnceOnUnauthorised() {
+		return Retry.max(1)
+			.filter(HttpResponsePredicates::isUnauthorised)
+			.doBeforeRetry(signal -> {
+				log.info("Polaris rejected the token for {}, re-authenticating and retrying once",
+					getHostLmsCode());
+				tokenCache.invalidate(getHostLmsCode());
+			})
+			// Surface the original 401 rather than Reactor's RetryExhaustedException, so the
+			// error handling below still recognises it.
+			.onRetryExhaustedThrow((spec, signal) -> signal.failure());
+	}
+
+	/**
 	 * Make HTTP request to a Polaris system
 	 *
-	 * @param request Request to send
+	 * @param requestMono Request to send. Must be re-subscribable - re-subscription is what
+	 *                    re-authenticates after a 401.
 	 * @return Deserialized response body or error
 	 * @param <T> Type to deserialize the response to
 	 */
-	<T> Mono<HttpResponse<T>> exchange(MutableHttpRequest<?> request, Class<T> returnClass,
+	<T> Mono<HttpResponse<T>> exchange(Mono<? extends MutableHttpRequest<?>> requestMono, Class<T> returnClass,
 		Boolean useGenericHttpClientResponseExceptionHandler) {
-		return Mono.from(client.exchange(request, returnClass))
-			.doOnError(logRequestAndResponseDetails(request))
-			.onErrorResume(error -> {
 
-				// we want to automatically handle HttpClientResponseExceptions
-				if (error instanceof HttpClientResponseException && useGenericHttpClientResponseExceptionHandler) {
-					return raiseError(unexpectedResponseProblem((HttpClientResponseException) error, request, getHostLmsCode()));
-				}
+		return doExchange(requestMono, returnClass, useGenericHttpClientResponseExceptionHandler, TRUE);
+	}
 
-				// we want to manually handle HttpClientResponseExceptions
-				else if (error instanceof HttpClientResponseException) { // useGenericHttpClientResponseExceptionHandler == false
-					return raiseError(error);
-				}
+	private <T> Mono<HttpResponse<T>> doExchange(Mono<? extends MutableHttpRequest<?>> requestMono, Class<T> returnClass,
+		Boolean useGenericHttpClientResponseExceptionHandler, Boolean reauthenticateOn401) {
 
-				// an error happened before we got a response
-				return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
-			});
+		return Mono.defer(() -> {
+			// Created per subscription, so concurrent callers cannot overwrite each other's.
+			final var sent = new AtomicReference<MutableHttpRequest<?>>();
+
+			return requestMono
+				.doOnNext(sent::set)
+				.flatMap(request -> Mono.from(client.exchange(request, returnClass)))
+				.transform(send -> TRUE.equals(reauthenticateOn401)
+					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
+				.doOnError(error -> logRequestAndResponseDetails(sent.get()).accept(error))
+				.onErrorResume(error -> {
+
+					// we want to automatically handle HttpClientResponseExceptions
+					if (error instanceof HttpClientResponseException && useGenericHttpClientResponseExceptionHandler) {
+						return raiseError(unexpectedResponseProblem((HttpClientResponseException) error, sent.get(), getHostLmsCode()));
+					}
+
+					// we want to manually handle HttpClientResponseExceptions
+					else if (error instanceof HttpClientResponseException) { // useGenericHttpClientResponseExceptionHandler == false
+						return raiseError(error);
+					}
+
+					// an error happened before we got a response
+					return raiseError(unexpectedResponseProblem(error, sent.get(), getHostLmsCode()));
+				});
+		});
 	}
 
 	/**
 	 * Make HTTP request to a Polaris system with no extra error handling
 	 *
-	 * @param request Request to send
+	 * @param requestMono Request to send
 	 * @param responseBodyType Expected type of the response body
 	 * @return Deserialized response body or error, that might have been transformed already by handler
 	 * @param <T> Type to deserialize the response to
 	 */
-	<T> Mono<T> retrieve(MutableHttpRequest<?> request, Argument<T> responseBodyType) {
-		return retrieve(request, responseBodyType, noExtraErrorHandling());
+	<T> Mono<T> retrieve(Mono<? extends MutableHttpRequest<?>> requestMono, Argument<T> responseBodyType) {
+		return retrieve(requestMono, responseBodyType, noExtraErrorHandling());
 	}
 
 	/**
 	 * Make HTTP request to a Polaris system
 	 *
-	 * @param request Request to send
+	 * @param requestMono Request to send. Must be re-subscribable - re-subscription is what
+	 *                    re-authenticates after a 401.
 	 * @param responseBodyType Expected type of the response body
 	 * @param errorHandlingTransformer method for handling errors after the response has been received
 	 * @return Deserialized response body or error, that might have been transformed already by handler
 	 * @param <T> Type to deserialize the response to
 	 */
-	<T> Mono<T> retrieve(MutableHttpRequest<?> request, Argument<T> responseBodyType,
+	<T> Mono<T> retrieve(Mono<? extends MutableHttpRequest<?>> requestMono, Argument<T> responseBodyType,
 		Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
-		return Mono.from(client.retrieve(request, responseBodyType))
-			.doOnError(logRequestAndResponseDetails(request))
-			// Additional request specific error handling
-			.transform(errorHandlingTransformer)
-			// This has to go after more specific error handling
-			// as will convert any client response exception to a problem
-			.doOnError(HttpClientResponseException.class, error -> log.error("Unexpected response from Host LMS: {}", getHostLmsCode(), error))
-			.onErrorMap(HttpClientResponseException.class, responseException ->
-				unexpectedResponseProblem(responseException, request, getHostLmsCode()))
-			.onErrorResume(error -> {
-				if (error instanceof Problem) {
-					return Mono.error(error);
-				}
+		return doRetrieve(requestMono, responseBodyType, errorHandlingTransformer, TRUE);
+	}
 
-				return raiseError(unexpectedResponseProblem(error, request, getHostLmsCode()));
-			});
+	private <T> Mono<T> doRetrieve(Mono<? extends MutableHttpRequest<?>> requestMono, Argument<T> responseBodyType,
+		Function<Mono<T>, Mono<T>> errorHandlingTransformer, Boolean reauthenticateOn401) {
+
+		return Mono.defer(() -> {
+			final var sent = new AtomicReference<MutableHttpRequest<?>>();
+
+			return requestMono
+				.doOnNext(sent::set)
+				.flatMap(request -> Mono.<T>from(client.retrieve(request, responseBodyType)))
+				.transform(send -> TRUE.equals(reauthenticateOn401)
+					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
+				.doOnError(error -> logRequestAndResponseDetails(sent.get()).accept(error))
+				// Additional request specific error handling
+				.transform(errorHandlingTransformer)
+				// This has to go after more specific error handling
+				// as will convert any client response exception to a problem
+				.doOnError(HttpClientResponseException.class, error -> log.error("Unexpected response from Host LMS: {}", getHostLmsCode(), error))
+				.onErrorMap(HttpClientResponseException.class, responseException ->
+					unexpectedResponseProblem(responseException, sent.get(), getHostLmsCode()))
+				.onErrorResume(error -> {
+					if (error instanceof Problem) {
+						return Mono.error(error);
+					}
+
+					return raiseError(unexpectedResponseProblem(error, sent.get(), getHostLmsCode()));
+				});
+		});
+	}
+
+	/**
+	 * Send an already-signed request WITHOUT re-authenticating on a 401.
+	 *
+	 * Only the auth filters should use these. They are the authentication, so a 401 here means the
+	 * credentials are wrong - a bad staff password, a mistyped patron PIN - not that a cached token
+	 * went stale. Retrying would double the auth load at exactly the moment authentication is
+	 * failing, and turn one clear "bad credentials" log line into two.
+	 */
+	<T> Mono<HttpResponse<T>> exchangeWithoutAuthRetry(MutableHttpRequest<?> request, Class<T> returnClass,
+		Boolean useGenericHttpClientResponseExceptionHandler) {
+
+		return doExchange(Mono.just(request), returnClass, useGenericHttpClientResponseExceptionHandler, FALSE);
+	}
+
+	<T> Mono<T> retrieveWithoutAuthRetry(MutableHttpRequest<?> request, Argument<T> responseBodyType) {
+		return doRetrieve(Mono.just(request), responseBodyType, noExtraErrorHandling(), FALSE);
 	}
 
 	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
@@ -2434,37 +2512,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Instant convertMSJsonDate(String msDate) {
-		Instant result = null;
-
-		if ( msDate == null )
-			return null;
-
-		try {
-			Matcher matcher = msDateRegex.matcher(msDate.toLowerCase());
-
-			if (matcher.matches()) {
-				long timestamp = Long.parseLong(matcher.group(1)); // 1708419632890
-				String timezoneOffset = matcher.group(2);          // -0600
-
-				// Convert timestamp to Instant
-				Instant instant = Instant.ofEpochMilli(timestamp);
-
-				// Parse the timezone offset
-				int hoursOffset = Integer.parseInt(timezoneOffset.substring(0, 3));
-				int minutesOffset = Integer.parseInt(timezoneOffset.substring(0, 1) + timezoneOffset.substring(3, 5));
-				ZoneOffset offset = ZoneOffset.ofHoursMinutes(hoursOffset, minutesOffset);
-
-				// Create an OffsetDateTime
-				OffsetDateTime dateTime = instant.atOffset(offset);
-				result = dateTime.toInstant();
-			} else {
-				log.warn("Invalid Microsoft date format: {}", msDate);
-			}
-		}
-		catch ( Exception e ) {
-			log.warn("Problem parsing polaris date: {}:{}",msDate, e.getMessage());
-		}
-		return result;
+		return PolarisDates.parseMsJsonDate(msDate);
 	}
 
 	@Override

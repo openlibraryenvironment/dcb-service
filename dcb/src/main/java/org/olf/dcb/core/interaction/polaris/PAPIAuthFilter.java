@@ -5,6 +5,7 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.HMAC_SHA1_ALGORITHM;
+import static org.olf.dcb.core.interaction.polaris.PolarisTokenCache.TokenKind.PAPI_STAFF;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -40,13 +41,17 @@ class PAPIAuthFilter {
 	private PatronAuthToken patronAuthToken;
 	private final PolarisLmsClient client;
 	private final String URI_PARAMETERS;
+	private final PolarisTokenCache tokenCache;
 	private Boolean isPublicMethod;
 	private final static DateTimeFormatter FORMATTER = DateTimeFormatter.RFC_1123_DATE_TIME
 			.withZone(ZoneId.of("UTC"));
 
-	PAPIAuthFilter(PolarisLmsClient client, PolarisConfig polarisConfig) {
+	PAPIAuthFilter(PolarisLmsClient client, PolarisConfig polarisConfig,
+		PolarisTokenCache tokenCache) {
+
 		this.client = client;
 		this.polarisConfig = polarisConfig;
+		this.tokenCache = tokenCache;
 		this.URI_PARAMETERS = polarisConfig.pAPIServiceUriParameters();
 	}
 
@@ -66,7 +71,14 @@ class PAPIAuthFilter {
 	}
 
 	private Mono<MutableHttpRequest<?>> staffAuthentication(MutableHttpRequest<?> request, Boolean isRequestPublicMethod) {
-		return staffAuthenticator().doOnSuccess(newToken -> currentToken = newToken)
+		// Cached per Host LMS: this filter is rebuilt for every PolarisLmsClient, so a token
+		// held on the instance would mean re-authenticating on every single request.
+		// currentToken is still assigned because getAccessSecret reads it to sign the request.
+		return tokenCache.get(client.getHostLmsCode(), PAPI_STAFF,
+				polarisConfig.getTokenCacheMaxTtl(),
+				token -> PolarisDates.ttlFromAuthExpDate(token.getAuthExpDate()),
+				this::staffAuthenticator)
+			.doOnSuccess(newToken -> currentToken = newToken)
 			.map(validToken -> createStaffRequest(request, validToken, isRequestPublicMethod))
 			.map(this::authorization);
 	}
@@ -78,7 +90,7 @@ class PAPIAuthFilter {
 			String password = polarisConfig.getStaffPassword();
 
 			return createStaffAuthRequest(domain, username, password)
-				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)))
+				.flatMap(req -> client.retrieveWithoutAuthRetry(req, Argument.of(AuthToken.class)))
 				.doOnSuccess(authToken -> log.info("Auth token returned: {}", authToken))
 				.onErrorMap(e -> {
 					log.error("Staff Auth failed with error {}", e.toString());
@@ -107,7 +119,7 @@ class PAPIAuthFilter {
 
 	private Mono<PatronAuthToken> patronAuthenticator(PatronCredentials patronCredentials) {
 		return Mono.defer(() -> createPatronAuthRequest(patronCredentials)
-			.flatMap(request -> client.exchange(request, PatronAuthToken.class, TRUE))
+			.flatMap(request -> client.exchangeWithoutAuthRetry(request, PatronAuthToken.class, TRUE))
 			.map(HttpResponse::body))
 			.doOnError(e -> Mono.error(new PAPIAuthException("Patron Auth Failed", e)));
 	}
