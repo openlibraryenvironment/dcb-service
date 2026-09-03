@@ -90,7 +90,7 @@ class PAPIAuthFilter {
 			String password = polarisConfig.getStaffPassword();
 
 			return createStaffAuthRequest(domain, username, password)
-				.flatMap(req -> client.retrieve(req, Argument.of(AuthToken.class)))
+				.flatMap(req -> client.retrieveWithoutAuthRetry(req, Argument.of(AuthToken.class)))
 				.doOnSuccess(authToken -> log.info("Auth token returned: {}", authToken))
 				.onErrorMap(e -> {
 					log.error("Staff Auth failed with error {}", e.toString());
@@ -119,7 +119,7 @@ class PAPIAuthFilter {
 
 	private Mono<PatronAuthToken> patronAuthenticator(PatronCredentials patronCredentials) {
 		return Mono.defer(() -> createPatronAuthRequest(patronCredentials)
-			.flatMap(request -> client.exchange(request, PatronAuthToken.class, TRUE))
+			.flatMap(request -> client.exchangeWithoutAuthRetry(request, PatronAuthToken.class, TRUE))
 			.map(HttpResponse::body))
 			.doOnError(e -> Mono.error(new PAPIAuthException("Patron Auth Failed", e)));
 	}

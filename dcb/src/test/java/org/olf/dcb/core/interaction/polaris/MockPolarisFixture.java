@@ -75,6 +75,21 @@ public class MockPolarisFixture {
 			java.time.Instant.now().plus(java.time.Duration.ofHours(24)).toEpochMilli());
 	}
 
+	public void verifyGetHoldRequestDefaults(VerificationTimes times) {
+		mockServer.verify(commonRequests.get(paths.applicationServices("/holdsdefaults")), times);
+	}
+
+	/** Rejects every hold defaults request, to prove the retry gives up rather than looping. */
+	public void mockGetHoldRequestDefaultsAlwaysUnauthorised() {
+		mockServer.mockGet(paths.applicationServices("/holdsdefaults"), response().withStatusCode(401));
+	}
+
+	/** Rejects the credentials themselves - this must NOT be retried. */
+	public void mockAppServicesStaffAuthenticationAlwaysUnauthorised() {
+		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
+			response().withStatusCode(401));
+	}
+
 	public void verifyAppServicesStaffAuthentication(VerificationTimes times) {
 		mockServer.verify(commonRequests.post(
 			paths.baseApplicationServices("/authentication/staffuser")), times);

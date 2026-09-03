@@ -66,7 +66,7 @@ class ApplicationServicesAuthFilter {
 			.map(this::staffAuthorization)
 			// empty body needs to be passed to make successful call
 			.map(request -> request.body(""))
-			.flatMap(request -> client.exchange(request, AuthToken.class, Boolean.TRUE))
+			.flatMap(request -> client.exchangeWithoutAuthRetry(request, AuthToken.class, Boolean.TRUE))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 

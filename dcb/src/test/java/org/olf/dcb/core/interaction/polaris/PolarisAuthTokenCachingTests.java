@@ -90,7 +90,7 @@ class PolarisAuthTokenCachingTests {
 	}
 
 	@Test
-	void shouldAuthenticateAgainWhenPolarisRejectsACachedToken() {
+	void shouldRecoverTransparentlyWhenPolarisRejectsACachedToken() {
 		final var hostLmsCode = "polaris-token-cache-invalidation";
 
 		createPolarisHostLms(hostLmsCode, "900");
@@ -101,16 +101,52 @@ class PolarisAuthTokenCachingTests {
 		mockPolarisFixture.mockGetHoldRequestDefaultsUnauthorisedOnce();
 		mockPolarisFixture.mockGetHoldRequestDefaults(5);
 
-		final var rejected = singleValueFrom(hostLmsFixture.createClient(hostLmsCode).ping());
-		assertThat("Polaris rejected the token", rejected.getStatus(), is("ERROR"));
+		// The caller should never see the 401 - this is the whole point of the change. Before the
+		// retry existed this call failed, and in the workflow that meant a terminal ERROR status.
+		final var response = singleValueFrom(hostLmsFixture.createClient(hostLmsCode).ping());
 
-		final var recovered = singleValueFrom(hostLmsFixture.createClient(hostLmsCode).ping());
-		assertThat("Should recover with a freshly acquired token",
-			recovered.getStatus(), is("OK"));
+		assertThat("Rejected token should have been recovered from", response.getStatus(), is("OK"));
 
-		// Caching is enabled, so without the invalidate-on-401 hook the second call would have
-		// reused the rejected token and this would be once() - a stuck host for the whole TTL.
+		// Once for the token that was rejected, once for its replacement.
 		mockPolarisFixture.verifyAppServicesStaffAuthentication(exactly(2));
+		// The operation itself was genuinely re-sent rather than the error being swallowed.
+		mockPolarisFixture.verifyGetHoldRequestDefaults(exactly(2));
+	}
+
+	@Test
+	void shouldRetryOnlyOnceAndSurfaceTheOriginalProblem() {
+		final var hostLmsCode = "polaris-permanent-401";
+
+		createPolarisHostLms(hostLmsCode, "900");
+
+		mockServerClient.reset();
+		mockPolarisFixture.mockAppServicesStaffAuthentication();
+		mockPolarisFixture.mockGetHoldRequestDefaultsAlwaysUnauthorised();
+
+		// ping() reports failure rather than throwing, so a failed call surfaces as ERROR
+		final var response = singleValueFrom(hostLmsFixture.createClient(hostLmsCode).ping());
+
+		assertThat("A permanent 401 should still fail", response.getStatus(), is("ERROR"));
+		// Exactly two attempts - retried once, then gave up. Not a loop.
+		mockPolarisFixture.verifyGetHoldRequestDefaults(exactly(2));
+	}
+
+	@Test
+	void shouldNotRetryWhenTheCredentialsThemselvesAreRejected() {
+		final var hostLmsCode = "polaris-bad-credentials";
+
+		createPolarisHostLms(hostLmsCode, "900");
+
+		mockServerClient.reset();
+		// A wrong staff password, not a stale token. Retrying would double the auth load at
+		// exactly the moment authentication is failing.
+		mockPolarisFixture.mockAppServicesStaffAuthenticationAlwaysUnauthorised();
+		mockPolarisFixture.mockGetHoldRequestDefaults(5);
+
+		final var response = singleValueFrom(hostLmsFixture.createClient(hostLmsCode).ping());
+
+		assertThat(response.getStatus(), is("ERROR"));
+		mockPolarisFixture.verifyAppServicesStaffAuthentication(once());
 	}
 
 	private void createPolarisHostLms(String hostLmsCode, String tokenCacheTtlSeconds) {
