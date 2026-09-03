@@ -367,6 +367,10 @@ public class SierraPatronsAPIFixture {
 			.build()));
 	}
 
+	public void verifyNoHoldsForPatronRequestMade(String patronId) {
+		mockServer.verifyNever(getPatronHolds(patronId));
+	}
+
 	public void addPatronGetExpectation(String patronId) {
 		mockServer.mock(getPatron(patronId), "patrons/patron/" + patronId + ".json");
 	}

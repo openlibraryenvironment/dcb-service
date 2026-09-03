@@ -396,6 +396,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 		// Assert
 		assertThat(results, containsInAnyOrder(passedCheck()));
+
+		// The count is what costs a Host LMS round trip on every placement, so an
+		// undeclared limit must skip the call, not fetch a count it cannot compare
+		sierraPatronsAPIFixture.verifyNoHoldsForPatronRequestMade(localPatronId);
 	}
 
 	@Test

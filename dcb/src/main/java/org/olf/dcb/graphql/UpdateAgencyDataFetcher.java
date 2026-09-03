@@ -66,8 +66,7 @@ public class UpdateAgencyDataFetcher implements DataFetcher<CompletableFuture<Da
 			.map(value -> Boolean.parseBoolean(value.toString()));
 		Integer maxLoansInput = input_map.containsKey("maxConsortialLoans") ?
 			Integer.parseInt(input_map.get("maxConsortialLoans").toString()): null; // Needs valid integer check
-		Integer maxLocalHoldsInput = input_map.containsKey("maxLocalHolds") ?
-			Integer.parseInt(input_map.get("maxLocalHolds").toString()): null;
+		Integer maxLocalHoldsInput = InputValues.integerValue(input_map, "maxLocalHolds");
 		Optional <String> authProfile = Optional.ofNullable(env.getGraphQlContext().get("authProfile"))
 			.map(Object::toString);
 		Optional <String> name = Optional.ofNullable(env.getGraphQlContext().get("name"))
