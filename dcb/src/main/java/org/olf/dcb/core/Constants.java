@@ -12,6 +12,7 @@ public interface Constants {
 		public static final UUID NAMESPACE_LOCATION = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Location");
 		public static final UUID NAMESPACE_MAPPINGS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Mappings");
 		public static final UUID NAMESPACE_ALARMS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Alarms");
+		public static final UUID NAMESPACE_LIBRARY_USER_ACCOUNTS = UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "LibraryUserAccount");
 	}
 	public static interface Environment {
 		public static final String DEMO = "demo";

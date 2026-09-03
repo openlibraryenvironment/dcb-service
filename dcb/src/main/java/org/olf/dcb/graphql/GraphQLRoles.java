@@ -49,6 +49,19 @@ public final class GraphQLRoles {
 	 */
 	public static final Set<String> ADMINISTRATIVE = Set.of("ADMIN", "CONSORTIUM_ADMIN", "LIBRARY_ADMIN");
 
+	/**
+	 * The roles that administer the consortium rather than a library within it.
+	 *
+	 * For the surfaces that cannot be narrowed by an agency predicate because they have no
+	 * agency to narrow on. {@code DataChangeLog} is the case that forced this: it records
+	 * every entity in the system, keyed on entity name and id, so a library administrator
+	 * has no path to their own rows there - only to everybody's.
+	 *
+	 * Prefer a scope predicate wherever the entity can carry one. This is the answer when
+	 * it genuinely cannot, not a shortcut around writing the predicate.
+	 */
+	public static final Set<String> CONSORTIUM = Set.of("ADMIN", "CONSORTIUM_ADMIN");
+
 	private GraphQLRoles() {
 	}
 

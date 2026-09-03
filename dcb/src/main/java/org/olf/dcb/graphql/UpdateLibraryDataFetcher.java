@@ -70,53 +70,39 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			log.warn("updateLibraryDataFetcher: Access denied for user {}: user does not have the required role to update a library.", userString);
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to perform this action.");		}
 
-		String backupDowntimeSchedule = input_map.containsKey("backupDowntimeSchedule") ?
-			(input_map.get("backupDowntimeSchedule").toString()) : null;
-		String supportHours = input_map.containsKey("supportHours") ?
-			input_map.get("supportHours").toString() : null;
-		String fullName = input_map.containsKey("fullName") ?
-			input_map.get("fullName").toString() : null;
-		String shortName = input_map.containsKey("shortName") ?
-			input_map.get("shortName").toString() : null;
-		String abbreviatedName = input_map.containsKey("abbreviatedName") ?
-			input_map.get("abbreviatedName").toString() : null;
-		String targetLoanToBorrowRatio = input_map.containsKey("targetLoanToBorrowRatio") ?
-			input_map.get("targetLoanToBorrowRatio").toString() : null;
-		String secretLabel = input_map.containsKey("secretLabel") ?
-			input_map.get("secretLabel").toString() : null;
-		String principalLabel = input_map.containsKey("principalLabel") ?
-			input_map.get("principalLabel").toString() : null;
-		String address = input_map.containsKey("address") ?
-			input_map.get("address").toString() : null;
-		String discoverySystem = input_map.containsKey("discoverySystem") ?
-			input_map.get("discoverySystem").toString() : null;
-		String patronWebsite = input_map.containsKey("patronWebsite") ?
-			input_map.get("patronWebsite").toString() : null;
-		String type = input_map.containsKey("type") ?
-			input_map.get("type").toString() : null;
+		String backupDowntimeSchedule = InputValues.stringValue(input_map, "backupDowntimeSchedule");
+		String supportHours = InputValues.stringValue(input_map, "supportHours");
+		String fullName = InputValues.stringValue(input_map, "fullName");
+		String shortName = InputValues.stringValue(input_map, "shortName");
+		String abbreviatedName = InputValues.stringValue(input_map, "abbreviatedName");
+		String targetLoanToBorrowRatio = InputValues.stringValue(input_map, "targetLoanToBorrowRatio");
+		String secretLabel = InputValues.stringValue(input_map, "secretLabel");
+		String principalLabel = InputValues.stringValue(input_map, "principalLabel");
+		String address = InputValues.stringValue(input_map, "address");
+		String discoverySystem = InputValues.stringValue(input_map, "discoverySystem");
+		String patronWebsite = InputValues.stringValue(input_map, "patronWebsite");
+		String type = InputValues.stringValue(input_map, "type");
 
 
-		Float latitude = input_map.containsKey("latitude") ?
-			((Number) input_map.get("latitude")).floatValue() : null;
-		Float longitude = input_map.containsKey("longitude") ?
-			((Number) input_map.get("longitude")).floatValue() : null;
+		Float latitude = InputValues.floatValue(input_map, "latitude");
+		Float longitude = InputValues.floatValue(input_map, "longitude");
 
 		// Patron-facing brand (N-1.3). Validated before the transaction opens; a key that
 		// is present but blank CLEARS the field, so a library that uploaded the wrong mark
 		// can remove it. See UpdateConsortiumDataFetcher for the full reasoning.
 		boolean brandLogoUrlSupplied = input_map.containsKey("brandLogoUrl");
 		String brandLogoUrl = brandLogoUrlSupplied
-			? brandingValidator.logoUrl(asString(input_map.get("brandLogoUrl")))
+			? brandingValidator.logoUrl(InputValues.asString(input_map.get("brandLogoUrl")))
 			: null;
 
 		boolean brandLogoAltSupplied = input_map.containsKey("brandLogoAlt");
 		String brandLogoAlt = brandLogoAltSupplied
-			? brandingValidator.text(asString(input_map.get("brandLogoAlt")))
+			? brandingValidator.text(InputValues.asString(input_map.get("brandLogoAlt")))
 			: null;
 
 		boolean defaultThemeNameSupplied = input_map.containsKey("defaultThemeName");
 		String defaultThemeName = defaultThemeNameSupplied
-			? brandingValidator.themeName(asString(input_map.get("defaultThemeName")))
+			? brandingValidator.themeName(InputValues.asString(input_map.get("defaultThemeName")))
 			: null;
 
 
@@ -193,10 +179,5 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.flatMap(library -> brandAssetCleanup.removeReplaced(replacedAssets)
 				.thenReturn(library))
 			.toFuture();
-	}
-
-	/** GraphQL sends an explicit null as a present key with a null value. */
-	private static String asString(Object value) {
-		return value == null ? null : value.toString();
 	}
 }

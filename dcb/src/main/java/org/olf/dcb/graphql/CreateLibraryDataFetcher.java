@@ -79,48 +79,29 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to create a library.");
 		}
 
-		String agencyCode = input_map.containsKey("agencyCode") ?
-			input_map.get("agencyCode").toString() : null;
-		String fullName = input_map.containsKey("fullName") ?
-			input_map.get("fullName").toString() : null;
-		String shortName = input_map.containsKey("shortName") ?
-			input_map.get("shortName").toString() : null;
-		String abbreviatedName = input_map.containsKey("abbreviatedName") ?
-			input_map.get("abbreviatedName").toString() : null;
-		String address = input_map.containsKey("address") ?
-			input_map.get("address").toString() : null;
-		String type = input_map.containsKey("type") ?
-			input_map.get("type").toString() : null;
+		String agencyCode = InputValues.stringValue(input_map, "agencyCode");
+		String fullName = InputValues.stringValue(input_map, "fullName");
+		String shortName = InputValues.stringValue(input_map, "shortName");
+		String abbreviatedName = InputValues.stringValue(input_map, "abbreviatedName");
+		String address = InputValues.stringValue(input_map, "address");
+		String type = InputValues.stringValue(input_map, "type");
 
-		Float latitude = input_map.containsKey("latitude") ?
-			Float.valueOf(input_map.get("latitude").toString()) : null;
-		Float longitude = input_map.containsKey("longitude") ?
-			Float.valueOf(input_map.get("longitude").toString()) : null;
+		Float latitude = InputValues.floatValue(input_map, "latitude");
+		Float longitude = InputValues.floatValue(input_map, "longitude");
 
-		String backupDowntimeSchedule = input_map.containsKey("backupDowntimeSchedule") ?
-			(input_map.get("backupDowntimeSchedule").toString()) : null;
-		String supportHours = input_map.containsKey("supportHours") ?
-			input_map.get("supportHours").toString() : null;
-		String discoverySystem = input_map.containsKey("discoverySystem") ?
-			input_map.get("discoverySystem").toString() : null;
-		String patronWebsite = input_map.containsKey("patronWebsite") ?
-			input_map.get("patronWebsite").toString() : null;
-		String hostLmsConfiguration = input_map.containsKey("hostLmsConfiguration") ?
-			input_map.get("hostLmsConfiguration").toString() : null;
+		String backupDowntimeSchedule = InputValues.stringValue(input_map, "backupDowntimeSchedule");
+		String supportHours = InputValues.stringValue(input_map, "supportHours");
+		String discoverySystem = InputValues.stringValue(input_map, "discoverySystem");
+		String patronWebsite = InputValues.stringValue(input_map, "patronWebsite");
+		String hostLmsConfiguration = InputValues.stringValue(input_map, "hostLmsConfiguration");
 
-		String targetLoanToBorrowRatio = input_map.containsKey("targetLoanToBorrowRatio") ?
-			input_map.get("targetLoanToBorrowRatio").toString() : null;
+		String targetLoanToBorrowRatio = InputValues.stringValue(input_map, "targetLoanToBorrowRatio");
 
-		Boolean isSupplyingAgency = input_map.containsKey("isSupplyingAgency") ?
-			Boolean.valueOf(input_map.get("isSupplyingAgency").toString()) : null;
-		Boolean isBorrowingAgency = input_map.containsKey("isBorrowingAgency") ?
-			Boolean.valueOf(input_map.get("isBorrowingAgency").toString()) : null;
-		Integer maxLoansInput = input_map.containsKey("maxConsortialLoans") ?
-			Integer.parseInt(input_map.get("maxConsortialLoans").toString()): null;
-		String authProfile = input_map.containsKey("authProfile") ?
-			input_map.get("authProfile").toString() : null;
-		String hostLmsCode = input_map.containsKey("hostLmsCode") ?
-			input_map.get("hostLmsCode").toString() : null;
+		Boolean isSupplyingAgency = InputValues.booleanValue(input_map, "isSupplyingAgency");
+		Boolean isBorrowingAgency = InputValues.booleanValue(input_map, "isBorrowingAgency");
+		Integer maxLoansInput = InputValues.integerValue(input_map, "maxConsortialLoans");
+		String authProfile = InputValues.stringValue(input_map, "authProfile");
+		String hostLmsCode = InputValues.stringValue(input_map, "hostLmsCode");
 
 		Library input = Library.builder()
 			.id(input_map.get("id") != null ? UUID.fromString(input_map.get("id").toString()) : null)

@@ -63,6 +63,7 @@ public class GraphQLFactory {
 			UpdateAgencyDataFetcher updateAgencyDataFetcher,
 			CreateHostLmsDataFetcher createHostLmsDataFetcher,
 			UpdateHostLmsDataFetcher updateHostLmsDataFetcher,
+			LibraryUserDataFetchers libraryUserDataFetchers,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -106,6 +107,8 @@ public class GraphQLFactory {
 						.dataFetcher("functionalSettings", dataFetchers.getFunctionalSettingsDataFetcher())
 						.dataFetcher("alarms", dataFetchers.getAlarmsDataFetcher())
 						.dataFetcher("patronRequestStatistics", dataFetchers.getPatronRequestStatsDataFetcher())
+						.dataFetcher("libraryUsers", libraryUserDataFetchers.getLibraryUsersDataFetcher())
+						.dataFetcher("libraryUserProvisioningAvailable", libraryUserDataFetchers.getProvisioningAvailableDataFetcher())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
@@ -141,6 +144,9 @@ public class GraphQLFactory {
 						.dataFetcher("updateAgency", updateAgencyDataFetcher)
 						.dataFetcher("createHostLms", createHostLmsDataFetcher)
 						.dataFetcher("updateHostLms", updateHostLmsDataFetcher)
+						.dataFetcher("provisionLibraryUser", libraryUserDataFetchers.provisionLibraryUserDataFetcher())
+						.dataFetcher("setLibraryUserEnabled", libraryUserDataFetchers.setLibraryUserEnabledDataFetcher())
+						.dataFetcher("resendLibraryUserInvite", libraryUserDataFetchers.resendLibraryUserInviteDataFetcher())
 				)
 			.type("Agency",
 					typeWiring -> typeWiring

@@ -71,6 +71,35 @@ public final class AgencyAccessScope {
 	public static final List<QueryPath> PATRON_IDENTITY_OWNERSHIP = List.of(
 		QueryPath.joining("resolvedAgency").matching("code"));
 
+	/**
+	 * A supplier request belongs to the library supplying it, and to the library whose
+	 * patron asked for it.
+	 * <p>
+	 * The supplying side is {@code localAgency} on the row itself rather than the
+	 * borrowing side's path pushed down through the parent request. The looser form -
+	 * "any supplier request of a request I supplied any part of" - would let a library
+	 * that supplied an earlier, failed attempt read the row belonging to the library
+	 * that supplied the successful one. Those are different libraries and only one of
+	 * them is party to this row.
+	 */
+	public static final List<QueryPath> SUPPLIER_REQUEST_OWNERSHIP = List.of(
+		QueryPath.property("localAgency"),
+		QUERY_PATHS.get("patronAgencyCode").under("patronRequest"));
+
+	/**
+	 * An audit entry inherits the ownership of the request it audits, exactly - derived
+	 * from {@link #PATRON_REQUEST_OWNERSHIP} rather than restated, so a third owner
+	 * added there cannot be forgotten here.
+	 * <p>
+	 * {@link #restrict} and not {@link #restrictAllowingUnattributed}: unlike a virtual
+	 * patron identity, an audit row with no reachable agency is a record about
+	 * somebody's request whose owner was not resolved, not a record about nobody.
+	 */
+	public static final List<QueryPath> PATRON_REQUEST_AUDIT_OWNERSHIP =
+		PATRON_REQUEST_OWNERSHIP.stream()
+			.map(path -> path.under("patronRequest"))
+			.toList();
+
 	// Locations are deliberately not scoped. They are directory data and are shared them across
 	// libraries on purpose, including in discovery apps and DCB Admin for Libraries staff requesting.
 	// PUA also makes it actively harmful to restrict who can view pickup locations.

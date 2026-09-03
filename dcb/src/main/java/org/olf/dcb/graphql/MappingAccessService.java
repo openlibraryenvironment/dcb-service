@@ -8,6 +8,7 @@ import java.util.Set;
 
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.FunctionalSettingType;
+import org.olf.dcb.core.model.NumericRangeMapping;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,36 @@ public class MappingAccessService {
 	public Mono<Optional<QuerySpecification<ReferenceValueMapping>>> restrict(
 		DataFetchingEnvironment env, QuerySpecification<ReferenceValueMapping> specification) {
 
+		return restrictToOwnSystems(env, specification, "fromContext", "toContext",
+			"Reference value mapping");
+	}
+
+	/**
+	 * The same rule for numeric range mappings, which name their systems in differently
+	 * spelled columns.
+	 * <p>
+	 * These were left unscoped while their reference-value siblings were scoped, which
+	 * is the more dangerous half of the pair to forget: a numeric range mapping is how a
+	 * Host LMS's item type numbers map to canonical types, so reading a co-tenant's is
+	 * reading their circulation configuration. Nothing failed when it drifted, which is
+	 * why {@code AgencyScopeArchitectureTests} now exists.
+	 */
+	public Mono<Optional<QuerySpecification<NumericRangeMapping>>> restrictNumericRanges(
+		DataFetchingEnvironment env, QuerySpecification<NumericRangeMapping> specification) {
+
+		return restrictToOwnSystems(env, specification, "context", "targetContext",
+			"Numeric range mapping");
+	}
+
+	/**
+	 * Both mapping tables carry the same fact under different column names: the system
+	 * the mapping reads from, and the system it writes to. Written once so the two
+	 * cannot drift again.
+	 */
+	private <T> Mono<Optional<QuerySpecification<T>>> restrictToOwnSystems(
+		DataFetchingEnvironment env, QuerySpecification<T> specification,
+		String fromColumn, String toColumn, String subject) {
+
 		// Optional rather than an empty Mono: "no filter at all" and "the scope has not
 		// been worked out yet" are different answers and must not share a signal
 		if (AgencyAccessScope.isUnrestricted(env)) {
@@ -65,16 +96,16 @@ public class MappingAccessService {
 			.defaultIfEmpty(Set.of())
 			.map(permitted -> {
 				if (permitted.isEmpty()) {
-					log.warn("Reference value mapping query from a caller with neither a "
-						+ "consortium role nor an agency claim; returning nothing");
+					log.warn("{} query from a caller with neither a consortium role nor an "
+						+ "agency claim; returning nothing", subject);
 				}
 
-				final QuerySpecification<ReferenceValueMapping> ownSystems
+				final QuerySpecification<T> ownSystems
 					= (root, query, criteriaBuilder) -> permitted.isEmpty()
 						? criteriaBuilder.disjunction()
 						: criteriaBuilder.or(
-							root.get("fromContext").in(permitted),
-							root.get("toContext").in(permitted));
+							root.get(fromColumn).in(permitted),
+							root.get(toColumn).in(permitted));
 
 				return Optional.of(specification == null
 					? ownSystems

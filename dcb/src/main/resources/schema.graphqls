@@ -26,6 +26,13 @@ type Query {
 		alarms(query: String, pageno: Int, pagesize: Int, order: String, orderBy: String): AlarmPage!
 		patronRequestStatistics(startDate: String,endDate: String,borrowerCodes:[String] ,pickupCodes: [String],
 			statusCodes: [String], supplierCodes: [String], bibClusterId: ID): [DailyPatronRequestStat]!
+		# One library's DCB Admin for Libraries accounts. Deliberately NOT consortium-wide:
+		# a library's staff list is tens of rows, and a roster across 500 libraries is a
+		# different query with different scale properties that nothing has asked for.
+		libraryUsers(libraryId: ID!): [LibraryUser!]!
+		# Whether this deployment has an identity provider configured at all, so the UI can
+		# hide a tab that could only fail rather than render a form nobody can submit.
+		libraryUserProvisioningAvailable: Boolean!
 }
 
 type Mutation {
@@ -61,6 +68,9 @@ type Mutation {
 		updateAgency(input: UpdateAgencyInput): Agency!
 	  createHostLms(input: CreateHostLmsInput!): CreateHostLmsResult
 		updateHostLms(input: UpdateHostLmsInput!): UpdateHostLmsResult
+		provisionLibraryUser(input: ProvisionLibraryUserInput): LibraryUser!
+		setLibraryUserEnabled(input: SetLibraryUserEnabledInput): LibraryUser!
+		resendLibraryUserInvite(input: ResendLibraryUserInviteInput): LibraryUser!
 
 }
 
@@ -1037,4 +1047,67 @@ type UpdateHostLmsResult {
 	pingStatus: String
 	ingestStatus: String
 	warnings: [String]
+}
+
+
+# ---------------------------------------------------------------------------
+# DCB Admin for Libraries accounts
+#
+# The enum is gate one of four on the role: a request naming ADMIN is a GraphQL
+# validation error before any resolver runs. It is not the security control -
+# ProvisionableRole.parse, the Postgres CHECK constraint and the identity provider's
+# own role-mapping grant are the others - but it is free and it removes a class of
+# mistake at the boundary.
+# ---------------------------------------------------------------------------
+
+enum ProvisionableRole {
+	LIBRARY_ADMIN
+	LIBRARY_READ_ONLY
+}
+
+enum LibraryUserStatus {
+	INVITED
+	ACTIVE
+	DISABLED
+}
+
+# Note the ABSENCE of an agencyCode field. It is derived server-side from libraryId, so
+# a client that cannot name an agency cannot scope an account to somebody else's library.
+input ProvisionLibraryUserInput {
+	libraryId: ID!
+	email: String!
+	firstName: String
+	lastName: String
+	role: ProvisionableRole!
+	reason: String
+	changeCategory: String
+	changeReferenceUrl: String
+}
+
+input SetLibraryUserEnabledInput {
+	id: ID!
+	enabled: Boolean!
+	reason: String
+	changeCategory: String
+	changeReferenceUrl: String
+}
+
+input ResendLibraryUserInviteInput {
+	id: ID!
+}
+
+# No password field exists on this type, deliberately, and none ever should. The
+# credential flow is entirely the provider's actions email.
+type LibraryUser {
+	id: ID!
+	identityProviderUserId: String!
+	libraryId: ID!
+	agencyCode: String!
+	email: String!
+	firstName: String
+	lastName: String
+	role: ProvisionableRole!
+	status: LibraryUserStatus!
+	dateCreated: String
+	lastEditedBy: String
 }
