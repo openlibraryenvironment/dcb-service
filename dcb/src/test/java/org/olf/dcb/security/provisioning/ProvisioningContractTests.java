@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -115,14 +116,25 @@ class ProvisioningContractTests {
 			final var schema = Files.readString(resource("schema.graphqls"));
 			final var block = between(schema, "enum ProvisionableRole {", "}");
 
-			for (final var role : ProvisionableRole.values()) {
-				assertThat("schema is missing " + role, block.contains(role.name()), is(true));
-			}
+			// Read as VALUES, not searched as substrings. "LIBRARY_ADMIN" ends in "ADMIN",
+			// so a substring test for the forbidden role either matches a permitted one or
+			// leans on whatever character follows it - and `contains("ADMIN\n")` leant on the
+			// newline, which made the whole assertion depend on the checkout's line endings.
+			// It passed on CRLF and failed on CI. \R matches any of them.
+			final var declared = Arrays.stream(block.split("\\R"))
+				.map(String::trim)
+				.filter(line -> !line.isEmpty() && !line.startsWith("#"))
+				.collect(Collectors.toSet());
 
-			// The gate that matters: the schema must not offer a role the Java side would
-			// then have to refuse. Two enums for one vocabulary is how they drift.
-			assertThat("the schema offers ADMIN", block.contains("ADMIN\n") || block.contains("\tADMIN"),
-				is(false));
+			final var expected = Arrays.stream(ProvisionableRole.values())
+				.map(Enum::name)
+				.collect(Collectors.toSet());
+
+			// Equality rather than containment, which is what the name of this test claims:
+			// a role the schema offers and the Java side would refuse is as much a defect as
+			// a missing one, and ADMIN is the one that matters.
+			assertThat("the schema and the Java enum must offer the same vocabulary",
+				declared, is(expected));
 		}
 
 		@Test
