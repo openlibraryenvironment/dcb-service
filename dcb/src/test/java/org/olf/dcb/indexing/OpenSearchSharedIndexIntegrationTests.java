@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,8 +15,14 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.indexing.opensearch.OpenSearchSharedIndexService;
+import org.opensearch.client.json.JsonpDeserializer;
+import org.opensearch.client.json.JsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
+import org.opensearch.client.opensearch._types.Result;
+import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch.indices.AnalyzeRequest;
+import org.opensearch.client.opensearch.indices.IndexSettings;
+import org.opensearch.client.opensearch.indices.PutMappingRequest;
 import org.opensearch.testcontainers.OpenSearchContainer;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.utility.DockerImageName;
@@ -44,6 +51,10 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 
 	private static final String INDEX_NAME = "dcb-shared-index-test";
 	private static final String OPENSEARCH_VERSION = "2.19.1";
+	private static final String MERGE_CHECK_INDEX = "dcb-shared-index-merge-check";
+
+	/** The release mappings-2.last-released.json was taken from. */
+	private static final String BASELINE_RELEASE = "8.71.0";
 
 	/**
 	 * sharedIndex/settings-2.json declares an icu_folding_nopunc analyzer over
@@ -136,6 +147,68 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 		// credentials for that cluster.
 		assertThat(backendInfo.getDistribution(), is(Optional.of("opensearch")));
 		assertThat(backendInfo.getVersion(), is(Optional.of(OPENSEARCH_VERSION)));
+	}
+
+	/**
+	 * Whether a mapping edit can be deployed, answered by the engine rather than by a
+	 * table of what the engine is believed to do. See docs/shared-index.md.
+	 */
+	@Test
+	void shouldMergeTheCurrentMappingIntoAnIndexBuiltByTheLastRelease() throws Exception {
+		final var mapper = client._transport().jsonpMapper();
+		final var settings = read("sharedIndex/settings-2.json", IndexSettings._DESERIALIZER, mapper);
+		final var released = read("sharedIndex/mappings-2.last-released.json",
+			TypeMapping._DESERIALIZER, mapper);
+		final var current = read("sharedIndex/mappings-2.json", TypeMapping._DESERIALIZER, mapper);
+
+		// A previous run killed between create and delete would otherwise fail the next
+		// one with resource_already_exists, which reads as a defect in the diff.
+		client.indices().delete(b -> b.index(MERGE_CHECK_INDEX).ignoreUnavailable(true))
+			.get(60, TimeUnit.SECONDS);
+
+		client.indices().create(b -> b
+				.index(MERGE_CHECK_INDEX)
+				.settings(settings)
+				.mappings(released))
+			.get(60, TimeUnit.SECONDS);
+
+		try {
+			// Indexing the document is what makes this a real check. The released mapping
+			// leaves fields undeclared, and dynamic mapping types them from this document
+			// exactly as it did in every environment. Without it the index has nothing to
+			// conflict with and the mapping below would always be accepted.
+			final var indexed = client.index(b -> b
+					.index(MERGE_CHECK_INDEX)
+					.id(SharedIndexDocumentFixture.CLUSTER_ID.toString())
+					.document(SharedIndexDocumentFixture.document()))
+				.get(60, TimeUnit.SECONDS);
+
+			assertThat(indexed.result(), is(Result.Created));
+
+			final var response = client.indices()
+				.putMapping(PutMappingRequest.of(b -> b
+					.index(MERGE_CHECK_INDEX)
+					.dynamicTemplates(current.dynamicTemplates())
+					.properties(current.properties())))
+				.get(60, TimeUnit.SECONDS);
+
+			assertThat("The mapping in this build cannot be applied to an index built by "
+					+ BASELINE_RELEASE + ", so deploying it would stop the application at startup",
+				response.acknowledged(), is(true));
+		}
+		finally {
+			client.indices().delete(b -> b.index(MERGE_CHECK_INDEX)).get(60, TimeUnit.SECONDS);
+		}
+	}
+
+	private static <T> T read(String resource, JsonpDeserializer<T> deserializer, JsonpMapper mapper)
+		throws Exception {
+
+		try (InputStream input = OpenSearchSharedIndexIntegrationTests.class
+			.getClassLoader().getResourceAsStream(resource)) {
+
+			return deserializer.deserialize(mapper.jsonProvider().createParser(input), mapper);
+		}
 	}
 
 	@Test
