@@ -9,6 +9,13 @@
 - [Durable inbound evidence inbox](current/durable-inbound-evidence-inbox.md):
   obtain schema/design approval for retry, replay, and idempotency.
 
+## Tactical priority
+
+- [Managed shared-index lifecycle](current/managed-shared-index-lifecycle.md):
+  automatically create, rebuild, validate, and atomically promote immutable
+  Elasticsearch/OpenSearch index generations for both stop/start and rolling
+  deployments.
+
 ## General follow-up
 
 - [TrackingServiceV4 default rollout](current/tracking-service-v4-default-rollout.md):
