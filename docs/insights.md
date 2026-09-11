@@ -379,6 +379,16 @@ Three properties of a bucket, all of which a reader has to know before trusting 
 - **A dwell whose entry falls before the window start is excluded**, because the window filter
   sits inside the CTE — the same rule `findTimeInStatus` applies, so the panel and its trend agree.
 
+**All three are bounded by the window, not by history.** Turnaround and supplier response
+originally aggregated every audit row for their target status across the corpus and filtered
+afterwards, which grows with the corpus on an endpoint a dashboard hits. Both now drive off the
+window: turnaround bounds its CTE and adds a `NOT EXISTS` for an earlier arrival, because `MIN`
+over a bounded set is the earliest arrival *in* the window and a status re-entered during tracking
+would otherwise read as fresh; supplier response bounds the confirmations and takes the matching
+"placed" as a correlated `MIN` per candidate. The cost is one index probe per request in the
+window on `pra_to_status_idx`, and no new index, so no migration. Status dwell already bounded its
+CTE on `audit_date`.
+
 The headline turnaround query now takes `MIN(audit_date)` per request, which
 `findSupplierResponseSla` already did. Tracking can write a second audit into a status the request
 had already reached; without the rule that request contributed twice with different durations, and
@@ -672,7 +682,7 @@ If you are about to change something in this list, read the section first:
 |---|---|
 | Every endpoint is scoped to the caller's own library | `StatsScopeArchitectureTests`, 4 tests |
 | Claim reading is correct for single- and multi-valued tokens, and empty is not "no restriction" | `CallerScopeTests`, 15 tests |
-| The queries return what they say | `StatsQueriesTests`, 38 tests |
+| The queries return what they say | `StatsQueriesTests`, 39 tests |
 | The collection analysis queries return what they say | `CollectionAnalysisQueriesTests`, 12 tests |
 | Only one catalogue aggregate runs at a time, results are cached, and an exhausted wait budget returns 429 | `CollectionAnalysisServiceTests`, 4 tests |
 | The migration applied and the indexes exist | `AnalyticsIndexTests`, 3 tests |
