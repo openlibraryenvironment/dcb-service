@@ -11,12 +11,12 @@ micronaut:
     multipart:
       # The framework default is 1MB, and it is applied while the request is being decoded -
       # before routing, so an over-cap upload never reaches a controller that could explain
-      # why. Pinned to the same variable as dcb.branding.assets.max-bytes so the two limits
+      # why. Reads dcb.branding.assets.max-bytes itself, with no default, so the two limits
       # governing one upload cannot drift apart. Applies to location and mapping import too.
       #
       # There is deliberately no `enabled` here: absent is not the same as false, and only
       # an explicit false refuses. See docs/branding.md.
-      max-file-size: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
+      max-file-size: ${dcb.branding.assets.max-bytes}
   application:
     name: dcb
   router:
@@ -240,47 +240,25 @@ graphql:
     enabled: false
 
 dcb:
-  # Provisioning DCB Admin for Libraries accounts from DCB Admin.
-  #
-  # ABSENT type = FEATURE OFF. No client bean is created, the libraryUsers query reports
-  # itself unavailable, and DCB Admin renders an explanation instead of a form. That is a
-  # supported state and it is the default, so this ships safely into every environment
-  # before any of them has a provisioning service account.
-  #
-  # `keycloak` is implemented. `zitadel` is NOT: its admin API shapes were not verified, so
-  # naming it produces the same legible "not configured" answer rather than a wrong client.
-  #
-  # client-secret has NO USABLE DEFAULT. Naming a provider without it fails at startup, by
-  # an explicit check in KeycloakIdentityProviderClient rather than by bean validation -
-  # a blank secret would otherwise start an application that offers the feature and refuses
-  # every account with a 401, weeks later.
-  #
-  # The service account needs view-users, query-users and manage-users from
-  # realm-management - NOT manage-realm, NOT realm-admin - plus a fine-grained map-role
-  # grant on exactly LIBRARY_ADMIN and LIBRARY_READ_ONLY. That grant is the only control
-  # that survives a compromise of this service; the enum, the Java parse and the Postgres
-  # CHECK all live here and fall together.
-  identity-provider:
-    type: ${DCB_IDENTITY_PROVIDER_TYPE:}
-    base-url: ${DCB_IDENTITY_PROVIDER_BASE_URL:}
-    realm: ${DCB_IDENTITY_PROVIDER_REALM:}
-    client-id: ${DCB_IDENTITY_PROVIDER_CLIENT_ID:}
-    client-secret: ${DCB_IDENTITY_PROVIDER_CLIENT_SECRET:}
-    project-id: ${DCB_IDENTITY_PROVIDER_PROJECT_ID:}
+  # Provisioning DCB Admin for Libraries accounts is configured entirely outside this
+  # file. IdentityProviderConfig declares Optional getters and its own @Bindable
+  # defaults, so an ABSENT setting is genuinely absent and the feature stays off; a key
+  # here would bind an empty string and make that state unreachable.
+  # What to set, and the provider-side least privilege it assumes: docs/identity-provider-setup.md.
 
   # Insights - the reporting and analytics surface
   insights:
-    enabled: ${DCB_INSIGHTS_ENABLED:true}
+    enabled: true
     # The catalogue-wide collection queries aggregate bib_record - lots of record
     #  These are resource limits meant to be tuned once a real system has been measured, which is why they are
     # here rather than fixed in code. Raise concurrency only with timings in hand.
     collection-analysis:
-      concurrency: ${DCB_INSIGHTS_COLLECTION_CONCURRENCY:1}
+      concurrency: 1
       # Every figure is stale by at most this much, and the panel should say so.
-      cache-ttl: ${DCB_INSIGHTS_COLLECTION_CACHE_TTL:15m}
+      cache-ttl: 15m
       # How long a queued caller waits before 429. A cold panel opening several of these at
       # once must queue rather than fail.
-      max-wait: ${DCB_INSIGHTS_COLLECTION_MAX_WAIT:30s}
+      max-wait: 30s
 
   # Discovery services DCB will accept patron assertions from.
   #
@@ -293,12 +271,12 @@ dcb:
   # Disabled by default: a deployment that has not been configured for discovery must
   # fail closed, not behave as though it has been.
   discovery:
-    enabled: ${DCB_DISCOVERY_ENABLED:false}
+    enabled: false
     # The audience a patron assertion must name. This DCB, not another one.
-    audience: ${DCB_DISCOVERY_AUDIENCE:dcb}
+    audience: dcb
     # DCB's own cap on assertion validity, enforced regardless of the issuer's `exp`.
     # A long-lived assertion is a bearer token by another name.
-    max-assertion-lifetime: ${DCB_DISCOVERY_MAX_ASSERTION_LIFETIME:PT2M}
+    max-assertion-lifetime: PT2M
     # Onboard a service per environment, in whichever repository holds this
     # deployment's configuration. Two equivalent forms; use whichever your hosting
     # supports. See docs/discovery-service-approach.md section 7.
@@ -332,18 +310,18 @@ dcb:
       # none     - the upload routes are ABSENT from the running service, and brand fields
       #            still accept an absolute CDN URL. For a deployment that would rather not
       #            keep images in its database; nothing else about branding changes.
-      store: ${DCB_BRANDING_ASSETS_STORE:database}
+      store: database
       # How long an unreferenced upload is kept. An administrator uploads and then saves
       # the URL with a separate mutation, so an asset is legitimately unreferenced in
       # between: too short and the sweep deletes the image somebody is still choosing.
-      orphan-grace-period: ${DCB_BRANDING_ASSETS_ORPHAN_GRACE:24h}
+      orphan-grace-period: 24h
       # Changing this after assets exist orphans every stored URL: it is the one
       # site-relative form BrandingValidator accepts. Here to be read, not tuned.
-      public-path-prefix: ${DCB_BRANDING_ASSETS_PATH_PREFIX:/discovery/brand-assets/}
-      max-bytes: ${DCB_BRANDING_ASSETS_MAX_BYTES:2097152}
+      public-path-prefix: /discovery/brand-assets/
+      max-bytes: 2097152
       # A decompression-bomb limit, not a taste limit - read from the image header before
       # any pixel is decoded.
-      max-dimension: ${DCB_BRANDING_ASSETS_MAX_DIMENSION:4096}
+      max-dimension: 4096
   security:
     internal-endpoints:
       ip-patterns:
@@ -371,8 +349,8 @@ dcb:
     # This is NOT a data control and does not replace one - AgencyAccessScope decides what
     # any caller may read, whichever app they use.
     admin-ui:
-      client-id: ${DCB_ADMIN_UI_CLIENT_ID:}
-      mode: ${DCB_ADMIN_UI_ACCESS_MODE:WARN}
+      client-id: ""
+      mode: WARN
   shutdown:
     # Wait up to 60s on shutdown for ingest processes to end
     maxwait: 0

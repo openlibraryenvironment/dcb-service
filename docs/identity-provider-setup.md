@@ -88,14 +88,14 @@ configured.
 
 ### 1.4 Turning the bar on, in two steps
 
-1. Set `DCB_ADMIN_UI_CLIENT_ID` to DCB Admin's client id, leave
-   `DCB_ADMIN_UI_ACCESS_MODE=WARN`. Nothing is refused.
+1. Set `DCB_SECURITY_ADMIN_UI_CLIENT_ID` to DCB Admin's client id, leave
+   `DCB_SECURITY_ADMIN_UI_MODE=WARN`. Nothing is refused.
 2. Watch the log for `Would deny DCB Admin access: user=… roles=… client=…`. Every line is
    somebody who *would* be locked out. Fix the accounts or the client configuration.
-3. When the log is quiet, set `DCB_ADMIN_UI_ACCESS_MODE=ENFORCE`. This is config, not a
+3. When the log is quiet, set `DCB_SECURITY_ADMIN_UI_MODE=ENFORCE`. This is config, not a
    deploy, and it is instantly reversible.
 
-Leaving `DCB_ADMIN_UI_CLIENT_ID` unset disables the check entirely, which is the default.
+Leaving `DCB_SECURITY_ADMIN_UI_CLIENT_ID` unset disables the check entirely, which is the default.
 
 ---
 
@@ -229,7 +229,7 @@ and the DCB Admin bar work, and none of that depends on provisioning:
 - the four roles, as project roles, spelled exactly;
 - the `code` claim on every library account, via user metadata surfaced into the token;
 - two separate OIDC clients, so `azp` can tell the apps apart;
-- `DCB_ADMIN_UI_CLIENT_ID` — confirm Zitadel populates `azp` with the **client id** and not
+- `DCB_SECURITY_ADMIN_UI_CLIENT_ID` — confirm Zitadel populates `azp` with the **client id** and not
   the project id before enforcing, or the bar will refuse the wrong people.
 
 **To implement provisioning**, a `ZitadelIdentityProviderClient` needs, verified against the
@@ -270,8 +270,8 @@ deployed version rather than assumed:
 | `DCB_IDENTITY_PROVIDER_CLIENT_ID` | `dcb-provisioning` | The confidential client from 2.1 |
 | `DCB_IDENTITY_PROVIDER_CLIENT_SECRET` | — | **No default. Naming a provider without it fails startup** |
 | `DCB_IDENTITY_PROVIDER_PROJECT_ID` | — | Zitadel only |
-| `DCB_ADMIN_UI_CLIENT_ID` | `dcb-admin` | **Unset = the bar is off** |
-| `DCB_ADMIN_UI_ACCESS_MODE` | `WARN` → `ENFORCE` | Defaults to `WARN` |
+| `DCB_SECURITY_ADMIN_UI_CLIENT_ID` | `dcb-admin` | **Unset = the bar is off** |
+| `DCB_SECURITY_ADMIN_UI_MODE` | `WARN` → `ENFORCE` | Defaults to `WARN` |
 
 `dcb-admin-ui`: `VITE_KEYCLOAK_ID` must be DCB Admin's own client id — see the known issue
 in 1.3.
@@ -328,7 +328,7 @@ containment is not in effect: check that the service account does **not** hold
 
 ### 5.4 The bar refuses the right people
 
-With `DCB_ADMIN_UI_CLIENT_ID` set and `DCB_ADMIN_UI_ACCESS_MODE=ENFORCE`. The service says
+With `DCB_SECURITY_ADMIN_UI_CLIENT_ID` set and `DCB_SECURITY_ADMIN_UI_MODE=ENFORCE`. The service says
 which state it is in at first use — look for
 `DCB Admin access bar is ENFORCE for client dcb-admin`, or `is OFF` if the client id never
 bound.

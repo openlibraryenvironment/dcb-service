@@ -67,7 +67,7 @@ deployment. That is most of the reason they are stored there.
 | Setting | Default | |
 |---|---|---|
 | `DCB_BRANDING_ASSETS_STORE` | `database` | `none` removes the upload routes |
-| `DCB_BRANDING_ASSETS_ORPHAN_GRACE` | `24h` | How long an unsaved upload is kept — see Orphans |
+| `DCB_BRANDING_ASSETS_ORPHAN_GRACE_PERIOD` | `24h` | How long an unsaved upload is kept — see Orphans |
 
 ### Telling the admin apps whether uploads are available
 
@@ -236,7 +236,7 @@ select asset_key, octet_length(bytes) as size_bytes, date_created
 from brand_asset order by date_created desc limit 5;
 ```
 
-**Expect** the row present. It stays for `DCB_BRANDING_ASSETS_ORPHAN_GRACE` (24h by
+**Expect** the row present. It stays for `DCB_BRANDING_ASSETS_ORPHAN_GRACE_PERIOD` (24h by
 default) and is then removed by the daily sweep — that window exists so the sweep cannot
 delete an image an administrator is part-way through choosing.
 
