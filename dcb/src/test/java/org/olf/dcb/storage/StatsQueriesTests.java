@@ -772,6 +772,29 @@ class StatsQueriesTests {
 	}
 
 	@Test
+	void aTrendExcludesARequestThatArrivedBeforeTheWindow() {
+		// The CTE is bounded by the window for scale, so MIN() inside it is the earliest
+		// arrival IN the window, not the first ever. A request that reached the status before
+		// the window and was re-audited inside it would otherwise appear as a fresh, fast one.
+		final var early = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(early, Instant.parse("2025-08-01T00:00:00Z"));
+		saveAudit(early, LOANED, Instant.parse("2025-08-02T00:00:00Z"));
+		saveAudit(early, LOANED, Instant.parse("2025-09-10T00:00:00Z"));
+
+		final var inside = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(inside, Instant.parse("2025-09-05T00:00:00Z"));
+		saveAudit(inside, LOANED, Instant.parse("2025-09-06T00:00:00Z"));
+
+		final var points = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
+			"month", "LOANED", null,
+			utc("2025-09-01T00:00:00Z"), utc("2025-10-01T00:00:00Z"), 1001));
+
+		assertThat(points, hasSize(1));
+		assertThat(points.get(0).sampleCount(), equalTo(1L));
+		assertThat(points.get(0).p50Seconds(), closeTo(86400.0, 1.0));
+	}
+
+	@Test
 	void supplierResponseTrendMeasuresPlacedToConfirmed() {
 		final var pr = saveRequest(CONFIRMED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
 		setDateCreated(pr, Instant.parse("2025-05-01T00:00:00Z"));

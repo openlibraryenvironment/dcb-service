@@ -454,12 +454,20 @@ public interface PatronRequestRepository {
 	// Creation to first reaching :targetStatus. MIN(audit_date) per request, so a status
 	// re-entered during tracking counts once - the rule findSupplierResponseSla already applies
 	// and the reason the headline turnaround query now applies it too.
+	//
+	// SCALE: the CTE is bounded by the WINDOW, not by all history, so its cost follows the
+	// requests in the window rather than the corpus. The NOT EXISTS pays for that: MIN over a
+	// bounded set is the earliest arrival IN the window, which for a status re-entered during
+	// tracking is not the first, so a request that already reached it before the window is
+	// excluded. One index probe per candidate on pra_to_status_idx.
 	@Query(
 		value = """
 			WITH reached AS (
 				SELECT pra.patron_request_id, MIN(pra.audit_date) AS reached_at
 				FROM patron_request_audit pra
 				WHERE pra.to_status = :targetStatus
+				  AND pra.audit_date >= :seriesStart
+				  AND pra.audit_date < :seriesEnd
 				GROUP BY pra.patron_request_id
 			)
 			SELECT date_trunc(:bucket, reached.reached_at) AT TIME ZONE 'UTC' AS bucket,
@@ -473,8 +481,12 @@ public interface PatronRequestRepository {
 			WHERE pr.status_code != 'ERROR'
 			  AND pr.active_workflow != 'RET-LOCAL'
 			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
-			  AND reached.reached_at >= :seriesStart
-			  AND reached.reached_at < :seriesEnd
+			  AND NOT EXISTS (
+				SELECT 1 FROM patron_request_audit earlier
+				WHERE earlier.patron_request_id = reached.patron_request_id
+				  AND earlier.to_status = :targetStatus
+				  AND earlier.audit_date < :seriesStart
+			  )
 			GROUP BY 1
 			ORDER BY 1
 			LIMIT :maxBuckets
@@ -493,6 +505,10 @@ public interface PatronRequestRepository {
 	// Placed at the supplier to confirmed by it - NOT creation to confirmed, which would fold
 	// DCB's own resolution time into the supplier's score. Same pair as findSupplierResponseSla,
 	// so the trend and the per-supplier panel cannot disagree.
+	//
+	// SCALE: the confirmations are bounded by the window and drive the query; the matching
+	// "placed" is a correlated MIN per candidate rather than an aggregate over all history, so
+	// neither side scans the corpus. Both probe pra_to_status_idx.
 	@Query(
 		value = """
 			SELECT date_trunc(:bucket, conf.first_date) AT TIME ZONE 'UTC' AS bucket,
@@ -505,20 +521,26 @@ public interface PatronRequestRepository {
 			JOIN (
 				SELECT patron_request_id, MIN(audit_date) AS first_date
 				FROM patron_request_audit
-				WHERE to_status = 'REQUEST_PLACED_AT_SUPPLYING_AGENCY'
-				GROUP BY patron_request_id
-			) placed ON placed.patron_request_id = pr.id
-			JOIN (
-				SELECT patron_request_id, MIN(audit_date) AS first_date
-				FROM patron_request_audit
 				WHERE to_status = 'CONFIRMED'
+				  AND audit_date >= :seriesStart
+				  AND audit_date < :seriesEnd
 				GROUP BY patron_request_id
 			) conf ON conf.patron_request_id = pr.id
+			JOIN LATERAL (
+				SELECT MIN(audit_date) AS first_date
+				FROM patron_request_audit
+				WHERE patron_request_id = pr.id
+				  AND to_status = 'REQUEST_PLACED_AT_SUPPLYING_AGENCY'
+			) placed ON TRUE
 			WHERE pr.local_item_hostlms_code IS NOT NULL
 			  AND conf.first_date >= placed.first_date
 			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
-			  AND conf.first_date >= :seriesStart
-			  AND conf.first_date < :seriesEnd
+			  AND NOT EXISTS (
+				SELECT 1 FROM patron_request_audit earlier
+				WHERE earlier.patron_request_id = pr.id
+				  AND earlier.to_status = 'CONFIRMED'
+				  AND earlier.audit_date < :seriesStart
+			  )
 			GROUP BY 1
 			ORDER BY 1
 			LIMIT :maxBuckets
