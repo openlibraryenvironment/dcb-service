@@ -444,7 +444,7 @@ public interface PatronRequestRepository {
 		int maxBuckets
 	);
 
-	// === Percentile trends. Semantics and edge effects: docs/insights.md 3.6 ===================
+	// === Percentile trends. Semantics and edge effects: docs/insights.md 3.9 ===================
 	//
 	// All three: bounds are LocalDateTime because audit_date is timestamp WITHOUT time zone,
 	// as the flow series above explains; each buckets on when the duration ENDED, so a closed
@@ -1140,7 +1140,7 @@ public interface PatronRequestRepository {
 
 	// "Unmet local demand": clusters the caller's own patrons requested, but to which none of
 	// the caller's libraries contributes a bib record. For a group that is "nobody here holds
-	// it", which is the acquisition question a group chair is asking - docs/insights.md 3.5.
+	// it", which is the acquisition question a group chair is asking - docs/insights.md 3.8.
 	// TopClusterStat only carries (clusterId, title, requestCount), so we select nothing more -
 	// the previous author/ISBN projection was computed per row and silently discarded.
 	@Query(

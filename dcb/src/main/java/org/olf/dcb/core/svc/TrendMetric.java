@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
  * names are rejected rather than defaulted, for the reason {@link TimeBucket#fromName} gives.
  *
  * <p>Each one buckets on when the duration ENDED, so a bucket is complete once it closes. Rationale
- * and the two edge effects that remain: {@code docs/insights.md} part 3.6.
+ * and the two edge effects that remain: {@code docs/insights.md} part 3.9.
  */
 public enum TrendMetric {
 

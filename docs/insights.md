@@ -68,8 +68,9 @@ optional `startDate` / `endDate` window.
 | **Collections (from the catalogue)** | `collection-totals`, `collection-profile`, `cluster-size-distribution`, `format-profile`, `collection-overlap` |
 | **Comparison** | `peer-benchmarks` |
 | **Partners** | `top-partners` (both directions, paged, ranked on the total — see §3.2a) |
+| **Trends** | `trend` (p50/p95 per bucket for one duration — see §3.9) |
 
-29 serde records carry the responses. All are `@Serdeable @Introspected` Java records — no
+30 serde records carry the responses. All are `@Serdeable @Introspected` Java records — no
 `Map<String, Object>` payloads, so the contract is in the type system and a consumer's
 codegen sees it.
 
@@ -317,6 +318,71 @@ Where an Insights query is adjacent to a write (the cluster-merge work), the wri
 leaves `date_updated` alone. That column drives the tracking sweeps; bumping it would drag
 long-completed requests back into the polling window and generate LMS traffic for requests that
 finished months ago.
+
+### 3.8 A multi-library scope is a set, and the gap questions move with its boundary
+
+`StatsScope` carries several Host LMS codes comma-separated, so every scoped query matches with
+`= ANY(string_to_array(:libraryCode, ','))`. Six did not: they compared with scalar equality
+against one code and returned nothing for a caller who administers several, which the scope
+selector in DCB Admin has always allowed. Because sixteen of the eighteen fetching components in
+that app have no error branch, the result rendered as "no data" rather than as a fault.
+
+The two collection-balance counts generalise mechanically. The four that reach a library's own
+bib records through its Host LMS are a **semantic** change, and the question they answer moves
+with the boundary of the set:
+
+| Query | One library | A set |
+|---|---|---|
+| Unmet local demand | requested by my patrons, I do not hold it | requested by any member, **nobody in the set** holds it |
+| Unique contributions | only I hold it in the consortium | **nobody outside the set** holds it |
+| Consortial lifeline | titles I supply, with my bib id | titles the set supplies, credited to the supplying member |
+| New acquisitions | my recent acquisitions, and their supply | the set's recent acquisitions |
+
+Two details are load-bearing. **Unique contributions is now `NOT EXISTS` over the set** rather
+than `COUNT(DISTINCT source_system_id) = 1`; the count only says the right thing when the set has
+one member. And **the `host_lms` join is on `pr.local_item_hostlms_code`, not on the requested
+set**: joining on the set pairs every request with every member's bib record for that cluster and
+multiplies the supply count. For a set of one both forms are identical, which is what keeps
+single-library figures unchanged.
+
+`StatsScopeGuard` refuses a set containing anything the caller does not administer, **whole**
+rather than narrowed. Narrowing would answer a different question under the same heading, and the
+reader could not tell which libraries the figures covered.
+
+### 3.9 Percentile trends: what a bucket means
+
+`/insights/trend` answers "is this getting worse", which the flow series in §3.3 cannot: that one
+counts events per bucket, and a duration is not an event count. One endpoint serves all three
+durations, with the metric named from a **fixed vocabulary the service owns** — `TrendMetric` —
+because a metric name reaches a native query and is never a column name the caller supplied. An
+unknown name is rejected rather than defaulted, exactly as `TimeBucket` rejects an unknown width.
+
+| Metric | Measures | Scoped on |
+|---|---|---|
+| `TURNAROUND_TO_STATUS` | creation to first reaching a target status | the borrowing library |
+| `SUPPLIER_RESPONSE` | placed at the supplier to confirmed by it | the **supplying** library |
+| `STATUS_DWELL` | dwell in one status, which is where both transit legs live | the borrowing library |
+
+`SUPPLIER_RESPONSE` is deliberately not "creation to confirmed": that folds DCB's own resolution
+time into a supplier's score. It is the same pair `findSupplierResponseSla` uses, so the trend and
+the per-supplier panel cannot disagree.
+
+Three properties of a bucket, all of which a reader has to know before trusting the line:
+
+- **A bucket is keyed on when the duration ENDED**, not when the request started, so a closed
+  bucket never changes afterwards. Bucketing on creation makes the newest buckets look fast,
+  because only the quick requests have finished — the bias would point the wrong way at exactly
+  the end of the chart people read first.
+- **An empty bucket is absent, not zero.** A bucket with no observations has no median, and a
+  zero reads as instant. The caller draws the gap; `sampleCount` says how far each point can be
+  trusted.
+- **A dwell whose entry falls before the window start is excluded**, because the window filter
+  sits inside the CTE — the same rule `findTimeInStatus` applies, so the panel and its trend agree.
+
+The headline turnaround query now takes `MIN(audit_date)` per request, which
+`findSupplierResponseSla` already did. Tracking can write a second audit into a status the request
+had already reached; without the rule that request contributed twice with different durations, and
+the tile would have disagreed with its own trend.
 
 ---
 
@@ -606,7 +672,7 @@ If you are about to change something in this list, read the section first:
 |---|---|
 | Every endpoint is scoped to the caller's own library | `StatsScopeArchitectureTests`, 4 tests |
 | Claim reading is correct for single- and multi-valued tokens, and empty is not "no restriction" | `CallerScopeTests`, 15 tests |
-| The queries return what they say | `StatsQueriesTests`, 18 tests |
+| The queries return what they say | `StatsQueriesTests`, 42 tests |
 | The collection analysis queries return what they say | `CollectionAnalysisQueriesTests`, 12 tests |
 | Only one catalogue aggregate runs at a time, results are cached, and an exhausted wait budget returns 429 | `CollectionAnalysisServiceTests`, 4 tests |
 | The migration applied and the indexes exist | `AnalyticsIndexTests`, 3 tests |
@@ -617,5 +683,10 @@ If you are about to change something in this list, read the section first:
 | `libraryName` tolerates a Host LMS with no library row | `StatsQueriesTests` — it failed on the non-null constructor before the annotation |
 | Trading partners are directional, named, exclude local fulfilment, and find a multi-library caller | `StatsQueriesTests.topPartners*`, 4 tests |
 | The combined ranking is on the total, keeps the split, excludes the caller's own group, and pages the whole ranking | `StatsQueriesTests.tradingPartners*`, 3 tests |
+| No route lets a caller omit a parameter that the query it calls cannot take as null | `InsightsNullableParameterArchitectureTests`, 2 tests — it reported exactly the four live defects on the code before this branch |
+| A library caller may ask for the whole set they administer, and a set containing anything else is refused whole | `StatsScopeGuardTests`, 6 tests |
+| Every gap query means the same thing for a set of one and moves its boundary for a group | `StatsQueriesTests` §3.8 tests, 5 tests |
+| A percentile trend buckets on completion, omits empty buckets, scopes to the set, and counts a re-entered status once | `StatsQueriesTests` §3.9 tests, 5 tests |
+| A catalogue record with no ISBN or author does not take an endpoint to 500 | `StatsQueriesTests.consortialLifeline*` — it failed on the non-null constructor before the annotation |
 
 Full suite not yet run against this branch; the figures above are the branch's own tests.

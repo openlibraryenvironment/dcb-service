@@ -198,7 +198,7 @@ public class InsightsController {
 	 * they took, which is the question "is the wait getting longer" actually asks.
 	 *
 	 * <p>Empty buckets are absent rather than zero - a bucket with no observations has no
-	 * median. Semantics and the edge effects: {@code docs/insights.md} part 3.6.
+	 * median. Semantics and the edge effects: {@code docs/insights.md} part 3.9.
 	 */
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
 	@Get("/trend")
