@@ -672,7 +672,7 @@ If you are about to change something in this list, read the section first:
 |---|---|
 | Every endpoint is scoped to the caller's own library | `StatsScopeArchitectureTests`, 4 tests |
 | Claim reading is correct for single- and multi-valued tokens, and empty is not "no restriction" | `CallerScopeTests`, 15 tests |
-| The queries return what they say | `StatsQueriesTests`, 42 tests |
+| The queries return what they say | `StatsQueriesTests`, 38 tests |
 | The collection analysis queries return what they say | `CollectionAnalysisQueriesTests`, 12 tests |
 | Only one catalogue aggregate runs at a time, results are cached, and an exhausted wait budget returns 429 | `CollectionAnalysisServiceTests`, 4 tests |
 | The migration applied and the indexes exist | `AnalyticsIndexTests`, 3 tests |
