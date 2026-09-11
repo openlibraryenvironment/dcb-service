@@ -854,6 +854,11 @@ public interface PatronRequestRepository {
 	//     picking the first, since a shared Host LMS genuinely serves several. Correlated on
 	//     the grouping column, so it runs once per partner over three small config tables.
 
+	// A NULL :libraryCode means the whole consortium, and the own-code exclusion lapses with
+	// it - there is no "we" to exclude. Micronaut Data throws IllegalArgumentException on a
+	// null bound to a parameter that is not @Nullable, so dropping either guard turns
+	// /insights/dashboard-metrics into a 500 for any caller who selects no library.
+
 	@Query(
 		value = """
 			SELECT pr.local_item_hostlms_code as partner_code,
@@ -864,9 +869,9 @@ public interface PatronRequestRepository {
 			         WHERE h.code = pr.local_item_hostlms_code) AS partner_name,
 			       COUNT(pr.id) as request_count
 			FROM patron_request pr
-			WHERE pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			WHERE (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
 			  AND pr.local_item_hostlms_code IS NOT NULL
-			  AND pr.local_item_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
+			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code <> ALL(string_to_array(:libraryCode, ',')))
 			  AND pr.status_code != 'ERROR'
 			  AND pr.active_workflow != 'RET-LOCAL'
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
@@ -878,7 +883,7 @@ public interface PatronRequestRepository {
 		nativeQuery = true
 	)
 	Flux<PartnerStat> findTopSuppliersForLibrary(
-		String libraryCode,
+		@Nullable String libraryCode,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -893,9 +898,9 @@ public interface PatronRequestRepository {
 			         WHERE h.code = pr.patron_hostlms_code) AS partner_name,
 			       COUNT(pr.id) as request_count
 			FROM patron_request pr
-			WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			WHERE (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
 			  AND pr.patron_hostlms_code IS NOT NULL
-			  AND pr.patron_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
+			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code <> ALL(string_to_array(:libraryCode, ',')))
 			  AND pr.status_code != 'ERROR'
 			  AND pr.active_workflow != 'RET-LOCAL'
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
@@ -907,7 +912,7 @@ public interface PatronRequestRepository {
 		nativeQuery = true
 	)
 	Flux<PartnerStat> findTopBorrowersFromLibrary(
-		String libraryCode,
+		@Nullable String libraryCode,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1055,7 +1060,8 @@ public interface PatronRequestRepository {
         """,
 		nativeQuery = true
 	)
-	Flux<ConsortialLifelineStat> findConsortialLifelineForLibrary(String libraryCode, Instant startDate, Instant endDate);
+	Flux<ConsortialLifelineStat> findConsortialLifelineForLibrary(String libraryCode,
+		@Nullable Instant startDate, @Nullable Instant endDate);
 
 	@Query(
 		value = """

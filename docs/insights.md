@@ -244,6 +244,22 @@ Four rules, shared by all three and worth keeping in step:
 `requestedLibraryCode` is mandatory on `/insights/top-partners`, even for a consortium
 administrator: "who do *we* trade with" needs a "we".
 
+It is **optional** on `dashboard-metrics`, which is the one partner view that means something
+with no library selected: the two lists then rank every supplier and every borrower in the
+consortium, and the own-code rule lapses because there is no "we" to exclude. That is not
+decoration — it is what a consortium administrator sees on the Insights page before choosing a
+library, and what every administrator sees on a consortium that has no libraries onboarded yet.
+Both queries carry a `:libraryCode IS NULL` branch and a `@Nullable` parameter for it: Micronaut
+Data throws `IllegalArgumentException` on a null bound to a parameter that is not `@Nullable`,
+before the query reaches Postgres, so omitting either half returns a 500 rather than a list.
+`StatsQueriesTests.topPartnersRankTheWholeConsortiumWhenNoLibraryIsNamed` holds the line for
+these two queries, and `InsightsNullableParameterArchitectureTests` holds it for the other
+thirty-six endpoints: it reads every repository call in the controller and fails the build when
+a route that lets a caller omit a parameter passes the resulting null into a query parameter
+that is not `@Nullable`. Run against the code before this fix it reports exactly four — both
+partner queries and the `consortial-lifeline` window — which is also the evidence that no other
+Insights endpoint has the same hole.
+
 **Paging.** The query carries neither `ORDER BY` nor `LIMIT` — Micronaut Data appends both from
 the `Pageable`, and a literal one would collide with what it appends. The controller supplies
 `total_count DESC` when the caller names no sort, so the default is still *top* partners rather

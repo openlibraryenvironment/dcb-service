@@ -38,6 +38,7 @@ import org.olf.dcb.core.api.serde.CollectionBalanceStat;
 import org.olf.dcb.core.api.serde.DemandHeatCell;
 import org.olf.dcb.core.api.serde.FailureReasonStat;
 import org.olf.dcb.core.api.serde.NetFlowStat;
+import org.olf.dcb.core.api.serde.PartnerStat;
 import org.olf.dcb.core.api.serde.PeerBenchmarkStat;
 import org.olf.dcb.core.api.serde.StatusDwellStat;
 import org.olf.dcb.core.api.serde.SupplierReliabilityStat;
@@ -601,6 +602,41 @@ class StatsQueriesTests {
 
 		assertThat(manyValuesFrom(
 			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null)), hasSize(0));
+	}
+
+	@Test
+	void consortialLifelineAcceptsAnOpenEndedWindow() {
+		// The window is optional on /insights/consortial-lifeline and the SQL already reads a
+		// NULL bound as "no limit", but Micronaut Data refuses to bind a null to a parameter
+		// that is not @Nullable before the query is ever sent.
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+
+		assertThat(manyValuesFrom(patronRequestRepository
+			.findConsortialLifelineForLibrary("SUP_A", null, null)), hasSize(0));
+	}
+
+	@Test
+	void topPartnersRankTheWholeConsortiumWhenNoLibraryIsNamed() {
+		// StatsScopeGuard hands a consortium-level caller a NULL library code and
+		// /insights/dashboard-metrics passes it to both partner queries, which is every
+		// Insights page load with no library selected.
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
+
+		final var suppliers = manyValuesFrom(
+			patronRequestRepository.findTopSuppliersForLibrary(null, null, null));
+
+		// No "we" to exclude, so every supplier counts and the three requests land together.
+		assertThat(suppliers, hasSize(1));
+		assertThat(suppliers.get(0).partnerCode(), equalTo("SUP_A"));
+		assertThat(suppliers.get(0).requestCount(), equalTo(3L));
+
+		final var borrowers = manyValuesFrom(
+			patronRequestRepository.findTopBorrowersFromLibrary(null, null, null));
+
+		assertThat(borrowers.stream().map(PartnerStat::partnerCode).toList(),
+			containsInAnyOrder("LIB_A", "LIB_B"));
 	}
 
 	@Test
