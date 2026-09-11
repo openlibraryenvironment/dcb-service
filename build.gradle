@@ -6,7 +6,7 @@ buildscript {
 		maven { url "https://maven.k-int.com/content/repositories/releases" }
 	}
 	dependencies {
-		classpath 'com.k_int.gradle:kint-gradle-plugin:2.2.1'
+		classpath 'com.k_int.gradle:k-int-gradle-plugin:3.1.0'
 	}
 }
 
