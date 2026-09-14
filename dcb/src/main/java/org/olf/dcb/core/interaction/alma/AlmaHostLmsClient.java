@@ -17,13 +17,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
-import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
@@ -63,7 +61,6 @@ import services.k_int.interaction.alma.types.UserIdentifier;
 import services.k_int.interaction.alma.types.WithAttr;
 import services.k_int.interaction.alma.types.error.AlmaError;
 import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
-import services.k_int.interaction.alma.types.error.AlmaException;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.types.items.AlmaItem;
 import services.k_int.interaction.alma.types.items.AlmaItemData;
@@ -276,67 +273,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		});
 	}
 
-	public Mono<AlmaLocation> fetchLocationByLocationCode(String locationCode) {
-		return fetchLocations()
-			.flatMap(response -> {
-				List<AlmaLocation> locations = response.getLocations();
-				if (locations == null || locations.isEmpty()) {
-					throw Problem.builder()
-						.withTitle("No locations available in Alma configuration")
-						.withDetail("No locations were returned from Alma for host LMS: " + getHostLmsCode())
-						.with("hostLmsCode", getHostLmsCode())
-						.build();
-				}
-
-				if (locationCode == null || locationCode.isBlank()) {
-					throw Problem.builder()
-						.withTitle("Location code is blank or null " + locationCode)
-						.withDetail("Could not find any Alma location with the exact code.")
-						.with("locationCode", locationCode)
-						.with("hostLmsCode", getHostLmsCode())
-						.build();
-				}
-
-				List<AlmaLocation> matchingLocations = locations.stream()
-					.filter(loc -> locationCode.equals(loc.getCode()))
-					.toList();
-
-				if (matchingLocations.isEmpty()) {
-					throw Problem.builder()
-						.withTitle("No matching location found for location code: " + locationCode)
-						.withDetail("Could not find any Alma location with the exact code.")
-						.with("locationCode", locationCode)
-						.with("hostLmsCode", getHostLmsCode())
-						.build();
-				}
-
-				if (matchingLocations.size() > 1) {
-					List<String> matchedNames = matchingLocations.stream()
-						.map(AlmaLocation::getName)
-						.toList();
-
-					throw Problem.builder()
-						.withTitle("Multiple locations found for location code: " + locationCode)
-						.withDetail("Expected a single matching location, but found multiple.")
-						.with("locationCode", locationCode)
-						.with("hostLmsCode", getHostLmsCode())
-						.with("matchingLocationNames", matchedNames)
-						.build();
-				}
-
-				if ("CLOSED".equalsIgnoreCase(matchingLocations.get(0).getType().getValue())) {
-					log.warn("The ALMA location corresponding to the item location code is unavailable. Falling back to our default location.");
-					// Use default pickup location code to fetch the default location
-				}
-				return Mono.just(matchingLocations.get(0));
-			});
-	}
-
 	public Mono<AlmaGroupedLocationResponse> fetchLocations() {
 		return client.retrieveLibraries()
 			.flatMapMany(librariesResponse -> {
 				List<AlmaLibraryResponse> libraries = librariesResponse.getLibraries();
-				log.info("Libraries for Alma are {}", libraries);
 				if (libraries == null || libraries.isEmpty()) {
 					return Flux.empty();
 				}
@@ -476,15 +416,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return false;
 	}
 
-	public static AlmaErrorResponse extractAlmaErrors(Throwable e) {
-		if (e instanceof AlmaException almaException) {
-			try {
-				return almaException.getErrorResponse();
-			} catch (Exception ex) {
-				log.error("Failed to get AlmaErrorResponse from AlmaException", ex);
-			}
-		}
+	private static final ObjectMapper ERROR_MAPPER = new ObjectMapper();
 
+	public static AlmaErrorResponse extractAlmaErrors(Throwable e) {
 		if (e instanceof DefaultProblem defaultProblem) {
 			Object rawError = defaultProblem.getParameters().get("Alma Error response");
 
@@ -494,9 +428,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 			if (rawError instanceof Map) {
 				try {
-					ObjectMapper mapper = new ObjectMapper();
-					AlmaErrorResponse response = mapper.convertValue(rawError, AlmaErrorResponse.class);
-					return response;
+					return ERROR_MAPPER.convertValue(rawError, AlmaErrorResponse.class);
 				} catch (Exception ex) {
 					log.error("Failed to convert map to AlmaErrorResponse", ex);
 				}
@@ -504,8 +436,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 			if (rawError instanceof String json) {
 				try {
-					ObjectMapper mapper = new ObjectMapper();
-					return mapper.readValue(json, AlmaErrorResponse.class);
+					return ERROR_MAPPER.readValue(json, AlmaErrorResponse.class);
 				} catch (Exception ex) {
 					log.error("Failed to parse AlmaErrorResponse from JSON string", ex);
 				}
@@ -624,7 +555,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.is_researcher(Boolean.FALSE)
 			.identifiers(userIdentifiers)
 			.external_id(externalId)
-			//.primary_id(externalId) // Workaround: to be removed once we understand where the primary_id is being lost
 			.account_type(CodeValuePair.builder().value(ACCOUNT_TYPE_EXTERNAL).build())
 			.build();
 	}
@@ -1036,10 +966,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			return Mono.error(new IllegalArgumentException("Item barcode is required for Alma checkout to determine library code."));
 		}
 
-		// Still get the old value were using for logging purposes so we know if this changes.
-		// Needs to be logged while we're testing this, logging to be removed before live
-		final var oldLibraryCode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLibraryCode);
-
 		log.info("Alma: Checking out item {} (barcode: {}) to patron {} (request: {}). Fetching item details to confirm library...",
 			itemId, itemBarcode, patronId, requestId);
 
@@ -1059,8 +985,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					return Mono.error(new IllegalStateException("Could not determine library code for item barcode: " + itemBarcode));
 				}
 
-				log.info("Alma: Proceeding with checkout for item {}. Corrected library: {}, Old Library: {}. Circ desk: {}",
-					itemId, correctLibraryCode, oldLibraryCode, pickupLocationCircuationDesk);
+				log.info("Alma: Proceeding with checkout for item {} at library {}, circ desk {}",
+					itemId, correctLibraryCode, pickupLocationCircuationDesk);
 
 				// Then just build the loan as we did before but with a new code
 				AlmaItemLoan almaItemLoan = AlmaItemLoan.builder()
@@ -1446,18 +1372,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.rawLocalStatus(response.getRequestStatus())
 			.requestedItemId(response.getItemId())
 			.requestedItemBarcode(response.getItemBarcode())
-			.build();
-	}
-
-	public HostLmsItem mapAlmaItemToHostLmsItem(AlmaItemData aid) {
-		return HostLmsItem.builder()
-			.localId(aid.getPid())
-			.barcode(aid.getBarcode())
-			.holdingId(aid.getHoldingData().getHoldingId())
-			.rawStatus(aid.getBaseStatus().getDesc())
-			.bibId(aid.getBibData().getMmsId())
-			.status(deriveItemStatus(aid).getCode().name())
-//			.holdCount()
 			.build();
 	}
 

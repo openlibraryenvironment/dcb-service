@@ -22,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.svc.BibRecordService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.alma.types.error.AlmaException;
 
 /**
  * Service to test interoperability with host library management systems.
@@ -213,16 +212,6 @@ public class InteropTestService {
 	}
 
 	private Mono<InteropTestResult> createErrorResult(String stage, String step, Throwable error) {
-
-		if (error instanceof AlmaException) {
-			return Mono.just(InteropTestResult.builder()
-				.stage(stage)
-				.step(step)
-				.result("ERROR")
-				.note(((AlmaException) error).toString())
-				.build());
-		}
-
 		return Mono.just(InteropTestResult.builder()
 			.stage(stage)
 			.step(step)

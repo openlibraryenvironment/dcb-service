@@ -90,7 +90,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			.header(HttpHeaders.AUTHORIZATION, apiKey);
 
 		return doExchange(request, Argument.of(responseType))
-			.map(response -> response.getBody().get());
+			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 
 	@Override

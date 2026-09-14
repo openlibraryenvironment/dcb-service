@@ -69,10 +69,6 @@ public class AlmaClientConfig {
 		return ITEM_POLICY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
-	String getShelfLocation() {
-		return SHELF_LOCATION_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), null);
-	}
-
 	String getPickupCircDesk(String defaultValue) {
 		return PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
