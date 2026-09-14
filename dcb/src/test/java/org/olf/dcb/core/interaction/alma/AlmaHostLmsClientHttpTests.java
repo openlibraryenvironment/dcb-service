@@ -121,6 +121,29 @@ class AlmaHostLmsClientHttpTests {
 		assertThat(problem.getParameters(), hasKey("Alma Error response"));
 	}
 
+	@Test
+	void shouldRetryACallRefusedForExceedingThePerSecondThreshold() {
+		mockServerClient.when(request()
+					.withMethod("GET")
+					.withPath("/almaws/v1/users/BAR4"),
+				Times.once())
+			.respond(response().withStatusCode(429)
+				.withBody(json(almaError("PER_SECOND_THRESHOLD", "HTTP requests are more than allowed per second"))));
+
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/BAR4"))
+			.respond(okJson(almaUser("BAR4")));
+
+		final var patron = singleValueFrom(client.getPatronByLocalId("BAR4"));
+
+		assertThat(patron.getLocalId(), contains("BAR4"));
+
+		mockServerClient.verify(request()
+			.withMethod("GET")
+			.withPath("/almaws/v1/users/BAR4"), VerificationTimes.exactly(2));
+	}
+
 	private static Map<String, Object> almaUser(String primaryId) {
 		return Map.of(
 			"primary_id", primaryId,

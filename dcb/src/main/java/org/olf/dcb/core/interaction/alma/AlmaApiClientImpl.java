@@ -16,11 +16,13 @@ import org.olf.dcb.core.model.HostLms;
 import org.zalando.problem.Problem;
 import org.zalando.problem.Status;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.error.AlmaError;
 import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
@@ -31,6 +33,14 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 @Secondary
 @Prototype
 public class AlmaApiClientImpl implements AlmaApiClient {
+
+	private static final String PER_SECOND_THRESHOLD = "PER_SECOND_THRESHOLD";
+
+	// Alma refuses a call over its per-second threshold without processing it, so retrying cannot repeat a write
+	private static final Retry PER_SECOND_THRESHOLD_RETRY = Retry.backoff(3, Duration.ofSeconds(1))
+		.jitter(0.5)
+		.filter(AlmaApiClientImpl::isPerSecondThreshold)
+		.onRetryExhaustedThrow((spec, signal) -> signal.failure());
 
 	private final HttpClient httpClient;
 	private final AlmaClientConfig config;
@@ -196,7 +206,8 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 				log.error("HTTP {} error for request to {}", status.getCode(), redactedPath(request.getPath()));
 				return Mono.error(ex); // fallback
-			});
+			})
+			.retryWhen(PER_SECOND_THRESHOLD_RETRY);
 	}
 
 	private Optional<AlmaErrorResponse> parseAlmaError(String body) {
@@ -209,5 +220,19 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	private static String redactedPath(String path) {
 		return path == null ? null : path.replaceFirst("/users/[^/]+", "/users/{user}");
+	}
+
+	private static boolean isPerSecondThreshold(Throwable error) {
+		// A 429 whose body could not be read cannot be told apart from the daily threshold; three retries of that are cheap
+		if (error instanceof HttpClientResponseException unparsed) {
+			return unparsed.getStatus().getCode() == 429;
+		}
+
+		final AlmaErrorResponse response = AlmaHostLmsClient.extractAlmaErrors(error);
+
+		return response != null && response.getErrorList() != null
+			&& response.getErrorList().getError() != null
+			&& response.getErrorList().getError().stream()
+				.anyMatch(almaError -> PER_SECOND_THRESHOLD.equals(almaError.getErrorCode()));
 	}
 }

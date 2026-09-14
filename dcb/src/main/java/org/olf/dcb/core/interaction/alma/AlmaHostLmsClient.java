@@ -123,16 +123,34 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return config.getSettings();
 	}
 	
+	// At most 4 items mapped at once per bib, each making one Alma call: Alma allows an institution 50 calls a second across every integration
+	private static final int ALMA_REQUEST_CONCURRENCY = 4;
+
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		return client.retrieveAllItems(bib.getSourceRecordId())
-			.flatMap(this::mapAlmaItemToDCBItem)
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
-			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
-			.onErrorContinue((throwable, item) -> {
-				log.warn("Mapping error for item {}: {}", item, throwable.getMessage());
-			})
+			.flatMapSequential(almaItem -> Mono.defer(() -> mapAlmaItemToDCBItem(almaItem))
+					.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
+					.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
+					.onErrorResume(error -> Mono.just(unmappableItem(almaItem, error))),
+				ALMA_REQUEST_CONCURRENCY)
 			.collectList();
+	}
+
+	// Returned with the reason rather than dropped, so one bad record neither hides its bib's other items nor vanishes
+	private Item unmappableItem(AlmaItem almaItem, Throwable error) {
+		final var itemId = getValueOrNull(almaItem, AlmaItem::getItemData, AlmaItemData::getPid);
+
+		log.warn("Could not map Alma item {} on {}", itemId, getHostLmsCode(), error);
+
+		return Item.builder()
+			.localId(itemId)
+			.status(new ItemStatus(ItemStatusCode.UNKNOWN))
+			.isRequestable(false)
+			.sourceHostLmsCode(getHostLmsCode())
+			.owningContext(getHostLmsCode())
+			.decisionLogEntry("Could not map this Alma item: " + error.getMessage())
+			.build();
 	}
 
 	// The minimum DCB should give Alma
@@ -1284,13 +1302,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// If we could, then we could remove the need for an extra call and make this a lot simpler.
 
 		return client.retrieveItemRequests(bibId, holdingId, itemId)
-			.map(AlmaRequests::getRecordCount)
+			.map(requests -> Optional.ofNullable(requests.getRecordCount()))
+			// An unknown hold count is not a count of zero
 			.onErrorResume(e -> {
-				// If the request fails (e.g., API error), log it and default to 0.
-				// This prevents one item's failure from breaking the whole list.
-				log.warn("Failed to retrieve hold count for item {} (bib: {}, holding: {}): {}. Defaulting to 0.",
+				log.warn("Failed to retrieve hold count for item {} (bib: {}, holding: {}): {}",
 					itemId, bibId, holdingId, e.getMessage());
-				return Mono.just(0);
+				return Mono.just(Optional.<Integer>empty());
 			})
 			.map(holdCount -> {
 				// Now we have the hold count, we can build the item.
@@ -1334,7 +1351,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.barcode(almaItem.getItemData().getBarcode())
 					.callNumber(almaItem.getHoldingData().getCallNumber())
 					.isRequestable(isRequestable)
-					.holdCount(holdCount)
+					.holdCount(holdCount.orElse(null))
 					.localBibId(bibId)
 					// this item type looks to be used for auditing
 					.localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
