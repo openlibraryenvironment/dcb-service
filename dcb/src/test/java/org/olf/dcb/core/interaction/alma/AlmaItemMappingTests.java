@@ -8,7 +8,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,16 +26,14 @@ import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.http.client.HttpClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.CodeValuePair;
-import services.k_int.interaction.alma.types.holdings.AlmaHolding;
-import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
 import services.k_int.interaction.alma.types.items.AlmaHoldingData;
 import services.k_int.interaction.alma.types.items.AlmaItem;
 import services.k_int.interaction.alma.types.items.AlmaItemData;
-import services.k_int.interaction.alma.types.items.AlmaItems;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequests;
 
 /**
@@ -133,29 +130,22 @@ class AlmaItemMappingTests {
 	}
 
 	private void givenItem(String libraryCode, String shelvingLocationCode) {
-		when(apiClient.retrieveHoldingsList("99123"))
-			.thenReturn(Mono.just(AlmaHoldings.builder()
-				.holdings(List.of(AlmaHolding.builder().holdingId("22456").build()))
-				.build()));
-
-		when(apiClient.retrieveItemsList("99123", "22456"))
-			.thenReturn(Mono.just(AlmaItems.builder()
-				.items(List.of(AlmaItem.builder()
-					.bibData(AlmaBib.builder().mmsId("99123").build())
-					.holdingData(AlmaHoldingData.builder().holdingId("22456").build())
-					.itemData(AlmaItemData.builder()
-						.pid("23789")
-						.barcode("6747664")
-						.baseStatus(CodeValuePair.builder().value("1").build())
-						.physicalMaterialType(CodeValuePair.builder().value("BOOK").build())
-						.library(libraryCode != null
-							? CodeValuePair.builder().value(libraryCode).build()
-							: null)
-						.location(shelvingLocationCode != null
-							? CodeValuePair.builder().value(shelvingLocationCode).build()
-							: null)
-						.build())
-					.build()))
+		when(apiClient.retrieveAllItems("99123"))
+			.thenReturn(Flux.just(AlmaItem.builder()
+				.bibData(AlmaBib.builder().mmsId("99123").build())
+				.holdingData(AlmaHoldingData.builder().holdingId("22456").build())
+				.itemData(AlmaItemData.builder()
+					.pid("23789")
+					.barcode("6747664")
+					.baseStatus(CodeValuePair.builder().value("1").build())
+					.physicalMaterialType(CodeValuePair.builder().value("BOOK").build())
+					.library(libraryCode != null
+						? CodeValuePair.builder().value(libraryCode).build()
+						: null)
+					.location(shelvingLocationCode != null
+						? CodeValuePair.builder().value(shelvingLocationCode).build()
+						: null)
+					.build())
 				.build()));
 
 		when(apiClient.retrieveItemRequests(any(), any(), any()))

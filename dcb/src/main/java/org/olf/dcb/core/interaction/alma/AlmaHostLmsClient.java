@@ -125,27 +125,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	
 	@Override
 	public Mono<List<Item>> getItems(BibRecord bib) {
-		// /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/
-		return client.retrieveHoldingsList(bib.getSourceRecordId())
-			.flatMapMany(holdingResponse -> {
-				List<AlmaHolding> holdings = holdingResponse.getHoldings();
-				if (holdings == null || holdings.isEmpty()) {
-					return Flux.empty();
-				}
-				return Flux.fromIterable(holdings)
-					.flatMap(holding -> client.retrieveItemsList(bib.getSourceRecordId(), holding.getHoldingId())
-						.onErrorResume(e -> {
-							log.warn("Failed to fetch items for holding ID {}: {}", holding.getHoldingId(), e.getMessage());
-							return Mono.empty(); // Skip this holding on error
-						}));
-			})
-			.flatMap(itemListResponse -> {
-				List<AlmaItem> items = itemListResponse.getItems();
-				if (items == null || items.isEmpty()) {
-					return Flux.empty();
-				}
-				return Flux.fromIterable(items);
-			})
+		return client.retrieveAllItems(bib.getSourceRecordId())
 			.flatMap(this::mapAlmaItemToDCBItem)
 			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
 			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)

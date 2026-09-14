@@ -2,6 +2,7 @@ package services.k_int.interaction.alma;
 
 import io.micronaut.http.MediaType;
 import org.olf.dcb.core.interaction.alma.AlmaHostLmsClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.AlmaUser;
@@ -14,6 +15,7 @@ import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequests;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -149,24 +151,34 @@ public interface AlmaApiClient {
 			.thenReturn("Holding deleted");
 	}
 
+	int ITEM_PAGE_SIZE = 100;
+
 	/**
-	 * Retrieve all holdings for a bib.
+	 * Retrieve one page of the items on a bib, across all of its holdings.
 	 * <p>
-	 * API: GET /almaws/v1/bibs/{mms_id}/holdings
-	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncw==/
+	 * API: GET /almaws/v1/bibs/{mms_id}/holdings/ALL/items?limit={limit}&amp;offset={offset}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXM=/
 	 */
-	default Mono<AlmaHoldings> retrieveHoldingsList(String mms_id) {
-		return get("/almaws/v1/bibs/" + mms_id + "/holdings", AlmaHoldings.class);
+	default Mono<AlmaItems> retrieveItemsPage(String mms_id, int offset) {
+		return get("/almaws/v1/bibs/" + mms_id + "/holdings/ALL/items", AlmaItems.class,
+			Map.of("limit", ITEM_PAGE_SIZE, "offset", offset));
 	}
 
 	/**
-	 * Retrieve items for a specific holding.
-	 * <p>
-	 * API: GET /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items
-	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXM=/
+	 * Every item on a bib, in ceil(items / 100) calls made one after another.
+	 * Alma's default page is 10 items, so an unpaged call silently loses the rest.
 	 */
-	default Mono<AlmaItems> retrieveItemsList(String mms_id, String holding_id) {
-		return get("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items", AlmaItems.class);
+	default Flux<AlmaItem> retrieveAllItems(String mms_id) {
+		return retrieveItemsPage(mms_id, 0)
+			.flatMapMany(first -> {
+				final int total = first.getRecordCount() != null ? first.getRecordCount() : 0;
+				final int pages = (total + ITEM_PAGE_SIZE - 1) / ITEM_PAGE_SIZE;
+
+				return Flux.range(1, Math.max(0, pages - 1))
+					.concatMap(page -> retrieveItemsPage(mms_id, page * ITEM_PAGE_SIZE))
+					.startWith(first);
+			})
+			.concatMapIterable(page -> page.getItems() != null ? page.getItems() : List.<AlmaItem>of());
 	}
 
 	/**
