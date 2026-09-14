@@ -35,6 +35,9 @@ public class AlmaClientConfig {
 		= stringPropertyDefinition("default-circ-desk-code", "Default circ desk code used for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition USER_IDENTIFIER
 		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
+	private static final HostLmsPropertyDefinition REQUEST_CANCELLATION_REASON
+		= stringPropertyDefinition("request-cancellation-reason",
+			"Code from the RequestCancellationReasons code table sent when DCB cancels a request", FALSE);
 
 	// Alma has no reliable way of getting a patron's home location.
 	// So we must create virtual items at a "DCB" location agreed with the Alma staff
@@ -82,6 +85,10 @@ public class AlmaClientConfig {
 		return USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
+	String getRequestCancellationReason() {
+		return REQUEST_CANCELLATION_REASON.getOptionalValueFrom(hostLms.getClientConfig(), null);
+	}
+
 	String getDcbSharingLibraryCode() {
 		return DCB_SHARING_LIBRARY_CODE.getRequiredConfigValue(hostLms);
 	}
@@ -95,7 +102,8 @@ public class AlmaClientConfig {
 			BASE_URL_SETTING,
 			API_KEY_SETTING,
 			ITEM_POLICY_SETTING,
-			SHELF_LOCATION_SETTING
+			SHELF_LOCATION_SETTING,
+			REQUEST_CANCELLATION_REASON
 		);
 	}
 

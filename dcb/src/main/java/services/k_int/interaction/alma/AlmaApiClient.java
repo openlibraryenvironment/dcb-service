@@ -15,6 +15,7 @@ import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequests;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -248,14 +249,25 @@ public interface AlmaApiClient {
 	}
 
 	/**
-	 * Delete user request.
+	 * Cancel a user request.
 	 * <p>
-	 * API: DELETE /almaws/v1/users/{user_id}/requests/{request_id}
+	 * API: DELETE /almaws/v1/users/{user_id}/requests/{request_id}?reason={reason}&amp;notify_user=false
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/REVMRVRFIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
+	 *
+	 * @param reason a RequestCancellationReasons code, or null to send none
 	 */
-	default Mono<String> cancelUserRequest(String user_id, String request_id) {
+	default Mono<String> cancelUserRequest(String user_id, String request_id, String reason) {
 		final String path = "/almaws/v1/users/" + user_id + "/requests/" + request_id;
-		return delete(path, Map.of("override", true))
+
+		final Map<String, Object> params = new HashMap<>();
+		params.put("override", true);
+		// Alma emails the requester by default; a cancellation DCB makes is housekeeping the patron did not ask for
+		params.put("notify_user", false);
+		if (reason != null) {
+			params.put("reason", reason);
+		}
+
+		return delete(path, params)
 			.thenReturn("Request deleted");
 	}
 

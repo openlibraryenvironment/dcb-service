@@ -648,15 +648,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> cancelHoldRequest(CancelHoldRequestParameters parameters) {
-		log.info("Alma cancellation is WIP for {} cancelHoldRequest({})", getHostLms().getName(), parameters);
-		// We may also need to set the status to CANCELLED
-
 		final var userId = getValueOrNull(parameters, CancelHoldRequestParameters::getPatronId);
 		final var localRequestId = getValueOrNull(parameters, CancelHoldRequestParameters::getLocalRequestId);
 
-		// WIP implementation of cancellation.
-		// We could support supplying a reason here but it has to be limited to Alma's valid RequestCancellationReasons
-		return client.cancelUserRequest(userId, localRequestId)
+		return client.cancelUserRequest(userId, localRequestId, config.getRequestCancellationReason())
 			.thenReturn(parameters.getLocalRequestId());
 	}
 
@@ -1092,7 +1087,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("deleteHold({},{})", userId, requestId);
 
-		return client.cancelUserRequest(userId, requestId);
+		return client.cancelUserRequest(userId, requestId, config.getRequestCancellationReason());
 	}
 
   public Mono<String> deletePatron(String id) {

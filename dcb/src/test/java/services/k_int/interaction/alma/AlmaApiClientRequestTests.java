@@ -41,6 +41,26 @@ class AlmaApiClientRequestTests {
 		assertThat(api.offsets, contains(0));
 	}
 
+	@Test
+	void shouldCancelARequestWithoutNotifyingThePatron() {
+		final var api = new RecordingAlmaApi(0);
+
+		api.cancelUserRequest("patron-id", "request-id", "PatronNotInterested").block();
+
+		assertThat(api.deleteParams.get("notify_user"), is(false));
+		assertThat(api.deleteParams.get("reason"), is("PatronNotInterested"));
+	}
+
+	@Test
+	void shouldSendNoReasonWhenNoneIsConfigured() {
+		final var api = new RecordingAlmaApi(0);
+
+		api.cancelUserRequest("patron-id", "request-id", null).block();
+
+		assertThat(api.deleteParams, not(hasKey("reason")));
+		assertThat(api.deleteParams.get("notify_user"), is(false));
+	}
+
 	private static class RecordingAlmaApi implements AlmaApiClient {
 		private final int totalItems;
 		private final List<Integer> offsets = new ArrayList<>();
