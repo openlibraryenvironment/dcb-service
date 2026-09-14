@@ -922,20 +922,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
-	// This will default to the raw status when no mapping is available
-	// The code of the resource sharing request status.
-	// Comes from the MandatoryBorrowingWorkflowSteps or OptionalBorrowingWorkflowSteps code tables.
+	// A user request's request_status is only ever NOT_STARTED, IN_PROCESS or ON_HOLD_SHELF (rest_user_request.xsd)
 	private String checkHoldStatus(String status) {
-		log.debug("Checking hold status: {}", status);
+		if (status == null) {
+			return null;
+		}
+
 		return switch (status) {
-			case "REJECTED", "LOCATE_FAILED", "HISTORY" -> HostLmsRequest.HOLD_CANCELLED;
-			case "PENDING_APPROVAL", "READY_TO_SEND", "REQUEST_SENT",
-					 "REQUEST_CREATED_BOR", "LOCATE_IN_PROCESS", "IN_PROCESS",
-					 // Edge case that the item has been put in transit by staff
-					 // before DCB had a chance to confirm the supplier request
-					 "SHIPPED_DIGITALLY", "SHIPPED_PHYSICALLY" -> HostLmsRequest.HOLD_CONFIRMED;
-			case "LOANED", "RECEIVED_DIGITALLY", "RECEIVED_PHYSICALLY" -> HostLmsRequest.HOLD_READY;
-			case "DELETED" -> HostLmsRequest.HOLD_MISSING;
+			case "NOT_STARTED", "IN_PROCESS" -> HostLmsRequest.HOLD_CONFIRMED;
+			case "ON_HOLD_SHELF" -> HostLmsRequest.HOLD_READY;
 			default -> status;
 		};
 	}
