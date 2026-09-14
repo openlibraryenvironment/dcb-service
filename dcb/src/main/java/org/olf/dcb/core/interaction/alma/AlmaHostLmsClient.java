@@ -1215,34 +1215,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		localNames.add(almaUser.getFirst_name());
 		localNames.add(almaUser.getLast_name());
 
-		// Extract BARCODE from user_identifiers with id_type="BARCODE"
-
-		// AlmaUser properties
-		// CodeValuePair record_type;
-		// String primary_id;
-		// String first_name;
-		// String last_name;
-		// Boolean is_researcher;
-		// String link;
-		// CodeValuePair gender;
-		// String password;
-		// CodeValuePair user_title;
-		// FACULTY, STAFF, GRAD, UNDRGRD, GUEST, ACADSTAFF, ALUM, PT
-		// CodeValuePair user_group;
-		// CodeValuePair campus_code;
-		// CodeValuePair preferred_language;
-		// EXTERNAL, INTERNAL, INTEXTAUTH
-		// CodeValuePair account_type;
-		// String external_id;
-		// ACTIVE, INACTIVE, DELETED
-		// CodeValuePair status;
-		// List<UserIdentifier> user_identifiers;
 		localBarcodes.add(almaUser.getPrimary_id());
 
 		// An absent status is treated as active — only an explicit INACTIVE/DELETED blocks the patron.
 		final var status = almaUser.getStatus() != null ? almaUser.getStatus().getValue() : null;
 		final var isDeleted = "DELETED".equalsIgnoreCase(status);
 		final var isActive = !isDeleted && !"INACTIVE".equalsIgnoreCase(status);
+
+		final var isBlocked = Optional.ofNullable(almaUser.getUser_blocks()).orElse(List.of()).stream()
+			.anyMatch(block -> "ACTIVE".equalsIgnoreCase(block.getBlock_status()));
 
 		final var expiryDate = parseAlmaExpiryDate(almaUser.getExpirationDate(), almaUser.getPrimary_id());
 
@@ -1253,15 +1234,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.uniqueIds(uniqueIds)
 			.localPatronType(almaUser.getUser_group().getValue())
 			.expiryDate(expiryDate != null ? Timestamp.valueOf(expiryDate.atStartOfDay()) : null)
-			//	.localHomeLibraryCode(almaUser.get)
-			// .canonicalPatronType
-			// .localItemId
-			// .localItemLocationId
 			.isDeleted(isDeleted)
-			.isBlocked(Boolean.FALSE)
-			// .city
-			// .postalCode
-			// .state
+			.isBlocked(isBlocked)
 			.isActive(isActive)
 			.build();
 	}
