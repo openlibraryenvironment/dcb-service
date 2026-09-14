@@ -271,14 +271,17 @@ public interface AlmaApiClient {
 			.thenReturn("Request deleted");
 	}
 
+	int LOAN_PAGE_SIZE = 100;
+
 	/**
-	 * Fetches all loans for a specific user.
+	 * Fetches one page of a user's loans; Alma's default page is 10.
 	 * <p>
-	 * API: GET /almaws/v1/users/{user_id}/loans
+	 * API: GET /almaws/v1/users/{user_id}/loans?limit={limit}&amp;offset={offset}
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L2xvYW5z/
 	 */
-	default Mono<AlmaItemLoans> retrieveUserLoans(String user_id) {
-		return get("/almaws/v1/users/" + user_id + "/loans", AlmaItemLoans.class);
+	default Mono<AlmaItemLoans> retrieveUserLoansPage(String user_id, int offset) {
+		return get("/almaws/v1/users/" + user_id + "/loans", AlmaItemLoans.class,
+			Map.of("limit", LOAN_PAGE_SIZE, "offset", offset));
 	}
 
 	/**

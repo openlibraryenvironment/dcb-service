@@ -655,24 +655,25 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.thenReturn(parameters.getLocalRequestId());
 	}
 
+	// At most 500 of the patron's loans are searched for the one being renewed
+	private static final int MAX_LOAN_PAGES = 5;
+
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal renewal) {
 		log.info("Starting direct renewal for patron {} and item {}", renewal.getLocalPatronId(), renewal.getLocalItemId());
 		final String patronId = renewal.getLocalPatronId();
-		final String itemId = renewal.getLocalItemId(); // Assumes this method exists
+		final String itemId = renewal.getLocalItemId();
 
 		if (itemId == null || itemId.isBlank()) {
 			return Mono.error(new IllegalArgumentException("Local Item ID is missing and required for renewal."));
 		}
 
-		// 1. Get all loans for the user.
-		return client.retrieveUserLoans(patronId)
-			.flatMap(userLoans -> {
-				// 2. Find the loan that matches the provided item ID.
-				return Mono.justOrEmpty(userLoans.getLoans().stream()
-					.filter(loan -> itemId.equals(loan.getItemId()))
-					.findFirst());
-			})
+		return Flux.range(0, MAX_LOAN_PAGES)
+			.concatMap(page -> client.retrieveUserLoansPage(patronId, page * AlmaApiClient.LOAN_PAGE_SIZE))
+			.takeUntil(page -> page.getLoans() == null || page.getLoans().size() < AlmaApiClient.LOAN_PAGE_SIZE)
+			.concatMapIterable(page -> page.getLoans() != null ? page.getLoans() : List.<AlmaItemLoan>of())
+			.filter(loan -> itemId.equals(loan.getItemId()))
+			.next()
 			.switchIfEmpty(Mono.error(new IllegalStateException("Could not find a matching loan for item ID " + itemId + " and patron " + patronId)))
 			.flatMap(matchedLoan -> {
 				final String loanId = matchedLoan.getLoanId();
