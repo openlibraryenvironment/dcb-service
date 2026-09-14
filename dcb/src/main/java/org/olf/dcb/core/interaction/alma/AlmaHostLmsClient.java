@@ -977,6 +977,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
+		return switch (crs) {
+			case TRANSIT, RECEIVED, COMPLETED -> scanInAtOwningLibrary(hostLmsItem);
+			case AVAILABLE, OFFSITE, MISSING, ONHOLDSHELF -> Mono.error(new UnsupportedOperationException(
+				"Alma has no item action for state " + crs));
+		};
+	}
+
+	private Mono<String> scanInAtOwningLibrary(HostLmsItem hostLmsItem) {
 		final var bibId = getValueOrNull(hostLmsItem, HostLmsItem::getBibId);
 		final var holdingsId = getValueOrNull(hostLmsItem, HostLmsItem::getHoldingId);
 		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
