@@ -1209,7 +1209,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		localNames.add(almaUser.getFirst_name());
 		localNames.add(almaUser.getLast_name());
 
-		localBarcodes.add(almaUser.getPrimary_id());
+		final var barcodeIdentifiers = Optional.ofNullable(almaUser.getIdentifiers()).orElse(List.of()).stream()
+			.filter(identifier -> ID_TYPE_BARCODE.equals(
+				getValueOrNull(identifier, UserIdentifier::getId_type, WithAttr::getValue)))
+			.map(UserIdentifier::getValue)
+			.filter(Objects::nonNull)
+			.toList();
+
+		// An institution's primary id is often an SIS or IdP id, so it stands in only for a user with no barcode
+		if (barcodeIdentifiers.isEmpty()) {
+			localBarcodes.add(almaUser.getPrimary_id());
+		} else {
+			localBarcodes.addAll(barcodeIdentifiers);
+		}
 
 		// An absent status is treated as active — only an explicit INACTIVE/DELETED blocks the patron.
 		final var status = almaUser.getStatus() != null ? almaUser.getStatus().getValue() : null;
@@ -1226,7 +1238,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.localNames(localNames)
 			.localBarcodes(localBarcodes)
 			.uniqueIds(uniqueIds)
-			.localPatronType(almaUser.getUser_group().getValue())
+			.localPatronType(getValueOrNull(almaUser, AlmaUser::getUser_group, CodeValuePair::getValue))
 			.expiryDate(expiryDate != null ? Timestamp.valueOf(expiryDate.atStartOfDay()) : null)
 			.isDeleted(isDeleted)
 			.isBlocked(isBlocked)
