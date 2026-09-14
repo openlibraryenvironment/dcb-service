@@ -103,6 +103,24 @@ class AlmaHostLmsClientHttpTests {
 			.withPath("/almaws/v1/users/BAR2"), VerificationTimes.never());
 	}
 
+	@Test
+	void shouldKeepHeadersAndBodiesOutOfTheProblemRaisedForAnAlmaError() {
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/BAR3"))
+			.respond(response().withStatusCode(400)
+				.withBody(json(almaError("401861", "User with identifier BAR3 was not found"))));
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> client.getPatronByLocalId("BAR3").block());
+
+		assertThat(problem.getParameters(), not(hasKey("Request Headers")));
+		assertThat(problem.getParameters(), not(hasKey("Request Body")));
+		assertThat(problem.getParameters(), not(hasKey("Raw Error Body")));
+		assertThat(problem.getParameters().toString(), not(containsString("alma-api-key")));
+		assertThat(problem.getParameters(), hasKey("Alma Error response"));
+	}
+
 	private static Map<String, Object> almaUser(String primaryId) {
 		return Map.of(
 			"primary_id", primaryId,

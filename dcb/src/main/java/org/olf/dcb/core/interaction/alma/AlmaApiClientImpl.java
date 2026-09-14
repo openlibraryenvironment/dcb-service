@@ -67,8 +67,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	@Override
 	public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType) {
-		log.debug("POST request (custom content type) to: {}", path);
-
 		final URI baseUri = resolve(UriBuilder.of(path).build());
 		final UriBuilder uriBuilder = UriBuilder.of(baseUri);
 		if (queryParams != null) queryParams.forEach(uriBuilder::queryParam);
@@ -114,8 +112,6 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	private <T> Mono<T> request(HttpMethod method, String path,
 		Object body, Class<T> responseType, Map<String, Object> queryParams) {
 
-		log.info("Creating request for {} {}", method, path);
-
 		final URI baseUri = resolve(UriBuilder.of(path).build());
 		final UriBuilder uriBuilder = UriBuilder.of(baseUri);
 
@@ -141,7 +137,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 				} else {
 					// we should not get here but if we do be explicit about it
 					sink.error(new HttpClientResponseException(
-						"HTTP " + resp.getStatus() + " for " + finalUri, resp));
+						"HTTP " + resp.getStatus() + " for " + redactedPath(finalUri.getPath()), resp));
 				}
 			});
 	}
@@ -151,88 +147,67 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {
-		String bodyJson = "null";
-		if (request.getBody().isPresent()) {
-			try {
-				bodyJson = objectMapper.writeValueAsString(request.getBody().get());
-			} catch (Exception e) {
-				bodyJson = "Failed to serialize: " + e.getMessage();
-			}
-		}
-
-		log.debug("Starting exchange for - \n  Method: {}, \n  URI: {}, \n  argumentType: {}, \n  body: {}, \n  headers: {}",
-			request.getMethod(), request.getUri(), argumentType, bodyJson, request.getHeaders().asMap());
-
-		// So we can use the body in error messages
-		String finalBodyJson = bodyJson;
+		log.debug("Alma {} {}", request.getMethod(), redactedPath(request.getPath()));
 
 		return Mono.from(httpClient.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
 
 				if (response.getBody().isPresent()) {
-					log.debug("Response body: {}", response.getBody().get());
 					return Mono.just(response);
 
 				} else if (response.getBody().isEmpty() && argumentType.equalsType(Argument.of(Void.class))) {
-					log.warn("Response body is empty for request to {} with expected type {}", request.getPath(), argumentType.getType().getSimpleName());
 					return Mono.just(response);
 				}
 
 				else {
 					String errorMsg = String.format("Response body is empty for request to %s with expected type %s",
-						request.getPath(), argumentType.getType().getSimpleName());
+						redactedPath(request.getPath()), argumentType.getType().getSimpleName());
 					log.error(errorMsg);
 					return Mono.error(new IllegalStateException(errorMsg));
 				}
 			})
 			.onErrorResume(HttpClientResponseException.class, ex -> {
 				HttpStatus status = ex.getStatus();
-				Optional<String> responseBody = ex.getResponse().getBody(String.class);
+				Optional<AlmaErrorResponse> almaError = ex.getResponse().getBody(String.class)
+					.flatMap(this::parseAlmaError);
 
-				if (responseBody.isPresent()) {
+				if (almaError.isPresent()) {
+					AlmaErrorResponse errorResponse = almaError.get();
 
-					Optional<AlmaErrorResponse> almaError = Optional.empty();
-					try {
-						almaError = Optional.of(objectMapper.readValue(responseBody.get(), AlmaErrorResponse.class));
-					} catch (Exception e) {
-						log.error("Conversion service failed to convert response body to AlmaErrorResponse: {}", responseBody.get(), e);
-					}
-
-					if (almaError.isPresent()) {
-						AlmaErrorResponse errorResponse = almaError.get();
-
-						StringBuilder logMsg = new StringBuilder();
-						logMsg.append(String.format("Alma API error for %s (HTTP %d)", request.getPath(), status.getCode()));
-						if (errorResponse.getErrorList() != null && errorResponse.getErrorList().getError() != null) {
-							for (AlmaError e : errorResponse.getErrorList().getError()) {
-								logMsg.append(String.format("%n - [%s] %s", e.getErrorCode(), e.getErrorMessage()));
-							}
+					StringBuilder logMsg = new StringBuilder();
+					logMsg.append(String.format("Alma API error for %s (HTTP %d)", redactedPath(request.getPath()), status.getCode()));
+					if (errorResponse.getErrorList() != null && errorResponse.getErrorList().getError() != null) {
+						for (AlmaError e : errorResponse.getErrorList().getError()) {
+							logMsg.append(String.format("%n - [%s]", e.getErrorCode()));
 						}
-						log.error(logMsg.toString());
-//						return Mono.error(new AlmaException("Alma API error", errorResponse, status));
-
-						String requestUri = request.getUri().toString();
-
-						// lets try to bubble up as much info as possible about the request error
-						return raiseError(Problem.builder()
-							.withTitle("Alma API Error")
-							.withStatus(Status.valueOf(status.getCode()))
-							.withDetail(requestUri)
-							.with("Request Method", request.getMethod().name())
-							.with("Request path", request.getPath())
-							.with("Server name", request.getServerName() != null ? request.getServerName() : "Unknown")
-							.with("Request Headers", request.getHeaders().asMap())
-							.with("Request Body", finalBodyJson)
-							.with("Alma Error response", errorResponse)
-							.with("Raw Error Body", responseBody.get() != null ? responseBody.get() : "No body")
-							.build());
-					} else {
-						log.error("Failed to convert error body to AlmaErrorResponse for request to {}", request.getPath());
 					}
+					log.error(logMsg.toString());
+
+					// These parameters are copied into patron request audit data, so they carry no headers or bodies
+					return raiseError(Problem.builder()
+						.withTitle("Alma API Error")
+						.withStatus(Status.valueOf(status.getCode()))
+						.withDetail(request.getMethod().name() + " " + request.getPath())
+						.with("Request Method", request.getMethod().name())
+						.with("Request path", request.getPath())
+						.with("Alma Error response", errorResponse)
+						.build());
 				}
 
-				log.error("HTTP {} error for request to {}: {}", status.getCode(), request.getPath(), responseBody.orElse("No body"), ex);
+				log.error("HTTP {} error for request to {}", status.getCode(), redactedPath(request.getPath()));
 				return Mono.error(ex); // fallback
 			});
+	}
+
+	private Optional<AlmaErrorResponse> parseAlmaError(String body) {
+		try {
+			return Optional.ofNullable(objectMapper.readValue(body, AlmaErrorResponse.class));
+		} catch (Exception e) {
+			return Optional.empty();
+		}
+	}
+
+	private static String redactedPath(String path) {
+		return path == null ? null : path.replaceFirst("/users/[^/]+", "/users/{user}");
 	}
 }
