@@ -741,8 +741,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				return user;
 			})
 			// Alma keeps an external user's existing user_group unless the PUT names it in override
-			.flatMap(user -> client.put("/almaws/v1/users/" + localId, user, AlmaUser.class,
-				Map.of("override", "user_group")))
+			.flatMap(user -> client.updateUserDetails(localId, user, Map.of("override", "user_group")))
 			.map(this::almaUserToPatron);
 	}
 

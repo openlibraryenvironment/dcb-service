@@ -77,7 +77,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 
 	@Override
 	public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType) {
-		final URI baseUri = resolve(UriBuilder.of(path).build());
+		final URI baseUri = resolve(URI.create(path));
 		final UriBuilder uriBuilder = UriBuilder.of(baseUri);
 		if (queryParams != null) queryParams.forEach(uriBuilder::queryParam);
 		final URI finalUri = uriBuilder.build();
@@ -122,7 +122,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 	private <T> Mono<T> request(HttpMethod method, String path,
 		Object body, Class<T> responseType, Map<String, Object> queryParams) {
 
-		final URI baseUri = resolve(UriBuilder.of(path).build());
+		final URI baseUri = resolve(URI.create(path));
 		final UriBuilder uriBuilder = UriBuilder.of(baseUri);
 
 		if (queryParams != null) queryParams.forEach(uriBuilder::queryParam);

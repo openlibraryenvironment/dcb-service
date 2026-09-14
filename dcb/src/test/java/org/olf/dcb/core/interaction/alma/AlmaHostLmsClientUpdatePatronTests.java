@@ -36,7 +36,6 @@ import services.k_int.interaction.alma.types.CodeValuePair;
 
 @TestInstance(PER_CLASS)
 class AlmaHostLmsClientUpdatePatronTests {
-	private static final String PATH = "/almaws/v1/users/patron-id";
 	private static final Map<String, Object> OVERRIDE_USER_GROUP = Map.of("override", "user_group");
 
 	private AlmaApiClient almaApi;
@@ -77,15 +76,15 @@ class AlmaHostLmsClientUpdatePatronTests {
 			.build();
 
 		when(almaApi.getUserDetails("patron-id")).thenReturn(Mono.just(existing));
-		when(almaApi.put(eq(PATH), any(), eq(AlmaUser.class), eq(OVERRIDE_USER_GROUP)))
+		when(almaApi.updateUserDetails(eq("patron-id"), any(), eq(OVERRIDE_USER_GROUP)))
 			.thenReturn(Mono.just(existing));
 
 		PublisherUtils.singleValueFrom(sut.updatePatron("patron-id", "GRAD"));
 
-		final var body = ArgumentCaptor.forClass(Object.class);
-		verify(almaApi).put(eq(PATH), body.capture(), eq(AlmaUser.class), eq(OVERRIDE_USER_GROUP));
+		final var body = ArgumentCaptor.forClass(AlmaUser.class);
+		verify(almaApi).updateUserDetails(eq("patron-id"), body.capture(), eq(OVERRIDE_USER_GROUP));
 
-		final var sent = (AlmaUser) body.getValue();
+		final var sent = body.getValue();
 
 		assertThat(sent.getUser_group().getValue(), is("GRAD"));
 		assertThat(sent.getExpirationDate(), is("2027-01-31Z"));

@@ -144,6 +144,18 @@ class AlmaHostLmsClientHttpTests {
 			.withPath("/almaws/v1/users/BAR4"), VerificationTimes.exactly(2));
 	}
 
+	@Test
+	void shouldSendAnIdentifierContainingASlashAsOnePathSegment() {
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/A%2FB"))
+			.respond(okJson(almaUser("A/B")));
+
+		final var patron = singleValueFrom(client.getPatronByLocalId("A/B"));
+
+		assertThat(patron.getLocalId(), contains("A/B"));
+	}
+
 	private static Map<String, Object> almaUser(String primaryId) {
 		return Map.of(
 			"primary_id", primaryId,

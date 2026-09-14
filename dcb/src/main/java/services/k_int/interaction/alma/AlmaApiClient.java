@@ -1,6 +1,7 @@
 package services.k_int.interaction.alma;
 
 import io.micronaut.http.MediaType;
+import io.micronaut.http.uri.UriBuilder;
 import org.olf.dcb.core.interaction.alma.AlmaHostLmsClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -8,7 +9,6 @@ import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.AlmaUser;
 import services.k_int.interaction.alma.types.AlmaUserList;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
-import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequest;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
@@ -49,6 +49,17 @@ public interface AlmaApiClient {
 	}
 
 	/**
+	 * An identifier as a single percent-encoded path segment, so a value containing / or ?
+	 * cannot change which Alma resource is called.
+	 */
+	static String pathSegment(String value) {
+		return UriBuilder.of("/{segment}")
+			.expand(Map.<String, Object>of("segment", String.valueOf(value)))
+			.getRawPath()
+			.substring(1);
+	}
+
+	/**
 	 * List all users.
 	 * <p>
 	 * API: GET /almaws/v1/users
@@ -84,7 +95,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
 	 */
 	default Mono<AlmaUser> getUserDetails(String user_id) {
-		return get("/almaws/v1/users/" + user_id, AlmaUser.class);
+		return get("/almaws/v1/users/" + pathSegment(user_id), AlmaUser.class);
 	}
 
 	/**
@@ -104,7 +115,11 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJz/
 	 */
 	default Mono<AlmaUser> updateUserDetails(String userId, AlmaUser patron) {
-		return put("/almaws/v1/users/" + userId, patron, AlmaUser.class);
+		return updateUserDetails(userId, patron, Collections.emptyMap());
+	}
+
+	default Mono<AlmaUser> updateUserDetails(String userId, AlmaUser patron, Map<String, Object> queryParams) {
+		return put("/almaws/v1/users/" + pathSegment(userId), patron, AlmaUser.class, queryParams);
 	}
 
 	/**
@@ -114,7 +129,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/REVMRVRFIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
 	 */
 	default Mono<String> deleteUser(String user_id) {
-		return delete("/almaws/v1/users/" + user_id)
+		return delete("/almaws/v1/users/" + pathSegment(user_id))
 			.thenReturn("User deleted");
 	}
 
@@ -125,7 +140,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/REVMRVRFIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfQ==/
 	 */
 	default Mono<String> deleteBibRecord(String mms_id) {
-		return delete("/almaws/v1/bibs/" + mms_id, Map.of("override", true))
+		return delete("/almaws/v1/bibs/" + pathSegment(mms_id), Map.of("override", true))
 			.thenReturn("Bib deleted");
 	}
 
@@ -136,7 +151,8 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/REVMRVRFIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1fcGlkfQ==/
 	 */
 	default Mono<String> withdrawItem(String mms_id, String holding_id, String item_pid) {
-		final String path = "/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items/" + item_pid;
+		final String path = "/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/" + pathSegment(holding_id)
+			+ "/items/" + pathSegment(item_pid);
 		return delete(path, Map.of("override", true))
 			.thenReturn("Item deleted");
 	}
@@ -148,7 +164,8 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/REVMRVRFIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0=/
 	 */
 	default Mono<String> deleteHoldingsRecord(String mms_id, String holding_id) {
-		return delete("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id, Map.of("override", true))
+		return delete("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/" + pathSegment(holding_id),
+			Map.of("override", true))
 			.thenReturn("Holding deleted");
 	}
 
@@ -161,7 +178,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXM=/
 	 */
 	default Mono<AlmaItems> retrieveItemsPage(String mms_id, int offset) {
-		return get("/almaws/v1/bibs/" + mms_id + "/holdings/ALL/items", AlmaItems.class,
+		return get("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/ALL/items", AlmaItems.class,
 			Map.of("limit", ITEM_PAGE_SIZE, "offset", offset));
 	}
 
@@ -189,7 +206,8 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1fcGlkfQ==/
 	 */
 	default Mono<AlmaItem> retrieveItem(String mms_id, String holding_id, String item_pid) {
-		return get("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items/" + item_pid, AlmaItem.class);
+		return get("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/" + pathSegment(holding_id)
+			+ "/items/" + pathSegment(item_pid), AlmaItem.class);
 	}
 
 	/**
@@ -211,7 +229,8 @@ public interface AlmaApiClient {
 	 * @return A Mono emitting the list of requests
 	 */
 	default Mono<AlmaRequests> retrieveItemRequests(String mmsId, String holdingId, String itemId) {
-		return get("/almaws/v1/bibs/" + mmsId + "/holdings/" + holdingId + "/items/" + itemId + "/requests", AlmaRequests.class);
+		return get("/almaws/v1/bibs/" + pathSegment(mmsId) + "/holdings/" + pathSegment(holdingId)
+			+ "/items/" + pathSegment(itemId) + "/requests", AlmaRequests.class);
 	}
 
 	/**
@@ -221,7 +240,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfS9yZXF1ZXN0cw==/
 	 */
 	default Mono<AlmaRequestResponse> createUserRequest(String user_id, String item_pid, AlmaRequest almaRequest) {
-		return post("/almaws/v1/users/" + user_id + "/requests", almaRequest,
+		return post("/almaws/v1/users/" + pathSegment(user_id) + "/requests", almaRequest,
 			AlmaRequestResponse.class, Map.of("item_pid", item_pid));
 	}
 
@@ -234,7 +253,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3Rz/
 	 */
 	default Mono<AlmaRequests> retrieveUserHoldRequests(String user_id) {
-		return get("/almaws/v1/users/" + user_id + "/requests", AlmaRequests.class,
+		return get("/almaws/v1/users/" + pathSegment(user_id) + "/requests", AlmaRequests.class,
 			Map.of("request_type", "HOLD"));
 	}
 
@@ -245,7 +264,8 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3RzL3tyZXF1ZXN0X2lkfQ==/
 	 */
 	default Mono<AlmaRequestResponse> retrieveUserRequest(String user_id, String request_id) {
-		return get("/almaws/v1/users/" + user_id + "/requests/" + request_id, AlmaRequestResponse.class);
+		return get("/almaws/v1/users/" + pathSegment(user_id) + "/requests/" + pathSegment(request_id),
+			AlmaRequestResponse.class);
 	}
 
 	/**
@@ -257,7 +277,7 @@ public interface AlmaApiClient {
 	 * @param reason a RequestCancellationReasons code, or null to send none
 	 */
 	default Mono<String> cancelUserRequest(String user_id, String request_id, String reason) {
-		final String path = "/almaws/v1/users/" + user_id + "/requests/" + request_id;
+		final String path = "/almaws/v1/users/" + pathSegment(user_id) + "/requests/" + pathSegment(request_id);
 
 		final Map<String, Object> params = new HashMap<>();
 		params.put("override", true);
@@ -280,7 +300,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L2xvYW5z/
 	 */
 	default Mono<AlmaItemLoans> retrieveUserLoansPage(String user_id, int offset) {
-		return get("/almaws/v1/users/" + user_id + "/loans", AlmaItemLoans.class,
+		return get("/almaws/v1/users/" + pathSegment(user_id) + "/loans", AlmaItemLoans.class,
 			Map.of("limit", LOAN_PAGE_SIZE, "offset", offset));
 	}
 
@@ -291,7 +311,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfS9sb2Fucw==/
 	 */
 	default Mono<AlmaItemLoanResponse> createUserLoan(String user_id, String item_pid, AlmaItemLoan loan) {
-		return post("/almaws/v1/users/" + user_id + "/loans", loan,
+		return post("/almaws/v1/users/" + pathSegment(user_id) + "/loans", loan,
 			AlmaItemLoanResponse.class, Map.of("item_pid", item_pid));
 	}
 
@@ -302,7 +322,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfS9sb2Fucy97bG9hbl9pZH0=/
 	 */
 	default Mono<AlmaItemLoan> renewLoan(String user_id, String loan_id) {
-		return post("/almaws/v1/users/" + user_id + "/loans/" + loan_id,
+		return post("/almaws/v1/users/" + pathSegment(user_id) + "/loans/" + pathSegment(loan_id),
 			null, AlmaItemLoan.class, Map.of("op", "renew"));
 	}
 
@@ -323,7 +343,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/libraries/
 	 */
 	default Mono<AlmaLocationResponse> retrieveLocations(String libraryCode) {
-		return get("/almaws/v1/conf/libraries/" + libraryCode + "/locations", AlmaLocationResponse.class);
+		return get("/almaws/v1/conf/libraries/" + pathSegment(libraryCode) + "/locations", AlmaLocationResponse.class);
 	}
 
 	/**
@@ -343,7 +363,7 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UE9TVCAvYWxtYXdzL3YxL2JpYnMve21tc19pZH0vaG9sZGluZ3M=/
 	 */
 	default Mono<AlmaHolding> createHoldingRecord(String mms_id, String holdingXml) {
-		return postXml("/almaws/v1/bibs/" + mms_id + "/holdings", holdingXml, AlmaHolding.class);
+		return postXml("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings", holdingXml, AlmaHolding.class);
 	}
 
 	/**
@@ -353,7 +373,8 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UE9TVCAvYWxtYXdzL3YxL2JpYnMve21tc19pZH0vaG9sZGluZ3Mve2hvbGRpbmdfaWR9L2l0ZW1z/
 	 */
 	default Mono<AlmaItem> createItem(String mms_id, String holding_id, AlmaItem item) {
-		return post("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items", item, AlmaItem.class);
+		return post("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/" + pathSegment(holding_id) + "/items",
+			item, AlmaItem.class);
 	}
 
 	/**
@@ -363,7 +384,8 @@ public interface AlmaApiClient {
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/UFVUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1fcGlkfQ==/
 	 */
 	default Mono<AlmaItem> updateItem(String mms_id, String holding_id, String item_pid, AlmaItem item) {
-		return put("/almaws/v1/bibs/" + mms_id + "/holdings/" + holding_id + "/items/" + item_pid, item, AlmaItem.class);
+		return put("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/" + pathSegment(holding_id)
+			+ "/items/" + pathSegment(item_pid), item, AlmaItem.class);
 	}
 
 	/**
@@ -384,7 +406,8 @@ public interface AlmaApiClient {
 	 */
 	default Mono<AlmaItem> scanIn(AlmaHostLmsClient.ScanInQuery query) {
 		return post(
-			"/almaws/v1/bibs/" + query.mms_id() + "/holdings/" + query.holding_id() + "/items/" + query.item_pid(),
+			"/almaws/v1/bibs/" + pathSegment(query.mms_id()) + "/holdings/" + pathSegment(query.holding_id())
+				+ "/items/" + pathSegment(query.item_pid()),
 			null,
 			AlmaItem.class,
 			Map.of("op", "scan", "library", query.library(), "circ_desk", query.circ_desk()));
@@ -396,7 +419,8 @@ public interface AlmaApiClient {
 	 * API: GET /almaws/v1/conf/libraries/{libraryCode}/locations/{locationCode}
 	 */
 	default Mono<AlmaLocation> retrieveLocation(String libraryCode, String locationCode) {
-		return get("/almaws/v1/conf/libraries/" + libraryCode + "/locations/" + locationCode, AlmaLocation.class);
+		return get("/almaws/v1/conf/libraries/" + pathSegment(libraryCode) + "/locations/" + pathSegment(locationCode),
+			AlmaLocation.class);
 	}
 
 	/**
@@ -405,6 +429,6 @@ public interface AlmaApiClient {
 	 * API: POST /almaws/v1/conf/libraries/{libraryCode}/locations
 	 */
 	default Mono<AlmaLocation> createLocation(String libraryCode, AlmaLocation location) {
-		return post("/almaws/v1/conf/libraries/" + libraryCode + "/locations", location, AlmaLocation.class);
+		return post("/almaws/v1/conf/libraries/" + pathSegment(libraryCode) + "/locations", location, AlmaLocation.class);
 	}
 }

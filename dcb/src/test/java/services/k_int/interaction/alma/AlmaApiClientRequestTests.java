@@ -61,6 +61,15 @@ class AlmaApiClientRequestTests {
 		assertThat(api.deleteParams.get("notify_user"), is(false));
 	}
 
+	@Test
+	void shouldEncodeAnIdentifierAsASinglePathSegment() {
+		final var api = new RecordingAlmaApi(0);
+
+		api.getUserDetails("A/B").block();
+
+		assertThat(api.lastPath, is("/almaws/v1/users/A%2FB"));
+	}
+
 	private static class RecordingAlmaApi implements AlmaApiClient {
 		private final int totalItems;
 		private final List<Integer> offsets = new ArrayList<>();
@@ -74,10 +83,15 @@ class AlmaApiClientRequestTests {
 		@Override
 		@SuppressWarnings("unchecked")
 		public <T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams) {
+			lastPath = path;
+
+			if (!queryParams.containsKey("offset")) {
+				return Mono.empty();
+			}
+
 			final int offset = (Integer) queryParams.get("offset");
 			final int limit = (Integer) queryParams.get("limit");
 
-			lastPath = path;
 			offsets.add(offset);
 
 			final var page = IntStream.range(offset, Math.min(offset + limit, totalItems))
