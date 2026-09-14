@@ -817,7 +817,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		log.info("Create item for Alma with {}. Targeting Library: {}", cic, targetLibraryCode);
 
 		return Mono.zip(
-				checkOrCreateVirtualLocation(targetLibraryCode),
+				requireVirtualLocation(targetLibraryCode),
 				getMappedItemType(cic.getCanonicalItemType())
 			)
 			.flatMap(tuple -> {
@@ -1498,32 +1498,18 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return result;
 	}
 
-	// If the location for DCB virtual items does not exist, create it
-	// This ensures we know where the virtual items are created, and that they are NOT ever included in regular discovery/circ
-	public Mono<AlmaLocation> checkOrCreateVirtualLocation(String libraryCode) {
+	// The location is set up during onboarding: creating it here needed an API key with configuration write access
+	private Mono<AlmaLocation> requireVirtualLocation(String libraryCode) {
 		final String locationCode = config.getVirtualItemLocationCode();
-		final String locationName = "DCB Virtual Holdings";
-		final String defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
 
 		return client.retrieveLocation(libraryCode, locationCode)
-			.onErrorResume(e -> {
-				log.info("Location {} not found in library {}. Attempting to create it via API...", locationCode, libraryCode);
-
-				AlmaLocation newLocation = AlmaLocation.builder()
-					.code(locationCode)
-					.name(locationName)
-					.type(CodeValuePair.builder().value("OPEN").build())
-					.suppressFromPublishing("true")
-					.circDesk(java.util.Collections.singletonList(
-						AlmaCircDesk.builder()
-							.circDeskCode(defaultCircDesk)
-							.build()
-					))
-					.build();
-
-				return client.createLocation(libraryCode, newLocation);
+			.map(location -> {
+				location.setLibraryCode(libraryCode);
+				return location;
 			})
-			.doOnNext(loc -> loc.setLibraryCode(libraryCode));
+			.onErrorMap(error -> new IllegalStateException("Alma location " + locationCode
+				+ " is not available in library " + libraryCode + " on " + getHostLmsCode()
+				+ "; create it in Alma before enabling borrowing", error));
 	}
 
 @Override

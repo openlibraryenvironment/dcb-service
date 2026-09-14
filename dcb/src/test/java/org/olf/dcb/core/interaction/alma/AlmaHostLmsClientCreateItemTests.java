@@ -115,6 +115,17 @@ class AlmaHostLmsClientCreateItemTests {
 		assertThat(error.getMessage(), is("Alma rejected the item"));
 	}
 
+	@Test
+	void shouldFailWithoutCreatingAnythingWhenTheVirtualLocationIsUnavailable() {
+		when(almaApi.retrieveLocation("DCB-LIB", "DCB-LOC"))
+			.thenReturn(Mono.error(new RuntimeException("Alma is unavailable")));
+
+		final var error = assertThrows(IllegalStateException.class, () -> sut.createItem(command()).block());
+
+		assertThat(error.getMessage().contains("create it in Alma"), is(true));
+		verify(almaApi, org.mockito.Mockito.never()).createHoldingRecord(any(), any());
+	}
+
 	private static CreateItemCommand command() {
 		return CreateItemCommand.builder()
 			.bibId("bib-id")

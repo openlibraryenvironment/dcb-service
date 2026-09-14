@@ -422,13 +422,4 @@ public interface AlmaApiClient {
 		return get("/almaws/v1/conf/libraries/" + pathSegment(libraryCode) + "/locations/" + pathSegment(locationCode),
 			AlmaLocation.class);
 	}
-
-	/**
-	 * Create a new Location within a Library.
-	 * <p>
-	 * API: POST /almaws/v1/conf/libraries/{libraryCode}/locations
-	 */
-	default Mono<AlmaLocation> createLocation(String libraryCode, AlmaLocation location) {
-		return post("/almaws/v1/conf/libraries/" + pathSegment(libraryCode) + "/locations", location, AlmaLocation.class);
-	}
 }
