@@ -240,11 +240,12 @@ graphql:
     enabled: false
 
 dcb:
-  # Provisioning DCB Admin for Libraries accounts is configured entirely outside this
-  # file. IdentityProviderConfig declares Optional getters and its own @Bindable
-  # defaults, so an ABSENT setting is genuinely absent and the feature stays off; a key
-  # here would bind an empty string and make that state unreachable.
-  # What to set, and the provider-side least privilege it assumes: docs/identity-provider-setup.md.
+  # Only `keycloak` is implemented; any other type, including empty, leaves provisioning
+  # off. Leave the connection settings out of this file rather than empty: an empty key
+  # binds as a present value and bypasses the required-setting checks. What to set:
+  # docs/identity-provider-setup.md.
+  identity-provider:
+    type: ""
 
   # Insights - the reporting and analytics surface
   insights:
