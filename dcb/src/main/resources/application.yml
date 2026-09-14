@@ -9,11 +9,6 @@ micronaut:
     cors:
       enabled: true
     multipart:
-      # The framework default is 1MB, and it is applied while the request is being decoded -
-      # before routing, so an over-cap upload never reaches a controller that could explain
-      # why. Reads dcb.branding.assets.max-bytes itself, with no default, so the two limits
-      # governing one upload cannot drift apart. Applies to location and mapping import too.
-      #
       # There is deliberately no `enabled` here: absent is not the same as false, and only
       # an explicit false refuses. See docs/branding.md.
       max-file-size: ${dcb.branding.assets.max-bytes}
@@ -125,11 +120,6 @@ info:
   dcb:
     # Whether this deployment can accept a brand image upload, so DCB Admin can offer the
     # control or not rather than offering one that will always 404.
-    #
-    # Without this the admin forms have no way to tell "uploads are off here" from "that
-    # upload failed": store=none removes the routes entirely, and a 404 carries no message
-    # for BrandImageField to show. The administrator would get a generic failure every
-    # time, forever, on a deployment that turned uploads off on purpose.
     branding:
       assets:
         store: ${dcb.branding.assets.store:}
