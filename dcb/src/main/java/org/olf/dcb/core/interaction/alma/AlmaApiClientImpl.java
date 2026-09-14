@@ -95,6 +95,22 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return request(HttpMethod.DELETE, path, null, Void.class, queryParams);
 	}
 
+	@Override
+	public Mono<Void> authenticateUser(String userId, String password) {
+		final URI uri = UriBuilder.of(resolve(UriBuilder.of("/almaws/v1/users/{userId}")
+				.expand(Map.<String, Object>of("userId", userId))))
+			.queryParam("op", "auth")
+			.build();
+
+		final MutableHttpRequest<?> request = HttpRequest.POST(uri, "")
+			.accept(APPLICATION_JSON)
+			.header(HttpHeaders.AUTHORIZATION, "apikey " + config.getApiKey())
+			// Alma also accepts the password as a query parameter, which would carry it into logs and error details
+			.header("Exl-User-Pw", password);
+
+		return Mono.from(httpClient.exchange(request)).then();
+	}
+
 	private <T> Mono<T> request(HttpMethod method, String path,
 		Object body, Class<T> responseType, Map<String, Object> queryParams) {
 

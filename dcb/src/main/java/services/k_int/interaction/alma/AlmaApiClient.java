@@ -56,14 +56,13 @@ public interface AlmaApiClient {
 	}
 
 	/**
-	 * Authenticate or refresh a user.
+	 * Authenticate a user whose password is held by the Ex Libris Identity Service.
+	 * Completes empty on success; a rejected password is a 4xx error.
 	 * <p>
-	 * API: GET /almaws/v1/users/{user_id}?password={password}
+	 * API: POST /almaws/v1/users/{user_id}?op=auth, password in the Exl-User-Pw header
 	 * Docs: <a href="https://developers.exlibrisgroup.com/alma/apis/docs/users/UE9TVCAvYWxtYXdzL3YxL3VzZXJzL3t1c2VyX2lkfQ==/">Alma API Doc</a>
 	 */
-	default Mono<AlmaUser> authenticateOrRefreshUser(String user_id, String password) {
-		return get("/almaws/v1/users/"  + user_id, AlmaUser.class, Map.of("password", password));
-	}
+	Mono<Void> authenticateUser(String userId, String password);
 
 	/**
 	 * Search users by external ID.

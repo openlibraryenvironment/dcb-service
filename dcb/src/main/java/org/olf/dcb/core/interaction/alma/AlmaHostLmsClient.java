@@ -47,6 +47,7 @@ import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -775,8 +776,21 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
-		return client.authenticateOrRefreshUser(barcode, secret)
-			.map(this::almaUserToPatron);
+		if (isBlank(barcode) || isBlank(secret)) {
+			return Mono.empty();
+		}
+
+		return client.authenticateUser(barcode, secret)
+			.then(Mono.defer(() -> client.getUserDetails(barcode)))
+			.map(this::almaUserToPatron)
+			.onErrorResume(HttpClientResponseException.class, error -> isCredentialRejection(error)
+				? Mono.empty()
+				: Mono.error(error));
+	}
+
+	private static boolean isCredentialRejection(HttpClientResponseException error) {
+		final int code = error.getStatus().getCode();
+		return code >= 400 && code < 500 && code != 429;
 	}
 
 	Mono<String> getMappedItemType(String itemTypeCode) {
