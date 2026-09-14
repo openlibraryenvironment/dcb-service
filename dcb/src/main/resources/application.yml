@@ -247,77 +247,37 @@ dcb:
   identity-provider:
     type: ""
 
-  # Insights - the reporting and analytics surface
   insights:
     enabled: true
-    # The catalogue-wide collection queries aggregate bib_record - lots of record
-    #  These are resource limits meant to be tuned once a real system has been measured, which is why they are
-    # here rather than fixed in code. Raise concurrency only with timings in hand.
+    # Unmeasured limits over a whole-catalogue scan. Raise concurrency only with timings.
     collection-analysis:
       concurrency: 1
-      # Every figure is stale by at most this much, and the panel should say so.
       cache-ttl: 15m
-      # How long a queued caller waits before 429. A cold panel opening several of these at
-      # once must queue rather than fail.
+      # How long a queued caller waits before a 429.
       max-wait: 30s
 
-  # Discovery services DCB will accept patron assertions from.
-  #
-  # A discovery service authenticates with a Keycloak client credential holding the
-  # DISCOVERY_SERVICE role — that proves WHO is calling. It does not prove WHICH
-  # PATRON, so the patron travels as a separately-signed, short-lived assertion in the
-  # X-OpenRS-Patron-Assertion header, and this is its trust anchor. DCB verifies it and
-  # then enforces per-patron ownership itself, rather than trusting the caller to.
-  #
-  # Disabled by default: a deployment that has not been configured for discovery must
-  # fail closed, not behave as though it has been.
+  # Fails closed: off until a trusted service is configured.
+  # The model and onboarding: docs/discovery-service-approach.md.
   discovery:
     enabled: false
     # The audience a patron assertion must name. This DCB, not another one.
     audience: dcb
     # DCB's own cap on assertion validity, enforced regardless of the issuer's `exp`.
-    # A long-lived assertion is a bearer token by another name.
     max-assertion-lifetime: PT2M
-    # Onboard a service per environment, in whichever repository holds this
-    # deployment's configuration. Two equivalent forms; use whichever your hosting
-    # supports. See docs/discovery-service-approach.md section 7.
-    #
-    # 1. YAML, where a config file can be mounted (k8s ConfigMap, mounted volume):
-    #
-    # trusted-services:
-    #   - service-id: your-discovery-service
-    #     issuer: https://discovery.example.org
-    #     jwks-uri: https://discovery.example.org/.well-known/jwks.json
-    #
-    # 2. JSON in ONE environment variable, where it cannot (ECS/Fargate task
-    #    definitions, plain docker). Same kebab-case keys:
-    #
-    #    DCB_DISCOVERY_TRUSTED_SERVICES_JSON=[{"service-id":"your-discovery-service",
-    #      "issuer":"https://discovery.example.org",
-    #      "jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]
-    #
-    # A list of objects CANNOT be expressed as indexed environment variables --
-    # Micronaut resolves DCB_DISCOVERY_TRUSTED_SERVICES_0_SERVICE_ID to
-    # dcb.discovery.trusted-services.0.service-id, and list binding needs the
-    # trusted-services[0].service-id form. Hence the JSON value. Malformed JSON fails
-    # startup deliberately: a trust anchor that binds nothing silently is
-    # indistinguishable from one nobody configured.
+    # YAML, or DCB_DISCOVERY_TRUSTED_SERVICES_JSON where no file can be mounted: a list
+    # cannot come from indexed variables. docs/discovery-service-approach.md section 7.2.
     trusted-services: []
-  # Uploaded brand assets (R-17b, R-17c). docs/branding.md covers the ways an image gets
-  # in and what each one needs.
+  # How an image gets in, for each store: docs/branding.md.
   branding:
     assets:
-      # database - images are stored in Postgres. Needs no infrastructure of its own.
-      # none     - the upload routes are ABSENT from the running service, and brand fields
-      #            still accept an absolute CDN URL. For a deployment that would rather not
-      #            keep images in its database; nothing else about branding changes.
+      # database - images are stored in Postgres.
+      # none     - no store, so the upload and serve routes are absent; brand fields
+      #            still accept an absolute CDN URL.
       store: database
-      # How long an unreferenced upload is kept. An administrator uploads and then saves
-      # the URL with a separate mutation, so an asset is legitimately unreferenced in
-      # between: too short and the sweep deletes the image somebody is still choosing.
+      # Too short and the sweep deletes an image uploaded but not yet saved.
       orphan-grace-period: 24h
       # Changing this after assets exist orphans every stored URL: it is the one
-      # site-relative form BrandingValidator accepts. Here to be read, not tuned.
+      # site-relative form BrandingValidator accepts.
       public-path-prefix: /discovery/brand-assets/
       max-bytes: 2097152
       # A decompression-bomb limit, not a taste limit - read from the image header before
@@ -329,26 +289,9 @@ dcb:
         - "127.0.0.1" # Allow IP4 127.0.0.1
         - "0:0:0:0:0:0:0:1" # Allow localhost IP6
 
-    # Which application a token is allowed to drive. See AdminUiAccessPolicy.
-    #
-    # NOTE FOR ANYONE ADDING CONFIG HERE: this is the ONE `dcb.security` key in this file
-    # and it has to stay that way. A second one further up was silently discarded - YAML
-    # keeps the last of a duplicate pair - so the admin-ui block below existed, read
-    # correctly, and configured nothing. The symptom was a security control reporting
-    # itself OFF while its environment variable was plainly set.
-    #
-    # DCB Admin is a consortium-level tool; DCB Admin for Libraries is the library-level
-    # one. They are separate OIDC clients by intent, and the token records which client
-    # obtained it in `azp` - so a LIBRARY_ADMIN token minted for DCB Admin's client can be
-    # refused outright.
-    #
-    # AN UNSET client-id DISABLES THE CHECK, deliberately: the two apps have been observed
-    # sharing one client, and enforcing against a shared client either locks out every
-    # consortium administrator or admits every library user. Set the id, run in WARN,
-    # drain the "Would deny" lines, then set ENFORCE. Mode is config, not a deploy.
-    #
-    # This is NOT a data control and does not replace one - AgencyAccessScope decides what
-    # any caller may read, whichever app they use.
+    # This must stay the ONLY dcb.security key: YAML keeps the last of a duplicate pair.
+    # An empty client-id disables the check. Not a data control: AgencyAccessScope decides
+    # what any caller may read. Rollout: docs/identity-provider-setup.md section 1.4.
     admin-ui:
       client-id: ""
       mode: WARN
