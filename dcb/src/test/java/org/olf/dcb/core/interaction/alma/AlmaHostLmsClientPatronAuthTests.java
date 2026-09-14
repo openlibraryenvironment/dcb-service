@@ -107,6 +107,15 @@ class AlmaHostLmsClientPatronAuthTests {
 			() -> sut.patronAuth(AUTH_PROFILE, "BAR1", "correct").block());
 	}
 
+	@Test
+	void shouldRefuseAnAuthProfileAlmaCannotVerify() {
+		final var error = assertThrows(IllegalStateException.class,
+			() -> sut.patronAuth("BASIC/BARCODE+PIN", "BAR1", "1234").block());
+
+		assertThat(error.getMessage().contains("BASIC/BARCODE+PIN"), is(true));
+		verifyNoInteractions(almaApi);
+	}
+
 	private static AlmaUser almaUser(String primaryId) {
 		return AlmaUser.builder()
 			.primary_id(primaryId)

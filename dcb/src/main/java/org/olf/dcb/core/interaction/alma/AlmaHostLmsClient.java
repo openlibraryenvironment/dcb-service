@@ -760,8 +760,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(returnedUser -> almaUserToPatron(returnedUser));
 	}
 
+	// Alma can only verify a password held by the Ex Libris Identity Service; any other profile would be a pretence
+	private static final String PASSWORD_AUTH_PROFILE = "BASIC/BARCODE+PASSWORD";
+
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
+		if (!PASSWORD_AUTH_PROFILE.equals(authProfile)) {
+			return Mono.error(new IllegalStateException("Alma supports auth profile "
+				+ PASSWORD_AUTH_PROFILE + ", not \"" + authProfile + "\", on " + getHostLmsCode()));
+		}
+
 		if (isBlank(barcode) || isBlank(secret)) {
 			return Mono.empty();
 		}
