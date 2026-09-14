@@ -14,7 +14,7 @@ import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @TypeHint(value = { Instant[].class, ZonedDateTime[].class, URI[].class, URL[].class })
-@OpenAPIDefinition(info = @Info(title = "DCB", description = "Direct Consortial Borrowing Service", version = "1.0.0"))
+@OpenAPIDefinition(info = @Info(title = "DCB Service API", description = "Direct Consortial Borrowing Service", version = "1.0"))
 public class Application {
 
   private static final int BACKGROUND_POOL_QUEUE_PER_THREAD = 100_000;

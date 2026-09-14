@@ -1,0 +1,3 @@
+.Operational Resources
+* xref:operational:bare-metal-build.adoc[]
+* xref:operational:docker.adoc[]

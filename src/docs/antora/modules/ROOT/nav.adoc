@@ -1,0 +1,4 @@
+include::operational:partial$nav.adoc[]
+
+.Developer Resources
+* xref:api:attachment$scalar/index.html[OpenApi Explorer, window=_blank]

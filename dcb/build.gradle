@@ -529,3 +529,26 @@ test {
 		showStandardStreams = false
 	}
 }
+
+task generateAntoraYml() {
+  group = 'Documentation'
+  description = 'Generates antora.yml to extend the core and populate AsciiDoc attributes'
+  doLast {
+    def toFile = new File("$buildDir/generated-docs/antora.yml")
+    toFile.getParentFile().mkdirs()
+    toFile.createNewFile()
+    def text = """
+version: '${project.versionMajorPart}.${project.versionMinorPart}'    
+asciidoc:
+  attributes:
+    project-artifact-id: '${project.name}'
+    project-version: '${project.version}'
+    project-major: '${project.versionMajorPart}'
+    project-minor: '${project.versionMinorPart}'
+    project-patch: '${project.versionPatchPart}'
+    project-pre: '${project.versionPreRelease}'"""
+    
+    
+    toFile.setText(text + "\n")
+  }
+}

@@ -1,0 +1,9 @@
+= DCB: Direct Consortial Borrowing
+Steve Osguthorpe <steve.osguthorpe@k-int.com>
+
+[.lead]
+A https://www.k-int.com/[Knowledge Integration] project
+
+== Introduction
+
+The direct consortial borrowing project aims to address the need of consortia that have already agreed to lend within the network.
