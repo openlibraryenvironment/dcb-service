@@ -139,6 +139,9 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "apikey", missing);
 		checkPresent(config, "institution-code", missing);
 		checkDefaultAgencyCode(config, missing);
+		checkPresent(config, "sharing-library-code", missing);
+		checkPresent(config, "virtual-item-library-code", missing);
+		checkPresent(config, "virtual-item-location-code", missing);
 
 		throwIfMissing("Alma", missing);
 	}

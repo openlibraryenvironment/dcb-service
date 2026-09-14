@@ -134,6 +134,43 @@ class HostLmsConfigValidatorTests {
 		assertThat(warnings, not(hasItem(containsString("metadata-prefix"))));
 	}
 
+	private static final String ALMA = "org.olf.dcb.core.interaction.alma.AlmaHostLmsClient";
+
+	@Test
+	void shouldRequireTheLibraryAndLocationCodesTheAlmaClientCannotRunWithout() {
+		final var config = almaConfig();
+		config.remove("sharing-library-code");
+		config.remove("virtual-item-library-code");
+		config.remove("virtual-item-location-code");
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(ALMA, config));
+
+		assertThat(exception.getMessage(), containsString("sharing-library-code"));
+		assertThat(exception.getMessage(), containsString("virtual-item-library-code"));
+		assertThat(exception.getMessage(), containsString("virtual-item-location-code"));
+	}
+
+	@Test
+	void shouldAcceptACompleteAlmaConfiguration() {
+		assertDoesNotThrow(() -> validator.validate(ALMA, almaConfig()));
+	}
+
+	private Map<String, Object> almaConfig() {
+		final Map<String, Object> config = new HashMap<>();
+
+		config.put("base-url", "https://institution.alma.exlibrisgroup.com");
+		config.put("alma-url", "https://api-eu.hosted.exlibrisgroup.com");
+		config.put("apikey", "any-key");
+		config.put("institution-code", "ANY_INSTITUTION");
+		config.put("default-agency-code", "any-agency");
+		config.put("sharing-library-code", "DCB");
+		config.put("virtual-item-library-code", "DCB");
+		config.put("virtual-item-location-code", "DCB-LOC");
+
+		return config;
+	}
+
 	private Map<String, Object> kohaConfig() {
 		final Map<String, Object> config = new HashMap<>();
 

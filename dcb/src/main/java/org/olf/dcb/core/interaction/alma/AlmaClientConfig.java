@@ -27,8 +27,6 @@ public class AlmaClientConfig {
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd/?tags=POST
 	private static final HostLmsPropertyDefinition ITEM_POLICY_SETTING
 		= stringPropertyDefinition("item-policy", "Item policy for this ALMA system", FALSE);
-	private static final HostLmsPropertyDefinition SHELF_LOCATION_SETTING
-		= stringPropertyDefinition("shelf-location", "Shelf location for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
 		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition DEFAULT_CIRC_DESK_CODE
@@ -97,8 +95,13 @@ public class AlmaClientConfig {
 		return List.of(
 			BASE_URL_SETTING,
 			API_KEY_SETTING,
+			DCB_SHARING_LIBRARY_CODE,
+			VIRTUAL_ITEM_LIBRARY_CODE,
+			VIRTUAL_ITEM_LOCATION_CODE,
 			ITEM_POLICY_SETTING,
-			SHELF_LOCATION_SETTING,
+			PICKUP_CIRC_DESK_SETTING,
+			DEFAULT_CIRC_DESK_CODE,
+			USER_IDENTIFIER,
 			REQUEST_CANCELLATION_REASON
 		);
 	}
