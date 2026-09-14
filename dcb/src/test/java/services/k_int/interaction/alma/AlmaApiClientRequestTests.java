@@ -29,6 +29,7 @@ class AlmaApiClientRequestTests {
 		assertThat(items, hasSize(250));
 		assertThat(api.offsets, contains(0, 100, 200));
 		assertThat(api.lastPath, is("/almaws/v1/bibs/99123/holdings/ALL/items"));
+		assertThat(api.lastQuery.get("expand"), is("due_date"));
 	}
 
 	@Test
@@ -74,6 +75,7 @@ class AlmaApiClientRequestTests {
 		private final int totalItems;
 		private final List<Integer> offsets = new ArrayList<>();
 		private String lastPath;
+		private Map<String, Object> lastQuery;
 		private Map<String, Object> deleteParams;
 
 		RecordingAlmaApi(int totalItems) {
@@ -84,6 +86,7 @@ class AlmaApiClientRequestTests {
 		@SuppressWarnings("unchecked")
 		public <T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams) {
 			lastPath = path;
+			lastQuery = queryParams;
 
 			if (!queryParams.containsKey("offset")) {
 				return Mono.empty();

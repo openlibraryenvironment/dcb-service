@@ -1267,6 +1267,20 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		}
 	}
 
+	// An unreadable date leaves the due date unknown rather than making the whole item unmappable
+	private Instant parseDueDate(String rawDueDate, String itemId) {
+		if (rawDueDate == null || rawDueDate.isBlank()) {
+			return null;
+		}
+
+		try {
+			return Instant.parse(rawDueDate.trim());
+		} catch (DateTimeParseException e) {
+			log.warn("Could not read Alma due date \"{}\" for item {}", rawDueDate, itemId);
+			return null;
+		}
+	}
+
 	public Mono<PingResponse> ping() {
 		Instant start = Instant.now();
 		return Mono.from(client.test())
@@ -1327,9 +1341,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				ItemStatus derivedItemStatus = deriveItemStatus(almaItem.getItemData());
 				Boolean isRequestable = (derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE);
 
-				Instant due_back_instant = almaItem.getHoldingData().getDueBackDate() != null
-					? LocalDate.parse(almaItem.getHoldingData().getDueBackDate()).atStartOfDay(ZoneId.of("UTC")).toInstant()
-					: null;
+				final Instant dueDate = parseDueDate(almaItem.getItemData().getDueDate(), itemId);
 
 				// Alma's "library" is the branch that owns the item. Alma's "location" is the
 				// shelving location within it - REF, STACKS, JUV - and every library on a
@@ -1357,8 +1369,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				return Item.builder()
 					.localId(itemId)
 					.status(derivedItemStatus)
-					// In alma we need to query the Loans API to get the due date
-					.dueDate(due_back_instant)
+					.dueDate(dueDate)
 					.location(derivedLocation)
 					.shelvingLocation(shelvingLocation)
 					.barcode(almaItem.getItemData().getBarcode())

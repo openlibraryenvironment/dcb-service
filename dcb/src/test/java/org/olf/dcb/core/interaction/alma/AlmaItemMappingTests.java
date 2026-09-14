@@ -181,6 +181,29 @@ class AlmaItemMappingTests {
 		assertThrows(RuntimeException.class, this::items);
 	}
 
+	@Test
+	void shouldMapTheLoanDueDateAlmaReturnsWithTheItem() {
+		final var almaItem = almaItem("23789", "MAIN-LIB", "STACKS", "BOOK");
+		almaItem.getItemData().setDueDate("2026-10-01T22:59:00Z");
+
+		givenItems(almaItem);
+
+		assertThat(onlyItem().getDueDate(), is(java.time.Instant.parse("2026-10-01T22:59:00Z")));
+	}
+
+	@Test
+	void shouldLeaveTheDueDateUnknownWhenAlmaSendsOneItCannotRead() {
+		final var almaItem = almaItem("23789", "MAIN-LIB", "STACKS", "BOOK");
+		almaItem.getItemData().setDueDate("10/01/2026");
+
+		givenItems(almaItem);
+
+		final var item = onlyItem();
+
+		assertThat(item.getDueDate(), is(nullValue()));
+		assertThat(item.getLocationCode(), is("MAIN-LIB"));
+	}
+
 	private Item onlyItem() {
 		final var items = items();
 

@@ -97,6 +97,9 @@ public class AlmaItemData {
 	String receivingOperator;
 	@JsonProperty("process_type")
 	CodeValuePair process_type;
+	// Present only when the items request asks for expand=due_date
+	@JsonProperty("due_date")
+	String dueDate;
 	@JsonProperty("inventory_number")
 	String inventoryNumber;
 	@JsonProperty("inventory_date")

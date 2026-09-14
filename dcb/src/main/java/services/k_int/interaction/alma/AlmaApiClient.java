@@ -174,12 +174,12 @@ public interface AlmaApiClient {
 	/**
 	 * Retrieve one page of the items on a bib, across all of its holdings.
 	 * <p>
-	 * API: GET /almaws/v1/bibs/{mms_id}/holdings/ALL/items?limit={limit}&amp;offset={offset}
+	 * API: GET /almaws/v1/bibs/{mms_id}/holdings/ALL/items?limit={limit}&amp;offset={offset}&amp;expand=due_date
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXM=/
 	 */
 	default Mono<AlmaItems> retrieveItemsPage(String mms_id, int offset) {
 		return get("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/ALL/items", AlmaItems.class,
-			Map.of("limit", ITEM_PAGE_SIZE, "offset", offset));
+			Map.of("limit", ITEM_PAGE_SIZE, "offset", offset, "expand", "due_date"));
 	}
 
 	/**
