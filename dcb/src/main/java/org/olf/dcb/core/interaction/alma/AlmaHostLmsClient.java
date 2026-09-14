@@ -733,31 +733,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> updatePatron(String localId, String patronType) {
-		// The update is done in a 'Swap All' mode: existing fields' information will be replaced with the incoming information.
-		// Incoming lists will replace existing lists.
-		// Ref: https://developers.exlibrisgroup.com/alma/apis/docs/users/UFVUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9/
-
-		// to avoid overwriting we fetch the user first
+		// Alma replaces every field and list on PUT, so the fetched user goes back with only the group changed
 		return client.getUserDetails(localId)
-			.flatMap(returnedUser -> {
-				final var almaUser = AlmaUser.builder()
-					.record_type(returnedUser.getRecord_type())
-					.primary_id(returnedUser.getPrimary_id())
-					.first_name(returnedUser.getFirst_name())
-					.last_name(returnedUser.getLast_name())
-					.status(returnedUser.getStatus())
-					.is_researcher(returnedUser.getIs_researcher())
-					.identifiers(returnedUser.getIdentifiers())
-					.external_id(returnedUser.getExternal_id())
-					.account_type(returnedUser.getAccount_type())
-
-					// update fields below
-					// for now DCB only updates the patron type
-					.user_group(CodeValuePair.builder().value(patronType).build())
-					.build();
-				return client.updateUserDetails(localId, almaUser);
+			.map(user -> {
+				user.setUser_group(CodeValuePair.builder().value(patronType).build());
+				return user;
 			})
-			.map(returnedUser -> almaUserToPatron(returnedUser));
+			// Alma keeps an external user's existing user_group unless the PUT names it in override
+			.flatMap(user -> client.put("/almaws/v1/users/" + localId, user, AlmaUser.class,
+				Map.of("override", "user_group")))
+			.map(this::almaUserToPatron);
 	}
 
 	// Alma can only verify a password held by the Ex Libris Identity Service; any other profile would be a pretence
