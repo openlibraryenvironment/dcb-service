@@ -437,8 +437,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		log.info("Finding virtual patron {}", patron);
-
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 
 		if (uniqueId == null) {
@@ -548,17 +546,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 				List<UserIdentifier> userIdentifiers = createUserIdentifiers(patron);
 				AlmaUser almaUser = buildAlmaUser(firstName, lastName, externalId, userIdentifiers);
-				log.info("Attempting to create a patron for Alma with Patron: {}, alma user: {} and user identifiers {}. First name is {}, last name is {}", patron, almaUser, userIdentifiers, firstName, lastName);
 
 				return determinePatronType(patron)
 					.flatMap(patronType -> {
 						almaUser.setUser_group(CodeValuePair.builder().value(patronType).build());
 
 						return Mono.from(client.createUser(almaUser))
-							.flatMap(returnedUser -> {
-								log.info("Created alma user {}", returnedUser);
-								return Mono.just(returnedUser.getPrimary_id());
-							});
+							.map(AlmaUser::getPrimary_id);
 					});
 			});
 	}
@@ -619,7 +613,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.value(externalId)
 				.build());
 		}
-		log.info("Identifiers {}", identifiers);
 		return identifiers;
 	}
 
@@ -1206,8 +1199,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	private Patron almaUserToPatron(AlmaUser almaUser) {
-		log.info("Alma user is {}", almaUser);
-
 		List<String> localIds = new ArrayList<String>();
 		List<String> uniqueIds = new ArrayList<String>();
 		List<String> localBarcodes = new ArrayList<String>();
