@@ -303,7 +303,7 @@ public interface PatronRequestRepository {
 
 	@Query(
 		value = """
-			SELECT cr.title, COUNT(pr.id) AS request_count 
+			SELECT cr.id AS cluster_id, cr.title, COUNT(pr.id) AS request_count
 			FROM patron_request pr
 			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
 			WHERE (:startDate IS NULL OR pr.date_created >= :startDate)

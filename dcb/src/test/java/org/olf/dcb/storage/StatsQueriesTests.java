@@ -53,6 +53,7 @@ import org.olf.dcb.core.api.serde.TopClusterStat;
 import org.olf.dcb.core.api.serde.TradingPartnerStat;
 import org.olf.dcb.core.api.serde.TrendPoint;
 import org.olf.dcb.core.api.serde.TurnaroundStat;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
@@ -574,6 +575,37 @@ class StatsQueriesTests {
 
 		assertThat(summary.totalRequests(), equalTo(3L));
 		assertThat(summary.uniqueTitlesRequested(), equalTo(2L));
+	}
+
+	/**
+	 * The cluster on every row, which is what lets a client link the title to the requests
+	 * behind it. The query already grouped by it; not selecting it meant the most-requested
+	 * list was the one panel with no way through to its own evidence.
+	 */
+	@Test
+	void mostRequestedTitlesCarriesTheClusterItCounted() {
+		// Built as the clustering service builds one rather than through the shared
+		// fixture: the query filters `cr.is_deleted IS NULL`, and a live cluster leaves the
+		// flag unset - only a merged-away one sets it. The fixture writes FALSE, which the
+		// filter excludes, so a cluster made that way is invisible to this query.
+		final var wanted = UUID.randomUUID();
+		clusterRecordFixture.createClusterRecord(ClusterRecord.builder()
+			.id(wanted)
+			.title("Brain of the Firm")
+			.bibs(java.util.Set.of())
+			.dateCreated(java.time.Instant.now())
+			.dateUpdated(java.time.Instant.now())
+			.build());
+
+		saveRequestForCluster(LOANED, "LIB_A", wanted);
+		saveRequestForCluster(LOANED, "LIB_A", wanted);
+
+		final var page = singleValueFrom(patronRequestRepository
+			.findMostRequestedTitles(null, null, null, Pageable.from(0, 10)));
+
+		assertThat(page.getContent(), hasSize(1));
+		assertThat(page.getContent().get(0).getClusterId(), equalTo(wanted));
+		assertThat(page.getContent().get(0).getRequestCount(), equalTo(2));
 	}
 
 	// --- turnaround for library / consortium / combinations ------------------
