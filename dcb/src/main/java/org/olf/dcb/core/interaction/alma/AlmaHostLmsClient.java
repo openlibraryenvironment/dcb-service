@@ -816,8 +816,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.info("Create item for Alma with {}. Targeting Library: {}", cic, targetLibraryCode);
 
-		AtomicReference<String> holdingId = new AtomicReference<>();
-
 		return Mono.zip(
 				checkOrCreateVirtualLocation(targetLibraryCode),
 				getMappedItemType(cic.getCanonicalItemType())
@@ -830,13 +828,20 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				AlmaItem item = buildAlmaItem(cic, location, policy, baseStatus, itemType);
 
 				return createHolding(bibId, holdingXml)
-					.flatMap(holding -> {
-						holdingId.set(holding.getHoldingId());
-						return client.createItem(bibId, holding.getHoldingId(), item);
-					});
-			})
-			.map(AlmaItem::getItemData)
-			.map(item -> mapToHostLmsItem(item, holdingId.get(), bibId));
+					.flatMap(holding -> client.createItem(bibId, holding.getHoldingId(), item)
+						.map(created -> mapToHostLmsItem(created.getItemData(), holding.getHoldingId(), bibId))
+						.onErrorResume(error -> deleteOrphanedHolding(bibId, holding.getHoldingId())
+							.then(Mono.<HostLmsItem>error(error))));
+			});
+	}
+
+	// DCB records no holding id until the item exists, so a holding left here could never be cleaned up later
+	private Mono<Void> deleteOrphanedHolding(String bibId, String holdingId) {
+		return client.deleteHoldingsRecord(bibId, holdingId)
+			.doOnError(error -> log.error("Could not delete Alma holding {} on bib {} at {} after item creation failed",
+				holdingId, bibId, getHostLmsCode(), error))
+			.onErrorResume(error -> Mono.empty())
+			.then();
 	}
 
 	private String buildHoldingXml(AlmaLocation location, String callNumber, String note) {
