@@ -415,6 +415,35 @@ dcb:
           values: [ "1", "true" ]
           negated: true
 
+    # Koha bib suppression. Rulesets evaluate true for INCLUSION, so CONJUNCTIVE
+    # here means "include only while neither flag is set" - either flag on its own
+    # suppresses the bib. Both conditions are inert on a catalogue that does not
+    # use the subfield: an absent property makes propertyValueAnyOf false, which
+    # the negation turns into "include".
+    koha-default:
+      type: "CONJUNCTIVE"
+      conditions:
+        # "Not to be shown to anyone" - Koha's own OpacSuppression flag, 942$n in
+        # the stock MARC21 framework. UNIMARC has no official field for it, so a
+        # UNIMARC site needs its own ruleset. Koha's documented value is 1.
+        - operation: propertyValueAnyOf
+          property: "metadata.record.fields.942.subfields.n"
+          values: [ "1", "true", "TRUE", "True", "y", "Y", "yes", "Yes", "YES" ]
+          negated: true
+          documentation: "Koha 942$n - suppressed in the OPAC, so suppressed in DCB"
+
+        # "Local only" - visible in the library's own OPAC but not contributed to
+        # the consortium. Koha has no native flag for this, so 942$x is DCB's
+        # convention: undefined in Koha's default framework and unmapped, so Koha
+        # ignores it. Add it to the frameworks in use before cataloguers can set
+        # it. Do NOT overload 942$n for this - Koha coerces that subfield to a
+        # boolean, so any truthy value there hides the record locally too.
+        - operation: propertyValueAnyOf
+          property: "metadata.record.fields.942.subfields.x"
+          values: [ "1", "true", "TRUE", "True", "y", "Y", "yes", "Yes", "YES" ]
+          negated: true
+          documentation: "Koha 942$x - local only, not shared with the consortium"
+
 concurrency:
   groups:
     default: 

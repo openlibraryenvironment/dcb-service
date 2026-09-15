@@ -61,7 +61,8 @@ public class RulesetTests {
 
 	private JsonNode folioSources = null;
 	private JsonNode sierraSources = null;
-	
+	private JsonNode kohaSources = null;
+
 	private JsonNode parseJsonFile ( String fileName ) throws IOException {
 		return mapper.readValue(getRelativeResource(fileName).get(), JsonNode.class);
 	}
@@ -71,9 +72,13 @@ public class RulesetTests {
 		if (folioSources == null) {
 			folioSources = parseJsonFile("folio-source-data.json");
 		}
-		
+
 		if (sierraSources == null) {
 			sierraSources = parseJsonFile("sierra-records.json");
+		}
+
+		if (kohaSources == null) {
+			kohaSources = parseJsonFile("koha-source-data.json");
 		}
 	}
 
@@ -147,6 +152,69 @@ public class RulesetTests {
 		assertEquals(expected, result);
 	}
 	
+	/**
+	 * The shipped Koha default, from application.yml rather than this test's own
+	 * property source - it is what a Koha that names no ruleset of its own gets, so
+	 * it is the thing worth pinning.
+	 * <p>
+	 * True means include. The two flags are independent: 942$n is Koha's own
+	 * OpacSuppression marker ("show this to nobody") and 942$x is DCB's convention
+	 * for "local only", so either alone has to be enough to drop the bib, and a
+	 * catalogue that has never touched either has to be unaffected.
+	 */
+	@ParameterizedTest
+	@CsvSource({
+		"no-942-at-all,true",
+		"942-without-n-or-x,true",
+		"not-suppressed-explicitly,true",
+		"suppressed-with-999-t,true",
+		"hidden-from-everyone,false",
+		"local-only,false",
+		"local-only-yes,false",
+		"both-flags-set,false"})
+	void testKohaDefaultSuppressionFromJSON( String propertyName, boolean expected ) {
+
+		ObjectRuleset ruleset = ruleService.findByName("koha-default").block();
+		assertNotNull(ruleset);
+
+		JsonNode json = kohaSources.get(propertyName);
+		assertNotNull(json);
+
+		ArrayList<String> details = new ArrayList<>();
+		assertEquals(expected, ruleset.test(new AnnotatedObject(json, details)));
+	}
+
+	/**
+	 * The same expectations reached through OaiRecord rather than raw JSON, because
+	 * that is what the ingest path actually hands the ruleset - property resolution
+	 * goes through bean introspection and the marc4j serde instead of JsonObject
+	 * lookups, and the two have to agree.
+	 */
+	@ParameterizedTest
+	@CsvSource({
+		"no-942-at-all,true",
+		"942-without-n-or-x,true",
+		"not-suppressed-explicitly,true",
+		"suppressed-with-999-t,true",
+		"hidden-from-everyone,false",
+		"local-only,false",
+		"local-only-yes,false",
+		"both-flags-set,false"})
+	void testKohaDefaultSuppressionFromObjects( String propertyName, boolean expected ) {
+
+		ObjectRuleset ruleset = ruleService.findByName("koha-default").block();
+		assertNotNull(ruleset);
+
+		JsonNode json = kohaSources.get(propertyName);
+		assertNotNull(json);
+
+		OaiRecord target = conversionService.convertRequired(json, OaiRecord.class);
+		assertNotNull(target);
+
+		ArrayList<String> details = new ArrayList<>();
+		assertEquals(expected, ruleset.test(new AnnotatedObject(target, details)));
+	}
+
 	@ParameterizedTest
 	@CsvSource({"include-present,true", "include-missing,true", "exclude-z,false", "exclude-s,false", "exclude-f,false", "exclude-n,false"})
 	void testSierraTypeRecord( String propertyName, boolean expected ) {

@@ -17,6 +17,7 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.serde.ObjectMapper;
+import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
 
 /**
@@ -62,6 +63,11 @@ import services.k_int.utils.MapUtils;
  * <p>Item data is deliberately not requested through OAI (Koha's include_items, which
  * needs an OAI-PMH:ConfFile): availability comes live from the REST API at resolution
  * time, so embedding a snapshot of items in the harvested bib would only age.
+ *
+ * <p><b>Bib suppression.</b> Unless the Host LMS names a ruleset of its own, bibs are
+ * filtered through the "koha-default" ruleset, which reads two MARC flags - 942$n for
+ * "not to be shown to anyone" and 942$x for "local only". See docs/koha_notes.md for
+ * what the library has to set, and why 942$n cannot carry both.
  */
 @Slf4j
 @Prototype
@@ -72,6 +78,8 @@ public class KohaOaiPmhIngestSource extends OaiPmhIngestSource {
 	private static final String DEFAULT_OAI_PATH = "/cgi-bin/koha/oai.pl";
 
 	private static final String UUID5_PREFIX = "ingest-source:koha-oai";
+
+	private static final String DEFAULT_SUPPRESSION_RULESET_NAME = "koha-default";
 
 	private final String oaiPath;
 
@@ -101,5 +109,16 @@ public class KohaOaiPmhIngestSource extends OaiPmhIngestSource {
 	@Override
 	protected String oaiPath() {
 		return oaiPath;
+	}
+
+	/**
+	 * Koha carries its suppression flags in MARC, so there is a sensible default to
+	 * fall back on. Without one, a Koha created with no suppressionRulesetName
+	 * contributes every bib it has - including the ones its staff marked as hidden.
+	 */
+	@Override
+	protected Mono<String> getSuppressionRulesetName() {
+		return super.getSuppressionRulesetName()
+			.defaultIfEmpty(DEFAULT_SUPPRESSION_RULESET_NAME);
 	}
 }
