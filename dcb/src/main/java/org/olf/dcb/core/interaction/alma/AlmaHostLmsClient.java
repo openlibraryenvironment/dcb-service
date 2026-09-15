@@ -364,7 +364,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<Patron> getPatronByIdentifier(String id) {
 		return client.getUserDetails(id)
-			.map(this::almaUserToPatron);
+			.map(this::almaUserToPatron)
+			.onErrorResume(AlmaHostLmsClient::isVirtualPatronNotFoundError, error -> Mono.empty());
 	}
 
 	@Override

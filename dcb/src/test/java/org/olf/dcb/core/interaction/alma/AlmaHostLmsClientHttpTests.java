@@ -123,6 +123,19 @@ class AlmaHostLmsClientHttpTests {
 	}
 
 	@Test
+	void shouldFindNoPatronForAnIdentifierAlmaDoesNotKnow() {
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/UNKNOWN1"))
+			.respond(response().withStatusCode(400)
+				.withBody(json(almaError("401861", "User with identifier UNKNOWN1 was not found"))));
+
+		final var patron = singleValueFrom(client.getPatronByIdentifier("UNKNOWN1"));
+
+		assertThat(patron, is(nullValue()));
+	}
+
+	@Test
 	void shouldRetryACallRefusedForExceedingThePerSecondThreshold() {
 		mockServerClient.when(request()
 					.withMethod("GET")
