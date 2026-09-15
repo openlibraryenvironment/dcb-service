@@ -13,8 +13,6 @@ import io.micronaut.serde.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.model.HostLms;
-import org.zalando.problem.Problem;
-import org.zalando.problem.Status;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import services.k_int.interaction.alma.AlmaApiClient;
@@ -33,8 +31,6 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 @Secondary
 @Prototype
 public class AlmaApiClientImpl implements AlmaApiClient {
-
-	private static final String PER_SECOND_THRESHOLD = "PER_SECOND_THRESHOLD";
 
 	// Alma refuses a call over its per-second threshold without processing it, so retrying cannot repeat a write
 	private static final Retry PER_SECOND_THRESHOLD_RETRY = Retry.backoff(3, Duration.ofSeconds(1))
@@ -193,15 +189,8 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 					}
 					log.error(logMsg.toString());
 
-					// These parameters are copied into patron request audit data, so they carry no headers or bodies
-					return raiseError(Problem.builder()
-						.withTitle("Alma API Error")
-						.withStatus(Status.valueOf(status.getCode()))
-						.withDetail(request.getMethod().name() + " " + request.getPath())
-						.with("Request Method", request.getMethod().name())
-						.with("Request path", request.getPath())
-						.with("Alma Error response", errorResponse)
-						.build());
+					return raiseError(new AlmaApiException(request.getMethod().name(), request.getPath(),
+						status.getCode(), errorResponse));
 				}
 
 				log.error("HTTP {} error for request to {}", status.getCode(), redactedPath(request.getPath()));
@@ -228,11 +217,7 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 			return unparsed.getStatus().getCode() == 429;
 		}
 
-		final AlmaErrorResponse response = AlmaHostLmsClient.extractAlmaErrors(error);
-
-		return response != null && response.getErrorList() != null
-			&& response.getErrorList().getError() != null
-			&& response.getErrorList().getError().stream()
-				.anyMatch(almaError -> PER_SECOND_THRESHOLD.equals(almaError.getErrorCode()));
+		return error instanceof AlmaApiException almaError
+			&& almaError.has(AlmaApiException.Code.PER_SECOND_THRESHOLD);
 	}
 }

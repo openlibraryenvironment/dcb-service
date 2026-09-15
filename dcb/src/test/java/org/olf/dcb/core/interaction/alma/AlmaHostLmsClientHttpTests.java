@@ -111,9 +111,10 @@ class AlmaHostLmsClientHttpTests {
 			.respond(response().withStatusCode(400)
 				.withBody(json(almaError("401861", "User with identifier BAR3 was not found"))));
 
-		final var problem = assertThrows(ThrowableProblem.class,
+		final var problem = assertThrows(AlmaApiException.class,
 			() -> client.getPatronByLocalId("BAR3").block());
 
+		assertThat(problem.has(AlmaApiException.Code.USER_NOT_FOUND), is(true));
 		assertThat(problem.getParameters(), not(hasKey("Request Headers")));
 		assertThat(problem.getParameters(), not(hasKey("Request Body")));
 		assertThat(problem.getParameters(), not(hasKey("Raw Error Body")));

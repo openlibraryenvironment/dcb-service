@@ -35,10 +35,7 @@ import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.interops.ConfigType;
-import org.zalando.problem.DefaultProblem;
 import org.zalando.problem.Problem;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
@@ -59,8 +56,6 @@ import services.k_int.interaction.alma.types.AlmaUser;
 import services.k_int.interaction.alma.types.CodeValuePair;
 import services.k_int.interaction.alma.types.UserIdentifier;
 import services.k_int.interaction.alma.types.WithAttr;
-import services.k_int.interaction.alma.types.error.AlmaError;
-import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.types.items.AlmaItem;
 import services.k_int.interaction.alma.types.items.AlmaItemData;
@@ -245,10 +240,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	private void logAlmaProblemDetails(Throwable e) {
-		final var errs = extractAlmaErrors(e);
-		if (errs != null && errs.getErrorList() != null && errs.getErrorList().getError() != null) {
-			errs.getErrorList().getError().forEach(err ->
-				log.error("Alma error code={} message={}", err.getErrorCode(), err.getErrorMessage()));
+		if (e instanceof AlmaApiException almaError) {
+			log.error("Hold request failed with Alma error codes {}", almaError.getErrorCodes());
 		} else {
 			log.error("Hold request failed: {}", e.toString());
 		}
@@ -396,54 +389,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
-	private static final String VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE = "401861";
-
-	private boolean isVirtualPatronNotFoundError(Throwable e) {
-		AlmaErrorResponse errorResponse = extractAlmaErrors(e);
-
-		if (errorResponse == null || errorResponse.getErrorList() == null || errorResponse.getErrorList().getError() == null) {
-			log.info("No AlmaErrorResponse or error list present");
-			return false;
-		}
-
-		for (AlmaError error : errorResponse.getErrorList().getError()) {
-			log.info("Checking Alma error: code={}, message={}", error.getErrorCode(), error.getErrorMessage());
-			if (VIRTUAL_PATRON_NOT_FOUND_ERROR_CODE.equals(error.getErrorCode())) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	private static final ObjectMapper ERROR_MAPPER = new ObjectMapper();
-
-	public static AlmaErrorResponse extractAlmaErrors(Throwable e) {
-		if (e instanceof DefaultProblem defaultProblem) {
-			Object rawError = defaultProblem.getParameters().get("Alma Error response");
-
-			if (rawError instanceof AlmaErrorResponse response) {
-				return response; // Already deserialized
-			}
-
-			if (rawError instanceof Map) {
-				try {
-					return ERROR_MAPPER.convertValue(rawError, AlmaErrorResponse.class);
-				} catch (Exception ex) {
-					log.error("Failed to convert map to AlmaErrorResponse", ex);
-				}
-			}
-
-			if (rawError instanceof String json) {
-				try {
-					return ERROR_MAPPER.readValue(json, AlmaErrorResponse.class);
-				} catch (Exception ex) {
-					log.error("Failed to parse AlmaErrorResponse from JSON string", ex);
-				}
-			}
-		}
-
-		return null;
+	private static boolean isVirtualPatronNotFoundError(Throwable e) {
+		return e instanceof AlmaApiException almaError && almaError.has(AlmaApiException.Code.USER_NOT_FOUND);
 	}
 
 	private VirtualPatronNotFound createVirtualPatronNotFoundException(String uniqueId, Throwable cause) {
@@ -866,32 +813,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// First get the item
 
 		return client.retrieveItem(bibId, holdingId, itemId)
-			.doOnError(e -> {
-				AlmaErrorResponse almaError = extractAlmaErrors(e);
-				if (almaError != null) {
-					log.error("Failed to retrieve main details for Alma item {}. BibId: {}, HoldingId: {}. Alma Error: {}",
-						itemId, bibId, holdingId, almaError);
-				} else {
-					log.error("Failed to retrieve main details for Alma item {}. BibId: {}, HoldingId: {}. Non-Alma Error: {}",
-						itemId, bibId, holdingId, e.getMessage(), e);
-				}
-			})
+			.doOnError(e -> log.error("Failed to retrieve Alma item {}. BibId: {}, HoldingId: {}",
+				itemId, bibId, holdingId, e))
 			.flatMap(item -> {
 
 				final var almaItemData = getValueOrNull(item, AlmaItem::getItemData);
 
 				Mono<Integer> holdCountMono = client.retrieveItemRequests(bibId, holdingId, itemId)
 					.map(requests -> (requests.getRecordCount() != null) ? requests.getRecordCount() : 0)
-					.doOnError(e -> {
-						AlmaErrorResponse almaError = extractAlmaErrors(e);
-						if (almaError != null) {
-							log.warn("Failed to retrieve hold count for Alma item {}. Alma Error: {}. Defaulting to 0.",
-								itemId, almaError.toString());
-						} else {
-							log.warn("Failed to retrieve hold count for Alma item {}. Defaulting to 0. Non-Alma Error: {}",
-								itemId, e.getMessage(), e);
-						}
-					})
+					.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item {}. Defaulting to 0.", itemId, e))
 					.onErrorReturn(0);
 				// Now bring it all together. Same 0 fallback for hold counts we can't get
 				return holdCountMono.map(holdCount -> {
@@ -1066,16 +996,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		return client.scanIn(new ScanInQuery(bibId, holdingsId, itemId, config.getVirtualItemLibraryCode(), defaultCircDesk))
 			.thenReturn("OK")
-			.doOnError(e -> {
-			AlmaErrorResponse almaError = extractAlmaErrors(e);
-			if (almaError != null) {
-				log.warn("Failed to check-in Alma item {}. Alma Error: {}",
-					itemId, almaError.toString());
-			} else {
-				log.warn("Failed to check-in Alma item {}. Non-Alma Error: {}",
-					itemId, e.getMessage(), e);
-			}
-		});
+			.doOnError(e -> log.warn("Failed to check in Alma item {}", itemId, e));
 	}
 
 	private Patron almaUserToPatron(AlmaUser almaUser) {
