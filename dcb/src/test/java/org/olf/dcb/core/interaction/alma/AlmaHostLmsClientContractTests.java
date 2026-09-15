@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.MatchType;
+import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckInItemCommand;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
@@ -64,6 +65,12 @@ class AlmaHostLmsClientContractTests {
 	@Test
 	void shouldPlaceASupplierHoldForCollectionAtTheSharingLibrary() {
 		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/P1/requests")
+				.withQueryStringParameter("request_type", "HOLD"))
+			.respond(okJson(Map.of("total_record_count", 0)));
+
+		mockServerClient.when(request()
 				.withMethod("POST")
 				.withPath("/almaws/v1/users/P1/requests")
 				.withQueryStringParameter("item_pid", "I1"))
@@ -87,6 +94,36 @@ class AlmaHostLmsClientContractTests {
 			.withBody(json("""
 				{"request_type": "HOLD", "pickup_location_type": "LIBRARY", "pickup_location_library": "DCB-SHARING"}
 				""", MatchType.ONLY_MATCHING_FIELDS)));
+	}
+
+	@Test
+	void shouldAdoptAHoldThePatronAlreadyHasOnTheItemInsteadOfPlacingAnother() {
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/P2/requests")
+				.withQueryStringParameter("request_type", "HOLD")
+				.withQueryStringParameter("limit", "100")
+				.withQueryStringParameter("offset", "0"))
+			.respond(okJson(Map.of(
+				"total_record_count", 2,
+				"user_request", List.of(
+					Map.of("request_id", "R-OTHER", "request_status", "NOT_STARTED", "item_id", "I9"),
+					Map.of("request_id", "R-EXISTING", "request_status", "ON_HOLD_SHELF", "item_id", "I2")))));
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId("P2")
+				.localItemId("I2")
+				.pickupLocation(Location.builder().localId("PICKUP-LIB").build())
+				.activeWorkflow("RET-STD")
+				.build()));
+
+		assertThat(localRequest.getLocalId(), is("R-EXISTING"));
+		assertThat(localRequest.getLocalStatus(), is("READY"));
+
+		mockServerClient.verify(request()
+			.withMethod("POST")
+			.withPath("/almaws/v1/users/P2/requests"), VerificationTimes.never());
 	}
 
 	@Test

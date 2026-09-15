@@ -17,6 +17,6 @@ import java.util.List;
 public class AlmaRequests {
 	@JsonProperty("total_record_count")
 	Integer recordCount;
-	@JsonProperty("requests")
-	List<AlmaRequest> requests;
+	@JsonProperty("user_request")
+	List<AlmaRequestResponse> requests;
 }

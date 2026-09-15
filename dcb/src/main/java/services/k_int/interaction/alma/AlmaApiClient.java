@@ -257,6 +257,19 @@ public interface AlmaApiClient {
 			Map.of("request_type", "HOLD"));
 	}
 
+	int REQUEST_PAGE_SIZE = 100;
+
+	/**
+	 * Fetches one page of a user's active hold requests; Alma's default page is 10.
+	 * <p>
+	 * API: GET /almaws/v1/users/{user_id}/requests?request_type=HOLD&amp;limit={limit}&amp;offset={offset}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/users/R0VUIC9hbG1hd3MvdjEvdXNlcnMve3VzZXJfaWR9L3JlcXVlc3Rz/
+	 */
+	default Mono<AlmaRequests> retrieveUserHoldRequestsPage(String user_id, int offset) {
+		return get("/almaws/v1/users/" + pathSegment(user_id) + "/requests", AlmaRequests.class,
+			Map.of("request_type", "HOLD", "limit", REQUEST_PAGE_SIZE, "offset", offset));
+	}
+
 	/**
 	 * Retrieve a specific user request.
 	 * <p>

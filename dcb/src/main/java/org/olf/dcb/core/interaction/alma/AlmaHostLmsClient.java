@@ -222,7 +222,28 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 // === Submission ===
 
+	// At most 500 of the patron's active holds are searched for one already on the item
+	private static final int MAX_HOLD_PAGES = 5;
+
+	// A placement retried after Alma created the hold but DCB lost the response would otherwise place a second one
 	private Mono<LocalRequest> submitLibraryHold(MinimumAlmaHold hold) {
+		return findActiveHoldOnItem(hold.localPatronId(), hold.localItemId())
+			.doOnNext(existing -> log.info("Adopting existing Alma request {} patron={} item={}",
+				existing.getRequestId(), hold.localPatronId(), hold.localItemId()))
+			.switchIfEmpty(Mono.defer(() -> createLibraryHold(hold)))
+			.map(this::mapAlmaRequestToLocalRequest);
+	}
+
+	private Mono<AlmaRequestResponse> findActiveHoldOnItem(String patronId, String itemId) {
+		return Flux.range(0, MAX_HOLD_PAGES)
+			.concatMap(page -> client.retrieveUserHoldRequestsPage(patronId, page * AlmaApiClient.REQUEST_PAGE_SIZE))
+			.takeUntil(page -> page.getRequests() == null || page.getRequests().size() < AlmaApiClient.REQUEST_PAGE_SIZE)
+			.concatMapIterable(page -> page.getRequests() != null ? page.getRequests() : List.<AlmaRequestResponse>of())
+			.filter(request -> itemId.equals(request.getItemId()))
+			.next();
+	}
+
+	private Mono<AlmaRequestResponse> createLibraryHold(MinimumAlmaHold hold) {
 		final var payload = AlmaRequest.builder()
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
@@ -234,7 +255,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.doOnSubscribe(s -> log.info("Submitting HOLD patron={} item={} pickupLibrary={}",
 				hold.localPatronId(), hold.localItemId(), hold.pickupLibraryCode()))
 			.doOnError(this::logAlmaProblemDetails)
-			.map(this::mapAlmaRequestToLocalRequest)
 			.switchIfEmpty(raiseError(new AlmaHostLmsClientException(
 				"Empty Alma response creating hold for patron "+hold.localPatronId()+" / item "+hold.localItemId())));
 	}
