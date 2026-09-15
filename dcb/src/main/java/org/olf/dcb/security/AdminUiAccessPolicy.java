@@ -53,8 +53,8 @@ public class AdminUiAccessPolicy {
 	private final Mode mode;
 
 	public AdminUiAccessPolicy(
-		@Value("${dcb.security.admin-ui.client-id:}") @Nullable String adminUiClientId,
-		@Value("${dcb.security.admin-ui.mode:WARN}") String mode) {
+		@Value("${dcb.security.admin-ui.client-id}") @Nullable String adminUiClientId,
+		@Value("${dcb.security.admin-ui.mode}") String mode) {
 
 		this.adminUiClientId = (adminUiClientId == null || adminUiClientId.isBlank())
 			? null

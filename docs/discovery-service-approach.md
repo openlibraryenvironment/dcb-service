@@ -441,8 +441,8 @@ Two further variables are not discovery-specific but decide whether the above ar
 | `MICRONAUT_CONFIG_FILES` | Comma-separated paths to external config files. The only way a YAML `trusted-services` list reaches the process. Ignore it if you use the JSON variable. |
 | `KEYCLOAK_CERT_URL` | Validates the discovery service's bearer token. Without it every `/discovery/requests` call is a `401` before assertions are even considered. |
 
-The three discovery scalars are declared in `application.yml` as `${DCB_DISCOVERY_*}`
-placeholders and bind directly.
+The three discovery scalars are literal defaults in `application.yml`, and these variables
+override them because the environment outranks that file.
 
 The list needs the JSON form because **a list of objects cannot be expressed as indexed
 environment variables at all**. Micronaut maps an environment variable onto every dot/hyphen
