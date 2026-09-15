@@ -101,6 +101,35 @@ Two things worth knowing:
   outside hours" — so `--no-office-hours` means those jobs *never* pause, which
   is the opposite of what leaving them blank might suggest.
 
+### Features switched on
+
+A local run exercises what a production environment can switch on, so the script
+defaults these to **on**. Each is an ordinary environment variable: set it before
+calling the script to put that feature back to its shipped default.
+
+| Variable | Script default | Shipped default | Notes |
+|---|---|---|---|
+| `DCB_INSIGHTS_ENABLED` | `true` | `true` | The `/insights` reporting surface |
+| `DCB_DISCOVERY_ENABLED` | `true` | `false` | With no trusted services configured, every patron assertion is refused |
+| `DCB_BRANDING_ASSETS_STORE` | `database` | `database` | Brand image uploads |
+| `DCB_SECURITY_ADMIN_UI_CLIENT_ID` | `dcb-admin` | unset, which turns the access bar off | Which OIDC client may drive DCB Admin |
+| `DCB_SECURITY_ADMIN_UI_MODE` | `WARN` | `WARN` | `WARN` logs who would be refused and refuses nothing. Use `ENFORCE` only once the admin clients are split: against a shared client it locks out every consortium administrator |
+| `DCB_IDENTITY_PROVIDER_CLIENT_SECRET` | none | none | **Never defaulted.** Setting it switches provisioning on, with type `keycloak`, client `dcb-provisioning`, and base URL and realm taken from `KEYCLOAK_CERT_URL` unless set. See [identity-provider-setup.md](identity-provider-setup.md) |
+
+The script also appends `-Duser.timezone=UTC` to `JAVA_TOOL_OPTIONS` unless a timezone is
+already there. Production runs in UTC, and Insights buckets `timestamp without time zone`
+columns by the JVM's zone, so a UTC+1 laptop would otherwise draw different trend buckets.
+
+```bash
+./scripts/local_dev.sh                                   # everything above on
+DCB_DISCOVERY_ENABLED=false ./scripts/local_dev.sh       # discovery back to its default
+DCB_IDENTITY_PROVIDER_CLIENT_SECRET=... ./scripts/local_dev.sh   # provisioning on too
+```
+
+The startup banner lists what is on. For the Insights duration trends in the admin
+frontends, those apps need `VITE_FEATURE_INSIGHTS=true` and
+`VITE_FEATURE_INSIGHTS_TRENDS=true` in their own local environment.
+
 Then load some configuration into it:
 
 ```bash
@@ -148,8 +177,8 @@ just run it.
 Docker daemon, so a script run there manages different containers from the ones
 Docker Desktop shows you — and, more subtly, a PostgreSQL installed inside WSL
 will occupy `127.0.0.1:5432` on the Windows side via `wslrelay` and shadow the
-container's published port. The script detects that and tells you what to do; see
-the troubleshooting entry below.
+container's published port. The script detects that and moves Postgres to a free
+port; see the troubleshooting entry below.
 
 ### Getting a throwaway database back
 
@@ -232,7 +261,7 @@ export OPENSEARCH_HTTP_HOSTS="http://localhost:9200"   # and leave ELASTICSEARCH
 ```
 
 Configure **one** backend, not both. Both profiles bind port 9200, so only one can
-run at a time.
+run at a time. `local_dev.sh` stops the other one for you when you switch `--index`.
 
 ## What DCB actually needs
 
@@ -696,15 +725,30 @@ ss -lntp | grep 5432                                            # Linux/WSL
 Get-NetTCPConnection -LocalPort 5432 -State Listen              # PowerShell
 ```
 
-Then stop that server, or move ours out of the way — the port is configurable
-and the script passes it through to DCB automatically:
+`local_dev.sh` handles this itself. When `DCB_PG_PORT` is not set it chooses the
+Postgres port in this order, and passes it through to DCB:
+
+1. **The port `dcb-postgres` was last published on**, if the container is running or
+   that port is free. Your `psql` commands and IDE connections survive a restart.
+   When that port is not 5432 it says so: `==> Keeping dcb-postgres on port 5433,
+   where it was last published`.
+2. **5432**, if nothing holds it.
+3. **The first free port from 5433 to 5499**, announced on startup:
+
+   ```
+   ==> Port 5432 is in use by something other than dcb-postgres; Postgres will use 5433
+   ```
+
+An explicit port is a decision, so it is never moved. If something else holds it, the
+script stops rather than connecting DCB to the wrong server:
 
 ```bash
-DCB_PG_PORT=5433 ./scripts/local_dev.sh
+DCB_PG_PORT=5433 ./scripts/local_dev.sh     # honoured, or refused if taken
 ```
 
-`local_dev.sh` checks for this before handing over, so you get the message above
-rather than a stack trace.
+An explicit `DB_PORT` is left alone too, for a database you manage yourself. Moving
+the port recreates the container but keeps its data volume. The authentication check
+through the published port still runs before DCB starts, as a last safety net.
 
 **2. The volume predates the current credentials.** `POSTGRES_PASSWORD` is only
 applied when the container initialises an *empty* data directory. A volume
@@ -751,6 +795,35 @@ curl -s -o /dev/null -w '%{http_code}\n' -u elastic:elastic -I \
   -H 'Accept: application/vnd.elasticsearch+json; compatible-with=9' \
   http://localhost:9200/          # 400 on an 8.x server, 200 on 9.x
 ```
+
+### `Bind for 0.0.0.0:9200 failed: port is already allocated`
+
+Docker refused to start the index container because another container already
+publishes port 9200. `elasticsearch9` and `opensearch` both do, so the usual cause is
+switching `--index` while the other backend is still running from an earlier run.
+
+`local_dev.sh` handles this itself. When you switch, it stops the other backend first
+and says so:
+
+```
+==> Stopping elasticsearch9: it holds port 9200 and --index os2 needs it (data volume kept)
+```
+
+Each backend has its own volume, so switching back later finds that index intact.
+
+If something else holds 9200, such as another project's container or a native
+install, the script stops before building the ICU image, which takes minutes. Find
+it, then stop it or run without a shared index:
+
+```bash
+docker ps --filter publish=9200
+Get-NetTCPConnection -LocalPort 9200 -State Listen   # PowerShell
+./scripts/local_dev.sh --index none
+```
+
+On Windows, a `wslrelay` listener on `::1:9200` is normally Docker Desktop publishing
+that same container into WSL, not a second server: `docker ps` inside WSL lists the
+same container.
 
 ### Elasticsearch keeps dying (exit 255) — check Docker disk first
 
@@ -801,14 +874,16 @@ other way, or passed your own `--skip-tasks`. Fix with either:
 
 ### Connecting to the database with psql
 
-The port is fixed and the database persists, so:
+The database persists, and the port is 5432 unless something else held it on the
+first start:
 
 ```bash
 psql -h localhost -p 5432 -U dcb -d dcb     # password: dcb
 ```
 
-If you moved it with `DCB_PG_PORT`, use that port instead. `local_dev.sh` prints
-the exact command for your configuration on every start.
+If `local_dev.sh` chose another port, or you set `DCB_PG_PORT`, use that port
+instead. The script prints the exact command, with the port it chose, on every start,
+and it keeps that port on later starts while it stays free.
 
 ### `/var/lib/postgresql/data (unused mount/volume)`
 
