@@ -78,9 +78,6 @@ public class TrackingServiceV4 implements TrackingService {
   private Long lastTrackingRunCount;
 
 	private final int MAX_TRACKING_CONCURRENCY = 10;
-  // If a request in a trackable state gets stuck in a non-termina state for > this number of days.
-  // mark it "TooLong" which will stop it being visited by the tracking code.
-	private final int TOO_LONG_THRESHOLD = 56;
 
 	TrackingServiceV4(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -223,13 +220,10 @@ public class TrackingServiceV4 implements TrackingService {
 				.map(ctx::setPatronRequest);
 		}
 
-    Instant lastStateChange = ctx.getPatronRequest().getCurrentStatusTimestamp();
-    if ( lastStateChange != null ) {
-      Instant tooLongThreshold = Instant.now().minus(Duration.ofDays(TOO_LONG_THRESHOLD));
-      if ( lastStateChange.isBefore(tooLongThreshold) ) {
-        return tooLongHandling(ctx);
-      }
-    }
+		// Only automatic polling parks a request. A manual poll is a person asking, and resumes it.
+		if (isAutoTracking && TooLongPolicy.hasBeenInCurrentStatusTooLong(ctx.getPatronRequest())) {
+			return tooLongHandling(ctx);
+		}
 
 		return Mono.just(isAutoTracking ? incrementAutoPollCounter(ctx) : incrementManualPollCounter(ctx))
 			.flatMap(context -> isAutoTracking
@@ -251,7 +245,7 @@ public class TrackingServiceV4 implements TrackingService {
 		log.warn("Patron request selected for too long handling {}", ctx.getPatronRequest().getId());
 
 		final var auditData = new HashMap<String, Object>();
-		auditData.put("Reason", "Request stuck in non-terminal state for more than " + TOO_LONG_THRESHOLD + " days");
+		auditData.put("Reason", "Request stuck in non-terminal state for more than " + TooLongPolicy.THRESHOLD_DAYS + " days");
 		auditData.put("LastStateChangeTimestamp", ctx.getPatronRequest().getCurrentStatusTimestamp());
 
 		return Mono.from(patronRequestRepository.updateIsTooLongAndNeedsAttention(
@@ -260,7 +254,7 @@ public class TrackingServiceV4 implements TrackingService {
 			.flatMap(updateResult ->
 				patronRequestAuditService.addAuditEntry(
 					ctx.getPatronRequest(),
-					"Request no longer being tracked - has spent more than "+TOO_LONG_THRESHOLD+" in non-terminal state",
+					"Request no longer being tracked - has spent more than "+TooLongPolicy.THRESHOLD_DAYS+" in non-terminal state",
 					auditData)
 			)
 			.thenReturn(ctx);
@@ -273,8 +267,30 @@ public class TrackingServiceV4 implements TrackingService {
 	}
 
 	private Mono<RequestWorkflowContext> manuallyTrack(RequestWorkflowContext ctx) {
-		return patronRequestAuditService.addAuditEntry(ctx.getPatronRequest(), "Manual update actioned.")
+		return resumeTrackingIfParked(ctx)
+			.flatMap(context -> patronRequestAuditService.addAuditEntry(context.getPatronRequest(),
+				"Manual update actioned."))
 			.flatMap(audit -> trackSystems(ctx, false));
+	}
+
+	/**
+	 * Bring a parked request back into automatic tracking. The saved resume timestamp restarts the
+	 * too-long clock, so it is polled for a further threshold before being parked again.
+	 */
+	private Mono<RequestWorkflowContext> resumeTrackingIfParked(RequestWorkflowContext ctx) {
+		return Mono.defer(() -> {
+			final var patronRequest = ctx.getPatronRequest();
+
+			if (!Boolean.TRUE.equals(patronRequest.getIsTooLong())) {
+				return Mono.just(ctx);
+			}
+
+			patronRequest.setIsTooLong(Boolean.FALSE).setTrackingResumedAt(Instant.now());
+
+			return patronRequestAuditService
+				.addAuditEntry(patronRequest, "Tracking resumed by manual update")
+				.thenReturn(ctx);
+		});
 	}
 
 	private Mono<RequestWorkflowContext> trackSystems(
