@@ -218,10 +218,12 @@ a **disabled, roleless** account, which confers nothing.
 > could not be verified against a real instance, and writing them from memory is precisely
 > the failure mode this estate's doctrine names.
 >
-> Setting `DCB_IDENTITY_PROVIDER_TYPE=zitadel` produces **no client bean**. The
-> `libraryUserProvisioningAvailable` query returns false and DCB Admin renders "account
-> provisioning is not configured on this deployment" instead of a form. That is a legible
-> absence, not a broken feature — but accounts still have to be created by hand.
+> **Do not set `DCB_IDENTITY_PROVIDER_TYPE=zitadel`.** An unsupported type now fails
+> startup, naming the value, rather than leaving provisioning quietly off. Leave the type
+> empty or unset instead: `libraryUserProvisioningAvailable` returns false and DCB Admin
+> renders "account provisioning is not configured on this deployment" instead of a form.
+> That is a legible absence, not a broken feature — but accounts still have to be created
+> by hand.
 
 **Parts 1.1 to 1.4 apply in full and are worth doing now.** They are what makes data scoping
 and the DCB Admin bar work, and none of that depends on provisioning:

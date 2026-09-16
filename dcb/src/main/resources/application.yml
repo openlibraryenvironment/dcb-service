@@ -230,11 +230,11 @@ graphql:
     enabled: false
 
 dcb:
-  # Only `keycloak` is implemented.
-  # Any other type, including empty, leaves DCB Admin for Libraries provisioning
-  # off. Leave the connection settings out of this file rather than empty: an empty key
-  # binds as a present value and bypasses the required-setting checks. What to set:
-  # docs/identity-provider-setup.md.
+  # Only `keycloak` is implemented. EMPTY turns DCB Admin for Libraries provisioning off
+  # and is the default; any other value fails startup rather than disabling the feature
+  # silently - IdentityProviderTypeCheck. Leave the connection settings out of this file
+  # rather than empty: an empty key binds as a present value, and blank is treated as
+  # missing so it fails at deploy. What to set: docs/identity-provider-setup.md.
   identity-provider:
     type: ""
 
