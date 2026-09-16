@@ -30,7 +30,8 @@ class DiscoveryServicePropertiesBindingTests {
 		final var resolver = new PropertySourcePropertyResolver(ConversionService.SHARED);
 
 		resolver.addPropertySource(PropertySource.of("test-env", environmentVariables,
-			PropertySource.PropertyConvention.ENVIRONMENT_VARIABLE));
+			PropertySource.PropertyConvention.ENVIRONMENT_VARIABLE,
+			PropertySource.Origin.of("test-env")));
 
 		return resolver;
 	}

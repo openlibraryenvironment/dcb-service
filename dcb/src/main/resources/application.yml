@@ -291,6 +291,10 @@ dcb:
     maxwait: 0
   tracking:
     dryRun: false
+    # How long a request may sit in one non-terminal state before automatic polling parks it.
+    # 56 days suits some consortia and not others, so it is configurable: DCB_TRACKING_TOO_LONG.
+    # A manual "check for updates" resumes a parked request and restarts this clock.
+    too-long: 56d
   polling:
     durations:
       SUBMITTED_TO_DCB: null

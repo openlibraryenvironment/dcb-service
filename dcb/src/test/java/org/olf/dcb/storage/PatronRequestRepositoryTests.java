@@ -64,6 +64,40 @@ class PatronRequestRepositoryTests {
 	}
 
 	@Test
+	void scheduledChecksSkipParkedRequestsAndSelectResumedOnes() {
+		// Clearing is_too_long is what brings a request back into automatic tracking; this is the query
+		// that decides it.
+		final var patron = patronFixture.savePatron("home-library");
+
+		patronRequestsFixture.savePatronRequest(
+			PatronRequest.builder()
+				.id(randomUUID())
+				.patron(patron)
+				.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+				.nextScheduledPoll(Instant.now().minusSeconds(60))
+				.isTooLong(true)
+				.build());
+
+		final var resumedRequest = patronRequestsFixture.savePatronRequest(
+			PatronRequest.builder()
+				.id(randomUUID())
+				.patron(patron)
+				.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY)
+				.nextScheduledPoll(Instant.now().minusSeconds(60))
+				.isTooLong(false)
+				.trackingResumedAt(Instant.now())
+				.build());
+
+		final var scheduledRequestIds = manyValuesFrom(
+			patronRequestRepository.findScheduledChecks())
+				.stream()
+				.map(PatronRequestRepository.ScheduledTrackingRecord::id)
+				.toList();
+
+		assertThat(scheduledRequestIds, contains(resumedRequest.getId()));
+	}
+
+	@Test
 	void persistsRequestOutcomeIndependentlyFromStatus() {
 		final var patron = patronFixture.savePatron("home-library");
 		final var request = patronRequestsFixture.savePatronRequest(
