@@ -16,6 +16,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
@@ -100,8 +101,12 @@ class ApplicationServicesAuthFilter {
 		private String siteDomain;
 		@JsonProperty("UserDomain")
 		private String userDomain;
+		// See PAPIAuthFilter.AuthToken: excluded so that logging the token cannot print
+		// the credential.
+		@ToString.Exclude
 		@JsonProperty("AccessToken")
 		private String accessToken;
+		@ToString.Exclude
 		@JsonProperty("AccessSecret")
 		private String accessSecret;
 		@JsonProperty("AuthExpDate")
