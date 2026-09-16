@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono;
  *
  * Both failure modes REFUSE rather than narrowing - no agency in the token, and an
  * agency that is not the one requested. Why refusal rather than a rollout mode:
- * docs/insights.md part 2.
+ * developer:insights.adoc part 2.
  */
 @Slf4j
 @Singleton

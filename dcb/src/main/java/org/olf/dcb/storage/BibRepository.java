@@ -197,7 +197,7 @@ where bi.owner_id = br.id and
 	// --- Collection analysis -------------------------------------------------------------
 	// These describe the catalogued collection and touch neither patron_request nor live
 	// availability, so they report before any request is placed. Semantics, bounds and access
-	// controls: docs/insights.md part 5.
+	// controls: developer:insights.adoc part 5.
 	//
 	// ALL of them share one intermediate - the DISTINCT (cluster, source system) pairs - so the
 	// figures reconcile against each other on one screen. DISTINCT is load-bearing: one source

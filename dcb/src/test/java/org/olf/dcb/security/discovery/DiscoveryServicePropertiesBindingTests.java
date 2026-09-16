@@ -164,7 +164,7 @@ class DiscoveryServicePropertiesBindingTests {
 			() -> properties.setTrustedServicesJson("[\"a bare string, not an object\"]"));
 	}
 
-	/** README.md and discovery-service-approach.md both promise PT2M. */
+	/** README.md and operational:discovery-service-approach.adoc both promise PT2M. */
 	@Test
 	void theDefaultLifetimeIsTheDocumentedTwoMinutes() {
 		assertEquals(Duration.ofMinutes(2), new DiscoveryServiceProperties().getMaxAssertionLifetime());

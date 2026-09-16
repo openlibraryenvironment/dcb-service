@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 /**
  * The bucket widths every DCB time series supports, and the one place the window contract is
  * defined. Shared by the Insights flow time series and the Audit Explorer's incidence chart, so
- * two charts on one dashboard cannot differ by a bucket. Rationale: docs/insights.md part 3.
+ * two charts on one dashboard cannot differ by a bucket. Rationale: developer:insights.adoc part 3.
  *
  * <p>The contract, all four parts of which callers must honour:
  *

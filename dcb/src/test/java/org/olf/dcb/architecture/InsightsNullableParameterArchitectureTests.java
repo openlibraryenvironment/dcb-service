@@ -16,7 +16,7 @@ import org.olf.dcb.storage.PatronRequestRepository;
  * An Insights route that makes a parameter optional must call repository methods that can
  * take the null it will hand them. Micronaut Data refuses to bind a null to a parameter that
  * is not {@code @Nullable}, before the statement reaches Postgres, so an IS NULL branch in
- * the SQL is no defence and the 500 is unconditional. Why it is a test: docs/insights.md 3.2a.
+ * the SQL is no defence and the 500 is unconditional. Why it is a test: developer:insights.adoc 3.2a.
  */
 class InsightsNullableParameterArchitectureTests {
 

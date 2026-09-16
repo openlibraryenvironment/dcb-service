@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Configure a LOCAL DEV Keycloak realm for library account provisioning and the DCB Admin
-# access bar. This is operational:identity-provider-setup.adoc, executed.
+# access bar. This is developer:identity-provider-setup.adoc, executed.
 #
 #   ./scripts/keycloak_library_accounts_setup.sh
 #

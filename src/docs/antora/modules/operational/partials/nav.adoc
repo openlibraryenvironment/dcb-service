@@ -1,4 +1,5 @@
 .Operational Resources
 * xref:operational:bare-metal-build.adoc[]
 * xref:operational:docker.adoc[]
-* xref:operational:identity-provider-setup.adoc[Identity provider setup]
+* xref:operational:discovery-service-approach.adoc[Discovery services]
+* xref:operational:v9-migration-guide.adoc[v9 migration guide]

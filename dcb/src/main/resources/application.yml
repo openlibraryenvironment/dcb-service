@@ -10,7 +10,7 @@ micronaut:
       enabled: true
     multipart:
       # There is deliberately no `enabled` here: absent is not the same as false, and only
-      # an explicit false refuses. See docs/branding.md.
+      # an explicit false refuses. See developer:branding.adoc.
       max-file-size: ${dcb.branding.assets.max-bytes}
   application:
     name: dcb
@@ -234,7 +234,7 @@ dcb:
   # and is the default; any other value fails startup rather than disabling the feature
   # silently - IdentityProviderTypeCheck. Leave the connection settings out of this file
   # rather than empty: an empty key binds as a present value, and blank is treated as
-  # missing so it fails at deploy. What to set: operational:identity-provider-setup.adoc.
+  # missing so it fails at deploy. What to set: developer:identity-provider-setup.adoc.
   identity-provider:
     type: ""
 
@@ -248,7 +248,7 @@ dcb:
       max-wait: 30s
 
   # Fails closed: off until a trusted service is configured.
-  # The model and onboarding: docs/discovery-service-approach.md.
+  # The model and onboarding: operational:discovery-service-approach.adoc.
   discovery:
     enabled: false
     # The audience a patron assertion must name. This DCB, not another one.
@@ -256,9 +256,9 @@ dcb:
     # DCB's own cap on assertion validity, enforced regardless of the issuer's `exp`.
     max-assertion-lifetime: PT2M
     # YAML, or DCB_DISCOVERY_TRUSTED_SERVICES_JSON where no file can be mounted: a list
-    # cannot come from indexed variables. docs/discovery-service-approach.md section 7.2.
+    # cannot come from indexed variables. operational:discovery-service-approach.adoc section 7.2.
     trusted-services: []
-  # How an image gets in, for each store: docs/branding.md.
+  # How an image gets in, for each store: developer:branding.adoc.
   branding:
     assets:
       # database - images are stored in Postgres.
@@ -282,7 +282,7 @@ dcb:
 
     # This must stay the ONLY dcb.security key: YAML keeps the last of a duplicate pair.
     # An empty client-id disables the check. Not a data control: AgencyAccessScope decides
-    # what any caller may read. Rollout: operational:identity-provider-setup.adoc section 1.4.
+    # what any caller may read. Rollout: developer:identity-provider-setup.adoc section 1.4.
     admin-ui:
       client-id: ""
       mode: WARN

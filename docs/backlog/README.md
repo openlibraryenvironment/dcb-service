@@ -24,7 +24,7 @@
   review operator presentation and vocabulary.
 - Object storage for brand assets: reinstate an S3-API `BrandAssetStore` as a third value
   for `dcb.branding.assets.store`, for estates that already run a bucket. Removed in
-  favour of Postgres so uploads need no infrastructure; see `docs/branding.md`. Bring back
+  favour of Postgres so uploads need no infrastructure; see `../../src/docs/antora/modules/developer/pages/branding.adoc`. Bring back
   the Caffeine cache as a decorator at the same time, since there will be two
   implementations wanting it.
 

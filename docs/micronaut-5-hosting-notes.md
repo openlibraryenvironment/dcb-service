@@ -6,7 +6,7 @@ DCB to Micronaut 5 / JDK 25.
 > **Upgrading to v9.0.0?** The Micronaut 5 and JDK 25 work described here ships in
 > v9.0.0, alongside changes with a larger operational footprint — database migrations
 > that are not free, an automatic re-clustering sweep, and the removal of the `PATRON`
-> role. Read **`docs/v9-migration-guide.md`** first; this document remains the detail on
+> role. Read **`../src/docs/antora/modules/operational/pages/v9-migration-guide.adoc`** first; this document remains the detail on
 > the framework and search-backend side.
 
 ## Short version

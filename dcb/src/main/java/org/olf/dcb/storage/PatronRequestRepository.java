@@ -444,7 +444,7 @@ public interface PatronRequestRepository {
 		int maxBuckets
 	);
 
-	// === Percentile trends. Semantics and edge effects: docs/insights.md 3.9 ===================
+	// === Percentile trends. Semantics and edge effects: developer:insights.adoc 3.9 ===================
 	//
 	// All three: bounds are LocalDateTime because audit_date is timestamp WITHOUT time zone,
 	// as the flow series above explains; each buckets on when the duration ENDED, so a closed
@@ -995,7 +995,7 @@ public interface PatronRequestRepository {
 	);
 
 	// Trading partners. Three queries: who we borrow from, who borrows from us, and both
-	// together ranked on the total. Semantics and the gaps that remain: docs/insights.md 3.2a.
+	// together ranked on the total. Semantics and the gaps that remain: developer:insights.adoc 3.2a.
 	//
 	// All three share the same rules, and the two directional ones must stay mirror images:
 	//
@@ -1162,7 +1162,7 @@ public interface PatronRequestRepository {
 
 	// "Unmet local demand": clusters the caller's own patrons requested, but to which none of
 	// the caller's libraries contributes a bib record. For a group that is "nobody here holds
-	// it", which is the acquisition question a group chair is asking - docs/insights.md 3.8.
+	// it", which is the acquisition question a group chair is asking - developer:insights.adoc 3.8.
 	// TopClusterStat only carries (clusterId, title, requestCount), so we select nothing more -
 	// the previous author/ISBN projection was computed per row and silently discarded.
 	@Query(

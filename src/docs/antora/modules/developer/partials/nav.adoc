@@ -1,0 +1,5 @@
+.Developer Resources
+* xref:developer:branding.adoc[Branding]
+* xref:developer:insights.adoc[Insights]
+* xref:developer:identity-provider-setup.adoc[Identity provider setup]
+* xref:api:attachment$scalar/index.html[OpenApi Explorer, window=_blank]

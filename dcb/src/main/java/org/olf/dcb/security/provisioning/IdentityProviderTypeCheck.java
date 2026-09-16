@@ -23,6 +23,6 @@ public class IdentityProviderTypeCheck {
 
 		throw new IllegalStateException("dcb.identity-provider.type \"" + type
 			+ "\" is not supported. Use \"" + SUPPORTED + "\", or leave it empty to turn "
-			+ "account provisioning off. See operational:identity-provider-setup.adoc");
+			+ "account provisioning off. See developer:identity-provider-setup.adoc");
 	}
 }

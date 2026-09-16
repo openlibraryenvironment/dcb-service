@@ -1,6 +1,6 @@
 -- Merge the admin-chrome image columns into the patron-facing brand columns, and stop
 -- storing a member of staff's name and email address on the consortium row.
--- Rationale and the data-loss decision: docs/branding.md, "Migration choices".
+-- Rationale and the data-loss decision: developer:branding.adoc, "Migration choices".
 
 -- Preserved BEFORE the columns go, so the provenance survives in the place provenance
 -- belongs: a role-checked audit record rather than a column any authenticated principal

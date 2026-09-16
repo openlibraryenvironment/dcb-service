@@ -31,7 +31,7 @@ import reactor.util.retry.Retry;
  *
  * <p>Why one permit for the whole group rather than one per endpoint, why a cache instead of a
  * scheduled rollup, and why a queued caller waits rather than being refused:
- * {@code docs/insights.md} part 5.
+ * {@code developer:insights.adoc} part 5.
  */
 @Slf4j
 @Singleton

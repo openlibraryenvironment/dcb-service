@@ -339,7 +339,7 @@ public class PatronRequestController {
 	 * and has no caller that needs it -- it uses the current path like everyone else.
 	 *
 	 * Delete when EBSCO confirms it has moved. See
-	 * docs/discovery-service-approach.md section 8.
+	 * operational:discovery-service-approach.adoc section 8.
 	 */
 	@Secured(ADMINISTRATOR)
 	@Operation(
@@ -399,7 +399,7 @@ public class PatronRequestController {
 	 *
 	 * The replacement is GET /discovery/requests, where the patron is a verified
 	 * assertion rather than a claim on the caller's own token. Delete this when EBSCO
-	 * has moved. See docs/discovery-service-approach.md section 8.
+	 * has moved. See operational:discovery-service-approach.adoc section 8.
 	 */
 	@Secured(ADMINISTRATOR)
 	@Operation(summary = "Browse Requests", description = "Paginate through the list of Patron Requests", parameters = {

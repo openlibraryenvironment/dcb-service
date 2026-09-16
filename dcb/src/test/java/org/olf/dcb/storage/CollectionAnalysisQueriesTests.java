@@ -28,7 +28,7 @@ import jakarta.inject.Inject;
 
 // These queries count WORKS rather than rows, so the cases that matter are the ones where those
 // two differ: a source contributing several bibs to one cluster, and clusters held by several
-// sources. Semantics: docs/insights.md part 5.
+// sources. Semantics: developer:insights.adoc part 5.
 @DcbTest
 class CollectionAnalysisQueriesTests {
 	@Inject

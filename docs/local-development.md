@@ -114,7 +114,7 @@ calling the script to put that feature back to its shipped default.
 | `DCB_BRANDING_ASSETS_STORE` | `database` | `database` | Brand image uploads |
 | `DCB_SECURITY_ADMIN_UI_CLIENT_ID` | `dcb-admin` | unset, which turns the access bar off | Which OIDC client may drive DCB Admin |
 | `DCB_SECURITY_ADMIN_UI_MODE` | `WARN` | `WARN` | `WARN` logs who would be refused and refuses nothing. Use `ENFORCE` only once the admin clients are split: against a shared client it locks out every consortium administrator |
-| `DCB_IDENTITY_PROVIDER_CLIENT_SECRET` | none | none | **Never defaulted.** Setting it switches provisioning on, with type `keycloak`, client `dcb-provisioning`, and base URL and realm taken from `KEYCLOAK_CERT_URL` unless set. See [identity-provider-setup.md](identity-provider-setup.md) |
+| `DCB_IDENTITY_PROVIDER_CLIENT_SECRET` | none | none | **Never defaulted.** Setting it switches provisioning on, with type `keycloak`, client `dcb-provisioning`, and base URL and realm taken from `KEYCLOAK_CERT_URL` unless set. See [the identity provider runbook](../src/docs/antora/modules/developer/pages/identity-provider-setup.adoc) |
 
 The script also appends `-Duser.timezone=UTC` to `JAVA_TOOL_OPTIONS` unless a timezone is
 already there. Production runs in UTC, and Insights buckets `timestamp without time zone`

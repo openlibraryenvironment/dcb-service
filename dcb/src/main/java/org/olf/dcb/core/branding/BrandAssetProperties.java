@@ -12,7 +12,7 @@ import lombok.Setter;
  * <p>The caps are configuration rather than constants because they are deployment facts: a
  * consortium that genuinely needs a larger canvas raises one knowingly instead of somebody
  * patching a number. What each one is for, and the numbers behind the defaults, are in
- * {@code docs/branding.md}.
+ * {@code developer:branding.adoc}.
  *
  * <p>The one thing worth repeating here, because it is a safety property and not a
  * preference: {@code maxDimension} is a decompression-bomb limit. It is checked from the

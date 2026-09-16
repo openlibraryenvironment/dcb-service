@@ -44,7 +44,7 @@ class IdentityProviderTypeCheckTests {
 
 			assertThat(failure.getMessage(), containsString(type));
 			assertThat(failure.getMessage(), containsString("keycloak"));
-			assertThat(failure.getMessage(), containsString("operational:identity-provider-setup.adoc"));
+			assertThat(failure.getMessage(), containsString("developer:identity-provider-setup.adoc"));
 		}
 	}
 

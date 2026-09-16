@@ -6,7 +6,7 @@ import io.micronaut.serde.annotation.Serdeable;
 /**
  * The consortium's collection in four numbers. What each one does and does not mean, and why
  * {@code distinctTitles} is neither the sum of {@link CollectionProfileStat#clusterCount()} nor
- * {@code count(*) FROM cluster_record}: docs/insights.md part 5.
+ * {@code count(*) FROM cluster_record}: developer:insights.adoc part 5.
  *
  * <p>Only as good as the clustering that produced it - read beside {@link ClusterSizeStat}.
  */

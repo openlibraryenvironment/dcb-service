@@ -17,7 +17,7 @@ import io.micronaut.core.annotation.Nullable;
  *
  * <b>Empty is not "unrestricted"</b> - it means the token says nothing, and every
  * consumer must treat that as no access. Why {@code code} rather than a new claim,
- * and why multi-valued: docs/insights.md part 2.
+ * and why multi-valued: developer:insights.adoc part 2.
  */
 public final class AgencyClaims {
 

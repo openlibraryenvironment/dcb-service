@@ -19,7 +19,7 @@ import jakarta.inject.Singleton;
  * deployment that has not split its OIDC clients yet.
  *
  * <p>Why both controls are needed, and turning it on:
- * {@code operational:identity-provider-setup.adoc} §1.3–1.4.
+ * {@code developer:identity-provider-setup.adoc} §1.3–1.4.
  */
 @Singleton
 public class AdminUiAccessPolicy {

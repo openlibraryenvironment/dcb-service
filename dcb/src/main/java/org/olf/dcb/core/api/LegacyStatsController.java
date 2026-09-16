@@ -30,7 +30,7 @@ import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
  *
  * <p><b>Delete this class once a dcb-admin-for-libraries release using {@code /insights} is
  * out.</b> The WARN below says whether anything still calls them. Background:
- * {@code docs/insights.md} part 1.
+ * {@code developer:insights.adoc} part 1.
  *
  * <p>It delegates to {@link InsightsController} rather than repeating the query, so the scoping
  * guard cannot be bypassed by coming in through the old door. A copy here would be a second

@@ -1,6 +1,6 @@
 -- Patron-facing brand for the consortium (N-1.3, R-17d).
 -- Additive and nullable throughout: rewrites no rows.
--- Design notes and open questions: docs/branding.md, "Migration choices".
+-- Design notes and open questions: developer:branding.adoc, "Migration choices".
 
 alter table consortium add brand_logo_url varchar(400);
 alter table consortium add brand_logo_alt varchar(255);

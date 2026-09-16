@@ -40,7 +40,7 @@ import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
 
 /**
  * Insights - reporting and analytics over patron requests and the catalogued collection.
- * Read only. Full documentation: {@code docs/insights.md}.
+ * Read only. Full documentation: {@code developer:insights.adoc}.
  *
  * <p><b>The class boundary is the security surface.</b> Every {@code @Get} in this file must
  * route its library filter through {@link StatsScopeGuard}; scoping is a property of the whole
@@ -198,7 +198,7 @@ public class InsightsController {
 	 * they took, which is the question "is the wait getting longer" actually asks.
 	 *
 	 * <p>Empty buckets are absent rather than zero - a bucket with no observations has no
-	 * median. Semantics and the edge effects: {@code docs/insights.md} part 3.9.
+	 * median. Semantics and the edge effects: {@code developer:insights.adoc} part 3.9.
 	 */
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
 	@Get("/trend")
@@ -517,7 +517,7 @@ public class InsightsController {
 	/**
 	 * Peer benchmarking. The one endpoint that is cross-tenant BY DESIGN - ranking a library
 	 * against the network cannot be done from its own row - so peers are NAMED, for every
-	 * caller. Why naming beat pseudonymising: docs/insights.md part 3.
+	 * caller. Why naming beat pseudonymising: developer:insights.adoc part 3.
 	 *
 	 * If a consortium ever wants peer identity withheld, hide the panel. Do not publish a
 	 * pseudonym derived from the Host LMS code; codes are short, few and known to every member.
@@ -833,7 +833,7 @@ public class InsightsController {
 	//
 	// These aggregate bib_record rather than patron_request. The first four are
 	// consortium-wide, so they resolve the caller and then deliberately DISCARD the scope: a
-	// library administrator sees every library's profile. That is a decision - docs/insights.md
+	// library administrator sees every library's profile. That is a decision - developer:insights.adoc
 	// part 5. resolve() still earns its keep, because a library role with no agency claim is
 	// refused rather than silently served.
 

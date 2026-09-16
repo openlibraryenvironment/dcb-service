@@ -12,7 +12,7 @@ import reactor.core.publisher.Mono;
  * so a failure between steps leaves an inert account; and <b>containment is per-provider</b>,
  * so one that cannot express it must say so rather than leave Keycloak's property assumed.
  *
- * <p>Why, and how to prove it: {@code operational:identity-provider-setup.adoc}.
+ * <p>Why, and how to prove it: {@code developer:identity-provider-setup.adoc}.
  */
 public interface IdentityProviderClient {
 

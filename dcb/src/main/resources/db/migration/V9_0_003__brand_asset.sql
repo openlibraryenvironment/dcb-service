@@ -1,6 +1,6 @@
 -- Uploaded brand images (R-17b), when dcb.branding.assets.store is `database`.
 -- Why the database rather than object storage, and what bounds the size:
--- docs/branding.md, "Migration choices".
+-- developer:branding.adoc, "Migration choices".
 
 create table brand_asset (
 	-- SHA-256 hex plus an extension. Content-addressed, so rows are written once and

@@ -35,7 +35,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 @ConfigurationProperties("dcb.discovery")
 public class DiscoveryServiceProperties {
 
-	/** Documented as PT2M in README.md and docs/discovery-service-approach.md. */
+	/** Documented as PT2M in README.md and operational:discovery-service-approach.adoc. */
 	private static final Duration DEFAULT_MAX_ASSERTION_LIFETIME = Duration.ofMinutes(2);
 
 	private boolean enabled = false;

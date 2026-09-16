@@ -14,7 +14,7 @@ This module is distributed in source and pre-compiled docker container form:
 # Deployment
 
 > **Upgrading from 8.x to v9.0.0?** Read
-> [docs/v9-migration-guide.md](docs/v9-migration-guide.md) before you deploy. v9.0.0
+> [the v9 migration guide](src/docs/antora/modules/operational/pages/v9-migration-guide.adoc) before you deploy. v9.0.0
 > carries migrations that are not free, an automatic re-clustering sweep, the removal of
 > the `PATRON` role, and it is not cleanly reversible.
 
@@ -84,7 +84,7 @@ Additional optional configuration values. These may be set in configuration file
 | dcb.discovery.enabled                                                   | Whether the discovery service surface is served at all                 | Boolean                                                                              | false      |
 | dcb.discovery.audience                                                  | Audience a patron assertion must name                                  | String                                                                               | dcb        |
 | dcb.discovery.max-assertion-lifetime                                    | Upper bound DCB enforces on patron assertion validity                  | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT2M       |
-| dcb.discovery.trusted-services                                          | Discovery services DCB accepts patron assertions from. Each entry: `service-id`, `issuer`, and one of `jwks-uri` / inline `jwks`. See [the discovery service approach](docs/discovery-service-approach.md). | List of objects                                    | empty      |
+| dcb.discovery.trusted-services                                          | Discovery services DCB accepts patron assertions from. Each entry: `service-id`, `issuer`, and one of `jwks-uri` / inline `jwks`. See [the discovery service approach](src/docs/antora/modules/operational/pages/discovery-service-approach.adoc). | List of objects                                    | empty      |
 
 # API Documentation
 
@@ -113,7 +113,7 @@ enforces per-patron ownership itself rather than trusting the caller to.
 The surface is **disabled by default**. Set `DCB_DISCOVERY_ENABLED=true` and configure at least
 one trusted service to serve it.
 
-[**docs/discovery-service-approach.md**](docs/discovery-service-approach.md) is the full
+[**The discovery service approach**](src/docs/antora/modules/operational/pages/discovery-service-approach.adoc) is the full
 reference: the API contract and response codes for vendors (section 6), and onboarding mechanics
 for operators on Kubernetes, plain Docker/systemd, and AWS ECS/Fargate, including every
 environment variable involved (section 7).

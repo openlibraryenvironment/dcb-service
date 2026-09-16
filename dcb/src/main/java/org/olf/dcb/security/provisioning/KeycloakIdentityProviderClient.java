@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono;
  * not constrain it. Create and modify power comes from fine-grained user permissions instead.
  *
  * <p>Verify that against the deployed Keycloak version — the grant and the commands that
- * prove it: {@code operational:identity-provider-setup.adoc} §2.2–2.3 and §5.3.
+ * prove it: {@code developer:identity-provider-setup.adoc} §2.2–2.3 and §5.3.
  */
 @Context
 @Requires(property = "dcb.identity-provider.type", value = "keycloak")
