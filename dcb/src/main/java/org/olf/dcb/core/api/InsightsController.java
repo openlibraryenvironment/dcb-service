@@ -18,12 +18,15 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.serde.*;
 import org.olf.dcb.core.svc.CollectionAnalysisService;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.svc.TimeBucket;
+import org.olf.dcb.core.svc.TrendMetric;
 import org.olf.dcb.security.StatsScopeGuard;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -187,6 +190,71 @@ public class InsightsController {
 							? Mono.error(bucket.tooManyBuckets())
 							: Mono.just(points));
 			});
+	}
+
+	/**
+	 * A duration over time: p50, p95 and a sample count per bucket, for one of the metrics
+	 * {@link TrendMetric} names. The flow series above counts events; this measures how long
+	 * they took, which is the question "is the wait getting longer" actually asks.
+	 *
+	 * <p>Empty buckets are absent rather than zero - a bucket with no observations has no
+	 * median. Semantics and the edge effects: {@code docs/insights.md} part 3.9.
+	 */
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/trend")
+	public Mono<List<TrendPoint>> getTrend(
+		@Nullable @QueryValue String metric,
+		@Nullable @QueryValue String interval,
+		@QueryValue(defaultValue = "LOANED") String targetStatus,
+		@QueryValue(defaultValue = "PICKUP_TRANSIT") String status,
+		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue Instant startDate,
+		@Nullable @QueryValue Instant endDate,
+		Authentication authentication) {
+
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+			.flatMap(scope -> {
+				final var libraryCode = scope.libraryCode();
+
+					// Both enums REJECT an unknown name rather than collapsing to a default,
+					// and the status names are checked against the workflow's own vocabulary -
+					// a typo is an error, never a chart that is quietly empty.
+					final var trendMetric = TrendMetric.fromName(metric);
+					final var bucket = TimeBucket.fromName(interval);
+
+					final var end = endDate == null ? Instant.now() : endDate;
+					final var start = startDate == null ? end.minus(DEFAULT_STATS_WINDOW) : startDate;
+					final var cap = TimeBucket.MAX_BUCKETS + 1;
+
+					final Flux<TrendPoint> points = switch (trendMetric) {
+						case TURNAROUND_TO_STATUS -> Flux.from(patronRequestRepository.findTurnaroundTrend(
+							bucket.getDateTruncUnit(), knownStatus(targetStatus), libraryCode,
+							utc(start), utc(end), cap));
+						case SUPPLIER_RESPONSE -> Flux.from(patronRequestRepository.findSupplierResponseTrend(
+							bucket.getDateTruncUnit(), libraryCode, utc(start), utc(end), cap));
+						case STATUS_DWELL -> Flux.from(patronRequestRepository.findStatusDwellTrend(
+							bucket.getDateTruncUnit(), knownStatus(status), libraryCode,
+							utc(start), utc(end), cap));
+					};
+
+					// One row IS one bucket here - no second dimension - so a row count is the
+					// bucket count, unlike the flow series which needs distinctBuckets.
+					return points.collectList()
+						.flatMap(found -> found.size() > TimeBucket.MAX_BUCKETS
+							? Mono.error(bucket.tooManyBuckets())
+							: Mono.just(found));
+			});
+	}
+
+	/** The workflow's own status vocabulary, so a misspelled status is 400 and not an empty plot. */
+	private static String knownStatus(String status) {
+		try {
+			return PatronRequest.Status.valueOf(status.trim().toUpperCase()).name();
+		}
+		catch (IllegalArgumentException cause) {
+			throw new IllegalArgumentException(
+				"Unknown status \"%s\"".formatted(status), cause);
+		}
 	}
 
 	/**
@@ -404,9 +472,18 @@ public class InsightsController {
 					final Mono<CollectionSummaryStat> summary = Mono.from(patronRequestRepository.findCollectionSummary(libraryCode, startDate, endDate))
 						.defaultIfEmpty(new CollectionSummaryStat(0L, 0L));
 
-					return Mono.zip(current, priorMono, turnaround, checkout, totals, saved, summary)
+					// Paired because Mono.zip stops at eight sources, and these two were the
+					// header's only remaining separate round-trips.
+					final Mono<Tuple2<FulfillmentStat, TurnaroundStat>> supplySide = Mono.zip(
+						Mono.from(patronRequestRepository.getSupplierFulfillmentStats(libraryCode, startDate, endDate))
+							.defaultIfEmpty(new FulfillmentStat(0L, 0L)),
+						Mono.from(patronRequestRepository.findTurnaroundToStatus(libraryCode, "FINALISED", startDate, endDate))
+							.defaultIfEmpty(new TurnaroundStat(0.0, 0.0)));
+
+					return Mono.zip(current, priorMono, turnaround, checkout, totals, saved, summary, supplySide)
 						.map(t -> new DashboardSummary(
-							t.getT1(), t.getT2(), t.getT3(), t.getT4(), t.getT5(), t.getT6(), t.getT7()));
+							t.getT1(), t.getT2(), t.getT3(), t.getT4(), t.getT5(), t.getT6(), t.getT7(),
+							t.getT8().getT1(), t.getT8().getT2()));
 			});
 	}
 

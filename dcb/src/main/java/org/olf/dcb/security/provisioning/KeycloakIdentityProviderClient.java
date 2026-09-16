@@ -8,10 +8,12 @@ import java.util.Arrays;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micronaut.context.annotation.Context;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
@@ -23,27 +25,20 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
  * Provisioning against Keycloak's admin REST API.
  *
- * <p><b>Containment.</b> The service account holds {@code view-users} and {@code query-users}
- * but deliberately NOT {@code manage-users}: measured on a live realm, {@code manage-users}
- * can map any realm role including {@code ADMIN}, and fine-grained permissions do not
- * constrain it. Create and modify power comes from fine-grained user permissions instead,
- * with {@code map-role} attached to {@code LIBRARY_ADMIN} and {@code LIBRARY_READ_ONLY} only.
- * Verify this against the deployed Keycloak version — fine-grained admin permissions have
- * moved between releases, and an unverified assumption here reads as a control while being
- * none.
+ * <p>The service account deliberately does NOT hold {@code manage-users}: measured on a live
+ * realm, it can map any realm role including {@code ADMIN}, and fine-grained permissions do
+ * not constrain it. Create and modify power comes from fine-grained user permissions instead.
  *
- * <p>Setup, the grant, and the commands that prove it:
- * {@code docs/identity-provider-setup.md} §2.2–2.3 and §5.3;
- * {@code scripts/keycloak_library_accounts_setup.sh} configures and asserts it.
+ * <p>Verify that against the deployed Keycloak version — the grant and the commands that
+ * prove it: {@code operational:identity-provider-setup.adoc} §2.2–2.3 and §5.3.
  */
-@Singleton
+@Context
 @Requires(property = "dcb.identity-provider.type", value = "keycloak")
 public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 
@@ -77,8 +72,7 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 		}
 
 		this.tokens = new ClientCredentialsTokenSource(httpClient, tokenUri(config),
-			config.getClientId().orElseThrow(() -> new IllegalStateException(
-				"dcb.identity-provider.client-id is required when the type is keycloak")),
+			required(config.getClientId(), "client-id"),
 			clientSecret);
 	}
 
@@ -279,8 +273,7 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 	}
 
 	private URI realmUri() {
-		return UriBuilder.of(URI.create(config.getBaseUrl().orElseThrow(
-				() -> new IllegalStateException("dcb.identity-provider.base-url is required"))))
+		return UriBuilder.of(URI.create(required(config.getBaseUrl(), "base-url")))
 			.path("admin").path("realms").path(realm()).build();
 	}
 
@@ -293,17 +286,25 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 	}
 
 	private String realm() {
-		return config.getRealm().orElseThrow(
-			() -> new IllegalStateException("dcb.identity-provider.realm is required for keycloak"));
+		return required(config.getRealm(), "realm");
 	}
 
 	private static URI tokenUri(IdentityProviderConfig config) {
-		return UriBuilder.of(URI.create(config.getBaseUrl().orElseThrow(
-				() -> new IllegalStateException("dcb.identity-provider.base-url is required"))))
+		return UriBuilder.of(URI.create(required(config.getBaseUrl(), "base-url")))
 			.path("realms")
-			.path(config.getRealm().orElseThrow(
-				() -> new IllegalStateException("dcb.identity-provider.realm is required for keycloak")))
+			.path(required(config.getRealm(), "realm"))
 			.path("protocol").path("openid-connect").path("token").build();
+	}
+
+	/**
+	 * Present but blank is missing. An empty string survives {@code orElseThrow}, so
+	 * {@code base-url: ""} started DCB, reported provisioning as configured, and failed at
+	 * the first account rather than at deploy.
+	 */
+	private static String required(Optional<String> value, String property) {
+		return value.filter(setting -> !setting.isBlank())
+			.orElseThrow(() -> new IllegalStateException(
+				"dcb.identity-provider." + property + " is required when the type is keycloak"));
 	}
 
 	@Serdeable

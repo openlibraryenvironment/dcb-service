@@ -17,6 +17,8 @@ import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
+import static org.olf.dcb.core.model.PatronRequest.Status.RECEIVED_AT_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
@@ -24,6 +26,7 @@ import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -32,24 +35,32 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.api.serde.CollectionBalanceStat;
+import org.olf.dcb.core.api.serde.ConsortialLifelineStat;
 import org.olf.dcb.core.api.serde.DemandHeatCell;
 import org.olf.dcb.core.api.serde.FailureReasonStat;
 import org.olf.dcb.core.api.serde.NetFlowStat;
+import org.olf.dcb.core.api.serde.PartnerStat;
 import org.olf.dcb.core.api.serde.PeerBenchmarkStat;
 import org.olf.dcb.core.api.serde.StatusDwellStat;
 import org.olf.dcb.core.api.serde.SupplierReliabilityStat;
 import org.olf.dcb.core.api.serde.SupplierResponseStat;
 import org.olf.dcb.core.api.serde.TimeSeriesPoint;
+import org.olf.dcb.core.api.serde.TopClusterStat;
 import org.olf.dcb.core.api.serde.TradingPartnerStat;
+import org.olf.dcb.core.api.serde.TrendPoint;
 import org.olf.dcb.core.api.serde.TurnaroundStat;
+import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.LibraryFixture;
@@ -84,9 +95,30 @@ class StatsQueriesTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
+
+	@Inject
+	private BibRecordFixture bibRecordFixture;
+
 	@BeforeEach
 	void beforeEach() {
+		clearAll();
+	}
+
+	/**
+	 * Also AFTER each: this class is the only one here that writes cluster_record and
+	 * bib_record, and a row left behind is read by whichever class runs next against the
+	 * shared container. @BeforeEach protects a class from itself only.
+	 */
+	@AfterEach
+	void afterEach() {
+		clearAll();
+	}
+
+	private void clearAll() {
 		patronRequestsFixture.deleteAll();
+		clusterRecordFixture.deleteAll();
 		libraryFixture.deleteAll();
 		agencyFixture.deleteAll();
 		hostLmsFixture.deleteAll();
@@ -165,6 +197,53 @@ class StatsQueriesTests {
 				.bind("$2", id)
 				.execute())
 			.flatMap(result -> result.getRowsUpdated())));
+	}
+
+	/** saveAudit with a from_status, which the dwell measures read through LAG. */
+	private void saveAudit(PatronRequest pr, Status fromStatus, Status toStatus,
+		Instant auditDate) {
+
+		final var id = UUID.randomUUID();
+
+		singleValueFrom(patronRequestAuditRepository.save(PatronRequestAudit.builder()
+			.id(id)
+			.patronRequest(pr)
+			.fromStatus(fromStatus)
+			.toStatus(toStatus)
+			.build()));
+
+		singleValueFrom(r2dbcOperations.withConnection(connection ->
+			Flux.from(connection.createStatement(
+					"UPDATE patron_request_audit SET audit_date = $1 WHERE id = $2")
+				.bind("$1", LocalDateTime.ofInstant(auditDate, ZoneOffset.UTC))
+				.bind("$2", id)
+				.execute())
+			.flatMap(result -> result.getRowsUpdated())));
+	}
+
+	/** A cluster with one member's bib record contributing to it. */
+	private UUID clusterHeldBy(String... hostLmsCodes) {
+		final var clusterId = UUID.randomUUID();
+		final var cluster = clusterRecordFixture.createClusterRecord(clusterId, null);
+
+		for (final var code : hostLmsCodes) {
+			bibRecordFixture.createBibRecord(UUID.randomUUID(),
+				hostLmsFixture.findByCode(code).getId(), "src-" + code + "-" + clusterId,
+				cluster);
+		}
+
+		return clusterId;
+	}
+
+	private PatronRequest saveSupply(String borrower, String supplier, UUID clusterId) {
+		return patronRequestsFixture.savePatronRequest(PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.status(LOANED)
+			.patronHostlmsCode(borrower)
+			.localItemHostlmsCode(supplier)
+			.bibClusterId(clusterId)
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build());
 	}
 
 	private PatronRequest saveRequestForCluster(Status status, String borrower, UUID clusterId) {
@@ -498,6 +577,37 @@ class StatsQueriesTests {
 		assertThat(summary.uniqueTitlesRequested(), equalTo(2L));
 	}
 
+	/**
+	 * The cluster on every row, which is what lets a client link the title to the requests
+	 * behind it. The query already grouped by it; not selecting it meant the most-requested
+	 * list was the one panel with no way through to its own evidence.
+	 */
+	@Test
+	void mostRequestedTitlesCarriesTheClusterItCounted() {
+		// Built as the clustering service builds one rather than through the shared
+		// fixture: the query filters `cr.is_deleted IS NULL`, and a live cluster leaves the
+		// flag unset - only a merged-away one sets it. The fixture writes FALSE, which the
+		// filter excludes, so a cluster made that way is invisible to this query.
+		final var wanted = UUID.randomUUID();
+		clusterRecordFixture.createClusterRecord(ClusterRecord.builder()
+			.id(wanted)
+			.title("Brain of the Firm")
+			.bibs(java.util.Set.of())
+			.dateCreated(java.time.Instant.now())
+			.dateUpdated(java.time.Instant.now())
+			.build());
+
+		saveRequestForCluster(LOANED, "LIB_A", wanted);
+		saveRequestForCluster(LOANED, "LIB_A", wanted);
+
+		final var page = singleValueFrom(patronRequestRepository
+			.findMostRequestedTitles(null, null, null, Pageable.from(0, 10)));
+
+		assertThat(page.getContent(), hasSize(1));
+		assertThat(page.getContent().get(0).getClusterId(), equalTo(wanted));
+		assertThat(page.getContent().get(0).getRequestCount(), equalTo(2));
+	}
+
 	// --- turnaround for library / consortium / combinations ------------------
 
 	@Test
@@ -544,6 +654,230 @@ class StatsQueriesTests {
 		assertThat(byLib.get("LIB_A").successCount(), equalTo(1L));
 		assertThat(byLib.get("LIB_A").failedCount(), equalTo(1L));
 		assertThat(byLib.get("LIB_B").totalRequests(), equalTo(1L));
+	}
+
+	// --- multi-library scope: a group is a set, not a code ---------------------
+
+	@Test
+	void collectionBalanceCountsEveryLibraryInTheSet() {
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_C", "LIB_A", null, STANDARD_WORKFLOW);
+
+		assertThat(singleValueFrom(
+			patronRequestRepository.countBorrowedForLibrary("LIB_A,LIB_B", null, null)),
+			equalTo(2L));
+
+		assertThat(singleValueFrom(
+			patronRequestRepository.countSuppliedForLibrary("LIB_A,LIB_B", null, null)),
+			equalTo(1L));
+
+		// One code still means exactly what it meant before.
+		assertThat(singleValueFrom(
+			patronRequestRepository.countBorrowedForLibrary("LIB_A", null, null)),
+			equalTo(1L));
+	}
+
+	@Test
+	void unmetLocalDemandAsksWhetherAnyoneInTheSetHoldsIt() {
+		onboard("LIB_A", "AG_A", "Library A");
+		onboard("LIB_B", "AG_B", "Library B");
+
+		final var heldByBOnly = clusterHeldBy("LIB_B");
+		saveRequestForCluster(LOANED, "LIB_A", heldByBOnly);
+
+		// Library A alone does not hold it, so it is unmet demand for library A.
+		assertThat(manyValuesFrom(patronRequestRepository
+			.findUnmetLocalDemandForLibrary("LIB_A", null, null)), hasSize(1));
+
+		// The group holds it, so the group has no gap - the acquisition question changes
+		// with the boundary, which is the whole point of scoping it to a set.
+		assertThat(manyValuesFrom(patronRequestRepository
+			.findUnmetLocalDemandForLibrary("LIB_A,LIB_B", null, null)), hasSize(0));
+	}
+
+	@Test
+	void uniqueContributionsAskWhetherAnyoneOutsideTheSetHoldsIt() {
+		onboard("LIB_A", "AG_A", "Library A");
+		onboard("LIB_B", "AG_B", "Library B");
+		onboard("OUTSIDE", "AG_O", "Outside Library");
+
+		final var insideOnly = clusterHeldBy("LIB_A", "LIB_B");
+		final var alsoOutside = clusterHeldBy("LIB_A", "OUTSIDE");
+
+		saveSupply("LIB_C", "LIB_A", insideOnly);
+		saveSupply("LIB_C", "LIB_A", alsoOutside);
+
+		final var forTheGroup = manyValuesFrom(patronRequestRepository
+			.findUniqueContributions("LIB_A,LIB_B", null, null));
+
+		assertThat(forTheGroup, hasSize(1));
+		assertThat(forTheGroup.get(0).clusterId(), equalTo(insideOnly));
+
+		// For library A alone, both clusters have another holder, so neither is unique.
+		assertThat(manyValuesFrom(patronRequestRepository
+			.findUniqueContributions("LIB_A", null, null)), hasSize(0));
+	}
+
+	@Test
+	void consortialLifelineCreditsTheSupplyingMemberOnce() {
+		onboard("LIB_A", "AG_A", "Library A");
+		onboard("LIB_B", "AG_B", "Library B");
+
+		// Both members hold the title; each supplies it once.
+		final var shared = clusterHeldBy("LIB_A", "LIB_B");
+		saveSupply("LIB_C", "LIB_A", shared);
+		saveSupply("LIB_C", "LIB_B", shared);
+
+		final var rows = manyValuesFrom(patronRequestRepository
+			.findConsortialLifelineForLibrary("LIB_A,LIB_B", null, null));
+
+		// One row per supplying member, each counting its own request. Joining host_lms on
+		// the requested SET instead of the supplying code pairs every request with every
+		// member's bib record and doubles both.
+		assertThat(rows, hasSize(2));
+		assertThat(rows.stream().map(ConsortialLifelineStat::supplyCount).toList(),
+			containsInAnyOrder(1L, 1L));
+	}
+
+	@Test
+	void newAcquisitionsPerformanceCoversEveryLibraryInTheSet() {
+		onboard("LIB_A", "AG_A", "Library A");
+		onboard("LIB_B", "AG_B", "Library B");
+
+		saveSupply("LIB_C", "LIB_A", clusterHeldBy("LIB_A"));
+		saveSupply("LIB_C", "LIB_B", clusterHeldBy("LIB_B"));
+
+		final var acquiredSince = Instant.now().minus(Duration.ofDays(365));
+
+		assertThat(manyValuesFrom(patronRequestRepository
+			.findNewAcquisitionsPerformance("LIB_A,LIB_B", acquiredSince, null, null)),
+			hasSize(2));
+
+		assertThat(manyValuesFrom(patronRequestRepository
+			.findNewAcquisitionsPerformance("LIB_A", acquiredSince, null, null)),
+			hasSize(1));
+	}
+
+	// --- percentile trends ----------------------------------------------------
+
+	@Test
+	void turnaroundTrendBucketsOnWhenTheRequestWasLoaned() {
+		final var first = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(first, Instant.parse("2025-02-03T00:00:00Z"));
+		saveAudit(first, LOANED, Instant.parse("2025-02-04T00:00:00Z"));
+
+		final var second = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(second, Instant.parse("2025-02-10T00:00:00Z"));
+		saveAudit(second, LOANED, Instant.parse("2025-02-12T00:00:00Z"));
+
+		final var points = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
+			"week", "LOANED", null,
+			utc("2025-02-01T00:00:00Z"), utc("2025-03-01T00:00:00Z"), 1001));
+
+		assertThat(points, hasSize(2));
+		assertThat(points.get(0).p50Seconds(), closeTo(86400.0, 1.0));
+		assertThat(points.get(1).p50Seconds(), closeTo(172800.0, 1.0));
+		assertThat(points.get(0).sampleCount(), equalTo(1L));
+	}
+
+	@Test
+	void turnaroundCountsARepeatedStatusOnce() {
+		// Tracking can write a second audit into the same status. Both the trend and the
+		// headline take MIN(audit_date) per request, so the two cannot disagree.
+		final var pr = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(pr, Instant.parse("2025-04-01T00:00:00Z"));
+		saveAudit(pr, LOANED, Instant.parse("2025-04-02T00:00:00Z"));
+		saveAudit(pr, LOANED, Instant.parse("2025-04-09T00:00:00Z"));
+
+		final var points = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
+			"month", "LOANED", null,
+			utc("2025-04-01T00:00:00Z"), utc("2025-05-01T00:00:00Z"), 1001));
+
+		assertThat(points, hasSize(1));
+		assertThat(points.get(0).sampleCount(), equalTo(1L));
+		assertThat(points.get(0).p50Seconds(), closeTo(86400.0, 1.0));
+
+		assertThat(singleValueFrom(patronRequestRepository
+				.findTurnaroundToStatus(null, "LOANED", null, null)).p50Seconds(),
+			closeTo(86400.0, 1.0));
+	}
+
+	@Test
+	void aTrendExcludesARequestThatArrivedBeforeTheWindow() {
+		// The CTE is bounded by the window for scale, so MIN() inside it is the earliest
+		// arrival IN the window, not the first ever. A request that reached the status before
+		// the window and was re-audited inside it would otherwise appear as a fresh, fast one.
+		final var early = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(early, Instant.parse("2025-08-01T00:00:00Z"));
+		saveAudit(early, LOANED, Instant.parse("2025-08-02T00:00:00Z"));
+		saveAudit(early, LOANED, Instant.parse("2025-09-10T00:00:00Z"));
+
+		final var inside = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(inside, Instant.parse("2025-09-05T00:00:00Z"));
+		saveAudit(inside, LOANED, Instant.parse("2025-09-06T00:00:00Z"));
+
+		final var points = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
+			"month", "LOANED", null,
+			utc("2025-09-01T00:00:00Z"), utc("2025-10-01T00:00:00Z"), 1001));
+
+		assertThat(points, hasSize(1));
+		assertThat(points.get(0).sampleCount(), equalTo(1L));
+		assertThat(points.get(0).p50Seconds(), closeTo(86400.0, 1.0));
+	}
+
+	@Test
+	void supplierResponseTrendMeasuresPlacedToConfirmed() {
+		final var pr = saveRequest(CONFIRMED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(pr, Instant.parse("2025-05-01T00:00:00Z"));
+		saveAudit(pr, REQUEST_PLACED_AT_SUPPLYING_AGENCY, Instant.parse("2025-05-02T00:00:00Z"));
+		saveAudit(pr, CONFIRMED, Instant.parse("2025-05-02T06:00:00Z"));
+
+		final var points = manyValuesFrom(patronRequestRepository.findSupplierResponseTrend(
+			"month", "SUP_A", utc("2025-05-01T00:00:00Z"), utc("2025-06-01T00:00:00Z"), 1001));
+
+		// Six hours from placed to confirmed, NOT the day and a half since creation.
+		assertThat(points, hasSize(1));
+		assertThat(points.get(0).p50Seconds(), closeTo(21600.0, 1.0));
+	}
+
+	@Test
+	void statusDwellTrendMeasuresTimeInTransit() {
+		final var pr = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveAudit(pr, CONFIRMED, PICKUP_TRANSIT, Instant.parse("2025-06-02T00:00:00Z"));
+		saveAudit(pr, PICKUP_TRANSIT, RECEIVED_AT_PICKUP, Instant.parse("2025-06-03T00:00:00Z"));
+
+		final var transit = manyValuesFrom(patronRequestRepository.findStatusDwellTrend(
+			"month", "PICKUP_TRANSIT", null,
+			utc("2025-06-01T00:00:00Z"), utc("2025-07-01T00:00:00Z"), 1001));
+
+		assertThat(transit, hasSize(1));
+		assertThat(transit.get(0).p50Seconds(), closeTo(86400.0, 1.0));
+		assertThat(transit.get(0).sampleCount(), equalTo(1L));
+
+		// A status nothing dwelled in returns no bucket at all, rather than a zero that
+		// would read as instant.
+		assertThat(manyValuesFrom(patronRequestRepository.findStatusDwellTrend(
+			"month", "RETURN_TRANSIT", null,
+			utc("2025-06-01T00:00:00Z"), utc("2025-07-01T00:00:00Z"), 1001)), hasSize(0));
+	}
+
+	@Test
+	void trendsNarrowToTheLibrarySet() {
+		final var mine = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(mine, Instant.parse("2025-07-01T00:00:00Z"));
+		saveAudit(mine, LOANED, Instant.parse("2025-07-02T00:00:00Z"));
+
+		final var theirs = saveRequest(LOANED, "LIB_Z", "SUP_A", null, STANDARD_WORKFLOW);
+		setDateCreated(theirs, Instant.parse("2025-07-01T00:00:00Z"));
+		saveAudit(theirs, LOANED, Instant.parse("2025-07-03T00:00:00Z"));
+
+		final var scoped = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
+			"month", "LOANED", "LIB_A,LIB_B",
+			utc("2025-07-01T00:00:00Z"), utc("2025-08-01T00:00:00Z"), 1001));
+
+		assertThat(scoped, hasSize(1));
+		assertThat(scoped.get(0).sampleCount(), equalTo(1L));
 	}
 
 	// --- trading partners ----------------------------------------------------
@@ -601,6 +935,41 @@ class StatsQueriesTests {
 
 		assertThat(manyValuesFrom(
 			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null)), hasSize(0));
+	}
+
+	@Test
+	void consortialLifelineAcceptsAnOpenEndedWindow() {
+		// The window is optional on /insights/consortial-lifeline and the SQL already reads a
+		// NULL bound as "no limit", but Micronaut Data refuses to bind a null to a parameter
+		// that is not @Nullable before the query is ever sent.
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+
+		assertThat(manyValuesFrom(patronRequestRepository
+			.findConsortialLifelineForLibrary("SUP_A", null, null)), hasSize(0));
+	}
+
+	@Test
+	void topPartnersRankTheWholeConsortiumWhenNoLibraryIsNamed() {
+		// StatsScopeGuard hands a consortium-level caller a NULL library code and
+		// /insights/dashboard-metrics passes it to both partner queries, which is every
+		// Insights page load with no library selected.
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
+
+		final var suppliers = manyValuesFrom(
+			patronRequestRepository.findTopSuppliersForLibrary(null, null, null));
+
+		// No "we" to exclude, so every supplier counts and the three requests land together.
+		assertThat(suppliers, hasSize(1));
+		assertThat(suppliers.get(0).partnerCode(), equalTo("SUP_A"));
+		assertThat(suppliers.get(0).requestCount(), equalTo(3L));
+
+		final var borrowers = manyValuesFrom(
+			patronRequestRepository.findTopBorrowersFromLibrary(null, null, null));
+
+		assertThat(borrowers.stream().map(PartnerStat::partnerCode).toList(),
+			containsInAnyOrder("LIB_A", "LIB_B"));
 	}
 
 	@Test
