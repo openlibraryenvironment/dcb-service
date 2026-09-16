@@ -232,29 +232,75 @@ and the DCB Admin bar work, and none of that depends on provisioning:
 - `DCB_ADMIN_UI_CLIENT_ID` — confirm Zitadel populates `azp` with the **client id** and not
   the project id before enforcing, or the bar will refuse the wrong people.
 
-**To implement provisioning**, a `ZitadelIdentityProviderClient` needs, verified against the
-deployed version rather than assumed:
+**To implement provisioning**, a `ZitadelIdentityProviderClient` needs these calls. They are
+read off Zitadel's published API rather than a real deployment, so treat them as the shape
+to verify, not as verified:
 
-1. Create a human user **deactivated**, then activate — the ordering in Part 2.5 is not
-   Keycloak-specific, it is the safety property.
-2. Grant the project role, using `DCB_IDENTITY_PROVIDER_PROJECT_ID` (the config field
-   already exists for this).
-3. Write the agency code as user metadata `code`, and confirm it reaches the access token.
-4. Trigger the set-password / verify-email flow. **Never generate a password.**
-5. Read a user's active and verified state for the listing.
-6. **State Zitadel's own containment mechanism in the class documentation** — the equivalent
-   of Part 2.3, most likely an org-scoped service user whose grant covers only the two
-   project roles. If Zitadel cannot express it, say so plainly in the class documentation
-   and in an ADR, rather than leaving a reader to assume the Keycloak property holds here
-   too.
+1. Create with `POST /v2/users/human`, then deactivate with
+   `POST /v2/users/{id}/deactivate`. Zitadel **cannot create a user that is already
+   inactive**, so Part 2.5's ordering becomes create → deactivate → grant → activate. The
+   safety property survives — a failure between steps leaves a deactivated, roleless
+   account — but it costs an extra call and a compensation path.
+2. Grant with `POST /management/v1/users/{id}/grants`, passing `projectId` (the existing
+   `DCB_IDENTITY_PROVIDER_PROJECT_ID`) and `roleKeys`. Every Management API call also
+   carries `x-zitadel-orgid`, which selects the organisation it acts on; without it the
+   call silently lands in the service account's own organisation.
+3. Write the agency code with `POST /management/v1/users/{id}/metadata/code`, **base64
+   encoded**. It does **not** appear as a plain `code` claim the way Keycloak's mapper
+   produces one: it arrives under `urn:zitadel:iam:user:metadata`, still base64 encoded, and
+   only for a client that requested that scope. Part 5.1 is therefore the first thing to
+   check on Zitadel, not the last.
+4. Invite with `POST /v2/users/{id}/invite_code` and `sendCode`. **Never generate a
+   password.**
+5. Activate with `POST /v2/users/{id}/reactivate`, and read state back through the v2 user
+   API for the listing.
 
-   **What Part 2.3 turned out to cost on Keycloak is the warning worth carrying over.** The
-   obvious reading — grant the service account a manage-users-equivalent, then restrict which
-   roles it may map — does not work: the blanket permission bypasses the per-role rule
-   entirely. Containment only became real once the blanket grant was removed and *every*
-   power, including creating a user at all, came from a policy naming the client. Expect to
-   have to do the same thing in Zitadel, and expect the first arrangement that looks right
-   to be inert. Test it the way Part 5.3 does before believing it.
+### 3.1 Containment: Zitadel cannot express Part 2.3
+
+**Measured, and it is the opposite of the Keycloak result.** Zitadel has no per-role grant
+restriction:
+
+- `ORG_USER_MANAGER` — "Manage users and their authorizations within an organization"
+- `ORG_USER_PERMISSION_EDITOR` — "Manage user grants and view everything needed for this"
+- `PROJECT_OWNER` — "Manage everything within a project, including granting users for the
+  project"
+
+None takes a role allow-list, and defining a custom permission set is [not
+possible](https://github.com/zitadel/zitadel/discussions/7805) — a maintainer's answer, not
+an inference. So the Part 2.3 arrangement, where the service account may map
+`LIBRARY_READ_ONLY` and is refused `ADMIN`, has no Zitadel equivalent.
+
+Three arrangements, and only the third holds:
+
+| Arrangement | Result |
+|---|---|
+| Four roles in one project | The provisioning account can grant `ADMIN`. Fails. |
+| Two projects, one organisation | `ORG_USER_MANAGER` covers authorizations *within the organisation*, so it reaches the consortium project too. Fails. |
+| **Two organisations** | Manager scope is per-organisation. The consortium roles are unreachable, not merely unmapped. **Holds.** |
+
+So on Zitadel, **consortium roles and library roles must live in separate organisations**.
+In one organisation, whatever can create a library account can also grant `ADMIN`. That is
+a deployment-shaping constraint, not an implementation detail, and it is the thing to settle
+before writing the adapter.
+
+### 3.2 A local Zitadel to measure against
+
+The OpenRS workspace stack runs one, behind a profile so it costs nothing when unused:
+
+```bash
+docker compose --profile zitadel up -d zitadel mailpit
+cd dcb-service && ./scripts/zitadel_library_accounts_setup.sh
+```
+
+The script builds the two-organisation arrangement above, provisions a library account
+through the full create → deactivate → grant → activate → invite sequence, and ends the way
+`keycloak_library_accounts_setup.sh` does: by asking the provisioning account to grant
+`ADMIN`, requiring 403, and requiring the library grant it does need to succeed. Mailpit
+catches the invitation at <http://localhost:8025>, because the invitation **is** the
+credential flow and an untested mail path means accounts nobody can sign in to.
+
+It configures an instance; it does not make DCB support one.
+`dcb.identity-provider.type` accepts only `keycloak`.
 
 ---
 
