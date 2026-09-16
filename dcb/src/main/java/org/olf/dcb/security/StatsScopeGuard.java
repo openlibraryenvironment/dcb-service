@@ -1,6 +1,7 @@
 package org.olf.dcb.security;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -84,13 +85,15 @@ public class StatsScopeGuard {
 
 				final var own = StatsScope.of(ownCodes);
 
-				if (requestedLibraryCode != null && !ownCodes.contains(requestedLibraryCode)) {
+				if (requestedLibraryCode != null
+					&& !ownCodes.containsAll(requestedCodes(requestedLibraryCode))) {
+
 					return refuse("caller scoped to " + ownCodes + " asked for "
 						+ requestedLibraryCode);
 				}
 
-				// Asked for one of their own: honour it, so a multi-library caller can
-				// still look at one of their libraries at a time.
+				// Asked for their own, one or several: honour it, so a multi-library caller
+				// can look at one library, or at the group they chair, a subset at a time.
 				return Mono.just(requestedLibraryCode == null
 					? own
 					: StatsScope.of(requestedLibraryCode));
@@ -115,6 +118,18 @@ public class StatsScopeGuard {
 
 		return Mono.error(new HttpStatusException(HttpStatus.FORBIDDEN,
 			"Access denied: your account is not associated with a library."));
+	}
+
+	/**
+	 * The requested scope as a set. StatsScope carries several codes comma-separated, so a
+	 * caller asking for the group they chair sends "A,B" - and comparing that whole string
+	 * against the list of codes they administer never matches, however many of them they own.
+	 * Every element must be theirs; a blank one is not silently dropped, it fails the check.
+	 */
+	private static List<String> requestedCodes(String requestedLibraryCode) {
+		return Arrays.stream(requestedLibraryCode.split(",", -1))
+			.map(String::trim)
+			.toList();
 	}
 
 	/**

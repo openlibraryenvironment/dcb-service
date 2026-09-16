@@ -40,6 +40,11 @@
 # run is in the startup log:
 #   grep AppTaskAwareScheduledMethodProcessor <log>
 #
+# Features default to ON: Insights, discovery, the database branding store and
+# the DCB Admin access bar (in WARN). Identity provisioning switches on only when
+# DCB_IDENTITY_PROVIDER_CLIENT_SECRET is set. Turn any of them back to its shipped
+# default with its variable, e.g. DCB_DISCOVERY_ENABLED=false ./scripts/local_dev.sh
+#
 # See docs/local-development.md for the longer explanation.
 
 set -euo pipefail
@@ -55,6 +60,9 @@ PG_VOLUME="${COMPOSE_PROJECT_NAME}_dcb_pg_data"
 # --- Database settings -------------------------------------------------------
 # These are exported and will override what is defined in application-dev.yml, but will typically mirror it. This means a non-default DCB_PG_PORT
 # reaches both the container and the application.
+# Captured before the defaults below fill them in: an explicit port is never moved.
+PG_PORT_EXPLICIT="${DCB_PG_PORT:+true}"
+DB_PORT_EXPLICIT="${DB_PORT:+true}"
 export DCB_PG_PORT="${DCB_PG_PORT:-5432}"
 export DB_HOST="${DB_HOST:-localhost}"
 export DB_PORT="${DB_PORT:-$DCB_PG_PORT}"
@@ -168,7 +176,7 @@ while [[ $# -gt 0 ]]; do
 			exit 0
 			;;
 		-h|--help)
-			sed -n '3,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+			sed -n '3,48p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 			exit 0
 			;;
 		*)
@@ -209,6 +217,37 @@ port_in_use() {
 	(exec 3<>"/dev/tcp/127.0.0.1/$1") >/dev/null 2>&1
 }
 
+# The host port dcb-postgres was last published on, running or stopped. Empty if it
+# has never existed.
+container_pg_port() {
+	docker inspect -f '{{with index .HostConfig.PortBindings "5432/tcp"}}{{(index . 0).HostPort}}{{end}}' \
+		dcb-postgres 2>/dev/null || true
+}
+
+first_free_port() {
+	local port="$1" last="$2"
+	while (( port <= last )); do
+		if ! port_in_use "$port"; then echo "$port"; return 0; fi
+		port=$(( port + 1 ))
+	done
+	return 1
+}
+
+# Explicit DCB_PG_PORT is never moved. Otherwise prefer the container's previous port,
+# so connections survive a restart; then 5432; then the first free port above it.
+resolve_pg_port() {
+	if [[ "$PG_PORT_EXPLICIT" == true ]]; then
+		echo "$DCB_PG_PORT"; return 0
+	fi
+	local previous
+	previous="$(container_pg_port)"
+	if [[ -n "$previous" ]] && { our_postgres_running || ! port_in_use "$previous"; }; then
+		echo "$previous"; return 0
+	fi
+	if ! port_in_use 5432; then echo 5432; return 0; fi
+	first_free_port 5433 5499
+}
+
 our_postgres_running() {
 	[[ "$(docker inspect -f '{{.State.Running}}' dcb-postgres 2>/dev/null)" == "true" ]]
 }
@@ -238,23 +277,42 @@ wait_for_health() {
 	exit 1
 }
 
-# A native or WSL Postgres on 5432 shadows the container's published port: the
-# container starts fine, but DCB connects to the other server and fails
-# authentication. Catch that here rather than in a stack trace.
-if port_in_use "$DCB_PG_PORT" && ! our_postgres_running; then
-	cat >&2 <<EOF
-Port ${DCB_PG_PORT} is already in use by something that is not dcb-postgres.
+# A native or WSL Postgres commonly owns 5432 and would shadow the container's published
+# port, so DCB would connect to it and fail authentication. Choose a port nothing else
+# holds rather than stopping; an explicit DCB_PG_PORT is honoured and refused if taken.
+if ! DCB_PG_PORT="$(resolve_pg_port)"; then
+	echo "No free port for Postgres in 5432-5499. Set DCB_PG_PORT to one you know is free." >&2
+	exit 1
+fi
+export DCB_PG_PORT
 
-A PostgreSQL installed natively (or inside WSL) is the usual culprit; it will
-shadow the container and DCB will fail with:
+if [[ "$PG_PORT_EXPLICIT" == true ]] && port_in_use "$DCB_PG_PORT" \
+	&& ! { our_postgres_running && [[ "$(container_pg_port)" == "$DCB_PG_PORT" ]]; }; then
+	cat >&2 <<EOF
+Port ${DCB_PG_PORT} was set explicitly, and something other than dcb-postgres is using it.
+A native or WSL PostgreSQL would shadow the container and DCB would fail with:
 
     FATAL: password authentication failed for user "dcb"
 
-Either stop that server, or pick a different port:
-
-    DCB_PG_PORT=5433 ./scripts/local_dev.sh $*
+Stop that server, or leave DCB_PG_PORT unset and a free port will be chosen.
 EOF
 	exit 1
+fi
+
+# Say why the port is not 5432: the two reasons need different follow-ups.
+if [[ "$PG_PORT_EXPLICIT" != true && "$DCB_PG_PORT" != 5432 ]]; then
+	if port_in_use 5432 && ! { our_postgres_running && [[ "$(container_pg_port)" == 5432 ]]; }; then
+		echo "==> Port 5432 is in use by something other than dcb-postgres; Postgres will use ${DCB_PG_PORT}"
+	else
+		echo "==> Keeping dcb-postgres on port ${DCB_PG_PORT}, where it was last published"
+	fi
+fi
+
+# The URLs near the top were built from the default port, before it could be checked.
+if [[ "$DB_PORT_EXPLICIT" != true ]]; then
+	export DB_PORT="$DCB_PG_PORT"
+	export DATASOURCES_DEFAULT_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE}"
+	export R2DBC_DATASOURCES_DEFAULT_URL="r2dbc:pool:postgresql://${DB_HOST}:${DB_PORT}/${DB_DATABASE}"
 fi
 
 # The legacy `elasticsearch` service (8.7.0) binds 9200 and DCB's 9.x client
@@ -274,6 +332,38 @@ Stop it first:
     docker stop elasticsearch
 
 or run without a shared index:
+
+    ./scripts/local_dev.sh --index none
+EOF
+	exit 1
+fi
+
+# es9 and os2 both publish 9200, so switching --index with the other one still up fails
+# at bind time. Stop it: it is this script's container, and its data volume is kept.
+case "$INDEX_MODE" in
+	es9) OTHER_INDEX="opensearch" ;;
+	os2) OTHER_INDEX="elasticsearch9" ;;
+	*)   OTHER_INDEX="" ;;
+esac
+
+if [[ -n "$OTHER_INDEX" && "$(docker inspect -f '{{.State.Running}}' "$OTHER_INDEX" 2>/dev/null)" == "true" ]]; then
+	echo "==> Stopping ${OTHER_INDEX}: it holds port 9200 and --index ${INDEX_MODE} needs it (data volume kept)"
+	docker stop "$OTHER_INDEX" >/dev/null
+fi
+
+# Anything else on 9200 would fail the same bind, but only after the ICU image build,
+# which takes minutes. Refuse now instead.
+if [[ "$INDEX_MODE" != "none" ]] && port_in_use 9200 \
+	&& [[ "$(docker inspect -f '{{.State.Running}}' "$INDEX_SERVICE" 2>/dev/null)" != "true" ]]; then
+	cat >&2 <<EOF
+Port 9200 is in use by something other than ${INDEX_SERVICE}, so --index ${INDEX_MODE} cannot start.
+
+Find it:
+
+    docker ps --filter publish=9200
+    Get-NetTCPConnection -LocalPort 9200 -State Listen   # PowerShell
+
+Then stop it, or run without a shared index:
 
     ./scripts/local_dev.sh --index none
 EOF
@@ -388,6 +478,45 @@ else
 	echo "==> No ~/.dcb.sh found; skipping Keycloak configuration"
 fi
 
+# --- Features under test -----------------------------------------------------
+
+# Production runs in UTC, and Insights buckets timestamp-without-time-zone columns
+# by the JVM's zone. `gradlew run` passes the environment through to the app.
+if [[ "${JAVA_TOOL_OPTIONS:-}" != *user.timezone* ]]; then
+	export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+${JAVA_TOOL_OPTIONS} }-Duser.timezone=UTC"
+fi
+
+export DCB_INSIGHTS_ENABLED="${DCB_INSIGHTS_ENABLED:-true}"
+export DCB_BRANDING_ASSETS_STORE="${DCB_BRANDING_ASSETS_STORE:-database}"
+
+# Safe with no trusted services configured: every patron assertion is refused.
+export DCB_DISCOVERY_ENABLED="${DCB_DISCOVERY_ENABLED:-true}"
+
+# WARN logs who WOULD be refused and refuses nothing. ENFORCE against a shared OIDC
+# client locks out every consortium administrator - see AdminUiAccessPolicy.
+export DCB_SECURITY_ADMIN_UI_CLIENT_ID="${DCB_SECURITY_ADMIN_UI_CLIENT_ID:-dcb-admin}"
+export DCB_SECURITY_ADMIN_UI_MODE="${DCB_SECURITY_ADMIN_UI_MODE:-WARN}"
+
+# Provisioning needs its own confidential client, and naming a provider without its
+# secret fails startup. The secret is never defaulted: provisioning is on only when
+# it is supplied. Base URL and realm come from KEYCLOAK_CERT_URL when not set.
+if [[ -n "${DCB_IDENTITY_PROVIDER_CLIENT_SECRET:-}" ]]; then
+	_cert="${KEYCLOAK_CERT_URL:-}"
+	if [[ "$_cert" == */realms/* ]]; then
+		_realm="${_cert#*/realms/}"
+		export DCB_IDENTITY_PROVIDER_BASE_URL="${DCB_IDENTITY_PROVIDER_BASE_URL:-${_cert%%/realms/*}}"
+		export DCB_IDENTITY_PROVIDER_REALM="${DCB_IDENTITY_PROVIDER_REALM:-${_realm%%/*}}"
+	fi
+	export DCB_IDENTITY_PROVIDER_TYPE="${DCB_IDENTITY_PROVIDER_TYPE:-keycloak}"
+	export DCB_IDENTITY_PROVIDER_CLIENT_ID="${DCB_IDENTITY_PROVIDER_CLIENT_ID:-dcb-provisioning}"
+	PROVISIONING="on (${DCB_IDENTITY_PROVIDER_TYPE})"
+	if [[ -z "${DCB_IDENTITY_PROVIDER_BASE_URL:-}" || -z "${DCB_IDENTITY_PROVIDER_REALM:-}" ]]; then
+		echo "==> WARNING: provisioning is on but its base URL or realm is unset; account calls will fail" >&2
+	fi
+else
+	PROVISIONING="off (set DCB_IDENTITY_PROVIDER_CLIENT_SECRET to switch it on)"
+fi
+
 export DCB_ENV_CODE="${DCB_ENV_CODE:-LOCAL-DEV}"
 export DCB_ENV_DESCRIPTION="${DCB_ENV_DESCRIPTION:-Local Dev}"
 export LOGGER_LEVELS_ORG_OLF_DCB="${LOGGER_LEVELS_ORG_OLF_DCB:-DEBUG}"
@@ -467,6 +596,12 @@ cat <<EOF
     DCB_SCHEDULED_TASKS_ENABLED=${DCB_SCHEDULED_TASKS_ENABLED}
     DCB_SCHEDULED_TASKS_SKIPPED=${DCB_SCHEDULED_TASKS_SKIPPED:-<none>}
     DCB_OFFICEHOURS=${DCB_OFFICEHOURS_START:-<unset>}-${DCB_OFFICEHOURS_END:-<unset>} (UTC)
+    JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}
+    DCB_INSIGHTS_ENABLED=${DCB_INSIGHTS_ENABLED}
+    DCB_DISCOVERY_ENABLED=${DCB_DISCOVERY_ENABLED}
+    DCB_BRANDING_ASSETS_STORE=${DCB_BRANDING_ASSETS_STORE}
+    DCB_SECURITY_ADMIN_UI=${DCB_SECURITY_ADMIN_UI_CLIENT_ID} (${DCB_SECURITY_ADMIN_UI_MODE})
+    Identity provisioning: ${PROVISIONING}
 
     psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_DATABASE}
 

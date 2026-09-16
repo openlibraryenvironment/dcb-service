@@ -15,5 +15,7 @@ public record DashboardSummary(
 	CheckoutRateStat checkoutRate,
 	CollectionBalanceStat lendBorrowTotals,
 	Long savedByReResolution,
-	CollectionSummaryStat collectionSummary
+	CollectionSummaryStat collectionSummary,
+	FulfillmentStat supplierFulfillment,
+	TurnaroundStat turnaroundToFinalised
 ) {}

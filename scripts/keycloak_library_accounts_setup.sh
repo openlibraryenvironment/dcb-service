@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Configure a LOCAL DEV Keycloak realm for library account provisioning and the DCB Admin
-# access bar. This is docs/identity-provider-setup.md, executed.
+# access bar. This is operational:identity-provider-setup.adoc, executed.
 #
 #   ./scripts/keycloak_library_accounts_setup.sh
 #
@@ -521,8 +521,8 @@ cat <<EOF
     DCB_IDENTITY_PROVIDER_REALM=${REALM}
     DCB_IDENTITY_PROVIDER_CLIENT_ID=${PROVISIONING_CLIENT}
     DCB_IDENTITY_PROVIDER_CLIENT_SECRET=${PROVISIONING_SECRET}
-    DCB_ADMIN_UI_CLIENT_ID=${ADMIN_UI_CLIENT}
-    DCB_ADMIN_UI_ACCESS_MODE=WARN
+    DCB_SECURITY_ADMIN_UI_CLIENT_ID=${ADMIN_UI_CLIENT}
+    DCB_SECURITY_ADMIN_UI_MODE=WARN
     KEYCLOAK_CERT_URL=${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/certs
 
   Containment is configured AND proven above: this service account can map LIBRARY_ADMIN
