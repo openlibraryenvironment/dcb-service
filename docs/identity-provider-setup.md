@@ -301,12 +301,41 @@ there is no cross-organisation confound left, so the only thing refusing the gra
 service user's own membership. Creating a user there is refused too, which closes the other
 escalation route — it cannot manufacture a subject it *would* be allowed to grant.
 
-**Still unverified:** that the agency `code` reaches a real access token. The metadata is
-stored and decodes correctly (`code = alpha`), but confirming the claim arrives needs a
-browser sign-in against a configured client, not an API call. Part 5.1 is where that is
-checked, and on Zitadel it is the first thing to check rather than the last.
+### 3.2 The agency claim needs an Action
 
-### 3.2 A local Zitadel to measure against
+**Measured against a real sign-in.** Roles arrive in a shape DCB already reads — both
+`urn:zitadel:iam:org:project:{id}:roles` and the generic form match the filter
+`GraphQLSecurityContextCustomizer.addZitadelProjectRoles` implements, so they need nothing.
+
+The agency code does not. `AgencyClaims` reads a flat `code` claim; Zitadel delivers the
+value nested under `urn:zitadel:iam:user:metadata` **and base64 encoded**. Since
+`AgencyClaims` treats absent as *no access* by design, a library user would authenticate
+successfully and see an empty application — the failure Part 5.1 warns about.
+
+The fix is an **Action** on the Complement Token flow that copies the metadata into a flat
+`code` claim at token creation. It is deployment-side, so `AgencyClaims` keeps its single
+reading and gains no per-provider branch. `zitadel_library_accounts_setup.sh` creates it,
+attaches it, and then proves it by signing a user in and decoding the token:
+
+```
+JWT, code=alpha, roles=LIBRARY_READ_ONLY
+```
+
+Five things about that Action are load-bearing, and each cost a failed run to find:
+
+| Fact | Consequence if missed |
+|---|---|
+| The JS function name must equal the action's `name` | `action run failed: function not found`. A hyphenated name can never resolve |
+| `allowedToFail` should be true | A failing action with it false returns **500 on every token request** — a broken claim takes all logins down |
+| Metadata is **plain** inside the action, base64 only in Zitadel's own claim | Decoding it there corrupts the value |
+| The app must issue `OIDC_TOKEN_TYPE_JWT` | The default is opaque: no claims at all, and dcb-service cannot validate it |
+| A user with no project grant gets **no token** (`Errors.User.GrantRequired`) | Fails closed, which is better than Keycloak's roleless token |
+
+**Actions v1 is deprecated and slated for removal in Zitadel v5.** Actions v2 replaces the
+in-Zitadel JavaScript with an external HTTP endpoint, which is a service to run and deploy.
+Anyone adopting this needs that on their roadmap, not as a surprise.
+
+### 3.3 A local Zitadel to measure against
 
 The OpenRS workspace stack runs one, behind a profile so it costs nothing when unused:
 
@@ -316,11 +345,18 @@ cd dcb-service && ./scripts/zitadel_library_accounts_setup.sh
 ```
 
 The script builds the two-organisation arrangement above, provisions a library account
-through the full create → deactivate → grant → activate → invite sequence, and ends the way
-`keycloak_library_accounts_setup.sh` does: by asking the provisioning account to do the one
-thing it must not. Mailpit catches the invitation at <http://localhost:8025>, because the
-invitation **is** the credential flow and an untested mail path means accounts nobody can
-sign in to.
+through the full create → deactivate → grant → activate → invite sequence, asks the
+provisioning account to do the one thing it must not, and finally signs a user in through
+the session API to decode a real token. It is idempotent. Mailpit catches the invitation at
+<http://localhost:8025>, because the invitation **is** the credential flow and an untested
+mail path means accounts nobody can sign in to.
+
+Two things it configures that a deployment must configure too, because neither is on by
+default: the **login v2** instance feature (without it `/oauth/v2/authorize` mints a v1 auth
+request and the v2 OIDC service returns 404 for it, so no headless sign-in is possible), and
+**`IAM_LOGIN_CLIENT`** on the service account — linking a session to an auth request needs
+`session.link`, which `IAM_OWNER` does **not** confer. That is why upstream's own compose
+ships a separate login-client account.
 
 **Zitadel denies with 404 `membership not found (AUTHZ-cdgFk)`, not 403** — it does not
 admit the resource exists. A bare 404 is therefore not evidence: a mistyped path returns

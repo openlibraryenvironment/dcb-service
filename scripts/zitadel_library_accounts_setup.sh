@@ -73,7 +73,11 @@ mgmt() {
   local org="$1" method="$2" path="$3" body="${4:-}"
   local args=(-sS "${auth[@]}" -H "x-zitadel-orgid: ${org}" -X "${method}"
     "${ZITADEL_URL}${path}")
-  [ -n "${body}" ] && args+=(-d "${body}")
+  # Not `[ -n "$body" ] && args+=(...)`: that returns 1 on an empty body, and under
+  # `set -e` the script exits instead of sending a bodyless request.
+  if [ -n "${body}" ]; then
+    args+=(-d "${body}")
+  fi
   curl "${args[@]}"
 }
 
@@ -362,6 +366,213 @@ esac
 note "the organisation boundary holds, and the admin control succeeded"
 
 # ---------------------------------------------------------------------------
+# The agency claim
+#
+# dcb-service reads the agency from a flat `code` claim (AgencyClaims), and treats absent
+# as no access. Zitadel puts metadata under urn:zitadel:iam:user:metadata instead, base64
+# encoded, so without this action a library user signs in to an empty application.
+# ---------------------------------------------------------------------------
+say "Agency claim action"
+
+# The metadata value is PLAIN here - measured. The base64 applies only where Zitadel
+# projects metadata into its own claim, so decoding it would corrupt it.
+action_script="$(cat <<'JS'
+function dcbAgencyCode(ctx, api) {
+  var metadata = ctx.v1.user.getMetadata();
+  if (!metadata || !metadata.metadata) {
+    return;
+  }
+  for (var i = 0; i < metadata.metadata.length; i++) {
+    var entry = metadata.metadata[i];
+    if (entry.key === 'code') {
+      api.v1.claims.setClaim('code', '' + entry.value);
+    }
+  }
+}
+JS
+)"
+
+# The function name must equal the action name. Name it anything a JS identifier cannot be
+# - "dcb-agency-code" - and the run fails with "function not found"; with allowedToFail
+# false that failure is a 500 on EVERY token request, so it is true here deliberately.
+action_body="$(jqp 'import json,sys; print(json.dumps({"name": "dcbAgencyCode",
+  "script": sys.argv[1], "timeout": "10s", "allowedToFail": True}))' "${action_script}")"
+
+action_id="$(mgmt "${library_org_id}" POST /management/v1/actions/_search '{}' |
+  jqp 'import json,sys; print(next((a["id"] for a in json.load(sys.stdin).get("result", [])
+       if a.get("name") == "dcbAgencyCode"), ""))')"
+
+if [ -n "${action_id}" ]; then
+  mgmt "${library_org_id}" PUT "/management/v1/actions/${action_id}" "${action_body}" >/dev/null
+else
+  action_id="$(mgmt "${library_org_id}" POST /management/v1/actions "${action_body}" |
+    jqp 'import json,sys; print(json.load(sys.stdin).get("id", ""))')"
+fi
+
+[ -n "${action_id}" ] || fail "Could not create the dcbAgencyCode action."
+
+# Flow 2 is Complement Token, trigger 5 Pre access token creation. POST: the gateway
+# answers PUT on this path with 405, and a trailing /actions with 404.
+mgmt "${library_org_id}" POST "/management/v1/flows/2/trigger/5" \
+  "{\"actionIds\":[\"${action_id}\"]}" >/dev/null
+
+attached="$(mgmt "${library_org_id}" GET /management/v1/flows/2 |
+  jqp 'import json,sys
+flow = json.load(sys.stdin).get("flow", {})
+print(" ".join(action.get("name", "")
+  for trigger in flow.get("triggerActions", [])
+  for action in trigger.get("actions", [])))')"
+
+case "${attached}" in
+  *dcbAgencyCode*) note "attached to Complement Token / pre access token creation" ;;
+  *) fail "dcbAgencyCode did not attach to flow 2 trigger 5 (found: ${attached:-nothing})." ;;
+esac
+
+# ---------------------------------------------------------------------------
+# Prove a real token carries the agency
+#
+# Zitadel does not support the password grant, so this drives the session API the way a
+# custom login UI would. Everything here is what a deployment must also configure.
+# ---------------------------------------------------------------------------
+say "Proving the access token carries the agency"
+
+# /oauth/v2/authorize mints a v1 auth request unless login v2 is on, and the v2 OIDC
+# service answers 404 for those. DEFAULTINSTANCE_* does nothing once the instance exists.
+# The base URI is never fetched: this script is the login UI.
+curl -sS "${auth[@]}" -X PUT "${ZITADEL_URL}/v2/features/instance" \
+  -d '{"loginV2":{"required":true,"baseUri":"http://localhost:9998/ui/v2/login/"}}' >/dev/null
+
+# Linking a session to an auth request needs session.link, which IAM_OWNER does NOT carry.
+bootstrap_id="$(curl -sS "${auth[@]}" "${ZITADEL_URL}/auth/v1/users/me" |
+  jqp 'import json,sys; d=json.load(sys.stdin); print((d.get("user") or d).get("id", ""))')"
+
+[ -n "${bootstrap_id}" ] || fail "Could not identify the bootstrap account."
+
+curl -sS "${auth[@]}" -X PUT "${ZITADEL_URL}/admin/v1/members/${bootstrap_id}" \
+  -d "{\"userId\":\"${bootstrap_id}\",\"roles\":[\"IAM_OWNER\",\"IAM_LOGIN_CLIENT\"]}" >/dev/null
+
+# Recreated every run: the client secret is returned at creation and never again.
+existing_app="$(mgmt "${library_org_id}" POST "/management/v1/projects/${library_project_id}/apps/_search" '{}' |
+  jqp 'import json,sys; print(next((a["id"] for a in json.load(sys.stdin).get("result", [])
+       if a.get("name") == "dcb-token-probe"), ""))')"
+
+if [ -n "${existing_app}" ]; then
+  mgmt "${library_org_id}" DELETE \
+    "/management/v1/projects/${library_project_id}/apps/${existing_app}" >/dev/null
+fi
+
+# OIDC_TOKEN_TYPE_JWT, not the BEARER default: an opaque token carries no claims at all,
+# and dcb-service validates a JWT.
+app="$(mgmt "${library_org_id}" POST "/management/v1/projects/${library_project_id}/apps/oidc" '{
+  "name": "dcb-token-probe",
+  "redirectUris": ["http://localhost:9999/callback"],
+  "responseTypes": ["OIDC_RESPONSE_TYPE_CODE"],
+  "grantTypes": ["OIDC_GRANT_TYPE_AUTHORIZATION_CODE"],
+  "appType": "OIDC_APP_TYPE_WEB",
+  "authMethodType": "OIDC_AUTH_METHOD_TYPE_BASIC",
+  "devMode": true,
+  "accessTokenType": "OIDC_TOKEN_TYPE_JWT",
+  "accessTokenRoleAssertion": true,
+  "idTokenRoleAssertion": true,
+  "idTokenUserinfoAssertion": true
+}')"
+
+probe_client_id="$(jqp 'import json,sys; print(json.loads(sys.argv[1]).get("clientId", ""))' "${app}")"
+probe_client_secret="$(jqp 'import json,sys; print(json.loads(sys.argv[1]).get("clientSecret", ""))' "${app}")"
+
+[ -n "${probe_client_id}" ] && [ -n "${probe_client_secret}" ] ||
+  fail "Could not create the dcb-token-probe application."
+
+probe_login="token-probe@invalid"
+probe_password="Sup3rSecret!Probe"
+
+old_probe="$(mgmt "${library_org_id}" POST /management/v1/users/_search \
+  "{\"queries\":[{\"userNameQuery\":{\"userName\":\"${probe_login}\",\"method\":\"TEXT_QUERY_METHOD_EQUALS\"}}]}" |
+  jqp 'import json,sys; r=json.load(sys.stdin).get("result", []); print(r[0]["id"] if r else "")')"
+
+if [ -n "${old_probe}" ]; then
+  curl -sS "${auth[@]}" -H "x-zitadel-orgid: ${library_org_id}" \
+    -X DELETE "${ZITADEL_URL}/v2/users/${old_probe}" >/dev/null 2>&1 || true
+fi
+
+probe_user_id="$(curl -sS "${auth[@]}" -H "x-zitadel-orgid: ${library_org_id}" \
+  -X POST "${ZITADEL_URL}/v2/users/human" -d "$(jqp 'import json,sys; print(json.dumps({
+    "username": sys.argv[1],
+    "organization": {"orgId": sys.argv[2]},
+    "profile": {"givenName": "Token", "familyName": "Probe"},
+    "email": {"email": sys.argv[1], "isVerified": True},
+    "password": {"password": sys.argv[3], "changeRequired": False}}))' \
+    "${probe_login}" "${library_org_id}" "${probe_password}")" |
+  jqp 'import json,sys; print(json.load(sys.stdin).get("userId", ""))')"
+
+[ -n "${probe_user_id}" ] || fail "Could not create the token probe user."
+
+# Without a grant Zitadel refuses to issue a token at all - projectRoleCheck makes a
+# missing grant fatal rather than merely roleless.
+mgmt "${library_org_id}" POST "/management/v1/users/${probe_user_id}/grants" \
+  "{\"projectId\":\"${library_project_id}\",\"roleKeys\":[\"LIBRARY_READ_ONLY\"]}" >/dev/null
+mgmt "${library_org_id}" POST "/management/v1/users/${probe_user_id}/metadata/code" \
+  "{\"value\":\"$(printf '%s' "${TEST_AGENCY}" | base64)\"}" >/dev/null
+
+scopes="openid+profile+urn:zitadel:iam:user:metadata+urn:zitadel:iam:org:project:id:${library_project_id}:aud"
+auth_request="$(curl -sS -o /dev/null -D - \
+  "${ZITADEL_URL}/oauth/v2/authorize?client_id=${probe_client_id}&redirect_uri=http%3A%2F%2Flocalhost%3A9999%2Fcallback&response_type=code&scope=${scopes}&state=probe" |
+  grep -i '^location:' | grep -o -E 'authRequest=[^&[:space:]]+' | head -1 | cut -d= -f2 | tr -d '\r')"
+
+[ -n "${auth_request}" ] || fail "No auth request id came back from /oauth/v2/authorize."
+
+session="$(curl -sS "${auth[@]}" -H "x-zitadel-orgid: ${library_org_id}" \
+  -X POST "${ZITADEL_URL}/v2/sessions" -d "$(jqp 'import json,sys; print(json.dumps({
+    "checks": {"user": {"loginName": sys.argv[1]}, "password": {"password": sys.argv[2]}}}))' \
+    "${probe_login}" "${probe_password}")")"
+
+callback="$(curl -sS "${auth[@]}" -X POST "${ZITADEL_URL}/v2/oidc/auth_requests/${auth_request}" \
+  -d "$(jqp 'import json,sys; s=json.loads(sys.argv[1]); print(json.dumps({"session": {
+    "sessionId": s.get("sessionId", ""), "sessionToken": s.get("sessionToken", "")}}))' "${session}")")"
+
+probe_code="$(jqp 'import json,sys,re; d=json.loads(sys.argv[1])
+m = re.search(r"[?&]code=([^&]+)", d.get("callbackUrl", ""))
+print(m.group(1) if m else "")' "${callback}")"
+
+[ -n "${probe_code}" ] ||
+  fail "No authorization code: $(jqp 'import json,sys; print(json.loads(sys.argv[1]).get("message", "?"))' "${callback}")"
+
+token="$(curl -sS -u "${probe_client_id}:${probe_client_secret}" \
+  -d "grant_type=authorization_code&code=${probe_code}&redirect_uri=http://localhost:9999/callback" \
+  "${ZITADEL_URL}/oauth/v2/token")"
+
+verdict="$(jqp 'import json,sys,base64
+token = json.loads(sys.argv[1])
+expected = sys.argv[2]
+access = token.get("access_token")
+if not access:
+    print("FAIL no access token: %s" % token.get("error_description", token.get("error"))); raise SystemExit
+parts = access.split(".")
+if len(parts) != 3:
+    print("FAIL the access token is opaque, not a JWT - dcb-service cannot validate it"); raise SystemExit
+payload = parts[1] + "=" * (-len(parts[1]) % 4)
+claims = json.loads(base64.urlsafe_b64decode(payload))
+code = claims.get("code")
+roles = [k for k in claims if k.endswith(":roles")]
+held = sorted({r for k in roles for r in claims[k]})
+if code != expected:
+    print("FAIL the flat code claim is %r, expected %r - the action did not run" % (code, expected)); raise SystemExit
+if "LIBRARY_READ_ONLY" not in held:
+    print("FAIL roles claim carries %s, expected LIBRARY_READ_ONLY" % (held or "nothing")); raise SystemExit
+print("OK JWT, code=%s, roles=%s" % (code, ",".join(held)))' "${token}" "${TEST_AGENCY}")"
+
+curl -sS "${auth[@]}" -H "x-zitadel-orgid: ${library_org_id}" \
+  -X DELETE "${ZITADEL_URL}/v2/users/${probe_user_id}" >/dev/null 2>&1 || true
+
+case "${verdict}" in
+  OK*) note "${verdict#OK }" ;;
+  *) fail "THE TOKEN DOES NOT CARRY THE AGENCY. ${verdict#FAIL }
+  Library users would sign in and see an empty application." ;;
+esac
+
+note "a real sign-in produces a token dcb-service can scope"
+
+# ---------------------------------------------------------------------------
 say "Done"
 
 cat <<EOF
@@ -393,8 +604,13 @@ cat <<EOF
     IAM_OWNER control succeeds - and permitted in ${LIBRARY_ORG}.
   * So consortium roles and library roles MUST live in separate organisations. In one
     organisation, whatever can create a library account can also grant ADMIN.
-  * The agency code arrives base64 encoded under urn:zitadel:iam:user:metadata and only
-    for a client requesting that scope - not as a plain \`code\` claim. Confirm it reaches
-    the token before believing data scoping works.
+  * Zitadel puts the agency under urn:zitadel:iam:user:metadata, base64 encoded, not in
+    the flat \`code\` claim AgencyClaims reads - so the dcbAgencyCode action copies it
+    across at token creation. Proven above against a real sign-in, not assumed.
+  * That action is load-bearing and easy to break: its JS function name must equal the
+    action name, and a failing action with allowedToFail false makes EVERY token request
+    500. Actions v1 is also deprecated, for removal in Zitadel v5.
+  * The application must issue OIDC_TOKEN_TYPE_JWT. The default is an opaque token, which
+    carries no claims for dcb-service to read at all.
 
 EOF
