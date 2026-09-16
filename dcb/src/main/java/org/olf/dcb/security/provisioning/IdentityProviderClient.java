@@ -20,7 +20,7 @@ import reactor.core.publisher.Mono;
  * must say so rather than leave the Keycloak property assumed.
  *
  * <p>Provider setup, the containment grant and how to prove it:
- * {@code docs/identity-provider-setup.md}.
+ * {@code operational:identity-provider-setup.adoc}.
  */
 public interface IdentityProviderClient {
 

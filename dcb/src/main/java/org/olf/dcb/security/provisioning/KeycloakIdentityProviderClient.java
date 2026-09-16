@@ -40,7 +40,7 @@ import reactor.core.publisher.Mono;
  * none.
  *
  * <p>Setup, the grant, and the commands that prove it:
- * {@code docs/identity-provider-setup.md} §2.2–2.3 and §5.3;
+ * {@code operational:identity-provider-setup.adoc} §2.2–2.3 and §5.3;
  * {@code scripts/keycloak_library_accounts_setup.sh} configures and asserts it.
  */
 @Singleton

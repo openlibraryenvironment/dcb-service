@@ -2,7 +2,7 @@
 #
 # Configure a LOCAL DEV Zitadel for library account provisioning, and measure what its
 # permission model can contain. A SPIKE: DCB implements no Zitadel provider, and what this
-# measures - the answer differs from Keycloak's - is docs/identity-provider-setup.md
+# measures - the answer differs from Keycloak's - is operational:identity-provider-setup.adoc
 # Part 3.
 #
 #   docker compose --profile zitadel up -d zitadel mailpit

@@ -32,7 +32,7 @@ import jakarta.inject.Singleton;
  * WARN phase, and hence {@link #announce()}. The value is a public OIDC client identifier,
  * not a credential.
  *
- * <p>Turning it on: {@code docs/identity-provider-setup.md} §1.3–1.4.
+ * <p>Turning it on: {@code operational:identity-provider-setup.adoc} §1.3–1.4.
  */
 @Singleton
 public class AdminUiAccessPolicy {
