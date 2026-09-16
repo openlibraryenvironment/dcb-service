@@ -35,7 +35,8 @@ public class CleanupPatronRequestTransition implements PatronRequestStateTransit
 		Status.RECEIVED_AT_PICKUP,
 		Status.READY_FOR_PICKUP,
 		Status.LOANED,
-		Status.RETURN_TRANSIT
+		Status.RETURN_TRANSIT,
+		Status.AWAITING_RETURN_TO_SUPPLIER
 	);
 
 	private final PatronRequestAuditService patronRequestAuditService;

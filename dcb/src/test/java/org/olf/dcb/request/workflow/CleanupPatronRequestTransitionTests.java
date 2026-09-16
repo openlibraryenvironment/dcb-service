@@ -43,6 +43,18 @@ class CleanupPatronRequestTransitionTests {
 		assertThat(patronRequest.getOutcome(), is(PatronRequest.Outcome.NOT_SUPPLIED));
 	}
 
+	@Test
+	void cleansUpARequestParkedAwaitingReturnToSupplier() {
+		final var patronRequest = PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.status(PatronRequest.Status.AWAITING_RETURN_TO_SUPPLIER)
+			.build();
+
+		attemptCleanup(patronRequest);
+
+		assertThat(patronRequest.getStatus(), is(PatronRequest.Status.COMPLETED));
+	}
+
 	private static void attemptCleanup(PatronRequest patronRequest) {
 		final var auditService = mock(PatronRequestAuditService.class);
 		when(auditService.addAuditEntry(any(PatronRequest.class), anyString()))
