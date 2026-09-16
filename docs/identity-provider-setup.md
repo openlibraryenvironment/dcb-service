@@ -283,6 +283,29 @@ In one organisation, whatever can create a library account can also grant `ADMIN
 a deployment-shaping constraint, not an implementation detail, and it is the thing to settle
 before writing the adapter.
 
+**Measured against Zitadel v4.16.0**, service user `dcb-provisioning` holding
+`ORG_USER_MANAGER` in the library organisation only. Each denial is paired with the
+identical call made by the IAM_OWNER bootstrap account:
+
+| Attempt | IAM_OWNER | `dcb-provisioning` |
+|---|---|---|
+| Grant `ADMIN` in the consortium org, subject in the **library** org | 200 | 404 `membership not found` |
+| Grant `ADMIN` in the consortium org, subject in the **consortium** org | 200 | 404 `membership not found` |
+| List projects in the consortium org | 200 | 404 `membership not found` |
+| Create a user in the consortium org | 200 | 404 `membership not found` |
+| Create a user in the library org | 200 | **200** |
+| Grant `LIBRARY_ADMIN` in the library org | 200 | **200** |
+
+The second row is the one that matters: with the subject inside the consortium organisation
+there is no cross-organisation confound left, so the only thing refusing the grant is the
+service user's own membership. Creating a user there is refused too, which closes the other
+escalation route — it cannot manufacture a subject it *would* be allowed to grant.
+
+**Still unverified:** that the agency `code` reaches a real access token. The metadata is
+stored and decodes correctly (`code = alpha`), but confirming the claim arrives needs a
+browser sign-in against a configured client, not an API call. Part 5.1 is where that is
+checked, and on Zitadel it is the first thing to check rather than the last.
+
 ### 3.2 A local Zitadel to measure against
 
 The OpenRS workspace stack runs one, behind a profile so it costs nothing when unused:
@@ -294,10 +317,17 @@ cd dcb-service && ./scripts/zitadel_library_accounts_setup.sh
 
 The script builds the two-organisation arrangement above, provisions a library account
 through the full create → deactivate → grant → activate → invite sequence, and ends the way
-`keycloak_library_accounts_setup.sh` does: by asking the provisioning account to grant
-`ADMIN`, requiring 403, and requiring the library grant it does need to succeed. Mailpit
-catches the invitation at <http://localhost:8025>, because the invitation **is** the
-credential flow and an untested mail path means accounts nobody can sign in to.
+`keycloak_library_accounts_setup.sh` does: by asking the provisioning account to do the one
+thing it must not. Mailpit catches the invitation at <http://localhost:8025>, because the
+invitation **is** the credential flow and an untested mail path means accounts nobody can
+sign in to.
+
+**Zitadel denies with 404 `membership not found (AUTHZ-cdgFk)`, not 403** — it does not
+admit the resource exists. A bare 404 is therefore not evidence: a mistyped path returns
+one too, and the first version of this script read exactly that as containment when it had
+in fact proved nothing. Every refusal the script asserts is paired with the identical call
+made by the IAM_OWNER bootstrap account, which must return 200. **Denied means refused
+where admin succeeded**, and nothing weaker counts.
 
 It configures an instance; it does not make DCB support one.
 `dcb.identity-provider.type` accepts only `keycloak`.

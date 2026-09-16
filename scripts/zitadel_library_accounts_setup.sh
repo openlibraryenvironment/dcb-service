@@ -17,6 +17,11 @@ ZITADEL_URL="${ZITADEL_URL:-http://localhost:8181}"
 
 # Written by the setup job into the shared volume. Read out of the container rather than
 # copied to the host: it is a credential, and the volume is where it already lives.
+#
+# COMPOSE_DIR is where docker-compose.yml lives - the OpenRS workspace, one level above
+# this repository. It has to be explicit because this script is run from dcb-service,
+# which has no compose file of its own.
+COMPOSE_DIR="${COMPOSE_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 PAT_CONTAINER="${PAT_CONTAINER:-zitadel}"
 PAT_PATH="${PAT_PATH:-/zitadel/bootstrap/admin.pat}"
 
@@ -40,10 +45,22 @@ jqp() { python -c "$1" "${@:2}"; }
 # ---------------------------------------------------------------------------
 say "Reading the bootstrap PAT from ${PAT_CONTAINER}:${PAT_PATH}"
 
-pat="$(docker compose exec -T "${PAT_CONTAINER}" cat "${PAT_PATH}" 2>/dev/null | tr -d '\r\n')" ||
-  fail "Could not read ${PAT_PATH}. Is the zitadel profile up? FIRSTINSTANCE_* is read only
-  on the very first start - if the database already existed, no PAT was ever written."
+# docker cp rather than `exec cat`: the Zitadel image is distroless and carries neither a
+# shell nor cat, so exec can only ever run the one binary in it.
+pat_container_id="$(docker compose --project-directory "${COMPOSE_DIR}" ps -q "${PAT_CONTAINER}")"
+[ -n "${pat_container_id}" ] ||
+  fail "No ${PAT_CONTAINER} container. Start it with:
+  docker compose --profile zitadel up -d zitadel mailpit"
 
+pat_file="$(mktemp)"
+trap 'rm -f "${pat_file}"' EXIT
+
+docker cp "${pat_container_id}:${PAT_PATH}" "${pat_file}" >/dev/null 2>&1 ||
+  fail "Could not read ${PAT_PATH}. FIRSTINSTANCE_* is read on a genuinely first start
+  only: if the database already carried a Zitadel schema, setup tried to UPGRADE it and no
+  PAT was ever written. Drop the database, remove the zitadel_bootstrap volume, recreate."
+
+pat="$(tr -d '\r\n' < "${pat_file}")"
 [ -n "${pat}" ] || fail "The PAT file is empty."
 
 auth=(-H "Authorization: Bearer ${pat}" -H "Content-Type: application/json")
@@ -256,40 +273,93 @@ curl -sS "${prov_auth[@]}" -H "x-zitadel-orgid: ${library_org_id}" \
 note "${test_email} - LIBRARY_READ_ONLY, code=${TEST_AGENCY}, invite sent to mailpit"
 
 # ---------------------------------------------------------------------------
-# PROVE IT. Both halves, against the service user's own token.
+# PROVE IT. Runbook Part 5.3, executed against the org boundary.
 #
-# The Keycloak script asserts 403 on mapping ADMIN within one realm. Here the equivalent
-# question is whether the org boundary holds, because nothing smaller than an org can.
+# Zitadel refuses out-of-scope work with 404 "membership not found (AUTHZ-cdgFk)", not 403
+# - it does not admit the resource exists. A bare 404 therefore proves nothing on its own:
+# a typo in the path returns one too, and an earlier revision of this script read exactly
+# that as containment. So every refusal here is paired with the SAME call made by the
+# IAM_OWNER bootstrap account, which must succeed. Denied is refused-where-admin-succeeds.
 # ---------------------------------------------------------------------------
 say "Proving containment"
 
-probe_body="{\"projectId\":\"${consortium_project_id}\",\"roleKeys\":[\"ADMIN\"]}"
+# The subject lives in the CONSORTIUM org, so this is same-org escalation with no
+# cross-org confound: the only thing standing between the service user and ADMIN is its
+# own membership.
+escalation_subject_id="$(curl -sS "${auth[@]}" -H "x-zitadel-orgid: ${consortium_org_id}" \
+  -X POST "${ZITADEL_URL}/v2/users/human" -d "$(jqp 'import json,sys; print(json.dumps({
+    "username": "escalation-probe@invalid",
+    "organization": {"orgId": sys.argv[1]},
+    "profile": {"givenName": "Escalation", "familyName": "Probe"},
+    "email": {"email": "escalation-probe@invalid", "isVerified": True}}))' "${consortium_org_id}")" |
+  jqp 'import json,sys; print(json.load(sys.stdin).get("userId", ""))')"
 
-refused="$(curl -s -o /dev/null -w '%{http_code}' "${prov_auth[@]}" \
-  -H "x-zitadel-orgid: ${consortium_org_id}" \
-  -X POST "${ZITADEL_URL}/management/v1/users/${test_user_id}/grants" -d "${probe_body}")"
+[ -n "${escalation_subject_id}" ] || fail "Could not create the escalation probe subject."
 
-permitted="$(curl -s -o /dev/null -w '%{http_code}' "${prov_auth[@]}" \
-  -H "x-zitadel-orgid: ${library_org_id}" \
-  -X POST "${ZITADEL_URL}/management/v1/users/${test_user_id}/grants" \
+admin_grant="{\"projectId\":\"${consortium_project_id}\",\"roleKeys\":[\"ADMIN\"]}"
+
+code_and_message() {
+  curl -s -w '\n%{http_code}' "$@" | jqp 'import json,sys
+body, _, code = sys.stdin.read().rpartition("\n")
+try: message = json.loads(body).get("message", "")
+except Exception: message = ""
+print(code.strip(), message.strip())'
+}
+
+control="$(code_and_message "${auth[@]}" -H "x-zitadel-orgid: ${consortium_org_id}" \
+  -X POST "${ZITADEL_URL}/management/v1/users/${escalation_subject_id}/grants" -d "${admin_grant}")"
+
+refused="$(code_and_message "${prov_auth[@]}" -H "x-zitadel-orgid: ${consortium_org_id}" \
+  -X POST "${ZITADEL_URL}/management/v1/users/${escalation_subject_id}/grants" -d "${admin_grant}")"
+
+# A user this run created, so the positive case is a real grant rather than a 409 telling
+# us only that one already existed.
+fresh_id="$(curl -sS "${prov_auth[@]}" -H "x-zitadel-orgid: ${library_org_id}" \
+  -X POST "${ZITADEL_URL}/v2/users/human" -d "$(jqp 'import json,sys; print(json.dumps({
+    "username": "grant-probe@invalid",
+    "organization": {"orgId": sys.argv[1]},
+    "profile": {"givenName": "Grant", "familyName": "Probe"},
+    "email": {"email": "grant-probe@invalid", "isVerified": True}}))' "${library_org_id}")" |
+  jqp 'import json,sys; print(json.load(sys.stdin).get("userId", ""))')"
+
+[ -n "${fresh_id}" ] ||
+  fail "${PROVISIONING_USER} could not create a user in ${LIBRARY_ORG} - it cannot do the
+  job it exists for. Check its ORG_USER_MANAGER membership."
+
+permitted="$(code_and_message "${prov_auth[@]}" -H "x-zitadel-orgid: ${library_org_id}" \
+  -X POST "${ZITADEL_URL}/management/v1/users/${fresh_id}/grants" \
   -d "{\"projectId\":\"${library_project_id}\",\"roleKeys\":[\"LIBRARY_ADMIN\"]}")"
 
-note "granting ADMIN in ${CONSORTIUM_ORG}        -> ${refused} (want 403)"
-note "granting LIBRARY_ADMIN in ${LIBRARY_ORG} -> ${permitted} (want 200 or 409)"
+for subject in "${consortium_org_id}:${escalation_subject_id}" "${library_org_id}:${fresh_id}"; do
+  curl -sS "${auth[@]}" -H "x-zitadel-orgid: ${subject%%:*}" \
+    -X DELETE "${ZITADEL_URL}/v2/users/${subject##*:}" >/dev/null 2>&1 || true
+done
+
+note "IAM_OWNER grants ADMIN in ${CONSORTIUM_ORG}   -> ${control} (want 200)"
+note "${PROVISIONING_USER} grants ADMIN there      -> ${refused} (want 403/404 denied)"
+note "${PROVISIONING_USER} grants LIBRARY_ADMIN    -> ${permitted} (want 200)"
+
+case "${control}" in
+  200*) ;;
+  *) fail "The control failed: IAM_OWNER could not make this grant either (${control}).
+  The probe proves nothing until this succeeds - fix the call, not the permissions." ;;
+esac
 
 case "${refused}" in
-  403) ;;
-  *) fail "CONTAINMENT IS NOT IN PLACE. ${PROVISIONING_USER} reached the consortium
-  organisation (HTTP ${refused}). Do not use this instance for provisioning." ;;
+  403*|404*membership\ not\ found*) ;;
+  200*) fail "CONTAINMENT IS NOT IN PLACE. ${PROVISIONING_USER} granted ADMIN in
+  ${CONSORTIUM_ORG}. Do not use this instance for provisioning." ;;
+  *) fail "Unexpected refusal from the escalation attempt: ${refused}. Expected a denial
+  naming a missing membership; something else is wrong." ;;
 esac
 
 case "${permitted}" in
-  200|409) ;;
+  200*) ;;
   *) fail "The provisioning account cannot grant the role it exists to grant
-  (HTTP ${permitted}). The org membership is wrong." ;;
+  (${permitted}). The org membership is wrong." ;;
 esac
 
-note "the organisation boundary holds"
+note "the organisation boundary holds, and the admin control succeeded"
 
 # ---------------------------------------------------------------------------
 say "Done"
@@ -319,7 +389,8 @@ cat <<EOF
     confer granting ANY role in scope, and custom permission sets do not exist. Part 2.3's
     containment cannot be reproduced.
   * The only boundary that holds is the ORGANISATION, proven above: the provisioning
-    account is refused 403 in ${CONSORTIUM_ORG} and permitted in ${LIBRARY_ORG}.
+    account is refused in ${CONSORTIUM_ORG} - 404 "membership not found", where the
+    IAM_OWNER control succeeds - and permitted in ${LIBRARY_ORG}.
   * So consortium roles and library roles MUST live in separate organisations. In one
     organisation, whatever can create a library account can also grant ADMIN.
   * The agency code arrives base64 encoded under urn:zitadel:iam:user:metadata and only
