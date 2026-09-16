@@ -5,13 +5,26 @@ import java.time.Instant;
 
 import org.olf.dcb.core.model.PatronRequest;
 
+import io.micronaut.context.annotation.Value;
+import jakarta.inject.Singleton;
+
 /**
  * When a request stuck in a non-terminal state stops being visited by automatic tracking.
+ *
+ * <p>Configurable, because 56 days suits some consortia and not others:
+ * {@code dcb.tracking.too-long}, so {@code DCB_TRACKING_TOO_LONG=90d}.
  */
-public final class TooLongPolicy {
-	public static final int THRESHOLD_DAYS = 56;
+@Singleton
+public class TooLongPolicy {
+	private final Duration threshold;
 
-	private TooLongPolicy() {
+	public TooLongPolicy(@Value("${dcb.tracking.too-long:56d}") Duration threshold) {
+		this.threshold = threshold;
+	}
+
+	/** For the audit entries, which tell an operator how long "too long" was on this deployment. */
+	public Duration threshold() {
+		return threshold;
 	}
 
 	/**
@@ -19,17 +32,17 @@ public final class TooLongPolicy {
 	 * asked DCB to check again is tracked for a full threshold before it is parked once more.
 	 * currentStatusTimestamp cannot carry that: staleRequests.sql and requestsByLocalStatus.sql read it.
 	 */
-	public static boolean hasBeenInCurrentStatusTooLong(PatronRequest patronRequest) {
+	public boolean hasBeenInCurrentStatusTooLong(PatronRequest patronRequest) {
 		final var lastStatusChange = patronRequest.getCurrentStatusTimestamp();
 
 		if (lastStatusChange == null) {
 			return false;
 		}
 
-		final var threshold = Instant.now().minus(Duration.ofDays(THRESHOLD_DAYS));
+		final var parkBefore = Instant.now().minus(threshold);
 		final var resumedAt = patronRequest.getTrackingResumedAt();
 
-		return lastStatusChange.isBefore(threshold)
-			&& (resumedAt == null || resumedAt.isBefore(threshold));
+		return lastStatusChange.isBefore(parkBefore)
+			&& (resumedAt == null || resumedAt.isBefore(parkBefore));
 	}
 }

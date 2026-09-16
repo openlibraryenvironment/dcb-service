@@ -12,7 +12,6 @@ import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORR
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
-import static org.olf.dcb.tracking.TooLongPolicy.THRESHOLD_DAYS;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -185,7 +184,9 @@ public class PatronRequestTrackingTests {
 				.localItemStatus("")
 				.localRequestStatus("PLACED")
 				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
-				.currentStatusTimestamp(Instant.now().minus(Duration.ofDays(THRESHOLD_DAYS + 4)))
+				// Comfortably past the 56 day default. A literal, not the configured threshold:
+				// this test is about resuming a parked request, not about where the line sits.
+				.currentStatusTimestamp(Instant.now().minus(Duration.ofDays(60)))
 				.isTooLong(true));
 
 		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);

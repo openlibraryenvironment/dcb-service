@@ -70,6 +70,7 @@ public class TrackingServiceV4 implements TrackingService {
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final RequestTrackingPolicy requestTrackingPolicy;
+	private final TooLongPolicy tooLongPolicy;
 
 	@Value("${dcb.tracking.dryRun:false}")
 	private Boolean dryRun;
@@ -88,7 +89,8 @@ public class TrackingServiceV4 implements TrackingService {
 		ReactorFederatedLockService reactorFederatedLockService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		PatronRequestAuditService patronRequestAuditService,
-		RequestTrackingPolicy requestTrackingPolicy) {
+		RequestTrackingPolicy requestTrackingPolicy,
+		TooLongPolicy tooLongPolicy) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -100,6 +102,7 @@ public class TrackingServiceV4 implements TrackingService {
 		this.requestWorkflowContextHelper = requestWorkflowContextHelper;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.requestTrackingPolicy = requestTrackingPolicy;
+		this.tooLongPolicy = tooLongPolicy;
 	}
 
 	@Timed("tracking.run")
@@ -221,7 +224,7 @@ public class TrackingServiceV4 implements TrackingService {
 		}
 
 		// Only automatic polling parks a request. A manual poll is a person asking, and resumes it.
-		if (isAutoTracking && TooLongPolicy.hasBeenInCurrentStatusTooLong(ctx.getPatronRequest())) {
+		if (isAutoTracking && tooLongPolicy.hasBeenInCurrentStatusTooLong(ctx.getPatronRequest())) {
 			return tooLongHandling(ctx);
 		}
 
@@ -245,7 +248,8 @@ public class TrackingServiceV4 implements TrackingService {
 		log.warn("Patron request selected for too long handling {}", ctx.getPatronRequest().getId());
 
 		final var auditData = new HashMap<String, Object>();
-		auditData.put("Reason", "Request stuck in non-terminal state for more than " + TooLongPolicy.THRESHOLD_DAYS + " days");
+		auditData.put("Reason", "Request stuck in non-terminal state for more than "
+			+ tooLongPolicy.threshold().toDays() + " days");
 		auditData.put("LastStateChangeTimestamp", ctx.getPatronRequest().getCurrentStatusTimestamp());
 
 		return Mono.from(patronRequestRepository.updateIsTooLongAndNeedsAttention(
@@ -254,7 +258,8 @@ public class TrackingServiceV4 implements TrackingService {
 			.flatMap(updateResult ->
 				patronRequestAuditService.addAuditEntry(
 					ctx.getPatronRequest(),
-					"Request no longer being tracked - has spent more than "+TooLongPolicy.THRESHOLD_DAYS+" in non-terminal state",
+					"Request no longer being tracked - has spent more than "
+						+ tooLongPolicy.threshold().toDays() + " days in non-terminal state",
 					auditData)
 			)
 			.thenReturn(ctx);
