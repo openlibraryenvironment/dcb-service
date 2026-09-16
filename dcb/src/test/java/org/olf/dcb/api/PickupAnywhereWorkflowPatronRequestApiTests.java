@@ -306,10 +306,12 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 
 	private void assertRequestPlacedAtPickupAgency(UUID requestUUID) {
 		final String expectedStatus = "REQUEST_PLACED_AT_PICKUP_AGENCY";
-		// 15s was too tight once the whole suite runs together under Micronaut 5, whose
-		// first-request cold start is slower. Matches SameLibraryWorkflowApiTests and
-		// DummyScenarioTests, which already allow 30s for the same wait.
-		final int timeoutInSeconds = 30;
+		// Pickup-anywhere places at the supplying, borrowing AND pickup agency, and the
+		// whole chain measures ~29s. 30s was therefore 1.03x the operation and failed
+		// roughly half the time - twice observed missing by a single poll, the placement
+		// landing 1ms after the last poll read the status. This is a ceiling, not a
+		// duration: awaitility returns as soon as the condition holds.
+		final int timeoutInSeconds = 90;
 
 		log.info("Verifying that request ID {} is placed at the pickup agency...", requestUUID);
 

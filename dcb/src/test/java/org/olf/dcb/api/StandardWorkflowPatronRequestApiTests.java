@@ -565,7 +565,11 @@ class StandardWorkflowPatronRequestApiTests {
 		log.info("Waiting for placed at supplying agency");
 		try {
 			await()
-				.atMost(10, SECONDS)
+				// 10s was the operation's own duration, so this failed about half the time:
+				// measured at 10.034s in one run and still mid-placement at 9.3s in another.
+				// 30s matches line 413 of this class, which e8180baba widened and missed
+				// this one.
+				.atMost(30, SECONDS)
 				.until(() -> patronRequestsFixture.findById(placedPatronRequest.getId()),
 					hasStatus(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
 		}
