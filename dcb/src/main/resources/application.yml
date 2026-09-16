@@ -234,7 +234,7 @@ dcb:
   # and is the default; any other value fails startup rather than disabling the feature
   # silently - IdentityProviderTypeCheck. Leave the connection settings out of this file
   # rather than empty: an empty key binds as a present value, and blank is treated as
-  # missing so it fails at deploy. What to set: docs/identity-provider-setup.md.
+  # missing so it fails at deploy. What to set: operational:identity-provider-setup.adoc.
   identity-provider:
     type: ""
 
@@ -282,7 +282,7 @@ dcb:
 
     # This must stay the ONLY dcb.security key: YAML keeps the last of a duplicate pair.
     # An empty client-id disables the check. Not a data control: AgencyAccessScope decides
-    # what any caller may read. Rollout: docs/identity-provider-setup.md section 1.4.
+    # what any caller may read. Rollout: operational:identity-provider-setup.adoc section 1.4.
     admin-ui:
       client-id: ""
       mode: WARN

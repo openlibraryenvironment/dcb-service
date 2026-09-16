@@ -31,18 +31,12 @@ import reactor.core.publisher.Mono;
 /**
  * Provisioning against Keycloak's admin REST API.
  *
- * <p><b>Containment.</b> The service account holds {@code view-users} and {@code query-users}
- * but deliberately NOT {@code manage-users}: measured on a live realm, {@code manage-users}
- * can map any realm role including {@code ADMIN}, and fine-grained permissions do not
- * constrain it. Create and modify power comes from fine-grained user permissions instead,
- * with {@code map-role} attached to {@code LIBRARY_ADMIN} and {@code LIBRARY_READ_ONLY} only.
- * Verify this against the deployed Keycloak version — fine-grained admin permissions have
- * moved between releases, and an unverified assumption here reads as a control while being
- * none.
+ * <p>The service account deliberately does NOT hold {@code manage-users}: measured on a live
+ * realm, it can map any realm role including {@code ADMIN}, and fine-grained permissions do
+ * not constrain it. Create and modify power comes from fine-grained user permissions instead.
  *
- * <p>Setup, the grant, and the commands that prove it:
- * {@code docs/identity-provider-setup.md} §2.2–2.3 and §5.3;
- * {@code scripts/keycloak_library_accounts_setup.sh} configures and asserts it.
+ * <p>Verify that against the deployed Keycloak version — the grant and the commands that
+ * prove it: {@code operational:identity-provider-setup.adoc} §2.2–2.3 and §5.3.
  */
 @Context
 @Requires(property = "dcb.identity-provider.type", value = "keycloak")

@@ -15,7 +15,7 @@ import jakarta.validation.constraints.NotBlank;
  * environment has a service account.
  *
  * <p>The variables, and the provider-side least privilege this assumes:
- * {@code docs/identity-provider-setup.md} §2.1–2.3 and §4.
+ * {@code operational:identity-provider-setup.adoc} §2.1–2.3 and §4.
  */
 @ConfigurationProperties("dcb.identity-provider")
 public interface IdentityProviderConfig {

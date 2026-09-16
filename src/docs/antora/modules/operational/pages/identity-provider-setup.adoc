@@ -1,0 +1,582 @@
+= Identity provider setup: library accounts and the DCB Admin bar
+
+What must exist in Keycloak or Zitadel before consortium staff can create DCB Admin for
+Libraries accounts from DCB Admin, and before DCB Admin can be locked to consortium staff.
+
+*Read Part 1 whichever provider you run.* It is the part that is already load-bearing
+today — the agency claim in Part 1.2 is what stops one library reading another's patron
+requests, and it is not new to this feature.
+
+[cols="1,2,4",options="header"]
+|===
+| Part | Applies to | Needed for
+
+| 1 | both providers | data scoping, and the DCB Admin bar
+| 2 | Keycloak | account provisioning
+| 3 | Zitadel | account provisioning — *not yet implemented, see the warning*
+| 4 | both | the environment variables
+| 5 | both | proving it works
+|===
+
+== Part 1 — What both providers need
+
+=== 1.1 Two roles, spelled exactly
+
+The realm (Keycloak) or project (Zitadel) must carry these, as *exact upper-case strings*:
+
+[cols="1,2",options="header"]
+|===
+| Role | Who holds it
+
+| `ADMIN` | consortium staff, full
+| `CONSORTIUM_ADMIN` | consortium staff
+| `LIBRARY_ADMIN` | library staff who may change their library's data
+| `LIBRARY_READ_ONLY` | library staff who may only read it
+|===
+
+Only the last two are provisionable from DCB Admin. That is enforced four times over
+(GraphQL enum → `ProvisionableRole.parse` → Postgres `CHECK` → the provider grant in 2.3),
+so a bug or a compromise cannot turn "create a library account" into "create an
+administrator".
+
+=== 1.2 The agency claim, `code`
+
+*This is the one that matters most, and it is easy to get silently wrong.*
+
+Every library-level account must carry a claim named *`code`* holding its agency code —
+the same string as the library's `agencyCode` in DCB. `dcb-service` reads it in
+`AgencyClaims`, and it decides which library's data that person sees.
+
+* *A multi-valued claim is supported and sometimes required.* Somebody administering a
+shared Koha on behalf of several tenants gets several codes, and must not be made a
+consortium administrator just to cover them. `agencyCodes` is accepted as an alternative
+name for providers that cannot make an existing scalar claim multi-valued.
+* *An empty or absent claim means NO ACCESS, not unrestricted access.* This is deliberate
+and it fails closed. The symptom of a missing mapper is therefore not an error — it is a
+library user who signs in successfully and sees nothing at all.
+* Consortium accounts carry the claim too, harmlessly. Roles decide whether scoping applies;
+the claim decides what it contains.
+
+*Keycloak:* on the user, an attribute `code`. In the client's _Client scopes → dedicated
+scope → Mappers_, add a *User Attribute* mapper: user attribute `code`, token claim name
+`code`, claim type String, *Add to access token ON*, *Multivalued ON*.
+
+*Zitadel:* user metadata `code`, copied into a flat `code` claim by an Action — see
+<<_3_2_the_agency_claim_needs_an_action,3.2>>, which measures why nothing simpler works.
+
+NOTE: Accounts created by DCB set this attribute themselves. Accounts that already exist
+need *backfilling by hand* — and until they are, those people see nothing.
+
+=== 1.3 Two separate OIDC clients
+
+DCB Admin and DCB Admin for Libraries must be *separate OIDC clients*. They are supposed
+to be already; in at least one place they are not.
+
+[cols="2,2",options="header"]
+|===
+| Application | Client ID (suggested)
+
+| DCB Admin | `dcb-admin`
+| DCB Admin for Libraries | `dcb-admin-for-libraries`
+|===
+
+Both are public browser clients using authorization code + PKCE, with the usual redirect
+URIs and web origins for their deployed hostnames.
+
+*Why it matters here:* the token records which client obtained it in `azp`, and
+`AdminUiAccessPolicy` refuses a token minted for DCB Admin's client by an account holding no
+consortium role. If the two apps share one client, enabling that check either locks out
+every consortium administrator or admits every library user, depending which id you
+configured.
+
+WARNING: *Known issue.* `dcb-admin-ui/.env` currently carries
+`VITE_KEYCLOAK_ID=dcb-admin-for-libraries`. Audit `VITE_KEYCLOAK_ID` in *every*
+deployment before enabling the bar.
+
+=== 1.4 Turning the bar on, in two steps
+
+. Set `DCB_SECURITY_ADMIN_UI_CLIENT_ID` to DCB Admin's client id, leave
+`DCB_SECURITY_ADMIN_UI_MODE=WARN`. Nothing is refused.
+. Watch the log for `Would deny DCB Admin access: user=… roles=… client=…`. Every line is
+somebody who _would_ be locked out. Fix the accounts or the client configuration.
+. When the log is quiet, set `DCB_SECURITY_ADMIN_UI_MODE=ENFORCE`. This is config, not a
+deploy, and it is instantly reversible.
+
+Leaving `DCB_SECURITY_ADMIN_UI_CLIENT_ID` unset disables the check entirely, which is the default.
+
+== Part 2 — Keycloak: account provisioning
+
+=== 2.1 The provisioning client
+
+A *confidential* client, separate from the two in 1.3 — this one is `dcb-service` talking
+to Keycloak, not a person signing in.
+
+[cols="2,3",options="header"]
+|===
+| Setting | Value
+
+| Client ID | `dcb-provisioning`
+| Client authentication | *On* (confidential)
+| Service accounts roles | *On*
+| Standard flow, Direct access grants, Implicit | *Off* — it never signs a person in
+|===
+
+Copy the secret from _Credentials_. It goes into
+`DCB_IDENTITY_PROVIDER_CLIENT_SECRET` and nowhere else.
+
+=== 2.2 Service account permissions — and the role you must NOT grant
+
+_Service accounts roles → Assign role → Filter by clients → `realm-management`_:
+
+[cols="2,2",options="header"]
+|===
+| Assign | Do *not* assign
+
+| `view-users` | *`manage-users`*
+| `query-users` | `realm-admin`
+| | `manage-realm`
+|===
+
+*`manage-users` is the trap, and an earlier version of this document recommended it.*
+Measured on a real realm: a service account holding `manage-users` can map *any* realm
+role, `ADMIN` included, and enabling fine-grained permissions on the role does not change
+that — the blanket role bypasses the policy entirely. "view-users, query-users,
+manage-users" reads like least privilege and is not.
+
+The ability to create and modify users comes from 2.3 instead, through a policy that names
+this client. Every power the account has is then attributable to something you can point at.
+
+=== 2.3 The containment grant — the control that actually matters
+
+Everything else that constrains the role lives _inside_ dcb-service — the GraphQL enum,
+`ProvisionableRole.parse`, the Postgres `CHECK` — and all three fall together if
+dcb-service is compromised. This one does not, because Keycloak enforces it.
+
+IMPORTANT: Keycloak must be started with `--features=admin-fine-grained-authz`. It is a
+*preview* feature and is *off by default in Keycloak 26*. Without it a role has no
+_Permissions_ tab at all and none of the below can be configured.
+
+Two halves, and *both* are required:
+
+. *The service account holds no blanket `manage-users`* (2.2). Without this, everything
+below is decorative.
+. *A policy naming the client, attached to the users resource and to exactly the two
+roles.*
+
+_Realm settings → enable fine-grained admin permissions_, then:
+
+[cols="3,4",options="header"]
+|===
+| Where | What
+
+| _Users → Permissions → enable_ | attach the policy to `view`, `manage` and `map-roles`
+| _Realm roles → `LIBRARY_ADMIN` → Permissions → enable_ | attach the policy to `map-role`
+| _Realm roles → `LIBRARY_READ_ONLY` → Permissions → enable_ | attach the policy to `map-role`
+| every other role | leave permissions *disabled* — with no blanket role to fall back on, they are unreachable
+|===
+
+The policy is a *client* policy naming `dcb-provisioning`, and one policy is reused by
+every permission above, so there is a single place to look when asking what the
+provisioning account may do.
+
+*The effect, measured:* `LIBRARY_ADMIN` and `LIBRARY_READ_ONLY` become mappable, every
+other realm role stops even being _offered_, and a forged request naming `ADMIN` is
+refused with a 403. A full compromise of dcb-service still cannot mint an administrator.
+
+CAUTION: Do not take that on trust — 5.3 is the test, and
+`scripts/keycloak_library_accounts_setup.sh` runs it automatically. Fine-grained admin
+permissions have moved between Keycloak releases; an unverified assumption here reads as a
+control while being none.
+
+=== 2.4 It is scripted, for a dev realm
+
+`scripts/keycloak_library_accounts_setup.sh` configures everything in Parts 1
+and 2 against a local Keycloak, idempotently, and *fails if containment does not hold* —
+its last act is to ask the service account to map `ADMIN` and require a 403.
+
+It is written for a development realm (it creates users with known passwords). For a real
+deployment, read it as an executable specification of what to configure by hand.
+
+=== 2.5 Email must actually send
+
+Provisioning creates the account disabled, grants the role, enables it, and then asks
+Keycloak to send an actions email (`UPDATE_PASSWORD`, `VERIFY_EMAIL`). *That email is the
+entire credential flow* — no password is generated, returned or displayed anywhere.
+
+So _Realm settings → Email_ must be configured and working, and the realm's _Login → Forgot
+password_ / email settings must permit the actions link. If SMTP is broken, accounts are
+created and nobody can ever sign in to them.
+
+=== 2.6 What dcb-service calls
+
+For anyone auditing the grant, this is the whole surface, in order:
+
+[cols="1,9",options="header"]
+|===
+| # | Call
+
+| 1 | `POST /admin/realms/{realm}/users` — `enabled: false`, `emailVerified: false`, `attributes.code: [agency]`
+| 2 | `GET /admin/realms/{realm}/roles/{roleName}`
+| 3 | `POST /admin/realms/{realm}/users/{id}/role-mappings/realm`
+| 4 | `PUT /admin/realms/{realm}/users/{id}` — `enabled: true`
+| 5 | `PUT /admin/realms/{realm}/users/{id}/execute-actions-email`
+| — | `GET /admin/realms/{realm}/users/{id}` when listing; `DELETE` only to clean up a failed provision
+| — | `POST /realms/{realm}/protocol/openid-connect/token` for its own token
+|===
+
+The order is a safety property, not an implementation detail: a failure between steps leaves
+a *disabled, roleless* account, which confers nothing.
+
+== Part 3 — Zitadel
+
+[WARNING]
+====
+*Provisioning is not implemented for Zitadel.*
+
+`IdentityProviderClient` has one implementation, Keycloak's. Zitadel's admin API shapes
+could not be verified against a real instance, and writing them from memory is precisely
+the failure mode this estate's doctrine names.
+
+*Do not set `DCB_IDENTITY_PROVIDER_TYPE=zitadel`.* An unsupported type now fails startup,
+naming the value, rather than leaving provisioning quietly off — `IdentityProviderTypeCheck`.
+Leave the type empty or unset instead: `libraryUserProvisioningAvailable` returns false and
+DCB Admin renders "account provisioning is not configured on this deployment" instead of a
+form. That is a legible absence, not a broken feature — but accounts still have to be created
+by hand.
+====
+
+*Parts 1.1 to 1.4 apply in full and are worth doing now.* They are what makes data scoping
+and the DCB Admin bar work, and none of that depends on provisioning:
+
+* the four roles, as project roles, spelled exactly;
+* the `code` claim on every library account, via user metadata surfaced into the token;
+* two separate OIDC clients, so `azp` can tell the apps apart;
+* `DCB_SECURITY_ADMIN_UI_CLIENT_ID` — confirm Zitadel populates `azp` with the *client id* and not
+the project id before enforcing, or the bar will refuse the wrong people.
+
+*To implement provisioning*, a `ZitadelIdentityProviderClient` needs these calls. They are
+read off Zitadel's published API rather than a real deployment, so treat them as the shape
+to verify, not as verified:
+
+. Create with `POST /v2/users/human`, then deactivate with
+`POST /v2/users/{id}/deactivate`. Zitadel *cannot create a user that is already inactive*,
+so Part 2.5's ordering becomes create → deactivate → grant → activate. The safety property
+survives — a failure between steps leaves a deactivated, roleless account — but it costs an
+extra call and a compensation path.
+. Grant with `POST /management/v1/users/{id}/grants`, passing `projectId` (the existing
+`DCB_IDENTITY_PROVIDER_PROJECT_ID`) and `roleKeys`. Every Management API call also carries
+`x-zitadel-orgid`, which selects the organisation it acts on; without it the call silently
+lands in the service account's own organisation.
+. Write the agency code with `POST /management/v1/users/{id}/metadata/code`, *base64
+encoded*. It does *not* appear as a plain `code` claim the way Keycloak's mapper produces
+one — see 3.2.
+. Invite with `POST /v2/users/{id}/invite_code` and `sendCode`. *Never generate a password.*
+. Activate with `POST /v2/users/{id}/reactivate`, and read state back through the v2 user
+API for the listing.
+
+=== 3.1 Containment: Zitadel cannot express Part 2.3
+
+*Measured, and it is the opposite of the Keycloak result.* Zitadel has no per-role grant
+restriction:
+
+* `ORG_USER_MANAGER` — "Manage users and their authorizations within an organization"
+* `ORG_USER_PERMISSION_EDITOR` — "Manage user grants and view everything needed for this"
+* `PROJECT_OWNER` — "Manage everything within a project, including granting users for the
+project"
+
+None takes a role allow-list, and defining a custom permission set is
+https://github.com/zitadel/zitadel/discussions/7805[not possible] — a maintainer's answer,
+not an inference. So the Part 2.3 arrangement, where the service account may map
+`LIBRARY_READ_ONLY` and is refused `ADMIN`, has no Zitadel equivalent.
+
+Three arrangements, and only the third holds:
+
+[cols="2,5",options="header"]
+|===
+| Arrangement | Result
+
+| Four roles in one project | The provisioning account can grant `ADMIN`. Fails.
+| Two projects, one organisation | `ORG_USER_MANAGER` covers authorizations _within the organisation_, so it reaches the consortium project too. Fails.
+| *Two organisations* | Manager scope is per-organisation. The consortium roles are unreachable, not merely unmapped. *Holds.*
+|===
+
+So on Zitadel, *consortium roles and library roles must live in separate organisations*.
+In one organisation, whatever can create a library account can also grant `ADMIN`. That is
+a deployment-shaping constraint, not an implementation detail, and it is the thing to settle
+before writing the adapter.
+
+*Measured against Zitadel v4.16.0*, service user `dcb-provisioning` holding
+`ORG_USER_MANAGER` in the library organisation only. Each denial is paired with the
+identical call made by the IAM_OWNER bootstrap account:
+
+[cols="4,1,2",options="header"]
+|===
+| Attempt | IAM_OWNER | `dcb-provisioning`
+
+| Grant `ADMIN` in the consortium org, subject in the *library* org | 200 | 404 `membership not found`
+| Grant `ADMIN` in the consortium org, subject in the *consortium* org | 200 | 404 `membership not found`
+| List projects in the consortium org | 200 | 404 `membership not found`
+| Create a user in the consortium org | 200 | 404 `membership not found`
+| Create a user in the library org | 200 | *200*
+| Grant `LIBRARY_ADMIN` in the library org | 200 | *200*
+|===
+
+The second row is the one that matters: with the subject inside the consortium organisation
+there is no cross-organisation confound left, so the only thing refusing the grant is the
+service user's own membership. Creating a user there is refused too, which closes the other
+escalation route — it cannot manufacture a subject it _would_ be allowed to grant.
+
+=== 3.2 The agency claim needs an Action
+
+*Measured against a real sign-in.* Roles arrive in a shape DCB already reads — both
+`urn:zitadel:iam:org:project:{id}:roles` and the generic form match the filter
+`GraphQLSecurityContextCustomizer.addZitadelProjectRoles` implements, so they need nothing.
+
+The agency code does not. `AgencyClaims` reads a flat `code` claim; Zitadel delivers the
+value nested under `urn:zitadel:iam:user:metadata` *and base64 encoded*. Since
+`AgencyClaims` treats absent as _no access_ by design, a library user would authenticate
+successfully and see an empty application — the failure 5.1 warns about.
+
+The fix is an *Action* on the Complement Token flow that copies the metadata into a flat
+`code` claim at token creation. It is deployment-side, so `AgencyClaims` keeps its single
+reading and gains no per-provider branch. `zitadel_library_accounts_setup.sh` creates it,
+attaches it, and then proves it by signing a user in and decoding the token:
+
+[source%nowrap,text]
+----
+JWT, code=alpha, roles=LIBRARY_READ_ONLY
+----
+
+Five things about that Action are load-bearing, and each cost a failed run to find:
+
+[cols="3,4",options="header"]
+|===
+| Fact | Consequence if missed
+
+| The JS function name must equal the action's `name` | `action run failed: function not found`. A hyphenated name can never resolve
+| `allowedToFail` should be true | A failing action with it false returns *500 on every token request* — a broken claim takes all logins down
+| Metadata is *plain* inside the action, base64 only in Zitadel's own claim | Decoding it there corrupts the value
+| The app must issue `OIDC_TOKEN_TYPE_JWT` | The default is opaque: no claims at all, and dcb-service cannot validate it
+| A user with no project grant gets *no token* (`Errors.User.GrantRequired`) | Fails closed, which is better than Keycloak's roleless token
+|===
+
+CAUTION: Actions v1 is deprecated and slated for removal in Zitadel v5. The migration is
+not a rewrite of the script — it is a new deployable component. See 3.4.
+
+=== 3.3 A local Zitadel to measure against
+
+The OpenRS workspace stack runs one, behind a profile so it costs nothing when unused:
+
+[source%nowrap,console]
+.From the workspace root
+----
+$ docker compose --profile zitadel up -d zitadel mailpit
+$ cd dcb-service && ./scripts/zitadel_library_accounts_setup.sh
+----
+
+The script builds the two-organisation arrangement above, provisions a library account
+through the full create → deactivate → grant → activate → invite sequence, asks the
+provisioning account to do the one thing it must not, and finally signs a user in through
+the session API to decode a real token. It is idempotent. Mailpit catches the invitation at
+http://localhost:8025, because the invitation *is* the credential flow and an untested mail
+path means accounts nobody can sign in to.
+
+Two things it configures that a deployment must configure too, because neither is on by
+default: the *login v2* instance feature (without it `/oauth/v2/authorize` mints a v1 auth
+request and the v2 OIDC service returns 404 for it, so no headless sign-in is possible), and
+*`IAM_LOGIN_CLIENT`* on the service account — linking a session to an auth request needs
+`session.link`, which `IAM_OWNER` does *not* confer. That is why upstream's own compose
+ships a separate login-client account.
+
+*Zitadel denies with 404 `membership not found (AUTHZ-cdgFk)`, not 403* — it does not
+admit the resource exists. A bare 404 is therefore not evidence: a mistyped path returns
+one too, and the first version of this script read exactly that as containment when it had
+in fact proved nothing. Every refusal the script asserts is paired with the identical call
+made by the IAM_OWNER bootstrap account, which must return 200. *Denied means refused
+where admin succeeded*, and nothing weaker counts.
+
+It configures an instance; it does not make DCB support one.
+`dcb.identity-provider.type` accepts only `keycloak`.
+
+=== 3.4 What Actions v2 would take
+
+Actions v1 runs JavaScript inside Zitadel. *Actions v2 runs nothing inside Zitadel* — it
+calls an HTTP endpoint you operate. That is the whole difference, and it is a bigger change
+than the word "migration" suggests.
+
+The claim-setting target must be a *`restCall`*. The three target types differ in exactly
+the way that matters here:
+
+[cols="2,5",options="header"]
+|===
+| Target type | Response handling
+
+| `restWebhook` | status checked, *body ignored* — cannot return claims
+| `restAsync` | fire and forget, response ignored entirely
+| *`restCall`* | status *and body* checked — the only one that can modify a token
+|===
+
+Two API calls replace the v1 action and its flow/trigger:
+
+[source%nowrap,json]
+.POST /v2/actions/targets — returns an id and a signingKey
+----
+{ "restCall": { "name": "dcb-agency-code",
+                "endpoint": "https://claims.example.org/agency-code",
+                "timeout": "5s" } }
+----
+
+[source%nowrap,json]
+.PUT /v2/actions/executions
+----
+{ "condition": { "function": { "name": "preaccesstoken" } },
+  "targets": [ "<target id>" ] }
+----
+
+The endpoint returns the claims to append:
+
+[source%nowrap,json]
+----
+{ "append_claims": [ { "key": "code", "value": "alpha" } ] }
+----
+
+*Three costs that are not obvious from the API shape:*
+
+* *Signature verification is mandatory, not optional.* Every call carries a
+`ZITADEL-Signature` header — an HMAC over the content and a timestamp, keyed by the signing
+key returned when the target was created. The endpoint's response _mints claims_, so
+anything that can reach it unverified can grant itself an agency.
+* *The endpoint needs its own Zitadel credential.* The v1 action read metadata in-process
+via `ctx.v1.user.getMetadata()`. A v2 target runs outside Zitadel, so unless the payload
+carries the metadata it must call back into the API for it — which means a service user, a
+token, and a rotation story.
+* *It sits in the critical path of every token issuance.* If it is down, slow, or wrong,
+library users get tokens with no agency and see an empty application.
+
+The endpoint itself is perhaps fifty lines. The cost is operational: a new deployable, a
+new secret, HMAC verification, health checks, and a deployment per environment.
+
+NOTE: This changes the reasoning in 3.2. The Action was chosen over a provider-aware branch
+in `AgencyClaims` because it was deployment-side and kept that class's single reading. Under
+v2 it becomes a deployed service with its own credential, at which point one class, one test
+and no new infrastructure is arguably the cheaper option. Worth revisiting when v5 forces
+the move — not before.
+
+== Part 4 — Environment variables
+
+`dcb-service`:
+
+[cols="3,2,4",options="header"]
+|===
+| Variable | Example | Notes
+
+| `DCB_IDENTITY_PROVIDER_TYPE` | `keycloak` | *Unset = provisioning off.* Only `keycloak` is implemented
+| `DCB_IDENTITY_PROVIDER_BASE_URL` | `https://sso.example.org` | No trailing path
+| `DCB_IDENTITY_PROVIDER_REALM` | `dcb` | Keycloak only
+| `DCB_IDENTITY_PROVIDER_CLIENT_ID` | `dcb-provisioning` | The confidential client from 2.1
+| `DCB_IDENTITY_PROVIDER_CLIENT_SECRET` | — | *No default. Naming a provider without it fails startup*
+| `DCB_IDENTITY_PROVIDER_PROJECT_ID` | — | Zitadel only
+| `DCB_SECURITY_ADMIN_UI_CLIENT_ID` | `dcb-admin` | *Unset = the bar is off*
+| `DCB_SECURITY_ADMIN_UI_MODE` | `WARN` → `ENFORCE` | Defaults to `WARN`
+|===
+
+`dcb-admin-ui`: `VITE_KEYCLOAK_ID` must be DCB Admin's own client id — see the known issue
+in 1.3.
+
+== Part 5 — Proving it works
+
+=== 5.1 The claim reaches the token
+
+Sign in as a library account and decode the access token. It must contain `code` with the
+right agency, and the role. *If `code` is missing the person will see an empty application,
+not an error* — which is why this is the first thing to check.
+
+=== 5.2 Provisioning end to end
+
+In DCB Admin → a library → *Accounts*:
+
+. The page offers a *Create account* button. If it says provisioning is not configured,
+`DCB_IDENTITY_PROVIDER_TYPE` is unset or the service did not start with it.
+. Create a read-only account for an address you can receive.
+. In Keycloak the user exists, is *enabled*, has `LIBRARY_READ_ONLY`, and has attribute
+`code` set to that library's agency.
+. The invitation email arrives. Following it asks for a new password — *no password was
+ever displayed in DCB Admin*.
+. Signing in as that person reaches DCB Admin for Libraries and shows *only* that library's
+requests.
+
+=== 5.3 The containment grant actually contains
+
+*The one test worth doing by hand*, because it is the control that survives everything else
+failing — and because it has been observed _not_ holding on a realm that looked correctly
+configured.
+
+`scripts/keycloak_library_accounts_setup.sh` runs this automatically and exits non-zero if
+it fails. To do it yourself, get a token for the `dcb-provisioning` service account, pick
+any user, and ask it to map `ADMIN` using the role's real representation:
+
+[source%nowrap,text]
+----
+POST /admin/realms/{realm}/users/{someUserId}/role-mappings/realm
+[ { "id": "<id of ADMIN>", "name": "ADMIN", "composite": false,
+    "clientRole": false, "containerId": "<realm id>" } ]
+----
+
+[cols="3,2",options="header"]
+|===
+| Attempt | Expected
+
+| mapping `ADMIN` | *403 Forbidden*
+| mapping `LIBRARY_READ_ONLY` | *204 No Content*
+|===
+
+Use the _real_ representation taken from an admin session, not one the API offered you —
+an attacker would not politely ask which roles are on offer. If the ADMIN mapping succeeds,
+containment is not in effect: check that the service account does *not* hold `manage-users`
+(2.2), and that Keycloak was started with `--features=admin-fine-grained-authz`.
+
+=== 5.4 The bar refuses the right people
+
+With `DCB_SECURITY_ADMIN_UI_CLIENT_ID` set and `DCB_SECURITY_ADMIN_UI_MODE=ENFORCE`. The service says
+which state it is in at first use — look for
+`DCB Admin access bar is ENFORCE for client dcb-admin`, or `is OFF` if the client id never
+bound.
+
+The whole matrix, measured:
+
+[cols="4,2,2",options="header"]
+|===
+| Account | Client | Result
+
+| `CONSORTIUM_ADMIN` / `ADMIN` | `dcb-admin` | *allowed*
+| holds `LIBRARY_ADMIN` *and* `CONSORTIUM_ADMIN` | `dcb-admin` | *allowed*
+| `LIBRARY_ADMIN` | `dcb-admin` | *403*
+| `LIBRARY_READ_ONLY` | `dcb-admin` | *403*
+| any of the above | `dcb-admin-for-libraries` | *allowed*
+|===
+
+*The third and fifth rows are the ones that matter.* The dual-role account catches an
+over-tightened rule — consortium staff are people at libraries and their tokens say so, and
+reading the rule as "holds a library role, therefore barred" locks out exactly the
+administrators the tool exists for. The last row catches the opposite mistake: this bar is
+about one application, and DCB Admin for Libraries must keep working for every role.
+
+*What a refused caller actually receives* is a bare
+`{"type":"about:blank","status":403}` with `Content-Type: application/problem+json`. No
+reason is sent, deliberately — a refusal owes the caller it is refusing no explanation of
+the policy.
+
+*The reason is in the log*, attributed:
+
+[source%nowrap,text]
+----
+Denied DCB Admin access: user=library-admin roles=[…, LIBRARY_ADMIN, …]
+  client=dcb-admin reason=DCB Admin is a consortium-level tool and this account
+  holds no consortium role
+----
+
+In `WARN` the identical line reads `Would deny` and nothing is refused. That is the line to
+drain before flipping, and an empty warn log is the signal that flipping is safe.
+
+A barred user of DCB Admin itself never sees the 403: the app's own guard redirects them to
+`/unauthorised` before any query is sent. That guard is UX; this is the control.
