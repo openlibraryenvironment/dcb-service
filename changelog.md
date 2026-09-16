@@ -1,5 +1,50 @@
 # Changelog
 
+## Version 9.1.0
+
+### Additions
+* [Dcb]
+	* support invitation auth profiles
+* [Indexing]
+	* preserve rich discovery metadata
+* [Insights]
+	* Improvements for the Insights feature, as well as identity provider provision and application.yml defaults.
+* [General]
+	* Polaris Token Caching
+	* Support creating DCB Admin for Libraries accounts in DCB Admin [DCB-1992]
+
+### Changes
+* [Chore]
+	* Rename migration
+	* Documentation - Create antora initial entry point and process
+* [Docs]
+	* backlog - add managed shared-index lifecycle
+	* indexing - clarify rebuild rollback
+	* v9 migration guide
+
+### Fixes
+* [Dcb]
+	* dispatch blocking rendering and export work
+	* dispatch blocking upload routes
+	* dispatch blocking NCIP and diagnostics
+	* dispatch patron assertion verification
+	* dispatch blocking export routes
+	* fetch bounded ORS self directory
+* [Index]
+	* declare members.availability as every index already types it
+* [Native]
+	* register branding cache factories
+* [Security]
+	* stop logging Host LMS credentials
+* [General]
+	* Use k-int-gradle-plugin:3.1.0
+	* Rename migration, ensure limit is updateable and kicks in only when specified
+	* Introduce max local holds limit [DCB-1428]
+	* Koha setup and OAI fixes [DCB-2146]
+	* Forgot to add some files to previous commits
+	* Polaris token TTL configuration
+	* Initial implementation of Polaris auth token caching
+
 ## Version 9.0.0
 
 ### Additions
@@ -57,6 +102,7 @@
 	* migrate to Micronaut 5 and JDK 25
 	* compile sources as UTF-8; strip emoji from TrackingServiceV3
 * [Chore]
+	* Changelog - Generate the changelog
 	* Rename migrations, fix usages
 	* Updated comments
 	* Testing and docs for same server changes
