@@ -28,6 +28,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCredentials;
@@ -91,7 +92,10 @@ class PAPIAuthFilter {
 
 			return createStaffAuthRequest(domain, username, password)
 				.flatMap(req -> client.retrieveWithoutAuthRetry(req, Argument.of(AuthToken.class)))
-				.doOnSuccess(authToken -> log.info("Auth token returned: {}", authToken))
+				// AuthToken is @Data, so logging it prints accessToken and accessSecret.
+				// PAPIErrorCode is the field that actually diagnoses a bad staff auth.
+				.doOnSuccess(authToken -> log.debug("Staff auth returned PAPIErrorCode {}",
+					authToken.getPapiErrorCode()))
 				.onErrorMap(e -> {
 					log.error("Staff Auth failed with error {}", e.toString());
 					return new PAPIAuthException("Staff Auth Failed", e);
@@ -229,7 +233,9 @@ class PAPIAuthFilter {
 
 			final var data = method + path + date + (password != null && !password.isEmpty() ? password : "");
 
-			log.info("Encoding data: {}", data);
+			// Never the signing string: it ends with the staff password. A signature
+			// mismatch is diagnosed from the three parts that vary per call.
+			log.debug("Signing {} {} at {}", method, path, date);
 
 			final var rawHmac = mac.doFinal(data.getBytes());
 			return Base64.getEncoder().encodeToString(rawHmac);
@@ -252,8 +258,12 @@ class PAPIAuthFilter {
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String errorMessage;
+		// Excluded from toString so that logging the token — which is how these leaked
+		// into a session log on 2026-09-09 — cannot print the credential itself.
+		@ToString.Exclude
 		@JsonProperty("AccessToken")
 		private String accessToken;
+		@ToString.Exclude
 		@JsonProperty("AccessSecret")
 		private String accessSecret;
 		@JsonProperty("PatronID")
@@ -269,6 +279,7 @@ class PAPIAuthFilter {
 	private static class StaffCredentials {
 		private String Domain;
 		private String Username;
+		@ToString.Exclude
 		private String Password;
 	}
 
@@ -281,8 +292,10 @@ class PAPIAuthFilter {
 		private Integer papiErrorCode;
 		@JsonProperty("ErrorMessage")
 		private String errorMessage;
+		@ToString.Exclude
 		@JsonProperty("AccessToken")
 		private String accessToken;
+		@ToString.Exclude
 		@JsonProperty("AccessSecret")
 		private String accessSecret;
 		@JsonProperty("PolarisUserID")

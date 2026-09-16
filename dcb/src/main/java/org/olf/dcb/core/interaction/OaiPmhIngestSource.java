@@ -134,9 +134,10 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 		this.processStateService = processStateService;
 		this.objectMapper = objectMapper;
 
-		log.info("Launching OAI task : {} {}",hostLms.getCode(), hostLms.getClientConfig());
-
 		metadataPrefix = requiredClientConfig(hostLms, CONFIG_METADATA_PREFIX);
+
+		// Not the whole clientConfig: it carries the Alma and FOLIO API keys.
+		log.info("Launching OAI task : {} {} {}", hostLms.getCode(), rootUri, metadataPrefix);
 
 		// Obtain the set to be used for oai-pmh
 		Optional<String> configuredSet = MapUtils.getAsOptionalString(
