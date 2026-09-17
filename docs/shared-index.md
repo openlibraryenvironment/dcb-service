@@ -290,6 +290,33 @@ record.
 
 Either way, keep the old index until counts, samples and a discovery check pass.
 
+### The file a rebuild is built from
+
+`sharedIndex/fullSettings-2.json` is the create-index body for the second
+procedure: aliases, settings and mappings in the one document `PUT /<index>`
+takes. The application never reads it — it reads `settings-2.json` at create and
+`mappings-2.json` at every startup — so it is generated from those two rather
+than maintained alongside them:
+
+```bash
+./gradlew :dcb:generateSharedIndexFullSettings
+```
+
+The task picks the `-N` of all three filenames from
+`SharedIndexConfiguration.LATEST_INDEX_VERSION`, and nothing else in the build
+depends on it. **Nothing checks that the checked-in copy is current.** Regenerate
+it in the same change as a mapping or settings edit: a stale copy is invisible
+until an environment is rebuilt from it, and an index built from a mapping older
+than the release then refuses that release's startup `PUT _mapping`, which stops
+dcb-service rather than degrading search.
+
+For the same reason, an environment being rebuilt takes the file from the tag it
+is running, not the newest one. A file generated after any declaration *changes*
+is not safe for an earlier release.
+
+It declares no alias, because the alias names an environment and the rebuild
+attaches it in a separate step.
+
 ## Checking a real environment
 
 The build check reasons about one baseline. Only the cluster knows what a given

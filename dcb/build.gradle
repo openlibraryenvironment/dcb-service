@@ -530,6 +530,52 @@ test {
 	}
 }
 
+// The engine takes settings only at create and mappings at every startup, so the
+// application keeps the two apart. A rebuild needs them as one create-index body:
+// see docs/shared-index.md. Optional task -- nothing in the build depends on it.
+tasks.register('generateSharedIndexFullSettings') {
+  group = 'Shared index'
+  description = 'Regenerates sharedIndex/fullSettings-N.json from settings-N.json and mappings-N.json'
+
+  final File configuration = project.file('src/main/java/org/olf/dcb/indexing/SharedIndexConfiguration.java')
+  final def version = configuration.getText('UTF-8') =~ /LATEST_INDEX_VERSION\s*=\s*(\d+)/
+  if (!version) {
+    throw new GradleException("LATEST_INDEX_VERSION not found in ${configuration} -- the index version is read from there, not configured here")
+  }
+
+  final File sharedIndex = project.file('src/main/resources/sharedIndex')
+  final File settings = new File(sharedIndex, "settings-${version[0][1]}.json")
+  final File mappings = new File(sharedIndex, "mappings-${version[0][1]}.json")
+  // camelCase, not kebab, to match the filename the generic implementations repo's
+  // rebuildIndex.sh already expects.
+  final File fullSettings = new File(sharedIndex, "fullSettings-${version[0][1]}.json")
+
+  inputs.files(configuration, settings, mappings)
+  outputs.file(fullSettings)
+
+  doLast {
+    final def slurper = new groovy.json.JsonSlurper()
+    final def body = [
+      aliases : [:],
+      settings: slurper.parse(settings, 'UTF-8'),
+      mappings: slurper.parse(mappings, 'UTF-8')
+    ]
+
+    // prettyPrint indents with four spaces and takes its newline from the platform;
+    // the sources are tab-indented and LF, so without this every line diffs.
+    final StringBuilder out = new StringBuilder()
+    groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(body)).eachLine { String line ->
+      // An empty object prints as an indented blank line, which must not keep its indent.
+      final String content = line.replaceAll(/^ +/, '')
+      final int indent = content.isEmpty() ? 0 : (line.length() - content.length()).intdiv(4)
+      out.append('\t' * indent).append(content).append('\n')
+    }
+
+    fullSettings.setText(out.toString(), 'UTF-8')
+    logger.lifecycle("Wrote ${fullSettings}")
+  }
+}
+
 task generateAntoraYml() {
   group = 'Documentation'
   description = 'Generates antora.yml to extend the core and populate AsciiDoc attributes'
