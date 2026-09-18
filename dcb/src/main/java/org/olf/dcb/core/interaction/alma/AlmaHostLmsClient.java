@@ -1019,8 +1019,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
-		// Alma refuses to renew an item with an active request, and the supplier hold DCB places is that request.
-		// The note this used to append to the library's own item was never removed once the request finished.
+		// Alma has no writable renewal flag: due_date is the only field a loan PUT can change
+		// (rest_item_loan.xsd?tags=PUT). Both supportable options and their costs are in
+		// operational:alma-integration.adoc, under "Preventing renewal".
 		return Mono.empty();
 	}
 
