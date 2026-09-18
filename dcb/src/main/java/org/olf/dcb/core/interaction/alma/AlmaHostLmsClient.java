@@ -1092,6 +1092,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.localBarcodes(localBarcodes)
 			.uniqueIds(uniqueIds)
 			.localPatronType(getValueOrNull(almaUser, AlmaUser::getUser_group, CodeValuePair::getValue))
+			.localHomeLibraryCode(getValueOrNull(almaUser, AlmaUser::getCampus_code, CodeValuePair::getValue))
 			.expiryDate(expiryDate != null ? Timestamp.valueOf(expiryDate.atStartOfDay()) : null)
 			.isDeleted(isDeleted)
 			.isBlocked(isBlocked)

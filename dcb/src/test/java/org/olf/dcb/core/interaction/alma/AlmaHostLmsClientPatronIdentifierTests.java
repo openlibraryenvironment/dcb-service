@@ -90,6 +90,29 @@ class AlmaHostLmsClientPatronIdentifierTests {
 		assertThat(patron.getLocalPatronType(), is(nullValue()));
 	}
 
+	@Test
+	void shouldReportTheCampusAsThePatronsHomeLibrary() {
+		whenUserDetailsReturn(AlmaUser.builder()
+			.primary_id("SIS123")
+			.first_name("Test")
+			.last_name("Patron")
+			.campus_code(CodeValuePair.builder().value("NORTH").build())
+			.build());
+
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByLocalId("SIS123"));
+
+		assertThat(patron.getLocalHomeLibraryCode(), is("NORTH"));
+	}
+
+	@Test
+	void shouldLeaveTheHomeLibraryUnsetForAUserWithNoCampus() {
+		whenUserDetailsReturn(user(null, null));
+
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByLocalId("SIS123"));
+
+		assertThat(patron.getLocalHomeLibraryCode(), is(nullValue()));
+	}
+
 	private void whenUserDetailsReturn(AlmaUser user) {
 		when(almaApi.getUserDetails("SIS123")).thenReturn(Mono.just(user));
 	}

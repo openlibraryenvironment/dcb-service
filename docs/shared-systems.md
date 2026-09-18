@@ -472,7 +472,7 @@ Keys relevant to shared systems, on the Host LMS client config:
 | `base-url-qualifier` | string | Distinguishes logical systems that share one URL. Only needed for appliances and gateways. |
 | `contextHierarchy` | string list | Ordered contexts to search for reference value mappings, most specific first. |
 | `sharing-library-code` | string | Koha, Alma: the library that stands for "a borrower outside this system". Correctly one value per system, shared or not. |
-| `virtual-item-library-code` | string | Koha: the branch virtual items are created at, used only when the borrowing patron's own branch is unknown; on a shared system the patron's home branch is preferred. Alma: always the library virtual items are created at. Alma exposes no patron home branch, so an Alma tenant serves one agency and cannot be flagged `shared-system`. |
+| `virtual-item-library-code` | string | Koha: the branch virtual items are created at, used only when the borrowing patron's own branch is unknown; on a shared system the patron's home branch is preferred. Alma: always the library virtual items are created at, on a shared system too — the Alma client does not yet prefer the patron's own library. |
 
 Agency-level settings:
 
