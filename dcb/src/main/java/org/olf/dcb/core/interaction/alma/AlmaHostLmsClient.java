@@ -150,7 +150,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		String supplyingLocalItemLocation, String activeWorkflow) {}
 
 	// This is the minimum we should know to place a hold in Alma (V1)
-	private record MinimumAlmaHold(String localPatronId, String localItemId, String pickupLibraryCode, String comment) {}
+	private record MinimumAlmaHold(String localPatronId, String localItemId, String pickupLibraryCode,
+		String comment, String dcbRequestId) {}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters p) {
@@ -158,7 +159,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(hold -> EXPEDITED_WORKFLOW.equals(hold.activeWorkflow())
 				? resolveLibraryFromLocationRecord(hold) : getDcbSharingLibraryCode())
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtSupplyingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -169,7 +170,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(hold -> PICKUP_ANYWHERE_WORKFLOW.equals(hold.activeWorkflow())
 				? getDcbSharingLibraryCode() : resolveLibraryFromLocationRecord(hold))
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtBorrowingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -179,7 +180,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return validate(p)
 			.map(this::resolveLibraryFromLocationRecord)
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtPickupAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -189,7 +190,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return validate(p)
 			.map(this::resolveLibraryFromLocationRecord)
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote())))
+				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtLocalAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -227,20 +228,44 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	// A placement retried after Alma created the hold but DCB lost the response would otherwise place a second one
 	private Mono<LocalRequest> submitLibraryHold(MinimumAlmaHold hold) {
-		return findActiveHoldOnItem(hold.localPatronId(), hold.localItemId())
+		return findOwnActiveHold(hold)
 			.doOnNext(existing -> log.info("Adopting existing Alma request {} patron={} item={}",
 				existing.getRequestId(), hold.localPatronId(), hold.localItemId()))
 			.switchIfEmpty(Mono.defer(() -> createLibraryHold(hold)))
 			.map(this::mapAlmaRequestToLocalRequest);
 	}
 
-	private Mono<AlmaRequestResponse> findActiveHoldOnItem(String patronId, String itemId) {
+	/**
+	 * Only a request carrying this patron request's own marker may be adopted.
+	 * <p>
+	 * At the borrowing agency the local patron id is the patron's real Alma account, so a
+	 * hold they placed themselves sits in the same list; adopting it would hand DCB a
+	 * request it did not place and cancel it on finalisation. Alma's user-request list is
+	 * not documented to carry item_id, so the marker is also the only field we can rely on.
+	 */
+	private Mono<AlmaRequestResponse> findOwnActiveHold(MinimumAlmaHold hold) {
+		final var marker = dcbMarker(hold.dcbRequestId());
+
+		// With no marker to match on, a duplicate hold is a lesser fault than adopting a stranger's
+		if (marker == null) return Mono.empty();
+
 		return Flux.range(0, MAX_HOLD_PAGES)
-			.concatMap(page -> client.retrieveUserHoldRequestsPage(patronId, page * AlmaApiClient.REQUEST_PAGE_SIZE))
+			.concatMap(page -> client.retrieveUserHoldRequestsPage(hold.localPatronId(), page * AlmaApiClient.REQUEST_PAGE_SIZE))
 			.takeUntil(page -> page.getRequests() == null || page.getRequests().size() < AlmaApiClient.REQUEST_PAGE_SIZE)
 			.concatMapIterable(page -> page.getRequests() != null ? page.getRequests() : List.<AlmaRequestResponse>of())
-			.filter(request -> itemId.equals(request.getItemId()))
+			.filter(request -> request.getComment() != null && request.getComment().contains(marker))
 			.next();
+	}
+
+	// Bracketed so one request id cannot match another that it is a prefix of
+	private static String dcbMarker(String dcbRequestId) {
+		return isBlank(dcbRequestId) ? null : "[DCB-REQUEST:" + dcbRequestId + "]";
+	}
+
+	private static String holdComment(MinimumAlmaHold hold) {
+		final var marker = dcbMarker(hold.dcbRequestId());
+		if (marker == null) return hold.comment();
+		return isBlank(hold.comment()) ? marker : hold.comment() + " " + marker;
 	}
 
 	private Mono<AlmaRequestResponse> createLibraryHold(MinimumAlmaHold hold) {
@@ -248,7 +273,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.requestType("HOLD")
 			.pickupLocationType("LIBRARY")
 			.pickupLocationLibrary(hold.pickupLibraryCode())
-			.comment(hold.comment())
+			.comment(holdComment(hold))
 			.build();
 
 		return client.createUserRequest(hold.localPatronId(), hold.localItemId(), payload)

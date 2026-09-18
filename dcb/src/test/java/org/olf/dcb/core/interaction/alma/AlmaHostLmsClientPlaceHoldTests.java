@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -64,32 +65,72 @@ class AlmaHostLmsClientPlaceHoldTests {
 	}
 
 	@Test
-	void shouldAdoptAnExistingHoldBeyondTheFirstPageOfRequests() {
+	void shouldAdoptDcbsOwnHoldBeyondTheFirstPageOfRequests() {
 		when(almaApi.retrieveUserHoldRequestsPage("patron-id", 0))
 			.thenReturn(Mono.just(requests(IntStream.range(0, 100))));
 		when(almaApi.retrieveUserHoldRequestsPage("patron-id", 100))
 			.thenReturn(Mono.just(requests(IntStream.range(100, 130))));
 
-		final var localRequest = PublisherUtils.singleValueFrom(sut.placeHoldRequestAtPickupAgency(hold("item-121")));
+		final var localRequest = PublisherUtils.singleValueFrom(
+			sut.placeHoldRequestAtPickupAgency(hold("item-121", "dcb-121")));
 
 		assertThat(localRequest.getLocalId(), is("request-121"));
 		verify(almaApi, never()).createUserRequest(anyString(), anyString(), any());
 	}
 
 	@Test
-	void shouldPlaceAHoldWhenThePatronHasNoneOnTheItem() {
+	void shouldPlaceAHoldWhenDcbHasNoneForThisPatronRequest() {
 		when(almaApi.retrieveUserHoldRequestsPage("patron-id", 0))
 			.thenReturn(Mono.just(requests(IntStream.range(0, 3))));
-		when(almaApi.createUserRequest(eq("patron-id"), eq("item-999"), any()))
-			.thenReturn(Mono.just(AlmaRequestResponse.builder()
-				.requestId("new-request")
-				.requestStatus("NOT_STARTED")
-				.build()));
 
-		final var localRequest = PublisherUtils.singleValueFrom(sut.placeHoldRequestAtPickupAgency(hold("item-999")));
+		whenCreatingAHoldReturns("item-999", "new-request");
+
+		final var localRequest = PublisherUtils.singleValueFrom(
+			sut.placeHoldRequestAtPickupAgency(hold("item-999", "dcb-999")));
 
 		assertThat(localRequest.getLocalId(), is("new-request"));
 		verify(almaApi, never()).retrieveUserHoldRequestsPage("patron-id", 100);
+	}
+
+	@Test
+	void shouldNotAdoptAHoldThePatronPlacedThemselves() {
+		// At the borrowing agency the local patron id is the patron's real Alma account, so
+		// their own hold on the same item is in the same list and carries no DCB marker
+		when(almaApi.retrieveUserHoldRequestsPage("patron-id", 0))
+			.thenReturn(Mono.just(AlmaRequests.builder()
+				.recordCount(1)
+				.requests(List.of(AlmaRequestResponse.builder()
+					.requestId("the-patrons-own-request")
+					.requestStatus("NOT_STARTED")
+					.itemId("item-5")
+					.build()))
+				.build()));
+
+		whenCreatingAHoldReturns("item-5", "dcb-placed-request");
+
+		final var localRequest = PublisherUtils.singleValueFrom(
+			sut.placeHoldRequestAtPickupAgency(hold("item-5", "dcb-5")));
+
+		assertThat(localRequest.getLocalId(), is("dcb-placed-request"));
+	}
+
+	@Test
+	void shouldNotAdoptAnythingWhenThereIsNoPatronRequestToMatchOn() {
+		whenCreatingAHoldReturns("item-5", "dcb-placed-request");
+
+		final var localRequest = PublisherUtils.singleValueFrom(
+			sut.placeHoldRequestAtPickupAgency(hold("item-5", null)));
+
+		assertThat(localRequest.getLocalId(), is("dcb-placed-request"));
+		verify(almaApi, never()).retrieveUserHoldRequestsPage(anyString(), anyInt());
+	}
+
+	private void whenCreatingAHoldReturns(String itemId, String requestId) {
+		when(almaApi.createUserRequest(eq("patron-id"), eq(itemId), any()))
+			.thenReturn(Mono.just(AlmaRequestResponse.builder()
+				.requestId(requestId)
+				.requestStatus("NOT_STARTED")
+				.build()));
 	}
 
 	private static AlmaRequests requests(IntStream numbers) {
@@ -98,16 +139,18 @@ class AlmaHostLmsClientPlaceHoldTests {
 				.requestId("request-" + n)
 				.requestStatus("NOT_STARTED")
 				.itemId("item-" + n)
+				.comment("Consortial loan [DCB-REQUEST:dcb-" + n + "]")
 				.build())
 			.toList();
 
 		return AlmaRequests.builder().recordCount(130).requests(requests).build();
 	}
 
-	private static PlaceHoldRequestParameters hold(String itemId) {
+	private static PlaceHoldRequestParameters hold(String itemId, String patronRequestId) {
 		return PlaceHoldRequestParameters.builder()
 			.localPatronId("patron-id")
 			.localItemId(itemId)
+			.patronRequestId(patronRequestId)
 			.pickupLocation(Location.builder().localId("PICKUP-LIB").build())
 			.activeWorkflow("RET-STD")
 			.build();

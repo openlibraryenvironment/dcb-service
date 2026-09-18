@@ -80,6 +80,7 @@ class AlmaHostLmsClientContractTests {
 			PlaceHoldRequestParameters.builder()
 				.localPatronId("P1")
 				.localItemId("I1")
+				.patronRequestId("dcb-req-1")
 				.pickupLocation(Location.builder().localId("PICKUP-LIB").build())
 				.activeWorkflow("RET-STD")
 				.build()));
@@ -92,12 +93,15 @@ class AlmaHostLmsClientContractTests {
 			.withPath("/almaws/v1/users/P1/requests")
 			.withQueryStringParameter("item_pid", "I1")
 			.withBody(json("""
-				{"request_type": "HOLD", "pickup_location_type": "LIBRARY", "pickup_location_library": "DCB-SHARING"}
+				{"request_type": "HOLD", "pickup_location_type": "LIBRARY", "pickup_location_library": "DCB-SHARING",
+				 "comment": "[DCB-REQUEST:dcb-req-1]"}
 				""", MatchType.ONLY_MATCHING_FIELDS)));
 	}
 
 	@Test
-	void shouldAdoptAHoldThePatronAlreadyHasOnTheItemInsteadOfPlacingAnother() {
+	void shouldAdoptDcbsOwnHoldInsteadOfPlacingAnother() {
+		// No item_id in either response: adoption must not depend on a field Alma's
+		// documented user_requests payload does not carry
 		mockServerClient.when(request()
 				.withMethod("GET")
 				.withPath("/almaws/v1/users/P2/requests")
@@ -107,13 +111,16 @@ class AlmaHostLmsClientContractTests {
 			.respond(okJson(Map.of(
 				"total_record_count", 2,
 				"user_request", List.of(
-					Map.of("request_id", "R-OTHER", "request_status", "NOT_STARTED", "item_id", "I9"),
-					Map.of("request_id", "R-EXISTING", "request_status", "ON_HOLD_SHELF", "item_id", "I2")))));
+					Map.of("request_id", "R-OTHER", "request_status", "NOT_STARTED",
+						"comment", "[DCB-REQUEST:a-different-dcb-request]"),
+					Map.of("request_id", "R-EXISTING", "request_status", "ON_HOLD_SHELF",
+						"comment", "[DCB-REQUEST:dcb-req-2]")))));
 
 		final var localRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 			PlaceHoldRequestParameters.builder()
 				.localPatronId("P2")
 				.localItemId("I2")
+				.patronRequestId("dcb-req-2")
 				.pickupLocation(Location.builder().localId("PICKUP-LIB").build())
 				.activeWorkflow("RET-STD")
 				.build()));
@@ -124,6 +131,36 @@ class AlmaHostLmsClientContractTests {
 		mockServerClient.verify(request()
 			.withMethod("POST")
 			.withPath("/almaws/v1/users/P2/requests"), VerificationTimes.never());
+	}
+
+	@Test
+	void shouldNotAdoptAHoldThePatronPlacedThemselves() {
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/P3/requests")
+				.withQueryStringParameter("request_type", "HOLD"))
+			.respond(okJson(Map.of(
+				"total_record_count", 1,
+				"user_request", List.of(
+					Map.of("request_id", "R-PATRONS-OWN", "request_status", "NOT_STARTED",
+						"item_id", "I3")))));
+
+		mockServerClient.when(request()
+				.withMethod("POST")
+				.withPath("/almaws/v1/users/P3/requests")
+				.withQueryStringParameter("item_pid", "I3"))
+			.respond(okJson(Map.of("request_id", "R-DCB", "request_status", "NOT_STARTED")));
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId("P3")
+				.localItemId("I3")
+				.patronRequestId("dcb-req-3")
+				.pickupLocation(Location.builder().localId("PICKUP-LIB").build())
+				.activeWorkflow("RET-STD")
+				.build()));
+
+		assertThat(localRequest.getLocalId(), is("R-DCB"));
 	}
 
 	@Test
