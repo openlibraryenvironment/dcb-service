@@ -1,0 +1,193 @@
+= Setting up an Alma institution with OpenRS DCB
+
+A guide for consortium staff and Alma institutions joining an OpenRS resource-sharing
+network. It covers what to configure in Alma, what your OpenRS implementation team needs
+from you, what you configure yourself in DCB Admin, and how the day-to-day workflows run.
+
+Developers extending the adapter want xref:operational:alma-integration.adoc[] instead.
+
+== What OpenRS gives an Alma library
+
+OpenRS DCB brokers lending between libraries running different library systems. Your
+patrons request items held anywhere in the consortium and collect them from a library that
+suits them; your holdings become requestable by every other member. Alma remains your system
+of record throughout — DCB creates the temporary records a loan between institutions needs,
+and removes them when the transaction completes.
+
+== Getting started in Alma
+
+These steps happen in Alma first.
+
+=== A resource-sharing library
+
+Ensure you have a *Resource Sharing library* configured, with the code `RES_SHARE`. DCB uses
+this by default.
+
+It should have two locations, both set to OPEN:
+
+[cols="1,2"]
+|===
+| Code | Purpose
+
+| `IN_RS_REQ` | Lending requests
+| `OUT_RES_REQ` | Borrowing requests
+|===
+
+=== IP whitelisting
+
+If your Alma system is protected by IP whitelisting, whitelist the IP address of the server
+running OpenRS DCB.
+
+IMPORTANT: If only your OAI services are whitelisted, the DCB address still needs adding
+there. OAI and the REST API are often controlled separately, and DCB uses OAI-PMH to harvest
+your records — so it is required for the Alma lending workflow, not optional.
+
+If you do not know the address, ask the OpenRS team or your hosting provider.
+
+== What your OpenRS team will need
+
+Provide the following to your OpenRS implementation team.
+
+=== An Alma API key
+
+With permissions for *Users*, *Requests*, *Bibs, Holdings, Items* and *Configuration*.
+
+=== An Alma staff user for troubleshooting
+
+With permissions for finding and managing users, circulation, fulfilment, and virtual bibs,
+items and holdings. We believe this corresponds to these
+link:https://knowledge.exlibrisgroup.com/Alma/Product_Documentation/010Alma_Online_Help_(English)/050Administration/030User_Management/060Managing_User_Roles[user roles]:
+
+* Fulfilment Administrator
+* User Manager
+* Circulation Desk Manager
+* Repository Manager
+* Catalog Manager
+
+Granting these in full gives the most help with troubleshooting. If that is not possible,
+read-only access — with the exception of User Manager — still lets us tell you what needs
+changing in Alma, or what in Alma is causing a DCB issue.
+
+=== Configuration values
+
+[cols="1,2"]
+|===
+| Value | Notes
+
+| Regional Alma URL
+| See "Calling Alma APIs" in the Ex Libris link:https://developers.exlibrisgroup.com/alma/apis/[developer documentation].
+
+| Sharing library code
+| The code of the Alma library you want to use for lending through OpenRS.
+
+| Virtual item library and location
+| The codes of the library and location where DCB should create virtual items.
+
+| OAI-PMH institution code and set
+| The set you wish to make available to OpenRS. The OAI institution code is not always the same string as your Alma institution code.
+
+| Default circulation desk
+| The desk OpenRS should use for checkouts.
+|===
+
+This lets the OpenRS team set up your institution's basic configuration in DCB. Consortium
+staff then add the rest through DCB Admin.
+
+== Configuring your institution in DCB Admin
+
+=== Mappings
+
+Visit the *Mappings* section for your library.
+
+*Item types.* Provide the item types you use in Alma, mapped to either `CIRC` (available for
+request through OpenRS) or `NONCIRC`.
+
+*Patron types.* Provide the patron types you use, mapped to either `ELIGIBLE` or
+`NOT_ELIGIBLE`, with the patron type as the "From value".
+
+TIP: Use the *codes*, not the names. If you cannot find them in the Alma UI, they are
+available from `/code-tables/UserGroups` in the Alma API.
+
+*Locations.* Provide mappings for the shelving locations your items sit at — in Alma, the
+location of the item's owning library. Every location holding items you want to be
+requestable needs a mapping.
+
+You can use the "New Mapping" button or the upload feature, which accepts TSV and CSV. See
+the link:https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3201400850/Importing+mappings+in+DCB+Admin[import user guide].
+
+=== Pickup locations
+
+Visit the *Locations* section. A location's "local ID" must match the code of the Alma
+library you want to offer as a pickup point. You can bulk-import or add them individually.
+
+=== Information about your institution
+
+On the *Libraries* page, add your full name, opening hours, primary contacts, and latitude
+and longitude.
+
+== Workflows
+
+=== When Alma is the borrowing institution
+
+. An Alma patron places a request through an OpenRS-compatible discovery service.
+. DCB places a hold at the supplying library and creates a virtual patron representing your
+  patron. At your library, DCB creates a virtual item representing the real one, and places
+  a hold on it.
+. The supplier puts their item in transit; the DCB request moves to `PICKUP_TRANSIT`.
+. When the real item arrives, *scan it in Alma at the correct library* — the patron's own.
+  The request moves to "On Hold Shelf".
+. Check the item out to the patron in Alma. A loan appears under Loans and the original hold
+  closes. Via the API, perform the checkout with the correct patron.
+. When the patron returns the item, scan it in again. The request moves to `RETURN_TRANSIT`.
+. Once the supplier checks the item in, the request is `FINALISED` and the virtual records
+  are cleaned up.
+
+=== When Alma is the lending institution
+
+. A patron at another member library places a request through the discovery service.
+. DCB places a hold at your institution and creates a virtual patron.
+. Scan the item in, in Alma, to put it in transit.
+. When the borrower returns it, the request shows `RETURN_TRANSIT` in DCB Admin.
+. Scan the item in again to complete the request.
+
+== Live availability
+
+OpenRS shows real-time item status across the consortium. These Alma statuses are mapped by
+default:
+
+[cols="1,1,1"]
+|===
+| Alma code | Alma label | Shown as
+
+| `0` | Not in place | `UNKNOWN`
+| `1` | In place | `AVAILABLE`
+| `2` | Loaned | `CHECKED_OUT`
+|===
+
+Any other status maps to `UNKNOWN`. If your institution uses others, tell your implementation
+team so the mapping can be extended.
+
+== Consortia sharing one Alma tenant
+
+Where several member libraries share a single Alma tenant — a Network Zone, or one
+institution whose campuses join as separate members — the Host LMS is configured as a shared
+system. Three things follow:
+
+. *Populate `campus_code` on user records.* This is how DCB tells which member library a
+  patron belongs to. Where it is empty, that patron resolves to no agency and cannot borrow.
+. *Map each campus code to its agency* through Location mappings.
+. *Leave the default agency unset.* A shared system cannot have a fallback agency; each
+  library's locations must map explicitly. The configuration validator rejects the
+  combination rather than guessing.
+
+NOTE: Virtual items are still created at one configured library for the whole tenant, rather
+than at each borrowing patron's own library. This is a known limitation.
+
+== Known limitations
+
+*Renewal prevention.* When another library requests an item one of your patrons has on loan,
+OpenRS asks the borrowing system to prevent renewal. Alma exposes no way to mark a loan
+non-renewable through its API — the only field a loan update can change is the due date — so
+on Alma this currently does nothing. Your patron may renew an item another library is
+waiting for. See xref:operational:alma-integration.adoc[] for the options under
+consideration.

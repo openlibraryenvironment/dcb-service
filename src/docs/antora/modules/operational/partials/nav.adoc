@@ -1,3 +1,5 @@
 .Operational Resources
 * xref:operational:bare-metal-build.adoc[]
 * xref:operational:docker.adoc[]
+* xref:operational:alma-setup.adoc[Setting up an Alma institution]
+* xref:operational:alma-integration.adoc[Alma integration]
