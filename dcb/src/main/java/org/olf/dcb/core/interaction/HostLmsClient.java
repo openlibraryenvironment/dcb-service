@@ -67,6 +67,22 @@ public interface HostLmsClient
 	}
 
 	/**
+	 * What this Host LMS can tell DCB about its own configuration.
+	 * <p>
+	 * Answers the two questions an implementer asks while building mappings: does the
+	 * configuration DCB holds exist in that system, and which item types, patron types and
+	 * locations does it actually have.
+	 * <p>
+	 * Not every ILS exposes this, so the default reports that rather than failing. An adapter
+	 * that cannot be asked has to be distinguishable from one that was asked and found nothing
+	 * wrong, or the report misleads exactly where mappings are hardest.
+	 */
+	default Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.just(ConfigurationReport.notSupported(getHostLmsCode(),
+			"This adapter cannot read configuration from its Host LMS"));
+	}
+
+	/**
 	 * Does this Host LMS host more than one participating library?
 	 * <p>
 	 * On a shared system an agency can only ever be identified by a specific local

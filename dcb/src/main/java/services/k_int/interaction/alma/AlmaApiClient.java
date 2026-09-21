@@ -350,6 +350,17 @@ public interface AlmaApiClient {
 	}
 
 	/**
+	 * API: GET /almaws/v1/conf/code-tables/{codeTableName}
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_code_table.xsd
+	 * <p>
+	 * Alma holds its vocabularies in code tables: PhysicalMaterialType for item types,
+	 * UserGroups for patron types, ItemPolicy for the policies loan rules act on.
+	 */
+	default Mono<AlmaCodeTable> retrieveCodeTable(String codeTableName) {
+		return get("/almaws/v1/conf/code-tables/" + pathSegment(codeTableName), AlmaCodeTable.class);
+	}
+
+	/**
 	 * List locations for a library.
 	 * <p>
 	 * API: GET /almaws/v1/conf/libraries/{libraryCode}/locations

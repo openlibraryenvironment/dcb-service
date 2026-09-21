@@ -539,6 +539,17 @@ public class InteropTestService {
 		return false;
 	}
 
+	/**
+	 * A Host LMS that cannot be reached reports FAILED; one that cannot be asked reports
+	 * NOT_SUPPORTED from its own adapter. The two must not collapse into one outcome.
+	 */
+	public Mono<ConfigurationReport> checkConfiguration(String systemCode) {
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(client -> client.checkConfiguration())
+			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(systemCode,
+				"Could not reach " + systemCode + ": " + error.getMessage())));
+	}
+
 	public Mono<InteropTestResult> retrieveConfiguration(String systemCode, ConfigType validatedType) {
 		return hostLmsService.getClientFor(systemCode)
 			.flatMap(hostLmsClient -> hostLmsClient.fetchConfigurationFromAPI(validatedType))

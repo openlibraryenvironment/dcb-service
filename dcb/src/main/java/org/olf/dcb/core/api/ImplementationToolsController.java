@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.PingResponse;
 
 import jakarta.validation.constraints.NotNull;
@@ -152,6 +153,22 @@ public class ImplementationToolsController {
 		}
 
 		return interopTestService.retrieveConfiguration(systemCode, validatedType);
+	}
+
+	@Operation(
+		summary = "Check a Host LMS configuration",
+		description = "Asks the Host LMS whether the configuration DCB holds exists there, and which "
+			+ "item types, patron types and locations it has, so mappings can be built from real "
+			+ "values. A system that cannot be asked reports NOT_SUPPORTED rather than failing."
+	)
+	@Get(uri = "/configuration/{systemCode}", produces = APPLICATION_JSON)
+	public Mono<ConfigurationReport> checkConfiguration(
+		@Parameter(description = "Host LMS system code", required = true)
+		@PathVariable
+		@NotBlank(message = "System code cannot be blank")
+		String systemCode) {
+
+		return interopTestService.checkConfiguration(systemCode);
 	}
 
 	public Mono<InteropTestResult> createPatronTest() {

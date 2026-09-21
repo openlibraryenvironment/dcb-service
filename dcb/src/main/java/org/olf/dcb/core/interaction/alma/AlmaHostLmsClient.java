@@ -48,6 +48,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaCircDesk;
+import services.k_int.interaction.alma.AlmaCodeTable;
 import services.k_int.interaction.alma.AlmaLibraryResponse;
 import services.k_int.interaction.alma.AlmaLocation;
 import services.k_int.interaction.alma.types.AlmaBib;
@@ -300,6 +301,164 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		if (p.getActiveWorkflow() == null) return Mono.error(new IllegalArgumentException("activeWorkflow is required"));
 		return Mono.just(new DCBHold(p.getLocalPatronId(), p.getLocalItemId(), p.getPickupLocation(), p.getNote(),
 			p.getSupplyingLocalItemLocation(), p.getActiveWorkflow()));
+	}
+
+	// The vocabularies mappings are built from, as Alma names them
+	private static final String ITEM_TYPE_CODE_TABLE = "PhysicalMaterialType";
+	private static final String PATRON_TYPE_CODE_TABLE = "UserGroups";
+	private static final String ITEM_POLICY_CODE_TABLE = "ItemPolicy";
+
+	// A tenant's location list has no documented ceiling, so every vocabulary is capped
+	private static final int MAX_VOCABULARY_ENTRIES = 500;
+
+	/**
+	 * Three code tables, the library list, and one locations call per library. Triggered by an
+	 * implementer from the tools API, never on a request path.
+	 */
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.zip(
+				codeTableEntries(ITEM_TYPE_CODE_TABLE),
+				codeTableEntries(PATRON_TYPE_CODE_TABLE),
+				codeTableEntries(ITEM_POLICY_CODE_TABLE),
+				libraryEntries(),
+				locationEntries())
+			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(),
+				answers.getT3(), answers.getT4(), answers.getT5()))
+			.onErrorResume(error -> Mono.just(ConfigurationReport
+				.failed(getHostLmsCode(), "Could not read configuration from Alma: " + error.getMessage())));
+	}
+
+	// One unreadable list leaves the rest of the report standing; the empty vocabulary says so
+	private Mono<List<ConfigurationReport.Entry>> codeTableEntries(String name) {
+		return client.retrieveCodeTable(name)
+			.map(table -> {
+				final List<AlmaCodeTable.Row> rows = table.getRows() != null
+					? table.getRows() : List.of();
+
+				return rows.stream()
+					.map(row -> new ConfigurationReport.Entry(
+						row.getCode(), row.getDescription()))
+					.toList();
+			})
+			.onErrorResume(error -> {
+				log.warn("Could not read Alma code table {} at {}", name, getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	private Mono<List<ConfigurationReport.Entry>> libraryEntries() {
+		return client.retrieveLibraries()
+			.map(response -> {
+				final var libraries = response.getLibraries() != null
+					? response.getLibraries() : List.<AlmaLibraryResponse>of();
+
+				return libraries.stream()
+					.map(library -> new ConfigurationReport.Entry(
+						library.getCode(), library.getName()))
+					.toList();
+			})
+			.onErrorResume(error -> {
+				log.warn("Could not read Alma libraries at {}", getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	private Mono<List<ConfigurationReport.Entry>> locationEntries() {
+		return fetchLocations()
+			.map(response -> {
+				final var locations = response.getLocations() != null
+					? response.getLocations() : List.<AlmaLocation>of();
+
+				return locations.stream()
+					// Named with its library: two libraries on one tenant can both hold a MAIN
+					.map(location -> new ConfigurationReport.Entry(location.getCode(),
+						describeLocation(location)))
+					.toList();
+			})
+			.onErrorResume(error -> {
+				log.warn("Could not read Alma locations at {}", getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	private ConfigurationReport buildConfigurationReport(
+		List<ConfigurationReport.Entry> itemTypes,
+		List<ConfigurationReport.Entry> patronTypes,
+		List<ConfigurationReport.Entry> itemPolicies,
+		List<ConfigurationReport.Entry> libraries,
+		List<ConfigurationReport.Entry> locations) {
+
+		final var checks = List.of(
+			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), libraries),
+			checkSetting("virtual-item-library-code", rawConfigValue("virtual-item-library-code"), libraries),
+			checkSetting("virtual-item-location-code", rawConfigValue("virtual-item-location-code"), locations),
+			checkSetting("item-policy", config.getItemPolicy("BOOK"), itemPolicies),
+			checkSetting("no-renew-item-policy",
+				config.getNoRenewItemPolicy(AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY), itemPolicies));
+
+		final var vocabularies = List.of(
+			vocabulary("Item types", itemTypes),
+			vocabulary("Patron types", patronTypes),
+			vocabulary("Item policies", itemPolicies),
+			vocabulary("Libraries", libraries),
+			vocabulary("Locations", locations));
+
+		return new ConfigurationReport(getHostLmsCode(),
+			ConfigurationReport.Status.CHECKED, null, checks, vocabularies);
+	}
+
+	private static String describeLocation(AlmaLocation location) {
+		final var library = location.getLibraryName() != null
+			? location.getLibraryName() : location.getLibraryCode();
+
+		return library != null ? location.getName() + " (" + library + ")" : location.getName();
+	}
+
+	// Read from the raw config: the typed accessors throw on a missing required setting, and a
+	// report has to name what is absent rather than die reading it
+	private String rawConfigValue(String key) {
+		final var value = getConfig().get(key);
+
+		return value != null ? value.toString() : null;
+	}
+
+	private static ConfigurationReport.Check checkSetting(String setting,
+		String configuredValue, List<ConfigurationReport.Entry> knownValues) {
+
+		if (isBlank(configuredValue)) {
+			return new ConfigurationReport.Check(setting, null,
+				ConfigurationReport.CheckResult.NOT_CONFIGURED,
+				"No value set in DCB");
+		}
+
+		if (knownValues.isEmpty()) {
+			return new ConfigurationReport.Check(setting, configuredValue,
+				ConfigurationReport.CheckResult.UNKNOWN,
+				"Alma did not return the list this is checked against");
+		}
+
+		final var present = knownValues.stream()
+			.anyMatch(entry -> configuredValue.equals(entry.code()));
+
+		return new ConfigurationReport.Check(setting, configuredValue,
+			present
+				? ConfigurationReport.CheckResult.PRESENT
+				: ConfigurationReport.CheckResult.MISSING,
+			present ? null : "Not found in Alma");
+	}
+
+	private static ConfigurationReport.Vocabulary vocabulary(String name,
+		List<ConfigurationReport.Entry> entries) {
+
+		final var truncated = entries.size() > MAX_VOCABULARY_ENTRIES;
+
+		return new ConfigurationReport.Vocabulary(name,
+			truncated ? entries.subList(0, MAX_VOCABULARY_ENTRIES) : entries, truncated,
+			entries.isEmpty() ? "Alma returned nothing, or the list could not be read" : null);
 	}
 
 	@Override
