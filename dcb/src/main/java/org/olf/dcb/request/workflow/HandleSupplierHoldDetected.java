@@ -118,6 +118,8 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 					.requestId(ctx.getPatronRequest().getLocalRequestId())
 					.itemBarcode(ctx.getPatronRequest().getPickupItemBarcode())
 					.itemId(ctx.getPatronRequest().getLocalItemId())
+					.localBibId(ctx.getPatronRequest().getLocalBibId())
+					.localHoldingId(ctx.getPatronRequest().getLocalHoldingId())
 					.build()))
 			.then(markPatronRequestNotRenewable(ctx))
 			.flatMap(updatedCtx -> auditService.addAuditEntry(updatedCtx.getPatronRequest(),

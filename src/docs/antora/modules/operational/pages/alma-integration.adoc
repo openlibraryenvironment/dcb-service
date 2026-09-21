@@ -129,56 +129,50 @@ documents it as an output parameter.
 == Preventing renewal
 
 When another library places a hold on an item a DCB patron has on loan, DCB asks the
-borrowing system to stop that loan being renewed. *On Alma this is currently a no-op*, and
-the reason is a genuine gap rather than an oversight.
+borrowing system to stop that loan being renewed.
 
-=== What Alma allows
+=== Why it is done on the item, not the loan
 
 `rest_item_loan.xsd?tags=PUT` marks `user_id`, `item_barcode`, `loan_status`, `loan_date`,
 `return_date`, `process_status`, `mms_id`, `holding_id` and `item_id` as output parameters.
-`due_date` alone carries "Can be modified using PUT or the renew API". `POST` to a loan
+`due_date` alone carries "Can be modified using PUT or the renew API", and `POST` to a loan
 supports only `op=renew`.
 
-So *there is no writable renewal flag on an Alma loan*. Nothing equivalent to Sierra's
-renewal-count fixed field exists.
+So *there is no writable renewal flag on an Alma loan*. That is less of an obstacle than it
+first appears, because no adapter denies renewal on the loan. Sierra sets the item's "No. of
+Renewals" fixed field to 255; Polaris posts a blocking note to the item's owning
+organisation; Koha stamps a collection code the library lists in `ItemsDeniedRenewal`. Each
+changes the *item* so the ILS's own circulation rules refuse the renewal.
+
+Alma's equivalent is the item policy — "the item's override policy for loan rules". DCB
+already sets it when creating a virtual item, so it is a field DCB is known to write
+successfully against a live tenant rather than one inferred from a schema.
+
+=== What DCB does
+
+. Reads the virtual item by bib, holding and item id.
+. Refuses unless the holding carries the `DCB_VIRTUAL_COLLECTION` call number, so denying
+  renewal can never be applied to one of the library's own items.
+. Sets `item_data.policy` to the configured `no-renew-item-policy`, defaulting to
+  `DCB_NO_RENEW`.
+. Reads the item back, and fails if the policy did not take.
+
+`PreventRenewalCommand` carries `localBibId` and `localHoldingId` alongside the item id
+because Alma addresses an item by all three and offers no lookup by pid alone. The barcode is
+deliberately not used: `pickupItemBarcode` is populated only on the pickup-anywhere path.
+
+=== What the library must configure
+
+WARNING: DCB sets the policy but cannot create the rule that acts on it. A Fulfilment Unit
+loan rule matching that policy must disallow renewal, or DCB will set it, report success, and
+the renewal will still go through. This is the same division of labour as Koha's
+`ItemsDeniedRenewal` — the adapter writes a label, the library writes the rule.
+
+The read-back therefore proves the policy was written. It does not prove renewal is now
+denied: that rests on deployment state DCB cannot see.
 
 A previous implementation appended a note to the library's own item record. That was removed:
 the note was never taken off once the request finished, so it accumulated on real holdings.
-
-=== Two candidate options
-
-[cols="1,3,2"]
-|===
-| Option | How | Cost
-
-| Place a request on the virtual item
-| Alma refuses to renew a requested item where the Fulfilment Unit loan rule says so. That is
-  the usual configuration, but it is a per-site policy rather than a property of Alma. DCB
-  would place a HOLD on the virtual item for a dedicated service user and cancel it at
-  FINALISED.
-| The site must create a service user *and* confirm its renewal policy. DCB must clean the
-  request up, or it becomes a zombie record.
-
-| Shorten the due date
-| `PUT /users/{user_id}/loans/{loan_id}` with a `due_date` of now — the only writable field.
-| It does not disable renewal, it ends the loan period, and it can make the item immediately
-  overdue and fine a real patron.
-|===
-
-The first is the better shape — it uses Alma's own mechanism, and its cost is configuration
-rather than a consequence for a patron — but it is *not yet evidenced*. The API
-documentation says only that `renewable` is a "Flag that indicates if the loan is renewable";
-nothing in it states that a request blocks renewal, and both sandboxes are unauthorised at
-Ex Libris, so it has not been confirmed against a live tenant. Confirm the behaviour with Ex
-Libris or a working tenant before building on it.
-
-Either way it should stay a no-op where nothing is configured, so an unconfigured site
-degrades to today's behaviour rather than failing.
-
-The building blocks already exist. `PreventRenewalCommand` carries no patron id, but it does
-not need one: `retrieveItemBarcodeOnly(barcode)` yields `bib_data.mms_id` and
-`holding_data.holding_id`, `retrieveItemRequests(mms, holding, item)` confirms whether a
-request is present, and `cancelUserRequest` removes it.
 
 == Patron mapping
 

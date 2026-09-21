@@ -27,6 +27,18 @@ public class AlmaClientConfig {
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd/?tags=POST
 	private static final HostLmsPropertyDefinition ITEM_POLICY_SETTING
 		= stringPropertyDefinition("item-policy", "Item policy for this ALMA system", FALSE);
+	/**
+	 * The item policy DCB stamps on a virtual item to stop it being renewed. The library has
+	 * to configure a loan rule against this code that disallows renewal - the rule itself is
+	 * deployment state DCB cannot see. Optional, because it only matters where renewal
+	 * prevention is in use.
+	 */
+	private static final HostLmsPropertyDefinition NO_RENEW_ITEM_POLICY
+		= stringPropertyDefinition("no-renew-item-policy",
+			"Item policy DCB sets to deny renewal, matching a loan rule in this Alma that disallows it", FALSE);
+
+	public static final String DEFAULT_NO_RENEW_ITEM_POLICY = "DCB_NO_RENEW";
+
 	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
 		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition DEFAULT_CIRC_DESK_CODE
@@ -67,6 +79,10 @@ public class AlmaClientConfig {
 		return ITEM_POLICY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
+	String getNoRenewItemPolicy(String defaultValue) {
+		return NO_RENEW_ITEM_POLICY.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
+	}
+
 	String getPickupCircDesk(String defaultValue) {
 		return PICKUP_CIRC_DESK_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
@@ -99,6 +115,7 @@ public class AlmaClientConfig {
 			VIRTUAL_ITEM_LIBRARY_CODE,
 			VIRTUAL_ITEM_LOCATION_CODE,
 			ITEM_POLICY_SETTING,
+			NO_RENEW_ITEM_POLICY,
 			PICKUP_CIRC_DESK_SETTING,
 			DEFAULT_CIRC_DESK_CODE,
 			USER_IDENTIFIER,

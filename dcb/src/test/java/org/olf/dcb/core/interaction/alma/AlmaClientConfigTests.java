@@ -22,6 +22,7 @@ class AlmaClientConfigTests {
 			"virtual-item-library-code",
 			"virtual-item-location-code",
 			"item-policy",
+			"no-renew-item-policy",
 			"pickup-circ-desk",
 			"default-circ-desk-code",
 			"user-identifier",

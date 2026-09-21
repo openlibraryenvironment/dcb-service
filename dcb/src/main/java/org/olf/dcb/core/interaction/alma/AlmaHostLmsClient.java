@@ -727,12 +727,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.build());
 	}
 
+	// Stamped on the holding DCB creates, and the only way to tell a virtual item from a real one
+	static final String DCB_VIRTUAL_COLLECTION = "DCB_VIRTUAL_COLLECTION";
+
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 		String bibId = getValueOrNull(cic, CreateItemCommand::getBibId);
 		String policy = config.getItemPolicy("BOOK");
 		String baseStatus = "1";
-		String callNumber = "DCB_VIRTUAL_COLLECTION";
+		String callNumber = DCB_VIRTUAL_COLLECTION;
 		String holdingNote = "DCB Virtual holding record";
 
 		String targetLibraryCode = config.getVirtualItemLibraryCode();
@@ -1019,10 +1022,71 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc) {
-		// Alma has no writable renewal flag: due_date is the only field a loan PUT can change
-		// (rest_item_loan.xsd?tags=PUT). Both supportable options and their costs are in
-		// operational:alma-integration.adoc, under "Preventing renewal".
-		return Mono.empty();
+		final var bibId = prc.getLocalBibId();
+		final var holdingId = prc.getLocalHoldingId();
+		final var itemId = prc.getItemId();
+
+		if (isBlank(bibId) || isBlank(holdingId) || isBlank(itemId)) {
+			return raiseError(new AlmaHostLmsClientException(
+				"Preventing renewal in Alma needs the virtual item's bib, holding and item id"));
+		}
+
+		final var noRenewPolicy = config.getNoRenewItemPolicy(AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY);
+
+		return client.retrieveItem(bibId, holdingId, itemId)
+			.flatMap(item -> denyRenewalOfItem(bibId, holdingId, itemId, item, noRenewPolicy))
+			// Deferred so nothing is read back until the item has actually been written
+			.then(Mono.defer(() -> confirmRenewalIsDenied(bibId, holdingId, itemId, noRenewPolicy)));
+	}
+
+	/**
+	 * Alma exposes no writable renewal flag on a loan - due_date is the only field a loan PUT
+	 * can change - so renewal is denied on the item, as it is for Sierra and Koha. The item
+	 * policy is Alma's own override for loan rules, and DCB already sets it when it creates
+	 * the item. See operational:alma-integration.adoc for what the library configures.
+	 */
+	private Mono<AlmaItem> denyRenewalOfItem(String bibId, String holdingId, String itemId,
+		AlmaItem item, String noRenewPolicy) {
+
+		final var holdingData = getValueOrNull(item, AlmaItem::getHoldingData);
+		final var callNumber = holdingData != null ? holdingData.getCallNumber() : null;
+
+		if (!DCB_VIRTUAL_COLLECTION.equals(callNumber)) {
+			return raiseError(new AlmaHostLmsClientException(
+				"Refusing to prevent renewal on Alma item " + itemId + " at " + getHostLmsCode()
+					+ ": it does not carry the " + DCB_VIRTUAL_COLLECTION + " call number DCB creates"));
+		}
+
+		final var itemData = getValueOrNull(item, AlmaItem::getItemData);
+
+		if (itemData == null) {
+			return raiseError(new AlmaHostLmsClientException(
+				"Alma item " + itemId + " at " + getHostLmsCode() + " was returned without item data"));
+		}
+
+		itemData.setPolicy(CodeValuePair.builder().value(noRenewPolicy).build());
+
+		return client.updateItem(bibId, holdingId, itemId, item);
+	}
+
+	// Read back so a policy that did not take is an error here, rather than a renewal that
+	// succeeds later. Whether the policy denies renewal rests on a loan rule DCB cannot see.
+	private Mono<Void> confirmRenewalIsDenied(String bibId, String holdingId, String itemId,
+		String expectedPolicy) {
+
+		return client.retrieveItem(bibId, holdingId, itemId)
+			.flatMap(item -> {
+				final var policyPair = getValueOrNull(item, AlmaItem::getItemData, AlmaItemData::getPolicy);
+				final var policy = policyPair != null ? policyPair.getValue() : null;
+
+				if (!expectedPolicy.equals(policy)) {
+					return raiseError(new AlmaHostLmsClientException(
+						"Alma item " + itemId + " at " + getHostLmsCode() + " still has policy '" + policy
+							+ "' after setting '" + expectedPolicy + "' to deny renewal"));
+				}
+
+				return Mono.<Void>empty();
+			});
 	}
 
   @Override

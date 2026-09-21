@@ -183,11 +183,25 @@ system. Three things follow:
 NOTE: Virtual items are still created at one configured library for the whole tenant, rather
 than at each borrowing patron's own library. This is a known limitation.
 
-== Known limitations
+== Preventing renewal
 
-*Renewal prevention.* When another library requests an item one of your patrons has on loan,
-OpenRS asks the borrowing system to prevent renewal. Alma exposes no way to mark a loan
-non-renewable through its API — the only field a loan update can change is the due date — so
-on Alma this currently does nothing. Your patron may renew an item another library is
-waiting for. See xref:operational:alma-integration.adoc[] for the options under
-consideration.
+When another library requests an item one of your patrons has on loan, OpenRS asks your
+system to stop that loan being renewed.
+
+Alma exposes no writable renewal flag on a loan — the only field a loan update can change is
+the due date — so OpenRS denies renewal on the *item* instead, as it does for Sierra and
+Koha. It sets the virtual item's *item policy* to a code you nominate, and your own loan
+rules do the rest.
+
+Two things are needed from you:
+
+. An **item policy** for OpenRS to use. The default code is `DCB_NO_RENEW`; if you use a
+  different one, set `no-renew-item-policy` on the Host LMS configuration.
+. A **Fulfilment Unit loan rule** matching that item policy which disallows renewal.
+
+IMPORTANT: Without the loan rule, OpenRS will set the policy, report success, and the renewal
+will still go through. The policy is only a label — the rule is what refuses.
+
+OpenRS only ever changes items it created itself. A virtual item carries the
+`DCB_VIRTUAL_COLLECTION` call number, and a request to deny renewal on anything else is
+refused rather than applied to one of your own items.
