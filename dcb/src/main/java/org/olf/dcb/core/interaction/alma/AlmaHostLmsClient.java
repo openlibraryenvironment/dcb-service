@@ -1033,10 +1033,63 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		final var noRenewPolicy = config.getNoRenewItemPolicy(AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY);
 
+		// The guard is outside the fallback: an item DCB did not create is refused outright,
+		// never written to with a note instead
 		return client.retrieveItem(bibId, holdingId, itemId)
-			.flatMap(item -> denyRenewalOfItem(bibId, holdingId, itemId, item, noRenewPolicy))
-			// Deferred so nothing is read back until the item has actually been written
-			.then(Mono.defer(() -> confirmRenewalIsDenied(bibId, holdingId, itemId, noRenewPolicy)));
+			.flatMap(item -> requireDcbVirtualItem(itemId, item))
+			.flatMap(item -> denyRenewalOfItem(bibId, holdingId, itemId, item, noRenewPolicy)
+				// Deferred so nothing is read back until the item has actually been written
+				.then(Mono.defer(() -> confirmRenewalIsDenied(bibId, holdingId, itemId, noRenewPolicy)))
+				.onErrorResume(error -> warnStaffRenewalNotPrevented(bibId, holdingId, itemId, error)));
+	}
+
+	private static final String RENEWAL_NOT_PREVENTED_NOTE
+		= "DCB could not stop this item being renewed. A hold has been placed on it at the owning "
+			+ "library, so please do not renew.";
+
+	// Only the item DCB created is ever written to, so a library's own item is never touched
+	private Mono<AlmaItem> requireDcbVirtualItem(String itemId, AlmaItem item) {
+		final var holdingData = getValueOrNull(item, AlmaItem::getHoldingData);
+		final var callNumber = holdingData != null ? holdingData.getCallNumber() : null;
+
+		if (!DCB_VIRTUAL_COLLECTION.equals(callNumber)) {
+			return raiseError(new AlmaHostLmsClientException(
+				"Refusing to prevent renewal on Alma item " + itemId + " at " + getHostLmsCode()
+					+ ": it does not carry the " + DCB_VIRTUAL_COLLECTION + " call number DCB creates"));
+		}
+
+		return Mono.just(item);
+	}
+
+	/**
+	 * DCB could not deny renewal itself, so the only protection left is telling staff, the way
+	 * the Polaris client does. The note is best effort and the original failure is re-raised
+	 * either way, so the workflow still audits the request and marks it not renewable.
+	 * <p>
+	 * The item is read again rather than reused: a policy Alma rejected is still set on the copy
+	 * in hand, and sending that back would fail for the same reason. An earlier version of this
+	 * wrote to the library's own item and never removed the note; this writes only to the virtual
+	 * item, which DCB deletes at FINALISED, so nothing accumulates on real holdings.
+	 */
+	private Mono<Void> warnStaffRenewalNotPrevented(String bibId, String holdingId, String itemId,
+		Throwable cause) {
+
+		return client.retrieveItem(bibId, holdingId, itemId)
+			.flatMap(item -> requireDcbVirtualItem(itemId, item))
+			.flatMap(item -> {
+				final var itemData = getValueOrNull(item, AlmaItem::getItemData);
+
+				if (itemData == null) return Mono.<AlmaItem>empty();
+
+				itemData.setFulfillmentNote(RENEWAL_NOT_PREVENTED_NOTE);
+
+				return client.updateItem(bibId, holdingId, itemId, item);
+			})
+			.doOnError(noteError -> log.error(
+				"Could not warn staff on Alma item {} at {} that renewal was not prevented",
+				itemId, getHostLmsCode(), noteError))
+			.onErrorResume(noteError -> Mono.empty())
+			.then(Mono.error(cause));
 	}
 
 	/**
@@ -1047,15 +1100,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	 */
 	private Mono<AlmaItem> denyRenewalOfItem(String bibId, String holdingId, String itemId,
 		AlmaItem item, String noRenewPolicy) {
-
-		final var holdingData = getValueOrNull(item, AlmaItem::getHoldingData);
-		final var callNumber = holdingData != null ? holdingData.getCallNumber() : null;
-
-		if (!DCB_VIRTUAL_COLLECTION.equals(callNumber)) {
-			return raiseError(new AlmaHostLmsClientException(
-				"Refusing to prevent renewal on Alma item " + itemId + " at " + getHostLmsCode()
-					+ ": it does not carry the " + DCB_VIRTUAL_COLLECTION + " call number DCB creates"));
-		}
 
 		final var itemData = getValueOrNull(item, AlmaItem::getItemData);
 

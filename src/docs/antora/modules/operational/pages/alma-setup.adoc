@@ -202,6 +202,12 @@ Two things are needed from you:
 IMPORTANT: Without the loan rule, OpenRS will set the policy, report success, and the renewal
 will still go through. The policy is only a label — the rule is what refuses.
 
+If OpenRS cannot set the policy at all — most often because the item policy code does not exist
+in your Alma — it falls back to writing a "please do not renew" note on the virtual item, where
+Alma shows it to staff during circulation, and records the request as one it could not protect.
+That fallback only covers a failed write. It does not fire when the policy is set successfully
+but no loan rule acts on it, because from OpenRS's side nothing went wrong.
+
 OpenRS only ever changes items it created itself. A virtual item carries the
 `DCB_VIRTUAL_COLLECTION` call number, and a request to deny renewal on anything else is
 refused rather than applied to one of your own items.

@@ -156,6 +156,16 @@ successfully against a live tenant rather than one inferred from a schema.
 . Sets `item_data.policy` to the configured `no-renew-item-policy`, defaulting to
   `DCB_NO_RENEW`.
 . Reads the item back, and fails if the policy did not take.
+. If any of that fails, writes a do-not-renew note to the virtual item's `fulfillment_note`,
+  which Alma shows during circulation, and *still* raises the original error so the workflow
+  audits the request and marks it `UNSUPPORTED`. This mirrors the Polaris client. The note is
+  best effort — failing to write it is logged and never masks the original failure.
+
+The guard runs before that fallback, so an item DCB did not create is refused outright rather
+than written to with a note instead. An earlier implementation put this note on the library's
+*own* item and nothing removed it when the request finished, so notes accumulated on real
+holdings. Writing only to the virtual item, which DCB deletes at FINALISED, is what makes the
+fallback safe to reinstate.
 
 `PreventRenewalCommand` carries `localBibId` and `localHoldingId` alongside the item id
 because Alma addresses an item by all three and offers no lookup by pid alone. The barcode is
@@ -167,6 +177,10 @@ WARNING: DCB sets the policy but cannot create the rule that acts on it. A Fulfi
 loan rule matching that policy must disallow renewal, or DCB will set it, report success, and
 the renewal will still go through. This is the same division of labour as Koha's
 `ItemsDeniedRenewal` — the adapter writes a label, the library writes the rule.
+
+The staff-warning fallback does *not* cover this case. Nothing failed, so no note is written:
+DCB set the policy exactly as asked and only the rule is missing. The fallback covers a failed
+*write* — most often a site that has not created the policy code at all.
 
 The read-back therefore proves the policy was written. It does not prove renewal is now
 denied: that rests on deployment state DCB cannot see.

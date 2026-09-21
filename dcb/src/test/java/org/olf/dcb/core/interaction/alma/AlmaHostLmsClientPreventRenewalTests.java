@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -108,6 +109,29 @@ class AlmaHostLmsClientPreventRenewalTests {
 			() -> sut.preventRenewalOnLoan(command()).block());
 
 		assertThat(error.getMessage(), containsString("still has policy 'BOOK'"));
+	}
+
+	@Test
+	void shouldWarnStaffOnTheVirtualItemWhenThePolicyCannotBeSet() {
+		when(almaApi.retrieveItem("bib-1", "hol-1", "item-1"))
+			.thenReturn(Mono.just(virtualItem("BOOK")));
+
+		// The expected failure: the library has not created the no-renew item policy
+		when(almaApi.updateItem(anyString(), anyString(), anyString(), any()))
+			.thenReturn(Mono.error(new AlmaHostLmsClientException("Invalid item policy")),
+				Mono.just(virtualItem("BOOK")));
+
+		final var error = assertThrows(RuntimeException.class,
+			() -> sut.preventRenewalOnLoan(command()).block());
+
+		// The workflow still has to see the original failure, or the request is never marked
+		assertThat(error.getMessage(), containsString("Invalid item policy"));
+
+		final var sent = ArgumentCaptor.forClass(AlmaItem.class);
+		verify(almaApi, times(2)).updateItem(anyString(), anyString(), anyString(), sent.capture());
+
+		assertThat(sent.getAllValues().get(1).getItemData().getFulfillmentNote(),
+			containsString("please do not renew"));
 	}
 
 	@Test
