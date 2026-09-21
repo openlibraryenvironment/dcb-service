@@ -68,7 +68,8 @@ public final class SharedIndexDocumentFixture {
 		when(cluster.getLastIndexed()).thenReturn(Instant.parse("2026-08-18T09:00:00Z"));
 		when(cluster.getSelectedBib()).thenReturn(BIB_ID);
 		when(cluster.getBibs()).thenReturn(Set.of(bib));
-		when(availability.getInternalLocationCode()).thenReturn("main");
+		// The agency the location mapped to, not a location — see NestedBibIndexDoc.getAvailability
+		when(availability.getInternalLocationCode()).thenReturn("AGENCY-A");
 		when(availability.getRemoteLocationCode()).thenReturn("stacks");
 		when(availability.getCount()).thenReturn(3);
 
