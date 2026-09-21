@@ -4,10 +4,7 @@ title: DCB Service Documentation
 nav:
   - modules/ROOT/nav.adoc
 ext:
-  collector:
-    worktree:
-      checkout: always
-      
+  collector:      
     run:
       - command: "JAVA_TOOL_OPTIONS=\
           -Dmicronaut.openapi.views.spec=\
