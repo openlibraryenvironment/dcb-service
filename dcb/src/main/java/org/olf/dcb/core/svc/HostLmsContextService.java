@@ -59,8 +59,8 @@ public class HostLmsContextService {
 				contextHierarchyOf(client, context, defaults), client.isSharedSystem()))
 			.switchIfEmpty(Mono.fromSupplier(() -> unidentifiedSystem(context, defaults)))
 			.onErrorResume(error -> {
-				log.debug("[CONTEXT-HIERARCHY-ERROR] " +
-					"- An ERROR occurred while fetching 'contextHierarchy' for context: '{}'.", context, error);
+				// At debug the reason was discarded, leaving the warning below to explain itself
+				log.warn("Could not read Host LMS '{}' while resolving its mapping context", context, error);
 
 				return Mono.just(unidentifiedSystem(context, defaults));
 			});
@@ -77,18 +77,18 @@ public class HostLmsContextService {
 	/**
 	 * What to assume when the Host LMS behind a context cannot be loaded.
 	 * <p>
-	 * The wildcard collapses every location on a system onto one agency, which is only
-	 * ever safe on a system serving one library. If we cannot tell which kind of system
-	 * this is, we cannot tell whether that is safe - and the two outcomes are not
-	 * equally bad. Suppressing it means an item or patron fails to map and says so;
-	 * allowing it means silently attributing a co-tenant library's holdings or borrowers
-	 * to a library they have nothing to do with.
+	 * Shared systems are opt-in, and {@link HostLmsClient#isSharedSystem()} already reads an
+	 * absent setting as not shared. A failed lookup - a dropped connection, a transaction
+	 * already aborted - says nothing about the configuration, so it has to land on the same
+	 * answer the absent setting does. Assuming shared here instead suppressed the wildcard
+	 * for every system while a read was failing, so ordinary single-library tenants stopped
+	 * resolving locations until it recovered.
 	 */
 	private static MappingContext unidentifiedSystem(String context, List<String> defaults) {
 		log.warn("Could not determine whether '{}' is a shared system; "
-			+ "suppressing the wildcard location mapping for this lookup", context);
+			+ "assuming it is not, because shared-system is opt-in", context);
 
-		return new MappingContext(defaults, true);
+		return new MappingContext(defaults, false);
 	}
 
 	@SuppressWarnings("unchecked")
