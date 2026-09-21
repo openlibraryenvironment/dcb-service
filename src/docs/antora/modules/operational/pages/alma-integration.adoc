@@ -280,6 +280,44 @@ Two failures look alike and are not:
 If Alma sits behind IP whitelisting, the DCB server's address must be whitelisted for OAI
 specifically, not only for the REST API. These are often controlled separately.
 
+== Pass-through from Primo
+
+An Alma site keeping Primo can still send patrons into OpenRS for items it does not hold. The
+path is a link on the Alma services page into a pre-filled search in the OpenRS discovery UI, and it needs no
+code on either side.
+
+=== Why a search and not a record link
+
+Discovery UI record URLs are `/items/{recordKey}`, and the key is parsed by `RecordKey.parse`,
+which *requires* a source segment. Primo has no way to know that key, so a direct record link
+is not constructible from an OpenURL. A fielded search on the identifier is the correct
+target rather than a compromise.
+
+=== Why the identifier match works
+
+`SearchQueryBuilder` routes `isbn` to a nested query against `metadata.identifiers`, matching
+on `value` with a `namespace` term, rather than to the flat `isbn.keyword` field. That was
+DCB-1181: the flat field misses the 10- and 13-digit variants the metadata holds. Alma sends
+whichever form its record carries, so the flat field would have failed on a large share of
+inbound links.
+
+=== The bound
+
+One inbound link is one search. It fans out to nothing, reads only the shared index, and the
+search route is anonymous like every other search — no patron identity is involved until a
+request is placed.
+
+=== The limit worth knowing
+
+The nested identifier query matches on an analysed `text` field, so an identifier can match
+more than one cluster — different editions, or a record where the identifier appears in more
+than one namespace. That is correct for a search and is exactly why this path lands on
+*results* rather than redirecting to a record. Sending a patron directly to a single guessed
+edition would be worse than showing them the matches.
+
+A dedicated resolver endpoint is planned. It will need an exact-match path for the cases
+where a single answer is required; the search route is deliberately not that.
+
 == Things to be aware of
 
 * Virtual bib, holding and item records are created at the supplying and borrowing ends and

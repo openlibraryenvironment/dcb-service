@@ -167,6 +167,73 @@ default:
 Any other status maps to `UNKNOWN`. If your institution uses others, tell your implementation
 team so the mapping can be extended.
 
+== Linking to OpenRS from Primo
+
+A patron searching Primo finds nothing at your library, but the consortium holds it. You can
+put a link on the Alma services page that carries them straight into a pre-filled OpenRS
+search, where they can request it.
+
+Alma already has a slot for this. Broker-based resource sharing defines a *Submit Request*
+integration point, and systems such as Tipasa and ReShare occupy it as a *General Electronic
+Service* — a link that appears in Primo's "How to get it" area, built from the record's
+OpenURL metadata. OpenRS uses the same slot.
+
+=== The link
+
+Configure a General Electronic Service in Alma whose URL template is:
+
+[source%nowrap,text]
+----
+https://{your-openrs-discovery-host}/?q={rft.isbn}&field=isbn
+----
+
+Use your Alma display logic to show it only when there is no available local inventory, so
+the link appears exactly when it is useful.
+
+Nothing needs building for this. The search route accepts the parameters directly.
+
+=== The parameters
+
+[cols="1,3"]
+|===
+| Parameter | Meaning
+
+| `q`
+| What to search for. An ISBN for a monograph; an ISSN works the same way.
+
+| `field`
+| Which field to search. `isbn`, `issn`, `title`, `author`, `subject`, `publisher`,
+  `publicationYear`, `format` or `keyword`. An unrecognised value falls back to a keyword
+  search rather than failing, so a mistyped template still finds the book — less precisely.
+
+| `library`
+| *Optional, and usually wrong here.* It restricts results to one library's holdings. See
+  below.
+|===
+
+IMPORTANT: Do **not** put your own library's code in `library`. It filters results *to* that
+library, so the patron would get the same empty result Primo just gave them. A
+consortium-wide search — which is what "we do not have it, but somebody does" means — is what
+you get by leaving `library` out entirely. Use it only to point at one named partner library.
+
+NOTE: There is currently no way to say "everywhere except my library". `library` includes; it
+cannot exclude. The consortium-wide search includes your own holdings, which is usually what a
+patron wants to see anyway.
+
+=== What the patron sees
+
+Results carry an *obtainability* label computed for your deployment, so a record held
+elsewhere in the consortium reads *Request to borrow* without any further lookup. Signing in
+is needed to place the request, not to search — a patron arriving from Primo can look before
+they authenticate.
+
+=== A fuller version is planned
+
+This link resolves by searching. A dedicated OpenURL resolver endpoint is planned, which will
+accept full OpenURL 1.0 and 0.1 requests and resolve DOIs and PMIDs as well as ISBNs. The
+link above needs no change when it arrives, and is not a stop-gap: a pre-filled search is a
+reasonable destination in its own right.
+
 == Consortia sharing one Alma tenant
 
 Where several member libraries share a single Alma tenant — a Network Zone, or one
