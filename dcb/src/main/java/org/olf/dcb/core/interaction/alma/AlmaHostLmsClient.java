@@ -329,6 +329,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				.failed(getHostLmsCode(), "Could not read configuration from Alma: " + error.getMessage())));
 	}
 
+	@Override
+	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return switch (vocabulary) {
+			case ITEM_TYPE -> codeTableEntries(ITEM_TYPE_CODE_TABLE);
+			case PATRON_TYPE -> codeTableEntries(PATRON_TYPE_CODE_TABLE);
+			case LOCATION -> locationEntries();
+		};
+	}
+
 	// One unreadable list leaves the rest of the report standing; the empty vocabulary says so
 	private Mono<List<ConfigurationReport.Entry>> codeTableEntries(String name) {
 		return client.retrieveCodeTable(name)

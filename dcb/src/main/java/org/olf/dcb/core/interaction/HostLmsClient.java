@@ -83,6 +83,35 @@ public interface HostLmsClient
 	}
 
 	/**
+	 * The values this Host LMS holds for one vocabulary a mapping is built from.
+	 * <p>
+	 * The one place per adapter that knows how to read a vocabulary, so the full report and
+	 * the single-value check below cannot drift apart.
+	 * <p>
+	 * An <em>empty Mono</em> means this adapter cannot read that vocabulary. An empty
+	 * <em>list</em> means it asked and the Host LMS returned nothing. Those are different
+	 * answers and the caller reports them differently, so do not collapse them.
+	 */
+	default Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return Mono.empty();
+	}
+
+	/**
+	 * Whether one value someone is about to map exists in this Host LMS.
+	 * <p>
+	 * Built on {@link #fetchVocabulary} rather than implemented per adapter, so a system that
+	 * can answer the full report can answer a single value for free.
+	 */
+	default Mono<MappingValueCheck> checkMappingValue(MappingVocabulary vocabulary, String value) {
+		return fetchVocabulary(vocabulary)
+			.map(entries -> MappingValueCheck.against(getHostLmsCode(), vocabulary, value, entries))
+			.defaultIfEmpty(MappingValueCheck.notSupported(getHostLmsCode(), vocabulary, value))
+			.onErrorResume(error -> Mono.just(MappingValueCheck.unknown(getHostLmsCode(), vocabulary,
+				value, "Could not read " + vocabulary + " from " + getHostLmsCode()
+					+ ": " + error.getMessage())));
+	}
+
+	/**
 	 * Does this Host LMS host more than one participating library?
 	 * <p>
 	 * On a shared system an agency can only ever be identified by a specific local

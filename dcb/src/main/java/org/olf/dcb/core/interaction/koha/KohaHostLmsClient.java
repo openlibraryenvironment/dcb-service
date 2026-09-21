@@ -18,7 +18,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
@@ -658,6 +660,107 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return client.deleteItem(itemId)
 			.thenReturn("OK")
 			.doOnError(e -> log.error("Failed to delete Koha item {}: {}", itemId, e.getMessage()));
+	}
+
+	// A tenant's library list has no documented ceiling, so every vocabulary is capped
+	private static final int MAX_VOCABULARY_ENTRIES = 500;
+
+	@Override
+	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return switch (vocabulary) {
+			case ITEM_TYPE -> entries(client.getItemTypes(),
+				type -> new ConfigurationReport.Entry(type.getItemTypeId(), type.getDescription()));
+
+			case PATRON_TYPE -> entries(client.getPatronCategories(),
+				category -> new ConfigurationReport.Entry(category.getPatronCategoryId(), category.getName()));
+
+			// Koha's branches are its locations
+			case LOCATION -> entries(client.getLibraries(),
+				library -> new ConfigurationReport.Entry(library.getLibraryId(), library.getName()));
+		};
+	}
+
+	// An unreadable list is an empty one, not a failure: the report says so per vocabulary
+	private <T> Mono<List<ConfigurationReport.Entry>> entries(Mono<T[]> source,
+		Function<T, ConfigurationReport.Entry> toEntry) {
+
+		return source
+			.map(values -> Arrays.stream(values).map(toEntry).toList())
+			.onErrorResume(error -> {
+				log.warn("Could not read a vocabulary from Koha at {}", getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	/**
+	 * Three list calls. Triggered by an implementer from the tools API, never on a request path.
+	 */
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.zip(
+				fetchVocabulary(MappingVocabulary.ITEM_TYPE),
+				fetchVocabulary(MappingVocabulary.PATRON_TYPE),
+				fetchVocabulary(MappingVocabulary.LOCATION))
+			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3()))
+			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
+				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	private ConfigurationReport buildConfigurationReport(List<ConfigurationReport.Entry> itemTypes,
+		List<ConfigurationReport.Entry> patronTypes, List<ConfigurationReport.Entry> libraries) {
+
+		final var checks = List.of(
+			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), libraries),
+			checkSetting("virtual-item-library-code", rawConfigValue("virtual-item-library-code"), libraries));
+
+		final var vocabularies = List.of(
+			vocabulary("Item types", itemTypes),
+			vocabulary("Patron categories", patronTypes),
+			vocabulary("Libraries", libraries));
+
+		return new ConfigurationReport(getHostLmsCode(), ConfigurationReport.Status.CHECKED,
+			null, checks, vocabularies);
+	}
+
+	// Read from the raw config: the typed accessors throw on a missing required setting, and a
+	// report has to name what is absent rather than die reading it
+	private String rawConfigValue(String key) {
+		final var value = getConfig().get(key);
+
+		return value != null ? value.toString() : null;
+	}
+
+	private static ConfigurationReport.Check checkSetting(String setting, String configuredValue,
+		List<ConfigurationReport.Entry> knownValues) {
+
+		if (isBlank(configuredValue)) {
+			return new ConfigurationReport.Check(setting, null,
+				ConfigurationReport.CheckResult.NOT_CONFIGURED, "No value set in DCB");
+		}
+
+		if (knownValues.isEmpty()) {
+			return new ConfigurationReport.Check(setting, configuredValue,
+				ConfigurationReport.CheckResult.UNKNOWN,
+				"Koha did not return the list this is checked against");
+		}
+
+		final var present = knownValues.stream()
+			.anyMatch(entry -> configuredValue.equals(entry.code()));
+
+		return new ConfigurationReport.Check(setting, configuredValue,
+			present ? ConfigurationReport.CheckResult.PRESENT : ConfigurationReport.CheckResult.MISSING,
+			present ? null : "Not found in Koha");
+	}
+
+	private static ConfigurationReport.Vocabulary vocabulary(String name,
+		List<ConfigurationReport.Entry> entries) {
+
+		final var truncated = entries.size() > MAX_VOCABULARY_ENTRIES;
+
+		return new ConfigurationReport.Vocabulary(name,
+			truncated ? entries.subList(0, MAX_VOCABULARY_ENTRIES) : entries, truncated,
+			entries.isEmpty() ? "Koha returned nothing, or the list could not be read" : null);
 	}
 
 	@Override
