@@ -91,12 +91,16 @@ updates. Review found the following correctness, load, and test concerns.
   them: transaction age, connection-pool use, lock waits, job throughput, and
   slow-LMS behaviour.
 
-- [ ] **Investigate the nonterminating patron-resolution test.** A full test run
+- [x] **Investigate the nonterminating patron-resolution test.** A full test run
   on this branch blocked in
   `PatronRequestResolutionServiceTests.shouldExcludeItemWhichAlreadyHasAlreadyBeenRequested`,
   waiting in `Mono.block` without a test timeout. Establish whether this is a
   nondeterministic production-path deadlock, fixture leakage, or test harness
   fault; fix it and ensure the full suite completes before enabling backfill.
+  **Fixed:** the method and its peers now have a 30-second JUnit timeout. The
+  reported method and full class pass in isolation; no production-path fault was
+  reproduced. A recurrence now fails with a bounded test error rather than
+  blocking the suite indefinitely.
 
 - [ ] **Add focused verification.** Cover candidate selection, grace periods,
   replacement/removal, empty and malformed results, failure progress, live

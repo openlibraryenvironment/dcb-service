@@ -3,6 +3,7 @@ package org.olf.dcb.request.resolution;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
@@ -64,6 +66,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
+@Timeout(value = 30, unit = SECONDS)
 // PT1S was too tight under Micronaut 5: the first resolution's cold start (Sierra client
 // init, TLS CONNECT through the MockServer proxy, and per-item agency lookups) takes ~1.3s,
 // so the live-availability race lost to the timeout and returned an empty item list. Raised
