@@ -106,9 +106,9 @@ updates. Review found the following correctness, load, and test concerns.
   context owns both R2DBC and JDBC pools. The prior `maxIdle` setting was not an
   r2dbc-pool option, so idle R2DBC sessions were never evicted. Use two R2DBC
   connections and two JDBC connections; start R2DBC pools empty and evict idle
-  sessions after two seconds. Fixture deletion must remain sequential. Timeout
-  wrappers were discarded because they mask rather than resolve the suspected
-  resource deadlock. **Fixed:** `DataAccess` deletes sequentially, the test
+  sessions after two seconds. Fixture deletion must remain sequential. The
+  30-second patron-resolution timeout remains as a diagnostic guard; it does
+  not replace the resource fix. **Fixed:** `DataAccess` deletes sequentially, the test
   pool uses two R2DBC and two JDBC connections, and r2dbc-pool now receives its
   actual idle-eviction options. `R2dbcPoolLifecycleTests` verifies released
   connections are evicted. Two full `./gradlew --no-daemon test` runs passed
