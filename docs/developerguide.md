@@ -23,7 +23,7 @@ smoke-fallback-host-dcb-request`.
 
 ## Tests
 
-Tests share one Testcontainers PostgreSQL instance per Gradle test worker. Each Micronaut context has a two-connection R2DBC pool and a two-connection JDBC pool. R2DBC starts empty, evicts idle connections after two seconds, and fails an acquisition after 30 seconds. Fixture cleanup uses one connection to stream rows and one to delete them sequentially. Do not replace this with an unbounded read or delete fan-out.
+Tests share one Testcontainers PostgreSQL instance per Gradle test worker. Each Micronaut context has a two-connection R2DBC pool and a two-connection JDBC pool. R2DBC starts empty, evicts idle connections after two seconds, and fails an acquisition after 30 seconds. Fixture cleanup uses one connection to stream rows and one to delete them sequentially. Do not replace this with an unbounded read or delete fan-out. CI logs each started test so a stalled suite has a last known test.
 
 Electronic availability is transient. Add fields only to `AvailabilityResponseViewV2`; never extend the fragile legacy view.
 

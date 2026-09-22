@@ -523,11 +523,16 @@ gitProperties {
 }
 
 test {
-	// Reduce noise in CI logs by disabling per-test XML reports
+	// Keep machine-readable reports compact.
 	reports.junitXml.outputPerTestCase = false
 	testLogging {
 		exceptionFormat = 'short'
 		showStandardStreams = false
+		if (System.getenv('CI')) {
+			// Testcontainers integration tests can take several minutes. Emit the
+			// current test in CI so a blocked suite has an actionable last point.
+			events 'started', 'failed'
+		}
 	}
 }
 
