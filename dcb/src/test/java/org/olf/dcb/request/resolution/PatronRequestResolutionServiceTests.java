@@ -18,7 +18,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocationCode;
-import static org.olf.dcb.test.matchers.ResolutionMatchers.hasAllItems;
+import static org.olf.dcb.test.matchers.ResolutionMatchers.hasAllItemsInAnyOrder;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasChosenItem;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasFilteredItems;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasFilteredItemsSize;
@@ -222,7 +222,7 @@ class PatronRequestResolutionServiceTests {
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
 			),
-			hasAllItems(
+			hasAllItemsInAnyOrder(
 				allOf(
 					hasLocalId(unavailableItemId),
 					hasBarcode(unavailableItemBarcode)
@@ -752,7 +752,7 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
-	void shouldKeepOrderOfAvailableItemsWhenAvailabilityDateIsTheSameDate() {
+	void shouldChooseLowestLocalItemIdWhenAvailabilityDatesAreTheSame() {
 		// Arrange
 		final var bibRecordId = randomUUID();
 
@@ -792,13 +792,13 @@ class PatronRequestResolutionServiceTests {
 			notNullValue(),
 			hasChosenItem(
 				hasHostLmsCode(CIRCULATING_HOST_LMS_CODE),
-				hasLocalId(firstAvailableItemId),
-				hasBarcode(firstAvailableItemBarcode),
+				hasLocalId(secondAvailableItemId),
+				hasBarcode(secondAvailableItemBarcode),
 				hasLocalBibId(sourceRecordId),
 				hasLocationCode(ITEM_LOCATION_CODE),
 				hasAgencyCode(SUPPLYING_AGENCY_CODE)
 			),
-			hasAllItems(
+			hasAllItemsInAnyOrder(
 				allOf(
 					hasLocalId(unavailableItemId),
 					hasBarcode(unavailableItemBarcode)

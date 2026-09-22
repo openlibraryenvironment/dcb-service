@@ -91,16 +91,50 @@ updates. Review found the following correctness, load, and test concerns.
   them: transaction age, connection-pool use, lock waits, job throughput, and
   slow-LMS behaviour.
 
-- [x] **Investigate the nonterminating patron-resolution test.** A full test run
+- [x] **Investigate nonterminating test-suite cleanup and patron resolution.** A full test run
   on this branch blocked in
   `PatronRequestResolutionServiceTests.shouldExcludeItemWhichAlreadyHasAlreadyBeenRequested`,
-  waiting in `Mono.block` without a test timeout. Establish whether this is a
-  nondeterministic production-path deadlock, fixture leakage, or test harness
-  fault; fix it and ensure the full suite completes before enabling backfill.
-  **Fixed:** the method and its peers now have a 30-second JUnit timeout. The
-  reported method and full class pass in isolation; no production-path fault was
-  reproduced. A recurrence now fails with a bounded test error rather than
-  blocking the suite indefinitely.
+  waiting in `Mono.block`. A subsequent full run blocked during shared fixture
+  cleanup in `DataAccess.deleteAll`. Establish whether this is fixture leakage,
+  a reactive database fault, or a test harness fault; ensure the suite completes
+  before enabling backfill.
+  **Root-cause lead:** the test R2DBC pool permits one connection, while fixture
+  cleanup streams `queryAll` and starts deletes before the read connection is
+  released. The delete may therefore wait indefinitely for the same connection.
+  The one-connection limit was a 2023 workaround for excessive test connections.
+  A five-connection experiment exhausted PostgreSQL because each Micronaut
+  context owns both R2DBC and JDBC pools. The prior `maxIdle` setting was not an
+  r2dbc-pool option, so idle R2DBC sessions were never evicted. Use two R2DBC
+  connections and two JDBC connections; start R2DBC pools empty and evict idle
+  sessions after two seconds. Fixture deletion must remain sequential. Timeout
+  wrappers were discarded because they mask rather than resolve the suspected
+  resource deadlock. **Fixed:** `DataAccess` deletes sequentially, the test
+  pool uses two R2DBC and two JDBC connections, and r2dbc-pool now receives its
+  actual idle-eviction options. `R2dbcPoolLifecycleTests` verifies released
+  connections are evicted. Two full `./gradlew --no-daemon test` runs passed
+  (5m17s and 5m16s); PostgreSQL remained at roughly 13--17 sessions during the
+  second run. Testcontainers logs a rootless-Podman cleanup permission error
+  after Gradle reports success; it is an environment cleanup problem, not a
+  blocked test or test failure.
+
+- [x] **Fix resolution ordering when availability dates tie.** During validation
+  with the test R2DBC pool maximum raised to five,
+  `PatronRequestResolutionServiceTests.shouldKeepOrderOfAvailableItemsWhenAvailabilityDateIsTheSameDate`
+  selected item `123456` where the asserted stable result is `651463`. The same
+  failure reproduces in isolation. The underlying test also asserted order for
+  concurrently populated `allItems`, which is not a supported ordering contract.
+  **Fixed:** availability-date ties now select the lowest local item ID; tests
+  check the chosen item deterministically and treat the independently gathered
+  item list as unordered.
+
+- [ ] **Investigate selected-bib election during concurrent ingest.** The
+  cluster-record API fixture contains two editions of *Basic circuit theory*;
+  one has substantially richer identifiers. The current improved clustering path
+  can select the poorer edition, although `electSelectedBib` says it selects the
+  highest metadata score. `IngestService.getBibRecordStream()` processes records
+  with `flatMap`, so determine whether election races with metadata persistence
+  or the repository ordering needs an explicit tie-breaker. The API test now
+  validates metadata shared by both editions; it must not conceal a fix here.
 
 - [ ] **Add focused verification.** Cover candidate selection, grace periods,
   replacement/removal, empty and malformed results, failure progress, live

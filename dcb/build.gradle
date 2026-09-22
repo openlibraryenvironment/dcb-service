@@ -142,6 +142,7 @@ dependencies {
 	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
 	//
 	runtimeOnly("io.r2dbc:r2dbc-pool")
+	testImplementation("io.r2dbc:r2dbc-pool")
 
 	implementation("io.micronaut.flyway:micronaut-flyway")
 	runtimeOnly("org.flywaydb:flyway-database-postgresql")

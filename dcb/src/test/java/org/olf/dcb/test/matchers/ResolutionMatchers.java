@@ -28,6 +28,11 @@ public class ResolutionMatchers {
 	}
 
 	@SafeVarargs
+	public static Matcher<Resolution> hasAllItemsInAnyOrder(Matcher<Item>... matchers) {
+		return hasProperty("allItems", containsInAnyOrder(matchers));
+	}
+
+	@SafeVarargs
 	public static Matcher<Resolution> hasFilteredItems(
 		Matcher<Item>... matchers) {
 		return hasProperty("filteredItems", containsInAnyOrder(matchers));
