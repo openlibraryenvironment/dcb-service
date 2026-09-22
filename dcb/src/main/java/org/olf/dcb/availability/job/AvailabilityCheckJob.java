@@ -137,11 +137,11 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					0,
 					"LMS adapter gave empty response for [%s], please consult the logs.".formatted(bib.getId())));
 			}
-			
+
 			String combinedErrors =  errors.stream()
 				.map(Error::getMessage)
 				.collect(Collectors.joining("\n"));
-			
+
 			// Truncate for the DB field...
 			if (combinedErrors.length() > 255) {
 				combinedErrors = combinedErrors.substring(0, 252) + "...";
@@ -155,7 +155,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		final Map<String, Integer> locationCounts = new HashMap<>();
 		for ( Item item : data ) {
 			var locationCode = item.getLocationCode();
-			if ( locationCode == null ) {
+			if ( locationCode == null || locationCode.isBlank() ) {
 				// Null location. Log and skip.
 				if ( log.isWarnEnabled() ) {
 					log.warn("No location code returned for item local ID [{}] when checking availability for bib [{}]", item.getLocalId(), bib.getId());
@@ -172,9 +172,18 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			int count = locationCounts.getOrDefault(locationCode, 0);
 			locationCounts.put(locationCode, (count+1));
 		}
-		
+
+		if (locationCounts.isEmpty()) {
+			return Flux.just(availabilityCount(
+				bib,
+				null,
+				0,
+				"LMS adapter returned %d item(s) without location codes for [%s]"
+					.formatted(data.size(), bib.getId())));
+		}
+
 		// Convert the map into a flux of items.
-			return Flux.fromIterable( locationCounts.entrySet() )
+		return Flux.fromIterable( locationCounts.entrySet() )
 			.map( entry -> availabilityCount(bib, entry.getKey(), entry.getValue(), null));
 	}
 	
@@ -229,12 +238,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		
 		return Mono.from(bibCounts.saveOrUpdate(theCount))
 			.thenReturn(theCount)
-			.onErrorComplete(t -> {
-				log.error("Error saving/updating bibcount", t);
-				
-				// Return true always to ensure we complete and suppress the error signal.
-				return true;
-			});
+			.doOnError(t -> log.error("Error saving/updating bibcount", t));
 	}
 	
 	private Mono<BibAvailabilityCount> updateMappingIfRequired( BibAvailabilityCount count ) {
@@ -256,7 +260,9 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					count.toBuilder()
 						.status(Status.UNMAPPED)
 						.internalLocationCode(null)
-						.mappingResult( "No remote location code" )
+						.mappingResult(count.getMappingResult() != null
+							? count.getMappingResult()
+							: "No remote location code")
 						.lastUpdated(now)
 						.gracePeriodEnd(now.plus( jobConfig.getRecheckGracePeriod() ))
 						.build())
@@ -339,6 +345,9 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		
 		return Mono.just( bib )
 			.flatMap(this::remoteBibFetch)
+			.switchIfEmpty(Mono.fromSupplier(() -> AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
+				.message("No availability report returned for bib [%s]".formatted(bib.getId()))
+				.build())))
 			.onErrorResume(e -> Mono.just(AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
 					.message("Error when fetching bib availability for [%s] %s".formatted(bib.getId().toString(), e))
 					.build())))

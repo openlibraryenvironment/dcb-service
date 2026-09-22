@@ -8,6 +8,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.exceptions.EntityCreationException;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.LocationCreationSource;
 import org.olf.dcb.graphql.validation.LocationInputValidator;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -118,6 +119,7 @@ public class CreateLocationDataFetcher implements DataFetcher<CompletableFuture<
 						.lastEditedBy(userString)
 						.agency(agency)
 						.lastImported(Instant.now())
+						.creationSource(LocationCreationSource.MANUAL)
 						.hostSystem(hostLms).build();
 					changeReferenceUrl.ifPresent(location::setChangeReferenceUrl);
 					changeCategory.ifPresent(location::setChangeCategory);

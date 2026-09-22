@@ -1,0 +1,77 @@
+# Availability Backfill Review
+
+## Status
+
+Under review. Keep `AvailabilityCheckJob` disabled where its load is unsafe until
+the applicable issues below are resolved or explicitly accepted.
+
+## Context
+
+`AvailabilityCheckJob` pages through bibliographic records, fetches item data
+from member systems, stores location counts in `bib_availability_count`, and
+queues affected clusters for shared-index updates. Live availability lookups
+also update these counts.
+
+The design has useful foundations: database-side candidate selection, bounded
+pages, grace periods, per-source grouping, a federated lock, and reindexing after
+updates. Review found the following correctness, load, and test concerns.
+
+## Review Items
+
+- [x] **URGENT: Guarantee progress for results that produce no count rows.**
+  Items with no location codes, empty publishers, and suppressed save failures
+  can leave a bib immediately eligible for the next chunk. This can repeatedly
+  select the same bib within one run, sustaining remote and database load without
+  making progress. Record a durable outcome or stop the run.
+  **Fixed:** empty publishers and responses containing only missing or blank
+  location codes now persist a diagnostic count with a retry grace period.
+  Persistence failures fail the update instead of advancing the chunk or queuing
+  a live-path index update. Focused tests cover all three cases.
+
+- [ ] **Replace stale location rows.** A refresh only upserts locations present
+  in the latest response. Decide how to remove or invalidate locations no longer
+  returned, including empty results, so obsolete facets and counts disappear.
+
+- [ ] **Enforce true instance-wide concurrency.** `instance-wide` is currently
+  used as `concatMap` prefetch while clusters are processed through an unbounded
+  `flatMap`. Define and test caps across clusters, source systems, remote calls,
+  mapping work, and database writes.
+
+- [ ] **Remove duplicate live-lookup side effects during backfill.** A scheduled
+  fetch enters the live path, which writes counts and queues an index update;
+  the job then writes and queues again. Separate fetching from persistence, or
+  otherwise guarantee one count update and one index event per result.
+
+- [ ] **Avoid unrelated per-item work and ineffective cache warming.** The
+  backfill uses the live path, including location memoization per item and a
+  1,000-entry, one-day in-memory cache. Decide which side effects the backfill
+  actually needs and remove the rest from that path.
+
+- [ ] **Correct legacy grace-period selection.** For rows whose
+  `grace_period_end` is null, the query currently excludes old rows and selects
+  recent rows. Confirm migration compatibility and correct the cutoff semantics.
+
+- [ ] **Define completeness per bib.** One current count row currently suppresses
+  rechecking the whole bib even when other rows are stale or inconsistent.
+  Establish how completeness and refresh state are represented and queried.
+
+- [ ] **Shorten transaction scope.** Remote calls for an entire chunk currently
+  occur within chunk-level transaction handling. Keep network waits outside
+  database transactions and make count replacement atomic at the appropriate
+  bib or cluster boundary.
+
+- [ ] **Add focused verification.** Cover candidate selection, grace periods,
+  replacement/removal, empty and malformed results, failure progress, live
+  updates, index-event deduplication, and actual concurrency limits. Include a
+  representative large-data/load test before re-enabling scheduled backfill.
+
+For each item, record the decision and evidence before checking it. A checked
+item may mean fixed, explicitly accepted, superseded, or closed without action;
+state which outcome applies.
+
+## Completion Criteria
+
+- Every review item has a recorded decision and supporting evidence.
+- Any retained behaviour has explicit operational limits and observability.
+- Scheduled backfill is enabled only after correctness and load validation at a
+  representative catalogue size.

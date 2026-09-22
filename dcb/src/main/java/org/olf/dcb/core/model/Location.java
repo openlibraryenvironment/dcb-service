@@ -151,6 +151,16 @@ public class Location implements Auditable {
 	@Nullable
 	private Boolean needsAttention;
 
+	/**
+	 * Durable provenance for later policy decisions. This does not itself alter
+	 * availability, indexing, or suppression behaviour.
+	 */
+	@NonNull
+	@NotNull
+	@TypeDef(type = DataType.STRING)
+	@Builder.Default
+	private LocationCreationSource creationSource = LocationCreationSource.UNKNOWN;
+
   @ToString.Exclude
   @Singular("activeWorkflow")
   @TypeDef(type = JSON)
