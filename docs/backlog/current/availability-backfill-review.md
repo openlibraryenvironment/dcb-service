@@ -65,9 +65,15 @@ updates. Review found the following correctness, load, and test concerns.
   location recording. Live lookups continue to record locations and update the
   cache. Focused coverage proves a backfill fetch does neither.
 
-- [ ] **Correct legacy grace-period selection.** For rows whose
+- [x] **Correct legacy grace-period selection.** For rows whose
   `grace_period_end` is null, the query currently excludes old rows and selects
   recent rows. Confirm migration compatibility and correct the cutoff semantics.
+  **Fixed:** legacy rows now suppress rechecking only while `last_updated` is
+  newer than the cutoff, matching the pre-grace behaviour. Defaults are now 60
+  days for mapped rows and 14 days for other rows, both operator-tunable as
+  `dcb.jobs.availability.mapped-recheck-grace-period` and
+  `dcb.jobs.availability.recheck-grace-period`. PostgreSQL coverage verifies
+  the legacy selection boundary.
 
 - [ ] **Define completeness per bib.** One current count row currently suppresses
   rechecking the whole bib even when other rows are stale or inconsistent.

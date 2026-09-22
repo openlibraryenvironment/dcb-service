@@ -23,6 +23,13 @@ smoke-fallback-host-dcb-request`.
 
 Electronic availability is transient. Add fields only to `AvailabilityResponseViewV2`; never extend the fragile legacy view.
 
+## Availability backfill
+
+The scheduled availability backfill refreshes the location facets. Its ISO-8601 grace periods are
+`dcb.jobs.availability.mapped-recheck-grace-period` (`P60D`) and
+`dcb.jobs.availability.recheck-grace-period` (`P14D`). Set either per deployment to control the
+refresh/load trade-off.
+
 ## OAI-PMH checkpoints
 
 `OaiPmhIngestSource` defaults to `HIGHEST_TIMESTAMP`: after the final resumption-token page, the next
