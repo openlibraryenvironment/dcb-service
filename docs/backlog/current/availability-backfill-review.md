@@ -39,10 +39,15 @@ updates. Review found the following correctness, load, and test concerns.
   missing/blank location codes retain prior rows because they cannot prove a
   location has gone. PostgreSQL coverage verifies the scoped deletion.
 
-- [ ] **Enforce true instance-wide concurrency.** `instance-wide` is currently
+- [x] **Enforce true instance-wide concurrency.** `instance-wide` is currently
   used as `concatMap` prefetch while clusters are processed through an unbounded
   `flatMap`. Define and test caps across clusters, source systems, remote calls,
   mapping work, and database writes.
+  **Fixed:** each job chunk now has one nonblocking limiter. `instance-wide`
+  limits active remote calls across all clusters; `per-source` is keyed by Host
+  LMS across that chunk; `mapping-writes` (default 3) limits mapping, count
+  upserts, and stale-row deletions. Tests cover global, per-source, mapping, and
+  multi-cluster limits.
 
 - [x] **Remove duplicate live-lookup side effects during backfill.** A scheduled
   fetch enters the live path, which writes counts and queues an index update;

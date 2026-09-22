@@ -24,6 +24,9 @@ public interface AvailabilityCheckJobConfig {
   	@Bindable(defaultValue = "2")
     int getPerSource();
 
+	@Bindable(defaultValue = "3")
+	int getMappingWrites();
+
   	// @Bindable(defaultValue = "#{ T(Math).max( T(Runtime).getRuntime().availableProcessors() / 4, 5) }")
   	// Bindable doesn't seem to work with an expression here. Maybe will post-upgrade.
   	// Leaving this here for info, but will mimic this in the job class, and make this optional.

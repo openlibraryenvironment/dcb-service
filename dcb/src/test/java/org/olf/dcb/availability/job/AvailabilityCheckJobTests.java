@@ -15,15 +15,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.olf.dcb.availability.job.BibAvailabilityCount.Status;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
@@ -53,6 +58,8 @@ class AvailabilityCheckJobTests {
 	@BeforeEach
 	void setUp() {
 		when(config.getRecheckGracePeriod()).thenReturn(Duration.ofDays(7));
+		when(config.getConcurrency()).thenReturn(mock(AvailabilityCheckJobConfig.Concurrency.class));
+		when(config.getConcurrency().getMappingWrites()).thenReturn(3);
 
 		job = new AvailabilityCheckJob(
 			liveAvailability,
@@ -68,6 +75,51 @@ class AvailabilityCheckJobTests {
 	}
 
 	@Test
+	void processChunkSharesTheRemoteLimitAcrossClusters() {
+		final var concurrency = mock(AvailabilityCheckJobConfig.Concurrency.class);
+		final var active = new AtomicInteger();
+		final var highestActive = new AtomicInteger();
+		final var bibs = new HashMap<UUID, BibRecord>();
+		final var chunk = AvailabilityCheckChunk.builder()
+			.jobId(UUID.randomUUID())
+			.checkpoint(mock(io.micronaut.json.tree.JsonNode.class));
+
+		when(config.getConcurrency()).thenReturn(concurrency);
+		when(concurrency.getInstanceWide()).thenReturn(Optional.of(2));
+		when(concurrency.getPerSource()).thenReturn(1);
+		when(concurrency.getMappingWrites()).thenReturn(1);
+		for (int i = 0; i < 4; i++) {
+			final var bib = bib();
+			bibs.put(bib.getId(), bib);
+			chunk.dataEntry(new MissingAvailabilityInfo(UUID.randomUUID(), bib.getId(), bib.getSourceSystemId()));
+		}
+		doAnswer(invocation -> {
+			@SuppressWarnings("unchecked")
+			final var ids = (Collection<UUID>) invocation.getArgument(0);
+			return ids == null ? Flux.empty() : Flux.fromIterable(ids).map(bibs::get);
+		}).when(bibRecords).findAllByIdIn(any());
+		when(liveAvailability.fetchBibAvailabilityForBackfill(any(), any(), any())).thenAnswer(invocation ->
+			Mono.defer(() -> {
+				highestActive.accumulateAndGet(active.incrementAndGet(), Math::max);
+				return Mono.delay(Duration.ofMillis(25))
+					.thenReturn(AvailabilityReport.emptyReport())
+					.doOnTerminate(active::decrementAndGet);
+			}));
+		doAnswer(invocation -> Mono.just(invocation.getArgument(0)))
+			.when(counts).saveOrUpdate(any());
+		doReturn(Mono.just(0L)).when(counts)
+			.deleteAllByBibIdAndHostLmsAndIdNotIn(any(), any(), any());
+		clearInvocations(counts);
+
+		final var builtChunk = chunk.build();
+		StepVerifier.create(job.processChunk(builtChunk))
+			.expectNext(builtChunk)
+			.verifyComplete();
+
+		assertThat(highestActive.get(), is(2));
+	}
+
+	@Test
 	void emptyRemotePublisherProducesADurableRetryOutcome() {
 		final var bib = bib();
 		final var concurrency = mock(AvailabilityCheckJobConfig.Concurrency.class);
@@ -75,6 +127,7 @@ class AvailabilityCheckJobTests {
 		when(config.getConcurrency()).thenReturn(concurrency);
 		when(concurrency.getInstanceWide()).thenReturn(Optional.of(1));
 		when(concurrency.getPerSource()).thenReturn(1);
+		when(concurrency.getMappingWrites()).thenReturn(3);
 		when(bibRecords.findAllByIdIn(any())).thenReturn(Flux.just(bib));
 		when(liveAvailability.fetchBibAvailabilityForBackfill(any(), any(), any())).thenReturn(Mono.empty());
 		doAnswer(invocation -> Mono.just(invocation.getArgument(0)))
@@ -98,6 +151,7 @@ class AvailabilityCheckJobTests {
 		when(config.getConcurrency()).thenReturn(concurrency);
 		when(concurrency.getInstanceWide()).thenReturn(Optional.of(1));
 		when(concurrency.getPerSource()).thenReturn(1);
+		when(concurrency.getMappingWrites()).thenReturn(3);
 		when(bibRecords.findAllByIdIn(any())).thenReturn(Flux.just(bib));
 		when(liveAvailability.fetchBibAvailabilityForBackfill(any(), any(), any()))
 			.thenReturn(Mono.just(AvailabilityReport.emptyReport()));
