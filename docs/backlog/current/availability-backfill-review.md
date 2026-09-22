@@ -2,8 +2,11 @@
 
 ## Status
 
-Under review. Keep `AvailabilityCheckJob` disabled where its load is unsafe until
-the applicable issues below are resolved or explicitly accepted.
+This is the controlling backlog for `fix/availability-backfill-progress` and its
+merge request. Accumulate the remaining availability-check fixes on that branch
+and record each decision here. Keep `AvailabilityCheckJob` disabled where its
+load is unsafe until the applicable issues below are resolved or explicitly
+accepted.
 
 ## Context
 
