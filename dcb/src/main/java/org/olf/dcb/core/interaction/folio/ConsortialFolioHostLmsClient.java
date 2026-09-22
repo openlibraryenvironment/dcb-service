@@ -1616,4 +1616,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
     return result;
   }
 
+	// Declared rather than inherited: the edge API key reaches edge-dcb, edge-users and edge-rtac,
+	// none of which lists material types, patron groups or locations
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.just(ConfigurationReport.notSupported(getHostLmsCode(),
+			"DCB reaches FOLIO through edge modules that cannot list material types, patron groups or locations"));
+	}
 }

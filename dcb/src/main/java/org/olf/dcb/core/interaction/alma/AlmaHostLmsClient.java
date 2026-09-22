@@ -309,9 +309,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final String PATRON_TYPE_CODE_TABLE = "UserGroups";
 	private static final String ITEM_POLICY_CODE_TABLE = "ItemPolicy";
 
-	// A tenant's location list has no documented ceiling, so every vocabulary is capped
-	private static final int MAX_VOCABULARY_ENTRIES = 500;
-
 	// Alma allows 50 calls a second per institution and 10 on a sandbox; two in flight stays
 	// inside both, and a 429 makes the location list unreadable rather than short
 	private static final int LOCATION_FETCH_CONCURRENCY = 2;
@@ -467,6 +464,18 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return checkSetting(setting, configuredValue, inVirtualItemLibrary);
 	}
 
+	private static ConfigurationReport.Check checkSetting(String setting, String configuredValue,
+		List<ConfigurationReport.Entry> knownValues) {
+
+		return ConfigurationReport.check(setting, configuredValue, knownValues, "Alma");
+	}
+
+	private static ConfigurationReport.Vocabulary vocabulary(String name,
+		List<ConfigurationReport.Entry> entries) {
+
+		return ConfigurationReport.vocabulary(name, entries, "Alma");
+	}
+
 	private static String describeLocation(AlmaLocation location) {
 		final var library = location.getLibraryName() != null
 			? location.getLibraryName() : location.getLibraryCode();
@@ -480,41 +489,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var value = getConfig().get(key);
 
 		return value != null ? value.toString() : null;
-	}
-
-	private static ConfigurationReport.Check checkSetting(String setting,
-		String configuredValue, List<ConfigurationReport.Entry> knownValues) {
-
-		if (isBlank(configuredValue)) {
-			return new ConfigurationReport.Check(setting, null,
-				ConfigurationReport.CheckResult.NOT_CONFIGURED,
-				"No value set in DCB");
-		}
-
-		if (knownValues.isEmpty()) {
-			return new ConfigurationReport.Check(setting, configuredValue,
-				ConfigurationReport.CheckResult.UNKNOWN,
-				"Alma did not return the list this is checked against");
-		}
-
-		final var present = knownValues.stream()
-			.anyMatch(entry -> configuredValue.equals(entry.code()));
-
-		return new ConfigurationReport.Check(setting, configuredValue,
-			present
-				? ConfigurationReport.CheckResult.PRESENT
-				: ConfigurationReport.CheckResult.MISSING,
-			present ? null : "Not found in Alma");
-	}
-
-	private static ConfigurationReport.Vocabulary vocabulary(String name,
-		List<ConfigurationReport.Entry> entries) {
-
-		final var truncated = entries.size() > MAX_VOCABULARY_ENTRIES;
-
-		return new ConfigurationReport.Vocabulary(name,
-			truncated ? entries.subList(0, MAX_VOCABULARY_ENTRIES) : entries, truncated,
-			entries.isEmpty() ? "Alma returned nothing, or the list could not be read" : null);
 	}
 
 	@Override

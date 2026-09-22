@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -52,7 +53,9 @@ import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckInItemCommand;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.DeleteCommand;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -75,6 +78,7 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHol
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
@@ -2647,6 +2651,73 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
   public String getHostSystemVersion() {
     return "v1";
   }
+
+	/**
+	 * Branches, patron codes and material types: three list calls. Triggered by an implementer
+	 * from the tools API, never on a request path.
+	 */
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.zip(
+				emptyWhenUnreadable(MappingVocabulary.LOCATION),
+				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE))
+			.map(answers -> new ConfigurationReport(getHostLmsCode(),
+				ConfigurationReport.Status.CHECKED, null,
+				List.of(
+					ConfigurationReport.check("logon-branch-id",
+						configuredOrNull(polarisConfig::getLogonBranchId), answers.getT1(), "Polaris"),
+					ConfigurationReport.check("item.ill-location-id",
+						configuredOrNull(polarisConfig::getIllLocationId), answers.getT1(), "Polaris")),
+				List.of(
+					ConfigurationReport.vocabulary("Branches", answers.getT1(), "Polaris"),
+					ConfigurationReport.vocabulary("Material types", answers.getT2(), "Polaris"),
+					ConfigurationReport.vocabulary("Patron codes", answers.getT3(), "Polaris"))));
+	}
+
+	@Override
+	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return switch (vocabulary) {
+			// An item's DCB location is its branch LocationID (PolarisItemMapper.getLocation)
+			case LOCATION -> PAPIService.listBranches()
+				.map(result -> Optional.ofNullable(result.getOrganizationsGetRows()).orElse(List.of()).stream()
+					.filter(row -> row.getOrganizationID() != null)
+					.map(row -> new ConfigurationReport.Entry(row.getOrganizationID().toString(),
+						row.getDisplayName() != null ? row.getDisplayName() : row.getName()))
+					.toList());
+			case ITEM_TYPE -> ApplicationServices.listMaterialTypes()
+				.map(types -> types.stream()
+					.filter(type -> type.getMaterialTypeID() != null)
+					.map(type -> new ConfigurationReport.Entry(type.getMaterialTypeID().toString(),
+						type.getDescription()))
+					.toList());
+			case PATRON_TYPE -> PAPIService.listPatronCodes()
+				.map(result -> Optional.ofNullable(result.getPatronCodesRows()).orElse(List.of()).stream()
+					.filter(row -> row.getPatronCodeID() != null)
+					.map(row -> new ConfigurationReport.Entry(row.getPatronCodeID().toString(),
+						row.getDescription()))
+					.toList());
+		};
+	}
+
+	private Mono<List<ConfigurationReport.Entry>> emptyWhenUnreadable(MappingVocabulary vocabulary) {
+		return fetchVocabulary(vocabulary)
+			.onErrorResume(error -> {
+				log.warn("Could not read {} from Polaris at {}", vocabulary, getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	// The typed accessors throw on a missing required setting; a report names it instead
+	private static String configuredOrNull(Supplier<Integer> setting) {
+		try {
+			return String.valueOf(setting.get());
+		}
+		catch (PolarisConfigurationException missing) {
+			return null;
+		}
+	}
 
   public String getHostLmsCode() {
     String result = lms.getCode();

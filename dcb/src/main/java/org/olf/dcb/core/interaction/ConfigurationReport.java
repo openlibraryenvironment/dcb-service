@@ -62,6 +62,41 @@ public record ConfigurationReport(
 	@Serdeable
 	public record Entry(String code, @Nullable String description) {}
 
+	// A tenant's lists have no documented ceiling; a longer one is cut and flagged, never silently
+	public static final int MAX_VOCABULARY_ENTRIES = 500;
+
+	/**
+	 * Judges a setting DCB holds against a list read from the Host LMS. An empty list is taken
+	 * as unreadable, so it reports UNKNOWN and never MISSING.
+	 */
+	public static Check check(String setting, @Nullable String configuredValue,
+		List<Entry> knownValues, String systemName) {
+
+		if (configuredValue == null || configuredValue.isBlank()) {
+			return new Check(setting, null, CheckResult.NOT_CONFIGURED, "No value set in DCB");
+		}
+
+		if (knownValues.isEmpty()) {
+			return new Check(setting, configuredValue, CheckResult.UNKNOWN,
+				systemName + " did not return the list this is checked against");
+		}
+
+		final var present = knownValues.stream()
+			.anyMatch(entry -> configuredValue.equals(entry.code()));
+
+		return new Check(setting, configuredValue,
+			present ? CheckResult.PRESENT : CheckResult.MISSING,
+			present ? null : "Not found in " + systemName);
+	}
+
+	public static Vocabulary vocabulary(String name, List<Entry> entries, String systemName) {
+		final var truncated = entries.size() > MAX_VOCABULARY_ENTRIES;
+
+		return new Vocabulary(name,
+			truncated ? entries.subList(0, MAX_VOCABULARY_ENTRIES) : entries, truncated,
+			entries.isEmpty() ? systemName + " returned nothing, or the list could not be read" : null);
+	}
+
 	public static ConfigurationReport notSupported(String hostLmsCode, String detail) {
 		return new ConfigurationReport(hostLmsCode, Status.NOT_SUPPORTED, detail, List.of(), List.of());
 	}

@@ -475,4 +475,18 @@ public class MockPolarisFixture {
 		mockServer.replaceMock(commonRequests.get(paths.applicationServices("/itemstatuses")),
 			responseBody);
 	}
+
+	void mockListBranches(PAPIClient.OrganizationsGetResult responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.publicPapiService("/organizations/branch")),
+			responseBody);
+	}
+
+	void mockListPatronCodes(PAPIClient.PatronCodesGetResult responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.publicPapiService("/patroncodes")),
+			responseBody);
+	}
+
+	void mockListPatronCodesServerError() {
+		mockServer.replaceMock(commonRequests.get(paths.publicPapiService("/patroncodes")), serverError());
+	}
 }

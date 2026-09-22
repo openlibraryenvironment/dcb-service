@@ -662,9 +662,6 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.doOnError(e -> log.error("Failed to delete Koha item {}: {}", itemId, e.getMessage()));
 	}
 
-	// A tenant's library list has no documented ceiling, so every vocabulary is capped
-	private static final int MAX_VOCABULARY_ENTRIES = 500;
-
 	@Override
 	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
 		return switch (vocabulary) {
@@ -726,44 +723,24 @@ public class KohaHostLmsClient implements HostLmsClient {
 			null, checks, vocabularies);
 	}
 
+	private static ConfigurationReport.Check checkSetting(String setting, String configuredValue,
+		List<ConfigurationReport.Entry> knownValues) {
+
+		return ConfigurationReport.check(setting, configuredValue, knownValues, "Koha");
+	}
+
+	private static ConfigurationReport.Vocabulary vocabulary(String name,
+		List<ConfigurationReport.Entry> entries) {
+
+		return ConfigurationReport.vocabulary(name, entries, "Koha");
+	}
+
 	// Read from the raw config: the typed accessors throw on a missing required setting, and a
 	// report has to name what is absent rather than die reading it
 	private String rawConfigValue(String key) {
 		final var value = getConfig().get(key);
 
 		return value != null ? value.toString() : null;
-	}
-
-	private static ConfigurationReport.Check checkSetting(String setting, String configuredValue,
-		List<ConfigurationReport.Entry> knownValues) {
-
-		if (isBlank(configuredValue)) {
-			return new ConfigurationReport.Check(setting, null,
-				ConfigurationReport.CheckResult.NOT_CONFIGURED, "No value set in DCB");
-		}
-
-		if (knownValues.isEmpty()) {
-			return new ConfigurationReport.Check(setting, configuredValue,
-				ConfigurationReport.CheckResult.UNKNOWN,
-				"Koha did not return the list this is checked against");
-		}
-
-		final var present = knownValues.stream()
-			.anyMatch(entry -> configuredValue.equals(entry.code()));
-
-		return new ConfigurationReport.Check(setting, configuredValue,
-			present ? ConfigurationReport.CheckResult.PRESENT : ConfigurationReport.CheckResult.MISSING,
-			present ? null : "Not found in Koha");
-	}
-
-	private static ConfigurationReport.Vocabulary vocabulary(String name,
-		List<ConfigurationReport.Entry> entries) {
-
-		final var truncated = entries.size() > MAX_VOCABULARY_ENTRIES;
-
-		return new ConfigurationReport.Vocabulary(name,
-			truncated ? entries.subList(0, MAX_VOCABULARY_ENTRIES) : entries, truncated,
-			entries.isEmpty() ? "Koha returned nothing, or the list could not be read" : null);
 	}
 
 	@Override
