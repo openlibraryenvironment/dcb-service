@@ -446,8 +446,10 @@ is by design; be aware of it when sizing.
 
 **Discovered locations are recorded, not classified.** DCB records the code and the name it
 was given, and types the location `UNKNOWN` — it has seen a code on an item and cannot tell
-whether that is a branch, a campus or a service point. Editing a discovered location is part
-of actioning it.
+whether that is a branch, a campus or a service point. It records creation source
+`AVAILABILITY_DISCOVERY`, allowing later policy to distinguish these rows from manual and
+imported locations. This provenance does not currently change availability or suppression.
+Editing a discovered location is part of actioning it.
 
 **Location codes must be unique within an agency, not across the consortium.** Two libraries
 can each have a `MAIN`; one library cannot have two. This matches how DCB derives a location's

@@ -1,0 +1,41 @@
+image:
+  name: docker.libsdev.k-int.com/knowledgeintegration/ki-graalvm-java:25
+  pull_policy: if-not-present
+
+default:
+  services:
+    - name: docker:24.0.9-dind
+      pull_policy: if-not-present
+
+variables:
+  DOCKER_HOST: "tcp://localhost:2375/"
+  DOCKER_TLS_CERTDIR: ""
+  GIT_DEPTH: "0"
+  GIT_FETCH_EXTRA_FLAGS: "--tags --prune --quiet"
+
+stages:
+  - test
+
+test:
+  stage: test
+  tags:
+    - ki-onprem
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  before_script:
+    - export GRADLE_USER_HOME="$CI_PROJECT_DIR/.gradle"
+  script:
+    - ./gradlew --no-daemon test
+  artifacts:
+    when: always
+    reports:
+      junit: dcb/build/test-results/test/TEST-*.xml
+    paths:
+      - dcb/build/reports/tests/test/
+    expire_in: 1 week
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches

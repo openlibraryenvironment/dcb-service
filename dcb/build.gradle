@@ -142,6 +142,7 @@ dependencies {
 	// testresources Micronaut Message: Could not resolve placeholder ${auto.test.resources.r2dbc.datasources.default.options.protocol}
 	//
 	runtimeOnly("io.r2dbc:r2dbc-pool")
+	testImplementation("io.r2dbc:r2dbc-pool")
 
 	implementation("io.micronaut.flyway:micronaut-flyway")
 	runtimeOnly("org.flywaydb:flyway-database-postgresql")
@@ -522,11 +523,16 @@ gitProperties {
 }
 
 test {
-	// Reduce noise in CI logs by disabling per-test XML reports
+	// Keep machine-readable reports compact.
 	reports.junitXml.outputPerTestCase = false
 	testLogging {
 		exceptionFormat = 'short'
 		showStandardStreams = false
+		if (System.getenv('CI')) {
+			// Testcontainers integration tests can take several minutes. Emit the
+			// current test in CI so a blocked suite has an actionable last point.
+			events 'started', 'failed'
+		}
 	}
 }
 

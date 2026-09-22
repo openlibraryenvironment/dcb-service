@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.LocationCreationSource;
 import org.olf.dcb.core.model.Workflow;
 import org.olf.dcb.storage.LocationRepository;
 
@@ -62,6 +63,7 @@ class LocationServiceTests {
 		assertThat(recorded, is(notNullValue()));
 		assertThat(recorded.getAgency(), is(nullValue()));
 		assertThat(recorded.getNeedsAttention(), is(Boolean.TRUE));
+		assertThat(recorded.getCreationSource(), is(LocationCreationSource.AVAILABILITY_DISCOVERY));
 		assertThat(recorded.getActiveWorkflows().containsKey("DynamicLocation"), is(true));
 		assertThat(recorded.getHostSystem().getCode(), is("shared-koha"));
 	}
@@ -76,6 +78,7 @@ class LocationServiceTests {
 		final var recorded = memoize(reportedLocation("BRANCH-NORTH"), agency);
 
 		assertThat(recorded.getAgency().getCode(), is("north-library"));
+		assertThat(recorded.getCreationSource(), is(LocationCreationSource.AVAILABILITY_DISCOVERY));
 		assertThat(recorded.getNeedsAttention(), is(nullValue()));
 		assertThat(recorded.getActiveWorkflows().containsKey("DynamicLocation"), is(false));
 	}
@@ -96,6 +99,7 @@ class LocationServiceTests {
 			.code("BRANCH-NORTH")
 			.name("North Branch")
 			.type("Library")
+			.creationSource(LocationCreationSource.MANUAL)
 			.hostSystem(SHARED_KOHA)
 			.build();
 
@@ -105,6 +109,7 @@ class LocationServiceTests {
 		final var recorded = memoize(reportedLocation("BRANCH-NORTH"), null);
 
 		assertThat(recorded.getName(), is("North Branch"));
+		assertThat(recorded.getCreationSource(), is(LocationCreationSource.MANUAL));
 		verify(locationRepository, never()).save(any());
 	}
 

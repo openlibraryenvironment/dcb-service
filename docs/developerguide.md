@@ -21,7 +21,18 @@ GRADLE_USER_HOME="$PWD/.gradle-codex" timeout 30m ./gradlew test --no-daemon --n
 Cross-system acceptance is in `dcb-ops/docker-local/qa-local.sh
 smoke-fallback-host-dcb-request`.
 
+## Tests
+
+Tests share one Testcontainers PostgreSQL instance per Gradle test worker. Each Micronaut context has a two-connection R2DBC pool and a two-connection JDBC pool. R2DBC starts empty, evicts idle connections after two seconds, and fails an acquisition after 30 seconds. Fixture cleanup uses one connection to stream rows and one to delete them sequentially. Do not replace this with an unbounded read or delete fan-out. CI logs each started test so a stalled suite has a last known test.
+
 Electronic availability is transient. Add fields only to `AvailabilityResponseViewV2`; never extend the fragile legacy view.
+
+## Availability backfill
+
+The scheduled availability backfill refreshes the location facets. Its ISO-8601 grace periods are
+`dcb.jobs.availability.mapped-recheck-grace-period` (`P60D`) and
+`dcb.jobs.availability.recheck-grace-period` (`P14D`). Set either per deployment to control the
+refresh/load trade-off.
 
 ## OAI-PMH checkpoints
 
