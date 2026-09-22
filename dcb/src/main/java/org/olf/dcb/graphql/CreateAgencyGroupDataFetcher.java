@@ -33,6 +33,11 @@ public class CreateAgencyGroupDataFetcher implements DataFetcher<CompletableFutu
 
 	@Override
 	public CompletableFuture<AgencyGroup> get(DataFetchingEnvironment env) {
+		// A MUTATING fetcher that had no role check at all: every authenticated principal
+		// could create an agency group. Same roles as createLocation and createLibrary,
+		// which are the same kind of consortium-level configuration.
+		GraphQLRoles.require(env, "createAgencyGroup", GraphQLRoles.CONSORTIUM);
+
 		// String name = env.getArgument("name");
 		// String code = env.getArgument("code");
 		// AgencyGroup input = env.getArgument("input");

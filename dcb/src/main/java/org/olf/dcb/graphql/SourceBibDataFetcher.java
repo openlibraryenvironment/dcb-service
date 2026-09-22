@@ -33,6 +33,8 @@ public class SourceBibDataFetcher implements DataFetcher<CompletableFuture<Page<
 
 	public CompletableFuture<Page<BibRecord>> get(DataFetchingEnvironment env) throws Exception {
 
+		GraphQLRoles.require(env, "sourceBibs", GraphQLRoles.STAFF);
+
 		Integer pageno = env.getArgument("pageno");
 		Integer pagesize = env.getArgument("pagesize");
 		String query = env.getArgument("query");
