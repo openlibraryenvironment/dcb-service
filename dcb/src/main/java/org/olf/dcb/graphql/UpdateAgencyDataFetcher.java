@@ -50,8 +50,10 @@ public class UpdateAgencyDataFetcher implements DataFetcher<CompletableFuture<Da
 			.orElse("User not detected");
 
 		if (roles == null || (!roles.contains("CONSORTIUM_ADMIN"))) {
-			log.warn("createRoleDataFetcher: Access denied for user {}: user does not have the required role to update consortial max loans.", userString);
-			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to update consortial max loans.");
+			// Named for what this actually is. A refusal logged under another fetcher's
+			// name, describing another fetcher's operation, is a refusal nobody can find.
+			log.warn("updateAgencyDataFetcher: Access denied for user {}: user does not have the required role to update an agency.", userString);
+			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to update an agency.");
 		}
 
 		// Get the agency code and the editable values

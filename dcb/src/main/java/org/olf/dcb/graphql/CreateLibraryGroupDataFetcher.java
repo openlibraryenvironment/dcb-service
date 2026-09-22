@@ -34,6 +34,10 @@ public class CreateLibraryGroupDataFetcher implements DataFetcher<CompletableFut
 
 	@Override
 	public CompletableFuture<LibraryGroup> get(DataFetchingEnvironment env) {
+		// A MUTATING fetcher that had no role check at all, while createLibrary beside it
+		// required these two. A group is how libraries are organised into a consortium.
+		GraphQLRoles.require(env, "createLibraryGroup", GraphQLRoles.CONSORTIUM);
+
 		Map input_map = env.getArgument("input");
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
