@@ -122,7 +122,7 @@ public class LiveAvailabilityService {
 	/**
 	 * Fetch a report suitable for replacing persisted availability counts. The
 	 * scheduled backfill must not use a timeout cache fallback or trigger the
-	 * live-lookup count/index side effects.
+	 * live-lookup cache, count/index, or location-recording side effects.
 	 */
 	public Mono<AvailabilityReport> fetchBibAvailabilityForBackfill(BibRecord bib,
 		Duration timeout, String filters) {
@@ -215,7 +215,7 @@ public class LiveAvailabilityService {
 		return hostLmsService.findById(bibRecord.getSourceSystemId())
 			.flatMap(sourceSystem -> hostLmsService.getClientFor(sourceSystem)
 				.flatMap(hostLms -> checkBibAvailabilityAtHost(bibRecord, parentTags, hostLms,
-					sourceSystem, options, updateLiveCache)))
+					sourceSystem, options, updateLiveCache, updateLiveCache)))
 			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
 	
@@ -234,12 +234,12 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bib,
 		List<Tag> parentTags, HostLmsClient hostLms, DataHostLms sourceSystem,
 		AvailabilityOptions options) {
-		return checkBibAvailabilityAtHost(bib, parentTags, hostLms, sourceSystem, options, true);
+		return checkBibAvailabilityAtHost(bib, parentTags, hostLms, sourceSystem, options, true, true);
 	}
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bib,
 		List<Tag> parentTags, HostLmsClient hostLms, DataHostLms sourceSystem,
-		AvailabilityOptions options, boolean updateLiveCache) {
+		AvailabilityOptions options, boolean updateLiveCache, boolean recordLocations) {
 
 		final var timeout = getValueOrNull(options, AvailabilityOptions::timeout);
 		final var filters = getValueOrNull(options, AvailabilityOptions::filters);
@@ -253,8 +253,10 @@ public class LiveAvailabilityService {
 		final var liveData = Mono.defer( () -> Mono.just(System.nanoTime()) )
 			.flatMap( start -> hostLms.getItems(bib)
 					.flatMapIterable(identity())
-					.flatMap(item -> memoizeLocationFromItem(item, sourceSystem),
-						LOCATION_MEMOIZATION_CONCURRENCY)
+					.transform(items -> recordLocations
+						? items.flatMap(item -> memoizeLocationFromItem(item, sourceSystem),
+							LOCATION_MEMOIZATION_CONCURRENCY)
+						: items)
 					.filter(conditionallyFilter(filters, Item::notSuppressed))
 					.filter(conditionallyFilter(filters, Item::notDeleted))
 					.filter(conditionallyFilter(filters, Item::hasAgency))

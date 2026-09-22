@@ -57,10 +57,13 @@ updates. Review found the following correctness, load, and test concerns.
   the timeout cache fallback and live count/index update. The job owns its one
   persistence and reindex pass.
 
-- [ ] **Avoid unrelated per-item work and ineffective cache warming.** The
-  backfill uses the live path, including location memoization per item and a
+- [x] **Avoid unrelated per-item work and ineffective cache warming.** The
+  backfill used the live path, including location memoization per item and a
   1,000-entry, one-day in-memory cache. Decide which side effects the backfill
   actually needs and remove the rest from that path.
+  **Fixed:** backfill already bypassed the live cache; it now also bypasses
+  location recording. Live lookups continue to record locations and update the
+  cache. Focused coverage proves a backfill fetch does neither.
 
 - [ ] **Correct legacy grace-period selection.** For rows whose
   `grace_period_end` is null, the query currently excludes old rows and selects
