@@ -86,6 +86,10 @@ updates. Review found the following correctness, load, and test concerns.
   occur within chunk-level transaction handling. Keep network waits outside
   database transactions and make count replacement atomic at the appropriate
   bib or cluster boundary.
+  **Deferred:** chunk-level transactions were an explicit throughput decision.
+  Validate their real effect on a representative test system before changing
+  them: transaction age, connection-pool use, lock waits, job throughput, and
+  slow-LMS behaviour.
 
 - [ ] **Investigate the nonterminating patron-resolution test.** A full test run
   on this branch blocked in
