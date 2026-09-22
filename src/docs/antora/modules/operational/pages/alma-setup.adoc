@@ -88,6 +88,14 @@ changing in Alma, or what in Alma is causing a DCB issue.
 
 | Default circulation desk
 | The desk OpenRS should use for checkouts.
+
+| Virtual patron barcode prefix (optional)
+| Put in front of the barcode of every virtual patron DCB creates, `DCB-` unless you choose
+another. Alma will not let two users share an identifier, so without it a visiting patron
+whose barcode matches one of your own users cannot be created, and one created first holds an
+identifier none of your own users can then be given. To find a virtual patron at the desk,
+search for the prefix followed by the patron's barcode. Set it to empty only if your own
+identifiers can never match another member's barcodes.
 |===
 
 This lets the OpenRS team set up your institution's basic configuration in DCB. Consortium

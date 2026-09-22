@@ -703,12 +703,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		}
 
 		List<UserIdentifier> identifiers = new ArrayList<>();
+		final var barcodePrefix = config.getVirtualPatronBarcodePrefix();
 
 		// Add barcode identifiers
 		// WARNING: adding multiple barcodes may not be supported by Alma
 		if (patron.getLocalBarcodes() != null && !patron.getLocalBarcodes().isEmpty()) {
 			patron.getLocalBarcodes().stream()
 				.filter(Objects::nonNull) // Guard against null barcodes in the list
+				.map(barcode -> barcodePrefix + barcode)
 				.filter(barcode -> !barcode.equals(externalId)) // Request cannot contain two identifiers with the same value
 				.map(barcode -> UserIdentifier.builder()
 					.id_type(WithAttr.builder().value(ID_TYPE_BARCODE).build())

@@ -61,6 +61,14 @@ public class AlmaClientConfig {
 	private static final HostLmsPropertyDefinition DCB_SHARING_LIBRARY_CODE
 		= stringPropertyDefinition("sharing-library-code", "Library used to ship resources outside of Alma", TRUE);
 
+	// Alma user identifiers are unique across the institution, so a borrower's bare barcode can
+	// collide with one of this Alma's own users; "" turns the prefix off
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_BARCODE_PREFIX
+		= stringPropertyDefinition("virtual-patron-barcode-prefix",
+			"Prefix on the barcode of each virtual patron DCB creates in this Alma", FALSE);
+
+	public static final String DEFAULT_VIRTUAL_PATRON_BARCODE_PREFIX = "DCB-";
+
 	private final HostLms hostLms;
 
 	public AlmaClientConfig(HostLms hostLms) {
@@ -95,6 +103,11 @@ public class AlmaClientConfig {
 		return USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
+	String getVirtualPatronBarcodePrefix() {
+		return VIRTUAL_PATRON_BARCODE_PREFIX.getOptionalValueFrom(hostLms.getClientConfig(),
+			DEFAULT_VIRTUAL_PATRON_BARCODE_PREFIX);
+	}
+
 	String getRequestCancellationReason() {
 		return REQUEST_CANCELLATION_REASON.getOptionalValueFrom(hostLms.getClientConfig(), null);
 	}
@@ -119,7 +132,8 @@ public class AlmaClientConfig {
 			PICKUP_CIRC_DESK_SETTING,
 			DEFAULT_CIRC_DESK_CODE,
 			USER_IDENTIFIER,
-			REQUEST_CANCELLATION_REASON
+			REQUEST_CANCELLATION_REASON,
+			VIRTUAL_PATRON_BARCODE_PREFIX
 		);
 	}
 

@@ -26,6 +26,7 @@ class AlmaClientConfigTests {
 			"pickup-circ-desk",
 			"default-circ-desk-code",
 			"user-identifier",
-			"request-cancellation-reason"));
+			"request-cancellation-reason",
+			"virtual-patron-barcode-prefix"));
 	}
 }
