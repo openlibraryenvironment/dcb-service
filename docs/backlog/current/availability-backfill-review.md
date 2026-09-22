@@ -75,9 +75,12 @@ updates. Review found the following correctness, load, and test concerns.
   `dcb.jobs.availability.recheck-grace-period`. PostgreSQL coverage verifies
   the legacy selection boundary.
 
-- [ ] **Define completeness per bib.** One current count row currently suppresses
+- [x] **Define completeness per bib.** One current count row currently suppresses
   rechecking the whole bib even when other rows are stale or inconsistent.
   Establish how completeness and refresh state are represented and queried.
+  **Closed without action:** a complete scheduled response refreshes all location
+  counts for its bib together. Mixed rows require an unusual partial or legacy
+  state and do not justify additional completeness state or query complexity.
 
 - [ ] **Shorten transaction scope.** Remote calls for an entire chunk currently
   occur within chunk-level transaction handling. Keep network waits outside
