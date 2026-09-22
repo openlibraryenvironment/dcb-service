@@ -680,14 +680,17 @@ public class KohaHostLmsClient implements HostLmsClient {
 		};
 	}
 
-	// An unreadable list is an empty one, not a failure: the report says so per vocabulary
 	private <T> Mono<List<ConfigurationReport.Entry>> entries(Mono<T[]> source,
 		Function<T, ConfigurationReport.Entry> toEntry) {
 
-		return source
-			.map(values -> Arrays.stream(values).map(toEntry).toList())
+		return source.map(values -> Arrays.stream(values).map(toEntry).toList());
+	}
+
+	// An unreadable list is an empty one, not a failure: the report says so per vocabulary
+	private Mono<List<ConfigurationReport.Entry>> emptyWhenUnreadable(MappingVocabulary vocabulary) {
+		return fetchVocabulary(vocabulary)
 			.onErrorResume(error -> {
-				log.warn("Could not read a vocabulary from Koha at {}", getHostLmsCode(), error);
+				log.warn("Could not read {} from Koha at {}", vocabulary, getHostLmsCode(), error);
 
 				return Mono.just(List.of());
 			});
@@ -699,9 +702,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<ConfigurationReport> checkConfiguration() {
 		return Mono.zip(
-				fetchVocabulary(MappingVocabulary.ITEM_TYPE),
-				fetchVocabulary(MappingVocabulary.PATRON_TYPE),
-				fetchVocabulary(MappingVocabulary.LOCATION))
+				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.LOCATION))
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3()))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
 				"Could not read configuration from Koha: " + error.getMessage())));

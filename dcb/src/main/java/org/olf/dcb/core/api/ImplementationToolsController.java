@@ -22,6 +22,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.olf.dcb.core.interaction.ConfigurationReport;
+import org.olf.dcb.core.interaction.MappingValueCheck;
+import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.PingResponse;
 
 import jakarta.validation.constraints.NotNull;
@@ -169,6 +171,23 @@ public class ImplementationToolsController {
 		String systemCode) {
 
 		return interopTestService.checkConfiguration(systemCode);
+	}
+
+	@Operation(
+		summary = "Check one value before it is mapped",
+		description = "Asks the Host LMS whether a single location, item type or patron type code exists "
+			+ "there. UNKNOWN means the list could not be read, never that the value is absent."
+	)
+	@Get(uri = "/configuration/{systemCode}/mapping-value", produces = APPLICATION_JSON)
+	public Mono<MappingValueCheck> checkMappingValue(
+		@Parameter(description = "Host LMS system code", required = true)
+		@PathVariable
+		@NotBlank(message = "System code cannot be blank")
+		String systemCode,
+		@NotNull @QueryValue MappingVocabulary vocabulary,
+		@NotBlank @QueryValue String value) {
+
+		return interopTestService.checkMappingValue(systemCode, vocabulary, value);
 	}
 
 	public Mono<InteropTestResult> createPatronTest() {

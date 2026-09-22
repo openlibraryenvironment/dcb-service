@@ -17,6 +17,8 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.ConfigurationReport.CheckResult;
+import org.olf.dcb.core.interaction.MappingValueCheck;
+import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.svc.LocationService;
@@ -108,7 +110,7 @@ class AlmaHostLmsClientConfigurationReportTests {
 		assertThat(codesIn(report, "Patron types"), is(List.of("UNDRGRD", "STAFF")));
 
 		// A bare location code is ambiguous across libraries, so the library is named
-		assertThat(descriptionIn(report, "Locations", "MAIN"), containsString("Resource Sharing"));
+		assertThat(descriptionIn(report, "Shelving locations", "MAIN"), containsString("Resource Sharing"));
 	}
 
 	@Test
@@ -125,6 +127,80 @@ class AlmaHostLmsClientConfigurationReportTests {
 		// Unreadable is not absent: reporting MISSING here would send someone to create a
 		// policy code that may already exist
 		assertThat(resultOf(report, "no-renew-item-policy"), is(CheckResult.UNKNOWN));
+	}
+
+	@Test
+	void shouldCheckALocationMappingAgainstLibrariesBecauseThatIsWhatDcbMapsForAlma() {
+		whenAlmaReturnsTheUsualVocabularies();
+
+		final var sut = clientWithConfig(Map.of());
+
+		// An Alma item's DCB location is its owning library, so a library code is the valid value
+		assertThat(sut.checkMappingValue(MappingVocabulary.LOCATION, "RES_SHARE").block().result(),
+			is(MappingValueCheck.Result.PRESENT));
+
+		assertThat(sut.checkMappingValue(MappingVocabulary.LOCATION, "MAIN").block().result(),
+			is(MappingValueCheck.Result.MISSING));
+	}
+
+	@Test
+	void shouldSayWhyAValueCouldNotBeCheckedRatherThanThatAlmaReturnedNothing() {
+		when(almaApi.retrieveCodeTable("UserGroups"))
+			.thenReturn(Mono.error(new RuntimeException("Alma is unwell")));
+
+		final var check = clientWithConfig(Map.of())
+			.checkMappingValue(MappingVocabulary.PATRON_TYPE, "UNDRGRD").block();
+
+		assertThat(check.result(), is(MappingValueCheck.Result.UNKNOWN));
+		assertThat(check.detail(), containsString("Alma is unwell"));
+	}
+
+	@Test
+	void shouldNotCallTheVirtualItemLocationMissingWhenItsLibraryCouldNotBeRead() {
+		whenAlmaReturnsTheUsualVocabularies();
+		whenAlmaAlsoHasLibrary("DCB_LIB", "DCB Virtual");
+
+		when(almaApi.retrieveLocations("DCB_LIB"))
+			.thenReturn(Mono.error(new RuntimeException("429 PER_SECOND_THRESHOLD")));
+
+		final var report = clientWithConfig(Map.of(
+			"virtual-item-library-code", "DCB_LIB",
+			"virtual-item-location-code", "DCB_LOC")).checkConfiguration().block();
+
+		assertThat(resultOf(report, "virtual-item-location-code"), is(CheckResult.UNKNOWN));
+	}
+
+	@Test
+	void shouldNotAcceptALocationThatOnlyExistsInAnotherLibrary() {
+		whenAlmaReturnsTheUsualVocabularies();
+		whenAlmaAlsoHasLibrary("DCB_LIB", "DCB Virtual");
+
+		when(almaApi.retrieveLocations("DCB_LIB")).thenReturn(Mono.just(AlmaLocationResponse.builder()
+			.locations(List.of(AlmaLocation.builder().code("DCB_LOC").name("DCB items").build()))
+			.build()));
+
+		// MAIN is real, but in RES_SHARE; the holding DCB creates in DCB_LIB would be refused
+		final var report = clientWithConfig(Map.of(
+			"virtual-item-library-code", "DCB_LIB",
+			"virtual-item-location-code", "MAIN")).checkConfiguration().block();
+
+		assertThat(resultOf(report, "virtual-item-location-code"), is(CheckResult.MISSING));
+	}
+
+	private void whenAlmaAlsoHasLibrary(String code, String name) {
+		when(almaApi.retrieveLibraries()).thenReturn(Mono.just(AlmaLibrariesResponse.builder()
+			.libraries(List.of(
+				AlmaLibraryResponse.builder()
+					.code("RES_SHARE")
+					.name("Resource Sharing")
+					.numberOfLocations(LinkValuePair.builder().value(1).build())
+					.build(),
+				AlmaLibraryResponse.builder()
+					.code(code)
+					.name(name)
+					.numberOfLocations(LinkValuePair.builder().value(1).build())
+					.build()))
+			.build()));
 	}
 
 	private void whenAlmaReturnsTheUsualVocabularies() {

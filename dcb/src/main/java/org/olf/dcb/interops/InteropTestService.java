@@ -550,6 +550,15 @@ public class InteropTestService {
 				"Could not reach " + systemCode + ": " + error.getMessage())));
 	}
 
+	public Mono<MappingValueCheck> checkMappingValue(String systemCode, MappingVocabulary vocabulary,
+		String value) {
+
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(client -> client.checkMappingValue(vocabulary, value))
+			.onErrorResume(error -> Mono.just(MappingValueCheck.unknown(systemCode, vocabulary, value,
+				"Could not reach " + systemCode + ": " + error.getMessage())));
+	}
+
 	public Mono<InteropTestResult> retrieveConfiguration(String systemCode, ConfigType validatedType) {
 		return hostLmsService.getClientFor(systemCode)
 			.flatMap(hostLmsClient -> hostLmsClient.fetchConfigurationFromAPI(validatedType))

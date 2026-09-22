@@ -50,6 +50,7 @@ import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaCircDesk;
 import services.k_int.interaction.alma.AlmaCodeTable;
 import services.k_int.interaction.alma.AlmaLibraryResponse;
+import services.k_int.interaction.alma.AlmaLibrariesResponse;
 import services.k_int.interaction.alma.AlmaLocation;
 import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.AlmaGroupedLocationResponse;
@@ -311,18 +312,22 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	// A tenant's location list has no documented ceiling, so every vocabulary is capped
 	private static final int MAX_VOCABULARY_ENTRIES = 500;
 
+	// Alma allows 50 calls a second per institution and 10 on a sandbox; two in flight stays
+	// inside both, and a 429 makes the location list unreadable rather than short
+	private static final int LOCATION_FETCH_CONCURRENCY = 2;
+
 	/**
-	 * Three code tables, the library list, and one locations call per library. Triggered by an
+	 * Three code tables, the library list twice, and one locations call per library. Triggered by an
 	 * implementer from the tools API, never on a request path.
 	 */
 	@Override
 	public Mono<ConfigurationReport> checkConfiguration() {
 		return Mono.zip(
-				codeTableEntries(ITEM_TYPE_CODE_TABLE),
-				codeTableEntries(PATRON_TYPE_CODE_TABLE),
-				codeTableEntries(ITEM_POLICY_CODE_TABLE),
-				libraryEntries(),
-				locationEntries())
+				emptyWhenUnreadable(codeTableEntries(ITEM_TYPE_CODE_TABLE), ITEM_TYPE_CODE_TABLE),
+				emptyWhenUnreadable(codeTableEntries(PATRON_TYPE_CODE_TABLE), PATRON_TYPE_CODE_TABLE),
+				emptyWhenUnreadable(codeTableEntries(ITEM_POLICY_CODE_TABLE), ITEM_POLICY_CODE_TABLE),
+				emptyWhenUnreadable(libraryEntries(), "libraries"),
+				emptyWhenUnreadable(allLocations(), "locations"))
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(),
 				answers.getT3(), answers.getT4(), answers.getT5()))
 			.onErrorResume(error -> Mono.just(ConfigurationReport
@@ -334,11 +339,20 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return switch (vocabulary) {
 			case ITEM_TYPE -> codeTableEntries(ITEM_TYPE_CODE_TABLE);
 			case PATRON_TYPE -> codeTableEntries(PATRON_TYPE_CODE_TABLE);
-			case LOCATION -> locationEntries();
+			// A DCB Location for Alma is the owning library (see locationForLibraryCode), never a shelving location
+			case LOCATION -> libraryEntries();
 		};
 	}
 
 	// One unreadable list leaves the rest of the report standing; the empty vocabulary says so
+	private <T> Mono<List<T>> emptyWhenUnreadable(Mono<List<T>> source, String what) {
+		return source.onErrorResume(error -> {
+			log.warn("Could not read Alma {} at {}", what, getHostLmsCode(), error);
+
+			return Mono.just(List.of());
+		});
+	}
+
 	private Mono<List<ConfigurationReport.Entry>> codeTableEntries(String name) {
 		return client.retrieveCodeTable(name)
 			.map(table -> {
@@ -349,48 +363,44 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.map(row -> new ConfigurationReport.Entry(
 						row.getCode(), row.getDescription()))
 					.toList();
-			})
-			.onErrorResume(error -> {
-				log.warn("Could not read Alma code table {} at {}", name, getHostLmsCode(), error);
-
-				return Mono.just(List.of());
 			});
 	}
 
 	private Mono<List<ConfigurationReport.Entry>> libraryEntries() {
 		return client.retrieveLibraries()
-			.map(response -> {
-				final var libraries = response.getLibraries() != null
-					? response.getLibraries() : List.<AlmaLibraryResponse>of();
-
-				return libraries.stream()
-					.map(library -> new ConfigurationReport.Entry(
-						library.getCode(), library.getName()))
-					.toList();
-			})
-			.onErrorResume(error -> {
-				log.warn("Could not read Alma libraries at {}", getHostLmsCode(), error);
-
-				return Mono.just(List.of());
-			});
+			.map(response -> librariesIn(response).stream()
+				.map(library -> new ConfigurationReport.Entry(
+					library.getCode(), library.getName()))
+				.toList());
 	}
 
-	private Mono<List<ConfigurationReport.Entry>> locationEntries() {
-		return fetchLocations()
-			.map(response -> {
-				final var locations = response.getLocations() != null
-					? response.getLocations() : List.<AlmaLocation>of();
+	// Fails whole if any library's locations cannot be read: a partial list would report MISSING
+	private Mono<List<AlmaLocation>> allLocations() {
+		return client.retrieveLibraries()
+			.flatMapMany(response -> Flux.fromIterable(librariesIn(response)))
+			.flatMapSequential(this::locationsOf, LOCATION_FETCH_CONCURRENCY)
+			.collectList();
+	}
 
-				return locations.stream()
-					// Named with its library: two libraries on one tenant can both hold a MAIN
-					.map(location -> new ConfigurationReport.Entry(location.getCode(),
-						describeLocation(location)))
-					.toList();
-			})
-			.onErrorResume(error -> {
-				log.warn("Could not read Alma locations at {}", getHostLmsCode(), error);
+	private static List<AlmaLibraryResponse> librariesIn(AlmaLibrariesResponse response) {
+		return response.getLibraries() != null ? response.getLibraries() : List.of();
+	}
 
-				return Mono.just(List.of());
+	private Flux<AlmaLocation> locationsOf(AlmaLibraryResponse library) {
+		final var libraryCode = library.getCode();
+
+		if (libraryCode == null
+			|| (library.getNumberOfLocations() != null && library.getNumberOfLocations().getValue() == 0)) {
+
+			return Flux.empty();
+		}
+
+		return client.retrieveLocations(libraryCode)
+			.flatMapIterable(response -> response.getLocations() != null
+				? response.getLocations() : List.<AlmaLocation>of())
+			.doOnNext(location -> {
+				location.setLibraryCode(libraryCode);
+				location.setLibraryName(library.getName());
 			});
 	}
 
@@ -399,12 +409,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		List<ConfigurationReport.Entry> patronTypes,
 		List<ConfigurationReport.Entry> itemPolicies,
 		List<ConfigurationReport.Entry> libraries,
-		List<ConfigurationReport.Entry> locations) {
+		List<AlmaLocation> locations) {
+
+		final var virtualItemLibraryCode = rawConfigValue("virtual-item-library-code");
 
 		final var checks = List.of(
 			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), libraries),
-			checkSetting("virtual-item-library-code", rawConfigValue("virtual-item-library-code"), libraries),
-			checkSetting("virtual-item-location-code", rawConfigValue("virtual-item-location-code"), locations),
+			checkSetting("virtual-item-library-code", virtualItemLibraryCode, libraries),
+			checkVirtualItemLocation(virtualItemLibraryCode, locations),
 			checkSetting("item-policy", config.getItemPolicy("BOOK"), itemPolicies),
 			checkSetting("no-renew-item-policy",
 				config.getNoRenewItemPolicy(AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY), itemPolicies));
@@ -413,11 +425,46 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			vocabulary("Item types", itemTypes),
 			vocabulary("Patron types", patronTypes),
 			vocabulary("Item policies", itemPolicies),
-			vocabulary("Libraries", libraries),
-			vocabulary("Locations", locations));
+			vocabulary("Libraries (DCB locations)", libraries),
+			vocabulary("Shelving locations", locations.stream()
+				// Named with its library: two libraries on one tenant can both hold a MAIN
+				.map(location -> new ConfigurationReport.Entry(location.getCode(),
+					describeLocation(location)))
+				.toList()));
 
 		return new ConfigurationReport(getHostLmsCode(),
 			ConfigurationReport.Status.CHECKED, null, checks, vocabularies);
+	}
+
+	// Location codes repeat across libraries, so the code only counts inside the virtual item's library
+	private ConfigurationReport.Check checkVirtualItemLocation(String virtualItemLibraryCode,
+		List<AlmaLocation> locations) {
+
+		final var setting = "virtual-item-location-code";
+		final var configuredValue = rawConfigValue(setting);
+
+		if (isBlank(configuredValue) || locations.isEmpty()) {
+			return checkSetting(setting, configuredValue, List.of());
+		}
+
+		if (isBlank(virtualItemLibraryCode)) {
+			return new ConfigurationReport.Check(setting, configuredValue,
+				ConfigurationReport.CheckResult.UNKNOWN,
+				"virtual-item-library-code is not set, so there is no library to look in");
+		}
+
+		final var inVirtualItemLibrary = locations.stream()
+			.filter(location -> virtualItemLibraryCode.equals(location.getLibraryCode()))
+			.map(location -> new ConfigurationReport.Entry(location.getCode(), location.getName()))
+			.toList();
+
+		if (inVirtualItemLibrary.isEmpty()) {
+			return new ConfigurationReport.Check(setting, configuredValue,
+				ConfigurationReport.CheckResult.MISSING,
+				"Alma has no locations in library " + virtualItemLibraryCode);
+		}
+
+		return checkSetting(setting, configuredValue, inVirtualItemLibrary);
 	}
 
 	private static String describeLocation(AlmaLocation location) {
@@ -481,38 +528,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	public Mono<AlmaGroupedLocationResponse> fetchLocations() {
 		return client.retrieveLibraries()
-			.flatMapMany(librariesResponse -> {
-				List<AlmaLibraryResponse> libraries = librariesResponse.getLibraries();
-				if (libraries == null || libraries.isEmpty()) {
+			.flatMapMany(response -> Flux.fromIterable(librariesIn(response)))
+			.flatMapSequential(library -> locationsOf(library)
+				.onErrorResume(error -> {
+					log.warn("Failed to fetch locations for library {}: {}", library.getCode(), error.getMessage());
 					return Flux.empty();
-				}
-				return Flux.fromIterable(libraries)
-					.flatMap(library -> {
-						String libraryCode = getValueOrNull(library, AlmaLibraryResponse::getCode);
-						String libraryName = getValueOrNull(library, AlmaLibraryResponse::getName);
-						if (library.getNumberOfLocations().getValue() > 0 && libraryCode != null) {
-							return client.retrieveLocations(libraryCode)
-								.flatMapMany(response -> {
-									List<AlmaLocation> locations = response.getLocations();
-									log.debug("locations for library {}: {}", libraryCode, locations);
-									if (locations == null || locations.isEmpty()) {
-										return Flux.empty();
-									}
-									return Flux.fromIterable(locations)
-										.doOnNext(location -> location.setLibraryCode(libraryCode))
-										.doOnNext(location -> location.setLibraryName(libraryName));
-								})
-								.onErrorResume(e -> {
-									log.warn("Failed to fetch locations for library ID {}: {}", libraryCode, e.getMessage());
-									return Flux.empty();
-								});
-						}
-						return Flux.empty();
-					});
-			})
-			.onErrorContinue((throwable, location) -> {
-				log.warn("Error for location {}: {}", location, throwable.getMessage() != null ? throwable.getMessage() : throwable.toString());
-			})
+				}), LOCATION_FETCH_CONCURRENCY)
 			.collectList()
 			.map(locations -> AlmaGroupedLocationResponse.builder().locations(locations).build());
 	}
