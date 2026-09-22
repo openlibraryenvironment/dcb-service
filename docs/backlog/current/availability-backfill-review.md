@@ -75,6 +75,13 @@ updates. Review found the following correctness, load, and test concerns.
   database transactions and make count replacement atomic at the appropriate
   bib or cluster boundary.
 
+- [ ] **Investigate the nonterminating patron-resolution test.** A full test run
+  on this branch blocked in
+  `PatronRequestResolutionServiceTests.shouldExcludeItemWhichAlreadyHasAlreadyBeenRequested`,
+  waiting in `Mono.block` without a test timeout. Establish whether this is a
+  nondeterministic production-path deadlock, fixture leakage, or test harness
+  fault; fix it and ensure the full suite completes before enabling backfill.
+
 - [ ] **Add focused verification.** Cover candidate selection, grace periods,
   replacement/removal, empty and malformed results, failure progress, live
   updates, index-event deduplication, and actual concurrency limits. Include a
