@@ -326,19 +326,13 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	public Mono<Map<String, Collection<BibAvailabilityCount>>> checkClusterAvailability( Collection<UUID> bibs ) {
 		// Manifest the bibs that need updating.
 		return throttleFetchBySourceSystem( bibs )
-			// Trying to control the rate at which DB updates are generated - in response to the exception
-			// described in comments at the top of the class
-			.buffer(15) // process n at a time
-			.concatMap(batch -> Flux.fromIterable(batch)
-				.flatMap(this::updateMappingIfRequired, 3) // 3 concurrent per batch
-			)
 			.collectMultimap(count -> count.getBibId().toString());
 	}
 	
 
 	@Retryable(attempts = "3", delay = "2.5", multiplier = "2")
 	protected Mono<AvailabilityReport> remoteBibFetch( BibRecord bib ) {
-		return liveAvailabilityService.checkBibAvailability(bib, TIMEOUT, FILTERS);
+		return liveAvailabilityService.fetchBibAvailabilityForBackfill(bib, TIMEOUT, FILTERS);
 	}
 	
 	private Flux<BibAvailabilityCount> checkSingleBib ( BibRecord bib ) {
@@ -351,7 +345,42 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			.onErrorResume(e -> Mono.just(AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
 					.message("Error when fetching bib availability for [%s] %s".formatted(bib.getId().toString(), e))
 					.build())))
-			.flatMapMany( rep -> updateCountsFromAvailabilityReport(bib, rep) );
+			.flatMapMany( rep -> reconcileCountsFromAvailabilityReport(bib, rep) );
+	}
+
+	/**
+	 * Save the response's current counts and, only when the response is complete,
+	 * remove counts for locations it no longer reports. A missing location code or
+	 * an adapter error cannot prove a previous location has disappeared.
+	 */
+	private Flux<BibAvailabilityCount> reconcileCountsFromAvailabilityReport(BibRecord bib,
+		AvailabilityReport report) {
+
+		final boolean authoritative = report.getErrors().isEmpty()
+			&& report.getItems().stream()
+				.allMatch(item -> item.getLocationCode() != null && !item.getLocationCode().isBlank());
+
+		return updateCountsFromAvailabilityReport(bib, report)
+			.flatMap(this::updateMappingIfRequired)
+			.collectList()
+			.flatMapMany(counts -> {
+				if (!authoritative || counts.isEmpty()) {
+					return Flux.fromIterable(counts);
+				}
+
+				final var currentIds = counts.stream()
+					.map(BibAvailabilityCount::getId)
+					.toList();
+
+				return Mono.from(bibCounts.deleteAllByBibIdAndHostLmsAndIdNotIn(
+					bib.getId(), bib.getSourceSystemId(), currentIds))
+					.doOnNext(deleted -> {
+						if (deleted > 0) {
+							log.info("Removed {} stale availability count(s) for bib [{}]", deleted, bib.getId());
+						}
+					})
+					.thenMany(Flux.fromIterable(counts));
+			});
 	}
 	
 	/**

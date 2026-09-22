@@ -31,19 +31,26 @@ updates. Review found the following correctness, load, and test concerns.
   Persistence failures fail the update instead of advancing the chunk or queuing
   a live-path index update. Focused tests cover all three cases.
 
-- [ ] **Replace stale location rows.** A refresh only upserts locations present
+- [x] **Replace stale location rows.** A refresh only upserts locations present
   in the latest response. Decide how to remove or invalidate locations no longer
   returned, including empty results, so obsolete facets and counts disappear.
+  **Fixed:** a complete, uncached response now reconciles one bib/source-system
+  scope: current counts are upserted and absent rows are deleted. Errors and
+  missing/blank location codes retain prior rows because they cannot prove a
+  location has gone. PostgreSQL coverage verifies the scoped deletion.
 
 - [ ] **Enforce true instance-wide concurrency.** `instance-wide` is currently
   used as `concatMap` prefetch while clusters are processed through an unbounded
   `flatMap`. Define and test caps across clusters, source systems, remote calls,
   mapping work, and database writes.
 
-- [ ] **Remove duplicate live-lookup side effects during backfill.** A scheduled
+- [x] **Remove duplicate live-lookup side effects during backfill.** A scheduled
   fetch enters the live path, which writes counts and queues an index update;
   the job then writes and queues again. Separate fetching from persistence, or
   otherwise guarantee one count update and one index event per result.
+  **Fixed:** scheduled backfill now uses a backfill-specific fetch that bypasses
+  the timeout cache fallback and live count/index update. The job owns its one
+  persistence and reindex pass.
 
 - [ ] **Avoid unrelated per-item work and ineffective cache warming.** The
   backfill uses the live path, including location memoization per item and a

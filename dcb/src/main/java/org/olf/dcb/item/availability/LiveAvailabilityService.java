@@ -119,6 +119,23 @@ public class LiveAvailabilityService {
 		return checkBibAvailabilityAtHost(bib, emptyList(), options);
 	}
 
+	/**
+	 * Fetch a report suitable for replacing persisted availability counts. The
+	 * scheduled backfill must not use a timeout cache fallback or trigger the
+	 * live-lookup count/index side effects.
+	 */
+	public Mono<AvailabilityReport> fetchBibAvailabilityForBackfill(BibRecord bib,
+		Duration timeout, String filters) {
+
+		final var options = AvailabilityOptions.builder()
+			.timeout(ofNullable(timeout))
+			.filters(ofNullable(filters))
+			.ignoreCache(true)
+			.build();
+
+		return checkBibAvailabilityAtHost(bib, emptyList(), options, false);
+	}
+
 	public Mono<AvailabilityReport> checkAvailability(UUID clusteredBibId,
 		AvailabilityOptions options) {
 
@@ -186,6 +203,11 @@ public class LiveAvailabilityService {
 
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bibRecord,
 		List<Tag> parentTags, AvailabilityOptions options) {
+		return checkBibAvailabilityAtHost(bibRecord, parentTags, options, true);
+	}
+
+	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bibRecord,
+		List<Tag> parentTags, AvailabilityOptions options, boolean updateLiveCache) {
 
 		// Resolved as the record rather than straight to a client because recording the
 		// locations items were reported at needs the DataHostLms itself. getClientFor(UUID)
@@ -193,7 +215,7 @@ public class LiveAvailabilityService {
 		return hostLmsService.findById(bibRecord.getSourceSystemId())
 			.flatMap(sourceSystem -> hostLmsService.getClientFor(sourceSystem)
 				.flatMap(hostLms -> checkBibAvailabilityAtHost(bibRecord, parentTags, hostLms,
-					sourceSystem, options)))
+					sourceSystem, options, updateLiveCache)))
 			.doOnNext(b -> log.debug("getAvailableItems got items, progress to availability check"));
 	}
 	
@@ -212,6 +234,12 @@ public class LiveAvailabilityService {
 	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bib,
 		List<Tag> parentTags, HostLmsClient hostLms, DataHostLms sourceSystem,
 		AvailabilityOptions options) {
+		return checkBibAvailabilityAtHost(bib, parentTags, hostLms, sourceSystem, options, true);
+	}
+
+	private Mono<AvailabilityReport> checkBibAvailabilityAtHost(BibRecord bib,
+		List<Tag> parentTags, HostLmsClient hostLms, DataHostLms sourceSystem,
+		AvailabilityOptions options, boolean updateLiveCache) {
 
 		final var timeout = getValueOrNull(options, AvailabilityOptions::timeout);
 		final var filters = getValueOrNull(options, AvailabilityOptions::filters);
@@ -234,7 +262,9 @@ public class LiveAvailabilityService {
 					.filter(conditionallyFilter(filters, Item::AgencyIsSupplying))
 					.collectList()
 					.map(AvailabilityReport::ofItems)
-					.flatMap(Functions.curry(bib, this::addValueToCache))
+					.transformDeferred(report -> updateLiveCache
+						? report.flatMap(Functions.curry(bib, this::addValueToCache))
+						: report)
 					.map( report -> {
 						final long elapsed = System.nanoTime() - start;
 						var tags = new ArrayList<>(List.of( Tag.of("status", "success") ));

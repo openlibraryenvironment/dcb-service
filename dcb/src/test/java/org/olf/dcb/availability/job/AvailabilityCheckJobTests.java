@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -75,7 +76,7 @@ class AvailabilityCheckJobTests {
 		when(concurrency.getInstanceWide()).thenReturn(Optional.of(1));
 		when(concurrency.getPerSource()).thenReturn(1);
 		when(bibRecords.findAllByIdIn(any())).thenReturn(Flux.just(bib));
-		when(liveAvailability.checkBibAvailability(any(), any(), any())).thenReturn(Mono.empty());
+		when(liveAvailability.fetchBibAvailabilityForBackfill(any(), any(), any())).thenReturn(Mono.empty());
 		doAnswer(invocation -> Mono.just(invocation.getArgument(0)))
 			.when(counts).saveOrUpdate(any());
 		clearInvocations(counts);
@@ -87,6 +88,31 @@ class AvailabilityCheckJobTests {
 		verify(counts).saveOrUpdate(saved.capture());
 		assertThat(saved.getValue().getMappingResult(),
 			containsString("No availability report returned"));
+		verify(counts, never()).deleteAllByBibIdAndHostLmsAndIdNotIn(any(), any(), any());
+	}
+
+	@Test
+	void completeEmptyReportRemovesStaleCounts() {
+		final var bib = bib();
+		final var concurrency = mock(AvailabilityCheckJobConfig.Concurrency.class);
+		when(config.getConcurrency()).thenReturn(concurrency);
+		when(concurrency.getInstanceWide()).thenReturn(Optional.of(1));
+		when(concurrency.getPerSource()).thenReturn(1);
+		when(bibRecords.findAllByIdIn(any())).thenReturn(Flux.just(bib));
+		when(liveAvailability.fetchBibAvailabilityForBackfill(any(), any(), any()))
+			.thenReturn(Mono.just(AvailabilityReport.emptyReport()));
+		doAnswer(invocation -> Mono.just(invocation.getArgument(0)))
+			.when(counts).saveOrUpdate(any());
+		doReturn(Mono.just(1L)).when(counts)
+			.deleteAllByBibIdAndHostLmsAndIdNotIn(any(), any(), any());
+		clearInvocations(counts);
+
+		StepVerifier.create(job.checkClusterAvailability(List.of(bib.getId())))
+			.expectNextMatches(result -> result.containsKey(bib.getId().toString()))
+			.verifyComplete();
+
+		verify(counts).deleteAllByBibIdAndHostLmsAndIdNotIn(
+			eq(bib.getId()), eq(bib.getSourceSystemId()), any());
 	}
 
 	@Test
