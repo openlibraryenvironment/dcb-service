@@ -92,6 +92,17 @@ class WorkflowSelectionTests {
 	}
 
 	@Test
+	void shouldBeStandardWhenThePatronCollectsFromAnotherBranchOfTheirOwnSystem() {
+		// Two libraries on one Alma, lending from a third system. Treated as pickup anywhere,
+		// DCB creates a second virtual bib, item and patron in the catalogue that already holds
+		// the first - and that ILS refuses both, because item barcodes and user identifiers are
+		// unique within an institution. The pickup library is a branch of the borrower's own
+		// system, so its own hold routes the item there.
+		assertThat(workflowFor("other-agency", "shared-first", "shared-second"),
+			is(STANDARD_WORKFLOW));
+	}
+
+	@Test
 	void shouldNotBeLocalWhenThePatronIsOnAnotherSystem() {
 		// Lender and pickup share a system, but the patron does not. RET-LOCAL would
 		// send the request to placeSingularRequest, which resolves its client from the

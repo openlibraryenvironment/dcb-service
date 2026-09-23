@@ -561,12 +561,18 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 		// in the field. Here we unpack that structure back into an array of barcodes that the HostLMS can do with as it pleases
 		final List<String> patron_barcodes = parseList( requestingPatronIdentity.getLocalBarcode() );
 
-		if ((patron_barcodes == null) || (patron_barcodes.size() == 0)) {
+		// The pickup library scans the card the patron is carrying, so a patron with no barcode
+		// cannot be served at that desk. Audited, not just logged: this is a request that will
+		// fail in front of a person, and the audit is where staff look
+		final var noBarcodes = (patron_barcodes == null) || (patron_barcodes.isEmpty());
+
+		if (noBarcodes) {
 			log.warn("Pickup patron has no barcodes. Source identity {}. Will be unable to check out to this patron",
 				requestingPatronIdentity);
 		}
 
-		return determinePatronType(hostLmsCode, requestingPatronIdentity)
+		return auditMissingPickupPatronBarcode(patronRequest, noBarcodes)
+			.then(determinePatronType(hostLmsCode, requestingPatronIdentity))
 			.zipWith(Mono.just(patronRequest.getPatron()))
 			.flatMap(tuple -> {
 				final var patronType = tuple.getT1();
@@ -582,6 +588,16 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 					.map(createdPatronId -> Tuples.of(createdPatronId, patronType))
 					.doOnSuccess( t -> log.debug("determinePatronType ended with success {}",t) );
 			});
+	}
+
+	private Mono<Void> auditMissingPickupPatronBarcode(PatronRequest patronRequest, boolean noBarcodes) {
+		if (!noBarcodes) {
+			return Mono.empty();
+		}
+
+		return patronRequestAuditService.addAuditEntry(patronRequest,
+				"Pickup patron has no barcode : the pickup library will be unable to check out to them")
+			.then();
 	}
 
 	private List<String> stringToList(String string) {

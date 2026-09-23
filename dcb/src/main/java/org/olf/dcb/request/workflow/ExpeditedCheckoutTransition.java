@@ -8,6 +8,8 @@ import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -39,7 +41,13 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		this.hostLmsService = hostLmsService;
 	}
 
-	private String[] extractPatronBarcodes(String inputstr) {
+	private static String firstBarcode(String localBarcode) {
+		final var barcodes = extractPatronBarcodes(localBarcode);
+
+		return barcodes != null && barcodes.length > 0 ? barcodes[0] : null;
+	}
+
+	private static String[] extractPatronBarcodes(String inputstr) {
 		String[] result = null;
 		if (inputstr != null) {
 			if (inputstr.startsWith("[")) {
@@ -81,10 +89,12 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		}
 		auditData.put("patronBarcodes", auditBarcodeMessage);
 
+		// The supplier checkout is the loan: the patron is at that desk with the item in their hand.
+		// Only when it succeeds is this request LOANED. The borrower checkout mirrors it in the
+		// patron's own library and is allowed to fail without denying the loan that did happen.
 		return checkoutAtBorrower(ctx)
 			.then(checkoutAtSupplier(ctx))
 			.flatMap(this::updatePatronRequest)
-			// Explicitly set loaned on success to try and break out of the expedited checkout loop
 			.doOnSuccess(patronRequest -> ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED))
 			.doOnError(error -> log.error("Expedited checkout failed.", error));
 	}
@@ -129,9 +139,20 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 
 		log.info("Attempting expedited checkout at BORROWER system: {}", borrowerSystemCode);
 
+		// The borrower's own patron and virtual item, with the barcode that item carries: the
+		// virtual identity belongs to the supplier, and an ILS that finds items by barcode - Alma
+		// does - cannot act on a command carrying neither
 		final var command = CheckoutItemCommand.builder()
 			.localRequestId(localRequestId) // Crucially, this is the borrower's transaction ID
-			.patronId(rwc.getPatronVirtualIdentity().getLocalId())
+			.itemId(patronRequest.getLocalItemId())
+			.itemBarcode(getValueOrNull(rwc, RequestWorkflowContext::getSupplierRequest,
+				SupplierRequest::getLocalItemBarcode))
+			.patronId(getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity,
+				PatronIdentity::getLocalId))
+			.patronBarcode(firstBarcode(getValueOrNull(rwc,
+				RequestWorkflowContext::getPatronHomeIdentity, PatronIdentity::getLocalBarcode)))
+			.libraryCode(getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity,
+				PatronIdentity::getLocalHomeLibraryCode))
 			.build();
 
 		return hostLmsService.getClientFor(borrowerSystemCode)
@@ -140,6 +161,9 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 			.thenReturn(rwc)
 			.onErrorResume(error -> {
 			log.error("An error has occurred with the borrower-side expedited checkout", error);
+			// The loan still happens at the supplier; the patron's own library just has no record of it
+			rwc.getPatronRequest().setNeedsAttention(Boolean.TRUE);
+
 			return patronRequestAuditService
 				.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout at borrower failed: " + error.getMessage())
 				.thenReturn(rwc);
@@ -188,7 +212,7 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 				log.error("An error has occurred with the supplier-side expedited checkout", error);
 				return patronRequestAuditService
 					.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout at supplier failed: " + error.getMessage())
-					.thenReturn(rwc);
+					.then(Mono.error(error));
 			});
 	}
 }
