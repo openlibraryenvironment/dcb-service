@@ -22,6 +22,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.olf.dcb.core.interaction.ConfigurationReport;
+import org.olf.dcb.core.interaction.MappingAudit;
 import org.olf.dcb.core.interaction.MappingValueCheck;
 import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.PingResponse;
@@ -171,6 +172,22 @@ public class ImplementationToolsController {
 		String systemCode) {
 
 		return interopTestService.checkConfiguration(systemCode);
+	}
+
+	@Operation(
+		summary = "Check every mapping already saved for a Host LMS",
+		description = "Judges each saved reference value mapping targeting this system against the "
+			+ "values that system holds. A mapping built from a value's description rather than its "
+			+ "code reports MISSING here, rather than at the moment a request is placed."
+	)
+	@Get(uri = "/configuration/{systemCode}/mappings", produces = APPLICATION_JSON)
+	public Mono<MappingAudit> auditMappings(
+		@Parameter(description = "Host LMS system code", required = true)
+		@PathVariable
+		@NotBlank(message = "System code cannot be blank")
+		String systemCode) {
+
+		return interopTestService.auditMappings(systemCode);
 	}
 
 	@Operation(

@@ -1,6 +1,7 @@
 package org.olf.dcb.interops;
 
 import java.util.List;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
@@ -16,10 +17,12 @@ import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.svc.BibRecordService;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -39,11 +42,14 @@ public class InteropTestService {
 
 	private final HostLmsService hostLmsService;
 	private final BibRecordService bibRecordService;
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public InteropTestService(HostLmsService hostLmsService,
-			BibRecordService bibRecordService) {
+			BibRecordService bibRecordService,
+			ReferenceValueMappingRepository referenceValueMappingRepository) {
 		this.hostLmsService = hostLmsService;
 		this.bibRecordService = bibRecordService;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
 	/**
@@ -557,6 +563,60 @@ public class InteropTestService {
 			.flatMap(client -> client.checkMappingValue(vocabulary, value))
 			.onErrorResume(error -> Mono.just(MappingValueCheck.unknown(systemCode, vocabulary, value,
 				"Could not reach " + systemCode + ": " + error.getMessage())));
+	}
+
+	/** The from_category values reference value mappings are stored under, and their vocabulary. */
+	private static final Map<String, MappingVocabulary> AUDITED_CATEGORIES = Map.of(
+		"patronType", MappingVocabulary.PATRON_TYPE,
+		"ItemType", MappingVocabulary.ITEM_TYPE,
+		"Location", MappingVocabulary.LOCATION);
+
+	/**
+	 * Judges every saved mapping targeting one Host LMS against what that system holds.
+	 * <p>
+	 * Each vocabulary is read once and every row checked against it in memory: a call per row
+	 * would be one outbound request per mapping, against a system we do not own.
+	 */
+	public Mono<MappingAudit> auditMappings(String systemCode) {
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(client -> Flux.fromIterable(AUDITED_CATEGORIES.entrySet())
+				.concatMap(category -> auditCategory(client, systemCode, category.getKey(), category.getValue()))
+				.collectList()
+				.map(rows -> MappingAudit.of(systemCode, rows.stream().flatMap(List::stream).toList())))
+			.onErrorResume(error -> Mono.just(MappingAudit.failed(systemCode,
+				"Could not read " + systemCode + ": " + error.getMessage())));
+	}
+
+	private Mono<List<MappingAudit.Row>> auditCategory(HostLmsClient client, String systemCode,
+		String category, MappingVocabulary vocabulary) {
+
+		return Flux.from(referenceValueMappingRepository.findAllTargeting(systemCode))
+			.filter(mapping -> category.equals(mapping.getFromCategory()))
+			.collectList()
+			.flatMap(mappings -> mappings.isEmpty()
+				? Mono.just(List.<MappingAudit.Row>of())
+				: client.fetchVocabulary(vocabulary)
+					// An unreadable vocabulary reports UNKNOWN per row, never MISSING: telling an
+					// implementer a value is absent when we could not look sends them to create
+					// one that already exists
+					.onErrorResume(error -> {
+						log.warn("Could not read {} from {}", vocabulary, systemCode, error);
+						return Mono.just(List.of());
+					})
+					.map(entries -> mappings.stream()
+						.map(mapping -> auditRow(systemCode, category, vocabulary, mapping, entries))
+						.toList()));
+	}
+
+	private static MappingAudit.Row auditRow(String systemCode, String category,
+		MappingVocabulary vocabulary, ReferenceValueMapping mapping,
+		List<ConfigurationReport.Entry> entries) {
+
+		final var check = MappingValueCheck.against(systemCode, vocabulary,
+			mapping.getToValue(), entries);
+
+		return new MappingAudit.Row(category, mapping.getFromContext(), mapping.getFromValue(),
+			mapping.getToValue(), check.result(), check.detail());
 	}
 
 	public Mono<InteropTestResult> retrieveConfiguration(String systemCode, ConfigType validatedType) {

@@ -273,6 +273,27 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.next();
 	}
 
+	/**
+	 * 401129 is a fulfilment-rules answer, not an availability one: Alma found the item and
+	 * refused it. The body names neither of the two things that decide it - the pickup library
+	 * and the patron's user group - so the message does. Observed against a sandbox configured
+	 * with a Resource Sharing Library as the pickup library, which has no circulation desk and
+	 * so can never be one.
+	 */
+	private static boolean isNoItemCanFulfil(Throwable error) {
+		return error instanceof AlmaApiException almaError
+			&& almaError.has(AlmaApiException.Code.NO_ITEM_CAN_FULFIL);
+	}
+
+	private static AlmaHostLmsClientException noItemCanFulfil(MinimumAlmaHold hold, Throwable cause) {
+		return new AlmaHostLmsClientException(
+			("Alma refused a hold on item %s: no item can fulfil a request for pickup at library '%s'. "
+				+ "Check that '%s' is a pickup location for the item's fulfilment unit, and that the "
+				+ "patron's user group has a Request term of use.")
+				.formatted(hold.localItemId(), hold.pickupLibraryCode(), hold.pickupLibraryCode()),
+			cause);
+	}
+
 	// Bracketed so one request id cannot match another that it is a prefix of
 	private static String dcbMarker(String dcbRequestId) {
 		return isBlank(dcbRequestId) ? null : "[DCB-REQUEST:" + dcbRequestId + "]";
@@ -296,6 +317,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.doOnSubscribe(s -> log.info("Submitting HOLD patron={} item={} pickupLibrary={}",
 				hold.localPatronId(), hold.localItemId(), hold.pickupLibraryCode()))
 			.doOnError(this::logAlmaProblemDetails)
+			.onErrorMap(AlmaHostLmsClient::isNoItemCanFulfil, error -> noItemCanFulfil(hold, error))
 			.switchIfEmpty(raiseError(new AlmaHostLmsClientException(
 				"Empty Alma response creating hold for patron "+hold.localPatronId()+" / item "+hold.localItemId())));
 	}
@@ -338,9 +360,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				emptyWhenUnreadable(codeTableEntries(PATRON_TYPE_CODE_TABLE), PATRON_TYPE_CODE_TABLE),
 				emptyWhenUnreadable(codeTableEntries(ITEM_POLICY_CODE_TABLE), ITEM_POLICY_CODE_TABLE),
 				emptyWhenUnreadable(libraryEntries(), "libraries"),
-				emptyWhenUnreadable(allLocations(), "locations"))
+				emptyWhenUnreadable(allLocations(), "locations"),
+				emptyWhenUnreadable(resourceSharingLibraryCodes(), "libraries"))
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(),
-				answers.getT3(), answers.getT4(), answers.getT5()))
+				answers.getT3(), answers.getT4(), answers.getT5(), answers.getT6()))
 			.onErrorResume(error -> Mono.just(ConfigurationReport
 				.failed(getHostLmsCode(), "Could not read configuration from Alma: " + error.getMessage())));
 	}
@@ -420,12 +443,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		List<ConfigurationReport.Entry> patronTypes,
 		List<ConfigurationReport.Entry> itemPolicies,
 		List<ConfigurationReport.Entry> libraries,
-		List<AlmaLocation> locations) {
+		List<AlmaLocation> locations,
+		List<String> resourceSharingLibraryCodes) {
 
 		final var virtualItemLibraryCode = rawConfigValue("virtual-item-library-code");
 
 		final var checks = List.of(
-			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), libraries),
+			checkSharingLibrary(libraries, resourceSharingLibraryCodes),
 			checkSetting("virtual-item-library-code", virtualItemLibraryCode, libraries),
 			checkVirtualItemLocation(virtualItemLibraryCode, locations),
 			checkSetting("item-policy", config.getItemPolicy("BOOK"), itemPolicies),
@@ -445,6 +469,45 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		return new ConfigurationReport(getHostLmsCode(),
 			ConfigurationReport.Status.CHECKED, null, checks, vocabularies);
+	}
+
+	/**
+	 * Being in the library list is not enough for the library every supplier hold is sent to.
+	 * <p>
+	 * Alma marks its Resource Sharing Library with resource_sharing = true. That library serves
+	 * Alma's own borrowing and lending workflow - its only locations are the internal
+	 * OUT_RS_REQ and IN_RS_REQ - and it is not a patron pickup destination. A hold sent there
+	 * comes back 401129 "No items can fulfill the submitted request", which names nothing.
+	 * <p>
+	 * Measured rather than assumed: it does have circulation desks, so counting those would
+	 * have reported it fine.
+	 */
+	private ConfigurationReport.Check checkSharingLibrary(List<ConfigurationReport.Entry> libraries,
+		List<String> resourceSharingLibraryCodes) {
+
+		final var setting = "sharing-library-code";
+		final var configuredValue = rawConfigValue(setting);
+		final var inLibraryList = checkSetting(setting, configuredValue, libraries);
+
+		if (inLibraryList.result() != ConfigurationReport.CheckResult.PRESENT
+			|| !resourceSharingLibraryCodes.contains(configuredValue)) {
+
+			return inLibraryList;
+		}
+
+		return new ConfigurationReport.Check(setting, configuredValue,
+			ConfigurationReport.CheckResult.MISSING,
+			configuredValue + " is Alma's Resource Sharing Library, which serves Alma's own borrowing "
+				+ "and lending workflow and is not a patron pickup destination. Every supplier hold "
+				+ "sent there is refused with 401129. Use a library patrons can collect from");
+	}
+
+	private Mono<List<String>> resourceSharingLibraryCodes() {
+		return client.retrieveLibraries()
+			.map(response -> librariesIn(response).stream()
+				.filter(AlmaLibraryResponse::isResourceSharing)
+				.map(AlmaLibraryResponse::getCode)
+				.toList());
 	}
 
 	// Location codes repeat across libraries, so the code only counts inside the virtual item's library
