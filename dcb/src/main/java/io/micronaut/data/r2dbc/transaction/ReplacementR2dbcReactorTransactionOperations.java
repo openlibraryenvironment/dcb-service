@@ -42,9 +42,23 @@ import reactor.util.context.Context;
 import reactor.util.context.ContextView;
 
 /**
- * TODO: This is not ideal. We should look at moving to the delegate pattern for this override or, remove it altogether when possible.  
+ * Legacy replacement for Micronaut's R2DBC transaction implementation.
+ * <p>
+ * Micronaut's maintained implementation is the supported default. This class is
+ * retained only as an incident rollback switch while that default is observed in
+ * production. It must be removed by 2026-12-31.
+ * <p>
+ * To temporarily restore this implementation after a demonstrated regression,
+ * set {@code dcb.r2dbc.legacy-transaction-operations.enabled=true} (or
+ * {@code DCB_R2DBC_LEGACY_TRANSACTION_OPERATIONS_ENABLED=true}) and restart the
+ * application. Record the incident and revert the setting once resolved.
+ *
+ * @deprecated since 2026-09; use Micronaut's
+ *             {@link DefaultR2dbcReactorTransactionOperations} instead. Remove
+ *             this class by 2026-12-31.
  * @author Steve Osguthorpe
  */
+@Deprecated(since = "2026-09", forRemoval = true)
 @Slf4j
 @EachBean(ConnectionFactory.class)
 @Replaces(DefaultR2dbcReactorTransactionOperations.class)

@@ -161,13 +161,14 @@ updates. Review found the following correctness, load, and test concerns.
   establish its original 2024 trigger, so retain the restart-only fallback until
   a separately approved removal.
 
-- [ ] **Isolate MockServer request history between fulfilment test methods.** CI
+- [x] **Isolate MockServer request history between fulfilment test methods.** CI
   pipeline 62 on `4c50b1478` failed only the exact MockServer verification in
   `PlaceRequestAtSupplyingAgencyTests`: the placed request and local barcode were
   correct, but MockServer retained 15 prior requests. The `PER_CLASS` test creates
   database fixtures in `@BeforeEach` but does not reset MockServer before adding
-  each method's Sierra expectations. Reset it before setup, then verify the full
-  suite and CI pipeline; retain the exact HTTP assertion.
+  each method's Sierra expectations. **Fixed:** reset MockServer before installing
+  each method's credentials and expectations, retaining the exact HTTP assertion.
+  The focused class and full suite passed locally; confirm the next CI pipeline.
 
 For each item, record the decision and evidence before checking it. A checked
 item may mean fixed, explicitly accepted, superseded, or closed without action;
