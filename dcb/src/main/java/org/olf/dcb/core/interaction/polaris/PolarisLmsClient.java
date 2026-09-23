@@ -151,8 +151,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final PolarisItemMapper itemMapper;
 	private final PAPIClient PAPIService;
 	private final ApplicationServicesClient ApplicationServices;
-	private final List<ApplicationServicesClient.MaterialType> materialTypes = new ArrayList<>();
-	private final List<PolarisItemStatus> statuses = new ArrayList<>();
+	private Mono<List<ApplicationServicesClient.MaterialType>> materialTypes;
+	private Mono<List<PolarisItemStatus>> itemStatuses;
 	// NB: PolarisConfig must be bound with Jackson, NOT Micronaut's ObjectMapper, even
 	// though it is @Serdeable. PolarisConfig.baseUrl is declared as Object, and Micronaut
 	// Serde 3 silently binds null into Object-typed bean properties -- every Polaris test
@@ -181,6 +181,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	// Synch_BibsByIDGet accepts at most 50 ids per call.
 	private static final int BIBS_BY_ID_LIMIT = 50;
+	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
 
 	// Polaris creates a new blocking note rather than replacing one when the note id is 1
 	private static final Integer CREATE_NEW_BLOCKING_NOTE = 1;
@@ -806,14 +807,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// @see: https://documentation.iii.com/polaris/PAPI/7.1/PAPIService/Synch_ItemsByBibIDGet.htm
 		return PAPIService.synch_ItemGetByBibID(localBibId)
 			.flatMapMany(Flux::fromIterable)
-			.flatMap(this::fetchFullItemStatus)
-			.flatMap(this::setMaterialTypeCode)
-			.flatMap(mapItemWithRuleset(localBibId))
-			.flatMap(this::enrichWithCombinedNumberOfHoldsOnItem)
+			.transform(items -> enrichItemsWithBoundedConcurrency(items, item ->
+				fetchFullItemStatus(item)
+					.flatMap(this::setMaterialTypeCode)
+					.flatMap(mapItemWithRuleset(localBibId))
+					.flatMap(this::enrichWithCombinedNumberOfHoldsOnItem)))
 			.collectList();
 	}
 
-	private Function<PAPIClient.ItemGetRow, Publisher<Item>> mapItemWithRuleset(String localBibId) {
+	static <T, R> Flux<R> enrichItemsWithBoundedConcurrency(Flux<T> items,
+		Function<? super T, ? extends Publisher<? extends R>> enrichment) {
+
+		return items.flatMap(enrichment, ITEM_ENRICHMENT_CONCURRENCY);
+	}
+
+	private Function<PAPIClient.ItemGetRow, Mono<Item>> mapItemWithRuleset(String localBibId) {
 		return result -> getLmsItemSuppressionRuleset()
 			.flatMap(objectRuleset -> itemMapper.mapItemGetRowToItem(result, lms.getCode(), localBibId, objectRuleset, polarisConfig));
 	}
@@ -964,7 +972,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				// At this stage, we let the "null barcodes" through. They are probably, but not always, bib-level holds.
 				return holdBarcode == null || itemBarcode == null || holdBarcode.equals(itemBarcode);
 			})
-			.flatMap(hold -> {
+			.concatMap(hold -> {
 				if (hold.getItemBarcode() != null) {
 					// We already verified the barcode matches above. This should not be needed but Polaris does some weird things
 					return Mono.just(true);
@@ -1412,8 +1420,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<PAPIClient.ItemGetRow> setMaterialTypeCode(PAPIClient.ItemGetRow itemGetRow) {
-		return (materialTypes.isEmpty() ? ApplicationServices.listMaterialTypes().doOnNext(materialTypes::addAll)
-			: Mono.just(materialTypes))
+		return fetchMaterialTypesFromApi()
 			.flatMapMany(Flux::fromIterable)
 			.filter(materialType -> stringEquals(itemGetRow.getMaterialType(), materialType.getDescription()))
 			.map(materialType -> String.valueOf(materialType.getMaterialTypeID()))
@@ -1461,12 +1468,37 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<List<PolarisItemStatus>> fetchItemStatusesFromApi() {
+		synchronized (this) {
+			if (itemStatuses == null) {
+				log.info("Fetching item statuses...");
+				itemStatuses = ApplicationServices.listItemStatuses()
+					.doOnError(error -> clearItemStatuses())
+					.cache();
+			}
 
-		log.info("Fetching item statuses...");
+			return itemStatuses;
+		}
+	}
 
-		return statuses.isEmpty()
-			? ApplicationServices.listItemStatuses().doOnNext(statuses::addAll)
-			: Mono.just(statuses);
+	private Mono<List<ApplicationServicesClient.MaterialType>> fetchMaterialTypesFromApi() {
+		synchronized (this) {
+			if (materialTypes == null) {
+				log.info("Fetching material types...");
+				materialTypes = ApplicationServices.listMaterialTypes()
+					.doOnError(error -> clearMaterialTypes())
+					.cache();
+			}
+
+			return materialTypes;
+		}
+	}
+
+	private synchronized void clearItemStatuses() {
+		itemStatuses = null;
+	}
+
+	private synchronized void clearMaterialTypes() {
+		materialTypes = null;
 	}
 
 	/**
