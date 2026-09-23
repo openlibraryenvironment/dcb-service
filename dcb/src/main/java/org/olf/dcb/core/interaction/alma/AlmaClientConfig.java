@@ -62,12 +62,13 @@ public class AlmaClientConfig {
 		= stringPropertyDefinition("sharing-library-code", "Library used to ship resources outside of Alma", TRUE);
 
 	// Alma user identifiers are unique across the institution, so a borrower's bare barcode can
-	// collide with one of this Alma's own users; "" turns the prefix off
+	// collide with one of this Alma's own users. Empty by default all the same: at a pickup or
+	// walk-up library the patron presents their own card, and a prefixed barcode would not scan
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_BARCODE_PREFIX
 		= stringPropertyDefinition("virtual-patron-barcode-prefix",
-			"Prefix on the barcode of each virtual patron DCB creates in this Alma", FALSE);
+			"Prefix on virtual patron barcodes; empty unless this Alma's own barcodes collide", FALSE);
 
-	public static final String DEFAULT_VIRTUAL_PATRON_BARCODE_PREFIX = "DCB-";
+	public static final String DEFAULT_VIRTUAL_PATRON_BARCODE_PREFIX = "";
 
 	private final HostLms hostLms;
 

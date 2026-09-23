@@ -46,10 +46,12 @@ class AlmaHostLmsClientCreatePatronTests {
 	}
 
 	@Test
-	void shouldPrefixTheBarcodeSoItCannotTakeAnIdentifierThisAlmasOwnUsersNeed() {
+	void shouldSendTheBarcodeUnchangedSoTheCardStillScansAtTheDesk() {
 		final var identifiers = identifiersSentWhenCreating(Map.of());
 
-		assertThat(identifiers, containsInAnyOrder("BARCODE=DCB-2100045", "INST_ID=77@HOME"));
+		// A virtual patron is checked out to by scanning the patron's own card, at a pickup
+		// or walk-up library; a prefixed barcode would not match it
+		assertThat(identifiers, containsInAnyOrder("BARCODE=2100045", "INST_ID=77@HOME"));
 	}
 
 	@Test
@@ -61,7 +63,7 @@ class AlmaHostLmsClientCreatePatronTests {
 	}
 
 	@Test
-	void shouldSendTheBareBarcodeWhenThePrefixIsTurnedOff() {
+	void shouldSendTheBareBarcodeWhenThePrefixIsExplicitlyEmpty() {
 		final var identifiers = identifiersSentWhenCreating(
 			Map.of("virtual-patron-barcode-prefix", ""));
 
