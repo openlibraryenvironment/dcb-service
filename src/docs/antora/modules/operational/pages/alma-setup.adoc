@@ -90,15 +90,16 @@ changing in Alma, or what in Alma is causing a DCB issue.
 | The desk OpenRS should use for checkouts.
 
 | Virtual patron barcode prefix (optional)
-| Empty by default, and normally left that way. A visiting patron's virtual account carries
-their own card barcode, because that is what your staff scan when the patron collects an item
-here or borrows one on the spot; a prefix would stop the card matching.
+| Empty by default, so nothing changes at your desk unless you choose it. A visiting patron's
+virtual account carries their own card barcode, which is what your staff scan when the patron
+collects an item here or borrows one on the spot.
 
-Set one only if your own barcodes collide with another member's. Alma will not let two users
-share an identifier, so a visiting patron whose barcode matches one of your users cannot be
-created at all, and a virtual account created first holds an identifier none of your own users
-can then be given. Where that happens, a prefix trades the desk scan for being able to lend at
-all, and staff then find the patron by the prefix followed by their barcode.
+Setting a prefix such as `OpenRS-` is a reasonable choice, and some consortia will want it.
+Alma will not let two users share an identifier, so where your barcodes overlap another
+member's, a visiting patron cannot be created at all and you cannot lend to them. A prefix
+removes that, at the cost of the direct scan: staff type the prefix before scanning the card,
+or search for it. Agree it consortium-wide, tell desk staff what to expect, and try it at a
+desk before rolling it out.
 |===
 
 This lets the OpenRS team set up your institution's basic configuration in DCB. Consortium
