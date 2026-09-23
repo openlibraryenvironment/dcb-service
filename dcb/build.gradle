@@ -525,13 +525,18 @@ gitProperties {
 test {
 	// Keep machine-readable reports compact.
 	reports.junitXml.outputPerTestCase = false
+	if (System.getenv('CI')) {
+		beforeTest { descriptor ->
+			logger.lifecycle("[${java.time.Instant.now()}] ${descriptor.className} > ${descriptor.name} STARTED")
+		}
+	}
 	testLogging {
 		exceptionFormat = 'short'
 		showStandardStreams = false
 		if (System.getenv('CI')) {
 			// Testcontainers integration tests can take several minutes. Emit the
 			// current test in CI so a blocked suite has an actionable last point.
-			events 'started', 'failed'
+			events 'failed'
 		}
 	}
 }

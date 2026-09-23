@@ -51,6 +51,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	private static final String REQUEST_TYPE = "Hold";
 	private static final String REQUEST_SCOPE_TYPE = "Bibliographic Item";
 	private static final String REQUESTED_ACTION_TYPE = "Accept For Loan";
+	private static final int ITEM_LOCATION_LOOKUP_CONCURRENCY = 4;
 
 	private final DeclarativeRequestTransport transport;
 	private final NcipPayloadBuilder payloadBuilder;
@@ -487,7 +488,10 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			.switchIfEmpty(Mono.error(new NcipProblemException(
 				"DCB agency not found for NCIP LookupItemSet agency " + agencyCode)))
 			.flatMapMany(agency -> Flux.fromIterable(snapshots)
-				.flatMap(snapshot -> itemFromSnapshot(snapshot, agency, bibliographicRecordIdentifier)))
+				// Each snapshot with a location performs a database lookup. Bound those
+				// lookups so a large NCIP response cannot exhaust the R2DBC request queue.
+				.flatMap(snapshot -> itemFromSnapshot(snapshot, agency, bibliographicRecordIdentifier),
+					ITEM_LOCATION_LOOKUP_CONCURRENCY))
 			.collectList();
 	}
 
