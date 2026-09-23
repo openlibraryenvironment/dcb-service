@@ -12,18 +12,24 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Singleton;
 import lombok.Builder;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 
 @Singleton
+@Slf4j
 class PatronRequestApiClient {
 	private final HttpClient httpClient;
-		private static final String accessToken = "test-patreq-client-token";
+	private final EmbeddedServer embeddedServer;
+	private static final String accessToken = "test-patreq-client-token";
 
-	public PatronRequestApiClient(@Client("/") HttpClient client) {
+	public PatronRequestApiClient(@Client("/") HttpClient client, EmbeddedServer embeddedServer) {
 		this.httpClient = client;
+		this.embeddedServer = embeddedServer;
 
 		TestStaticTokenValidator.add(accessToken, "test-patreq-client-token",
 			List.of(ADMINISTRATOR));
@@ -54,7 +60,20 @@ class PatronRequestApiClient {
 		final var request = HttpRequest.POST("/patrons/requests/place", command)
 			.bearerAuth(accessToken);
 
-		return blockingClient.exchange(request, PlacedPatronRequest.class);
+		try {
+			return blockingClient.exchange(request, PlacedPatronRequest.class);
+		} catch (HttpClientResponseException error) {
+			final var response = error.getResponse();
+
+			log.error(
+				"Patron request API call failed: intendedUri={}, method={}, path={}, status={} {}, contentType={}, body={}",
+				embeddedServer.getURI().resolve(request.getUri()), request.getMethod(), request.getPath(),
+				response.code(), response.reason(),
+				response.getContentType().map(Object::toString).orElse("<none>"),
+				response.getBody(String.class).orElse("<empty>"));
+
+			throw error;
+		}
 	}
 
 	HttpResponse<UUID> updatePatronRequest(UUID patronRequestId) {
