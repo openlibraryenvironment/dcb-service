@@ -612,6 +612,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
+	private static boolean isItemNotFound(Throwable error) {
+		return error instanceof AlmaApiException almaError && almaError.getStatusCode() == 404;
+	}
+
 	private static boolean isVirtualPatronNotFoundError(Throwable e) {
 		return e instanceof AlmaApiException almaError && almaError.has(AlmaApiException.Code.USER_NOT_FOUND);
 	}
@@ -1002,6 +1006,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var patronId = getValueOrNull(request, HostLmsRequest::getLocalPatronId);
 
 		return client.retrieveUserRequest(patronId, localRequestId)
+			.onErrorResume(AlmaHostLmsClient::isRequestNotFound,
+				error -> Mono.just(requestNoLongerInAlma(localRequestId)))
 			.map(almaRequest -> {
 
 				final var itemId = getValueOrNull(almaRequest, AlmaRequestResponse::getItemId);
@@ -1018,6 +1024,25 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
+	/**
+	 * A cancelled or fulfilled Alma request leaves the user's active list, so asking for it by id
+	 * fails rather than answering with a cancelled status. Both cancellation transitions watch for
+	 * MISSING or CANCELLED, and Alma produced neither - so a cancellation made in Alma reached
+	 * nothing and the request ran on to the 56-day tracking cut-off.
+	 */
+	private static AlmaRequestResponse requestNoLongerInAlma(String localRequestId) {
+		return AlmaRequestResponse.builder()
+			.requestId(localRequestId)
+			.requestStatus(HostLmsRequest.HOLD_MISSING)
+			.build();
+	}
+
+	private static boolean isRequestNotFound(Throwable error) {
+		return error instanceof AlmaApiException almaError
+			&& (almaError.has(AlmaApiException.Code.REQUEST_NOT_FOUND)
+				|| almaError.getStatusCode() == 404);
+	}
+
 	// A user request's request_status is only ever NOT_STARTED, IN_PROCESS or ON_HOLD_SHELF (rest_user_request.xsd)
 	private String checkHoldStatus(String status) {
 		if (status == null) {
@@ -1027,6 +1052,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return switch (status) {
 			case "NOT_STARTED", "IN_PROCESS" -> HostLmsRequest.HOLD_CONFIRMED;
 			case "ON_HOLD_SHELF" -> HostLmsRequest.HOLD_READY;
+			case HostLmsRequest.HOLD_MISSING -> HostLmsRequest.HOLD_MISSING;
 			default -> status;
 		};
 	}
@@ -1043,22 +1069,27 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return client.retrieveItem(bibId, holdingId, itemId)
 			.doOnError(e -> log.error("Failed to retrieve Alma item {}. BibId: {}, HoldingId: {}",
 				itemId, bibId, holdingId, e))
+			// Cleanup reads no item as already gone and an error as a failed delete. Raising for
+			// an item a cataloguer had removed made every such request report a cleanup failure
+			.onErrorResume(AlmaHostLmsClient::isItemNotFound, error -> Mono.empty())
 			.flatMap(item -> {
 
 				final var almaItemData = getValueOrNull(item, AlmaItem::getItemData);
 
-				Mono<Integer> holdCountMono = client.retrieveItemRequests(bibId, holdingId, itemId)
-					.map(requests -> (requests.getRecordCount() != null) ? requests.getRecordCount() : 0)
-					.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item {}. Defaulting to 0.", itemId, e))
-					.onErrorReturn(0);
-				// Now bring it all together. Same 0 fallback for hold counts we can't get
+				// One rule for both paths: an unknown count is unknown, as getItems has it. Zero here
+				// reported "no holds" whenever Alma was unreachable for this one call
+				Mono<Optional<Integer>> holdCountMono = client.retrieveItemRequests(bibId, holdingId, itemId)
+					.map(requests -> Optional.ofNullable(requests.getRecordCount()))
+					.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item {}", itemId, e))
+					.onErrorResume(e -> Mono.just(Optional.empty()));
+
 				return holdCountMono.map(holdCount -> {
 					var returnHostLmsItem = HostLmsItem.builder()
 						.localId(almaItemData.getPid())
 						.barcode(almaItemData.getBarcode())
 						.bibId(bibId)
 						.holdingId(holdingId)
-						.holdCount(holdCount)
+						.holdCount(holdCount.orElse(null))
 						.build();
 
 					returnHostLmsItem = deriveItemStatusFromProcessType(returnHostLmsItem, almaItemData);

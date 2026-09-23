@@ -18,6 +18,7 @@ public class AlmaApiException extends AbstractThrowableProblem {
 	/** The Alma error codes the adapter acts on. */
 	public enum Code {
 		USER_NOT_FOUND("401861"),
+		REQUEST_NOT_FOUND("401694"),
 		AUTHENTICATION_FAILED("401866"),
 		PER_SECOND_THRESHOLD("PER_SECOND_THRESHOLD"),
 		DAILY_THRESHOLD("DAILY_THRESHOLD");
