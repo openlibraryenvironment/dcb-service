@@ -93,7 +93,7 @@ public class DataHostLms implements HostLms, Auditable {
 	@JsonIgnore
 	public Class<?> getClientType() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
-		return getTypeFromName(lmsClientClass);
+		return getTypeFromName(lmsClientClass, "lms_client_class");
 	}
 
 	@Override
@@ -102,11 +102,15 @@ public class DataHostLms implements HostLms, Auditable {
 	@JsonIgnore
 	public Class<?> getIngestSourceType() {
 		//TODO: Replace this with a proper converter implementation then remove this getter.
-		return getTypeFromName(ingestSourceClass);
+		return getTypeFromName(ingestSourceClass, "ingest_source_class");
 	}
 
-	Class<?> getTypeFromName(@Nullable String name) {
+	Class<?> getTypeFromName(@Nullable String name, String configurationField) {
 		if (name == null) {
+			return null;
+		}
+		if (name.isBlank()) {
+			log.error("Host LMS {} has a blank {} configuration", code, configurationField);
 			return null;
 		}
 
@@ -114,7 +118,7 @@ public class DataHostLms implements HostLms, Auditable {
 			return Class.forName(name);
 		}
 		catch (ClassNotFoundException exception) {
-			log.error("class {} cannot be found", name, exception);
+			log.error("Cannot load {} '{}' configured for host LMS {}", configurationField, name, code, exception);
 
 			// Does not throw exception because method is used in a property
 			// Properties that throw exceptions fail micronaut validation

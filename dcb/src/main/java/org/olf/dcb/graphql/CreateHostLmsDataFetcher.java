@@ -82,7 +82,7 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 		String code = (String) input.get("code");
 		String name = (String) input.get("name");
 		String lmsClientClass = (String) input.get("lmsClientClass");
-		String ingestSourceClass = "";
+		String ingestSourceClass = null;
 		Map<String, Object> clientConfig = (Map<String, Object>) input.get("clientConfig");
 		String suppressionRulesetName = (String) input.get("suppressionRulesetName");
 		String itemSuppressionRulesetName = (String) input.get("itemSuppressionRulesetName");

@@ -41,6 +41,7 @@ public class Alarm {
 	private UUID id;
 
 	@Nullable
+	@Size(max = 255)
 	private String code;
 
 	private Instant created;

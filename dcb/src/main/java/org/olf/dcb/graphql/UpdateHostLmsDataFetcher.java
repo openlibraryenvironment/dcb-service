@@ -83,6 +83,10 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 		Optional<String> suppressionRulesetName = Optional.ofNullable((String) input_map.get("suppressionRulesetName"));
 		Optional<String> itemSuppressionRulesetName = Optional.ofNullable((String) input_map.get("itemSuppressionRulesetName"));
 
+		if (ingestSourceClass.filter(String::isBlank).isPresent()) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "ingestSourceClass cannot be blank.");
+		}
+
 		// Audit specific fields
 		Optional<String> reason = Optional.ofNullable((String) input_map.get("reason"));
 		Optional<String> changeCategory = Optional.ofNullable((String) input_map.get("changeCategory"));
