@@ -13,6 +13,7 @@ import org.reactivestreams.Subscription;
 import io.micronaut.context.annotation.EachBean;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Replaces;
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.propagation.ReactorPropagation;
@@ -47,6 +48,7 @@ import reactor.util.context.ContextView;
 @Slf4j
 @EachBean(ConnectionFactory.class)
 @Replaces(DefaultR2dbcReactorTransactionOperations.class)
+@Requires(property = "dcb.r2dbc.legacy-transaction-operations.enabled", value = "true")
 public class ReplacementR2dbcReactorTransactionOperations
 		implements ReactorReactiveTransactionOperations<Connection>, R2dbcReactorTransactionOperations {
 

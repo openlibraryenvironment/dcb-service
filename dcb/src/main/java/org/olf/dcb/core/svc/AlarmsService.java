@@ -96,7 +96,7 @@ public class AlarmsService {
 	 * per-item paths, and under that concurrency a read-modify-write loses most of
 	 * the values - every writer computes its set from a stale read.
 	 */
-	@Transactional
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public Mono<Void> raiseAccumulating(Alarm alarm, String detailKey, String value) {
 
 		return Mono.from(alarmRepository.accumulateDetailValue(alarm.getId(), alarm.getCode(),

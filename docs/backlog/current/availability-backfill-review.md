@@ -141,6 +141,34 @@ updates. Review found the following correctness, load, and test concerns.
   updates, index-event deduplication, and actual concurrency limits. Include a
   representative large-data/load test before re-enabling scheduled backfill.
 
+- [x] **Replace the legacy R2DBC transaction implementation.** The application
+  replaces Micronaut's transaction implementation with a 658-line local copy.
+  It first appeared in Steve Osguthorpe's 2024 framework-upgrade commit
+  `c449d151a`, whose history gives no reason for the replacement. A 2025 follow-up
+  (`c682b0305`) converted a synchronous closed-connection commit failure into a
+  reactive error but did not prevent the connection closure; its source carries a
+  TODO to delegate or remove it. The implementation survived the Micronaut 5
+  migration without a review. Default to Micronaut 5's maintained implementation;
+  retain the old one only as the restart-required compatibility switch
+  `dcb.r2dbc.legacy-transaction-operations.enabled=true`. Accumulating alarms use
+  `REQUIRES_NEW`: a direct alarm subscription made inside a failed Reactor callback
+  otherwise inherits that callback's propagated transaction and is rolled back.
+  Focused tests prove the Sierra timeout alarm commits after its caller rolls back,
+  required versus `REQUIRES_NEW` R2DBC semantics, and JDBC/R2DBC coexistence.
+  **Fixed:** the full suite passed twice with Micronaut's default implementation
+  and once with the compatibility switch. This is sufficient to say the local
+  replacement is not needed for supported, exercised contracts; history cannot
+  establish its original 2024 trigger, so retain the restart-only fallback until
+  a separately approved removal.
+
+- [ ] **Isolate MockServer request history between fulfilment test methods.** CI
+  pipeline 62 on `4c50b1478` failed only the exact MockServer verification in
+  `PlaceRequestAtSupplyingAgencyTests`: the placed request and local barcode were
+  correct, but MockServer retained 15 prior requests. The `PER_CLASS` test creates
+  database fixtures in `@BeforeEach` but does not reset MockServer before adding
+  each method's Sierra expectations. Reset it before setup, then verify the full
+  suite and CI pipeline; retain the exact HTTP assertion.
+
 For each item, record the decision and evidence before checking it. A checked
 item may mean fixed, explicitly accepted, superseded, or closed without action;
 state which outcome applies.

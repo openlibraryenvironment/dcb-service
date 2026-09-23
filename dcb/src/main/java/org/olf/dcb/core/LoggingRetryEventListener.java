@@ -13,6 +13,8 @@ import org.olf.dcb.core.svc.AlarmsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micronaut.retry.event.RetryEvent;
 import io.micronaut.retry.event.RetryEventListener;
 import jakarta.inject.Singleton;
@@ -23,9 +25,14 @@ public class LoggingRetryEventListener implements RetryEventListener {
 
 	static final Logger log = LoggerFactory.getLogger(LoggingRetryEventListener.class);
 	private final AlarmsService alarmsService;
+	private final Counter alarmPersistenceFailures;
 
-	public LoggingRetryEventListener(AlarmsService alarmsService) {
+	public LoggingRetryEventListener(AlarmsService alarmsService, MeterRegistry meterRegistry) {
 		this.alarmsService = alarmsService;
+		this.alarmPersistenceFailures = Counter.builder("dcb.alarm.persistence.failures")
+			.description("Alarm writes which could not be persisted")
+			.tag("source", "sierra-read-timeout")
+			.register(meterRegistry);
 	}
 
 	@Override
@@ -91,6 +98,11 @@ public class LoggingRetryEventListener implements RetryEventListener {
 			"timedOutRequests", operation + ": " + timeout.getRequestMethod() + " " + timeout.getRequestPath())
 			.subscribe(
 				ignored -> { },
-				error -> log.warn("Unable to record Sierra timeout against {}", alarmCode, error));
+				error -> {
+					alarmPersistenceFailures.increment();
+					log.warn("Unable to persist Sierra timeout alarm [{}] for Host LMS [{}], {} {}: {}: {}",
+						alarmCode, timeout.getHostLmsCode(), timeout.getRequestMethod(),
+						timeout.getRequestPath(), error.getClass().getSimpleName(), error.getMessage());
+				});
 	}
 }

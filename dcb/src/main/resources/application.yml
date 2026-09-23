@@ -230,6 +230,13 @@ graphql:
     enabled: false
 
 dcb:
+  r2dbc:
+    # Micronaut 5's maintained reactive transaction implementation is the default.
+    # Set true and restart only to restore the pre-Micronaut-5 replacement while
+    # investigating a regression; this compatibility path is scheduled for removal.
+    legacy-transaction-operations:
+      enabled: false
+
   # Only `keycloak` is implemented. EMPTY turns DCB Admin for Libraries provisioning off
   # and is the default; any other value fails startup rather than disabling the feature
   # silently - IdentityProviderTypeCheck. Leave the connection settings out of this file

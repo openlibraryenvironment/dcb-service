@@ -25,6 +25,14 @@ smoke-fallback-host-dcb-request`.
 
 Tests share one Testcontainers PostgreSQL instance per Gradle test worker. Each Micronaut context has a two-connection R2DBC pool and a two-connection JDBC pool. R2DBC starts empty, evicts idle connections after two seconds, and fails an acquisition after 30 seconds. Fixture cleanup uses one connection to stream rows and one to delete them sequentially. Do not replace this with an unbounded read or delete fan-out. CI logs each started test so a stalled suite has a last known test.
 
+DCB defaults to Micronaut's R2DBC transaction implementation. Set
+`dcb.r2dbc.legacy-transaction-operations.enabled=true` only as a restart-required
+diagnostic fallback while investigating a regression. Reactive work uses R2DBC
+operations; blocking JDBC work uses `DefaultDataSourceConnectionOperations`.
+Do not inject the generic contextual `DataSource`: with both transaction systems
+present it cannot choose a connection-operations bean. A test report containing a
+dropped R2DBC `The connection is closed` error fails Gradle.
+
 Electronic availability is transient. Add fields only to `AvailabilityResponseViewV2`; never extend the fragile legacy view.
 
 ## Availability backfill

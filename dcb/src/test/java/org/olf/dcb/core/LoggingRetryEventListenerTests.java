@@ -20,6 +20,7 @@ import org.olf.dcb.core.interaction.sierra.SierraReadTimeoutProblem;
 import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.svc.AlarmsService;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micronaut.aop.MethodInvocationContext;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.exceptions.ReadTimeoutException;
@@ -35,6 +36,7 @@ class LoggingRetryEventListenerTests {
 	private MethodInvocationContext<?, ?> invocation;
 	@Mock
 	private RetryState retryState;
+	private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
 	@Test
 	void raisesOneAlarmForAnExhaustedSierraReadTimeout() {
@@ -46,7 +48,7 @@ class LoggingRetryEventListenerTests {
 		when(alarmsService.raiseAccumulating(any(), eq("timedOutRequests"),
 			eq("items: POST /iii/sierra-api/v6/token"))).thenReturn(Mono.empty());
 
-		new LoggingRetryEventListener(alarmsService)
+		new LoggingRetryEventListener(alarmsService, meterRegistry)
 			.onApplicationEvent(new RetryEvent(invocation, retryState, timeout));
 
 		final ArgumentCaptor<Alarm> alarm = ArgumentCaptor.forClass(Alarm.class);
@@ -66,7 +68,7 @@ class LoggingRetryEventListenerTests {
 		doReturn(LoggingRetryEventListener.class).when(invocation).getDeclaringType();
 		when(invocation.getName()).thenReturn("items");
 
-		new LoggingRetryEventListener(alarmsService)
+		new LoggingRetryEventListener(alarmsService, meterRegistry)
 			.onApplicationEvent(new RetryEvent(invocation, retryState, timeout));
 
 		verifyNoInteractions(alarmsService);

@@ -539,6 +539,17 @@ test {
 			events 'failed'
 		}
 	}
+	doLast {
+		def droppedClosedConnectionReports = fileTree(layout.buildDirectory.dir('test-results/test')) {
+			include '**/*.xml'
+		}.findAll { report ->
+			report.text.contains('Hooks.OnErrorDropped') && report.text.contains('The connection is closed')
+		}
+		if (!droppedClosedConnectionReports.empty) {
+			throw new GradleException("Dropped R2DBC closed-connection error(s) in " +
+				droppedClosedConnectionReports.collect { it.name }.join(', '))
+		}
+	}
 }
 
 // The engine takes settings only at create and mappings at every startup, so the

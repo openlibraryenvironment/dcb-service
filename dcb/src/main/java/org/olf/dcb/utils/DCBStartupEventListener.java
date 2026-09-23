@@ -112,11 +112,6 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 			logAndReportError(error, Map.of("context","Hooks.OnErrorDropped"));
 		});
 
-		Hooks.onOperatorError((error, data) -> {
-			logAndReportError(error, Map.of("context","Hooks.OnOperatorError"));
-			return error;
-		});
-
 		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
 			logAndReportError(throwable, Map.of("context","Thread.setDefaultUncaughtExceptionHandler"));
 			log.error("Uncaught exception in thread " + thread.getName() + ": " + throwable.getMessage());
@@ -233,7 +228,8 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
 
 			// Grant all permissions on everything to anyone with the ADMIN role (And allow them to pass on grants)
 //			.flatMap( v -> Mono.from(saveOrUpdateGrant("%", "%", "%", "%", "role", "ADMIN", Boolean.TRUE)))
-			.subscribe();
+			.then()
+			.block();
 	}
 
 	private Publisher<Grant> saveOrUpdateGrant( String resourceOwner,
@@ -308,7 +304,9 @@ public class DCBStartupEventListener implements ApplicationEventListener<Startup
     String timestamp = ZonedDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 		log.error("Unhandled Reactor exception: {} {}",additional,error);
     alarmsService.simpleAnnounce(envCode+" UNCAUGHT EXCEPTION "+error.getClass().getName()+" @ "+timestamp+": "+error.getMessage()+" "+additional)
-     .subscribe();
+			.subscribe(ignored -> { }, announcementError -> log.warn(
+				"Unable to announce unhandled Reactor exception: {}: {}",
+				announcementError.getClass().getSimpleName(), announcementError.getMessage()));
 	}
 
 }
