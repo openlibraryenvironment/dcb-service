@@ -12,6 +12,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -707,6 +708,13 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
 			isFailedCheckEvent(expectedDescription)
 		));
+
+		// event_summary is varchar(128) and this description is already 104, so the cluster
+		// lives beside the summary rather than inside it. A refused request never becomes a
+		// patron request, so there is no other row to look in
+		assertThat("Refusal names the cluster it was for",
+			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
+			hasEntry("clusterId", clusterRecordId.toString()));
 	}
 
 	@Test
@@ -784,6 +792,10 @@ class StandardWorkflowPatronRequestApiTests {
 				isFailedCheckEvent(unrecognisedPickupLocationMessage)
 			)
 		);
+
+		assertThat("Refusal names the check that refused it",
+			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
+			hasEntry("code", "UNKNOWN_PICKUP_LOCATION_CODE"));
 	}
 
 	@Test

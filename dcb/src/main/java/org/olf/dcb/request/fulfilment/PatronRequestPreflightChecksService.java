@@ -8,6 +8,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.StringUtils.truncate;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -99,9 +100,11 @@ public class PatronRequestPreflightChecksService {
 
 	/**
 	 * A refused request never becomes a patron request, so this row is the only record that it
-	 * was attempted. The description alone did not say which cluster or which library, and there
-	 * is nowhere else to look; the code and those two are prefixed so the row can be found and
-	 * the attempt reproduced. No patron identifier: this is a durable row, not a support ticket.
+	 * was attempted, and the description alone said neither which cluster nor which library.
+	 * The context goes in additional_data rather than the summary because event_summary is
+	 * varchar(128) and these descriptions already reach 104 - anything prefixed truncates away
+	 * the reason the request was refused. No patron identifier in either: this is a durable
+	 * row, not a support ticket.
 	 */
 	private static Event eventFrom(FailedPreflightCheck failedCheck, PlacePatronRequestCommand command) {
 		final var clusterId = getValueOrNull(command, PlacePatronRequestCommand::getCitation,
@@ -110,16 +113,20 @@ public class PatronRequestPreflightChecksService {
 		final var agencyCode = getValueOrNull(command, PlacePatronRequestCommand::getRequestor,
 			PlacePatronRequestCommand.Requestor::getAgencyCode);
 
-		final var summary = "%s cluster=%s agency=%s : %s".formatted(
-			getValue(failedCheck, FailedPreflightCheck::getCode, "UNKNOWN_CHECK"),
-			getValue(clusterId, Object::toString, "unknown"),
-			getValue(agencyCode, "unknown"),
-			getValue(failedCheck, FailedPreflightCheck::getDescription, ""));
+		final var code = getValue(failedCheck, FailedPreflightCheck::getCode, "UNKNOWN_CHECK");
+		final var description = getValue(failedCheck, FailedPreflightCheck::getDescription, "");
+
+		final var context = new HashMap<String, Object>();
+		context.put("code", code);
+		context.put("clusterId", getValue(clusterId, Object::toString, "unknown"));
+		context.put("agencyCode", getValue(agencyCode, "unknown"));
+		context.put("description", description);
 
 		return Event.builder()
 			.id(UUID.randomUUID())
 			.type(FAILED_CHECK)
-			.summary(truncate(summary, 128))
+			.summary(truncate(description, 128))
+			.additionalData(context)
 			.build();
 	}
 }
