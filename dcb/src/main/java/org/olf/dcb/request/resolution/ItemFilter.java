@@ -19,6 +19,11 @@ import org.reactivestreams.Publisher;
  * <code>false</code> and a log line.
  */
 public interface ItemFilter {
+	/** Named in the audit when this filter is the one that removed an item. */
+	default String getName() {
+		return getClass().getSimpleName();
+	}
+
 	int REQUESTABLE_ORDER = 10;
 	int AGENCY_EXCLUSION_ORDER = 20;
 	int SAME_AGENCY_ORDER = 30;

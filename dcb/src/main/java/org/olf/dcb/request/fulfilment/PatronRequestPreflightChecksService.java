@@ -55,7 +55,7 @@ public class PatronRequestPreflightChecksService {
 				// It's worth logging the failures as it might be a sign of some fundamental systems issue
 				log.warn("request {} failed preflight {}", command, results);
 
-				return reportFailedChecksInEventLog(results)
+				return reportFailedChecksInEventLog(results, command)
 					.flatMap(reportedResults -> Mono.error(
 						new PreflightCheckFailedException(failedChecksOnly(reportedResults))));
 			});
@@ -89,17 +89,37 @@ public class PatronRequestPreflightChecksService {
 			.toList();
 	}
 
-	private Mono<List<CheckResult>> reportFailedChecksInEventLog(List<CheckResult> results) {
+	private Mono<List<CheckResult>> reportFailedChecksInEventLog(List<CheckResult> results,
+		PlacePatronRequestCommand command) {
+
 		return Flux.fromIterable(failedChecksOnly(results))
-			.concatMap(result -> eventLogRepository.save(eventFrom(result)))
+			.concatMap(result -> eventLogRepository.save(eventFrom(result, command)))
 			.then(Mono.just(results));
 	}
 
-	private static Event eventFrom(FailedPreflightCheck failedCheck) {
+	/**
+	 * A refused request never becomes a patron request, so this row is the only record that it
+	 * was attempted. The description alone did not say which cluster or which library, and there
+	 * is nowhere else to look; the code and those two are prefixed so the row can be found and
+	 * the attempt reproduced. No patron identifier: this is a durable row, not a support ticket.
+	 */
+	private static Event eventFrom(FailedPreflightCheck failedCheck, PlacePatronRequestCommand command) {
+		final var clusterId = getValueOrNull(command, PlacePatronRequestCommand::getCitation,
+			PlacePatronRequestCommand.Citation::getBibClusterId);
+
+		final var agencyCode = getValueOrNull(command, PlacePatronRequestCommand::getRequestor,
+			PlacePatronRequestCommand.Requestor::getAgencyCode);
+
+		final var summary = "%s cluster=%s agency=%s : %s".formatted(
+			getValue(failedCheck, FailedPreflightCheck::getCode, "UNKNOWN_CHECK"),
+			getValue(clusterId, Object::toString, "unknown"),
+			getValue(agencyCode, "unknown"),
+			getValue(failedCheck, FailedPreflightCheck::getDescription, ""));
+
 		return Event.builder()
 			.id(UUID.randomUUID())
 			.type(FAILED_CHECK)
-			.summary(truncate(getValueOrNull(failedCheck, FailedPreflightCheck::getDescription), 128))
+			.summary(truncate(summary, 128))
 			.build();
 	}
 }

@@ -55,6 +55,7 @@ import services.k_int.interaction.alma.types.userRequest.AlmaRequests;
 class AlmaItemMappingTests {
 	private AlmaApiClient apiClient;
 	private LocationToAgencyMappingService locationToAgency;
+	private MaterialTypeToItemTypeMappingService materialTypeToItemType;
 	private AlmaHostLmsClient client;
 
 	@BeforeEach
@@ -80,7 +81,7 @@ class AlmaItemMappingTests {
 		when(locationToAgency.enrichItemAgencyFromLocation(any(), any()))
 			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
 
-		final var materialTypeToItemType = mock(MaterialTypeToItemTypeMappingService.class);
+		materialTypeToItemType = mock(MaterialTypeToItemTypeMappingService.class);
 		when(materialTypeToItemType.enrichItemWithMappedItemType(any()))
 			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
 
@@ -136,7 +137,11 @@ class AlmaItemMappingTests {
 	}
 
 	@Test
-	void shouldReturnAnItemThatCannotBeMappedWithTheReasonAlongsideTheOthers() {
+	void shouldKeepAnItemWithNoMaterialTypeRatherThanLoseItToAnException() {
+		// Reading the material type unguarded threw, and the whole item became a placeholder
+		// with no location and therefore no agency - which availability drops before anything
+		// is audited. An absent code is the mapping service's to report, not a reason to
+		// discard everything else known about the item.
 		givenItems(
 			almaItem("23789", "MAIN-LIB", "STACKS", "BOOK"),
 			almaItem("23790", "MAIN-LIB", "STACKS", null));
@@ -145,14 +150,28 @@ class AlmaItemMappingTests {
 
 		assertThat(items, hasSize(2));
 
-		final var unmapped = items.get(1);
+		final var noMaterialType = items.get(1);
 
-		assertThat(unmapped.getLocalId(), is("23790"));
-		assertThat(unmapped.getIsRequestable(), is(false));
-		assertThat(unmapped.getDecisionLogEntries(), hasSize(1));
-		assertThat(unmapped.getDecisionLogEntries().get(0), startsWith("Could not map this Alma item"));
+		assertThat(noMaterialType.getLocalId(), is("23790"));
+		assertThat(noMaterialType.getLocalItemTypeCode(), is(nullValue()));
+		assertThat(noMaterialType.getLocationCode(), is("MAIN-LIB"));
+	}
 
-		assertThat(items.get(0).getLocationCode(), is("MAIN-LIB"));
+	@Test
+	void shouldKeepTheLocationOfAnItemWhoseItemTypeCannotBeMapped() {
+		givenItems(almaItem("23789", "MAIN-LIB", "STACKS", "BOOK"));
+
+		doReturn(Mono.error(new RuntimeException("No mapping for BOOK")))
+			.when(materialTypeToItemType)
+			.enrichItemWithMappedItemType(any());
+
+		final var item = onlyItem();
+
+		// Location intact, so the item reaches the report and the reason reaches the audit
+		assertThat(item.getLocationCode(), is("MAIN-LIB"));
+		assertThat(item.getIsRequestable(), is(false));
+		assertThat(item.getDecisionLogEntries(),
+			contains("Could not map this Alma item: No mapping for BOOK"));
 	}
 
 	@Test

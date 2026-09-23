@@ -302,12 +302,14 @@ public class LiveAvailabilityService {
 		Duration timeout, BibRecord bib, HostLmsClient hostLms, boolean ignoreCache) {
 		
 		return (liveData) -> {
-			// Return the livedata source or empty after timeout
-			if (ignoreCache) { 
+			// A timeout used to complete empty here, which resolution could not tell from a Host
+			// LMS that answered with no items - and with no log line either, since the cache
+			// branch below owns the one that mentions timing out. It now reports itself.
+			if (ignoreCache) {
 				return Mono.firstWithSignal(
 					liveData,
 					Mono.delay(timeout)
-						.then(Mono.empty()));
+						.then(Mono.fromSupplier(() -> timedOutReport(bib, hostLms, timeout))));
 			}
 				
 			
@@ -356,6 +358,18 @@ public class LiveAvailabilityService {
 			.get();
 	}
 	
+	private static AvailabilityReport timedOutReport(BibRecord bib, HostLmsClient hostLms,
+		Duration timeout) {
+
+		log.warn("Request for bib {} from host lms {} did not complete within {}",
+			bib.getId(), hostLms.getHostLmsCode(), timeout);
+
+		return AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
+			.message("%s did not answer within %s for bib %s"
+				.formatted(hostLms.getHostLmsCode(), timeout, bib.getSourceRecordId()))
+			.build());
+	}
+
 	private static AvailabilityReport.Error mapToError(BibRecord bib, String hostLmsCode) {
 		log.error("Generate error report : Failed to fetch items for bib: {} from host: {}",
 			bib.getSourceRecordId(), hostLmsCode);

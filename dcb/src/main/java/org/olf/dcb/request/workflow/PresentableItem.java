@@ -30,6 +30,8 @@ public class PresentableItem {
 	String agencyCode;
 	String availableDate;
 	String dueDate;
+	String locationCode;
+	String decisionLog;
 
 	public static List<PresentableItem> toPresentableItems(List<Item> items) {
 		return mapList(items, PresentableItem::toPresentableItem);
@@ -52,7 +54,18 @@ public class PresentableItem {
 			.agencyCode(getValue(item, Item::getAgencyCode, "Unknown"))
 			.availableDate(dateTimeToString(item, Item::getAvailableDate))
 			.dueDate(dateTimeToString(item, Item::getDueDate))
+			// The location is what a location-to-agency mapping is keyed on, and the decision log
+			// is where an adapter says why it could not map an item: both are what an operator
+			// needs when asking why this item was not chosen
+			.locationCode(getValue(item, Item::getLocationCode, "null"))
+			.decisionLog(decisionLog(item))
 			.build();
+	}
+
+	private static String decisionLog(Item item) {
+		final var entries = getValueOrNull(item, Item::getDecisionLogEntries);
+
+		return entries == null || entries.isEmpty() ? null : String.join("; ", entries);
 	}
 
 	private static String getStatusCode(Item item) {

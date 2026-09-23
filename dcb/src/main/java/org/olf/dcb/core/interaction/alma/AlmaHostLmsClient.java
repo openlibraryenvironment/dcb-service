@@ -124,11 +124,25 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	public Mono<List<Item>> getItems(BibRecord bib) {
 		return client.retrieveAllItems(bib.getSourceRecordId())
 			.flatMapSequential(almaItem -> Mono.defer(() -> mapAlmaItemToDCBItem(almaItem))
-					.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()))
-					.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType)
+					.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode())
+						// From here the item has an agency, so a later failure can keep it and stay
+						// visible; availability drops an item with no agency before anything is audited
+						.flatMap(located -> materialTypeToItemTypeMappingService.enrichItemWithMappedItemType(located)
+							.onErrorResume(error -> Mono.just(unmappable(located, error)))))
 					.onErrorResume(error -> Mono.just(unmappableItem(almaItem, error))),
 				ALMA_REQUEST_CONCURRENCY)
 			.collectList();
+	}
+
+	// Keeps everything already known about the item, so it reaches the report rather than being
+	// filtered out for want of an agency
+	private Item unmappable(Item item, Throwable error) {
+		log.warn("Could not map Alma item {} on {}", item.getLocalId(), getHostLmsCode(), error);
+
+		return item.toBuilder()
+			.isRequestable(false)
+			.decisionLogEntry("Could not map this Alma item: " + error.getMessage())
+			.build();
 	}
 
 	// Returned with the reason rather than dropped, so one bad record neither hides its bib's other items nor vanishes
@@ -1506,9 +1520,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.holdCount(holdCount.orElse(null))
 					.localBibId(bibId)
 					// this item type looks to be used for auditing
-					.localItemType(almaItem.getItemData().getPhysicalMaterialType().getValue())
+					.localItemType(materialType(almaItem.getItemData()))
 					// this item type code is used for mapping
-					.localItemTypeCode(almaItem.getItemData().getPhysicalMaterialType().getValue())
+					.localItemTypeCode(materialType(almaItem.getItemData()))
 					.canonicalItemType(null)
 					.deleted(null)
 					.suppressed(derivedSuppression)
@@ -1524,6 +1538,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.parsedVolumeStatement(null)
 					.build();
 			});
+	}
+
+	// An Alma item without a physical material type threw here, and the whole item became
+	// unmappable; the mapping service already reports an absent code as unmapped
+	private static String materialType(AlmaItemData itemData) {
+		return getValueOrNull(itemData, AlmaItemData::getPhysicalMaterialType, CodeValuePair::getValue);
 	}
 
 	private ItemStatus deriveItemStatus(AlmaItemData almaItem) {
