@@ -28,7 +28,7 @@ public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 		return new UnexpectedHttpResponseProblem(throwable, request, hostLmsCode);
 	}
 
-	private UnexpectedHttpResponseProblem(Throwable throwable,
+	protected UnexpectedHttpResponseProblem(Throwable throwable,
 		HttpRequest<?> request, String hostLmsCode) {
 
 		super(determineTitle(hostLmsCode, request), null, throwable, request);
