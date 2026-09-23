@@ -22,6 +22,7 @@ class HostLmsConfigValidatorTests {
 	private static final String SIERRA = "org.olf.dcb.core.interaction.sierra.SierraLmsClient";
 	private static final String ORS_APPLIANCE = "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS";
 	private static final String KOHA = "org.olf.dcb.core.interaction.koha.KohaHostLmsClient";
+	private static final String POLARIS = "org.olf.dcb.core.interaction.polaris.PolarisLmsClient";
 
 	private final HostLmsConfigValidator validator = new HostLmsConfigValidator();
 
@@ -134,6 +135,18 @@ class HostLmsConfigValidatorTests {
 		assertThat(warnings, not(hasItem(containsString("metadata-prefix"))));
 	}
 
+	@Test
+	void shouldRejectInvalidPolarisShelfLocationLoanPolicy() {
+		final var config = polarisConfig();
+		config.put("shelfLocationPolicyMap", Map.of("Reference", "REFERENCE"));
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(POLARIS, config));
+
+		assertThat(exception.getMessage(), containsString("Reference=REFERENCE"));
+		assertThat(exception.getMessage(), containsString("REFERENCE_ONLY"));
+	}
+
 	private Map<String, Object> kohaConfig() {
 		final Map<String, Object> config = new HashMap<>();
 
@@ -168,6 +181,23 @@ class HostLmsConfigValidatorTests {
 		config.put("secret", "any-secret");
 		config.put("page-size", 100);
 
+		return config;
+	}
+
+	private Map<String, Object> polarisConfig() {
+		final Map<String, Object> config = new HashMap<>();
+		config.put("base-url", "https://polaris.example.org");
+		config.put("access-id", "access-id");
+		config.put("access-key", "access-key");
+		config.put("domain-id", "domain-id");
+		config.put("logon-branch-id", "branch-id");
+		config.put("logon-user-id", "user-id");
+		config.put("staff-username", "staff");
+		config.put("staff-password", "password");
+		config.put("default-agency-code", "agency");
+		config.put("papi", Map.of());
+		config.put("services", Map.of());
+		config.put("item", Map.of());
 		return config;
 	}
 }

@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 
+import org.olf.dcb.core.model.DerivedLoanPolicy;
+
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
@@ -175,6 +177,34 @@ public class HostLmsConfigValidator {
 		}
 
 		throwIfMissing("Polaris", missing);
+		validatePolarisShelfLocationPolicies(config);
+	}
+
+	private void validatePolarisShelfLocationPolicies(Map<String, Object> config) {
+		final var mapping = config.get("shelfLocationPolicyMap");
+		if (mapping == null) return;
+		if (!(mapping instanceof Map<?, ?> policyMap)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Polaris 'shelfLocationPolicyMap' must be an object mapping shelf locations to loan policies.");
+		}
+
+		final List<String> invalidPolicies = new ArrayList<>();
+		policyMap.forEach((shelfLocation, policy) -> {
+			if (!(policy instanceof String policyName)) {
+				invalidPolicies.add(shelfLocation + "=" + policy);
+				return;
+			}
+			try {
+				DerivedLoanPolicy.valueOf(policyName);
+			} catch (IllegalArgumentException error) {
+				invalidPolicies.add(shelfLocation + "=" + policyName);
+			}
+		});
+		if (!invalidPolicies.isEmpty()) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Polaris 'shelfLocationPolicyMap' contains invalid loan policy values "
+					+ invalidPolicies + ". Allowed values: " + List.of(DerivedLoanPolicy.values()));
+		}
 	}
 
 	/**
