@@ -18,20 +18,20 @@ and removes them when the transaction completes.
 
 These steps happen in Alma first.
 
-=== A resource-sharing library
+[#lending-library]
+=== A library to lend from
 
-Ensure you have a *Resource Sharing library* configured, with the code `RES_SHARE`. DCB uses
-this by default.
+When another member borrows from you, OpenRS places a hold in Alma for pickup at one library,
+the *sharing library*. Staff collect the item there and send it on. Choose a library that can
+be a pickup location — normally the one whose staff will dispatch OpenRS items — with a
+circulation desk that serves as a pickup point for the fulfilment units your lendable items
+belong to.
 
-It should have two locations, both set to OPEN:
-
-[cols="1,2"]
-|===
-| Code | Purpose
-
-| `IN_RS_REQ` | Lending requests
-| `OUT_RES_REQ` | Borrowing requests
-|===
+IMPORTANT: Do *not* use Alma's Resource Sharing Library, often coded `RES_SHARE`. It exists
+for Alma's own resource-sharing workflow, its only locations are internal ones such as
+`IN_RS_REQ` and `OUT_RS_REQ`, and Alma cannot deliver a patron hold to it. Every lending
+request then fails with Alma error `401129`, "No items can fulfill the submitted request",
+even though the item is on the shelf. The configuration report in <<checking>> flags it.
 
 === IP whitelisting
 
@@ -78,10 +78,12 @@ changing in Alma, or what in Alma is causing a DCB issue.
 | See "Calling Alma APIs" in the Ex Libris link:https://developers.exlibrisgroup.com/alma/apis/[developer documentation].
 
 | Sharing library code
-| The code of the Alma library you want to use for lending through OpenRS.
+| The Alma library that lending holds are sent to for collection. A library that can be a
+pickup location, never the Resource Sharing Library — see <<lending-library>>.
 
 | Virtual item library and location
-| The codes of the library and location where DCB should create virtual items.
+| The library and location where DCB creates the stand-in item your patron's hold is placed
+on when you borrow. Both must already exist in Alma — see <<borrowing>>.
 
 | OAI-PMH institution code and set
 | The set you wish to make available to OpenRS. The OAI institution code is not always the same string as your Alma institution code.
@@ -117,12 +119,22 @@ request through OpenRS) or `NONCIRC`.
 *Patron types.* Provide the patron types you use, mapped to either `ELIGIBLE` or
 `NOT_ELIGIBLE`, with the patron type as the "From value".
 
-TIP: Use the *codes*, not the names. If you cannot find them in the Alma UI, they are
-available from `/code-tables/UserGroups` in the Alma API.
+*Visiting patrons.* When you lend, OpenRS creates an Alma user for the borrowing patron.
+Map each DCB patron type to the Alma user group that user should belong to — usually the
+group you already use for consortial borrowers. That group's Request rules decide whether
+the hold can be placed at all, so do not map visiting patrons into a local group such as
+your own students.
 
-*Locations.* Provide mappings for the shelving locations your items sit at — in Alma, the
-location of the item's owning library. Every location holding items you want to be
-requestable needs a mapping.
+TIP: Use the *codes*, not the names. A mapping to a user group's description, such as
+`Consortial Express Patron` where the code is `CONSORTIAL`, is accepted by DCB Admin and fails in
+Alma. If you cannot find the codes in the Alma UI, they are available from
+`/code-tables/UserGroups` in the Alma API, and the mapping audit in <<checking>> reports any
+that Alma does not recognise.
+
+*Locations.* Map each Alma *library* code — `MAIN`, `LAW` and so on — to your agency. OpenRS
+places an Alma item at its owning library, not its shelving location, so a mapping keyed on a
+shelving location never matches. Every library holding items you want to be requestable needs
+a mapping.
 
 You can use the "New Mapping" button or the upload feature, which accepts TSV and CSV. See
 the link:https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3201400850/Importing+mappings+in+DCB+Admin[import user guide].
@@ -132,10 +144,52 @@ the link:https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/32014
 Visit the *Locations* section. A location's "local ID" must match the code of the Alma
 library you want to offer as a pickup point. You can bulk-import or add them individually.
 
+Each pickup library must also be one Alma will deliver a hold to for your virtual items — see
+<<borrowing>>. A library code that does not exist, or the Resource Sharing Library, is accepted
+here and refused by Alma later.
+
 === Information about your institution
 
 On the *Libraries* page, add your full name, opening hours, primary contacts, and latitude
 and longitude.
+
+[#borrowing]
+== Before your patrons can borrow
+
+Lending works as soon as the sharing library and mappings are right. Borrowing needs more,
+because OpenRS then works inside your own Alma: it creates a stand-in item for the book on its
+way to you, and places your patron's hold on it.
+
+. *The virtual item library and location exist.* Create the location first if you need a new
+  one. A location code that Alma does not have stops every borrowing request at the point
+  OpenRS creates the item.
+. *That location's fulfilment unit lets your patrons request, with pickup at your pickup
+  libraries.* The hold is placed for your own patron, in their own user group, on an item in
+  that location. Check the fulfilment unit's Request rules for each group that can borrow
+  through OpenRS, and that every library you offer as a pickup location is allowed. Only Alma
+  staff can confirm this: no Alma API reports which pickup locations a fulfilment unit
+  accepts.
+. *The item policy exists* — the configured default is `book` — and suits a loan from
+  another library, since it is what your loan rules see.
+. *Renewal can be stopped.* See <<preventing-renewal>>.
+. *Your patrons can sign in.* OpenRS checks a library-account password against Alma, so a
+  borrowing patron needs an internal Alma password held by the Ex Libris Identity Service.
+  Patrons who sign in through your institution's identity provider can sign in but cannot yet
+  place a request.
+
+[#checking]
+=== Checking the configuration
+
+Two reports ask your Alma directly whether what DCB holds exists there. Both need an
+administrator or interop-tester login.
+
+`GET /imps/configuration/{host LMS code}`:: Checks the sharing library, the virtual item
+library and location, and the item policies. Every row should read `PRESENT`. The sharing
+library reads `MISSING` if it is a resource-sharing library, with the reason.
+`GET /imps/configuration/{host LMS code}/mappings`:: Checks every saved mapping that points at
+your Alma against the codes Alma holds. It should report no `MISSING` rows.
+
+Neither can see fulfilment unit rules, so the second step above still needs someone in Alma.
 
 == Workflows
 
@@ -179,6 +233,7 @@ default:
 Any other status maps to `UNKNOWN`. If your institution uses others, tell your implementation
 team so the mapping can be extended.
 
+[#primo]
 == Linking to OpenRS from Primo
 
 A patron searching Primo finds nothing at your library, but the consortium holds it. You can
@@ -192,17 +247,35 @@ OpenURL metadata. OpenRS uses the same slot.
 
 === The link
 
-Configure a General Electronic Service in Alma whose URL template is:
+In Alma, go to *Configuration Menu > Fulfillment > Discovery Interface Display Logic > General
+Electronic Services* and add a service. This needs the *General System Administrator* or
+*Fulfillment Administrator* role.
 
-[source%nowrap,text]
-----
-https://{your-openrs-discovery-host}/?q={rft.isbn}&field=isbn
-----
+[cols="1,3"]
+|===
+| Field | Value
 
-Use your Alma display logic to show it only when there is no available local inventory, so
-the link appears exactly when it is useful.
+| URL template
+| `https://{your-openrs-discovery-host}/?q={rft.normalized_isbn}&field=isbn`
 
-Nothing needs building for this. The search route accepts the parameters directly.
+| Display in
+| *Getit & How to Getit* for Primo VE.
+
+| Public note
+| What the patron reads under the link, for example "Request from another OpenRS library".
+
+| Availability rules
+| Show it only on records with an ISBN, and — if you want it only where it helps — only when
+  there is no available local inventory.
+|===
+
+`{rft.normalized_isbn}` sends the ISBN as digits only, so nothing in the link needs escaping.
+Nothing needs building on the OpenRS side: the search route accepts these parameters as they
+are.
+
+NOTE: A General Electronic Service shows to everyone using that Primo view. When you set one
+up on a sandbox for a demonstration, a link to a discovery service only you can reach is a
+dead link for everyone else, so label it and remove it afterwards.
 
 === The parameters
 
@@ -239,6 +312,9 @@ elsewhere in the consortium reads *Request to borrow* without any further lookup
 is needed to place the request, not to search — a patron arriving from Primo can look before
 they authenticate.
 
+Placing the request makes your library the borrower, so everything in <<borrowing>> has to
+be in place first. Without it the link works and the request fails.
+
 === A fuller version is planned
 
 This link resolves by searching. A dedicated OpenURL resolver endpoint is planned, which will
@@ -262,6 +338,7 @@ system. Three things follow:
 NOTE: Virtual items are still created at one configured library for the whole tenant, rather
 than at each borrowing patron's own library. This is a known limitation.
 
+[#preventing-renewal]
 == Preventing renewal
 
 When another library requests an item one of your patrons has on loan, OpenRS asks your

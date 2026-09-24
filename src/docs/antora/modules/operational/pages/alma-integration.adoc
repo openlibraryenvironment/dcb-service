@@ -284,7 +284,7 @@ specifically, not only for the REST API. These are often controlled separately.
 
 An Alma site keeping Primo can still send patrons into OpenRS for items it does not hold. The
 path is a link on the Alma services page into a pre-filled search in the OpenRS discovery UI, and it needs no
-code on either side.
+code on either side. The Alma configuration is in xref:operational:alma-setup.adoc#primo[Linking to OpenRS from Primo].
 
 === Why a search and not a record link
 
