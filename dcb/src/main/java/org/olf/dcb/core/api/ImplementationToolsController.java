@@ -26,12 +26,14 @@ import org.olf.dcb.core.interaction.MappingAudit;
 import org.olf.dcb.core.interaction.MappingValueCheck;
 import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.PingResponse;
+import org.olf.dcb.core.interaction.RequestOptionsReport;
 
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 @Controller("/imps")
@@ -42,10 +44,14 @@ public class ImplementationToolsController {
 
 	private final InteropTestService interopTestService;
 	private final HouseKeepingService houseKeepingService;
+	private final RequestOptionsService requestOptionsService;
 
-	public ImplementationToolsController(InteropTestService interopTestService, HouseKeepingService houseKeepingService) {
+	public ImplementationToolsController(InteropTestService interopTestService,
+		HouseKeepingService houseKeepingService, RequestOptionsService requestOptionsService) {
+
 		this.interopTestService = interopTestService;
 		this.houseKeepingService = houseKeepingService;
+		this.requestOptionsService = requestOptionsService;
 	}
 
   @Get(uri = "/audit", produces = MediaType.TEXT_PLAIN)
@@ -172,6 +178,20 @@ public class ImplementationToolsController {
 		String systemCode) {
 
 		return interopTestService.checkConfiguration(systemCode);
+	}
+
+	@Operation(
+		summary = "Ask a supplier what DCB's virtual patron may request",
+		description = "For a patron request whose supplier hold was refused: asks the supplying Host LMS "
+			+ "what the virtual patron may request on the chosen copy. Alma answers with request types, "
+			+ "not pickup locations. NOT_SUPPORTED where the Host LMS cannot be asked."
+	)
+	@Get(uri = "/patron-requests/{patronRequestId}/request-options", produces = APPLICATION_JSON)
+	public Mono<RequestOptionsReport> checkRequestOptions(
+		@Parameter(description = "DCB patron request id", required = true)
+		@PathVariable UUID patronRequestId) {
+
+		return requestOptionsService.forPatronRequest(patronRequestId);
 	}
 
 	@Operation(

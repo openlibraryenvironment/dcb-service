@@ -605,7 +605,21 @@ public class InteropTestService {
 					})
 					.map(entries -> mappings.stream()
 						.map(mapping -> auditRow(systemCode, category, vocabulary, mapping, entries))
-						.toList()));
+						.toList())
+					// An empty Mono is an adapter that cannot read this vocabulary. Dropping the rows
+					// made a system that could not be asked read as one with nothing wrong
+					.switchIfEmpty(Mono.fromSupplier(() -> mappings.stream()
+						.map(mapping -> notSupportedRow(systemCode, category, vocabulary, mapping))
+						.toList())));
+	}
+
+	private static MappingAudit.Row notSupportedRow(String systemCode, String category,
+		MappingVocabulary vocabulary, ReferenceValueMapping mapping) {
+
+		final var check = MappingValueCheck.notSupported(systemCode, vocabulary, mapping.getToValue());
+
+		return new MappingAudit.Row(category, mapping.getFromContext(), mapping.getFromValue(),
+			mapping.getToValue(), check.result(), check.detail());
 	}
 
 	private static MappingAudit.Row auditRow(String systemCode, String category,

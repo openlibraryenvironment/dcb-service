@@ -32,6 +32,11 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.http.client.HttpClient;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
+import services.k_int.interaction.alma.AlmaRequestOptions;
+import services.k_int.interaction.alma.types.AlmaBib;
+import services.k_int.interaction.alma.types.CodeValuePair;
+import services.k_int.interaction.alma.types.items.AlmaHoldingData;
+import services.k_int.interaction.alma.types.items.AlmaItem;
 import services.k_int.interaction.alma.types.error.AlmaError;
 import services.k_int.interaction.alma.types.error.AlmaErrorList;
 import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
@@ -80,6 +85,48 @@ class AlmaSupplierHoldTests {
 	}
 
 	@Test
+	void shouldBlameThePickupLibraryWhenAlmaOffersThePatronAHold() {
+		refuseWith("401129", "No items can fulfill the submitted request.");
+		almaOffers("HOLD");
+
+		final var error = placeSupplierHold("bib-1", "barcode-1");
+
+		// Measured on an Alma sandbox: a HOLD offered to this patron on this copy, and the POST
+		// still refused because the pickup library was the Resource Sharing Library
+		assertThat(error.getMessage(), allOf(
+			containsString("Alma offers this patron a hold on this item"),
+			containsString("the refusal is the pickup library"),
+			containsString("RES_SHARE")));
+	}
+
+	@Test
+	void shouldBlameTheUserGroupWhenAlmaOffersThePatronNoHold() {
+		refuseWith("401129", "No items can fulfill the submitted request.");
+		almaOffers("DIGITIZATION");
+
+		final var error = placeSupplierHold("bib-1", "barcode-1");
+
+		assertThat(error.getMessage(), allOf(
+			containsString("no hold on this item (offered: DIGITIZATION)"),
+			containsString("user group has no Request term of use")));
+	}
+
+	@Test
+	void shouldStillReportTheRefusalWhenAlmaCannotBeAskedWhy() {
+		refuseWith("401129", "No items can fulfill the submitted request.");
+		when(almaApi.retrieveItemBarcodeOnly("barcode-1"))
+			.thenReturn(Mono.error(new RuntimeException("Alma is unavailable")));
+
+		final var error = placeSupplierHold("bib-1", "barcode-1");
+
+		assertThat(error, instanceOf(AlmaHostLmsClientException.class));
+		assertThat(error.getMessage(), allOf(
+			containsString("RES_SHARE"),
+			containsString("Alma could not be asked which")));
+		assertThat(error.getCause(), instanceOf(AlmaApiException.class));
+	}
+
+	@Test
 	void shouldKeepAlmasAnswerAsTheCause() {
 		refuseWith("401129", "No items can fulfill the submitted request.");
 
@@ -103,10 +150,30 @@ class AlmaSupplierHoldTests {
 			.thenReturn(Mono.error(almaError(code, message)));
 	}
 
+	private void almaOffers(String requestType) {
+		when(almaApi.retrieveItemBarcodeOnly("barcode-1")).thenReturn(Mono.just(AlmaItem.builder()
+			.bibData(AlmaBib.builder().mmsId("bib-1").build())
+			.holdingData(AlmaHoldingData.builder().holdingId("holding-1").build())
+			.build()));
+
+		when(almaApi.retrieveItemRequestOptions("bib-1", "holding-1", "item-1", "patron-1"))
+			.thenReturn(Mono.just(AlmaRequestOptions.builder()
+				.requestOptions(List.of(AlmaRequestOptions.Option.builder()
+					.type(CodeValuePair.builder().value(requestType).build())
+					.build()))
+				.build()));
+	}
+
 	private Throwable placeSupplierHold() {
+		return placeSupplierHold(null, null);
+	}
+
+	private Throwable placeSupplierHold(String localBibId, String localItemBarcode) {
 		return client.placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters.builder()
 				.localPatronId("patron-1")
 				.localItemId("item-1")
+				.localBibId(localBibId)
+				.localItemBarcode(localItemBarcode)
 				.pickupLocation(Location.builder().code("PICKUP").localId("PICKUP").build())
 				.activeWorkflow("RET-STD")
 				.patronRequestId("pr-1")

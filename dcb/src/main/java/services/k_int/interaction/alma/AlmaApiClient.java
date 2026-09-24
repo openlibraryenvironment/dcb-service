@@ -211,9 +211,23 @@ public interface AlmaApiClient {
 	}
 
 	/**
-	 * 	This appears to be possible but is not documented. Use only if no other option
+	 * What one user may request on one item. Lists request types only, not pickup locations.
+	 * <p>
+	 * API: GET /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}/request-options
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/bibs/R0VUIC9hbG1hd3MvdjEvYmlicy97bW1zX2lkfS9ob2xkaW5ncy97aG9sZGluZ19pZH0vaXRlbXMve2l0ZW1fcGlkfS9yZXF1ZXN0LW9wdGlvbnM=/
 	 */
+	default Mono<AlmaRequestOptions> retrieveItemRequestOptions(String mms_id, String holding_id,
+		String item_pid, String user_id) {
 
+		return get("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings/" + pathSegment(holding_id)
+			+ "/items/" + pathSegment(item_pid) + "/request-options", AlmaRequestOptions.class,
+			Map.of("user_id", user_id));
+	}
+
+	/**
+	 * API: GET /almaws/v1/items?item_barcode={item_barcode} - redirects to the item
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/bibs/
+	 */
 	default Mono<AlmaItem> retrieveItemBarcodeOnly(String item_barcode) {
 		return get("/almaws/v1/items", AlmaItem.class, Map.of("item_barcode", item_barcode));
 	}

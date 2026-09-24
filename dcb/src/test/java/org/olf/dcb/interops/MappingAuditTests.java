@@ -67,6 +67,18 @@ class MappingAuditTests {
 			everyItem(is(MappingValueCheck.Result.UNKNOWN)));
 	}
 
+	@Test
+	void shouldNotReportNothingWrongForASystemThatCannotBeAsked() {
+		// fetchVocabulary's empty Mono means "this adapter cannot read it". Dropping the rows made
+		// a system that was never asked read as CHECKED with nothing missing
+		final var audit = auditOf(
+			List.of(mapping("patronType", "UNDERGRADUATE", "undergrad")), null);
+
+		assertThat(audit.checked(), is(1));
+		assertThat(audit.rows().stream().map(row -> row.result()).toList(),
+			everyItem(is(MappingValueCheck.Result.NOT_SUPPORTED)));
+	}
+
 	private interface MappingAuditRowValue {
 		static String of(org.olf.dcb.core.interaction.MappingAudit.Row row) {
 			return row.toValue();
@@ -80,7 +92,8 @@ class MappingAuditTests {
 		when(repository.findAllTargeting(anyString())).thenReturn(Flux.fromIterable(mappings));
 
 		final var client = mock(HostLmsClient.class);
-		when(client.fetchVocabulary(any(MappingVocabulary.class))).thenReturn(Mono.just(vocabulary));
+		when(client.fetchVocabulary(any(MappingVocabulary.class)))
+			.thenReturn(vocabulary != null ? Mono.just(vocabulary) : Mono.empty());
 
 		final var hostLmsService = mock(HostLmsService.class);
 		when(hostLmsService.getClientFor(HOST_LMS)).thenReturn(Mono.just(client));

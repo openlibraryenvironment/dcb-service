@@ -112,6 +112,18 @@ public interface HostLmsClient
 	}
 
 	/**
+	 * What this Host LMS says one patron may request on one copy.
+	 * <p>
+	 * For troubleshooting a refused hold, never for deciding whether to place one: Alma offered
+	 * a hold on a copy it then refused, because the pickup location is not an input to its
+	 * answer. The default says this adapter cannot ask rather than answering nothing.
+	 */
+	default Mono<RequestOptionsReport> checkRequestOptions(RequestOptionsQuery query) {
+		return Mono.just(RequestOptionsReport.notSupported(getHostLmsCode(),
+			"This adapter cannot ask its Host LMS what a patron may request"));
+	}
+
+	/**
 	 * Does this Host LMS host more than one participating library?
 	 * <p>
 	 * On a shared system an agency can only ever be identified by a specific local
