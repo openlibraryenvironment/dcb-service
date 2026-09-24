@@ -12,6 +12,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,7 @@ import services.k_int.interaction.alma.types.UserIdentifier;
 import services.k_int.interaction.alma.types.WithAttr;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.types.items.AlmaItem;
+import services.k_int.interaction.alma.types.items.AlmaHoldingData;
 import services.k_int.interaction.alma.types.items.AlmaItemData;
 import services.k_int.interaction.alma.types.items.AlmaItemLoan;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequest;
@@ -898,8 +900,17 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.thenReturn(parameters.getLocalRequestId());
 	}
 
-	// At most 500 of the patron's loans are searched for the one being renewed
+	// At most 500 of the patron's loans are searched for the one being renewed or confirmed
 	private static final int MAX_LOAN_PAGES = 5;
+
+	private Mono<AlmaItemLoan> loanOfItem(String patronId, String itemId) {
+		return Flux.range(0, MAX_LOAN_PAGES)
+			.concatMap(page -> client.retrieveUserLoansPage(patronId, page * AlmaApiClient.LOAN_PAGE_SIZE))
+			.takeUntil(page -> page.getLoans() == null || page.getLoans().size() < AlmaApiClient.LOAN_PAGE_SIZE)
+			.concatMapIterable(page -> page.getLoans() != null ? page.getLoans() : List.<AlmaItemLoan>of())
+			.filter(loan -> itemId.equals(loan.getItemId()))
+			.next();
+	}
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal renewal) {
@@ -911,12 +922,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			return Mono.error(new IllegalArgumentException("Local Item ID is missing and required for renewal."));
 		}
 
-		return Flux.range(0, MAX_LOAN_PAGES)
-			.concatMap(page -> client.retrieveUserLoansPage(patronId, page * AlmaApiClient.LOAN_PAGE_SIZE))
-			.takeUntil(page -> page.getLoans() == null || page.getLoans().size() < AlmaApiClient.LOAN_PAGE_SIZE)
-			.concatMapIterable(page -> page.getLoans() != null ? page.getLoans() : List.<AlmaItemLoan>of())
-			.filter(loan -> itemId.equals(loan.getItemId()))
-			.next()
+		return loanOfItem(patronId, itemId)
 			.switchIfEmpty(Mono.error(new IllegalStateException("Could not find a matching loan for item ID " + itemId + " and patron " + patronId)))
 			.flatMap(matchedLoan -> {
 				final String loanId = matchedLoan.getLoanId();
@@ -1212,10 +1218,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(item -> {
 
 				final var almaItemData = getValueOrNull(item, AlmaItem::getItemData);
+				final var itemHoldingId = holdingIdOf(item, holdingId);
 
 				// One rule for both paths: an unknown count is unknown, as getItems has it. Zero here
 				// reported "no holds" whenever Alma was unreachable for this one call
-				Mono<Optional<Integer>> holdCountMono = client.retrieveItemRequests(bibId, holdingId, itemId)
+				Mono<Optional<Integer>> holdCountMono = client.retrieveItemRequests(bibId, itemHoldingId, itemId)
 					.map(requests -> Optional.ofNullable(requests.getRecordCount()))
 					.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item {}", itemId, e))
 					.onErrorResume(e -> Mono.just(Optional.empty()));
@@ -1225,7 +1232,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 						.localId(almaItemData.getPid())
 						.barcode(almaItemData.getBarcode())
 						.bibId(bibId)
-						.holdingId(holdingId)
+						.holdingId(itemHoldingId)
 						.holdCount(holdCount.orElse(null))
 						.build();
 
@@ -1252,18 +1259,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		log.debug("Updating item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
 
 		return client.retrieveItem(bibId, holdingsId, itemId)
-			.map(data -> {
-				final var almaItemData = getValueOrNull(data, AlmaItem::getItemData);
+			.flatMap(before -> {
+				final var almaItemData = getValueOrNull(before, AlmaItem::getItemData);
 				// working theory as of 17/09/2025
 				// that the item possesses the location we want to scan in at
 				final var libraryCode = getValueOrNull(almaItemData, AlmaItemData::getLibrary, CodeValuePair::getValue);
 				// each location should have its default circ desk set
 				// the intention to override this is to handle the default code changing for a system
 				final var defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
+				final var itemHoldingId = holdingIdOf(before, holdingsId);
 
-				return new ScanInQuery(bibId, holdingsId, itemId, libraryCode, defaultCircDesk);
+				return client.scanIn(new ScanInQuery(bibId, itemHoldingId, itemId, libraryCode, defaultCircDesk))
+					.onErrorResume(error -> scanTookEffect(bibId, itemHoldingId, itemId, before, error));
 			})
-			.flatMap(client::scanIn)
 			.map(data -> {
 				final var almaItemData = getValueOrNull(data, AlmaItem::getItemData);
 				final var baseStatus = getValueOrNull(almaItemData, AlmaItemData::getBaseStatus, CodeValuePair::getValue);
@@ -1275,6 +1283,54 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	public record ScanInQuery(String mms_id, String holding_id, String item_pid, String library, String circ_desk) {}
+
+	// DCB records no holding id for a supplier item. Alma's item read accepts any holding segment
+	// and answers with the real one; its requests and scan calls do not accept a missing one
+	private static String holdingIdOf(AlmaItem item, String fallback) {
+		final var fromItem = getValueOrNull(item, AlmaItem::getHoldingData, AlmaHoldingData::getHoldingId);
+
+		return !isBlank(fromItem) ? fromItem : fallback;
+	}
+
+	/**
+	 * A scan that Alma applied but did not answer within the read timeout is a success. Observed on
+	 * a sandbox: the item was on the hold shelf 52 seconds into a scan whose reply never came, and
+	 * the transition went to ERROR. Changed state is the evidence; unchanged state keeps the error.
+	 */
+	private Mono<AlmaItem> scanTookEffect(String bibId, String holdingId, String itemId,
+		AlmaItem before, Throwable error) {
+
+		return client.retrieveItem(bibId, holdingId, itemId)
+			.onErrorResume(readError -> Mono.error(error))
+			.flatMap(after -> {
+				if (Objects.equals(itemState(before), itemState(after))) {
+					return Mono.error(error);
+				}
+
+				log.warn("Alma scan-in of item {} failed with \"{}\" but the item moved from {} to {}; treating it as done",
+					itemId, error.getMessage(), itemState(before), itemState(after));
+
+				return Mono.just(after);
+			});
+	}
+
+	private static List<String> itemState(AlmaItem item) {
+		final var data = getValueOrNull(item, AlmaItem::getItemData);
+
+		return Arrays.asList(
+			getValueOrNull(data, AlmaItemData::getBaseStatus, CodeValuePair::getValue),
+			getValueOrNull(data, AlmaItemData::getProcess_type, CodeValuePair::getValue));
+	}
+
+	// A loan Alma created without answering in time must not be retried into "already on loan"
+	private Mono<Void> loanTookEffect(String patronId, String itemId, Throwable error) {
+		return loanOfItem(patronId, itemId)
+			.onErrorResume(readError -> Mono.empty())
+			.switchIfEmpty(Mono.error(error))
+			.doOnNext(loan -> log.warn("Alma checkout of item {} failed with \"{}\" but loan {} exists for the patron; treating it as done",
+				itemId, error.getMessage(), loan.getLoanId()))
+			.then();
+	}
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
@@ -1322,7 +1378,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.requestId(CodeValuePair.builder().value(requestId).build())
 					.build();
 
-				return client.createUserLoan(patronId, itemId, almaItemLoan);
+				return client.createUserLoan(patronId, itemId, almaItemLoan)
+					.then()
+					.onErrorResume(error -> loanTookEffect(patronId, itemId, error));
 			})
 			.thenReturn("OK")
 			.doOnError(e -> log.error("Alma checkout API call failed for patron {} and item {}: {}", patronId, itemId, e.getMessage()));
