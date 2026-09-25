@@ -77,6 +77,11 @@ changing in Alma, or what in Alma is causing a DCB issue.
 | Regional Alma URL
 | See "Calling Alma APIs" in the Ex Libris link:https://developers.exlibrisgroup.com/alma/apis/[developer documentation].
 
+Every Alma institution in a region shares this URL, and DCB uses it to tell one system from
+another. Where two Alma institutions in the consortium use the same regional URL, give each a
+different *base URL qualifier* (`base-url-qualifier`), such as its institution code. Without
+it DCB treats the two as one system and neither can supply the other's patrons.
+
 | Sharing library code
 | The Alma library that lending holds are sent to for collection. A library that can be a
 pickup location, never the Resource Sharing Library — see <<lending-library>>.
@@ -134,7 +139,8 @@ that Alma does not recognise.
 *Locations.* Map each Alma *library* code — `MAIN`, `LAW` and so on — to your agency. OpenRS
 places an Alma item at its owning library, not its shelving location, so a mapping keyed on a
 shelving location never matches. Every library holding items you want to be requestable needs
-a mapping.
+a mapping. Mappings made before DCB 9.0.0 were keyed on shelving locations and stopped matching
+on upgrade; replace them with library codes.
 
 You can use the "New Mapping" button or the upload feature, which accepts TSV and CSV. See
 the link:https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3201400850/Importing+mappings+in+DCB+Admin[import user guide].
@@ -218,20 +224,21 @@ Neither can see fulfilment unit rules, so the second step above still needs some
 
 == Live availability
 
-OpenRS shows real-time item status across the consortium. These Alma statuses are mapped by
-default:
+OpenRS shows real-time item status across the consortium, from each item's Alma base status.
+Alma has two:
 
 [cols="1,1,1"]
 |===
 | Alma code | Alma label | Shown as
 
-| `0` | Not in place | `UNKNOWN`
 | `1` | In place | `AVAILABLE`
-| `2` | Loaned | `CHECKED_OUT`
+| `0` | Not in place | `UNKNOWN`
 |===
 
-Any other status maps to `UNKNOWN`. If your institution uses others, tell your implementation
-team so the mapping can be extended.
+"Not in place" covers every copy that is off the shelf: on loan, in transit, on the hold shelf
+or in a work order. OpenRS does not yet tell these apart, so only copies in place can be
+supplied. A copy on loan is never offered, even where the consortium enables
+`SELECT_UNAVAILABLE_ITEMS`, because that setting applies only to copies known to be checked out.
 
 [#primo]
 == Linking to OpenRS from Primo
@@ -333,7 +340,8 @@ system. Three things follow:
 . *Map each campus code to its agency* through Location mappings.
 . *Leave the default agency unset.* A shared system cannot have a fallback agency; each
   library's locations must map explicitly. The configuration validator rejects the
-  combination rather than guessing.
+  combination rather than guessing. A `*` wildcard Location mapping is ignored on a shared
+  system for the same reason.
 
 NOTE: Virtual items are still created at one configured library for the whole tenant, rather
 than at each borrowing patron's own library. This is a known limitation.
