@@ -1,6 +1,8 @@
 package org.olf.dcb.item.availability;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -64,5 +66,30 @@ class LiveAvailabilityServiceBackfillTests {
 
 		verify(locationService, never()).memoize(any(), any(), any());
 		assertThat(service.availabilityCache.getIfPresent(bib.getId().toString()), nullValue());
+	}
+
+	@Test
+	void shouldReportAHostLmsThatDoesNotAnswerInTimeAsAnErrorRatherThanNoItems() {
+		final var sourceSystem = DataHostLms.builder()
+			.id(UUID.randomUUID())
+			.code("source")
+			.build();
+		final var bib = BibRecord.builder()
+			.id(UUID.randomUUID())
+			.sourceSystemId(sourceSystem.getId())
+			.sourceRecordId("record")
+			.build();
+
+		when(hostLmsService.findById(sourceSystem.getId())).thenReturn(Mono.just(sourceSystem));
+		when(hostLmsService.getClientFor(sourceSystem)).thenReturn(Mono.just(hostLmsClient));
+		when(hostLmsClient.getHostLmsCode()).thenReturn(sourceSystem.getCode());
+		when(hostLmsClient.getItems(bib)).thenReturn(Mono.never());
+
+		final var report = singleValueFrom(
+			service.fetchBibAvailabilityForBackfill(bib, Duration.ofMillis(50), "all"));
+
+		assertThat(report.getItems(), empty());
+		assertThat(report.getErrors().stream().map(AvailabilityReport.Error::getMessage).toList(),
+			contains("source did not answer within PT0.05S for bib record"));
 	}
 }

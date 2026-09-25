@@ -549,7 +549,7 @@ public class PlacePatronRequestAtPickupAgencyStateTransition implements PatronRe
 			.flatMap( auditPickupPatron(patronRequest, "Pickup patron : created") );
 	}
 
-	private Mono<Tuple2<String, String>> createPatronAtPickupAgency(
+	Mono<Tuple2<String, String>> createPatronAtPickupAgency(
 		PatronRequest patronRequest, HostLmsClient client,
 		PatronIdentity requestingPatronIdentity, String hostLmsCode) {
 		// Using the patron type from the patrons "Home" patronIdentity, look up what the equivalent patron type is at
