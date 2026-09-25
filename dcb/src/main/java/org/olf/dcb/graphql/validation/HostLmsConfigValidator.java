@@ -144,6 +144,7 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "sharing-library-code", missing);
 		checkPresent(config, "virtual-item-library-code", missing);
 		checkPresent(config, "virtual-item-location-code", missing);
+		checkPresent(config, "request-cancellation-reason", missing);
 
 		throwIfMissing("Alma", missing);
 	}

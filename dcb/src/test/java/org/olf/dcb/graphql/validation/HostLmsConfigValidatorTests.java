@@ -143,6 +143,7 @@ class HostLmsConfigValidatorTests {
 		config.remove("sharing-library-code");
 		config.remove("virtual-item-library-code");
 		config.remove("virtual-item-location-code");
+		config.remove("request-cancellation-reason");
 
 		final var exception = assertThrows(HttpStatusException.class,
 			() -> validator.validate(ALMA, config));
@@ -150,6 +151,8 @@ class HostLmsConfigValidatorTests {
 		assertThat(exception.getMessage(), containsString("sharing-library-code"));
 		assertThat(exception.getMessage(), containsString("virtual-item-library-code"));
 		assertThat(exception.getMessage(), containsString("virtual-item-location-code"));
+		// Ex Libris documents reason as required on the cancel call, from a per-institution code table
+		assertThat(exception.getMessage(), containsString("request-cancellation-reason"));
 	}
 
 	@Test
@@ -168,6 +171,7 @@ class HostLmsConfigValidatorTests {
 		config.put("sharing-library-code", "DCB");
 		config.put("virtual-item-library-code", "DCB");
 		config.put("virtual-item-location-code", "DCB-LOC");
+		config.put("request-cancellation-reason", "LibraryCancelled");
 
 		return config;
 	}

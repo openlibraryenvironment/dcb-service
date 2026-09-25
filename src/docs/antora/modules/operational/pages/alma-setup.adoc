@@ -96,6 +96,11 @@ on when you borrow. Both must already exist in Alma — see <<borrowing>>.
 | Default circulation desk
 | The desk OpenRS should use for checkouts.
 
+| Request cancellation reason
+| A code from your *RequestCancellationReasons* code table. Alma requires a reason whenever a
+request is cancelled, and OpenRS cancels its own holds when a request ends early. Your patrons
+are not notified of these cancellations.
+
 | Virtual patron barcode prefix (optional)
 | Empty by default, so nothing changes at your desk unless you choose it. A visiting patron's
 virtual account carries their own card barcode, which is what your staff scan when the patron

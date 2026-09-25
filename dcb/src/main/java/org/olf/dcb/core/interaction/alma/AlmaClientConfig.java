@@ -47,7 +47,7 @@ public class AlmaClientConfig {
 		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
 	private static final HostLmsPropertyDefinition REQUEST_CANCELLATION_REASON
 		= stringPropertyDefinition("request-cancellation-reason",
-			"Code from the RequestCancellationReasons code table sent when DCB cancels a request", FALSE);
+			"Code from the RequestCancellationReasons code table sent when DCB cancels a request", TRUE);
 
 	// Alma has no reliable way of getting a patron's home location.
 	// So we must create virtual items at a "DCB" location agreed with the Alma staff
@@ -109,6 +109,8 @@ public class AlmaClientConfig {
 			DEFAULT_VIRTUAL_PATRON_BARCODE_PREFIX);
 	}
 
+	// Required when a Host LMS is saved, but read leniently: a record saved before the setting
+	// existed must still be able to cancel, as it could before
 	String getRequestCancellationReason() {
 		return REQUEST_CANCELLATION_REASON.getOptionalValueFrom(hostLms.getClientConfig(), null);
 	}
