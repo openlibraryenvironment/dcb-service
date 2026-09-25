@@ -24,6 +24,9 @@ public interface AvailabilityCheckJobConfig {
   	@Bindable(defaultValue = "2")
     int getPerSource();
 
+	@Bindable(defaultValue = "3")
+	int getMappingWrites();
+
   	// @Bindable(defaultValue = "#{ T(Math).max( T(Runtime).getRuntime().availableProcessors() / 4, 5) }")
   	// Bindable doesn't seem to work with an expression here. Maybe will post-upgrade.
   	// Leaving this here for info, but will mimic this in the job class, and make this optional.
@@ -32,11 +35,11 @@ public interface AvailabilityCheckJobConfig {
 
   @NonNull
 	@NotNull
-	@Bindable(defaultValue = "P30D")
+	@Bindable(defaultValue = "P60D")
   Duration getMappedRecheckGracePeriod();
   
 	@NonNull
 	@NotNull
-	@Bindable(defaultValue = "P7D")
+	@Bindable(defaultValue = "P14D")
   Duration getRecheckGracePeriod();
 }

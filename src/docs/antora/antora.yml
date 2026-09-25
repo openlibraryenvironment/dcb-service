@@ -4,7 +4,7 @@ title: DCB Service Documentation
 nav:
   - modules/ROOT/nav.adoc
 ext:
-  collector:
+  collector:      
     run:
       - command: "JAVA_TOOL_OPTIONS=\
           -Dmicronaut.openapi.views.spec=\

@@ -41,9 +41,9 @@ public interface PostgresBibRepository extends ReactiveStreamsPageableRepository
 			AND (
 					bib_availability_count.status != 'RECHECK_REQUIRED'
 					AND (
-						bib_availability_count.grace_period_end > NOW()
+					bib_availability_count.grace_period_end > NOW()
 						OR (bib_availability_count.grace_period_end IS NULL
-					AND bib_availability_count.last_updated < :graceCutoff)))
+					AND bib_availability_count.last_updated > :graceCutoff)))
 		)
 		ORDER BY contributes_to, bib_record.date_updated ASC NULLS FIRST
 		LIMIT :limit;""", nativeQuery = true)

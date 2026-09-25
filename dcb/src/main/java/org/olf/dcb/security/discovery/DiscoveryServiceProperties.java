@@ -35,9 +35,12 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 @ConfigurationProperties("dcb.discovery")
 public class DiscoveryServiceProperties {
 
+	/** Documented as PT2M in README.md and docs/discovery-service-approach.md. */
+	private static final Duration DEFAULT_MAX_ASSERTION_LIFETIME = Duration.ofMinutes(2);
+
 	private boolean enabled = false;
 	private String audience = "dcb";
-	private Duration maxAssertionLifetime = Duration.ofMinutes(5);
+	private Duration maxAssertionLifetime = DEFAULT_MAX_ASSERTION_LIFETIME;
 	private List<TrustedService> trustedServices = new ArrayList<>();
 	private List<TrustedService> trustedServicesFromJson = new ArrayList<>();
 
@@ -76,7 +79,7 @@ public class DiscoveryServiceProperties {
 	public void setMaxAssertionLifetime(Duration maxAssertionLifetime) {
 		this.maxAssertionLifetime = (maxAssertionLifetime != null && !maxAssertionLifetime.isZero())
 			? maxAssertionLifetime
-			: Duration.ofMinutes(5);
+			: DEFAULT_MAX_ASSERTION_LIFETIME;
 	}
 
 	/**

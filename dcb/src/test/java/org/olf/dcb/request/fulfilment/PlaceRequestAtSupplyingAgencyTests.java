@@ -116,6 +116,10 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 	@BeforeEach
 	public void beforeEach(MockServerClient mockServerClient) {
+		// This PER_CLASS fixture must not retain requests or expectations from an
+		// earlier method: each method verifies one exact Sierra request.
+		mockServerClient.reset();
+
 		final String TOKEN = "test-token";
 		final String BASE_URL = "https://supplying-agency-service-tests.com";
 		final String KEY = "supplying-agency-service-key";

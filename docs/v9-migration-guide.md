@@ -258,8 +258,8 @@ behaviour, which are the ones to read.
 | `DCB_BRANDING_ASSETS_STORE` | `database` | **Default changes behaviour.** Brand images upload into Postgres. Set to `none` to remove the upload routes entirely — brand fields then accept absolute CDN URLs only |
 | `DCB_BRANDING_ASSETS_MAX_BYTES` | `2097152` (2 MB) | **Also raises `micronaut.server.multipart.max-file-size` from the framework default of 1 MB**, deliberately, so the two limits governing one upload cannot drift. This applies to location and mapping import too |
 | `DCB_BRANDING_ASSETS_MAX_DIMENSION` | `4096` | Decompression-bomb guard, read from the image header |
-| `DCB_BRANDING_ASSETS_ORPHAN_GRACE` | `24h` | How long an unreferenced upload survives the daily sweep |
-| `DCB_BRANDING_ASSETS_PATH_PREFIX` | `/discovery/brand-assets/` | Changing this after assets exist orphans every stored URL. Read it; do not tune it |
+| `DCB_BRANDING_ASSETS_ORPHAN_GRACE_PERIOD` | `24h` | How long an unreferenced upload survives the daily sweep |
+| `DCB_BRANDING_ASSETS_PUBLIC_PATH_PREFIX` | `/discovery/brand-assets/` | Changing this after assets exist orphans every stored URL. Read it; do not tune it |
 
 **Capacity:** with the default store, brand images live in your database and therefore in
 your backups. The ceiling is small and bounded — a handful of images per consortium and
@@ -275,9 +275,9 @@ here" from "that upload failed".
 | Variable | Default | Notes |
 |---|---|---|
 | `DCB_INSIGHTS_ENABLED` | `true` | **On by default.** Endpoints under `/insights`, restricted to `CONSORTIUM_ADMIN` / `LIBRARY_ADMIN` / `ADMINISTRATOR` |
-| `DCB_INSIGHTS_COLLECTION_CONCURRENCY` | `1` | Catalogue-wide aggregation over `bib_record`. Raise only with timings in hand |
-| `DCB_INSIGHTS_COLLECTION_CACHE_TTL` | `15m` | Every collection figure is stale by at most this |
-| `DCB_INSIGHTS_COLLECTION_MAX_WAIT` | `30s` | A queued caller waits this long, then gets **429** |
+| `DCB_INSIGHTS_COLLECTION_ANALYSIS_CONCURRENCY` | `1` | Catalogue-wide aggregation over `bib_record`. Raise only with timings in hand |
+| `DCB_INSIGHTS_COLLECTION_ANALYSIS_CACHE_TTL` | `15m` | Every collection figure is stale by at most this |
+| `DCB_INSIGHTS_COLLECTION_ANALYSIS_MAX_WAIT` | `30s` | A queued caller waits this long, then gets **429** |
 
 If administrators report a 429 opening the dashboard cold, that is this working as
 designed — several panels queueing behind a concurrency of 1 — not a fault. Raise
@@ -684,7 +684,7 @@ anything still uses them. The new home for reporting is `/insights`.
 | Calls to `/discovery/**` return 401/403 | `DCB_DISCOVERY_ENABLED` still `false`, no trust anchor configured, or the caller holds no `DISCOVERY_SERVICE` credential. Only relevant if you are onboarding a discovery service |
 | Startup fails parsing discovery configuration | Malformed `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`. Deliberate: a trust anchor that binds nothing silently is indistinguishable from one nobody configured |
 | Uploads rejected at just over 1 MB | Should no longer happen — the multipart limit now tracks `DCB_BRANDING_ASSETS_MAX_BYTES` (2 MB). If it does, something is overriding `micronaut.server.multipart.max-file-size` |
-| `/insights` panels return 429 | Collection analysis queueing behind `DCB_INSIGHTS_COLLECTION_CONCURRENCY=1` past `DCB_INSIGHTS_COLLECTION_MAX_WAIT`. Measure before raising |
+| `/insights` panels return 429 | Collection analysis queueing behind `DCB_INSIGHTS_COLLECTION_ANALYSIS_CONCURRENCY=1` past `DCB_INSIGHTS_COLLECTION_ANALYSIS_MAX_WAIT`. Measure before raising |
 | Search index went yellow after upgrade | `DCB_INDEX_NUMBER_OF_REPLICAS` defaults to `1` and is now reconciled at every startup. Set `0` on a single-node cluster |
 | `CP subsystem is a licensed feature` | Hazelcast newer than 5.4.0 on the classpath — should not happen from our image; report it |
 

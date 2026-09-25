@@ -4,6 +4,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.SHORT_LOAN;
@@ -16,6 +17,7 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasDerivedLoanPolicy;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.polaris.PolarisConfig.ItemConfig;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
+import org.olf.dcb.storage.AlarmRepository;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
@@ -33,6 +36,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @DcbTest
 @TestInstance(PER_CLASS)
@@ -54,6 +58,8 @@ class PolarisItemMapperTests {
 
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private AlarmRepository alarmRepository;
 
 	@BeforeAll
 	void beforeAll() {
@@ -170,6 +176,24 @@ class PolarisItemMapperTests {
 			notNullValue(),
 			hasDerivedLoanPolicy(GENERAL)
 		));
+	}
+
+	@Test
+	void shouldUseUnknownPolicyAndRaiseAlarmForInvalidConfiguredPolicy() {
+		final var shelfLocation = "Reference";
+		final var config = locationToPolicyMapConfig(Map.of(shelfLocation, "REFERENCE"));
+		final var polarisItem = ItemGetRow.builder().ShelfLocation(shelfLocation).build();
+
+		final var item = mapItem(polarisItem, config);
+
+		assertThat(item,
+			hasDerivedLoanPolicy(org.olf.dcb.core.model.DerivedLoanPolicy.UNKNOWN));
+		final var alarmCode = "ILS." + HOST_LMS_CODE + ".POLARIS_INVALID_SHELF_LOCATION_POLICY";
+		await().atMost(2, TimeUnit.SECONDS).until(() -> Mono.from(alarmRepository.findByCode(alarmCode))
+			.blockOptional().isPresent());
+		final var alarm = Mono.from(alarmRepository.findByCode(alarmCode)).block();
+		assertThat(alarm.getAlarmDetails().get("invalidShelfLocationPolicies"),
+			is(java.util.List.of("Reference=REFERENCE")));
 	}
 
 	@Nullable

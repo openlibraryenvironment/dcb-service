@@ -18,8 +18,8 @@ import reactor.core.publisher.Mono;
 
 /**
  * Shared-system is opt-in, so every path that cannot prove a system is shared has to say it
- * is not - otherwise a failing database read silently suppresses the wildcard location
- * mapping for tenants that were never shared systems.
+ * is not - introducing this test, as a reversion can cause issues with wildcard mappings
+ * and we won't necessarily realise until we see memory spikes
  */
 @TestInstance(PER_CLASS)
 class HostLmsContextServiceTests {

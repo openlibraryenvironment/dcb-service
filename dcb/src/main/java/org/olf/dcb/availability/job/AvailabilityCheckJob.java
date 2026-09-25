@@ -137,11 +137,11 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					0,
 					"LMS adapter gave empty response for [%s], please consult the logs.".formatted(bib.getId())));
 			}
-			
+
 			String combinedErrors =  errors.stream()
 				.map(Error::getMessage)
 				.collect(Collectors.joining("\n"));
-			
+
 			// Truncate for the DB field...
 			if (combinedErrors.length() > 255) {
 				combinedErrors = combinedErrors.substring(0, 252) + "...";
@@ -155,7 +155,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		final Map<String, Integer> locationCounts = new HashMap<>();
 		for ( Item item : data ) {
 			var locationCode = item.getLocationCode();
-			if ( locationCode == null ) {
+			if ( locationCode == null || locationCode.isBlank() ) {
 				// Null location. Log and skip.
 				if ( log.isWarnEnabled() ) {
 					log.warn("No location code returned for item local ID [{}] when checking availability for bib [{}]", item.getLocalId(), bib.getId());
@@ -172,9 +172,18 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 			int count = locationCounts.getOrDefault(locationCode, 0);
 			locationCounts.put(locationCode, (count+1));
 		}
-		
+
+		if (locationCounts.isEmpty()) {
+			return Flux.just(availabilityCount(
+				bib,
+				null,
+				0,
+				"LMS adapter returned %d item(s) without location codes for [%s]"
+					.formatted(data.size(), bib.getId())));
+		}
+
 		// Convert the map into a flux of items.
-			return Flux.fromIterable( locationCounts.entrySet() )
+		return Flux.fromIterable( locationCounts.entrySet() )
 			.map( entry -> availabilityCount(bib, entry.getKey(), entry.getValue(), null));
 	}
 	
@@ -229,12 +238,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 		
 		return Mono.from(bibCounts.saveOrUpdate(theCount))
 			.thenReturn(theCount)
-			.onErrorComplete(t -> {
-				log.error("Error saving/updating bibcount", t);
-				
-				// Return true always to ensure we complete and suppress the error signal.
-				return true;
-			});
+			.doOnError(t -> log.error("Error saving/updating bibcount", t));
 	}
 	
 	private Mono<BibAvailabilityCount> updateMappingIfRequired( BibAvailabilityCount count ) {
@@ -256,7 +260,9 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					count.toBuilder()
 						.status(Status.UNMAPPED)
 						.internalLocationCode(null)
-						.mappingResult( "No remote location code" )
+						.mappingResult(count.getMappingResult() != null
+							? count.getMappingResult()
+							: "No remote location code")
 						.lastUpdated(now)
 						.gracePeriodEnd(now.plus( jobConfig.getRecheckGracePeriod() ))
 						.build())
@@ -295,14 +301,18 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	}
 	
 	public Flux<BibAvailabilityCount> throttleFetchBySourceSystem( Collection<UUID> ids ) {
-		
-		final int totalConcurrency = jobConfig.getConcurrency().getInstanceWide()
-				.orElseGet(() -> Math.max( Runtime.getRuntime().availableProcessors() / 4, 5));
+		return throttleFetchBySourceSystem(ids,
+			new AvailabilityCheckConcurrencyLimiter(jobConfig.getConcurrency()));
+	}
 
-		
+	private Flux<BibAvailabilityCount> throttleFetchBySourceSystem(Collection<UUID> ids,
+		AvailabilityCheckConcurrencyLimiter limiter) {
+
 		final int externalPerSystem = jobConfig.getConcurrency().getPerSource();
 
-		log.info("Setting totalConcurrency={}, externalPerSystem={}",totalConcurrency,externalPerSystem);
+		log.info("Setting remote concurrency instanceWide={}, perSource={}, mappingWrites={}",
+			jobConfig.getConcurrency().getInstanceWide(), externalPerSystem,
+			jobConfig.getConcurrency().getMappingWrites());
 		
 		return bibRecordService.findAllByIdIn( ids )
 			.collectMultimap( bib -> bib.getSourceSystemId().toString() )
@@ -312,37 +322,77 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 					.window(externalPerSystem)
 					.delayElements(Duration.of(1, ChronoUnit.SECONDS))
 					.concatMap( items -> items
-						.flatMap( this::checkSingleBib ), 0); // No prefetching
-			}, totalConcurrency);
+						.flatMap(bib -> checkSingleBib(bib, limiter), externalPerSystem), 0); // No prefetching
+			});
 	}
 	
 	@Transactional
 	public Mono<Map<String, Collection<BibAvailabilityCount>>> checkClusterAvailability( Collection<UUID> bibs ) {
+		return checkClusterAvailability(bibs,
+			new AvailabilityCheckConcurrencyLimiter(jobConfig.getConcurrency()));
+	}
+
+	private Mono<Map<String, Collection<BibAvailabilityCount>>> checkClusterAvailability(Collection<UUID> bibs,
+		AvailabilityCheckConcurrencyLimiter limiter) {
+
 		// Manifest the bibs that need updating.
-		return throttleFetchBySourceSystem( bibs )
-			// Trying to control the rate at which DB updates are generated - in response to the exception
-			// described in comments at the top of the class
-			.buffer(15) // process n at a time
-			.concatMap(batch -> Flux.fromIterable(batch)
-				.flatMap(this::updateMappingIfRequired, 3) // 3 concurrent per batch
-			)
+		return throttleFetchBySourceSystem(bibs, limiter)
 			.collectMultimap(count -> count.getBibId().toString());
 	}
 	
 
 	@Retryable(attempts = "3", delay = "2.5", multiplier = "2")
 	protected Mono<AvailabilityReport> remoteBibFetch( BibRecord bib ) {
-		return liveAvailabilityService.checkBibAvailability(bib, TIMEOUT, FILTERS);
+		return liveAvailabilityService.fetchBibAvailabilityForBackfill(bib, TIMEOUT, FILTERS);
 	}
 	
-	private Flux<BibAvailabilityCount> checkSingleBib ( BibRecord bib ) {
+	private Flux<BibAvailabilityCount> checkSingleBib(BibRecord bib,
+		AvailabilityCheckConcurrencyLimiter limiter) {
 		
-		return Mono.just( bib )
-			.flatMap(this::remoteBibFetch)
+		return limiter.withRemoteLimit(bib.getSourceSystemId(), () -> remoteBibFetch(bib))
+			.switchIfEmpty(Mono.fromSupplier(() -> AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
+				.message("No availability report returned for bib [%s]".formatted(bib.getId()))
+				.build())))
 			.onErrorResume(e -> Mono.just(AvailabilityReport.ofErrors(AvailabilityReport.Error.builder()
 					.message("Error when fetching bib availability for [%s] %s".formatted(bib.getId().toString(), e))
 					.build())))
-			.flatMapMany( rep -> updateCountsFromAvailabilityReport(bib, rep) );
+			.flatMapMany(rep -> reconcileCountsFromAvailabilityReport(bib, rep, limiter));
+	}
+
+	/**
+	 * Save the response's current counts and, only when the response is complete,
+	 * remove counts for locations it no longer reports. A missing location code or
+	 * an adapter error cannot prove a previous location has disappeared.
+	 */
+	private Flux<BibAvailabilityCount> reconcileCountsFromAvailabilityReport(BibRecord bib,
+		AvailabilityReport report, AvailabilityCheckConcurrencyLimiter limiter) {
+
+		final boolean authoritative = report.getErrors().isEmpty()
+			&& report.getItems().stream()
+				.allMatch(item -> item.getLocationCode() != null && !item.getLocationCode().isBlank());
+
+		return updateCountsFromAvailabilityReport(bib, report)
+			.flatMap(count -> limiter.withMappingWriteLimit(() -> updateMappingIfRequired(count)))
+			.collectList()
+			.flatMapMany(counts -> {
+				if (!authoritative || counts.isEmpty()) {
+					return Flux.fromIterable(counts);
+				}
+
+				final var currentIds = counts.stream()
+					.map(BibAvailabilityCount::getId)
+					.toList();
+
+				return limiter.withMappingWriteLimit(() -> Mono.from(
+					bibCounts.deleteAllByBibIdAndHostLmsAndIdNotIn(
+						bib.getId(), bib.getSourceSystemId(), currentIds)))
+					.doOnNext(deleted -> {
+						if (deleted > 0) {
+							log.info("Removed {} stale availability count(s) for bib [{}]", deleted, bib.getId());
+						}
+					})
+					.thenMany(Flux.fromIterable(counts));
+			});
 	}
 	
 	/**
@@ -363,7 +413,8 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				log.error("Error building map from availability reports", e);
 				return Flux.empty();
 			})
-			.flatMap( this::updateMappingIfRequired )
+			.flatMap(this::updateMappingIfRequired,
+				jobConfig.getConcurrency().getMappingWrites())
 			.then( updateIndex );
 	}
 	
@@ -523,6 +574,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 	@Transactional(propagation = Propagation.MANDATORY)
 	public <T> Publisher<JobChunk<T>> processChunk(JobChunk<T> chunk) {
 		AvailabilityCheckChunk acc = (AvailabilityCheckChunk)chunk;
+		final var limiter = new AvailabilityCheckConcurrencyLimiter(jobConfig.getConcurrency());
 		
 		return Flux.fromIterable( acc.getData() )
 				// Special logging transformer only adds the operators if the log level is equal or greater.
@@ -532,7 +584,7 @@ public class AvailabilityCheckJob implements Job<MissingAvailabilityInfo>, JobCh
 				.collectMultimap( info -> info.clusterId().toString(), MissingAvailabilityInfo::bibId )
 				.flatMapIterable( Map::entrySet )
 				
-				.flatMap(entry -> checkClusterAvailability(entry.getValue())
+				.flatMap(entry -> checkClusterAvailability(entry.getValue(), limiter)
 					.map(locationMap -> Map.entry( entry.getKey(), locationMap )))
 				.collectMap(Entry::getKey, Entry::getValue)	
 				.map( this::reindexAffectedClusters )

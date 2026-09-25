@@ -14,10 +14,12 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.ShippingTestData.shippingContext;
 
 import com.k_int.peerauth.service.PeerTokenSigner;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -311,6 +313,57 @@ class ORSApplianceHostLMSTests {
 	}
 
 	@Test
+	void limitsConcurrentLocationLookupsForLargeNcipItemSets() {
+		final var httpClient = mock(HttpClient.class);
+		final var agencyRepository = mock(AgencyRepository.class);
+		final var locationRepository = mock(LocationRepository.class);
+		final var client = clientWith(
+			new CapturingTransport(response("remote-request")),
+			httpClient,
+			agencyRepository,
+			locationRepository);
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(lookupItemSetResponseWithItems(12))));
+		DataHostLms hostLms = hostLms();
+		DataAgency agency = DataAgency.builder()
+			.id(UUID.randomUUID())
+			.code("ors-unseen")
+			.name("The Unseen University")
+			.hostLms(hostLms)
+			.isSupplyingAgency(true)
+			.build();
+		Location location = Location.builder()
+			.id(UUID.randomUUID())
+			.code("UNSEEN-MAIN-1")
+			.name("Unseen Main Library")
+			.type("PICKUP")
+			.hostSystem(hostLms)
+			.agency(agency)
+			.isPickup(true)
+			.build();
+		when(agencyRepository.findOneByCode("ors-unseen"))
+			.thenReturn(Mono.just(agency));
+
+		AtomicInteger inFlight = new AtomicInteger();
+		AtomicInteger peakInFlight = new AtomicInteger();
+		when(locationRepository.findOneByCode(any())).thenAnswer(ignored -> Mono.defer(() -> {
+			int current = inFlight.incrementAndGet();
+			peakInFlight.accumulateAndGet(current, Math::max);
+			return Mono.delay(Duration.ofMillis(25))
+				.thenReturn(location)
+				.doOnSuccess(ignoredLocation -> inFlight.decrementAndGet());
+		}));
+
+		final var items = singleValueFrom(client.getItems(BibRecord.builder()
+			.sourceRecordId("uu-fhs-0001")
+			.build()));
+
+		assertThat(items.size(), is(12));
+		assertThat(peakInFlight.get(), is(4));
+		assertThat(inFlight.get(), is(0));
+	}
+
+	@Test
 	void baseHostLmsClientReturnsEmptyForUnsupportedMethods() {
 		final var client = new BaseOnlyClient(hostLms());
 
@@ -459,6 +512,32 @@ class ORSApplianceHostLMSTests {
 			  </LookupItemSetResponse>
 			</NCIPMessage>
 			""";
+	}
+
+	private static String lookupItemSetResponseWithItems(int itemCount) {
+		StringBuilder items = new StringBuilder();
+		for (int index = 0; index < itemCount; index++) {
+			items.append("""
+				<ItemInformation>
+				  <ItemId><ItemIdentifierValue>UU-FHS-%1$d</ItemIdentifierValue></ItemId>
+				  <ItemOptionalFields>
+				    <CirculationStatus>Available</CirculationStatus>
+				    <Location><LocationName><LocationNameInstance>
+				      <LocationNameValue>UNSEEN-MAIN-%1$d</LocationNameValue>
+				    </LocationNameInstance></LocationName></Location>
+				  </ItemOptionalFields>
+				</ItemInformation>
+				""".formatted(index));
+		}
+
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" ncip:version="2.02" xmlns:ncip="http://www.niso.org/2008/ncip">
+			  <LookupItemSetResponse>
+			    <ResponseHeader><FromAgencyId><AgencyId>ors-unseen</AgencyId></FromAgencyId></ResponseHeader>
+			    <BibInformation><HoldingsSet>%s</HoldingsSet></BibInformation>
+			  </LookupItemSetResponse>
+			</NCIPMessage>
+			""".formatted(items);
 	}
 
 	private static DeclarativeTransportResponse response(String remoteRequestId) {

@@ -8,6 +8,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockserver.model.HttpRequest.request;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
@@ -70,6 +71,7 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 	private SierraBibsAPIFixture sierraBibsAPIFixture;
+	private MockServerClient mockServerClient;
 	// Constants
 	private static final String SUPPLYING_HOST_LMS_CODE = "pr-api-tests-supplying-agency";
 	private static final String SUPPLYING_BASE_URL = "https://supplier-patron-request-api-tests.com";
@@ -101,6 +103,7 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
+		this.mockServerClient = mockServerClient;
 		setUpMockCredentials(mockServerClient);
 		setUpFixtures(mockServerClient);
 		defineAgencies();
@@ -149,15 +152,25 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		final var localBorrowingHoldUrl = "https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + localBorrowingHoldId;
 
 		// Act
-		final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
-			clusterRecordId, BORROWING_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
-			BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE);
+		final PatronRequestApiClient.PlacedPatronRequest placedPatronRequest;
+		try {
+			final var placedRequestResponse = patronRequestApiClient.placePatronRequest(
+				clusterRecordId, BORROWING_PATRON_LOCAL_ID, VALID_PICKUP_LOCATION_ID,
+				BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE);
 
-		// Assert
-		assertThat(placedRequestResponse.getStatus(), is(OK));
+			// Assert
+			assertThat(placedRequestResponse.getStatus(), is(OK));
 
-		final var placedPatronRequest = placedRequestResponse.body();
-		assertThat(placedPatronRequest, is(notNullValue()));
+			placedPatronRequest = placedRequestResponse.body();
+			assertThat(placedPatronRequest, is(notNullValue()));
+		} catch (RuntimeException error) {
+			try {
+				logMockServerPlacementRequests();
+			} catch (RuntimeException diagnosticError) {
+				log.error("Unable to retrieve MockServer placement diagnostics", diagnosticError);
+			}
+			throw error;
+		}
 
 		final var placedRequestResponseUUID = placedPatronRequest.getId();
 		assertThat(placedRequestResponseUUID, is(notNullValue()));
@@ -170,6 +183,19 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 
 		assertRequestPlacedAtPickupAgency(placedRequestResponseUUID);
 		assertPatronRequestUsesPickupAnywhereWorkflow(placedRequestResponseUUID);
+	}
+
+	private void logMockServerPlacementRequests() {
+		final var recordedRequests = mockServerClient.retrieveRecordedRequests(request()
+			.withMethod("POST")
+			.withPath("/patrons/requests/place"));
+
+		log.error("MockServer recorded {} POST /patrons/requests/place request(s)", recordedRequests.length);
+		for (final var recordedRequest : recordedRequests) {
+			log.error("MockServer request: method={}, path={}, host={}",
+				recordedRequest.getMethod().getValue(), recordedRequest.getPath().getValue(),
+				recordedRequest.getFirstHeader("Host"));
+		}
 	}
 
 	// Helper Methods
@@ -306,10 +332,12 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 
 	private void assertRequestPlacedAtPickupAgency(UUID requestUUID) {
 		final String expectedStatus = "REQUEST_PLACED_AT_PICKUP_AGENCY";
-		// 15s was too tight once the whole suite runs together under Micronaut 5, whose
-		// first-request cold start is slower. Matches SameLibraryWorkflowApiTests and
-		// DummyScenarioTests, which already allow 30s for the same wait.
-		final int timeoutInSeconds = 30;
+		// Pickup-anywhere places at the supplying, borrowing AND pickup agency, and the
+		// whole chain measures ~29s. 30s was therefore 1.03x the operation and failed
+		// roughly half the time - twice observed missing by a single poll, the placement
+		// landing 1ms after the last poll read the status. This is a ceiling, not a
+		// duration: awaitility returns as soon as the condition holds.
+		final int timeoutInSeconds = 90;
 
 		log.info("Verifying that request ID {} is placed at the pickup agency...", requestUUID);
 

@@ -123,8 +123,17 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	public Mono<IngestSource> getIngestSourceFor(final HostLms hostLms) {
-		final var ingestSource = hostLms.getIngestSourceType() != null
-			? hostLms.getIngestSourceType()
+		if (hostLms instanceof DataHostLms dataHostLms
+			&& dataHostLms.getIngestSourceClass() != null
+			&& dataHostLms.getIngestSourceClass().isBlank()) {
+			final var message = "ingest_source_class is blank";
+			log.error("Skipping host LMS {}: {}", hostLms.getCode(), message);
+			return Mono.error(new InvalidHostLmsConfigurationException(hostLms.getCode(), message));
+		}
+
+		final var configuredIngestSource = hostLms.getIngestSourceType();
+		final var ingestSource = configuredIngestSource != null
+			? configuredIngestSource
 			: hostLms.getClientType();
 
 		return Mono.justOrEmpty(ingestSource)

@@ -32,6 +32,8 @@ public class InstanceClusterDataFetcher implements DataFetcher<CompletableFuture
 
 	public CompletableFuture<Page<ClusterRecord>> get(DataFetchingEnvironment env) throws Exception {
 
+		GraphQLRoles.require(env, "instanceClusters", GraphQLRoles.STAFF);
+
                 Integer pageno = env.getArgument("pageno");
                 Integer pagesize = env.getArgument("pagesize");
                 String query = env.getArgument("query");

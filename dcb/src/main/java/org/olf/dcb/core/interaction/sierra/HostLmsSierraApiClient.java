@@ -47,6 +47,7 @@ import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.client.exceptions.ReadTimeoutException;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.json.tree.JsonNode;
@@ -469,7 +470,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		Function<Mono<HttpResponse<T>>, Mono<HttpResponse<T>>> errorHandlingTransformer) {
 
 		return Mono.from(client.exchange(request, Argument.of(type), ERROR_TYPE))
-			.doOnError(logRequestAndResponseDetails(request))
+			.doOnError(error -> logRequestFailure(request, error))
 			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken())
 			.transform(errorHandlingTransformer)
 			// This has to happen after other error handlers related to
@@ -480,8 +481,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				if (error instanceof AbstractHttpResponseProblem) {
 					return Mono.error(error);
 				}
-
-				return raiseError(unexpectedResponseProblem(error, request, lms.getCode()));
+				return raiseError(requestFailureProblem(error, request, lms.getCode()));
 			});
 	}
 
@@ -500,7 +500,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 			Function<Mono<T>, Mono<T>> errorHandlingTransformer) {
 
 		return Mono.from(client.retrieve(request, responseBodyType, ERROR_TYPE))
-			.doOnError(logRequestAndResponseDetails(request))
+			.doOnError(error -> logRequestFailure(request, error))
 			.doOnError(HttpResponsePredicates::isUnauthorised, _t -> clearToken()).transform(errorHandlingTransformer)
 			// This has to go after more specific error handling
 			// as will convert any client response exception to a problem
@@ -510,30 +510,37 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 				if (error instanceof Problem) {
 					return Mono.error(error);
 				}
-
-				return raiseError(unexpectedResponseProblem(error, request, lms.getCode()));
+				return raiseError(requestFailureProblem(error, request, lms.getCode()));
 			});
 	}
 
-	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
-		return error -> {
-			try {
-				log.error("""
-						HTTP Request and Response Details:
-						URL: {}
-						Method: {}
-						Headers: {}
-						Body: {}
-						Response: {}""",
-					request.getUri(),
-					request.getMethod(),
-					request.getHeaders().asMap(),
-					request.getBody().orElse(null),
-					error.toString());
-			} catch (Exception e) {
-				log.error("Couldn't log error request and response details", e);
-			}
-		};
+	static Throwable requestFailureProblem(Throwable error, MutableHttpRequest<?> request,
+		String hostLmsCode) {
+
+		if (error instanceof ReadTimeoutException timeout) {
+			return new SierraReadTimeoutProblem(timeout, request, hostLmsCode);
+		}
+
+		return unexpectedResponseProblem(error, request, hostLmsCode);
+	}
+
+	private static void logRequestFailure(MutableHttpRequest<?> request, Throwable error) {
+		if (error instanceof ReadTimeoutException) {
+			return;
+		}
+
+		try {
+			log.error("""
+					HTTP Request and Response Details:
+					URL: {}
+					Method: {}
+					Response: {}""",
+				request.getUri(),
+				request.getMethod(),
+				error.toString());
+		} catch (Exception e) {
+			log.error("Couldn't log error request and response details", e);
+		}
 	}
 
 	private <T> Mono<T> doRetrieve(MutableHttpRequest<?> request, Argument<T> argumentType) {

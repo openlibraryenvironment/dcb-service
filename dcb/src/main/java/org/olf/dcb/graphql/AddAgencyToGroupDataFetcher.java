@@ -43,6 +43,10 @@ public class AddAgencyToGroupDataFetcher implements DataFetcher<CompletableFutur
 	@Override
 	public CompletableFuture<AgencyGroupMember> get(DataFetchingEnvironment env) {
 
+		// A MUTATING fetcher that had no role check at all. Group membership decides which
+		// agencies participate with which, so this is consortium configuration.
+		GraphQLRoles.require(env, "addAgencyToGroup", GraphQLRoles.CONSORTIUM);
+
 		// String name = env.getArgument("name");
 		// String code = env.getArgument("code");
 		// AgencyGroup input = env.getArgument("input");

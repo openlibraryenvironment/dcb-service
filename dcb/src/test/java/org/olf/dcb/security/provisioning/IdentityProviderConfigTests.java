@@ -24,6 +24,12 @@ class IdentityProviderConfigTests {
 
 	/** The config as a deployment would supply it, with one field varied per test. */
 	private static IdentityProviderConfig config(String clientId, String clientSecret) {
+		return config(clientId, clientSecret, "https://keycloak.invalid", "dcb");
+	}
+
+	private static IdentityProviderConfig config(String clientId, String clientSecret,
+		String baseUrl, String realm) {
+
 		return new IdentityProviderConfig() {
 			@Override
 			public Optional<String> getType() {
@@ -32,12 +38,12 @@ class IdentityProviderConfigTests {
 
 			@Override
 			public Optional<String> getBaseUrl() {
-				return Optional.of("https://keycloak.invalid");
+				return Optional.ofNullable(baseUrl);
 			}
 
 			@Override
 			public Optional<String> getRealm() {
-				return Optional.of("dcb");
+				return Optional.ofNullable(realm);
 			}
 
 			@Override
@@ -81,6 +87,24 @@ class IdentityProviderConfigTests {
 				config(null, "not-a-real-secret")));
 
 		assertThat(failure.getMessage(), containsString("client-id"));
+	}
+
+	@Test
+	@DisplayName("A blank setting is missing, not present - it names the property")
+	void aBlankSettingIsTreatedAsMissing() {
+		// An empty string survives Optional.orElseThrow, so `base-url: ""` in a values file
+		// started DCB, reported provisioning as configured, and failed at the first account.
+		for (final var blank : new String[] { "", "   ", null }) {
+			assertThat(assertThrows(IllegalStateException.class,
+				() -> new KeycloakIdentityProviderClient(stubHttpClient(),
+					config("dcb-provisioning", "not-a-real-secret", blank, "dcb")))
+				.getMessage(), containsString("base-url"));
+
+			assertThat(assertThrows(IllegalStateException.class,
+				() -> new KeycloakIdentityProviderClient(stubHttpClient(),
+					config("dcb-provisioning", "not-a-real-secret", "https://keycloak.invalid",
+						blank))).getMessage(), containsString("realm"));
+		}
 	}
 
 	@Test

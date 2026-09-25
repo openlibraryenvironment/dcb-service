@@ -9,6 +9,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -24,12 +25,14 @@ import java.util.regex.Pattern;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
+import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.svc.AgencyService;
+import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.rules.ObjectRuleset;
@@ -40,6 +43,7 @@ import io.micronaut.json.tree.JsonNode;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import services.k_int.utils.UUIDUtils;
 
 @Slf4j
 @Singleton
@@ -48,16 +52,19 @@ public class PolarisItemMapper {
 	private final ConversionService conversionService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final AgencyService agencyService;
+	private final AlarmsService alarmsService;
 
 	PolarisItemMapper(NumericItemTypeMapper itemTypeMapper,
 		ConversionService conversionService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		AgencyService agencyService) {
+		AgencyService agencyService,
+		AlarmsService alarmsService) {
 
 		this.itemTypeMapper = itemTypeMapper;
 		this.conversionService = conversionService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.agencyService = agencyService;
+		this.alarmsService = alarmsService;
 	}
 
 	/**
@@ -88,7 +95,7 @@ public class PolarisItemMapper {
 				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules, decisionLogEntries);
 				final var parsedVolumeStatement = parseVolumeStatement(itemGetRow.getVolumeNumber());
 
-				final var derivedLoanPolicy = deriveLoanPolicy(shelvingLocation,
+				final var derivedLoanPolicy = deriveLoanPolicy(hostLmsCode, shelvingLocation,
 					polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
 
 				return org.olf.dcb.core.model.Item.builder()
@@ -123,7 +130,7 @@ public class PolarisItemMapper {
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
 	}
 
-	private DerivedLoanPolicy deriveLoanPolicy(String shelvingLocation,
+	private DerivedLoanPolicy deriveLoanPolicy(String hostLmsCode, String shelvingLocation,
 		Map<String,String> shelfLocationPolicyMap, List<String> decisionLogEntries) {
 
 		// If anything is missing, default to GENERAL
@@ -135,10 +142,36 @@ public class PolarisItemMapper {
 			return GENERAL;
 		}
 
-		// Interrogate list of shelving location policies. Possible
-		// this choice belongs in the core....
-		decisionLogEntries.add("LoanPolicy derived by taking value of "+shelvingLocation+" for shelving location");
-		return DerivedLoanPolicy.valueOf(shelfLocationPolicyMap.get(shelvingLocation));
+		final var configuredPolicy = shelfLocationPolicyMap.get(shelvingLocation);
+		try {
+			final var policy = DerivedLoanPolicy.valueOf(configuredPolicy);
+			decisionLogEntries.add("LoanPolicy derived by taking value of " + shelvingLocation
+				+ " for shelving location");
+			return policy;
+		} catch (IllegalArgumentException | NullPointerException error) {
+			log.warn("Invalid Polaris shelf location policy [{}] for Host LMS [{}], shelf location [{}]; using UNKNOWN",
+				configuredPolicy, hostLmsCode, shelvingLocation);
+			decisionLogEntries.add("LoanPolicy UNKNOWN because configured policy " + configuredPolicy
+				+ " for shelving location " + shelvingLocation + " is invalid");
+			raiseInvalidShelfLocationPolicyAlarm(hostLmsCode, shelvingLocation, configuredPolicy);
+			return DerivedLoanPolicy.UNKNOWN;
+		}
+	}
+
+	private void raiseInvalidShelfLocationPolicyAlarm(String hostLmsCode, String shelvingLocation,
+		String configuredPolicy) {
+
+		final var alarmCode = "ILS." + hostLmsCode + ".POLARIS_INVALID_SHELF_LOCATION_POLICY";
+		alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"invalidShelfLocationPolicies", shelvingLocation + "=" + configuredPolicy)
+			.subscribe(
+				ignored -> { },
+				error -> log.warn("Unable to record invalid Polaris shelf location policy against {}",
+					alarmCode, error));
 	}
 
 	/**

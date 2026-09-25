@@ -37,9 +37,14 @@ r2dbc:
     default:
       dialect: POSTGRES
       options:
-        maxSize: 1
-        initialSize: 1
-        maxIdle: "PT2S"
+        # Fixture cleanup reads and deletes concurrently, so it needs one connection
+        # for each operation. More connections multiply across Micronaut contexts.
+        maxSize: 2
+        initialSize: 0
+        minIdle: 0
+        maxAcquireTime: "PT30S"
+        maxIdleTime: "PT2S"
+        backgroundEvictionInterval: "PT1S"
         validationQuery: "SELECT 1"
         validationDepth: REMOTE
       schema-generate: NONE
@@ -47,6 +52,9 @@ r2dbc:
 datasources:
   default:
     dialect: POSTGRES
+    # Flyway briefly needs two JDBC connections during context startup.
+    maximumPoolSize: 2
+    minimumIdle: 0
 
 #elasticsearch.httpHosts: http://localhost:9200,http://127.0.0.2:9200
 netty:

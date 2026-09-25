@@ -450,6 +450,11 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 	@Nullable
 	private Instant currentStatusTimestamp;
 
+	// When a manual update last brought this request back into automatic tracking. Restarts the
+	// too-long clock; currentStatusTimestamp cannot, because stale-request reporting reads it.
+	@Nullable
+	private Instant trackingResumedAt;
+
 	@Nullable
 	private PatronRequest.Status nextExpectedStatus;
 

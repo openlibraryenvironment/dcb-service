@@ -49,12 +49,16 @@ public class CollectionAnalysisService {
 	private final Semaphore permits;
 	private final Cache<String, Object> results;
 
-	/** Configurable because these are resource limits to tune against a real corpus. */
+	/**
+	 * No defaults on the annotations. application.yml declares all three, so a default
+	 * here could never fire, and the unreachable copy is the one that drifts. An absent
+	 * key now fails at startup rather than quietly running on a different number.
+	 */
 	@Inject
 	public CollectionAnalysisService(BibRepository bibRepository,
-		@Value("${dcb.insights.collection-analysis.cache-ttl:15m}") Duration ttl,
-		@Value("${dcb.insights.collection-analysis.concurrency:1}") int concurrency,
-		@Value("${dcb.insights.collection-analysis.max-wait:30s}") Duration maxWait) {
+		@Value("${dcb.insights.collection-analysis.cache-ttl}") Duration ttl,
+		@Value("${dcb.insights.collection-analysis.concurrency}") int concurrency,
+		@Value("${dcb.insights.collection-analysis.max-wait}") Duration maxWait) {
 
 		this(bibRepository, ttl, concurrency, maxWait, WAIT_STEP);
 	}

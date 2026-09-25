@@ -18,6 +18,7 @@ import org.olf.dcb.core.api.exceptions.EntityCreationException;
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.LocationCreationSource;
 import org.olf.dcb.graphql.validation.LocationInputValidator;
 import org.olf.dcb.storage.*;
 import org.reactivestreams.Publisher;
@@ -259,6 +260,7 @@ public class DCBConfigurationService {
 				.changeCategory(changeCategory)
 				.changeReferenceUrl(changeReferenceUrl)
 				.lastEditedBy(username)
+				.creationSource(LocationCreationSource.IMPORT)
 				.build());
 	}
 	private Mono<UploadedConfigImport> processReferenceValueMappings(List<String[]> data, Long cleanupResult, List <IgnoredConfigItem> ignoredConfigItems, String reason, String changeCategory, String changeReferenceUrl, String username) {
@@ -864,4 +866,3 @@ public class DCBConfigurationService {
 	private record ValidationDeleteResult(List<Location> validatedLocations, Long deletedCount) {}
 
 }
-

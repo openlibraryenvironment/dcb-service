@@ -11,6 +11,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.LocationCreationSource;
 import org.olf.dcb.core.model.Workflow;
 import org.olf.dcb.storage.LocationRepository;
 import io.micronaut.core.annotation.NonNull;
@@ -174,6 +175,7 @@ public class LocationService {
 			// DCB has seen a code on an item. Whether that is a branch, a campus or a
 			// service point is not something it can tell.
 			.type(reported.getType() != null ? reported.getType() : UNKNOWN_LOCATION_TYPE)
+			.creationSource(LocationCreationSource.AVAILABILITY_DISCOVERY)
 			// Null when the location did not map, which is what dynamicCreateLocation
 			// reads to decide whether there is anything for a human to do.
 			.agency(agency)

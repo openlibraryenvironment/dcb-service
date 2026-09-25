@@ -12,27 +12,14 @@ import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 
 /**
- * Which application a token is allowed to drive.
+ * Which application a token is allowed to drive. NOT a data control:
+ * {@link org.olf.dcb.graphql.AgencyAccessScope} decides what a caller may read.
  *
- * <h2>What this is not</h2>
+ * <p>An unset client id disables the check entirely, which is what makes this shippable to a
+ * deployment that has not split its OIDC clients yet.
  *
- * It is not a data control, and it does not replace one. {@link org.olf.dcb.graphql.AgencyAccessScope}
- * decides what a caller may READ; this decides which app they may read it through. Both are
- * needed and neither substitutes for the other: DCB Admin for Libraries users hold
- * {@code LIBRARY_ADMIN} by design and call the same {@code /graphql} endpoint, so barring
- * that role from DCB Admin does nothing about the API. Remove the scoping and every library
- * user still reads the consortium with one edited request body.
- *
- * <h2>An unset client id disables the check entirely</h2>
- *
- * Deliberate, and what makes this shippable into an environment that has not split its OIDC
- * clients yet — {@code dcb-admin-ui}'s own {@code .env} has been observed carrying
- * {@code VITE_KEYCLOAK_ID=dcb-admin-for-libraries}, and enforcing against a shared client
- * either locks out every consortium administrator or admits every library user. Hence the
- * WARN phase, and hence {@link #announce()}. The value is a public OIDC client identifier,
- * not a credential.
- *
- * <p>Turning it on: {@code docs/identity-provider-setup.md} §1.3–1.4.
+ * <p>Why both controls are needed, and turning it on:
+ * {@code operational:identity-provider-setup.adoc} §1.3–1.4.
  */
 @Singleton
 public class AdminUiAccessPolicy {
@@ -53,8 +40,8 @@ public class AdminUiAccessPolicy {
 	private final Mode mode;
 
 	public AdminUiAccessPolicy(
-		@Value("${dcb.security.admin-ui.client-id:}") @Nullable String adminUiClientId,
-		@Value("${dcb.security.admin-ui.mode:WARN}") String mode) {
+		@Value("${dcb.security.admin-ui.client-id}") @Nullable String adminUiClientId,
+		@Value("${dcb.security.admin-ui.mode}") String mode) {
 
 		this.adminUiClientId = (adminUiClientId == null || adminUiClientId.isBlank())
 			? null

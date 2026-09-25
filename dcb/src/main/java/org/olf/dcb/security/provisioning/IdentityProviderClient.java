@@ -8,19 +8,11 @@ import reactor.core.publisher.Mono;
  * Creating and managing DCB Admin for Libraries accounts at whichever identity provider a
  * deployment runs. One implementation per provider, selected by configuration.
  *
- * <p>Two constraints bind every implementation.
+ * <p>Two constraints bind every implementation: <b>create disabled, grant, then enable</b>,
+ * so a failure between steps leaves an inert account; and <b>containment is per-provider</b>,
+ * so one that cannot express it must say so rather than leave Keycloak's property assumed.
  *
- * <p><b>Create disabled, grant the role, then enable.</b> A failure between steps must leave
- * an inert account. Create-enabled-then-grant leaves an ACTIVE account whose role assignment
- * failed, and role absence stops meaning access absence the moment anything infers from it.
- *
- * <p><b>Containment is per-provider, so each implementation states its own.</b> The controls
- * in {@link ProvisionableRole} all live inside this service and fall together with it; only
- * the provider's own grant survives a compromise. An implementation that cannot express one
- * must say so rather than leave the Keycloak property assumed.
- *
- * <p>Provider setup, the containment grant and how to prove it:
- * {@code docs/identity-provider-setup.md}.
+ * <p>Why, and how to prove it: {@code operational:identity-provider-setup.adoc}.
  */
 public interface IdentityProviderClient {
 

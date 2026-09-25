@@ -3,11 +3,7 @@ package org.olf.dcb.architecture;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -20,13 +16,6 @@ import org.junit.jupiter.api.Test;
  */
 class StatsScopeArchitectureTests {
 
-	private static final String CONTROLLER =
-		"org/olf/dcb/core/api/InsightsController.java";
-
-	// Every mapping in the controller, because the class boundary IS the surface. A literal
-	// rather than a regex: escaping it twice helps nobody read it.
-	private static final String STATS_MARKER = "@Get(\"";
-
 	/** A floor, not an exact count - exact trains everyone to bump a number without reading. */
 	private static final int KNOWN_MINIMUM_ENDPOINTS = 30;
 
@@ -34,7 +23,7 @@ class StatsScopeArchitectureTests {
 	void everyStatsEndpointTakesTheAuthenticationItMustScopeOn() throws IOException {
 		final var offenders = new ArrayList<String>();
 
-		for (final var endpoint : statsEndpoints()) {
+		for (final var endpoint : InsightsSurface.endpoints()) {
 			if (!endpoint.signature().contains("Authentication authentication")) {
 				offenders.add(endpoint.path()
 					+ " does not take Authentication, so it cannot know who is asking");
@@ -50,7 +39,7 @@ class StatsScopeArchitectureTests {
 	void everyStatsEndpointRoutesItsLibraryFilterThroughTheGuard() throws IOException {
 		final var offenders = new ArrayList<String>();
 
-		for (final var endpoint : statsEndpoints()) {
+		for (final var endpoint : InsightsSurface.endpoints()) {
 			if (!endpoint.body().contains("statsScopeGuard.resolve(")) {
 				offenders.add(endpoint.path() + " never calls statsScopeGuard.resolve");
 			}
@@ -65,7 +54,7 @@ class StatsScopeArchitectureTests {
 	void noStatsEndpointStillBindsTheRawLibraryCodeParameter() throws IOException {
 		final var offenders = new ArrayList<String>();
 
-		for (final var endpoint : statsEndpoints()) {
+		for (final var endpoint : InsightsSurface.endpoints()) {
 			// The scoped shape renames the parameter to requestedLibraryCode and rebinds
 			// libraryCode from the guard's answer inside the lambda. A method still
 			// binding `String libraryCode` straight off the query string has been added
@@ -84,7 +73,7 @@ class StatsScopeArchitectureTests {
 	void theSurfaceIsNotEmpty() {
 		// Guard the guard: a rename of the controller or the annotation would make
 		// every assertion above pass over an empty list.
-		final var found = statsEndpointsQuietly().size();
+		final var found = InsightsSurface.endpointsQuietly().size();
 
 		assertTrue(found >= KNOWN_MINIMUM_ENDPOINTS,
 			() -> "Found " + found + " Insights endpoints, expected at least "
@@ -111,62 +100,4 @@ class StatsScopeArchitectureTests {
 			|| !Character.isJavaIdentifierPart(signature.charAt(next));
 	}
 
-	private record Endpoint(String path, String signature, String body) {}
-
-	private static List<Endpoint> statsEndpoints() throws IOException {
-		final var source = Files.readString(sourceRoot().resolve(CONTROLLER));
-		final var endpoints = new ArrayList<Endpoint>();
-		var from = source.indexOf(STATS_MARKER);
-
-		while (from >= 0) {
-			final var pathEnd = source.indexOf(')', from);
-			final var path = source.substring(from, pathEnd + 1);
-			final var openParen = source.indexOf('(', source.indexOf("public", pathEnd));
-			final var signatureEnd = source.indexOf('{', openParen);
-
-			endpoints.add(new Endpoint(path,
-				source.substring(openParen, signatureEnd),
-				bodyFrom(source, signatureEnd)));
-
-			from = source.indexOf(STATS_MARKER, pathEnd);
-		}
-
-		return endpoints;
-	}
-
-	/** The method body, by brace matching from its opening brace. */
-	private static String bodyFrom(String source, int openBrace) {
-		var depth = 0;
-
-		for (var i = openBrace; i < source.length(); i++) {
-			final var c = source.charAt(i);
-
-			if (c == '{') depth++;
-			if (c == '}') {
-				depth--;
-				if (depth == 0) return source.substring(openBrace, i + 1);
-			}
-		}
-
-		return source.substring(openBrace);
-	}
-
-	private static List<Endpoint> statsEndpointsQuietly() {
-		try {
-			return statsEndpoints();
-		} catch (IOException e) {
-			throw new IllegalStateException("Cannot read " + CONTROLLER, e);
-		}
-	}
-
-	private static Path sourceRoot() {
-		final var workingDirectory = Paths.get("").toAbsolutePath();
-		final var moduleSourceRoot = workingDirectory.resolve("src/main/java");
-
-		if (Files.exists(moduleSourceRoot)) {
-			return moduleSourceRoot;
-		}
-
-		return workingDirectory.resolve("dcb/src/main/java");
-	}
 }

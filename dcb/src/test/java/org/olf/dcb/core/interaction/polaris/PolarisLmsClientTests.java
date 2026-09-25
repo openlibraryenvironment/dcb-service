@@ -89,6 +89,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -373,6 +374,33 @@ class PolarisLmsClientTests {
 			hasSourceHostLmsCode(CIRCULATING_HOST_LMS_CODE),
 			hasOwningContext(CIRCULATING_HOST_LMS_CODE)
 		));
+	}
+
+	@Test
+	void fetchesPolarisReferenceDataOnceForManyItems() {
+		final var bibId = generateNumericLocalId();
+		final var itemRows = IntStream.range(0, 12)
+			.mapToObj(index -> ItemGetRow.builder()
+				.ItemRecordID(generateNumericLocalId())
+				.BibliographicRecordID(bibId)
+				.Barcode(generateBarcode())
+				.MaterialType("Book")
+				.IsDisplayInPAC(true)
+				.CircStatus(checkedOutCirculationStatus())
+				.build())
+			.toList();
+
+		mockPolarisFixture.mockGetItemsForBib(bibId, itemRows);
+		mockPolarisFixture.mockGetMaterialTypes(List.of(bookMaterialType()));
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
+
+		final var items = getItems(bibId, CIRCULATING_HOST_LMS_CODE);
+
+		assertThat(items, hasSize(itemRows.size()));
+		mockPolarisFixture.verifyGetItemStatuses(
+			org.mockserver.verify.VerificationTimes.exactly(1));
+		mockPolarisFixture.verifyGetMaterialTypes(
+			org.mockserver.verify.VerificationTimes.exactly(1));
 	}
 
 	@Test

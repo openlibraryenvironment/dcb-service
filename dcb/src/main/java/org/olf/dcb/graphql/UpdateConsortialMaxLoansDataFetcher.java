@@ -45,7 +45,7 @@ public class UpdateConsortialMaxLoansDataFetcher implements DataFetcher<Completa
 				.orElse("User not detected");
 
 			if (roles == null || (!roles.contains("CONSORTIUM_ADMIN"))) {
-				log.warn("createRoleDataFetcher: Access denied for user {}: user does not have the required role to update consortial max loans.", userString);
+				log.warn("updateConsortialMaxLoansDataFetcher: Access denied for user {}: user does not have the required role to update consortial max loans.", userString);
 				throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to update consortial max loans.");
 			}
 

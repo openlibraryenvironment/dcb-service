@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +30,8 @@ class DiscoveryServicePropertiesBindingTests {
 		final var resolver = new PropertySourcePropertyResolver(ConversionService.SHARED);
 
 		resolver.addPropertySource(PropertySource.of("test-env", environmentVariables,
-			PropertySource.PropertyConvention.ENVIRONMENT_VARIABLE));
+			PropertySource.PropertyConvention.ENVIRONMENT_VARIABLE,
+			PropertySource.Origin.of("test-env")));
 
 		return resolver;
 	}
@@ -161,5 +163,22 @@ class DiscoveryServicePropertiesBindingTests {
 
 		assertThrows(IllegalArgumentException.class,
 			() -> properties.setTrustedServicesJson("[\"a bare string, not an object\"]"));
+	}
+
+	/** README.md and discovery-service-approach.md both promise PT2M. */
+	@Test
+	void theDefaultLifetimeIsTheDocumentedTwoMinutes() {
+		assertEquals(Duration.ofMinutes(2), new DiscoveryServiceProperties().getMaxAssertionLifetime());
+	}
+
+	@Test
+	void aZeroOrMissingLifetimeFallsBackToTheDocumentedTwoMinutes() {
+		final var properties = new DiscoveryServiceProperties();
+
+		properties.setMaxAssertionLifetime(Duration.ZERO);
+		assertEquals(Duration.ofMinutes(2), properties.getMaxAssertionLifetime());
+
+		properties.setMaxAssertionLifetime(null);
+		assertEquals(Duration.ofMinutes(2), properties.getMaxAssertionLifetime());
 	}
 }

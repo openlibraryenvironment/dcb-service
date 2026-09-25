@@ -28,7 +28,8 @@ public class AvailabilityDateResolutionSortOrder implements ResolutionSortOrder 
 		log.debug("sortItems({})", parameters);
 
 		return Flux.fromIterable(getValue(parameters, Parameters::getItems, emptyList()))
-			.sort(Comparator.comparing(Item::getAvailableDate, nullsLast(naturalOrder())))
+			.sort(Comparator.comparing(Item::getAvailableDate, nullsLast(naturalOrder()))
+				.thenComparing(Item::getLocalId, nullsLast(naturalOrder())))
 			.collectList();
 	}
 }

@@ -10,6 +10,7 @@ import io.micronaut.security.utils.SecurityService;
 import org.olf.dcb.core.api.exceptions.FileUploadValidationException;
 import org.olf.dcb.core.api.serde.LocationDTO;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.LocationCreationSource;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -138,6 +139,7 @@ public class LocationController {
 			.deliveryStops(location.deliveryStops())
 			.printLabel(location.printLabel())
 			.localId(location.localId())
+			.creationSource(LocationCreationSource.MANUAL)
 			.build();
 
 		return enrichAgency(l, agencyId)

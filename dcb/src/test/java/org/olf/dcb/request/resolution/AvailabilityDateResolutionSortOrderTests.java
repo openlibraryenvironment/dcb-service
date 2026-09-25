@@ -46,6 +46,16 @@ public class AvailabilityDateResolutionSortOrderTests {
 		assertThat(sortedItems, contains(availableNow, nullAvailabilityDate));
 	}
 
+	@Test
+	void shouldUseLocalItemIdToBreakAvailabilityDateTies() {
+		final var availabilityDate = now();
+		final var itemC = createItem("C", availabilityDate);
+		final var itemA = createItem("A", availabilityDate);
+		final var itemB = createItem("B", availabilityDate);
+
+		assertThat(sort(List.of(itemC, itemA, itemB)), contains(itemA, itemB, itemC));
+	}
+
 	private List<Item> sort(List<Item> items) {
 		return singleValueFrom(sortOrder.sortItems(
 			ResolutionSortOrder.Parameters.builder()
@@ -55,7 +65,12 @@ public class AvailabilityDateResolutionSortOrderTests {
 	}
 
 	private static Item createItem(Instant availabilityDate) {
+		return createItem(null, availabilityDate);
+	}
+
+	private static Item createItem(String localId, Instant availabilityDate) {
 		return Item.builder()
+			.localId(localId)
 			.availableDate(availabilityDate)
 			.build();
 	}

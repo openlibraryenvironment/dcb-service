@@ -4,13 +4,17 @@ import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PLACED;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalStatus;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -165,6 +169,43 @@ public class PatronRequestTrackingTests {
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
 		await().atMost(5, SECONDS)
 			.until(() -> getPatronRequest(patronRequest.getId()), hasProperty("localRequestStatus", is("MISSING")));
+	}
+
+	@Test
+	void manualUpdateResumesTrackingOfARequestParkedForTakingTooLong() {
+		// Arrange
+		final var borrowingAgencyLocalRequestId = "11464";
+		final var borrowingAgencyLocalItemId = "1088531";
+
+		final var patronRequest = createPatronRequest(
+			request -> request
+				.localRequestId(borrowingAgencyLocalRequestId)
+				.localItemId(borrowingAgencyLocalItemId)
+				.localItemStatus("")
+				.localRequestStatus("PLACED")
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY)
+				// Comfortably past the 56 day default. A literal, not the configured threshold:
+				// this test is about resuming a parked request, not about where the line sits.
+				.currentStatusTimestamp(Instant.now().minus(Duration.ofDays(60)))
+				.isTooLong(true));
+
+		sierraPatronsAPIFixture.mockGetHoldByIdNotFound(borrowingAgencyLocalRequestId);
+		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
+			exampleSierraItem(borrowingAgencyLocalItemId));
+
+		// Act
+		trackingFixture.trackRequest(patronRequest);
+
+		// Assert: the poll reached the host LMS, which a parked request never did
+		await().atMost(5, SECONDS)
+			.until(() -> getPatronRequest(patronRequest.getId()),
+				hasProperty("localRequestStatus", is("MISSING")));
+
+		final var tracked = getPatronRequest(patronRequest.getId());
+
+		assertThat("Should no longer be parked", tracked.getIsTooLong(), is(false));
+		assertThat("Should record when tracking resumed", tracked.getTrackingResumedAt(),
+			is(notNullValue()));
 	}
 
 	private void defineHostLms(String hostLmsCode, String baseUrl, MockServerClient mockServerClient) {

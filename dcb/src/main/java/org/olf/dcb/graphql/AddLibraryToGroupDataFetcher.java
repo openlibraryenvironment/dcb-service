@@ -42,6 +42,10 @@ public class AddLibraryToGroupDataFetcher implements DataFetcher<CompletableFutu
 	@Override
 	public CompletableFuture<LibraryGroupMember> get(DataFetchingEnvironment env) {
 
+		// A MUTATING fetcher that had no role check at all. Adding a library to a group is
+		// what makes it a member of the consortium, so it is not a library-level decision.
+		GraphQLRoles.require(env, "addLibraryToGroup", GraphQLRoles.CONSORTIUM);
+
 		Map<String, Object> input_map = env.getArgument("input");
 
 		log.debug("AddLibraryToGroupDataFetcher::get {}", input_map);

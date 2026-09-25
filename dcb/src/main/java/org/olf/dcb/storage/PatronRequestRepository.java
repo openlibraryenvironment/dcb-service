@@ -303,7 +303,7 @@ public interface PatronRequestRepository {
 
 	@Query(
 		value = """
-			SELECT cr.title, COUNT(pr.id) AS request_count 
+			SELECT cr.id AS cluster_id, cr.title, COUNT(pr.id) AS request_count
 			FROM patron_request pr
 			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
 			WHERE (:startDate IS NULL OR pr.date_created >= :startDate)
@@ -368,12 +368,16 @@ public interface PatronRequestRepository {
 	@Query(
 		value = """
 			SELECT
-				COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (pra.audit_date - pr.date_created))), 0) AS p50_seconds,
-				COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (pra.audit_date - pr.date_created))), 0) AS p95_seconds
+				COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (pra.reached_at - pr.date_created))), 0) AS p50_seconds,
+				COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (pra.reached_at - pr.date_created))), 0) AS p95_seconds
 			FROM patron_request pr
-			JOIN patron_request_audit pra ON pr.id = pra.patron_request_id
-			WHERE pra.to_status = :targetStatus
-			AND pr.status_code != 'ERROR'
+			JOIN (
+				SELECT patron_request_id, MIN(audit_date) AS reached_at
+				FROM patron_request_audit
+				WHERE to_status = :targetStatus
+				GROUP BY patron_request_id
+			) pra ON pra.patron_request_id = pr.id
+			WHERE pr.status_code != 'ERROR'
 			AND active_workflow != 'RET-LOCAL'
 			AND (:libraryCodes IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCodes, ',')))
 			AND (:startDate IS NULL OR pr.date_created >= :startDate)
@@ -434,6 +438,160 @@ public interface PatronRequestRepository {
 	)
 	Flux<TimeSeriesPoint> findStatusFlowTimeSeries(
 		String bucket,
+		@Nullable String libraryCode,
+		LocalDateTime seriesStart,
+		LocalDateTime seriesEnd,
+		int maxBuckets
+	);
+
+	// === Percentile trends. Semantics and edge effects: docs/insights.md 3.9 ===================
+	//
+	// All three: bounds are LocalDateTime because audit_date is timestamp WITHOUT time zone,
+	// as the flow series above explains; each buckets on when the duration ENDED, so a closed
+	// bucket never changes; an empty bucket is OMITTED, because it has no median and a zero
+	// would read as instant; capped by :maxBuckets, which the caller sets to MAX_BUCKETS + 1.
+
+	// Creation to first reaching :targetStatus. MIN(audit_date) per request, so a status
+	// re-entered during tracking counts once - the rule findSupplierResponseSla already applies
+	// and the reason the headline turnaround query now applies it too.
+	//
+	// SCALE: the CTE is bounded by the WINDOW, not by all history, so its cost follows the
+	// requests in the window rather than the corpus. The NOT EXISTS pays for that: MIN over a
+	// bounded set is the earliest arrival IN the window, which for a status re-entered during
+	// tracking is not the first, so a request that already reached it before the window is
+	// excluded. One index probe per candidate on pra_to_status_idx.
+	@Query(
+		value = """
+			WITH reached AS (
+				SELECT pra.patron_request_id, MIN(pra.audit_date) AS reached_at
+				FROM patron_request_audit pra
+				WHERE pra.to_status = :targetStatus
+				  AND pra.audit_date >= :seriesStart
+				  AND pra.audit_date < :seriesEnd
+				GROUP BY pra.patron_request_id
+			)
+			SELECT date_trunc(:bucket, reached.reached_at) AT TIME ZONE 'UTC' AS bucket,
+			       PERCENTILE_CONT(0.5) WITHIN GROUP (
+			           ORDER BY EXTRACT(EPOCH FROM (reached.reached_at - pr.date_created))) AS p50_seconds,
+			       PERCENTILE_CONT(0.95) WITHIN GROUP (
+			           ORDER BY EXTRACT(EPOCH FROM (reached.reached_at - pr.date_created))) AS p95_seconds,
+			       COUNT(*) AS sample_count
+			FROM patron_request pr
+			JOIN reached ON reached.patron_request_id = pr.id
+			WHERE pr.status_code != 'ERROR'
+			  AND pr.active_workflow != 'RET-LOCAL'
+			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND NOT EXISTS (
+				SELECT 1 FROM patron_request_audit earlier
+				WHERE earlier.patron_request_id = reached.patron_request_id
+				  AND earlier.to_status = :targetStatus
+				  AND earlier.audit_date < :seriesStart
+			  )
+			GROUP BY 1
+			ORDER BY 1
+			LIMIT :maxBuckets
+		""",
+		nativeQuery = true
+	)
+	Flux<TrendPoint> findTurnaroundTrend(
+		String bucket,
+		String targetStatus,
+		@Nullable String libraryCode,
+		LocalDateTime seriesStart,
+		LocalDateTime seriesEnd,
+		int maxBuckets
+	);
+
+	// Placed at the supplier to confirmed by it - NOT creation to confirmed, which would fold
+	// DCB's own resolution time into the supplier's score. Same pair as findSupplierResponseSla,
+	// so the trend and the per-supplier panel cannot disagree.
+	//
+	// SCALE: the confirmations are bounded by the window and drive the query; the matching
+	// "placed" is a correlated MIN per candidate rather than an aggregate over all history, so
+	// neither side scans the corpus. Both probe pra_to_status_idx.
+	@Query(
+		value = """
+			SELECT date_trunc(:bucket, conf.first_date) AT TIME ZONE 'UTC' AS bucket,
+			       PERCENTILE_CONT(0.5) WITHIN GROUP (
+			           ORDER BY EXTRACT(EPOCH FROM (conf.first_date - placed.first_date))) AS p50_seconds,
+			       PERCENTILE_CONT(0.95) WITHIN GROUP (
+			           ORDER BY EXTRACT(EPOCH FROM (conf.first_date - placed.first_date))) AS p95_seconds,
+			       COUNT(*) AS sample_count
+			FROM patron_request pr
+			JOIN (
+				SELECT patron_request_id, MIN(audit_date) AS first_date
+				FROM patron_request_audit
+				WHERE to_status = 'CONFIRMED'
+				  AND audit_date >= :seriesStart
+				  AND audit_date < :seriesEnd
+				GROUP BY patron_request_id
+			) conf ON conf.patron_request_id = pr.id
+			JOIN LATERAL (
+				SELECT MIN(audit_date) AS first_date
+				FROM patron_request_audit
+				WHERE patron_request_id = pr.id
+				  AND to_status = 'REQUEST_PLACED_AT_SUPPLYING_AGENCY'
+			) placed ON TRUE
+			WHERE pr.local_item_hostlms_code IS NOT NULL
+			  AND conf.first_date >= placed.first_date
+			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND NOT EXISTS (
+				SELECT 1 FROM patron_request_audit earlier
+				WHERE earlier.patron_request_id = pr.id
+				  AND earlier.to_status = 'CONFIRMED'
+				  AND earlier.audit_date < :seriesStart
+			  )
+			GROUP BY 1
+			ORDER BY 1
+			LIMIT :maxBuckets
+		""",
+		nativeQuery = true
+	)
+	Flux<TrendPoint> findSupplierResponseTrend(
+		String bucket,
+		@Nullable String libraryCode,
+		LocalDateTime seriesStart,
+		LocalDateTime seriesEnd,
+		int maxBuckets
+	);
+
+	// Dwell in ONE status, bucketed on the transition out of it. PICKUP_TRANSIT and
+	// RETURN_TRANSIT are the two transit legs; every other status is a bottleneck view.
+	//
+	// The window filter is inside the CTE, exactly as findTimeInStatus applies it, so a dwell
+	// whose entry falls before the window start is excluded from both. The two must agree:
+	// the panel and its trend sit on the same screen.
+	@Query(
+		value = """
+			WITH dwell AS (
+				SELECT
+					pra.from_status AS status,
+					pra.audit_date AS left_at,
+					pr.patron_hostlms_code AS library_code,
+					EXTRACT(EPOCH FROM (pra.audit_date - LAG(pra.audit_date)
+						OVER (PARTITION BY pra.patron_request_id ORDER BY pra.audit_date))) AS dwell_seconds
+				FROM patron_request_audit pra
+				JOIN patron_request pr ON pr.id = pra.patron_request_id
+				WHERE pra.audit_date >= :seriesStart
+				  AND pra.audit_date < :seriesEnd
+			)
+			SELECT date_trunc(:bucket, left_at) AT TIME ZONE 'UTC' AS bucket,
+			       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY dwell_seconds) AS p50_seconds,
+			       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY dwell_seconds) AS p95_seconds,
+			       COUNT(*) AS sample_count
+			FROM dwell
+			WHERE status = :status
+			  AND dwell_seconds IS NOT NULL
+			  AND (:libraryCode IS NULL OR library_code = ANY(string_to_array(:libraryCode, ',')))
+			GROUP BY 1
+			ORDER BY 1
+			LIMIT :maxBuckets
+		""",
+		nativeQuery = true
+	)
+	Flux<TrendPoint> findStatusDwellTrend(
+		String bucket,
+		String status,
 		@Nullable String libraryCode,
 		LocalDateTime seriesStart,
 		LocalDateTime seriesEnd,
@@ -854,6 +1012,11 @@ public interface PatronRequestRepository {
 	//     picking the first, since a shared Host LMS genuinely serves several. Correlated on
 	//     the grouping column, so it runs once per partner over three small config tables.
 
+	// A NULL :libraryCode means the whole consortium, and the own-code exclusion lapses with
+	// it - there is no "we" to exclude. Micronaut Data throws IllegalArgumentException on a
+	// null bound to a parameter that is not @Nullable, so dropping either guard turns
+	// /insights/dashboard-metrics into a 500 for any caller who selects no library.
+
 	@Query(
 		value = """
 			SELECT pr.local_item_hostlms_code as partner_code,
@@ -864,9 +1027,9 @@ public interface PatronRequestRepository {
 			         WHERE h.code = pr.local_item_hostlms_code) AS partner_name,
 			       COUNT(pr.id) as request_count
 			FROM patron_request pr
-			WHERE pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			WHERE (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
 			  AND pr.local_item_hostlms_code IS NOT NULL
-			  AND pr.local_item_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
+			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code <> ALL(string_to_array(:libraryCode, ',')))
 			  AND pr.status_code != 'ERROR'
 			  AND pr.active_workflow != 'RET-LOCAL'
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
@@ -878,7 +1041,7 @@ public interface PatronRequestRepository {
 		nativeQuery = true
 	)
 	Flux<PartnerStat> findTopSuppliersForLibrary(
-		String libraryCode,
+		@Nullable String libraryCode,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -893,9 +1056,9 @@ public interface PatronRequestRepository {
 			         WHERE h.code = pr.patron_hostlms_code) AS partner_name,
 			       COUNT(pr.id) as request_count
 			FROM patron_request pr
-			WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			WHERE (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
 			  AND pr.patron_hostlms_code IS NOT NULL
-			  AND pr.patron_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
+			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code <> ALL(string_to_array(:libraryCode, ',')))
 			  AND pr.status_code != 'ERROR'
 			  AND pr.active_workflow != 'RET-LOCAL'
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
@@ -907,7 +1070,7 @@ public interface PatronRequestRepository {
 		nativeQuery = true
 	)
 	Flux<PartnerStat> findTopBorrowersFromLibrary(
-		String libraryCode,
+		@Nullable String libraryCode,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -997,8 +1160,9 @@ public interface PatronRequestRepository {
 		Pageable pageable
 	);
 
-	// "Unmet local demand": clusters THIS library's own patrons requested, but to which
-	// the library contributes no bib record (i.e. it does not hold the title). Self-demand.
+	// "Unmet local demand": clusters the caller's own patrons requested, but to which none of
+	// the caller's libraries contributes a bib record. For a group that is "nobody here holds
+	// it", which is the acquisition question a group chair is asking - docs/insights.md 3.8.
 	// TopClusterStat only carries (clusterId, title, requestCount), so we select nothing more -
 	// the previous author/ISBN projection was computed per row and silently discarded.
 	@Query(
@@ -1009,7 +1173,7 @@ public interface PatronRequestRepository {
                 COUNT(pr.id) AS request_count
             FROM patron_request pr
             JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
-            WHERE pr.patron_hostlms_code = :libraryCode
+            WHERE pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
               AND pr.status_code != 'ERROR'
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
@@ -1018,7 +1182,7 @@ public interface PatronRequestRepository {
                   FROM bib_record my_br
                   JOIN host_lms hl ON my_br.source_system_id = hl.id
                   WHERE my_br.contributes_to = cr.id
-                    AND hl.code = :libraryCode
+                    AND hl.code = ANY(string_to_array(:libraryCode, ','))
               )
             GROUP BY cr.id
             ORDER BY request_count DESC
@@ -1032,6 +1196,9 @@ public interface PatronRequestRepository {
 		@Nullable Instant endDate
 	);
 
+	// The host_lms join is on pr.local_item_hostlms_code, NOT on :libraryCode: for a set it
+	// must be the SUPPLYING member's own bib record. Joining on the set instead pairs every
+	// request with every member's bib record for that cluster and multiplies supply_count.
 	@Query(
 		value = """
             SELECT 
@@ -1043,9 +1210,9 @@ public interface PatronRequestRepository {
                 COUNT(pr.id) AS supply_count
             FROM patron_request pr
             JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
-            JOIN host_lms hl ON hl.code = :libraryCode
+            JOIN host_lms hl ON hl.code = pr.local_item_hostlms_code
             JOIN bib_record br ON br.contributes_to = cr.id AND br.source_system_id = hl.id
-            WHERE pr.local_item_hostlms_code = :libraryCode
+            WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
               AND pr.status_code != 'ERROR'
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
@@ -1055,7 +1222,8 @@ public interface PatronRequestRepository {
         """,
 		nativeQuery = true
 	)
-	Flux<ConsortialLifelineStat> findConsortialLifelineForLibrary(String libraryCode, Instant startDate, Instant endDate);
+	Flux<ConsortialLifelineStat> findConsortialLifelineForLibrary(String libraryCode,
+		@Nullable Instant startDate, @Nullable Instant endDate);
 
 	@Query(
 		value = """
@@ -1137,7 +1305,7 @@ public interface PatronRequestRepository {
             JOIN host_lms hl ON br.source_system_id = hl.id
             JOIN cluster_record cr ON br.contributes_to = cr.id
             JOIN patron_request pr ON pr.bib_cluster_id = cr.id AND pr.local_item_hostlms_code = hl.code
-            WHERE hl.code = :libraryCode
+            WHERE hl.code = ANY(string_to_array(:libraryCode, ','))
               AND br.date_created >= :acquiredSince
               AND pr.status_code != 'ERROR'
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
@@ -1158,9 +1326,9 @@ public interface PatronRequestRepository {
 
 	@Query(
 		value = """
-            SELECT COUNT(id) 
-            FROM patron_request 
-            WHERE patron_hostlms_code = :libraryCode 
+            SELECT COUNT(id)
+            FROM patron_request
+            WHERE patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
               AND status_code != 'ERROR'
               AND (:startDate IS NULL OR date_created >= :startDate)
               AND (:endDate IS NULL OR date_created <= :endDate)
@@ -1171,9 +1339,9 @@ public interface PatronRequestRepository {
 
 	@Query(
 		value = """
-            SELECT COUNT(id) 
-            FROM patron_request 
-            WHERE local_item_hostlms_code = :libraryCode 
+            SELECT COUNT(id)
+            FROM patron_request
+            WHERE local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
               AND status_code != 'ERROR'
               AND (:startDate IS NULL OR date_created >= :startDate)
               AND (:endDate IS NULL OR date_created <= :endDate)
@@ -1275,6 +1443,10 @@ public interface PatronRequestRepository {
 		@Nullable Instant endDate
 	);
 
+	// "Nobody outside the caller's own libraries holds this." Expressed as NOT EXISTS over the
+	// set rather than COUNT(DISTINCT source_system_id) = 1, which only says the right thing when
+	// the set has one member. The host_lms join is on the supplying code, as in the lifeline
+	// query above and for the same reason.
 	@Query(
 		value = """
             SELECT 
@@ -1285,17 +1457,19 @@ public interface PatronRequestRepository {
                 COUNT(pr.id) AS supply_count
             FROM patron_request pr
             JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
-            JOIN host_lms hl ON hl.code = :libraryCode
+            JOIN host_lms hl ON hl.code = pr.local_item_hostlms_code
             JOIN bib_record br ON br.contributes_to = cr.id AND br.source_system_id = hl.id
-            WHERE pr.local_item_hostlms_code = :libraryCode
+            WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
               AND pr.status_code != 'ERROR'
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
-              AND (
-                  SELECT COUNT(DISTINCT inner_br.source_system_id)
-                  FROM bib_record inner_br
-                  WHERE inner_br.contributes_to = cr.id
-              ) = 1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM bib_record other_br
+                  JOIN host_lms other_hl ON other_br.source_system_id = other_hl.id
+                  WHERE other_br.contributes_to = cr.id
+                    AND other_hl.code <> ALL(string_to_array(:libraryCode, ','))
+              )
             GROUP BY cr.id, br.id
             ORDER BY supply_count DESC
             LIMIT 50

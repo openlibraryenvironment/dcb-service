@@ -1,5 +1,10 @@
 package org.olf.dcb.graphql;
 
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
+import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
+import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
+import static org.olf.dcb.security.RoleNames.LIBRARY_READ_ONLY;
+
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
@@ -13,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The role check a data fetcher applies before it reads administrative data.
+ * The role check a data fetcher applies before it reads or writes administrative data.
  *
  * <h2>Why this is a class and not four more lines in a fetcher</h2>
  *
@@ -47,20 +52,46 @@ public final class GraphQLRoles {
 	 * {@code INTERNAL_API}. Neither administers anything, and both would otherwise reach
 	 * every unguarded fetcher.
 	 */
-	public static final Set<String> ADMINISTRATIVE = Set.of("ADMIN", "CONSORTIUM_ADMIN", "LIBRARY_ADMIN");
+	public static final Set<String> ADMINISTRATIVE = Set.of(ADMINISTRATOR, CONSORTIUM_ADMIN, LIBRARY_ADMIN);
+
+	/**
+	 * The read floor for {@code /graphql}: everyone who administers or observes a DCB
+	 * instance, which is {@link #ADMINISTRATIVE} plus read-only staff.
+	 *
+	 * This is the whole point of the set. {@code LIBRARY_READ_ONLY} exists precisely so
+	 * somebody can look without changing anything, and before this it was checked NOWHERE
+	 * in the GraphQL layer — which cut both ways: a read-only user could write wherever a
+	 * mutation forgot its check, and read-only was never actually granted a read.
+	 *
+	 * Row-level scoping still applies ON TOP of this, and is the finer instrument:
+	 * {@code AgencyAccessScope} restricts a library administrator to their own agencies'
+	 * requests and identities. This set answers "may you use the admin API at all", not
+	 * "which rows are yours".
+	 *
+	 * {@code INTERNAL_API}, {@code INTEROP_TESTER} and {@code DISCOVERY_SERVICE} are
+	 * absent on purpose. Each is granted on REST controllers by explicit {@code @Secured},
+	 * which is where a machine credential's authority is decided and reviewable; none of
+	 * them drives an administration UI.
+	 */
+	public static final Set<String> STAFF = Set.of(ADMINISTRATOR, CONSORTIUM_ADMIN, LIBRARY_ADMIN, LIBRARY_READ_ONLY);
 
 	/**
 	 * The roles that administer the consortium rather than a library within it.
 	 *
-	 * For the surfaces that cannot be narrowed by an agency predicate because they have no
-	 * agency to narrow on. {@code DataChangeLog} is the case that forced this: it records
-	 * every entity in the system, keyed on entity name and id, so a library administrator
-	 * has no path to their own rows there - only to everybody's.
+	 * Two kinds of surface need this. First, those that cannot be narrowed by an agency
+	 * predicate because they have no agency to narrow on: {@code DataChangeLog} is the case
+	 * that forced it, recording every entity in the system keyed on entity name and id, so
+	 * a library administrator has no path to their own rows there — only to everybody's.
+	 * Prefer a scope predicate wherever the entity can carry one; this is the answer when it
+	 * genuinely cannot, not a shortcut around writing the predicate.
 	 *
-	 * Prefer a scope predicate wherever the entity can carry one. This is the answer when
-	 * it genuinely cannot, not a shortcut around writing the predicate.
+	 * Second, changing how the consortium itself is arranged, as distinct from running a
+	 * library within it: the groups, and who is in them. A library administrator edits their
+	 * own library; deciding which libraries and agencies belong to which group is a
+	 * consortium decision, and it is what the neighbouring {@code createLibrary},
+	 * {@code createLocation} and {@code deleteLibrary} fetchers already require.
 	 */
-	public static final Set<String> CONSORTIUM = Set.of("ADMIN", "CONSORTIUM_ADMIN");
+	public static final Set<String> CONSORTIUM = Set.of(ADMINISTRATOR, CONSORTIUM_ADMIN);
 
 	private GraphQLRoles() {
 	}

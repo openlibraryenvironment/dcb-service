@@ -471,6 +471,10 @@ public class MockPolarisFixture {
 			responseBody);
 	}
 
+	void verifyGetMaterialTypes(VerificationTimes times) {
+		mockServer.verify(commonRequests.get(paths.applicationServices("/materialtypes")), times);
+	}
+
 	void mockGetItemStatuses(List<PolarisLmsClient.PolarisItemStatus> responseBody) {
 		mockServer.replaceMock(commonRequests.get(paths.applicationServices("/itemstatuses")),
 			responseBody);
@@ -488,5 +492,9 @@ public class MockPolarisFixture {
 
 	void mockListPatronCodesServerError() {
 		mockServer.replaceMock(commonRequests.get(paths.publicPapiService("/patroncodes")), serverError());
+	}
+
+	void verifyGetItemStatuses(VerificationTimes times) {
+		mockServer.verify(commonRequests.get(paths.applicationServices("/itemstatuses")), times);
 	}
 }

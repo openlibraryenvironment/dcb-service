@@ -156,6 +156,8 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<Page<DataAgency>>> getAgenciesDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getAgenciesDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -204,6 +206,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<PatronRequest>>> getPatronRequestsDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getPatronRequestsDataFetcher", GraphQLRoles.STAFF);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
@@ -242,6 +246,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<PatronRequestAudit>>> getAuditsDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getAuditsDataFetcher", GraphQLRoles.STAFF);
+
 			log.debug("getAuditsDataFetcher {}",env);
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
@@ -282,6 +288,11 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<DataChangeLog>>> getDataChangeLogDataFetcher() {
 		return env -> {
+			// ADMINISTRATIVE rather than STAFF, keeping the restriction this fetcher
+			// already had. The audit trail names who changed what and when, and read-only
+			// was never granted it; a branch that adds authorisation must not remove any.
+			GraphQLRoles.require(env, "getDataChangeLogDataFetcher", GraphQLRoles.ADMINISTRATIVE);
+
 			log.debug("getDataChangeLogDataFetcher {}",env);
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
@@ -324,6 +335,8 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<Page<PatronIdentity>>> getPatronIdentitiesDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getPatronIdentitiesDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -359,6 +372,8 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<Page<SupplierRequest>>> getSupplierRequestsDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getSupplierRequestsDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -396,6 +411,8 @@ public class DataFetchers {
 
 				public DataFetcher<CompletableFuture<Page<InactiveSupplierRequest>>> getInactiveSupplierRequestsDataFetcher() {
 					return env -> {
+						GraphQLRoles.require(env, "getInactiveSupplierRequestsDataFetcher", GraphQLRoles.STAFF);
+
 						Integer pageno = env.getArgument("pageno");
 						Integer pagesize = env.getArgument("pagesize");
 						String query = env.getArgument("query");
@@ -433,6 +450,8 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<Page<AgencyGroup>>> getPaginatedAgencyGroupsDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getPaginatedAgencyGroupsDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -481,6 +500,8 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<Page<Location>>> getLocationsDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getLocationsDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -512,6 +533,8 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<Page<DataHostLms>>> getHostLMSDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getHostLMSDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -544,6 +567,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<ProcessState>>> getProcessStateDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getProcessStateDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -685,6 +710,8 @@ public class DataFetchers {
 
         public DataFetcher<CompletableFuture<Page<NumericRangeMapping>>> getNumericRangeMappingsDataFetcher() {
                 return env -> {
+                	GraphQLRoles.require(env, "getNumericRangeMappingsDataFetcher", GraphQLRoles.STAFF);
+
                         Integer pageno = env.getArgument("pageno");
                         Integer pagesize = env.getArgument("pagesize");
                         String query = env.getArgument("query");
@@ -716,6 +743,8 @@ public class DataFetchers {
         }
 	public DataFetcher<CompletableFuture<Page<ReferenceValueMapping>>> getReferenceValueMappingsDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getReferenceValueMappingsDataFetcher", GraphQLRoles.STAFF);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
@@ -804,6 +833,8 @@ public class DataFetchers {
 	 */
 	public DataFetcher<CompletableFuture<List<Location>>> getPickupLocationsDataFetcher() {
 		return env -> {                 
+			GraphQLRoles.require(env, "getPickupLocationsDataFetcher", GraphQLRoles.STAFF);
+
 			String agency = env.getArgument("forAgency");
     
 			return Mono.from(postgresFunctionalSettingRepository.findByName(FunctionalSettingType.PICKUP_ANYWHERE))
@@ -823,6 +854,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<Library>>> getLibrariesDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getLibrariesDataFetcher", GraphQLRoles.STAFF);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
@@ -972,6 +1005,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<LibraryGroup>>> getLibraryGroupsDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getLibraryGroupsDataFetcher", GraphQLRoles.STAFF);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
@@ -1026,6 +1061,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<LibraryGroupMember>> getAllLibraryGroupMembers() {
 			return env -> {
+				GraphQLRoles.require(env, "getAllLibraryGroupMembers", GraphQLRoles.STAFF);
+
 				log.debug("Fetching the group members for a given library.");
 				return Mono.from(postgresLibraryGroupMemberRepository.findAll()).toFuture();
 			};
@@ -1138,6 +1175,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<Page<Role>>> getRolesDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getRolesDataFetcher", GraphQLRoles.STAFF);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
@@ -1184,6 +1223,8 @@ public class DataFetchers {
 	}
 	public DataFetcher<CompletableFuture<Page<FunctionalSetting>>> getFunctionalSettingsDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getFunctionalSettingsDataFetcher", GraphQLRoles.STAFF);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
@@ -1210,6 +1251,8 @@ public class DataFetchers {
 	}
 	public DataFetcher<CompletableFuture<Page<Alarm>>> getAlarmsDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getAlarmsDataFetcher", GraphQLRoles.STAFF);
+
 			Integer pageno = env.getArgument("pageno");
 			Integer pagesize = env.getArgument("pagesize");
 			String query = env.getArgument("query");
@@ -1241,6 +1284,8 @@ public class DataFetchers {
 
 	public DataFetcher<CompletableFuture<List<DailyPatronRequestStat>>> getPatronRequestStatsDataFetcher() {
 		return env -> {
+			GraphQLRoles.require(env, "getPatronRequestStatsDataFetcher", GraphQLRoles.STAFF);
+
 			// Handles date ranges, statuses, supplier codes, borrower codes etc
 			String startDateStr = env.getArgument("startDate");
 			String endDateStr = env.getArgument("endDate");
