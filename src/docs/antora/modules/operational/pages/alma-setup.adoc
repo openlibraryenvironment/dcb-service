@@ -22,10 +22,23 @@ These steps happen in Alma first.
 === A library to lend from
 
 When another member borrows from you, OpenRS places a hold in Alma for pickup at one library,
-the *sharing library*. Staff collect the item there and send it on. Choose a library that can
-be a pickup location — normally the one whose staff will dispatch OpenRS items — with a
-circulation desk that serves as a pickup point for the fulfilment units your lendable items
-belong to.
+the *sharing library*. Staff scan the item in at their own desk, Alma puts it in transit to the
+sharing library, and that transit is what tells OpenRS the item is on its way. The item then
+goes to the borrowing library, not to the sharing library.
+
+The sharing library must meet two conditions:
+
+* *Alma can deliver a hold to it.* It has a circulation desk with a hold shelf that serves as a
+  pickup point for the fulfilment units your lendable items belong to.
+* *It holds none of the items you lend.* Alma decides what a scan-in does from where the scan
+  happens. An item scanned in at the hold's pickup library goes onto that library's hold shelf,
+  not into transit, and OpenRS then waits for a transit that never comes. So the sharing library
+  must not be a library whose own items you lend — which rules out the obvious choice, the
+  library whose staff dispatch OpenRS items.
+
+A library created for OpenRS lending meets both. Where there is no such library, tell your
+OpenRS team: until an alternative is available, staff must scan in any item owned by the sharing
+library with their Alma location set to a different library, so that Alma puts it in transit.
 
 IMPORTANT: Do *not* use Alma's Resource Sharing Library, often coded `RES_SHARE`. It exists
 for Alma's own resource-sharing workflow, its only locations are internal ones such as
@@ -83,8 +96,8 @@ different *base URL qualifier* (`base-url-qualifier`), such as its institution c
 it DCB treats the two as one system and neither can supply the other's patrons.
 
 | Sharing library code
-| The Alma library that lending holds are sent to for collection. A library that can be a
-pickup location, never the Resource Sharing Library — see <<lending-library>>.
+| The Alma library that lending holds are sent to. A pickup location that holds none of the
+items you lend, and never the Resource Sharing Library — see <<lending-library>>.
 
 | Virtual item library and location
 | The library and location where DCB creates the stand-in item your patron's hold is placed
@@ -223,7 +236,9 @@ Neither can see fulfilment unit rules, so the second step above still needs some
 
 . A patron at another member library places a request through the discovery service.
 . DCB places a hold at your institution and creates a virtual patron.
-. Scan the item in, in Alma, to put it in transit.
+. Scan the item in, in Alma, at a desk outside the sharing library, to put it in transit. If
+  Alma places it on the hold shelf instead, the scan happened at the sharing library: see
+  <<lending-library>>.
 . When the borrower returns it, the request shows `RETURN_TRANSIT` in DCB Admin.
 . Scan the item in again to complete the request.
 
