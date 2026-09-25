@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
 import java.io.StringReader;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,6 +37,15 @@ class AlmaXmlGeneratorTests {
 	}
 
 	@Test
+	void shouldLeaveTheControlNumberToAlmaAndDateTheRecordToday() throws Exception {
+		final var document = parse(AlmaXmlGenerator.createBibXml("A title", "An author"));
+
+		assertThat(controlfield(document, "001"), is(nullValue()));
+		assertThat(controlfield(document, "005"), is(nullValue()));
+		assertThat(controlfield(document, "008").substring(6, 11), is("s" + LocalDate.now().getYear()));
+	}
+
+	@Test
 	void shouldOmitTheAuthorFieldWhenThereIsNoAuthor() throws Exception {
 		final var document = parse(AlmaXmlGenerator.createBibXml("A title", " "));
 
@@ -58,6 +68,20 @@ class AlmaXmlGeneratorTests {
 		}
 
 		return tags;
+	}
+
+	private static String controlfield(Document document, String tag) {
+		final var fields = document.getElementsByTagName("controlfield");
+
+		for (int i = 0; i < fields.getLength(); i++) {
+			final var field = (Element) fields.item(i);
+
+			if (tag.equals(field.getAttribute("tag"))) {
+				return field.getTextContent();
+			}
+		}
+
+		return null;
 	}
 
 	private static Element datafield(Document document, String tag) {

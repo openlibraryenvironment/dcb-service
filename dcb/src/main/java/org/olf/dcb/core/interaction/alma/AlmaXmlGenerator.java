@@ -1,6 +1,6 @@
 package org.olf.dcb.core.interaction.alma;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -9,7 +9,6 @@ import java.time.format.DateTimeFormatter;
 */
 public class AlmaXmlGenerator {
 
-	private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 	private static final DateTimeFormatter DATE_008_FORMAT = DateTimeFormatter.ofPattern("yyMMdd");
 
 	/**
@@ -28,8 +27,7 @@ public class AlmaXmlGenerator {
 
 		final boolean hasAuthor = author != null && !author.isBlank();
 
-		final String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
-		final String date008 = LocalDateTime.now().format(DATE_008_FORMAT);
+		final LocalDate today = LocalDate.now();
 
 		final var xml = new StringBuilder()
 			.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -37,10 +35,10 @@ public class AlmaXmlGenerator {
 			.append("  <suppress_from_publishing>true</suppress_from_publishing>\n")
 			.append("  <record>\n")
 			.append("    <leader>00000nam a2200000 a 4500</leader>\n")
-			.append("    <controlfield tag=\"001\">DCB").append(timestamp).append("</controlfield>\n")
-			.append("    <controlfield tag=\"005\">").append(timestamp).append(".0</controlfield>\n")
-			.append("    <controlfield tag=\"008\">").append(date008)
-			.append("s2023    xxu           000 0 eng d</controlfield>\n");
+			// No 001 or 005: Alma writes the MMS id and its own timestamp there. A 001 of our own is
+			// a match point an import profile can overlay onto
+			.append("    <controlfield tag=\"008\">").append(today.format(DATE_008_FORMAT))
+			.append("s").append(today.getYear()).append("    xxu           000 0 eng d</controlfield>\n");
 
 		if (hasAuthor) {
 			xml.append("    <datafield tag=\"100\" ind1=\"1\" ind2=\" \">\n")
