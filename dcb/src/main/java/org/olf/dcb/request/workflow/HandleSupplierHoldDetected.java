@@ -83,7 +83,13 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 			.flatMap(client -> Mono.from(client.getItem(supplierItemId)))
 			.flatMap(freshItem -> {
 				log.info("Item coming back {}", freshItem);
-				int freshHoldCount = freshItem.getHoldCount() != null ? freshItem.getHoldCount() : 0;
+				// Unknown is not zero: saving 0 would erase the hold tracking saw, and skip prevention
+				if (freshItem.getHoldCount() == null) {
+					return Mono.error(new IllegalStateException(supplierSystemCode
+						+ " did not report a hold count for item " + supplierRequest.getLocalItemId()));
+				}
+
+				final int freshHoldCount = freshItem.getHoldCount();
 				// We set the new value, and, just to be sure, we persist it also.
 				// We should probably NOT do this if it's the same as the old hold count
 				// We should also probably update the whole item on the supplier request?

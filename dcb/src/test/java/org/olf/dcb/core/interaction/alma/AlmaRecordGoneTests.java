@@ -27,6 +27,9 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.http.client.HttpClient;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
+import services.k_int.interaction.alma.types.AlmaBib;
+import services.k_int.interaction.alma.types.CodeValuePair;
+import services.k_int.interaction.alma.types.items.AlmaHoldingData;
 import services.k_int.interaction.alma.types.items.AlmaItem;
 import services.k_int.interaction.alma.types.items.AlmaItemData;
 import services.k_int.interaction.alma.types.error.AlmaError;
@@ -123,6 +126,27 @@ class AlmaRecordGoneTests {
 
 		assertThat("Zero would say there are no holds on an item nobody could read",
 			item.getHoldCount(), is(nullValue()));
+	}
+
+	@Test
+	void shouldReportAnUnknownHoldCountForAnItemFoundByBarcode() {
+		when(almaApi.retrieveItemBarcodeOnly("barcode-1"))
+			.thenReturn(Mono.just(AlmaItem.builder()
+				.bibData(AlmaBib.builder().mmsId("bib-1").build())
+				.holdingData(AlmaHoldingData.builder().holdingId("holding-1").build())
+				.itemData(AlmaItemData.builder()
+					.pid("item-1")
+					.barcode("barcode-1")
+					.baseStatus(CodeValuePair.builder().value("1").desc("Item in place").build())
+					.build())
+				.build()));
+
+		when(almaApi.retrieveItemRequests("bib-1", "holding-1", "item-1"))
+			.thenReturn(Mono.error(new RuntimeException("Alma is unavailable")));
+
+		final var item = client.getItemByBarcode("barcode-1").block();
+
+		assertThat(item.getHoldCount(), is(nullValue()));
 	}
 
 	private static AlmaApiException almaError(int statusCode, String code, String message) {

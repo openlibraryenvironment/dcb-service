@@ -1902,9 +1902,9 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 			final String itemId = aid.getPid();
 
 			return client.retrieveItemRequests(bibId, holdingId, itemId)
-				.map(requests -> (requests.getRecordCount() != null) ? requests.getRecordCount() : 0)
-				.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item barcode {}. Defaulting to 0. Error: {}", barcode, e.getMessage()))
-				.onErrorReturn(0)
+				.map(requests -> Optional.ofNullable(requests.getRecordCount()))
+				.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item {}", itemId, e))
+				.onErrorResume(e -> Mono.just(Optional.empty()))
 				.map(holdCount -> {
 
 					var returnHostLmsItem = HostLmsItem.builder()
@@ -1913,7 +1913,7 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 						.rawStatus(aid.getBaseStatus().getDesc())
 						.bibId(bibId)
 						.holdingId(holdingId)
-						.holdCount(holdCount)
+						.holdCount(holdCount.orElse(null))
 						.build();
 
 					return deriveItemStatusFromProcessType(returnHostLmsItem, item.getItemData());
