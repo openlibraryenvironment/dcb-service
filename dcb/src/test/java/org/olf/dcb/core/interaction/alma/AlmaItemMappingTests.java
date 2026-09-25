@@ -22,17 +22,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.http.client.HttpClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
@@ -85,10 +81,8 @@ class AlmaItemMappingTests {
 		when(materialTypeToItemType.enrichItemWithMappedItemType(any()))
 			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
 
-		client = new AlmaHostLmsClient(hostLms, mock(HttpClient.class), clientFactory,
-			mock(ReferenceValueMappingService.class), materialTypeToItemType, locationToAgency,
-			mock(ConversionService.class), mock(LocationService.class),
-			mock(HostLmsService.class), mock(ConsortiumService.class));
+		client = new AlmaHostLmsClient(hostLms, clientFactory,
+			mock(ReferenceValueMappingService.class), materialTypeToItemType, locationToAgency, mock(ConsortiumService.class));
 	}
 
 	@Test

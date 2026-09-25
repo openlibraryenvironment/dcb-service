@@ -20,7 +20,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -32,7 +31,6 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
-import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.interops.ConfigType;
@@ -41,8 +39,6 @@ import org.zalando.problem.Problem;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -75,38 +71,26 @@ import services.k_int.utils.UUIDUtils;
 // @See https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3234496514/ALMA+Integration
 public class AlmaHostLmsClient implements HostLmsClient {
 	private final HostLms hostLms;
-	private final HttpClient httpClient;
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
-	private final ConversionService conversionService;
-	private final LocationService locationService;
-	private final HostLmsService hostLmsService;
 	private final AlmaApiClient client;
 	private final AlmaClientConfig config;
 	private final ConsortiumService consortiumService;
 
 	public AlmaHostLmsClient(@Parameter HostLms hostLms,
-		@Parameter("client") HttpClient httpClient,
 		AlmaClientFactory almaClientFactory,
 		ReferenceValueMappingService referenceValueMappingService,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
-		ConversionService conversionService,
-		LocationService locationService,
-		HostLmsService hostLmsService,
 	 	ConsortiumService consortiumService) {
 
 		this.hostLms = hostLms;
-		this.httpClient = httpClient;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.config = new AlmaClientConfig(hostLms);
 		this.client = almaClientFactory.createClientFor(hostLms);
 		this.referenceValueMappingService = referenceValueMappingService;
-		this.conversionService = conversionService;
-		this.locationService = locationService;
-		this.hostLmsService = hostLmsService;
 		this.consortiumService = consortiumService;
 	}
 
@@ -1352,7 +1336,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			itemId, itemBarcode, patronId, requestId);
 
 		// Use the barcode to fetch the full item data and get the correct library code from that
-		// If this ever fails, we will need to switch to finding the holding / bib and go from there
 		return client.retrieveItemBarcodeOnly(itemBarcode)
 			.flatMap(almaItem -> {
 

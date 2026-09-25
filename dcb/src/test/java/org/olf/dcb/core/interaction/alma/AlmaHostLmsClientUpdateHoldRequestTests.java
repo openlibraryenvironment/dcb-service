@@ -7,23 +7,19 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import io.micronaut.http.client.HttpClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.test.PublisherUtils;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import io.micronaut.core.convert.ConversionService;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.CodeValuePair;
 import services.k_int.interaction.alma.types.items.AlmaItem;
@@ -33,15 +29,11 @@ import services.k_int.interaction.alma.types.items.AlmaItemData;
 class AlmaHostLmsClientUpdateHoldRequestTests {
 
 	private HostLms hostLms;
-	private HttpClient httpClient;
 	private AlmaApiClient almaApi;
 	private AlmaClientFactory clientFactory;
 	private ReferenceValueMappingService refMapSvc;
 	private MaterialTypeToItemTypeMappingService materialTypeSvc;
 	private LocationToAgencyMappingService locationToAgencySvc;
-	private ConversionService conversionService;
-	private LocationService locationService;
-	private HostLmsService hostLmsService;
 	private ConsortiumService consortiumService;
 
 	private AlmaHostLmsClient sut;
@@ -51,7 +43,6 @@ class AlmaHostLmsClientUpdateHoldRequestTests {
 		hostLms = mock(HostLms.class);
 		when(hostLms.getCode()).thenReturn("ALMA");
 
-		httpClient = mock(HttpClient.class);
 		almaApi = mock(AlmaApiClient.class);
 		clientFactory = mock(AlmaClientFactory.class);
 		when(clientFactory.createClientFor(hostLms)).thenReturn(almaApi);
@@ -59,22 +50,15 @@ class AlmaHostLmsClientUpdateHoldRequestTests {
 		refMapSvc = mock(ReferenceValueMappingService.class);
 		materialTypeSvc = mock(MaterialTypeToItemTypeMappingService.class);
 		locationToAgencySvc = mock(LocationToAgencyMappingService.class);
-		conversionService = mock(ConversionService.class);
-		locationService = mock(LocationService.class);
-		hostLmsService = mock(HostLmsService.class);
 		consortiumService = mock(ConsortiumService.class);
 
 		sut = new AlmaHostLmsClient(
 				hostLms,
-				httpClient,
 				clientFactory,
 				refMapSvc,
 				materialTypeSvc,
 				locationToAgencySvc,
-				conversionService,
-				locationService,
-				hostLmsService,
-			consortiumService
+				consortiumService
 		);
 	}
 

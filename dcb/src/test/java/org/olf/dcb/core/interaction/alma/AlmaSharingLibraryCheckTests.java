@@ -14,16 +14,12 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.http.client.HttpClient;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.AlmaCodeTable;
@@ -102,10 +98,9 @@ class AlmaSharingLibraryCheckTests {
 		final var clientFactory = mock(AlmaClientFactory.class);
 		when(clientFactory.createClientFor(hostLms)).thenReturn(almaApi);
 
-		final var client = new AlmaHostLmsClient(hostLms, mock(HttpClient.class), clientFactory,
+		final var client = new AlmaHostLmsClient(hostLms, clientFactory,
 			mock(ReferenceValueMappingService.class), mock(MaterialTypeToItemTypeMappingService.class),
-			mock(LocationToAgencyMappingService.class), mock(ConversionService.class),
-			mock(LocationService.class), mock(HostLmsService.class), mock(ConsortiumService.class));
+			mock(LocationToAgencyMappingService.class), mock(ConsortiumService.class));
 
 		return client.checkConfiguration().block();
 	}
