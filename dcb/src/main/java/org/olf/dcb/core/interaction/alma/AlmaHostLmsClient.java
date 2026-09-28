@@ -1327,32 +1327,71 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
 		return switch (crs) {
-			case TRANSIT, RECEIVED, COMPLETED -> scanInAtOwningLibrary(hostLmsItem);
+			case TRANSIT -> sendTowardsPickup(hostLmsItem);
+			case RECEIVED, COMPLETED -> scanInAtOwningLibrary(hostLmsItem);
 			case AVAILABLE, OFFSITE, MISSING, ONHOLDSHELF -> Mono.error(new UnsupportedOperationException(
 				"Alma has no item action for state " + crs));
 		};
+	}
+
+	// Alma shelves an item scanned in at its hold's pickup library instead of sending it, which
+	// would announce a book still on its way. Left alone, it is shelved when staff scan in the
+	// real book there.
+	private Mono<String> sendTowardsPickup(HostLmsItem hostLmsItem) {
+		final var bibId = getValueOrNull(hostLmsItem, HostLmsItem::getBibId);
+		final var holdingsId = getValueOrNull(hostLmsItem, HostLmsItem::getHoldingId);
+		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
+
+		return client.retrieveItem(bibId, holdingsId, itemId)
+			.flatMap(before -> holdPickupLibrary(bibId, holdingIdOf(before, holdingsId), itemId,
+					getValueOrNull(hostLmsItem, HostLmsItem::getLocalRequestId))
+				.filter(pickup -> pickup.equals(libraryOf(before)))
+				.doOnNext(pickup -> log.info("Not scanning in Alma item {} on {}: its hold is for pickup at its own library {}",
+					itemId, getHostLmsCode(), pickup))
+				.map(pickup -> "OK")
+				.switchIfEmpty(Mono.defer(() -> scanIn(bibId, holdingsId, itemId, before))));
+	}
+
+	// A failed read falls back to the scan-in, which is what happened before the read existed
+	private Mono<String> holdPickupLibrary(String bibId, String holdingId, String itemId, String requestId) {
+		if (isBlank(requestId)) {
+			return Mono.empty();
+		}
+
+		return client.retrieveItemRequests(bibId, holdingId, itemId)
+			.flatMapIterable(page -> page.getRequests() != null ? page.getRequests() : List.<AlmaRequestResponse>of())
+			.filter(request -> requestId.equals(request.getRequestId()))
+			.next()
+			.mapNotNull(AlmaRequestResponse::getPickupLocationLibrary)
+			.onErrorResume(error -> {
+				log.warn("Could not read the requests on Alma item {} on {}; scanning it in", itemId, getHostLmsCode(), error);
+				return Mono.empty();
+			});
+	}
+
+	private static String libraryOf(AlmaItem item) {
+		return getValueOrNull(getValueOrNull(item, AlmaItem::getItemData), AlmaItemData::getLibrary,
+			CodeValuePair::getValue);
 	}
 
 	private Mono<String> scanInAtOwningLibrary(HostLmsItem hostLmsItem) {
 		final var bibId = getValueOrNull(hostLmsItem, HostLmsItem::getBibId);
 		final var holdingsId = getValueOrNull(hostLmsItem, HostLmsItem::getHoldingId);
 		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
-		log.debug("Updating item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
 
 		return client.retrieveItem(bibId, holdingsId, itemId)
-			.flatMap(before -> {
-				final var almaItemData = getValueOrNull(before, AlmaItem::getItemData);
-				// working theory as of 17/09/2025
-				// that the item possesses the location we want to scan in at
-				final var libraryCode = getValueOrNull(almaItemData, AlmaItemData::getLibrary, CodeValuePair::getValue);
-				// each location should have its default circ desk set
-				// the intention to override this is to handle the default code changing for a system
-				final var defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
-				final var itemHoldingId = holdingIdOf(before, holdingsId);
+			.flatMap(before -> scanIn(bibId, holdingsId, itemId, before));
+	}
 
-				return client.scanIn(new ScanInQuery(bibId, itemHoldingId, itemId, libraryCode, defaultCircDesk))
-					.onErrorResume(error -> scanTookEffect(bibId, itemHoldingId, itemId, before, error));
-			})
+	private Mono<String> scanIn(String bibId, String holdingsId, String itemId, AlmaItem before) {
+		log.debug("Updating item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
+
+		// The desk is configurable because a system's default desk code can differ
+		final var defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
+		final var itemHoldingId = holdingIdOf(before, holdingsId);
+
+		return client.scanIn(new ScanInQuery(bibId, itemHoldingId, itemId, libraryOf(before), defaultCircDesk))
+			.onErrorResume(error -> scanTookEffect(bibId, itemHoldingId, itemId, before, error))
 			.map(data -> {
 				final var almaItemData = getValueOrNull(data, AlmaItem::getItemData);
 				final var baseStatus = getValueOrNull(almaItemData, AlmaItemData::getBaseStatus, CodeValuePair::getValue);
