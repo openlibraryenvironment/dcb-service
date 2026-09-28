@@ -61,7 +61,10 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
-			.orElse("User not detected");		log.debug("updateHostLmsDataFetcher {}", input_map);
+			.orElse("User not detected");
+
+		// Names only: clientConfig carries the system's API keys and passwords
+		log.debug("updateHostLmsDataFetcher id={} fields={}", input_map.get("id"), input_map.keySet());
 
 		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
 			log.warn("updateHostLmsDataFetcher: Access denied for user {}: user does not have the required role to update a Host LMS.", userString);
