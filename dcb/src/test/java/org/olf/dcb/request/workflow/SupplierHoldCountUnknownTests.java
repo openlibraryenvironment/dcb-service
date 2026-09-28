@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -74,5 +75,53 @@ class SupplierHoldCountUnknownTests {
 		verify(borrowerClient).preventRenewalOnLoan(any());
 		verify(supplierRequestRepository, never()).saveOrUpdate(any());
 		assertThat(supplierRequest.getLocalHoldCount(), is(1));
+	}
+
+	@Test
+	void shouldAskTheSupplierAboutTheItemWithItsBibAndHolding() {
+		final var supplierClient = mock(HostLmsClient.class);
+		when(supplierClient.getItem(any())).thenReturn(Mono.just(HostLmsItem.builder()
+			.localId("supplier-item-1")
+			.holdCount(0)
+			.build()));
+
+		final var hostLmsService = mock(HostLmsService.class);
+		when(hostLmsService.getClientFor(SUPPLIER)).thenReturn(Mono.just(supplierClient));
+
+		final var auditService = mock(PatronRequestAuditService.class);
+		when(auditService.addAuditEntry(any(PatronRequest.class), any(String.class)))
+			.thenReturn(Mono.empty());
+
+		final var supplierRequestRepository = mock(SupplierRequestRepository.class);
+		when(supplierRequestRepository.saveOrUpdate(any()))
+			.thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+		final var supplierRequest = SupplierRequest.builder()
+			.id(UUID.randomUUID())
+			.localId("supplier-request-1")
+			.localItemId("supplier-item-1")
+			.localBibId("supplier-bib-1")
+			.localHoldingId("supplier-holding-1")
+			.localHoldCount(1)
+			.hostLmsCode(SUPPLIER)
+			.build();
+
+		final var context = new RequestWorkflowContext()
+			.setPatronRequest(PatronRequest.builder()
+				.id(UUID.randomUUID())
+				.status(PatronRequest.Status.LOANED)
+				.build())
+			.setPatronSystemCode(BORROWER)
+			.setSupplierRequest(supplierRequest);
+
+		new HandleSupplierHoldDetected(mock(PatronRequestRepository.class), supplierRequestRepository,
+			auditService, hostLmsService).attempt(context).block();
+
+		// An Alma item's requests are read under its bib: without it the call went to bibs/null
+		final var asked = ArgumentCaptor.forClass(HostLmsItem.class);
+		verify(supplierClient).getItem(asked.capture());
+		assertThat(asked.getValue().getBibId(), is("supplier-bib-1"));
+		assertThat(asked.getValue().getHoldingId(), is("supplier-holding-1"));
+		assertThat(supplierRequest.getLocalHoldCount(), is(0));
 	}
 }

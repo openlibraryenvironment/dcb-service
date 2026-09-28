@@ -81,6 +81,19 @@ class AlmaRetrySafeCirculationTests {
 	}
 
 	@Test
+	void shouldCountHoldsUsingTheBibAlmaReportsWhenTheCallerHasNone() {
+		when(almaApi.retrieveItem(null, null, "item-1")).thenReturn(Mono.just(item("1", "LOAN")));
+		when(almaApi.retrieveItemRequests("bib-1", "holding-1", "item-1"))
+			.thenReturn(Mono.just(AlmaRequests.builder().recordCount(0).build()));
+
+		final var item = client.getItem(HostLmsItem.builder().localId("item-1").build()).block();
+
+		// "bibs/null/…/requests" answered 400, the count read as unknown, and renewal was prevented
+		assertThat(item.getHoldCount(), is(0));
+		assertThat(item.getBibId(), is("bib-1"));
+	}
+
+	@Test
 	void shouldTreatAScanAlmaAppliedButDidNotAnswerAsDone() {
 		when(almaApi.retrieveItem("bib-1", null, "item-1")).thenReturn(Mono.just(item("0", "TRANSIT")));
 		when(almaApi.scanIn(any())).thenReturn(Mono.error(new RuntimeException("Read Timeout")));

@@ -76,6 +76,8 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		final var supplierItemId = HostLmsItem.builder()
 			.localId(supplierRequest.getLocalItemId())
 			.localRequestId(supplierRequest.getLocalId())
+			.bibId(supplierRequest.getLocalBibId())
+			.holdingId(supplierRequest.getLocalHoldingId())
 			.build();
 
 		// Quick check of the actual item. Does it really have a hold?

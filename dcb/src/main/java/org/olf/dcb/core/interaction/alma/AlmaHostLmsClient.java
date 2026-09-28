@@ -1299,11 +1299,12 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(item -> {
 
 				final var almaItemData = getValueOrNull(item, AlmaItem::getItemData);
+				final var itemBibId = bibIdOf(item, bibId);
 				final var itemHoldingId = holdingIdOf(item, holdingId);
 
 				// One rule for both paths: an unknown count is unknown, as getItems has it. Zero here
 				// reported "no holds" whenever Alma was unreachable for this one call
-				Mono<Optional<Integer>> holdCountMono = client.retrieveItemRequests(bibId, itemHoldingId, itemId)
+				Mono<Optional<Integer>> holdCountMono = client.retrieveItemRequests(itemBibId, itemHoldingId, itemId)
 					.map(requests -> Optional.ofNullable(requests.getRecordCount()))
 					.doOnError(e -> log.warn("Failed to retrieve hold count for Alma item {}", itemId, e))
 					.onErrorResume(e -> Mono.just(Optional.empty()));
@@ -1312,7 +1313,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					var returnHostLmsItem = HostLmsItem.builder()
 						.localId(almaItemData.getPid())
 						.barcode(almaItemData.getBarcode())
-						.bibId(bibId)
+						.bibId(itemBibId)
 						.holdingId(itemHoldingId)
 						.holdCount(holdCount.orElse(null))
 						.build();
@@ -1343,7 +1344,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
 
 		return client.retrieveItem(bibId, holdingsId, itemId)
-			.flatMap(before -> holdPickupLibrary(bibId, holdingIdOf(before, holdingsId), itemId,
+			.flatMap(before -> holdPickupLibrary(bibIdOf(before, bibId), holdingIdOf(before, holdingsId), itemId,
 					getValueOrNull(hostLmsItem, HostLmsItem::getLocalRequestId))
 				.filter(pickup -> pickup.equals(libraryOf(before)))
 				.doOnNext(pickup -> log.info("Not scanning in Alma item {} on {}: its hold is for pickup at its own library {}",
@@ -1388,10 +1389,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		// The desk is configurable because a system's default desk code can differ
 		final var defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
+		final var itemBibId = bibIdOf(before, bibId);
 		final var itemHoldingId = holdingIdOf(before, holdingsId);
 
-		return client.scanIn(new ScanInQuery(bibId, itemHoldingId, itemId, libraryOf(before), defaultCircDesk))
-			.onErrorResume(error -> scanTookEffect(bibId, itemHoldingId, itemId, before, error))
+		return client.scanIn(new ScanInQuery(itemBibId, itemHoldingId, itemId, libraryOf(before), defaultCircDesk))
+			.onErrorResume(error -> scanTookEffect(itemBibId, itemHoldingId, itemId, before, error))
 			.map(data -> {
 				final var almaItemData = getValueOrNull(data, AlmaItem::getItemData);
 				final var baseStatus = getValueOrNull(almaItemData, AlmaItemData::getBaseStatus, CodeValuePair::getValue);
@@ -1406,6 +1408,14 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	// DCB records no holding id for a supplier item. Alma's item read accepts any holding segment
 	// and answers with the real one; its requests and scan calls do not accept a missing one
+	// The same for the bib: a caller without one gets "null" in the path, which the item read
+	// tolerates and the requests call refuses
+	private static String bibIdOf(AlmaItem item, String fallback) {
+		final var fromItem = getValueOrNull(item, AlmaItem::getBibData, AlmaBib::getMmsId);
+
+		return !isBlank(fromItem) ? fromItem : fallback;
+	}
+
 	private static String holdingIdOf(AlmaItem item, String fallback) {
 		final var fromItem = getValueOrNull(item, AlmaItem::getHoldingData, AlmaHoldingData::getHoldingId);
 

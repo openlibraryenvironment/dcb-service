@@ -116,12 +116,18 @@ public class FinaliseRequestTransition implements PatronRequestStateTransition {
 	}
 
 	private Mono<HashMap<String, Object>> fetchVirtualRequest(RequestWorkflowContext ctx, HashMap<String, Object> auditData) {
-		final var localRequestId = ctx.getSupplierRequest().getLocalId();
 		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+
+		// A request that never reached a supplier, such as one that found no items, has none
+		if (supplierRequest == null) {
+			return Mono.just(putAuditData(auditData, "VirtualRequest", "No supplier request was placed"));
+		}
+
+		final var localRequestId = supplierRequest.getLocalId();
 		final var supplierPatronId = getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId);
 		final var hostlmsRequest = HostLmsRequest.builder().localId(localRequestId).localPatronId(supplierPatronId).build();
 
-		return supplyingAgencyService.getRequest(ctx.getSupplierRequest().getHostLmsCode(), hostlmsRequest)
+		return supplyingAgencyService.getRequest(supplierRequest.getHostLmsCode(), hostlmsRequest)
 			.map(request -> putAuditData(auditData,"VirtualRequest", getValueOrNull(request, HostLmsRequest::toString)))
 			.onErrorResume(error -> auditThrowableMonoWrap(auditData, "VirtualRequest", error))
 			.thenReturn(auditData);
