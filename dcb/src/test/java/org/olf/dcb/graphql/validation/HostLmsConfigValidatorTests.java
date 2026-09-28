@@ -156,6 +156,25 @@ class HostLmsConfigValidatorTests {
 	}
 
 	@Test
+	void shouldRefuseAnAlternativeSharingLibraryThatIsTheSharingLibrary() {
+		final var config = almaConfig();
+		config.put("alternative-sharing-library-code", config.get("sharing-library-code"));
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(ALMA, config));
+
+		assertThat(exception.getMessage(), containsString("alternative-sharing-library-code"));
+	}
+
+	@Test
+	void shouldAcceptADifferentAlternativeSharingLibrary() {
+		final var config = almaConfig();
+		config.put("alternative-sharing-library-code", "OTHER-LIB");
+
+		assertDoesNotThrow(() -> validator.validate(ALMA, config));
+	}
+
+	@Test
 	void shouldAcceptACompleteAlmaConfiguration() {
 		assertDoesNotThrow(() -> validator.validate(ALMA, almaConfig()));
 	}

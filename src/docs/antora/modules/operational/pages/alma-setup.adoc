@@ -36,9 +36,26 @@ The sharing library must meet two conditions:
   must not be a library whose own items you lend — which rules out the obvious choice, the
   library whose staff dispatch OpenRS items.
 
-A library created for OpenRS lending meets both. Where there is no such library, tell your
-OpenRS team: until an alternative is available, staff must scan in any item owned by the sharing
-library with their Alma location set to a different library, so that Alma puts it in transit.
+Set up one of these two:
+
+. *An OpenRS library.* A library created in Alma for OpenRS lending, owning no items, with a
+  circulation desk that has a hold shelf and is a pickup point for every fulfilment unit whose
+  items you lend. Set `sharing-library-code` to it. This meets both conditions for every item.
+. *An OpenRS circulation desk.* A desk with a hold shelf, inside one of your existing
+  libraries, that nobody scans items in at. A Fulfillment Administrator can add one without
+  creating a library. Set `sharing-library-code` to the library it belongs to and
+  `sharing-circ-desk-code` to the desk. OpenRS then sends every lending hold to that desk, so a
+  scan at any other desk, even in the same library, puts the item in transit. Try one hold on
+  your sandbox first: scan the item in at another desk in that library and check that Alma
+  reports it in transit rather than on the hold shelf.
+
+If you have neither yet and your sharing library lends items of its own, set
+`alternative-sharing-library-code` to a second library that is also a pickup point for those
+items. OpenRS then sends holds for the sharing library's own items there, so that scanning them
+in puts them in transit. Alma shows such an item as in transit to that second library, which
+never receives it, until OpenRS records the loan; tell that library's staff to expect it. Without
+either, staff must scan in the sharing library's own items with their Alma location set to a
+different library.
 
 IMPORTANT: Do *not* use Alma's Resource Sharing Library, often coded `RES_SHARE`. It exists
 for Alma's own resource-sharing workflow, its only locations are internal ones such as
@@ -98,6 +115,16 @@ it DCB treats the two as one system and neither can supply the other's patrons.
 | Sharing library code
 | The Alma library that lending holds are sent to. A pickup location that holds none of the
 items you lend, and never the Resource Sharing Library — see <<lending-library>>.
+
+| Sharing circulation desk (optional)
+| A desk in the sharing library, with a hold shelf, that lending holds are sent to instead of
+the library as a whole. With a desk, the alternative sharing library is not needed — see
+<<lending-library>>.
+
+| Alternative sharing library (optional)
+| A second pickup library, used only for items the sharing library owns itself, when no sharing
+desk is set. Needed only when the sharing library lends items of its own — see
+<<lending-library>>.
 
 | Virtual item library and location
 | The library and location where DCB creates the stand-in item your patron's hold is placed
@@ -219,9 +246,10 @@ import profiles and merge routines from matching on that note.
 Two reports ask your Alma directly whether what DCB holds exists there. Both need an
 administrator or interop-tester login.
 
-`GET /imps/configuration/{host LMS code}`:: Checks the sharing library, the virtual item
-library and location, and the item policies. Every row should read `PRESENT`. The sharing
-library reads `MISSING` if it is a resource-sharing library, with the reason.
+`GET /imps/configuration/{host LMS code}`:: Checks the sharing library, the sharing desk and
+alternative sharing library when set, the virtual item library and location, and the item
+policies. Every row should read `PRESENT`. A sharing or alternative library reads `MISSING` if
+it is a resource-sharing library, and a sharing desk if it has no hold shelf, with the reason.
 `GET /imps/configuration/{host LMS code}/mappings`:: Checks every saved mapping that points at
 your Alma against the codes Alma holds. It should report no `MISSING` rows.
 

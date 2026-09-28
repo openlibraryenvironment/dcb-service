@@ -72,6 +72,15 @@ class AlmaApiClientRequestTests {
 	}
 
 	@Test
+	void shouldReadOneCirculationDesk() {
+		final var api = new RecordingAlmaApi(0);
+
+		api.retrieveCirculationDesk("dc", "OPENRS").block();
+
+		assertThat(api.lastPath, is("/almaws/v1/conf/libraries/dc/circ-desks/OPENRS"));
+	}
+
+	@Test
 	void shouldReadTheHoldingsUnderABib() {
 		final var api = new RecordingAlmaApi(0);
 

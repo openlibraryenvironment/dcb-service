@@ -156,16 +156,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	// This is the minimum we should know to place a hold in Alma (V1)
 	private record MinimumAlmaHold(String localPatronId, String localItemId, String pickupLibraryCode,
-		String comment, String dcbRequestId, String localBibId, String localItemBarcode) {}
+		String pickupDeskCode, String comment, String dcbRequestId, String localBibId,
+		String localItemBarcode) {}
+
+	private record Pickup(String libraryCode, String deskCode) {}
 
 	@Override
 	public Mono<LocalRequest> placeHoldRequestAtSupplyingAgency(PlaceHoldRequestParameters p) {
 		return validate(p)
 			.map(hold -> EXPEDITED_WORKFLOW.equals(hold.activeWorkflow())
-				? resolveLibraryFromLocationRecord(hold) : getDcbSharingLibraryCode())
-			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId(),
-				p.getLocalBibId(), p.getLocalItemBarcode())))
+				? new Pickup(resolveLibraryFromLocationRecord(hold), null) : supplierPickup(hold))
+			.flatMap(pickup -> submitLibraryHold(new MinimumAlmaHold(
+				p.getLocalPatronId(), p.getLocalItemId(), pickup.libraryCode(), pickup.deskCode(), p.getNote(),
+				p.getPatronRequestId(), p.getLocalBibId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtSupplyingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -176,7 +179,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(hold -> PICKUP_ANYWHERE_WORKFLOW.equals(hold.activeWorkflow())
 				? getDcbSharingLibraryCode() : resolveLibraryFromLocationRecord(hold))
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId(),
+				p.getLocalPatronId(), p.getLocalItemId(), lib, null, p.getNote(), p.getPatronRequestId(),
 				p.getLocalBibId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtBorrowingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
@@ -187,7 +190,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return validate(p)
 			.map(this::resolveLibraryFromLocationRecord)
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId(),
+				p.getLocalPatronId(), p.getLocalItemId(), lib, null, p.getNote(), p.getPatronRequestId(),
 				p.getLocalBibId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtPickupAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
@@ -198,7 +201,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return validate(p)
 			.map(this::resolveLibraryFromLocationRecord)
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
-				p.getLocalPatronId(), p.getLocalItemId(), lib, p.getNote(), p.getPatronRequestId(),
+				p.getLocalPatronId(), p.getLocalItemId(), lib, null, p.getNote(), p.getPatronRequestId(),
 				p.getLocalBibId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtLocalAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
@@ -214,6 +217,37 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		final var lib = config.getDcbSharingLibraryCode();
 		if (isBlank(lib)) throw new IllegalStateException("Missing DCB sharing library code in config");
 		return lib;
+	}
+
+	// Alma shelves an item scanned in at its hold's pickup library instead of sending it, and DCB
+	// learns an item is on its way only from that transit. An Alma item's location is its owning
+	// library, so an item belonging to the sharing library goes to the alternative when one is set.
+	private Pickup supplierPickup(DCBHold hold) {
+		final var desk = config.getSharingCircDeskCode();
+
+		return isBlank(desk)
+			? new Pickup(supplierPickupLibrary(hold), null)
+			: new Pickup(getDcbSharingLibraryCode(), desk);
+	}
+
+	private String supplierPickupLibrary(DCBHold hold) {
+		final var sharingLibrary = getDcbSharingLibraryCode();
+
+		if (!sharingLibrary.equals(hold.supplyingLocalItemLocation())) {
+			return sharingLibrary;
+		}
+
+		final var alternative = config.getAlternativeSharingLibraryCode();
+
+		if (isBlank(alternative)) {
+			log.warn("Item {} belongs to {}'s sharing library {}, so a scan-in will shelve it rather than "
+				+ "send it: set sharing-circ-desk-code or alternative-sharing-library-code",
+				hold.localItemId(), getHostLmsCode(), sharingLibrary);
+
+			return sharingLibrary;
+		}
+
+		return alternative;
 	}
 
 	// Try to derive the Alma library code from pickupLocation.localId
@@ -370,14 +404,15 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private Mono<AlmaRequestResponse> createLibraryHold(MinimumAlmaHold hold) {
 		final var payload = AlmaRequest.builder()
 			.requestType("HOLD")
-			.pickupLocationType("LIBRARY")
+			.pickupLocationType(hold.pickupDeskCode() != null ? "CIRCULATION_DESK" : "LIBRARY")
 			.pickupLocationLibrary(hold.pickupLibraryCode())
+			.pickupLocationCirculationDesk(hold.pickupDeskCode())
 			.comment(holdComment(hold))
 			.build();
 
 		return client.createUserRequest(hold.localPatronId(), hold.localItemId(), payload)
-			.doOnSubscribe(s -> log.info("Submitting HOLD patron={} item={} pickupLibrary={}",
-				hold.localPatronId(), hold.localItemId(), hold.pickupLibraryCode()))
+			.doOnSubscribe(s -> log.info("Submitting HOLD patron={} item={} pickupLibrary={} pickupDesk={}",
+				hold.localPatronId(), hold.localItemId(), hold.pickupLibraryCode(), hold.pickupDeskCode()))
 			.doOnError(this::logAlmaProblemDetails)
 			.onErrorResume(AlmaHostLmsClient::isNoItemCanFulfil, error -> explainNoItemCanFulfil(hold, error))
 			.switchIfEmpty(raiseError(new AlmaHostLmsClientException(
@@ -423,9 +458,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				emptyWhenUnreadable(codeTableEntries(ITEM_POLICY_CODE_TABLE), ITEM_POLICY_CODE_TABLE),
 				emptyWhenUnreadable(libraryEntries(), "libraries"),
 				emptyWhenUnreadable(allLocations(), "locations"),
-				emptyWhenUnreadable(resourceSharingLibraryCodes(), "libraries"))
+				emptyWhenUnreadable(resourceSharingLibraryCodes(), "libraries"),
+				checkSharingDesk())
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(),
-				answers.getT3(), answers.getT4(), answers.getT5(), answers.getT6()))
+				answers.getT3(), answers.getT4(), answers.getT5(), answers.getT6(), answers.getT7()))
 			.onErrorResume(error -> Mono.just(ConfigurationReport
 				.failed(getHostLmsCode(), "Could not read configuration from Alma: " + error.getMessage())));
 	}
@@ -506,17 +542,25 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		List<ConfigurationReport.Entry> itemPolicies,
 		List<ConfigurationReport.Entry> libraries,
 		List<AlmaLocation> locations,
-		List<String> resourceSharingLibraryCodes) {
+		List<String> resourceSharingLibraryCodes,
+		Optional<ConfigurationReport.Check> sharingDesk) {
 
 		final var virtualItemLibraryCode = rawConfigValue("virtual-item-library-code");
 
-		final var checks = List.of(
-			checkSharingLibrary(libraries, resourceSharingLibraryCodes),
+		final var checks = new ArrayList<ConfigurationReport.Check>(List.of(
+			checkPickupLibrary("sharing-library-code", libraries, resourceSharingLibraryCodes),
 			checkSetting("virtual-item-library-code", virtualItemLibraryCode, libraries),
 			checkVirtualItemLocation(virtualItemLibraryCode, locations),
 			checkSetting("item-policy", config.getItemPolicy("BOOK"), itemPolicies),
 			checkSetting("no-renew-item-policy",
-				config.getNoRenewItemPolicy(AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY), itemPolicies));
+				config.getNoRenewItemPolicy(AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY), itemPolicies)));
+
+		if (!isBlank(rawConfigValue("alternative-sharing-library-code"))) {
+			checks.add(1, checkPickupLibrary("alternative-sharing-library-code", libraries,
+				resourceSharingLibraryCodes));
+		}
+
+		sharingDesk.ifPresent(check -> checks.add(1, check));
 
 		final var vocabularies = List.of(
 			vocabulary("Item types", itemTypes),
@@ -544,10 +588,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	 * Measured rather than assumed: it does have circulation desks, so counting those would
 	 * have reported it fine.
 	 */
-	private ConfigurationReport.Check checkSharingLibrary(List<ConfigurationReport.Entry> libraries,
-		List<String> resourceSharingLibraryCodes) {
+	private ConfigurationReport.Check checkPickupLibrary(String setting,
+		List<ConfigurationReport.Entry> libraries, List<String> resourceSharingLibraryCodes) {
 
-		final var setting = "sharing-library-code";
 		final var configuredValue = rawConfigValue(setting);
 		final var inLibraryList = checkSetting(setting, configuredValue, libraries);
 
@@ -562,6 +605,31 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			configuredValue + " is Alma's Resource Sharing Library, which serves Alma's own borrowing "
 				+ "and lending workflow and is not a patron pickup destination. Every supplier hold "
 				+ "sent there is refused with 401129. Use a library patrons can collect from");
+	}
+
+	// A desk without a hold shelf cannot take a hold. Only the single-desk read carries that flag.
+	private Mono<Optional<ConfigurationReport.Check>> checkSharingDesk() {
+		final var setting = "sharing-circ-desk-code";
+		final var desk = rawConfigValue(setting);
+
+		if (isBlank(desk)) {
+			return Mono.just(Optional.empty());
+		}
+
+		final var library = rawConfigValue("sharing-library-code");
+
+		return client.retrieveCirculationDesk(library, desk)
+			.map(found -> Boolean.TRUE.equals(found.getHasHoldShelf())
+				? new ConfigurationReport.Check(setting, desk, ConfigurationReport.CheckResult.PRESENT, null)
+				: new ConfigurationReport.Check(setting, desk, ConfigurationReport.CheckResult.MISSING,
+					desk + " in " + library + " has no hold shelf, so Alma cannot deliver a hold to it"))
+			.onErrorResume(error -> Mono.just(error instanceof AlmaApiException almaError
+					&& (almaError.getStatusCode() == 400 || almaError.getStatusCode() == 404)
+				? new ConfigurationReport.Check(setting, desk, ConfigurationReport.CheckResult.MISSING,
+					"Not found in Alma library " + library)
+				: new ConfigurationReport.Check(setting, desk, ConfigurationReport.CheckResult.UNKNOWN,
+					"Could not read the desk from Alma: " + error.getMessage())))
+			.map(Optional::of);
 	}
 
 	private Mono<List<String>> resourceSharingLibraryCodes() {

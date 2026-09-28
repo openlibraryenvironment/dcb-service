@@ -61,6 +61,18 @@ public class AlmaClientConfig {
 	private static final HostLmsPropertyDefinition DCB_SHARING_LIBRARY_CODE
 		= stringPropertyDefinition("sharing-library-code", "Library used to ship resources outside of Alma", TRUE);
 
+	// For an item that belongs to the sharing library itself, a hold there sends it to that
+	// library's hold shelf on scan-in, never into transit
+	// A desk nobody scans items in at: every scan elsewhere, even in the same library, is then a
+	// transit, so it serves items the sharing library owns as well and no alternative is needed
+	private static final HostLmsPropertyDefinition SHARING_CIRC_DESK_CODE
+		= stringPropertyDefinition("sharing-circ-desk-code",
+			"Circulation desk in the sharing library that supplier holds are sent to", FALSE);
+
+	private static final HostLmsPropertyDefinition ALTERNATIVE_SHARING_LIBRARY_CODE
+		= stringPropertyDefinition("alternative-sharing-library-code",
+			"Library supplier holds go to when the item belongs to the sharing library", FALSE);
+
 	// Alma user identifiers are unique across the institution, so a borrower's bare barcode can
 	// collide with one of this Alma's own users. Empty by default all the same: at a pickup or
 	// walk-up library the patron presents their own card, and a prefixed barcode would not scan
@@ -119,6 +131,14 @@ public class AlmaClientConfig {
 		return DCB_SHARING_LIBRARY_CODE.getRequiredConfigValue(hostLms);
 	}
 
+	String getSharingCircDeskCode() {
+		return SHARING_CIRC_DESK_CODE.getOptionalValueFrom(hostLms.getClientConfig(), null);
+	}
+
+	String getAlternativeSharingLibraryCode() {
+		return ALTERNATIVE_SHARING_LIBRARY_CODE.getOptionalValueFrom(hostLms.getClientConfig(), null);
+	}
+
 	// This is the location virtual items will be created at.
 	String getVirtualItemLocationCode() { return VIRTUAL_ITEM_LOCATION_CODE.getRequiredConfigValue(hostLms);}
 	String getVirtualItemLibraryCode() { return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);}
@@ -128,6 +148,8 @@ public class AlmaClientConfig {
 			BASE_URL_SETTING,
 			API_KEY_SETTING,
 			DCB_SHARING_LIBRARY_CODE,
+			SHARING_CIRC_DESK_CODE,
+			ALTERNATIVE_SHARING_LIBRARY_CODE,
 			VIRTUAL_ITEM_LIBRARY_CODE,
 			VIRTUAL_ITEM_LOCATION_CODE,
 			ITEM_POLICY_SETTING,

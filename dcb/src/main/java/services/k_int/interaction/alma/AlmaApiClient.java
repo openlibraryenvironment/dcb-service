@@ -405,6 +405,16 @@ public interface AlmaApiClient {
 	}
 
 	/**
+	 * Retrieve one circulation desk, including whether it has a hold shelf.
+	 * <p>
+	 * API: GET /almaws/v1/conf/libraries/{libraryCode}/circ-desks/{circDeskCode}
+	 */
+	default Mono<AlmaCirculationDesk> retrieveCirculationDesk(String libraryCode, String deskCode) {
+		return get("/almaws/v1/conf/libraries/" + pathSegment(libraryCode) + "/circ-desks/"
+			+ pathSegment(deskCode), AlmaCirculationDesk.class);
+	}
+
+	/**
 	 * Retrieve the holdings under a bib.
 	 * <p>
 	 * API: GET /almaws/v1/bibs/{mms_id}/holdings

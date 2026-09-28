@@ -19,6 +19,8 @@ class AlmaClientConfigTests {
 			"alma-url",
 			"apikey",
 			"sharing-library-code",
+			"sharing-circ-desk-code",
+			"alternative-sharing-library-code",
 			"virtual-item-library-code",
 			"virtual-item-location-code",
 			"item-policy",
