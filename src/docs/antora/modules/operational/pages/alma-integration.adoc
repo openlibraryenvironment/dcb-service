@@ -35,9 +35,11 @@ IMPORTANT: Sending the key as `?apikey=` returns a Tomcat HTML `400` with no use
 This looks like a malformed request and is in fact a rejected credential. If you are
 debugging an Alma call that fails with unexplained HTML, check this first.
 
-The key needs permissions for *Users*, *Requests*, *Bibs/Holdings/Items* and
-*Configuration*. A key missing one of these fails only on the operations that need it, so a
-partly-permissioned key presents as an intermittent integration rather than a broken one.
+The key needs *Users* and *Bibs* read/write and *Configuration* read-only: the client
+writes nothing under `/conf`. User requests sit in the Users area and item requests in Bibs;
+Alma has no separate Requests area. A key missing one of these fails only on the operations
+that need it, so a partly-permissioned key presents as an intermittent integration rather than
+a broken one.
 
 === Patron authentication
 
@@ -241,19 +243,24 @@ Alma does not yet.
 
 == Live availability
 
-Alma item status maps to DCB availability as:
+Alma's `BaseStatus` has two values, `0` and `1`, in place or not. The process type says why
+an item is not in place, and `deriveItemStatus` reads both, against Alma's `PROCESSTYPE`
+code table:
 
-[cols="1,1,1"]
+[cols="2,1"]
 |===
-| Alma code | Alma label | DCB
+| Alma | DCB
 
-| `0` | Not in place | `UNKNOWN`
-| `1` | In place | `AVAILABLE`
-| `2` | Loaned | `CHECKED_OUT`
+| base `1`, no process type | `AVAILABLE`
+| `LOAN` | `CHECKED_OUT`
+| `REQUESTED` with base `1` | `AVAILABLE`
+| every other process type, and base `0` with none | `UNAVAILABLE`
 |===
 
-Anything else maps to `UNKNOWN`. A site using other statuses should tell its implementation
-team, so the mapping is extended rather than silently degrading.
+`TRANSIT` is unavailable because Alma uses it for an item going home and one going to fill
+another patron's hold alike; `ILL` because the item is lent through Alma's own resource
+sharing. A code outside the table is unavailable and named in the item's decision log. The raw
+values are kept in `rawDataValues` as `baseStatus` and `processType`.
 
 Due dates are read from the loan, not the holding record. The holding's date is not the
 borrower's.
@@ -328,4 +335,15 @@ where a single answer is required; the search route is deliberately not that.
 * Changing a patron's group preserves the rest of the user record. Alma's user `PUT` replaces
   the record, so a partial payload silently deletes fields.
 * Virtual bib titles and authors are escaped, and placeholder catalogue fields are not sent.
+  The bib carries no 001 or 005, which Alma writes itself, and a 500 note naming it as DCB's.
+  `deleteBib` reads the bib and its holdings first and deletes only while it is suppressed,
+  carries the note, and holds nothing but DCB's own holding; otherwise it raises and the
+  record stays.
+* Before creating a virtual item, the supplier's barcode is looked up in the borrower's
+  Alma. An existing item raises `DuplicateItemBarcodeException` before anything is created;
+  Alma's `401689` means the barcode is free.
+* A supplier hold goes to `sharing-circ-desk-code` as a desk pickup when that is set;
+  otherwise to `sharing-library-code`, or to `alternative-sharing-library-code` for an item
+  whose owning library is the sharing library. Alma shelves an item scanned in at its hold's
+  pickup location rather than sending it, and DCB sees a dispatch only as a transit.
 * The adapter states which item states it can act on rather than attempting every state.

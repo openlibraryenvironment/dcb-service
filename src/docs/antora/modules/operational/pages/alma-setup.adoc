@@ -14,6 +14,139 @@ suits them; your holdings become requestable by every other member. Alma remains
 of record throughout — DCB creates the temporary records a loan between institutions needs,
 and removes them when the transaction completes.
 
+[#what-we-ask]
+== What OpenRS asks of your Alma, and why
+
+[cols="2,3,3"]
+|===
+| What | Detail | Why
+
+3+| *API key* — one for your sandbox, a separate one for production
+
+| Users: read/write
+| Users and user requests
+| To check a library-account password, look up patrons, create and update the accounts
+OpenRS lends to on behalf of visiting patrons, place, read and cancel holds, and check items
+out and renew them.
+
+| Bibs: read/write
+| Bibliographic records, holdings, items and item requests
+| To read your items and their requests for live availability, find an item by barcode,
+create and delete the temporary record, holding and item when your patrons borrow, and scan
+items in.
+
+| Configuration: read-only
+| Libraries, locations, circulation desks, code tables
+| For the configuration report and mapping audit, which check what OpenRS holds against your
+Alma. OpenRS creates nothing in your configuration.
+
+| Every other area
+| Acquisitions, Analytics, Electronic, Courses, Partners, Task lists
+| Not used. Leave them off the key.
+
+| Allowed IP range
+| The address of the server running OpenRS
+| So a copied key is useless anywhere else.
+
+3+| *In your Alma*
+
+| A sharing library or desk
+| An OpenRS library, or an OpenRS circulation desk with a hold shelf — see <<lending-library>>
+| Every lending hold is placed for pickup there; scanning the item in anywhere else puts it
+in transit, which is how OpenRS knows it is on its way.
+
+| A user group for visiting patrons
+| Usually your consortial borrower group, with a role assignment rule that gives its users the
+Patron role
+| OpenRS creates an account in it for each patron you lend to; its Request rules decide
+whether the hold can be placed.
+
+| Fulfilment rules
+| Request rules that allow that group to place holds with pickup at the sharing library or
+desk; and, for borrowing, your own patrons' groups with pickup at your pickup libraries
+| Alma refuses a hold its rules do not allow, with error `401129`, even when the item is on
+the shelf.
+
+| A virtual item library and location
+| Where OpenRS creates the stand-in item when your patron borrows — see <<borrowing>>
+| The hold for your patron is placed on that item.
+
+| Two item policies
+| One for stand-in items (default `BOOK`); one that a loan rule refuses to renew (default
+`DCB_NO_RENEW`) — see <<preventing-renewal>>
+| Your loan rules read the first; the second is how OpenRS stops a loan being renewed when
+another library wants the book.
+
+| A request cancellation reason
+| A code from your RequestCancellationReasons table
+| Alma requires one whenever OpenRS cancels its own hold.
+
+| Circulation desks for OpenRS to act at
+| A desk to scan in at and one to check out at, which can be the same; default
+`DEFAULT_CIRC_DESK`
+| OpenRS scans items in, checks a lent item out to the visiting patron, and checks items out to
+your own patrons on walk-up and collect-elsewhere requests.
+
+| A user identifier type
+| Default `INST_ID`
+| OpenRS tags each visiting patron's account with it and finds the account again by it.
+
+| An OAI-PMH integration profile and a publishing profile
+| The set of records you share, your OAI institution code and your Alma domain
+| OpenRS harvests your records into the shared catalogue.
+
+| A staff user for troubleshooting
+| See <<staff-user>>
+| So the OpenRS team can see what Alma did with a request.
+
+3+| *From your patrons and records*
+
+| Internal passwords
+| For patrons who sign in with a library account
+| OpenRS checks the password against Alma's own identity service.
+
+| `campus_code` on user records
+| Only where several members share one Alma — see <<shared-tenant>>
+| It is how OpenRS tells which member a patron belongs to.
+
+| Item barcodes that do not clash
+| Checked against the barcode ranges of the libraries you borrow from
+| A stand-in item carries the lending library's barcode, and Alma allows each barcode on
+one item only.
+|===
+
+[#onboarding-checklist]
+== Before you join: a checklist for Alma staff
+
+Work through this in your sandbox first, then in production.
+
+. *Decide how you will lend.* Create an OpenRS library, or an OpenRS circulation desk with a
+  hold shelf in an existing library (<<lending-library>>). Never the Resource Sharing Library.
+. *Choose the visiting-patron user group,* and make sure a role assignment rule gives its
+  users the Patron role.
+. *Set the Request rules* that let that group place holds for pickup at your OpenRS library or
+  desk.
+. *For borrowing,* confirm the virtual item library and location exist, and that their Request
+  rules let your own patrons' groups place holds with pickup at every library you will offer
+  as a pickup point (<<borrowing>>).
+. *Create the two item policies,* and a loan rule that refuses renewal for the second
+  (<<preventing-renewal>>).
+. *Add a request cancellation reason* for OpenRS to use.
+. *Check the circulation desks* OpenRS will scan in and check out at exist in the libraries it
+  will act in.
+. *Set up OAI-PMH:* an integration profile and a publishing profile defining the set to share.
+. *Issue the API keys* — Users and Bibs read/write, Configuration read-only, restricted to the
+  OpenRS server's address — one for the sandbox and one for production.
+. *Whitelist the OpenRS server* for both the REST API and OAI-PMH, if your Alma restricts
+  either (<<ip-whitelisting>>).
+. *Create the troubleshooting staff user* (<<staff-user>>).
+. *Compare barcode ranges* with the other members, and agree as a consortium whether visiting
+  patrons' accounts carry a prefix.
+. *Give your OpenRS team the values* in <<configuration-values>>.
+. *When they have configured you,* run both reports in <<checking>>. Every row should read
+  `PRESENT` and no mapping `MISSING`. Then, on the sandbox, lend one item and borrow one, end
+  to end: the lent item must go into transit when scanned in.
+
 == Getting started in Alma
 
 These steps happen in Alma first.
@@ -63,6 +196,7 @@ for Alma's own resource-sharing workflow, its only locations are internal ones s
 request then fails with Alma error `401129`, "No items can fulfill the submitted request",
 even though the item is on the shelf. The configuration report in <<checking>> flags it.
 
+[#ip-whitelisting]
 === IP whitelisting
 
 If your Alma system is protected by IP whitelisting, whitelist the IP address of the server
@@ -80,8 +214,12 @@ Provide the following to your OpenRS implementation team.
 
 === An Alma API key
 
-With permissions for *Users*, *Requests*, *Bibs, Holdings, Items* and *Configuration*.
+With *Users* and *Bibs* read/write and *Configuration* read-only, and nothing else; its
+allowed IP range set to the OpenRS server. Issue separate keys for your sandbox and for
+production, so a test can never write to production. See <<what-we-ask>> for what each area
+is used for.
 
+[#staff-user]
 === An Alma staff user for troubleshooting
 
 With permissions for finding and managing users, circulation, fulfilment, and virtual bibs,
@@ -98,6 +236,7 @@ Granting these in full gives the most help with troubleshooting. If that is not 
 read-only access — with the exception of User Manager — still lets us tell you what needs
 changing in Alma, or what in Alma is causing a DCB issue.
 
+[#configuration-values]
 === Configuration values
 
 [cols="1,2"]
@@ -133,8 +272,17 @@ on when you borrow. Both must already exist in Alma — see <<borrowing>>.
 | OAI-PMH institution code and set
 | The set you wish to make available to OpenRS. The OAI institution code is not always the same string as your Alma institution code.
 
-| Default circulation desk
-| The desk OpenRS should use for checkouts.
+| Circulation desks
+| `default-circ-desk-code`, the desk OpenRS scans items in at, and `pickup-circ-desk`, the desk
+it checks items out at, whether to a visiting patron or your own. Both default to
+`DEFAULT_CIRC_DESK`, and must exist in each library OpenRS acts in.
+
+| Item policies
+| `item-policy` for stand-in items (default `BOOK`) and `no-renew-item-policy` (default
+`DCB_NO_RENEW`) — see <<preventing-renewal>>.
+
+| User identifier type
+| `user-identifier`, the identifier type OpenRS tags visiting patrons with. Default `INST_ID`.
 
 | Request cancellation reason
 | A code from your *RequestCancellationReasons* code table. Alma requires a reason whenever a
@@ -220,7 +368,7 @@ way to you, and places your patron's hold on it.
   through OpenRS, and that every library you offer as a pickup location is allowed. Only Alma
   staff can confirm this: no Alma API reports which pickup locations a fulfilment unit
   accepts.
-. *The item policy exists* — the configured default is `book` — and suits a loan from
+. *The item policy exists* — the configured default is `BOOK` — and suits a loan from
   another library, since it is what your loan rules see.
 . *Your item barcodes do not overlap those of the libraries you borrow from.* The stand-in item
   carries the lending library's barcode, because that is the label on the book your staff will
@@ -229,9 +377,10 @@ way to you, and places your patron's hold on it.
   for the consortium to resolve, by barcode ranges or a member prefix on the labels themselves.
 . *Renewal can be stopped.* See <<preventing-renewal>>.
 . *Your patrons can sign in.* OpenRS checks a library-account password against Alma, so a
-  borrowing patron needs an internal Alma password held by the Ex Libris Identity Service.
-  Patrons who sign in through your institution's identity provider can sign in but cannot yet
-  place a request.
+  patron who signs in with a library account needs an internal Alma password held by the Ex
+  Libris Identity Service. A patron who signs in through your institution's identity provider
+  can place requests once that provider releases the value Alma matches users on, which your
+  OpenRS team sets up with you.
 
 The bibliographic record OpenRS creates is suppressed from publishing and carries a 500 note,
 "Temporary record created by OpenRS DCB for resource sharing". When the request ends, OpenRS
@@ -397,6 +546,7 @@ accept full OpenURL 1.0 and 0.1 requests and resolve DOIs and PMIDs as well as I
 link above needs no change when it arrives, and is not a stop-gap: a pre-filled search is a
 reasonable destination in its own right.
 
+[#shared-tenant]
 == Consortia sharing one Alma tenant
 
 Where several member libraries share a single Alma tenant — a Network Zone, or one
