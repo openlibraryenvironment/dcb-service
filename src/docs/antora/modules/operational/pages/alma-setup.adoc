@@ -344,8 +344,11 @@ Visit the *Mappings* section for your library.
 *Item types.* Provide the item types you use in Alma, mapped to either `CIRC` (available for
 request through OpenRS) or `NONCIRC`.
 
-*Patron types.* Provide the patron types you use, mapped to either `ELIGIBLE` or
-`NOT_ELIGIBLE`, with the patron type as the "From value".
+*Patron types.* Map each Alma user group *code* your patrons can be in to a DCB patron type:
+`UNDERGRADUATE`, `GRADUATE`, `FACULTY`, `STAFF`, `PATRON` and the others DCB Admin offers, or
+`NOT_ELIGIBLE` for a group that may not borrow through OpenRS. A patron in a group with no
+mapping cannot be verified and cannot borrow. Map only groups that exist in your Alma: rows
+copied from another library's system match nobody.
 
 *Visiting patrons.* When you lend, OpenRS creates an Alma user for the borrowing patron.
 Map each DCB patron type to the Alma user group that user should belong to — usually the
@@ -363,19 +366,54 @@ that Alma does not recognise.
 places an Alma item at its owning library, not its shelving location, so a mapping keyed on a
 shelving location never matches. Every library holding items you want to be requestable needs
 a mapping. Mappings made before DCB 9.0.0 were keyed on shelving locations and stopped matching
-on upgrade; replace them with library codes.
+on upgrade; replace them with library codes, and delete the old rows so nobody mistakes them for
+working ones. Leave the Resource Sharing Library unmapped: its items are Alma's own
+resource-sharing records, not copies to lend.
+
+These mappings say which agency *owns* an item. They are separate from the pickup locations
+below, which say where patrons *collect*: a library can hold lendable items without being a
+pickup point, and the reverse.
 
 You can use the "New Mapping" button or the upload feature, which accepts TSV and CSV. See
 the link:https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/3201400850/Importing+mappings+in+DCB+Admin[import user guide].
 
+[#pickup-locations]
 === Pickup locations
 
-Visit the *Locations* section. A location's "local ID" must match the code of the Alma
-library you want to offer as a pickup point. You can bulk-import or add them individually.
+Visit the *Locations* section and add one pickup location for each Alma library your patrons,
+and visiting patrons, may collect from. You can bulk-import or add them individually.
 
-Each pickup library must also be one Alma will deliver a hold to for your virtual items — see
-<<borrowing>>. A library code that does not exist, or the Resource Sharing Library, is accepted
-here and refused by Alma later.
+[cols="1,3"]
+|===
+| Field | What to put
+
+| Local ID
+| The Alma *library* code, exactly as Alma has it — `MAIN`, not `Main Library`. This is the only
+field OpenRS sends to Alma: every hold for pickup there is placed with that library as its
+pickup location. Never a circulation desk code, a shelving location or the Resource Sharing
+Library.
+
+| Code and name
+| What patrons and staff see when choosing where to collect. The code need not match anything in
+Alma, but using the library code keeps the two easy to compare.
+
+| Agency
+| Your agency.
+|===
+
+Each pickup library needs a circulation desk with a hold shelf, which is where Alma shelves the
+item when it arrives, and must be allowed as a pickup location by the Request rules described in
+<<borrowing>>. A library that is not added here cannot be chosen, however well it is set up in
+Alma.
+
+It is fine for a pickup library to be the virtual item library too: when the lending library
+ships, OpenRS leaves a stand-in item alone if its hold is already for pickup at its own library,
+so it goes onto the hold shelf only when staff scan in the real book.
+
+A library code that does not exist, or the Resource Sharing Library, is accepted here and refused
+by Alma when the first hold is placed. Neither report in <<checking>> reads pickup locations, so
+compare them by hand: the configuration report lists your Alma libraries under *Libraries*, and
+every pickup location's local ID must be one of those codes.
 
 [#your-agency]
 === Your agency
@@ -446,6 +484,10 @@ it is a resource-sharing library, and a sharing desk if it has no hold shelf, wi
 your Alma against the codes Alma holds. It should report no `MISSING` rows.
 
 Neither can see fulfilment unit rules, so the second step above still needs someone in Alma.
+The mapping audit also checks only the mappings OpenRS sends *to* Alma — the user group for
+visiting patrons and the item type for stand-in items. Your Location mappings, the patron-type
+mappings from your user groups, and your pickup locations are not checked against Alma: compare
+them with the *Libraries* and *Patron types* lists in the configuration report.
 
 == Workflows
 
