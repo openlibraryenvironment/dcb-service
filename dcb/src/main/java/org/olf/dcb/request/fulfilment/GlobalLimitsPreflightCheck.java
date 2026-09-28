@@ -78,7 +78,10 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 				));
 			})
 			.doOnError(e -> log.error("Unexpected error checking global limits",e))
-			.onErrorResume( e -> Mono.just(passed("Passed with error "+e.getMessage() ) ) );
+			// A limit that could not be checked is not a limit that passed
+			.onErrorResume(e -> Mono.just(failedUm("REQUEST_LIMITS_UNCHECKED",
+				"Active request limits could not be checked: " + e.getMessage(),
+				intMessageService.getMessage("REQUEST_LIMITS_UNCHECKED"))));
 	}
 
 	public Mono<CheckResult> verifyAgencyLimit(String agency, int count) {
@@ -100,9 +103,13 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 		        intMessageService.getMessage("EXCEEDS_AGENCY_LIMIT")));
 				}
 			})
-			.onErrorResume(e -> Mono.just(failedUm("EXCEEDS_AGENCY_LIMIT",
-          "Patron has more active requests than the Agency (%s) allows (%d)".formatted(agency, count),
-          intMessageService.getMessage("EXCEEDS_AGNECY_LIMIT"))));
+			// An agency DCB does not know has a limit nobody can check
+			.defaultIfEmpty(failedUm("EXCEEDS_AGENCY_LIMIT_UNKNOWN_AGENCY",
+				"Patron agency %s is not known, so its request limit cannot be checked".formatted(agency),
+				intMessageService.getMessage("EXCEEDS_AGENCY_LIMIT_UNKNOWN_AGENCY")))
+			.onErrorResume(e -> Mono.just(failedUm("REQUEST_LIMITS_UNCHECKED",
+				"The request limit for agency %s could not be checked: %s".formatted(agency, e.getMessage()),
+				intMessageService.getMessage("REQUEST_LIMITS_UNCHECKED"))));
 
 	}
 }
