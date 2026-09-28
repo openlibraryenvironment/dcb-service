@@ -411,6 +411,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		if (item.getNotForLoanStatus() != null && item.getNotForLoanStatus() > 0) {
 			return HostLmsItem.ITEM_MISSING; // Really should be ITEM_UNAVAILABLE or ITEM_RESTRICTED
 		}
+		// Koha keeps an item on loan "available" in every status field; only the checkout says so
+		if (item.getCheckout() != null || item.getCheckedOutDate() != null) {
+			return HostLmsItem.ITEM_LOANED;
+		}
 //		if (item.getDamagedStatus() != null && item.getDamagedStatus() > 0) {
 //		}
 		// Need to look at Koha item statuses for this one

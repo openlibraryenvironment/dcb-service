@@ -2121,7 +2121,7 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 					var returnHostLmsItem = HostLmsItem.builder()
 						.localId(itemId)
 						.barcode(aid.getBarcode())
-						.rawStatus(aid.getBaseStatus().getDesc())
+						.rawStatus(getValueOrNull(aid, AlmaItemData::getBaseStatus, CodeValuePair::getDesc))
 						.bibId(bibId)
 						.holdingId(holdingId)
 						.holdCount(holdCount.orElse(null))

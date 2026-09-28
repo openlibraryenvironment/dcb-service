@@ -2588,12 +2588,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.map(CirculationData::getRenewalCount)
 					.orElse(0);
 
-				final var isAtRenewalLimit = Objects.equals(itemRecord.getBibInfo().getRenewals(), itemRecord.getBibInfo().getRenewalLimit());
+				final var bibInfo = itemRecord.getBibInfo();
+				final var isAtRenewalLimit = bibInfo != null
+					&& Objects.equals(bibInfo.getRenewals(), bibInfo.getRenewalLimit());
 				// Set based on material type in Polaris. We need to first understand if we are at the renewal limit, and then understand if we are not renewable for another reason
 				// e.g. are we at the renewal limit, and can we even renew this item at all? (regardless of limit)
-				final var isItemRenewable = itemRecord.getBibInfo().getCanItemBeRenewed();
-				final String bibId = itemRecord.getBibInfo() != null && itemRecord.getBibInfo().getBibliographicRecordID() != null
-					? String.valueOf(itemRecord.getBibInfo().getBibliographicRecordID())
+				final var isItemRenewable = bibInfo != null && Boolean.TRUE.equals(bibInfo.getCanItemBeRenewed());
+				final String bibId = bibInfo != null && bibInfo.getBibliographicRecordID() != null
+					? String.valueOf(bibInfo.getBibliographicRecordID())
 					: null;
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
@@ -2608,11 +2610,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
 					.build();
 			})
-			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem )
-			.defaultIfEmpty(HostLmsItem.builder()
-				.barcode(barcode)
-				.status("MISSING")
-				.build());
+			// No item for the barcode is empty, as every other adapter answers: a substituted MISSING
+			// item read as "not available" to a walk-up and hid the 404 from the item lookup route
+			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem );
 }
 
 

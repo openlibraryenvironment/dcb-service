@@ -201,6 +201,18 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldAnswerEmptyForABarcodePolarisDoesNotKnow() {
+		// Either spelling of the path: the point is that a space makes a request at all
+		mockPolarisFixture.mockGetItemRecordNotFound("NO%20SUCH-BARCODE");
+		mockPolarisFixture.mockGetItemRecordNotFound("NO SUCH-BARCODE");
+
+		final var client = hostLmsFixture.createClient(CIRCULATING_HOST_LMS_CODE);
+
+		// Not a substituted MISSING item, which a walk-up read as "not available"
+		assertThat(client.getItemByBarcode("NO SUCH-BARCODE").blockOptional().isPresent(), is(false));
+	}
+
+	@Test
 	void shouldBeAbleToGetItemsByBibIdWithDefaultAgency() {
 		// Arrange
 		defineItemTypeRangeMapping();

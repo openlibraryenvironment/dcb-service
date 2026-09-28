@@ -1506,6 +1506,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					return Mono.empty();
 				}
 
+				if (itemsCollection.getItems().size() > 1) {
+					return Mono.error(new IllegalStateException("%d items in FOLIO share barcode %s"
+						.formatted(itemsCollection.getItems().size(), barcode)));
+				}
+
 				var item = itemsCollection.getItems().iterator().next();
 				if (item.getBarcode() == null) {
 					item.setBarcode(barcode);

@@ -1879,9 +1879,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		final var deleted = getValue(item, SierraItem::getDeleted, false);
 
-		final var resolvedStatus = status != null
-			? mapSierraItemStatusToDCBItemStatus(status)
-			: (deleted ? "MISSING" : "UNKNOWN");
+		// A deleted item keeps the status code it had, which can read available
+		final var resolvedStatus = deleted ? "MISSING"
+			: status != null ? mapSierraItemStatusToDCBItemStatus(status)
+			: "UNKNOWN";
 
 		final var renewalCount = determineLocalRenewalCount(item.getFixedFields());
 		// Sierra returns a list of bibIds. We typically just need the first one.

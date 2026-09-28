@@ -104,6 +104,27 @@ class SierraHostLmsClientGetItemTests {
 
 	@Test
 	@SneakyThrows
+	void shouldReportADeletedItemAsMissingWhateverItsStatusCode() {
+		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
+
+		// Sierra keeps the status code a deleted item had, which here reads available
+		sierraItemsAPIFixture.mockGetItemById(localItemId,
+			SierraItem.builder()
+				.id(localItemId)
+				.barcode("23646536")
+				.statusCode("-")
+				.deleted(true)
+				.build());
+
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var item = singleValueFrom(client.getItem(HostLmsItem.builder().localId(localItemId).build()));
+
+		assertThat(item, hasStatus("MISSING"));
+	}
+
+	@Test
+	@SneakyThrows
 	void shouldDefaultRenewalCount() {
 		// Arrange
 		final var localItemId = sierraItemsAPIFixture.generateLocalItemId();
