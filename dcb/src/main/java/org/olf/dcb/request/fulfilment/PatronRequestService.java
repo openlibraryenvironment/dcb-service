@@ -20,6 +20,11 @@ import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.PatronRequestAuditRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.IntMessageService;
+import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.svc.LocationService;
+import org.olf.dcb.storage.AgencyRepository;
 
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
@@ -41,6 +46,9 @@ public class PatronRequestService {
 	private final BeanProvider<PatronRequestAuditService> patronRequestAuditService;
 	private final HostLmsService hostLmsService;
 	private final BibRepository bibRepository;
+	private final AgencyRepository agencyRepository;
+	private final LocationService locationService;
+	private final IntMessageService intMessageService;
 
 	public PatronRequestService(PatronRequestRepository patronRequestRepository,
 		PatronRequestWorkflowService requestWorkflow, PatronService patronService,
@@ -49,7 +57,9 @@ public class PatronRequestService {
 		PatronRequestAuditRepository patronRequestAuditRepository, 
 		BeanProvider<PatronRequestAuditService> patronRequestAuditService,
 															HostLmsService hostLmsService,
-															BibRepository bibRepository) {
+															BibRepository bibRepository,
+		AgencyRepository agencyRepository, LocationService locationService,
+		IntMessageService intMessageService) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.requestWorkflow = requestWorkflow;
@@ -60,6 +70,9 @@ public class PatronRequestService {
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.hostLmsService = hostLmsService;
 		this.bibRepository = bibRepository;
+		this.agencyRepository = agencyRepository;
+		this.locationService = locationService;
+		this.intMessageService = intMessageService;
 	}
 
 	public Mono<? extends PatronRequest> placePatronRequest(
@@ -67,7 +80,7 @@ public class PatronRequestService {
 
 		log.info("PRS::placePatronRequest({})", command);
 
-		return preflightChecksService.check(command)
+		return preflightChecksService.check(withExpedited(command, false))
 			.doOnError(PreflightCheckFailedException.class, e -> log.error("Preflight check for request {} failed", command, e))
 			.zipWhen(this::findOrCreatePatron)
 			.map(function(this::mapToPatronRequest))
@@ -113,7 +126,7 @@ public class PatronRequestService {
 
 		log.info("PRS::placePatronRequestExpeditedCheckout({})", command);
 
-		return preflightChecksService.check(command)
+		return preflightChecksService.check(withExpedited(command, true))
 			.doOnError(PreflightCheckFailedException.class,
 				e -> log.error("Preflight check for expedited request {} failed", command, e))
 			.zipWhen(this::findOrCreatePatron)
@@ -130,76 +143,118 @@ public class PatronRequestService {
 			.doOnError(e -> log.error("Placing expedited request {} failed", command, e));
 	}
 
+	/**
+	 * A patron at the lending library's desk with the book in hand. Every refusal is a failed
+	 * check the desk can act on, and the ones that need no library system are made before any
+	 * library system is called.
+	 */
 	public Mono<? extends PatronRequest> placeWalkUpRequest(
 		WalkUpRequestCommand command) {
 
-		// All we know at this point:
-		// Host LMS of the item (same as patron's Host LMS, provided as a code)
-		// Patron barcode
-		// Item barcode
+		if (command.getPatronAgencyCode().equals(command.getItemAgencyCode())) {
+			return refuse("WALK_UP_SAME_LIBRARY",
+				"The patron belongs to the library that holds the item, so this is a local loan");
+		}
 
-		return hostLmsService.getClientFor(command.getItemHostLmsCode()) // Get the item by barcode, and get its bib ID.
-			.flatMap(client ->
-				client.getItemByBarcode(command.getItemBarcode())
-					.switchIfEmpty(Mono.error(new IllegalArgumentException("ITEM_NOT_FOUND: item not found for barcode: " + command.getItemBarcode())))
+		return hostLmsService.getClientFor(command.getItemHostLmsCode())
+			.flatMap(client -> requireItemAgencyOnHostLms(command, client.getHostLms().getId())
+				.then(requirePickupAtItemLibrary(command))
+				.then(Mono.defer(() -> findWalkUpItem(command, client))));
+	}
 
-					.flatMap(hostLmsItem -> {
-						UUID sourceSystemId = client.getHostLms().getId();
-						if (!Objects.equals(hostLmsItem.getStatus(), HostLmsItem.ITEM_AVAILABLE))
-						{
-							return Mono.error(new IllegalStateException("ITEM_NOT_AVAILABLE: The item " + hostLmsItem.getLocalId() + " is not available! Status is "+hostLmsItem.getStatus()));
-						}
-						// We assume that the bib ID on the item is the source record ID
-						// Possible returns
-						// ITEM_NOT_FOUND: not found in the ILS
-						// ITEM_NOT_FOUND_IN_SHARED_INDEX: Not found in DCB
-						// ITEM_NOT_AVAILABLE: Found, but not available.
-						// ITEM_AVAILABLE: Found and available. Can only be confirmed after we find a bib and a non-deleted cluster too.
-						// CLUSTER_DELETED: The corresponding cluster record has been deleted, and thus we cannot place a request for its item.
-						return Mono.from(bibRepository.findBySourceSystemIdAndSourceRecordId(sourceSystemId, hostLmsItem.getBibId()))
-							.switchIfEmpty(Mono.error(new IllegalStateException("ITEM_NOT_FOUND_IN_SHARED_INDEX: item not found in DCB for local bibId: " + hostLmsItem.getBibId() + " in system: " + command.getItemHostLmsCode() + " for item "+hostLmsItem.getLocalId())))
-							.flatMap(bibRecord -> {
-								// But of course we need our cluster record
-								if (bibRecord.getContributesTo() == null || bibRecord.getContributesTo().getId() == null) {
-									return Mono.error(new IllegalStateException("BibRecord " + bibRecord.getId() + " has no cluster!"));
-								}
-								// We should also check if it's deleted, too.
-								UUID resolvedBibClusterId = bibRecord.getContributesTo().getId();
+	private Mono<Void> requireItemAgencyOnHostLms(WalkUpRequestCommand command, UUID itemHostLmsId) {
+		return Mono.from(agencyRepository.findOneByCode(command.getItemAgencyCode()))
+			.flatMap(agency -> Mono.from(agencyRepository.findHostLmsIdById(agency.getId())))
+			.filter(itemHostLmsId::equals)
+			.switchIfEmpty(refuse("WALK_UP_ITEM_AGENCY_MISMATCH",
+				"Agency %s is not on library system %s".formatted(command.getItemAgencyCode(),
+					command.getItemHostLmsCode())))
+			.then();
+	}
 
-								boolean isClusterDeleted = Boolean.TRUE.equals(bibRecord.getContributesTo().getIsDeleted());
+	// The patron collects at the desk they are standing at; any other pickup is not a walk-up
+	private Mono<Void> requirePickupAtItemLibrary(WalkUpRequestCommand command) {
+		return locationService.findById(command.getPickupLocationCode())
+			.flatMap(location -> Mono.justOrEmpty(location.getAgency()))
+			.flatMap(agency -> Mono.from(agencyRepository.findById(agency.getId())))
+			.filter(agency -> command.getItemAgencyCode().equals(agency.getCode()))
+			.switchIfEmpty(refuse("WALK_UP_PICKUP_ELSEWHERE",
+				"The pickup location is not at the library that holds the item"))
+			.then();
+	}
 
-								if(isClusterDeleted) {
-									return Mono.error(new IllegalStateException("CLUSTER_DELETED: The cluster record " + resolvedBibClusterId + " is deleted. Walk up is not possible!"));
-								}
+	private Mono<? extends PatronRequest> findWalkUpItem(WalkUpRequestCommand command,
+		HostLmsClient client) {
 
-								// Once we have our cluster, we can build our command
-								// For walk up we know we can use the supplying agency code, which should be sent with the payload
-								// Supplier and pickup are the same.
-								// Borrower is ALWAYS different, or it'd be a local request.
-								var placeCommand = PlacePatronRequestCommand.builder()
-									.requestor(PlacePatronRequestCommand.Requestor.builder()
-										.localId(command.getPatronLocalId())
-										.localSystemCode(command.getPatronHostLmsCode())
-										.agencyCode(command.getPatronAgencyCode())
-										.build())
-									.item(PlacePatronRequestCommand.Item.builder()
-										.localId(hostLmsItem.getLocalId())
-										.localSystemCode(command.getItemHostLmsCode())
-										.agencyCode(command.getItemAgencyCode())
-										.build())
-									.citation(PlacePatronRequestCommand.Citation.builder()
-										.bibClusterId(resolvedBibClusterId)
-										.build())
-									.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
-										.code(command.getPickupLocationCode())
-										.build())
-									.description("Walk-up request for barcode: " + command.getItemBarcode())
-									.isExpeditedRequest(true)
-									.build();
-								return placePatronRequestExpeditedCheckout(placeCommand);
-							});
-					})
-			);
+		return client.getItemByBarcode(command.getItemBarcode())
+			.switchIfEmpty(refuse("ITEM_NOT_FOUND",
+				"No item with that barcode in " + command.getItemHostLmsCode()))
+			.flatMap(item -> {
+				if (!Objects.equals(item.getStatus(), HostLmsItem.ITEM_AVAILABLE)) {
+					return refuse("ITEM_NOT_AVAILABLE",
+						"Item %s is not available: its status is %s".formatted(item.getLocalId(), item.getStatus()));
+				}
+
+				if (item.getBibId() == null) {
+					return refuse("ITEM_NOT_IN_SHARED_INDEX",
+						"Item %s has no bibliographic record in %s".formatted(item.getLocalId(),
+							command.getItemHostLmsCode()));
+				}
+
+				return Mono.from(bibRepository.findBySourceSystemIdAndSourceRecordId(
+						client.getHostLms().getId(), item.getBibId()))
+					.switchIfEmpty(refuse("ITEM_NOT_IN_SHARED_INDEX",
+						"Bibliographic record %s of item %s is not in the shared catalogue".formatted(
+							item.getBibId(), item.getLocalId())))
+					.flatMap(bibRecord -> placeWalkUp(command, item, bibRecord));
+			});
+	}
+
+	private Mono<? extends PatronRequest> placeWalkUp(WalkUpRequestCommand command,
+		HostLmsItem item, BibRecord bibRecord) {
+
+		final var cluster = bibRecord.getContributesTo();
+
+		if (cluster == null || cluster.getId() == null || Boolean.TRUE.equals(cluster.getIsDeleted())) {
+			return refuse("CLUSTER_DELETED",
+				"The catalogue entry for item %s has been deleted".formatted(item.getLocalId()));
+		}
+
+		final var placeCommand = PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localId(command.getPatronLocalId())
+				.localSystemCode(command.getPatronHostLmsCode())
+				.agencyCode(command.getPatronAgencyCode())
+				.build())
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId(item.getLocalId())
+				.localSystemCode(command.getItemHostLmsCode())
+				.agencyCode(command.getItemAgencyCode())
+				.build())
+			.citation(PlacePatronRequestCommand.Citation.builder()
+				.bibClusterId(cluster.getId())
+				.build())
+			.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
+				.code(command.getPickupLocationCode())
+				.build())
+			.description("Walk-up request for item %s at %s".formatted(item.getLocalId(),
+				command.getItemHostLmsCode()))
+			.build();
+
+		return placePatronRequestExpeditedCheckout(placeCommand);
+	}
+
+	// Whether a request is expedited is decided by the entry point it came through; a caller
+	// setting the flag on /place would otherwise have preflight and the workflow disagree
+	private static PlacePatronRequestCommand withExpedited(PlacePatronRequestCommand command,
+		boolean expedited) {
+
+		return command.toBuilder().isExpeditedRequest(expedited).build();
+	}
+
+	private <T> Mono<T> refuse(String code, String description) {
+		return Mono.error(new PreflightCheckFailedException(List.of(FailedPreflightCheck.fromResult(
+			CheckResult.failedUm(code, description, intMessageService.getMessage(code))))));
 	}
 
 	private static Function<PatronRequest, PatronRequest> mapManualItemSelectionIfPresent(

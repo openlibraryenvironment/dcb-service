@@ -9,6 +9,9 @@ import io.micronaut.http.annotation.Error;
 import io.micronaut.http.annotation.*;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.exceptions.HttpStatusException;
+import org.olf.dcb.security.CallerScope;
 import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -295,17 +298,28 @@ public class PatronRequestController {
 	}
 
 	/**
-	 * A new version of walk-up requesting using the item barcode.
-	 * Separate API for now as this is in preview.
+	 * A walk-up, placed by staff at the library holding the item. A library-level caller may
+	 * place one only for an item at a library in its own token; the service then checks that
+	 * the item's library is on the named system.
 	 */
 	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY,
 		RoleNames.INTERNAL_API})
 	@SingleResult
 	@Post(value = "/place/walkup", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placeWalkUpRequest(
-		@Body @Valid WalkUpRequestCommand command) {
+		@Body @Valid WalkUpRequestCommand command, Authentication authentication) {
 
-		log.debug("REST, place walk-up request for barcode {} at {}", command.getItemBarcode(), command.getItemHostLmsCode());
+		final var scope = CallerScope.from(authentication.getRoles(), authentication.getAttributes());
+
+		if (scope.isIncoherent() || (scope.requiresNarrowing()
+			&& !scope.agencyCodes().contains(command.getItemAgencyCode()))) {
+
+			return Mono.error(new HttpStatusException(HttpStatus.FORBIDDEN,
+				"A walk-up may only be placed for an item at the caller's own library"));
+		}
+
+		log.debug("REST, place walk-up request for an item at {}", command.getItemHostLmsCode());
+
 		return patronRequestService.placeWalkUpRequest(command)
 			.map(PatronRequestView::from);
 	}
