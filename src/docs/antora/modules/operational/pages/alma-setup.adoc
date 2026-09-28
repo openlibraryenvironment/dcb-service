@@ -195,6 +195,11 @@ way to you, and places your patron's hold on it.
   accepts.
 . *The item policy exists* — the configured default is `book` — and suits a loan from
   another library, since it is what your loan rules see.
+. *Your item barcodes do not overlap those of the libraries you borrow from.* The stand-in item
+  carries the lending library's barcode, because that is the label on the book your staff will
+  scan. Alma allows a barcode on only one item, so if one of your own items already has it, the
+  request stops before anything is created and the audit trail says the barcodes clash. That is
+  for the consortium to resolve, by barcode ranges or a member prefix on the labels themselves.
 . *Renewal can be stopped.* See <<preventing-renewal>>.
 . *Your patrons can sign in.* OpenRS checks a library-account password against Alma, so a
   borrowing patron needs an internal Alma password held by the Ex Libris Identity Service.

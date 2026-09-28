@@ -66,6 +66,55 @@ class AlmaHostLmsClientCreateItemTests {
 
 		when(almaApi.createHoldingRecord(eq("bib-id"), any()))
 			.thenReturn(Mono.just(AlmaHolding.builder().holdingId("holding-id").build()));
+
+		when(almaApi.retrieveItemBarcodeOnly("BC1"))
+			.thenReturn(Mono.error(almaError(400, "401689", "No items found for barcode BC1.")));
+	}
+
+	@Test
+	void shouldNameABarcodeTheBorrowingLibraryAlreadyUsesAndCreateNothing() {
+		when(almaApi.retrieveItemBarcodeOnly("BC1"))
+			.thenReturn(Mono.just(AlmaItem.builder()
+				.bibData(services.k_int.interaction.alma.types.AlmaBib.builder().mmsId("99-local").build())
+				.itemData(AlmaItemData.builder().pid("local-item").barcode("BC1").build())
+				.build()));
+
+		final var error = assertThrows(DuplicateItemBarcodeException.class,
+			() -> sut.createItem(command()).block());
+
+		assertThat(error.getMessage().contains("already used by an item in ALMA (bib 99-local)"), is(true));
+		assertThat("The barcode stays out of logs and the audit", error.getMessage().contains("BC1"), is(false));
+		verify(almaApi, org.mockito.Mockito.never()).createHoldingRecord(any(), any());
+		verify(almaApi, org.mockito.Mockito.never()).createItem(any(), any(), any());
+	}
+
+	@Test
+	void shouldStillCreateTheItemWhenTheBarcodeCheckItselfFails() {
+		when(almaApi.retrieveItemBarcodeOnly("BC1"))
+			.thenReturn(Mono.error(almaError(429, "PER_SECOND_THRESHOLD", "Too many requests")));
+		when(almaApi.createItem(eq("bib-id"), eq("holding-id"), any()))
+			.thenReturn(Mono.just(AlmaItem.builder()
+				.itemData(AlmaItemData.builder().pid("item-id").barcode("BC1").build())
+				.build()));
+
+		final var item = PublisherUtils.singleValueFrom(sut.createItem(command()));
+
+		assertThat(item.getLocalId(), is("item-id"));
+	}
+
+	private static AlmaApiException almaError(int statusCode, String code, String message) {
+		final var error = new services.k_int.interaction.alma.types.error.AlmaError();
+		error.setErrorCode(code);
+		error.setErrorMessage(message);
+
+		final var errorList = new services.k_int.interaction.alma.types.error.AlmaErrorList();
+		errorList.setError(java.util.List.of(error));
+
+		final var response = new services.k_int.interaction.alma.types.error.AlmaErrorResponse();
+		response.setErrorsExist(true);
+		response.setErrorList(errorList);
+
+		return new AlmaApiException("GET", "/almaws/v1/items", statusCode, response);
 	}
 
 	@Test

@@ -737,6 +737,32 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
+	// Alma allows a barcode on one item per institution, and its create-item error for a clash is
+	// undocumented. The virtual item must carry the supplier's barcode, because that is the label
+	// staff scan, so a clash is named before anything is created. A lookup that fails for another
+	// reason does not block the create: Alma is still the one that decides.
+	private Mono<Void> requireBarcodeUnused(String barcode) {
+		if (isBlank(barcode)) {
+			return Mono.empty();
+		}
+
+		return client.retrieveItemBarcodeOnly(barcode)
+			.flatMap(existing -> Mono.<Void>error(new DuplicateItemBarcodeException(getHostLmsCode(),
+				getValueOrNull(existing, AlmaItem::getBibData, AlmaBib::getMmsId))))
+			.onErrorResume(AlmaHostLmsClient::isNoItemForBarcode, error -> Mono.empty())
+			.onErrorResume(error -> !(error instanceof DuplicateItemBarcodeException), error -> {
+				log.warn("Could not check whether a virtual item's barcode is already in use at {}",
+					getHostLmsCode(), error);
+				return Mono.empty();
+			})
+			.then();
+	}
+
+	private static boolean isNoItemForBarcode(Throwable error) {
+		return error instanceof AlmaApiException almaError
+			&& almaError.has(AlmaApiException.Code.NO_ITEM_FOR_BARCODE);
+	}
+
 	private static boolean isItemNotFound(Throwable error) {
 		return error instanceof AlmaApiException almaError && almaError.getStatusCode() == 404;
 	}
@@ -1054,10 +1080,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.info("Create item for Alma with {}. Targeting Library: {}", cic, targetLibraryCode);
 
-		return Mono.zip(
+		return requireBarcodeUnused(cic.getBarcode())
+			.then(Mono.zip(
 				requireVirtualLocation(targetLibraryCode),
 				getMappedItemType(cic.getCanonicalItemType())
-			)
+			))
 			.flatMap(tuple -> {
 				AlmaLocation location = tuple.getT1();
 				String itemType = tuple.getT2();
