@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -137,6 +138,40 @@ class DcbDrivenCheckoutTests {
 
 		// The supplier checkout is the loan: the patron is at that desk with the item
 		assertThat(context.getPatronRequest().getStatus(), is(not(PatronRequest.Status.LOANED)));
+		// and it runs first, so a refusal leaves no loan behind in the patron's own library
+		verify(borrowerClient, never()).checkOutItemToPatron(any());
+	}
+
+	@Test
+	void walkUpStillLoansWhenOnlyThePatronsOwnLibraryRefuses() {
+		when(supplierClient.reflectPatronLoanAtSupplier()).thenReturn(true);
+		when(supplierClient.checkOutItemToPatron(any())).thenReturn(Mono.just("OK"));
+		when(borrowerClient.checkOutItemToPatron(any()))
+			.thenReturn(Mono.error(new IllegalStateException("Patron blocked")));
+
+		final var transition = new ExpeditedCheckoutTransition(patronRequestRepository,
+			auditService, hostLmsService);
+
+		final var context = context();
+
+		transition.attempt(context).block();
+
+		assertThat(context.getPatronRequest().getStatus(), is(PatronRequest.Status.LOANED));
+		assertThat(context.getPatronRequest().getNeedsAttention(), is(true));
+	}
+
+	@Test
+	void walkUpCheckoutWaitsForTheExpeditedWorkflowNotJustTheFlag() {
+		final var transition = new ExpeditedCheckoutTransition(patronRequestRepository,
+			auditService, hostLmsService);
+
+		final var expedited = context();
+		assertThat(transition.isApplicableFor(expedited), is(true));
+
+		// A flagged request that resolved elsewhere still has its item on the supplier's shelf
+		final var elsewhere = context();
+		elsewhere.getPatronRequest().setActiveWorkflow("RET-STD");
+		assertThat(transition.isApplicableFor(elsewhere), is(false));
 	}
 
 	private static CheckoutItemCommand commandSentTo(HostLmsClient client) {
@@ -154,6 +189,8 @@ class DcbDrivenCheckoutTests {
 			.localRequestId("borrower-request-1")
 			.localItemId("virtual-item-1")
 			.status(PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
+			.isExpeditedCheckout(true)
+			.activeWorkflow("RET-EXP")
 			.build();
 
 		final var homeIdentity = PatronIdentity.builder()
