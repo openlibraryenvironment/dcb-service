@@ -11,6 +11,8 @@ import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -1690,6 +1692,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(holdCount -> {
 				// Now we have the hold count, we can build the item.
 				ItemStatus derivedItemStatus = deriveItemStatus(almaItem.getItemData());
+				final var processType = processTypeOf(almaItem.getItemData());
 				Boolean isRequestable = (derivedItemStatus.getCode() == ItemStatusCode.AVAILABLE);
 
 				final Instant dueDate = parseDueDate(almaItem.getItemData().getDueDate(), itemId);
@@ -1745,6 +1748,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.availableDate(null)
 					.rawVolumeStatement(null)
 					.parsedVolumeStatement(null)
+					.rawDataValues(rawStatus(almaItem.getItemData(), processType))
+					.decisionLogEntries(unknownProcessType(processType))
 					.build();
 			});
 	}
@@ -1755,17 +1760,60 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return getValueOrNull(itemData, AlmaItemData::getPhysicalMaterialType, CodeValuePair::getValue);
 	}
 
-	private ItemStatus deriveItemStatus(AlmaItemData almaItem) {
-		// Extract base status, default to 0
-		// Note: this means that "item not in place" is considered UNKNOWN
-		// Should it be considered unavailable? We can possibly build in the description and process type also
-		String extracted_base_status = almaItem.getBaseStatus() != null ? almaItem.getBaseStatus().getValue() : "0";
+	// Alma's PROCESSTYPE code table. Base status is only 0 or 1, in place or not; the process
+	// type is the only record of why an item is not in place.
+	private static final Set<String> KNOWN_PROCESS_TYPES = Set.of("ACQ", "CLAIM_RETURNED_LOAN",
+		"HOLDSHELF", "ILL", "LOAN", "LOST_ILL", "LOST_LOAN", "LOST_LOAN_AND_PAID", "MISSING",
+		"REQUESTED", "TECHNICAL", "TRANSIT", "TRANSIT_TO_REMOTE_STORAGE", "WORK_ORDER_DEPARTMENT");
 
-		return switch ( extracted_base_status ) {
-			case "1" -> new ItemStatus(ItemStatusCode.AVAILABLE);  // "1"==Item In Place
-			case "2" -> new ItemStatus(ItemStatusCode.CHECKED_OUT);  // "2"=Loaned
-			default -> new ItemStatus(ItemStatusCode.UNKNOWN);
-		};
+	// Only a loan is CHECKED_OUT: TRANSIT covers both an item going home and one going to fill
+	// another patron's hold, and ILL an item lent through Alma's own resource sharing, so both
+	// stay UNAVAILABLE. An unknown process type is never read as available.
+	static ItemStatus deriveItemStatus(AlmaItemData almaItem) {
+		final var inPlace = "1".equals(baseStatusOf(almaItem));
+		final var processType = processTypeOf(almaItem);
+
+		if (processType == null) {
+			return new ItemStatus(inPlace ? ItemStatusCode.AVAILABLE : ItemStatusCode.UNAVAILABLE);
+		}
+
+		return new ItemStatus(switch (processType) {
+			case "LOAN" -> ItemStatusCode.CHECKED_OUT;
+			case "REQUESTED" -> inPlace ? ItemStatusCode.AVAILABLE : ItemStatusCode.UNAVAILABLE;
+			default -> ItemStatusCode.UNAVAILABLE;
+		});
+	}
+
+	private static String baseStatusOf(AlmaItemData almaItem) {
+		return blankToNull(getValueOrNull(almaItem, AlmaItemData::getBaseStatus, CodeValuePair::getValue));
+	}
+
+	private static String processTypeOf(AlmaItemData almaItem) {
+		return blankToNull(getValueOrNull(almaItem, AlmaItemData::getProcess_type, CodeValuePair::getValue));
+	}
+
+	private static String blankToNull(String value) {
+		return isBlank(value) ? null : value;
+	}
+
+	private static Map<String, String> rawStatus(AlmaItemData almaItem, String processType) {
+		final var raw = new LinkedHashMap<String, String>();
+		final var baseStatus = baseStatusOf(almaItem);
+
+		if (baseStatus != null) {
+			raw.put("baseStatus", baseStatus);
+		}
+		if (processType != null) {
+			raw.put("processType", processType);
+		}
+
+		return raw;
+	}
+
+	private static List<String> unknownProcessType(String processType) {
+		return processType == null || KNOWN_PROCESS_TYPES.contains(processType)
+			? List.of()
+			: List.of("Alma process type " + processType + " is not one DCB recognises, so the item is treated as unavailable");
 	}
 
 	private HostLmsItem deriveItemStatusFromProcessType(HostLmsItem hostLmsItem, AlmaItemData almaItem) {

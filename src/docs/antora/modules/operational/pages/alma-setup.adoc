@@ -244,21 +244,29 @@ Neither can see fulfilment unit rules, so the second step above still needs some
 
 == Live availability
 
-OpenRS shows real-time item status across the consortium, from each item's Alma base status.
-Alma has two:
+OpenRS shows real-time item status across the consortium. Alma's base status only says whether
+an item is in place; its process type says why one is not, and OpenRS reads both:
 
-[cols="1,1,1"]
+[cols="2,1"]
 |===
-| Alma code | Alma label | Shown as
+| Alma | Shown as
 
-| `1` | In place | `AVAILABLE`
-| `0` | Not in place | `UNKNOWN`
+| In place, no process type | `AVAILABLE`
+| Loan (`LOAN`) | `CHECKED_OUT`, with the loan's due date
+| Requested (`REQUESTED`) while still in place | `AVAILABLE`
+| Any other process type: transit, hold shelf, in transit to remote storage, resource sharing,
+  missing, lost, claimed returned, acquisition, work order, technical | `UNAVAILABLE`
+| Not in place, with no process type | `UNAVAILABLE`
 |===
 
-"Not in place" covers every copy that is off the shelf: on loan, in transit, on the hold shelf
-or in a work order. OpenRS does not yet tell these apart, so only copies in place can be
-supplied. A copy on loan is never offered, even where the consortium enables
-`SELECT_UNAVAILABLE_ITEMS`, because that setting applies only to copies known to be checked out.
+A copy on loan can be supplied only where the consortium enables `SELECT_UNAVAILABLE_ITEMS`;
+the hold then waits in Alma until the copy comes back. A copy in transit is shown as
+unavailable, because Alma uses the same code for an item going home and one on its way to fill
+another patron's hold. An item lent through Alma's own resource sharing is unavailable too.
+
+The raw Alma values are kept with each item, as `baseStatus` and `processType`, in the live
+availability response and in the resolution audit. A process type OpenRS does not recognise is
+treated as unavailable and named in the item's decision log.
 
 [#primo]
 == Linking to OpenRS from Primo

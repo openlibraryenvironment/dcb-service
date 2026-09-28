@@ -6,6 +6,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import org.olf.dcb.core.model.Item;
@@ -32,6 +33,7 @@ public class PresentableItem {
 	String dueDate;
 	String locationCode;
 	String decisionLog;
+	Map<String, String> rawDataValues;
 
 	public static List<PresentableItem> toPresentableItems(List<Item> items) {
 		return mapList(items, PresentableItem::toPresentableItem);
@@ -59,6 +61,7 @@ public class PresentableItem {
 			// needs when asking why this item was not chosen
 			.locationCode(getValue(item, Item::getLocationCode, "null"))
 			.decisionLog(decisionLog(item))
+			.rawDataValues(getValueOrNull(item, Item::getRawDataValues))
 			.build();
 	}
 
