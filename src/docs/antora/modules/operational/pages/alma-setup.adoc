@@ -82,8 +82,10 @@ the shelf.
 another library wants the book.
 
 | A request cancellation reason
-| A code from your RequestCancellationReasons table
-| Alma requires one whenever OpenRS cancels its own hold.
+| Ideally one of the spare codes in your RequestCancellationReasons table, enabled and renamed
+for OpenRS — see <<cancellation-reason>>
+| Alma requires one whenever OpenRS cancels its own hold, and it is what your staff see in the
+request's history.
 
 | Circulation desks for OpenRS to act at
 | A desk to scan in at and one to check out at, which can be the same; default
@@ -137,7 +139,7 @@ Work through this in your sandbox first, then in production.
   (<<borrowing>>).
 . *Create the two item policies,* and a loan rule that refuses renewal for the second
   (<<preventing-renewal>>).
-. *Add a request cancellation reason* for OpenRS to use.
+. *Enable a request cancellation reason* for OpenRS (<<cancellation-reason>>).
 . *Check the circulation desks* OpenRS will scan in and check out at exist in the libraries it
   will act in.
 . *Set up OAI-PMH:* an integration profile and a publishing profile defining the set to share.
@@ -292,9 +294,9 @@ it checks items out at, whether to a visiting patron or your own. Both default t
 | `user-identifier`, the identifier type OpenRS tags visiting patrons with. Default `INST_ID`.
 
 | Request cancellation reason
-| A code from your *RequestCancellationReasons* code table. Alma requires a reason whenever a
-request is cancelled, and OpenRS cancels its own holds when a request ends early. Your patrons
-are not notified of these cancellations.
+| `request-cancellation-reason`, *required*: DCB Admin refuses to save an Alma Host LMS
+without it, and there is no default. A code from your *RequestCancellationReasons* code table —
+see <<cancellation-reason>>.
 
 | Virtual patron barcode prefix (optional)
 | Empty by default, so nothing changes at your desk unless you choose it. A visiting patron's
@@ -311,6 +313,27 @@ desk before rolling it out.
 
 This lets the OpenRS team set up your institution's basic configuration in DCB. Consortium
 staff then add the rest through DCB Admin.
+
+[#cancellation-reason]
+==== The request cancellation reason
+
+OpenRS cancels a hold it placed in your Alma whenever a request ends early: the patron cancels
+it, another library supplies instead, or the request is cleaned up. Alma will not cancel a
+request without a reason from your *RequestCancellationReasons* code table, and OpenRS sends the
+one you name here on every cancellation. Your patrons are not notified of them.
+
+The reason is what your staff see in the request's history, so make it say where the
+cancellation came from:
+
+. In Alma's fulfilment configuration, open the *Request Cancellation Reasons* code table.
+. Enable one of the spare codes, `AdditionalReason01` to `AdditionalReason10`, and set its
+  description to something like "Cancelled by OpenRS".
+. Give that code, not its description, to your OpenRS team.
+
+If you would rather not add one, choose an enabled code that reads sensibly for every case above,
+such as `CannotBeFulfilled`. Avoid codes that name a specific cause, such as
+`CancelledAtPatronRequest`, which would be wrong whenever OpenRS cancels for another reason. The
+code must be enabled in your table; the configuration report does not check it.
 
 == Configuring your institution in DCB Admin
 
