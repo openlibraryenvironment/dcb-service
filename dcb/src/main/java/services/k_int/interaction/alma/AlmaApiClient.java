@@ -9,6 +9,7 @@ import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.AlmaUser;
 import services.k_int.interaction.alma.types.AlmaUserList;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
+import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
 import services.k_int.interaction.alma.types.items.*;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequest;
 import services.k_int.interaction.alma.types.userRequest.AlmaRequestResponse;
@@ -392,6 +393,24 @@ public interface AlmaApiClient {
 	 */
 	default Mono<AlmaBib> createBibRecord(String bibXml) {
 		return postXml("/almaws/v1/bibs", bibXml, AlmaBib.class);
+	}
+
+	/**
+	 * Retrieve a bib record, with its MARC in {@code anies}.
+	 * <p>
+	 * API: GET /almaws/v1/bibs/{mms_id}
+	 */
+	default Mono<AlmaBib> retrieveBib(String mms_id) {
+		return get("/almaws/v1/bibs/" + pathSegment(mms_id), AlmaBib.class);
+	}
+
+	/**
+	 * Retrieve the holdings under a bib.
+	 * <p>
+	 * API: GET /almaws/v1/bibs/{mms_id}/holdings
+	 */
+	default Mono<AlmaHoldings> retrieveHoldings(String mms_id) {
+		return get("/almaws/v1/bibs/" + pathSegment(mms_id) + "/holdings", AlmaHoldings.class);
 	}
 
 	/**

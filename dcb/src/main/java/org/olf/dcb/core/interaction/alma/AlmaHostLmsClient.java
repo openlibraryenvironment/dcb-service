@@ -1398,8 +1398,44 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> deleteBib(String id) {
-		return Mono.from(client.deleteBibRecord(id))
-			.then(Mono.just("OK"));
+		// A library's own processes can merge or overlay the virtual bib after DCB creates it,
+		// and the delete below ignores Alma's warnings. So the id is deleted only while it still
+		// describes the record DCB made.
+		return Mono.zip(client.retrieveBib(id), holdingsOf(id))
+			.flatMap(bibAndHoldings -> {
+				final var reasons = reasonsToKeep(bibAndHoldings.getT1(), bibAndHoldings.getT2());
+
+				return reasons.isEmpty()
+					? Mono.from(client.deleteBibRecord(id)).then(Mono.just("OK"))
+					: Mono.error(new IllegalStateException("Alma bib " + id
+						+ " left in place, because it no longer looks like DCB's virtual record: "
+						+ String.join("; ", reasons)));
+			});
+	}
+
+	private Mono<List<AlmaHolding>> holdingsOf(String bibId) {
+		return client.retrieveHoldings(bibId)
+			.map(holdings -> holdings.getHoldings() != null ? holdings.getHoldings() : List.<AlmaHolding>of())
+			.defaultIfEmpty(List.of());
+	}
+
+	static List<String> reasonsToKeep(AlmaBib bib, List<AlmaHolding> holdings) {
+		final var reasons = new ArrayList<String>();
+
+		if (!"true".equalsIgnoreCase(bib.getSuppressFromPublishing())) {
+			reasons.add("it is not suppressed from publishing");
+		}
+
+		final var marc = bib.getAnies() != null ? String.join("", bib.getAnies()) : "";
+		if (!marc.contains(AlmaXmlGenerator.VIRTUAL_BIB_NOTE)) {
+			reasons.add("it does not carry DCB's note");
+		}
+
+		if (holdings.stream().anyMatch(holding -> !DCB_VIRTUAL_COLLECTION.equals(holding.getCall_number()))) {
+			reasons.add("it has holdings DCB did not create");
+		}
+
+		return reasons;
 	}
 
 	@Override

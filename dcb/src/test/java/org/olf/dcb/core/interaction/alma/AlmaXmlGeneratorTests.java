@@ -28,6 +28,13 @@ class AlmaXmlGeneratorTests {
 	}
 
 	@Test
+	void shouldMarkTheRecordAsDcbsInANoteImportProfilesDoNotMatchOn() throws Exception {
+		final var document = parse(AlmaXmlGenerator.createBibXml("A title", "An author"));
+
+		assertThat(subfieldA(document, "500"), is(AlmaXmlGenerator.VIRTUAL_BIB_NOTE));
+	}
+
+	@Test
 	void shouldNotWriteInventedCatalogueData() throws Exception {
 		final var tags = datafieldTags(parse(AlmaXmlGenerator.createBibXml("A title", "An author")));
 

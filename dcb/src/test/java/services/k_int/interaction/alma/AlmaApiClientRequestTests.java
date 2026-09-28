@@ -63,6 +63,24 @@ class AlmaApiClientRequestTests {
 	}
 
 	@Test
+	void shouldReadABibByItsMmsId() {
+		final var api = new RecordingAlmaApi(0);
+
+		api.retrieveBib("99123").block();
+
+		assertThat(api.lastPath, is("/almaws/v1/bibs/99123"));
+	}
+
+	@Test
+	void shouldReadTheHoldingsUnderABib() {
+		final var api = new RecordingAlmaApi(0);
+
+		api.retrieveHoldings("99123").block();
+
+		assertThat(api.lastPath, is("/almaws/v1/bibs/99123/holdings"));
+	}
+
+	@Test
 	void shouldEncodeAnIdentifierAsASinglePathSegment() {
 		final var api = new RecordingAlmaApi(0);
 

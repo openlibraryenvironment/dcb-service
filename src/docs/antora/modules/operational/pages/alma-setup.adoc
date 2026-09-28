@@ -201,6 +201,13 @@ way to you, and places your patron's hold on it.
   Patrons who sign in through your institution's identity provider can sign in but cannot yet
   place a request.
 
+The bibliographic record OpenRS creates is suppressed from publishing and carries a 500 note,
+"Temporary record created by OpenRS DCB for resource sharing". When the request ends, OpenRS
+deletes it only while it is still suppressed, still carries that note, and has no holdings but
+its own. If one of your processes has merged, overlaid or published it, OpenRS leaves it in
+place and records why on the request's audit trail, so that nothing of yours is deleted. Keep
+import profiles and merge routines from matching on that note.
+
 [#checking]
 === Checking the configuration
 

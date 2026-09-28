@@ -11,6 +11,9 @@ public class AlmaXmlGenerator {
 
 	private static final DateTimeFormatter DATE_008_FORMAT = DateTimeFormatter.ofPattern("yyMMdd");
 
+	// In a 500, which import profiles do not match on, unlike the 001, 035 or 020
+	static final String VIRTUAL_BIB_NOTE = "Temporary record created by OpenRS DCB for resource sharing";
+
 	/**
 	 * Generates a basic Alma-compatible bibliographic MARC21 XML payload.
 	 *
@@ -48,6 +51,9 @@ public class AlmaXmlGenerator {
 
 		xml.append("    <datafield tag=\"245\" ind1=\"").append(hasAuthor ? "1" : "0").append("\" ind2=\"0\">\n")
 			.append("      <subfield code=\"a\">").append(escapeXml(title)).append("</subfield>\n")
+			.append("    </datafield>\n")
+			.append("    <datafield tag=\"500\" ind1=\" \" ind2=\" \">\n")
+			.append("      <subfield code=\"a\">").append(VIRTUAL_BIB_NOTE).append("</subfield>\n")
 			.append("    </datafield>\n")
 			.append("  </record>\n")
 			.append("</bib>");
