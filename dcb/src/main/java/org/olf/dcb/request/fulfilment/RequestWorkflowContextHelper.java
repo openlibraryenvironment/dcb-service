@@ -414,7 +414,7 @@ public class RequestWorkflowContextHelper {
 		// report two institutions as one.
 		final Mono<String> defaultWorkflow = patronAc.equals(pickupAc)
 			? Mono.just(STANDARD_WORKFLOW)
-			: onOneHostLms(rwc.getPatronAgency(), rwc.getPickupAgency())
+			: onOneHostLms(patronAc, rwc.getPatronAgency(), pickupAc, rwc.getPickupAgency())
 				.map(sameSystem -> sameSystem ? STANDARD_WORKFLOW : PICKUP_ANYWHERE_WORKFLOW);
 
 		// Default mono based on the values of just the agency codes. We also need to consider
@@ -466,16 +466,20 @@ public class RequestWorkflowContextHelper {
 			.switchIfEmpty(defaultResolution);
 	}
 
-	private Mono<Boolean> onOneHostLms(Agency first, Agency second) {
-		return Mono.zip(hostLmsIdFor(first), hostLmsIdFor(second))
+	private Mono<Boolean> onOneHostLms(String firstCode, Agency first, String secondCode, Agency second) {
+		return Mono.zip(hostLmsIdFor("patron", firstCode, first), hostLmsIdFor("pickup", secondCode, second))
 			.map(ids -> ids.getT1().equals(ids.getT2()))
 			// Either agency missing its Host LMS leaves the question unanswered, and the caller
 			// falls back to the agency codes rather than assuming one system
 			.defaultIfEmpty(false);
 	}
 
-	private Mono<UUID> hostLmsIdFor(Agency agency) {
-		return Mono.justOrEmpty(getValueOrNull(agency, Agency::getId))
+	// Looked up by code when the object is absent: ActiveWorkflowService, the only production
+	// caller, builds its context from agency codes alone
+	private Mono<UUID> hostLmsIdFor(String role, String code, Agency agency) {
+		return resolveWorkflowAgency(role, code, agency)
+			.onErrorResume(WorkflowHostLmsResolutionException.class, error -> Mono.empty())
+			.flatMap(resolved -> Mono.justOrEmpty(getValueOrNull(resolved, Agency::getId)))
 			.flatMap(id -> Mono.from(agencyRepository.findHostLmsIdById(id)));
 	}
 

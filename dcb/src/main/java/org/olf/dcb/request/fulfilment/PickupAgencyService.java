@@ -36,8 +36,8 @@ public class PickupAgencyService {
 			RequestWorkflowContext::getPatronRequest,
 			() -> new UnexpectedlyNullProblem("Patron request during clean up"));
 
-		if (!patronRequest.isUsingPickupAnywhereWorkflow()) {
-			log.debug("Not a PUA workflow, skipping cleanup of pickup system");
+		if (!patronRequest.involvesPickupAgency()) {
+			log.debug("Nothing at a pickup library, skipping cleanup of pickup system");
 			return Mono.just(requestWorkflowContext);
 		}
 
