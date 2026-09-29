@@ -20,7 +20,8 @@ public record MappingAudit(
 	@Nullable String detail,
 	int checked,
 	int missing,
-	List<Row> rows) {
+	List<Row> rows,
+	List<String> notChecked) {
 
 	public enum Status {
 		/** The Host LMS was asked and the rows below are the result. */
@@ -40,18 +41,18 @@ public record MappingAudit(
 		MappingValueCheck.Result result, @Nullable String detail) {}
 
 	public static MappingAudit notSupported(String hostLmsCode, String detail) {
-		return new MappingAudit(hostLmsCode, Status.NOT_SUPPORTED, detail, 0, 0, List.of());
+		return new MappingAudit(hostLmsCode, Status.NOT_SUPPORTED, detail, 0, 0, List.of(), List.of());
 	}
 
 	public static MappingAudit failed(String hostLmsCode, String detail) {
-		return new MappingAudit(hostLmsCode, Status.FAILED, detail, 0, 0, List.of());
+		return new MappingAudit(hostLmsCode, Status.FAILED, detail, 0, 0, List.of(), List.of());
 	}
 
-	public static MappingAudit of(String hostLmsCode, List<Row> rows) {
+	public static MappingAudit of(String hostLmsCode, List<Row> rows, List<String> notChecked) {
 		final var missing = (int) rows.stream()
 			.filter(row -> row.result() == MappingValueCheck.Result.MISSING)
 			.count();
 
-		return new MappingAudit(hostLmsCode, Status.CHECKED, null, rows.size(), missing, rows);
+		return new MappingAudit(hostLmsCode, Status.CHECKED, null, rows.size(), missing, rows, notChecked);
 	}
 }

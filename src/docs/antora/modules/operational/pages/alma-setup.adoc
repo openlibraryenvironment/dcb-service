@@ -487,7 +487,8 @@ Neither can see fulfilment unit rules, so the second step above still needs some
 The mapping audit also checks only the mappings OpenRS sends *to* Alma — the user group for
 visiting patrons and the item type for stand-in items. Your Location mappings, the patron-type
 mappings from your user groups, and your pickup locations are not checked against Alma: compare
-them with the *Libraries* and *Patron types* lists in the configuration report.
+them with the *Libraries* and *Patron types* lists in the configuration report. The audit's
+`notChecked` list names what it skipped, with the number of mappings from your own values.
 
 == Workflows
 

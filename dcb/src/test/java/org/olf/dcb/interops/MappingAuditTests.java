@@ -2,11 +2,12 @@ package org.olf.dcb.interops;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -79,6 +80,44 @@ class MappingAuditTests {
 			everyItem(is(MappingValueCheck.Result.NOT_SUPPORTED)));
 	}
 
+	@Test
+	void shouldSayWhatItDidNotCheck() {
+		final var audit = auditOf(
+			List.of(mapping("patronType", "UNDERGRADUATE", "undergrad"),
+				mappingFromTheSystem("Location", "MAIN", "main-agency"),
+				mappingFromTheSystem("ItemType", "BOOK", "CIRC")),
+			List.of(new ConfigurationReport.Entry("undergrad", "Undergraduate")));
+
+		assertThat(audit.checked(), is(1));
+		assertThat(audit.missing(), is(0));
+		assertThat(audit.notChecked(), hasItem(containsString("2 mappings from ALMA's own values")));
+		assertThat(audit.notChecked(), hasItem(containsString("Pickup locations")));
+	}
+
+	@Test
+	void shouldListRowsInTheSameCategoryOrderWhateverOrderTheyAreStored() {
+		final var audit = auditOf(
+			List.of(mapping("Location", "MAIN", "main"),
+				mapping("ItemType", "CIRC", "book"),
+				mapping("patronType", "UNDERGRADUATE", "undergrad")),
+			List.of());
+
+		assertThat(audit.rows().stream().map(row -> row.category()).toList(),
+			contains("patronType", "ItemType", "Location"));
+	}
+
+	@Test
+	void shouldNotAuditADeletedMapping() {
+		final var deleted = mapping("patronType", "GRADUATE", "gone");
+		deleted.setDeleted(true);
+
+		final var audit = auditOf(
+			List.of(mapping("patronType", "UNDERGRADUATE", "undergrad"), deleted),
+			List.of(new ConfigurationReport.Entry("undergrad", "Undergraduate")));
+
+		assertThat(audit.checked(), is(1));
+	}
+
 	private interface MappingAuditRowValue {
 		static String of(org.olf.dcb.core.interaction.MappingAudit.Row row) {
 			return row.toValue();
@@ -89,7 +128,7 @@ class MappingAuditTests {
 		List<ReferenceValueMapping> mappings, List<ConfigurationReport.Entry> vocabulary) {
 
 		final var repository = mock(ReferenceValueMappingRepository.class);
-		when(repository.findAllTargeting(anyString())).thenReturn(Flux.fromIterable(mappings));
+		when(repository.findByContexts(List.of(HOST_LMS))).thenReturn(Flux.fromIterable(mappings));
 
 		final var client = mock(HostLmsClient.class);
 		when(client.fetchVocabulary(any(MappingVocabulary.class)))
@@ -101,6 +140,19 @@ class MappingAuditTests {
 		return new InteropTestService(hostLmsService, mock(BibRecordService.class), repository)
 			.auditMappings(HOST_LMS)
 			.block();
+	}
+
+	private static ReferenceValueMapping mappingFromTheSystem(String category, String fromValue,
+		String toValue) {
+
+		return ReferenceValueMapping.builder()
+			.fromCategory(category)
+			.fromContext(HOST_LMS)
+			.fromValue(fromValue)
+			.toCategory(category)
+			.toContext("DCB")
+			.toValue(toValue)
+			.build();
 	}
 
 	private static ReferenceValueMapping mapping(String category, String fromValue, String toValue) {

@@ -98,11 +98,6 @@ public interface ReferenceValueMappingRepository {
 		@NonNull String targetContext,
 		@NonNull String targetValue);
 
-	// Every saved mapping that points AT one system, which is the set whose to_value has to
-	// exist there. Bounded by a consortium's own configuration, not by the corpus
-	@Query(value = "SELECT * from reference_value_mapping where to_context = :toContext and (deleted = false or deleted is null) order by from_category, from_value", nativeQuery = true)
-	Publisher<ReferenceValueMapping> findAllTargeting(@NonNull String toContext);
-
 	@Query(value = "SELECT * from reference_value_mapping where from_context in (:contexts) or to_context in (:contexts) order by from_context, from_category, from_value", nativeQuery = true)
 	Publisher<ReferenceValueMapping> findByContexts(@NonNull Collection<String> contexts);
 
