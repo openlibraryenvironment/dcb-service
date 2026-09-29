@@ -84,13 +84,7 @@ public class Resolution implements ItemFilterParameters {
 	}
 
 	public Resolution selectItem(Item item) {
-		return Resolution.builder()
-			.parameters(parameters)
-			.allItems(allItems)
-			.filteredItems(filteredItems)
-			.sortedItems(sortedItems)
-			.chosenItem(item)
-			.build();
+		return copy().chosenItem(item).build();
 	}
 
 	public List<String> excludedSupplyingAgencyCodes() {

@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,9 +34,9 @@ import org.olf.dcb.request.workflow.PresentableItem;
 import reactor.core.publisher.Mono;
 
 /**
- * What the audit says when resolution chooses nothing. Three empty lists cannot distinguish a
- * Host LMS that answered with no items from one that could not be reached, or say which of six
- * filters emptied the list.
+ * What the audit says about how resolution chose, or why it chose nothing. Three empty lists
+ * cannot distinguish a Host LMS that answered with no items from one that could not be reached,
+ * or say which of six filters emptied the list.
  */
 @TestInstance(PER_CLASS)
 class ResolutionEvidenceTests {
@@ -86,6 +87,34 @@ class ResolutionEvidenceTests {
 		assertThat(presented.getDecisionLog(), containsString("IsRequestableItemFilter"));
 		// The location is what a location-to-agency mapping is keyed on
 		assertThat(presented.getLocationCode(), is("MAIN"));
+	}
+
+	@Test
+	void shouldKeepTheEvidenceWhenAnotherItemIsSelected() {
+		final var chosen = item();
+
+		final var excluded = item()
+			.toBuilder()
+			.localId("item-2")
+			.decisionLogEntry("Excluded by IsRequestableItemFilter")
+			.build();
+
+		final var resolution = Resolution.forParameters(parameters())
+			.trackAllItems(List.of(chosen, excluded))
+			.trackAvailabilityErrors(List.of(AvailabilityReport.Error.builder()
+				.message("OTHER-LIB did not answer within PT30S for bib 991234")
+				.build()))
+			.trackExcludedItems(List.of(excluded))
+			.trackFilteredItems(List.of(chosen))
+			.trackSortedItems(List.of(chosen))
+			.selectItem(chosen);
+
+		final var auditData = auditDataFor(resolution);
+
+		assertThat(auditData, hasKey("selectedItem"));
+		assertThat((List<?>) auditData.get("excludedItems"), hasSize(1));
+		assertThat((List<?>) auditData.get("availabilityErrors"),
+			contains("OTHER-LIB did not answer within PT30S for bib 991234"));
 	}
 
 	@Test
