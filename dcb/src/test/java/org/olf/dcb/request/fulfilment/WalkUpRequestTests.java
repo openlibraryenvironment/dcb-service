@@ -26,6 +26,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.AgencyRepository;
@@ -52,6 +53,7 @@ class WalkUpRequestTests {
 	private AgencyRepository agencyRepository;
 	private LocationService locationService;
 	private BibRepository bibRepository;
+	private PatronRequestRepository patronRequestRepository;
 	private PatronRequestPreflightChecksService preflightChecksService;
 	private PatronRequestService service;
 
@@ -74,9 +76,14 @@ class WalkUpRequestTests {
 			.thenReturn(Mono.just(Location.builder().agency(lender).build()));
 
 		bibRepository = mock(BibRepository.class);
+
+		patronRequestRepository = mock(PatronRequestRepository.class);
+		when(patronRequestRepository.findActiveRequestHoldingSupplierItem(ITEM_SYSTEM, "item-1"))
+			.thenReturn(Mono.empty());
+
 		preflightChecksService = mock(PatronRequestPreflightChecksService.class);
 
-		service = new PatronRequestService(mock(PatronRequestRepository.class),
+		service = new PatronRequestService(patronRequestRepository,
 			mock(PatronRequestWorkflowService.class), mock(PatronService.class),
 			mock(FindOrCreatePatronService.class), preflightChecksService,
 			mock(PatronRequestAuditRepository.class), mock(BeanProvider.class), hostLmsService,
@@ -130,6 +137,18 @@ class WalkUpRequestTests {
 		when(itemSystem.getItemByBarcode("item-barcode")).thenReturn(Mono.just(item(HostLmsItem.ITEM_AVAILABLE, null)));
 
 		assertThat(refusalCode(command("borrower", PICKUP_LOCATION)), is("ITEM_NOT_IN_SHARED_INDEX"));
+	}
+
+	@Test
+	void refusesAnItemAnotherRequestInFlightAlreadyHolds() {
+		when(itemSystem.getItemByBarcode("item-barcode")).thenReturn(Mono.just(item(HostLmsItem.ITEM_AVAILABLE, "bib-1")));
+		when(patronRequestRepository.findActiveRequestHoldingSupplierItem(ITEM_SYSTEM, "item-1"))
+			.thenReturn(Mono.just(PatronRequest.builder().id(UUID.randomUUID())
+				.status(PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY).build()));
+
+		assertThat(refusalCode(command("borrower", PICKUP_LOCATION)), is("WALK_UP_ITEM_ALREADY_REQUESTED"));
+
+		verify(preflightChecksService, never()).check(any());
 	}
 
 	@Test

@@ -201,13 +201,24 @@ public class PatronRequestService {
 							command.getItemHostLmsCode()));
 				}
 
-				return Mono.from(bibRepository.findBySourceSystemIdAndSourceRecordId(
-						client.getHostLms().getId(), item.getBibId()))
+				return refuseIfItemAlreadyRequested(command, item)
+					.then(Mono.defer(() -> Mono.from(bibRepository.findBySourceSystemIdAndSourceRecordId(
+						client.getHostLms().getId(), item.getBibId()))))
 					.switchIfEmpty(refuse("ITEM_NOT_IN_SHARED_INDEX",
 						"Bibliographic record %s of item %s is not in the shared catalogue".formatted(
 							item.getBibId(), item.getLocalId())))
 					.flatMap(bibRecord -> placeWalkUp(command, item, bibRecord));
 			});
+	}
+
+	// The item can still read available between a first walk-up being placed and its checkout,
+	// so a second scan in that window would place a second request on the same copy
+	private Mono<Void> refuseIfItemAlreadyRequested(WalkUpRequestCommand command, HostLmsItem item) {
+		return Mono.from(patronRequestRepository.findActiveRequestHoldingSupplierItem(
+				command.getItemHostLmsCode(), item.getLocalId()))
+			.flatMap(existing -> refuse("WALK_UP_ITEM_ALREADY_REQUESTED",
+				"Item %s is already held by request %s, status %s".formatted(item.getLocalId(),
+					existing.getId(), existing.getStatus())));
 	}
 
 	private Mono<? extends PatronRequest> placeWalkUp(WalkUpRequestCommand command,
