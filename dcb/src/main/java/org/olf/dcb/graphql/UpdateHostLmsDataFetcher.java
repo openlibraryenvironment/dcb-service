@@ -130,12 +130,13 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 						reason.ifPresent(hostLms::setReason);
 						changeCategory.ifPresent(hostLms::setChangeCategory);
 
-						// VALIDATION
-						// We must validate the final state of the object (or the new config if replaced)
-						// Note: This assumes clientConfig is replaced entirely if provided.
+						// Validated only when what the client reads changes: a record saved before a
+						// setting became required can still be renamed or given a ruleset
 						if (hostLms.getClientConfig() != null) {
-							configValidator.validate(hostLms.getLmsClientClass(), hostLms.getClientConfig());
-							// Collect warnings
+							if (clientConfig.isPresent() || clientClassChanged) {
+								configValidator.validate(hostLms.getLmsClientClass(), hostLms.getClientConfig());
+							}
+
 							warningsContainer.addAll(
 								configValidator.findConfigurationWarnings(hostLms.getLmsClientClass(), hostLms.getClientConfig())
 							);
