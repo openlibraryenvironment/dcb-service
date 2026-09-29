@@ -97,6 +97,17 @@ public interface HostLmsClient
 	}
 
 	/**
+	 * The vocabulary holding the values this adapter reads into DCB through a mapping keyed on
+	 * this Host LMS, by that mapping's from_category.
+	 * <p>
+	 * Empty until an adapter has confirmed that the list {@link #fetchVocabulary} returns is the
+	 * one its own lookups use: a mismatch would report every row missing.
+	 */
+	default Map<String, MappingVocabulary> readSideVocabularies() {
+		return Map.of();
+	}
+
+	/**
 	 * Whether one value someone is about to map exists in this Host LMS.
 	 * <p>
 	 * Built on {@link #fetchVocabulary} rather than implemented per adapter, so a system that

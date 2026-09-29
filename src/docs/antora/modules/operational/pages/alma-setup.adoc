@@ -484,11 +484,13 @@ it is a resource-sharing library, and a sharing desk if it has no hold shelf, wi
 your Alma against the codes Alma holds. It should report no `MISSING` rows.
 
 Neither can see fulfilment unit rules, so the second step above still needs someone in Alma.
-The mapping audit also checks only the mappings OpenRS sends *to* Alma — the user group for
-visiting patrons and the item type for stand-in items. Your Location mappings, the patron-type
-mappings from your user groups, and your pickup locations are not checked against Alma: compare
-them with the *Libraries* and *Patron types* lists in the configuration report. The audit's
-`notChecked` list names what it skipped, with the number of mappings from your own values.
+The mapping audit checks both directions. Rows marked `SENT_TO_SYSTEM` are values OpenRS sends to
+Alma: the user group for visiting patrons and the item type for stand-in items. Rows marked
+`READ_FROM_SYSTEM` are values OpenRS reads from Alma: your Location mappings, checked against your
+library codes, and the patron-type mappings from your user groups. A Location mapping keyed on a
+shelving location such as `STACKS` reads `MISSING`: items arrive with their owning library, so that
+mapping never matches and those items reach no agency. Your item-type mappings and your pickup
+locations are not checked; the audit's `notChecked` list names what it skipped.
 
 == Workflows
 

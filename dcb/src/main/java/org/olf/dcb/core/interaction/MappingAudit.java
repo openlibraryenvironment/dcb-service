@@ -32,13 +32,21 @@ public record MappingAudit(
 		FAILED
 	}
 
+	/** Which side of a mapping was checked against the system's list. */
+	public enum Direction {
+		/** A value DCB sends to the system: the mapping's to_value. */
+		SENT_TO_SYSTEM,
+		/** A value DCB reads from the system: the mapping's from_value. */
+		READ_FROM_SYSTEM
+	}
+
 	/**
 	 * One saved mapping. {@code result} carries {@link MappingValueCheck}'s four outcomes, so a
 	 * vocabulary that could not be read reports UNKNOWN and never MISSING.
 	 */
 	@Serdeable
-	public record Row(String category, String fromContext, String fromValue, String toValue,
-		MappingValueCheck.Result result, @Nullable String detail) {}
+	public record Row(String category, Direction direction, String fromContext, String fromValue,
+		String toValue, MappingValueCheck.Result result, @Nullable String detail) {}
 
 	public static MappingAudit notSupported(String hostLmsCode, String detail) {
 		return new MappingAudit(hostLmsCode, Status.NOT_SUPPORTED, detail, 0, 0, List.of(), List.of());

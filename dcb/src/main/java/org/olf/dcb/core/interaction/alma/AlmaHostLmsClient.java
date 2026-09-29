@@ -476,6 +476,13 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		};
 	}
 
+	// Location: the owning library code, as locationForLibraryCode builds it. patronType: the user
+	// group code findCanonicalPatronType looks up. Item types are keyed by agency, not by this system
+	@Override
+	public Map<String, MappingVocabulary> readSideVocabularies() {
+		return Map.of("Location", MappingVocabulary.LOCATION, "patronType", MappingVocabulary.PATRON_TYPE);
+	}
+
 	// One unreadable list leaves the rest of the report standing; the empty vocabulary says so
 	private <T> Mono<List<T>> emptyWhenUnreadable(Mono<List<T>> source, String what) {
 		return source.onErrorResume(error -> {

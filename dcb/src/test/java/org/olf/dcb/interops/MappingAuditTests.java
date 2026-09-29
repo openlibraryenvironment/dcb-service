@@ -6,18 +6,21 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.MappingAudit;
 import org.olf.dcb.core.interaction.MappingValueCheck;
 import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.model.ReferenceValueMapping;
@@ -118,6 +121,40 @@ class MappingAuditTests {
 		assertThat(audit.checked(), is(1));
 	}
 
+	@Test
+	void shouldCheckTheValuesReadFromTheSystemWhereTheAdapterSaysWhichListTheyComeFrom() {
+		// A Location mapping keyed on a shelving location never matches an item, whose location is
+		// its owning library: every item from that library arrives with no agency
+		final var audit = auditOf(
+			List.of(mappingFromTheSystem("Location", "MAIN", "main-agency"),
+				mappingFromTheSystem("Location", "STACKS", "main-agency")),
+			List.of(new ConfigurationReport.Entry("MAIN", "Main Library")),
+			Map.of("Location", MappingVocabulary.LOCATION));
+
+		assertThat(audit.checked(), is(2));
+		assertThat(audit.missing(), is(1));
+
+		final var missing = audit.rows().stream()
+			.filter(row -> row.result() == MappingValueCheck.Result.MISSING)
+			.toList();
+
+		assertThat(missing.stream().map(row -> row.fromValue()).toList(), contains("STACKS"));
+		assertThat(missing.get(0).direction(), is(MappingAudit.Direction.READ_FROM_SYSTEM));
+		assertThat(audit.notChecked(), not(hasItem(containsString("own values"))));
+	}
+
+	@Test
+	void shouldStillSayWhichReadSideMappingsItCouldNotCheck() {
+		final var audit = auditOf(
+			List.of(mappingFromTheSystem("Location", "MAIN", "main-agency"),
+				mappingFromTheSystem("patronType", "UNDERGRAD", "STUDENT")),
+			List.of(new ConfigurationReport.Entry("MAIN", "Main Library")),
+			Map.of("Location", MappingVocabulary.LOCATION));
+
+		assertThat(audit.checked(), is(1));
+		assertThat(audit.notChecked(), hasItem(containsString("1 mappings from ALMA's own values")));
+	}
+
 	private interface MappingAuditRowValue {
 		static String of(org.olf.dcb.core.interaction.MappingAudit.Row row) {
 			return row.toValue();
@@ -127,10 +164,18 @@ class MappingAuditTests {
 	private org.olf.dcb.core.interaction.MappingAudit auditOf(
 		List<ReferenceValueMapping> mappings, List<ConfigurationReport.Entry> vocabulary) {
 
+		return auditOf(mappings, vocabulary, Map.of());
+	}
+
+	private org.olf.dcb.core.interaction.MappingAudit auditOf(
+		List<ReferenceValueMapping> mappings, List<ConfigurationReport.Entry> vocabulary,
+		Map<String, MappingVocabulary> readSide) {
+
 		final var repository = mock(ReferenceValueMappingRepository.class);
 		when(repository.findByContexts(List.of(HOST_LMS))).thenReturn(Flux.fromIterable(mappings));
 
 		final var client = mock(HostLmsClient.class);
+		when(client.readSideVocabularies()).thenReturn(readSide);
 		when(client.fetchVocabulary(any(MappingVocabulary.class)))
 			.thenReturn(vocabulary != null ? Mono.just(vocabulary) : Mono.empty());
 
