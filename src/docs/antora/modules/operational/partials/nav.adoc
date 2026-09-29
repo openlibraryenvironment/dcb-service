@@ -1,4 +1,0 @@
-.Operational Resources
-* xref:operational:bare-metal-build.adoc[]
-* xref:operational:docker.adoc[]
-* xref:operational:identity-provider-setup.adoc[Identity provider setup]

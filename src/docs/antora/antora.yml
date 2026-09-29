@@ -1,17 +1,17 @@
-name: dcb-service-docs
+name: dcb-tech.service
 version: true
 title: DCB Service Documentation
 nav:
   - modules/ROOT/nav.adoc
 ext:
-  collector:      
+  collector:
     run:
       - command: "JAVA_TOOL_OPTIONS=\
           -Dmicronaut.openapi.views.spec=\
             scalar.enabled=true,\
             scalar.js.url=../scalar/res/,\
             scalar.spec.url=../swagger/\\${filename}\
-           \ ./gradlew -q compileJava generateAntoraYml"
+           \ ./gradlew -q compileJava"
         shell: true
 
     scan:
@@ -33,7 +33,4 @@ ext:
          # Into is anotra bucket not a physical directory
          into:
            dir: modules/api/attachments/scalar
-
-       
-       - dir: 'dcb/build/generated-docs'
 
