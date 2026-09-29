@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.groupingBy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,10 @@ import reactor.function.TupleUtils;
 public class HostLmsService implements IngestSourcesProvider {
 	private static final Duration ALL_IMPORT_INGEST_DETAILS_TTL = Duration.ofMinutes(5);
 	private static final int IMPORT_CHECKPOINT_LOOKUP_CONCURRENCY = 4;
+	public static final int MAX_SCOPED_HOST_LMS = 50;
+	// Each Host LMS holds at most two connections at once (its two counts run together; the
+	// checkpoint read follows them), so this keeps one scoped request to 4 of the pool's 40.
+	private static final int SCOPED_COUNT_CONCURRENCY = 2;
 
 	private final JsonNode EMPTY_JSON_NODE = JsonNode.createObjectNode(new HashMap<String, JsonNode>());
 	
@@ -249,14 +254,31 @@ public class HostLmsService implements IngestSourcesProvider {
 	 * @return empty when there is no Host LMS with that id
 	 */
 	public Mono<Map<String, Object>> getImportIngestDetails(UUID id) {
+		return Mono.from(hostLmsRepository.findById(id))
+			.flatMap(hostLms -> countImportIngestDetails(hostLms, Instant.now()));
+	}
+
+	/**
+	 * Ingest and import details for the Host LMS with these codes, each counted on its own and
+	 * uncached. Codes that name no Host LMS are left out.
+	 *
+	 * @param hostLmsCodes at most {@link #MAX_SCOPED_HOST_LMS}; the controller refuses more
+	 */
+	public Mono<List<Map<String, Object>>> getImportIngestDetails(Collection<String> hostLmsCodes) {
 		final Instant countedAt = Instant.now();
 
-		return Mono.from(hostLmsRepository.findById(id))
-			.flatMap(hostLms -> Mono.zip(
-					Flux.from(sourceRecordRepository.getProcessingStateCountsForHostLms(id)).collectList(),
-					Mono.from(bibRepository.getCountForHostLms(id)).defaultIfEmpty(0L))
-				.flatMap(TupleUtils.function((stateCounts, bibRecordCount) ->
-					importIngestDetailsFor(hostLms, stateCounts, bibRecordCount, countedAt))));
+		return Flux.fromIterable(hostLmsCodes)
+			.concatMap(code -> Mono.from(hostLmsRepository.findByCode(code)))
+			.flatMap(hostLms -> countImportIngestDetails(hostLms, countedAt), SCOPED_COUNT_CONCURRENCY)
+			.collectList();
+	}
+
+	private Mono<Map<String, Object>> countImportIngestDetails(DataHostLms hostLms, Instant countedAt) {
+		return Mono.zip(
+				Flux.from(sourceRecordRepository.getProcessingStateCountsForHostLms(hostLms.getId())).collectList(),
+				Mono.from(bibRepository.getCountForHostLms(hostLms.getId())).defaultIfEmpty(0L))
+			.flatMap(TupleUtils.function((stateCounts, bibRecordCount) ->
+				importIngestDetailsFor(hostLms, stateCounts, bibRecordCount, countedAt)));
 	}
 
 	/**

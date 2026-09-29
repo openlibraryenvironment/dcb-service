@@ -1,8 +1,10 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static java.time.Instant.now;
 import static java.util.UUID.randomUUID;
+import static java.util.stream.Collectors.joining;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -20,12 +22,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.RecordCount;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
@@ -44,6 +48,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import lombok.Data;
@@ -181,6 +186,53 @@ class ImportIngestDetailsApiTests {
 	}
 
 	@Test
+	void shouldCountOnlyTheNamedHostLmsAtTheTimeOfAsking() {
+		// Arrange
+		final var first = hostLmsFixture.createSierraHostLms("scoped-first-host-lms");
+		final var second = hostLmsFixture.createSierraHostLms("scoped-second-host-lms");
+		final var unnamed = hostLmsFixture.createSierraHostLms("unnamed-host-lms");
+
+		createSourceRecords(first, SUCCESS, 2);
+		createSourceRecords(second, PROCESSING_REQUIRED, 3);
+		createSourceRecords(unnamed, SUCCESS, 7);
+
+		final var codes = "scoped-first-host-lms, scoped-second-host-lms,no-such-host-lms";
+
+		// Act
+		final var firstRead = getScopedImportIngestDetails(codes);
+
+		createSourceRecords(first, SUCCESS, 1);
+
+		final var secondRead = getScopedImportIngestDetails(codes);
+
+		// Assert
+		assertThat(firstRead.stream().map(ImportIngestDetails::getId).toList(),
+			containsInAnyOrder(first.getId(), second.getId()));
+
+		assertThat(detailsFor(firstRead, first), hasProperty("sourceRecordCount", is(2L)));
+		assertThat(detailsFor(firstRead, second), allOf(
+			hasProperty("sourceRecordCount", is(3L)),
+			hasProperty("processStates", containsInAnyOrder(
+				stateCount("PROCESSING_REQUIRED", 3L)))
+		));
+
+		assertThat("A scoped count is never served from the shared one",
+			detailsFor(secondRead, first), hasProperty("sourceRecordCount", is(3L)));
+	}
+
+	@Test
+	void shouldRefuseToCountMoreHostLmsThanTheCap() {
+		final var tooMany = IntStream.rangeClosed(1, HostLmsService.MAX_SCOPED_HOST_LMS + 1)
+			.mapToObj(n -> "host-lms-" + n)
+			.collect(joining(","));
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> getScopedImportIngestDetails(tooMany));
+
+		assertThat(exception.getStatus(), is(BAD_REQUEST));
+	}
+
+	@Test
 	void shouldNotFindUnknownHostLms() {
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> getImportIngestDetails(randomUUID()));
@@ -191,6 +243,15 @@ class ImportIngestDetailsApiTests {
 	private List<ImportIngestDetails> getAllImportIngestDetails() {
 		return client.toBlocking().retrieve(
 			HttpRequest.GET("/hostlmss/importIngestDetails").bearerAuth(ACCESS_TOKEN),
+			Argument.listOf(ImportIngestDetails.class));
+	}
+
+	private List<ImportIngestDetails> getScopedImportIngestDetails(String hostLmsCodes) {
+		return client.toBlocking().retrieve(
+			HttpRequest.GET(UriBuilder.of("/hostlmss/importIngestDetails")
+					.queryParam("hostLmsCodes", hostLmsCodes)
+					.build())
+				.bearerAuth(ACCESS_TOKEN),
 			Argument.listOf(ImportIngestDetails.class));
 	}
 
