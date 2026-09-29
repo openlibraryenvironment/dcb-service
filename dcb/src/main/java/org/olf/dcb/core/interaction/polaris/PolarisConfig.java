@@ -13,6 +13,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.NoArgsConstructor;
 
 @Data
@@ -37,12 +38,14 @@ public class PolarisConfig {
 	private Integer pageSize;
 	@JsonProperty("staff-username")
 	private String staffUsername;
+	@ToString.Exclude
 	@JsonProperty("staff-password")
 	private String staffPassword;
 	@JsonProperty("domain-id")
 	private String domainId;
 	@JsonProperty("access-id")
 	private String accessId;
+	@ToString.Exclude
 	@JsonProperty("access-key")
 	private String accessKey;
 	@JsonProperty("logon-branch-id")

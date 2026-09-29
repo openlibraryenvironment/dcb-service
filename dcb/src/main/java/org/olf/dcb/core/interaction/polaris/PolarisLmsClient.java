@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -1290,7 +1291,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<Patron> getPatronByUsername(String username) {
 
 		// note: the auth controller is passing a patron barcode here
-		log.info("getPatronByUsername using barcode: {}", username);
+		log.info("getPatronByUsername using a barcode");
 		final var barcode = username;
 
 		return ApplicationServices.getPatronIdByIdentifier(barcode, "barcode")
@@ -1345,7 +1346,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var hostLmsItem = HostLmsItem.builder().localId(itemId).build();
 
 		return updateItemStatus(hostLmsItem, CanonicalItemState.AVAILABLE)
-			.doOnNext(__ -> log.info("checkOutItemToPatron({}, {}, {})", itemId, patronBarcode, localRequestId))
+			.doOnNext(__ -> log.info("checkOutItemToPatron({}, {})", itemId, localRequestId))
 			.then(Mono.zip(
 				ApplicationServices.getItemBarcode(itemId),
 				ApplicationServices.getPatronBarcode(patronId)
@@ -1555,7 +1556,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.flatMap(request -> Mono.from(client.exchange(request, returnClass)))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
-				.doOnError(error -> logRequestAndResponseDetails(sent.get()).accept(error))
+				.doOnError(error -> logRequestFailure(sent.get(), error))
 				.onErrorResume(error -> {
 
 					// we want to automatically handle HttpClientResponseExceptions
@@ -1613,7 +1614,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.flatMap(request -> Mono.<T>from(client.retrieve(request, responseBodyType)))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
-				.doOnError(error -> logRequestAndResponseDetails(sent.get()).accept(error))
+				.doOnError(error -> logRequestFailure(sent.get(), error))
 				// Additional request specific error handling
 				.transform(errorHandlingTransformer)
 				// This has to go after more specific error handling
@@ -1649,25 +1650,36 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return doRetrieve(Mono.just(request), responseBodyType, noExtraErrorHandling(), FALSE);
 	}
 
-	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
-		return error -> {
-			try {
-				log.error("""
-						HTTP Request and Response Details:
-						URL: {}
-						Method: {}
-						Headers: {}
-						Body: {}
-						Response: {}""",
-					request.getUri(),
-					request.getMethod(),
-					request.getHeaders().asMap(),
-					request.getBody().orElse(null),
-					error.toString());
-			} catch (Exception e) {
-				log.error("Couldn't log error request and response details", e);
+	// Method, redacted path and status only: the headers carry the staff credential or a
+	// signature, an authentication body carries a patron's PIN, and a PAPI path a barcode
+	private static void logRequestFailure(MutableHttpRequest<?> request, Throwable error) {
+		log.error("Polaris request failed: {} {} - {}",
+			request != null ? request.getMethod() : "(not sent)",
+			request != null ? redactedPath(request.getUri().getRawPath()) : "",
+			error instanceof HttpClientResponseException responseError
+				? responseError.getStatus().getCode()
+				: error.getClass().getSimpleName());
+	}
+
+	// The segment after each of these is a patron's or an item's barcode
+	private static final Set<String> SEGMENTS_BEFORE_A_BARCODE = Set.of("patron", "item", "itemrecords");
+
+	/** The path with its query and every barcode segment removed, for logging. */
+	static String redactedPath(String path) {
+		if (path == null) {
+			return null;
+		}
+
+		final var queryStart = path.indexOf('?');
+		final var segments = (queryStart >= 0 ? path.substring(0, queryStart) : path).split("/", -1);
+
+		for (int index = 1; index < segments.length; index++) {
+			if (SEGMENTS_BEFORE_A_BARCODE.contains(segments[index - 1].toLowerCase())) {
+				segments[index] = "{redacted}";
 			}
-		};
+		}
+
+		return String.join("/", segments);
 	}
 
 
@@ -1682,7 +1694,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	<T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
-		log.info("{} {}", method, path);
+		log.debug("{} {}", method, redactedPath(path));
 
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::defaultResolve)
@@ -1690,7 +1702,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	<T> Mono<MutableHttpRequest<?>> createRequestWithOverrideURL(HttpMethod method, String path) {
-		log.info("{} {}", method, path);
+		log.debug("{} {}", method, redactedPath(path));
 
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::overrideResolve)
