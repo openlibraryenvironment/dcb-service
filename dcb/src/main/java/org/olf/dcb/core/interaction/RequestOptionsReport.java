@@ -8,8 +8,8 @@ import io.micronaut.serde.annotation.Serdeable;
 /**
  * What a Host LMS says one patron may request on one copy, asked after a hold was refused.
  * <p>
- * Systems answer different halves of the question. Alma lists the request types it would
- * accept but not where the item could be collected; Sierra and Koha list pickup locations.
+ * Alma lists the request types it would accept but not where the item could be collected, and
+ * no adapter reports pickup locations yet.
  * So {@code holdOffered} is null where the system did not say, and {@code pickupLocations}
  * is null where the system does not report them, which is not the same as an empty list.
  */
