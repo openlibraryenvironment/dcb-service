@@ -1,6 +1,9 @@
 package org.olf.dcb.core;
 
-import java.util.ArrayList;
+import static java.util.stream.Collectors.groupingBy;
+
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,11 +15,12 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.HostLmsProcessingStateCount;
 import org.olf.dcb.core.model.InvalidHostLmsConfigurationException;
 import org.olf.dcb.core.model.RecordCount;
+import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
-import org.olf.dcb.dataimport.job.SourceRecordImportJob;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
@@ -38,12 +42,14 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.function.TupleUtils;
 
 @Slf4j
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
-	private final DataHostLms NULL_DATA_HOST_LMS = new DataHostLms() ;
-	private final Mono<DataHostLms> NULL_MONO_DATA_HOST_LMS = Mono.just(NULL_DATA_HOST_LMS);
+	private static final Duration ALL_IMPORT_INGEST_DETAILS_TTL = Duration.ofMinutes(5);
+	private static final int IMPORT_CHECKPOINT_LOOKUP_CONCURRENCY = 4;
+
 	private final JsonNode EMPTY_JSON_NODE = JsonNode.createObjectNode(new HashMap<String, JsonNode>());
 	
 	private final BibRecordService bibRecordService;
@@ -237,98 +243,119 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	/**
-	 * Retrieves useful details about the host lms in relation to ingest and import 
-	 * @param id the identifier for the host lms you want the information about
-	 * @return A map containing the relevant information
+	 * Ingest and import details for one Host LMS. Counts only that Host LMS's rows, so the cost is
+	 * bounded by its own catalogue rather than the consortium's.
+	 *
+	 * @return empty when there is no Host LMS with that id
 	 */
-	@Transactional
 	public Mono<Map<String, Object>> getImportIngestDetails(UUID id) {
-		return(Mono.from(hostLmsRepository.findById(id))
-			.defaultIfEmpty(NULL_DATA_HOST_LMS)
-			.flatMap(hostLms -> getImportIngestDetailsForDataHost(hostLms))
-		);
-	}
-	
-	/**
-	 * Retrieves useful details about the all the host lms in relation to ingest and import 
-	 * @return A list containing the relevant information
-	 */
-	@Transactional
-	public Mono<List<Map<String, Object>>> getAllImportIngestDetails() {
-		return(getAllHostLms()
-			.map(hostLms -> getImportIngestDetailsForDataHost(hostLms))
-			// This next flatMap seems a bit odd, but it gives up the raw Map which we want and not a Mono<Map>
-			// Be wary about changing this as it took me a while to get here
-			.flatMap(hostImportIngestDetails -> hostImportIngestDetails)
-			.collectList()
-		);
+		final Instant countedAt = Instant.now();
+
+		return Mono.from(hostLmsRepository.findById(id))
+			.flatMap(hostLms -> Mono.zip(
+					Flux.from(sourceRecordRepository.getProcessingStateCountsForHostLms(id)).collectList(),
+					Mono.from(bibRepository.getCountForHostLms(id)).defaultIfEmpty(0L))
+				.flatMap(TupleUtils.function((stateCounts, bibRecordCount) ->
+					importIngestDetailsFor(hostLms, stateCounts, bibRecordCount, countedAt))));
 	}
 
 	/**
-	 * Obtains details about the ingest / import process for a host
-	 * @param hostLms The host
-	 * @return The import / ingest details for a host
+	 * Ingest and import details for every Host LMS, served for up to
+	 * {@link #ALL_IMPORT_INGEST_DETAILS_TTL} from one shared count.
 	 */
-	protected Mono<Map<String, Object>> getImportIngestDetailsForDataHost(DataHostLms hostLms) {
-		Map<String, Object> result = new HashMap<String, Object>();
-		List<String> errors = new ArrayList<String>();
-		result.put("errors", errors);
-		result.put("id", hostLms.id);
-		result.put("name", hostLms.name);
-		return (getIngestSourceFor(hostLms)
-			.doOnError((Throwable t) -> {
-				errors.add("Unable to obtain ingest source for id " + hostLms.id + ", error: " + t.getMessage());
-			})
-			.flatMap((IngestSource ingestSource) -> {
-				Boolean enabled = sourceRecordServiceProvider.get().isIngestEnabled((SourceRecordDataSource)ingestSource);
-				result.put("ingestEnabled", enabled);
-				return (sourceRecordServiceProvider.get().createJobInstanceForSource(ingestSource, true)
-					.doOnError((Throwable t) -> {
-						errors.add("Unable to obtain job instance for id " + hostLms.id + ", error: " + t.getMessage());
-					})
-					.flatMap((SourceRecordImportJob sourceRecordImportJob) -> {
-						UUID checkPointId = sourceRecordImportJob.getId();
-						return(Mono.from(jobCheckpointRepository.findCheckpointByJobId(checkPointId))
-							.doOnError((Throwable t) -> {
-								errors.add("Unable to obtain check point instance for id " + hostLms.id + ", error: " + t.getMessage());
-							})
-							.defaultIfEmpty(EMPTY_JSON_NODE)
-							.flatMap((JsonNode jsonNode) -> {
-								result.put("checkPointId", checkPointId);
-								result.put("checkPoint", jsonNode);
-								return(NULL_MONO_DATA_HOST_LMS);
-							})
-						);
-					})
-				);
-			})
-			.onErrorResume(t -> NULL_MONO_DATA_HOST_LMS)
-			.flatMap((a) -> {
-				return(Mono.from(sourceRecordRepository.getCountForHostLms(hostLms.id))
-					.flatMap((Long recordCount) -> {
-						result.put("sourceRecordCount", recordCount);
-						return(NULL_MONO_DATA_HOST_LMS);
-					})
-				);
-			})
-			.flatMap((a) -> {
-				return(Mono.from(bibRepository.getCountForHostLms(hostLms.id))
-					.flatMap((Long recordCount) -> {
-						result.put("bibRecordCount", recordCount);
-						return(NULL_MONO_DATA_HOST_LMS);
-					})
-				);
-			})
-			.flatMap((a) -> {
-				return(Flux.from(sourceRecordRepository.getProcessStatusForHostLms(hostLms.id))
-					.collectList()
-					.flatMap((List<RecordCount> processStateCounts) -> {
-						result.put("processStates", processStateCounts);
-						return(NULL_MONO_DATA_HOST_LMS);
-					})
-				);
-			})
-			.flatMap(a -> Mono.just(result))
-		);
+	public Mono<List<Map<String, Object>>> getAllImportIngestDetails() {
+		return allImportIngestDetails;
+	}
+
+	// Mono.cache does not cancel its source when a subscriber cancels (checked on reactor-core 3.8.5),
+	// so a count that outlives a request timeout still completes and the retry is served from it
+	// instead of starting a second scan of source_record and bib_record.
+	private final Mono<List<Map<String, Object>>> allImportIngestDetails =
+		Mono.defer(this::countAllImportIngestDetails)
+			.cache(details -> ALL_IMPORT_INGEST_DETAILS_TTL, error -> Duration.ZERO, () -> Duration.ZERO);
+
+	/**
+	 * One grouped scan of each table, rather than three counts per Host LMS.
+	 * Every map below is keyed by Host LMS, so it holds at most one entry per Host LMS
+	 * (four per Host LMS for the processing states).
+	 */
+	protected Mono<List<Map<String, Object>>> countAllImportIngestDetails() {
+		final Instant countedAt = Instant.now();
+
+		return Mono.zip(
+				Flux.from(sourceRecordRepository.getProcessingStateCountsByHostLms())
+					.collect(groupingBy(HostLmsProcessingStateCount::getHostLmsId)),
+				Flux.from(bibRepository.getIngestReport())
+					.collectMap(RecordCountSummary::getSourceSystemId, RecordCountSummary::getRecordCount))
+			.flatMap(TupleUtils.function((stateCountsByHostLms, bibCountsByHostLms) -> getAllHostLms()
+				.flatMap(hostLms -> importIngestDetailsFor(hostLms,
+						stateCountsByHostLms.getOrDefault(hostLms.getId(), List.of()),
+						bibCountsByHostLms.getOrDefault(hostLms.getId(), 0L),
+						countedAt),
+					IMPORT_CHECKPOINT_LOOKUP_CONCURRENCY)
+				.collectList()));
+	}
+
+	private Mono<Map<String, Object>> importIngestDetailsFor(DataHostLms hostLms,
+		List<HostLmsProcessingStateCount> stateCounts, long bibRecordCount, Instant countedAt) {
+
+		return importCheckpointFor(hostLms)
+			.map(checkpoint -> {
+				final Map<String, Object> details = new HashMap<>();
+				details.put("id", hostLms.getId());
+				details.put("name", hostLms.getName());
+				details.put("errors", checkpoint.errors());
+				if (checkpoint.ingestEnabled() != null) {
+					details.put("ingestEnabled", checkpoint.ingestEnabled());
+				}
+				if (checkpoint.checkPointId() != null) {
+					details.put("checkPointId", checkpoint.checkPointId());
+					details.put("checkPoint", checkpoint.checkPoint());
+				}
+				details.put("processStates", stateCounts.stream()
+					.map(stateCount -> new RecordCount(stateCount.getValue(), stateCount.getCount()))
+					.toList());
+				details.put("sourceRecordCount", stateCounts.stream()
+					.mapToLong(HostLmsProcessingStateCount::getCount)
+					.sum());
+				details.put("bibRecordCount", bibRecordCount);
+				details.put("countedAt", countedAt);
+				return details;
+			});
+	}
+
+	private Mono<ImportCheckpoint> importCheckpointFor(DataHostLms hostLms) {
+		return getIngestSourceFor(hostLms)
+			.flatMap(ingestSource -> ingestSource instanceof SourceRecordDataSource source
+				? sourceRecordServiceProvider.get().createJobInstanceForSource(ingestSource, true)
+					.flatMap(job -> findImportCheckpoint(job.getId())
+						.map(checkPoint -> new ImportCheckpoint(
+							sourceRecordServiceProvider.get().isIngestEnabled(source), job.getId(), checkPoint, List.of())))
+				: Mono.<ImportCheckpoint>empty())
+			.defaultIfEmpty(ImportCheckpoint.NONE)
+			.onErrorResume(error -> {
+				log.warn("Unable to read the import checkpoint for Host LMS [{}]", hostLms.getCode(), error);
+
+				return Mono.just(ImportCheckpoint.failed("Unable to read the import checkpoint for id "
+					+ hostLms.getId() + ", error: " + error.getMessage()));
+			});
+	}
+
+	// The checkpoint repository requires a transaction; this one is scoped to a single-row read
+	// so that the counts never share, and serialise on, its connection.
+	@Transactional(readOnly = true)
+	protected Mono<JsonNode> findImportCheckpoint(UUID jobId) {
+		return Mono.from(jobCheckpointRepository.findCheckpointByJobId(jobId))
+			.defaultIfEmpty(EMPTY_JSON_NODE);
+	}
+
+	private record ImportCheckpoint(Boolean ingestEnabled, UUID checkPointId, JsonNode checkPoint,
+		List<String> errors) {
+
+		static final ImportCheckpoint NONE = new ImportCheckpoint(null, null, null, List.of());
+
+		static ImportCheckpoint failed(String error) {
+			return new ImportCheckpoint(null, null, null, List.of(error));
+		}
 	}
 }

@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.core.model.RecordCount;
+import org.olf.dcb.core.model.HostLmsProcessingStateCount;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;
 import org.reactivestreams.Publisher;
@@ -65,11 +65,10 @@ public interface SourceRecordRepository {
 	Publisher<Integer> updateProcessingStateById (@NonNull UUID id, @NonNull ProcessingStatus processingState);
 	
 	@Vetoed
-	public Publisher<RecordCount> getProcessStatusForHostLms(UUID hostLmsId);
-	
+	public Publisher<HostLmsProcessingStateCount> getProcessingStateCountsByHostLms();
+
 	@Vetoed
-	@SingleResult
-	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
+	public Publisher<HostLmsProcessingStateCount> getProcessingStateCountsForHostLms(UUID hostLmsId);
 
 	@NonNull
 	Publisher<SourceRecord> findByHostLmsIdAndRemoteIdLike(@NonNull UUID hostLmsId, @NonNull String remoteId);
