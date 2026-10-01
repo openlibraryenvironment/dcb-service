@@ -9,6 +9,20 @@ for a Host LMS that has been explicitly switched to it.
 
 Circulation is unaffected either way: it always goes through `PolarisLmsClient`.
 
+The choice is per Host LMS, so each Polaris server is harvested one way or the
+other and both kinds run side by side. Libraries that share one Polaris server
+share its Host LMS, its catalogue and therefore its harvest.
+
+What differs for a Host LMS on OAI:
+
+| | PAPI | OAI |
+|---|---|---|
+| Bib removed when deleted in Polaris | No | Yes, if the provider reports deletions |
+| Bib removed when Display in PAC is unchecked | Yes | Only if the provider reports it as deleted (see below) |
+| Item suppression ruleset | Applies | Applies, unchanged: items always come from PAPI |
+| Reconciliation sweep (`/admin/sourceImport/<code>/reconcile`) | Recovers missing bibs | Does nothing |
+| Stalled-checkpoint repair | Automatic | None |
+
 ### 1. Confirm the provider before switching
 
 Run these against the library's server and keep the responses:
@@ -19,14 +33,17 @@ Run these against the library's server and keep the responses:
 <base-url><oai-path>?verb=ListRecords&metadataPrefix=<prefix>
 ```
 
-Check four things:
+Check these:
 
 | Check | Why |
 |---|---|
 | `Identify` answers at all | The provider is optional. A Polaris without it fails every harvest. |
 | `ListMetadataFormats` lists a MARCXML format | Use that prefix exactly. `oai_dc` carries no MARC and is useless to DCB. |
 | Each record identifier **ends in the Polaris `BibliographicRecordID`** after the last `:` | That segment becomes the bib's source record id, which is the id DCB passes to PAPI to fetch items. Any other identifier scheme ingests bibs whose items can never be found. |
-| Whether a bib with **Display in PAC** unchecked appears in `ListRecords` | The PAPI harvest suppresses those bibs from discovery. OAI carries no such flag, so if the provider lists them, DCB shows them unless a suppression ruleset hides them. |
+| A bib with **Display in PAC** unchecked does **not** appear in `ListRecords` | The PAPI harvest reads that flag and removes the bib from DCB. The OAI harvest has no equivalent: a bib the provider lists is shown. |
+| Unchecking **Display in PAC** on a test bib makes the next `ListRecords&from=<before the change>` return its identifier with `status="deleted"` | That is how a bib leaves DCB when it is hidden later. If the provider simply stops listing it, the bib stays in DCB indefinitely. |
+
+If either of the last two fails, keep that Host LMS on PAPI.
 
 ### 2. Client config
 
