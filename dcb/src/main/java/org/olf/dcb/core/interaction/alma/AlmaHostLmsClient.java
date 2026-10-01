@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.alma;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
@@ -7,13 +8,13 @@ import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
+import java.security.MessageDigest;
 import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,6 +43,7 @@ import org.zalando.problem.Problem;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -1082,16 +1084,16 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(this::almaUserToPatron);
 	}
 
-	// Alma holds one patron secret, the internal password in the Ex Libris Identity Service, and a
-	// consortium may call it a PIN. Any other profile would be a check Alma cannot make
-	private static final Set<String> PASSWORD_AUTH_PROFILES
-		= Set.of("BASIC/BARCODE+PASSWORD", "BASIC/BARCODE+PIN");
+	// Alma holds two patron secrets: the internal password, which it verifies, and the PIN number,
+	// which it does not and returns on a read. An internal user can have either without the other
+	private static final String PASSWORD_AUTH_PROFILE = "BASIC/BARCODE+PASSWORD";
+	private static final String PIN_AUTH_PROFILE = "BASIC/BARCODE+PIN";
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
-		if (authProfile == null || !PASSWORD_AUTH_PROFILES.contains(authProfile)) {
+		if (!PASSWORD_AUTH_PROFILE.equals(authProfile) && !PIN_AUTH_PROFILE.equals(authProfile)) {
 			return Mono.error(new IllegalStateException("Alma supports auth profiles "
-				+ String.join(" and ", new TreeSet<>(PASSWORD_AUTH_PROFILES)) + ", not \"" + authProfile
+				+ PASSWORD_AUTH_PROFILE + " and " + PIN_AUTH_PROFILE + ", not \"" + authProfile
 				+ "\", on " + getHostLmsCode()));
 		}
 
@@ -1099,16 +1101,28 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			return Mono.empty();
 		}
 
-		return client.authenticateUser(barcode, secret)
-			.then(Mono.defer(() -> client.getUserDetails(barcode)))
+		final Mono<Boolean> verified = PIN_AUTH_PROFILE.equals(authProfile)
+			? client.getUserPin(barcode).map(stored -> isSamePin(stored.pin_number(), secret))
+			: client.authenticateUser(barcode, secret).thenReturn(true);
+
+		return verified
+			.filter(Boolean::booleanValue)
+			.flatMap(accepted -> client.getUserDetails(barcode))
 			.map(this::almaUserToPatron)
-			.onErrorResume(HttpClientResponseException.class, error -> isCredentialRejection(error)
-				? Mono.empty()
-				: Mono.error(error));
+			.onErrorResume(AlmaHostLmsClient::isCredentialRejection, error -> Mono.empty());
 	}
 
-	private static boolean isCredentialRejection(HttpClientResponseException error) {
-		final int code = error.getStatus().getCode();
+	// A patron with no PIN cannot sign in with one
+	private static boolean isSamePin(@Nullable String stored, String supplied) {
+		return !isBlank(stored)
+			&& MessageDigest.isEqual(stored.getBytes(UTF_8), supplied.getBytes(UTF_8));
+	}
+
+	private static boolean isCredentialRejection(Throwable error) {
+		final int code = error instanceof HttpClientResponseException response ? response.getStatus().getCode()
+			: error instanceof AlmaApiException alma ? alma.getStatusCode()
+			: 0;
+
 		return code >= 400 && code < 500 && code != 429;
 	}
 

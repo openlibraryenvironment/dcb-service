@@ -7,6 +7,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.types.AlmaBib;
 import services.k_int.interaction.alma.types.AlmaUser;
+import services.k_int.interaction.alma.types.AlmaUserPin;
 import services.k_int.interaction.alma.types.AlmaUserList;
 import services.k_int.interaction.alma.types.holdings.AlmaHolding;
 import services.k_int.interaction.alma.types.holdings.AlmaHoldings;
@@ -97,6 +98,15 @@ public interface AlmaApiClient {
 	 */
 	default Mono<AlmaUser> getUserDetails(String user_id) {
 		return get("/almaws/v1/users/" + pathSegment(user_id), AlmaUser.class);
+	}
+
+	/**
+	 * The user's PIN. Alma has no operation that verifies one, and returns it on a read.
+	 * <p>
+	 * API: GET /almaws/v1/users/{user_id}
+	 */
+	default Mono<AlmaUserPin> getUserPin(String user_id) {
+		return get("/almaws/v1/users/" + pathSegment(user_id), AlmaUserPin.class);
 	}
 
 	/**

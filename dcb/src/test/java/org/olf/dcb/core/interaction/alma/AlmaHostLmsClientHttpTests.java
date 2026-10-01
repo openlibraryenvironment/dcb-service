@@ -86,6 +86,36 @@ class AlmaHostLmsClientHttpTests {
 	}
 
 	@Test
+	void shouldSignInWithThePinNumberAlmaReturnsForTheUser() {
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/BAR4"))
+			.respond(okJson(Map.of("primary_id", "BAR4", "first_name", "Test", "last_name", "Patron",
+				"pin_number", "2468", "user_group", Map.of("value", "UNDRGRD"))));
+
+		final var patron = singleValueFrom(client.patronAuth("BASIC/BARCODE+PIN", "BAR4", "2468"));
+
+		assertThat(patron.getLocalId(), contains("BAR4"));
+
+		mockServerClient.verify(request()
+			.withMethod("POST")
+			.withPath("/almaws/v1/users/BAR4"), VerificationTimes.never());
+	}
+
+	@Test
+	void shouldTreatAPinForAnUnknownUserAsAnInvalidLogin() {
+		mockServerClient.when(request()
+				.withMethod("GET")
+				.withPath("/almaws/v1/users/UNKNOWN2"))
+			.respond(response().withStatusCode(400)
+				.withBody(json(almaError("401861", "User with identifier UNKNOWN2 was not found"))));
+
+		final var patron = singleValueFrom(client.patronAuth("BASIC/BARCODE+PIN", "UNKNOWN2", "2468"));
+
+		assertThat(patron, is(nullValue()));
+	}
+
+	@Test
 	void shouldTreatARejectedPasswordAsAnInvalidLogin() {
 		mockServerClient.when(request()
 				.withMethod("POST")

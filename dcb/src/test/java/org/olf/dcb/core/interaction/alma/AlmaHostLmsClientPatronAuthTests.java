@@ -29,6 +29,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.AlmaUser;
+import services.k_int.interaction.alma.types.AlmaUserPin;
 import services.k_int.interaction.alma.types.CodeValuePair;
 
 @TestInstance(PER_CLASS)
@@ -100,14 +101,44 @@ class AlmaHostLmsClientPatronAuthTests {
 	}
 
 	@Test
-	void shouldVerifyAPinAgainstTheSameInternalPassword() {
-		when(almaApi.authenticateUser("BAR1", "1234")).thenReturn(Mono.empty());
+	void shouldVerifyAPinAgainstThePinNumberRatherThanThePassword() {
+		when(almaApi.getUserPin("BAR1")).thenReturn(Mono.just(new AlmaUserPin("1234")));
 		when(almaApi.getUserDetails("BAR1")).thenReturn(Mono.just(almaUser("BAR1")));
 
 		final var patron = PublisherUtils.singleValueFrom(sut.patronAuth("BASIC/BARCODE+PIN", "BAR1", "1234"));
 
 		assertThat(patron.getLocalId(), contains("BAR1"));
-		verify(almaApi).authenticateUser("BAR1", "1234");
+		verify(almaApi, never()).authenticateUser(any(), any());
+	}
+
+	@Test
+	void shouldRejectAPinThatIsNotThePatronsPinNumber() {
+		when(almaApi.getUserPin("BAR1")).thenReturn(Mono.just(new AlmaUserPin("1234")));
+
+		final var patron = PublisherUtils.singleValueFrom(sut.patronAuth("BASIC/BARCODE+PIN", "BAR1", "4321"));
+
+		assertThat(patron, is(nullValue()));
+		verify(almaApi, never()).getUserDetails(any());
+	}
+
+	@Test
+	void shouldRejectAnyPinForAPatronWithoutOne() {
+		when(almaApi.getUserPin("BAR1")).thenReturn(Mono.just(new AlmaUserPin("")));
+
+		final var patron = PublisherUtils.singleValueFrom(sut.patronAuth("BASIC/BARCODE+PIN", "BAR1", "1234"));
+
+		assertThat(patron, is(nullValue()));
+		verify(almaApi, never()).getUserDetails(any());
+	}
+
+	@Test
+	void shouldNotCheckThePinNumberForAPasswordProfile() {
+		when(almaApi.authenticateUser("BAR1", "correct")).thenReturn(Mono.empty());
+		when(almaApi.getUserDetails("BAR1")).thenReturn(Mono.just(almaUser("BAR1")));
+
+		PublisherUtils.singleValueFrom(sut.patronAuth(AUTH_PROFILE, "BAR1", "correct"));
+
+		verify(almaApi, never()).getUserPin(any());
 	}
 
 	@Test
