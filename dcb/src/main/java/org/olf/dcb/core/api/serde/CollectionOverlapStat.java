@@ -5,8 +5,8 @@ import java.util.UUID;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.serde.annotation.Serdeable;
 
-// One unordered pair of source systems and the number of works both hold. Emitted once per
-// pair (left < right), so the consumer mirrors it to draw a full matrix.
+// A selected library (left) and one other holder of its works (right), with the number of works
+// both hold. One row per selected library and peer; never the full matrix.
 //
 // Identified by host LMS code, not name. Code is the stable identifier a consortium uses for a
 // library; name is display text that is free to change, may be duplicated between libraries,

@@ -5,13 +5,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import org.olf.dcb.core.api.serde.ClusterSizeStat;
 import org.olf.dcb.core.api.serde.CollectionOverlapStat;
-import org.olf.dcb.core.api.serde.CollectionProfileStat;
-import org.olf.dcb.core.api.serde.CollectionTotalsStat;
-import org.olf.dcb.core.api.serde.SourceFormatStat;
 import org.olf.dcb.core.clustering.RecordClusteringService.MissingAvailabilityInfo;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.CollectionSnapshotRow;
 import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.reactivestreams.Publisher;
@@ -197,145 +194,94 @@ where bi.owner_id = br.id and
 	// --- Collection analysis -------------------------------------------------------------
 	// These describe the catalogued collection and touch neither patron_request nor live
 	// availability, so they report before any request is placed. Semantics, bounds and access
-	// controls: docs/insights.md part 5.
-	//
-	// ALL of them share one intermediate - the DISTINCT (cluster, source system) pairs - so the
-	// figures reconcile against each other on one screen. DISTINCT is load-bearing: one source
-	// can contribute several bibs to a cluster, and without it every count here is inflated.
-	//
-	// Each is a full aggregate over bib_record (20M rows), served through
-	// CollectionAnalysisService, which limits concurrency and caches. Do not call them directly.
+	// controls: docs/insights.md part 5. Served only through CollectionAnalysisService, which
+	// shares one in-flight computation and caches it; do not call them directly.
 
-	// Per-source collection shape. A LEFT JOIN would be wrong: a bib with no cluster has no
-	// comparable work identity, so unclustered bibs are excluded rather than counted as unique.
+	// Every consortium-wide figure in ONE pass, as rows tagged by kind, so the DISTINCT
+	// (cluster, source, format) intermediate over bib_record is built once rather than once per
+	// figure. DISTINCT is load-bearing: one source can contribute several bibs to a cluster, and
+	// without it every count is inflated. Assembled by CollectionSnapshot.from.
 	@Query(value = """
-WITH cluster_source AS (
-    SELECT DISTINCT b.contributes_to AS cluster_id, b.source_system_id
+WITH cluster_source_format AS MATERIALIZED (
+    SELECT DISTINCT b.contributes_to AS cluster_id, b.source_system_id, b.derived_type
     FROM bib_record b
     JOIN cluster_record cr ON cr.id = b.contributes_to
     WHERE cr.is_deleted = false
 ),
-cluster_holders AS (
+cluster_source AS MATERIALIZED (
+    SELECT DISTINCT cluster_id, source_system_id
+    FROM cluster_source_format
+),
+cluster_holders AS MATERIALIZED (
     SELECT cluster_id, COUNT(*) AS holder_count
     FROM cluster_source
     GROUP BY cluster_id
 )
-SELECT h.id AS source_system_id,
-       h.code AS source_system_code,
-       COUNT(*) AS cluster_count,
-       COUNT(*) FILTER (WHERE ch.holder_count = 1) AS unique_title_count
+SELECT 'PROFILE'::text AS kind,
+       h.id AS source_system_id,
+       h.code::text AS source_system_code,
+       NULL::text AS derived_type,
+       NULL::bigint AS holder_count,
+       COUNT(*) AS item_count,
+       COUNT(*) FILTER (WHERE ch.holder_count = 1) AS unique_count
 FROM cluster_source cs
 JOIN cluster_holders ch ON ch.cluster_id = cs.cluster_id
 JOIN host_lms h ON h.id = cs.source_system_id
-GROUP BY 1, 2
-ORDER BY 3 DESC
+GROUP BY h.id, h.code
+UNION ALL
+SELECT 'FORMAT', h.id, h.code, csf.derived_type, NULL, COUNT(*), NULL
+FROM cluster_source_format csf
+JOIN host_lms h ON h.id = csf.source_system_id
+GROUP BY h.id, h.code, csf.derived_type
+UNION ALL
+SELECT 'HOLDERS', NULL, NULL, NULL, holder_count, COUNT(*), NULL
+FROM cluster_holders
+GROUP BY holder_count
+UNION ALL
+SELECT 'HOLDINGS', NULL, NULL, NULL, NULL,
+       (SELECT COUNT(*) FROM cluster_source),
+       (SELECT COUNT(DISTINCT source_system_id) FROM cluster_source)
 """, nativeQuery = true)
-	Publisher<CollectionProfileStat> getCollectionProfile();
+	Publisher<CollectionSnapshotRow> getCollectionSnapshot();
 
-	// Pairwise duplication, for ONE library against all others. Never restore the full matrix:
-	// it self-joins the intermediate unrestricted, so a work held by k sources emits k(k-1)/2
-	// pairs, summed over every work in the consortium. At 500 members one widely-held title
-	// alone produces over 100,000 rows, and popular titles are precisely the widely-held ones.
-	// An outer LIMIT cannot save it - the pairs are built before they are ordered.
-	//
-	// libraryCode is comma separated like every other scoped query, so a caller administering
-	// several libraries gets each of them paired against everyone else.
+	// Who duplicates these libraries: each against every other holder of its own works. Starts
+	// from the libraries' bibs (idx_bib_source_system) and reaches the other holders through
+	// contributes_to (idx_bib_contributes_to), so the cost follows the selected libraries'
+	// works, not the catalogue. Never restore the full matrix: a work held by k sources emits
+	// k(k-1)/2 pairs, and an outer LIMIT cannot help because the pairs exist before ordering.
 	@Query(value = """
-WITH cluster_source AS (
+WITH mine AS (
     SELECT DISTINCT b.contributes_to AS cluster_id, b.source_system_id
-    FROM bib_record b
+    FROM host_lms h
+    JOIN bib_record b ON b.source_system_id = h.id
     JOIN cluster_record cr ON cr.id = b.contributes_to
-    WHERE cr.is_deleted = false
-),
-mine AS (
-    SELECT cs.cluster_id, cs.source_system_id
-    FROM cluster_source cs
-    JOIN host_lms h ON h.id = cs.source_system_id
     WHERE h.code = ANY(string_to_array(:libraryCode, ','))
+      AND cr.is_deleted = false
+),
+holders AS (
+    SELECT DISTINCT o.contributes_to AS cluster_id, o.source_system_id
+    FROM bib_record o
+    WHERE o.contributes_to IN (SELECT cluster_id FROM mine)
 )
 SELECT m.source_system_id AS left_system_id,
        lh.code AS left_system_code,
-       cs.source_system_id AS right_system_id,
+       ho.source_system_id AS right_system_id,
        rh.code AS right_system_code,
        COUNT(*) AS shared_title_count
 FROM mine m
-JOIN cluster_source cs ON cs.cluster_id = m.cluster_id
-    AND cs.source_system_id <> m.source_system_id
+JOIN holders ho ON ho.cluster_id = m.cluster_id
+    AND ho.source_system_id <> m.source_system_id
 JOIN host_lms lh ON lh.id = m.source_system_id
-JOIN host_lms rh ON rh.id = cs.source_system_id
+JOIN host_lms rh ON rh.id = ho.source_system_id
 GROUP BY 1, 2, 3, 4
 ORDER BY 5 DESC
 """, nativeQuery = true)
 	Publisher<CollectionOverlapStat> getCollectionOverlapForLibrary(String libraryCode);
 
-	// How many source systems hold each work - and the honesty check on the counts above: if
-	// this is overwhelmingly holder_count = 1, the matching is under-clustering and every
-	// unique-title figure is fiction. Ship it beside them, never after.
-	@Query(value = """
-WITH cluster_source AS (
-    SELECT DISTINCT b.contributes_to AS cluster_id, b.source_system_id
-    FROM bib_record b
-    JOIN cluster_record cr ON cr.id = b.contributes_to
-    WHERE cr.is_deleted = false
-),
-cluster_holders AS (
-    SELECT cluster_id, COUNT(*) AS holder_count
-    FROM cluster_source
-    GROUP BY cluster_id
-)
-SELECT holder_count, COUNT(*) AS cluster_count
-FROM cluster_holders
-GROUP BY 1
-ORDER BY 1
-""", nativeQuery = true)
-	Publisher<ClusterSizeStat> getClusterSizeDistribution();
-
-	// Format mix per source, counted per WORK on the same intermediate as everything above.
-	// Counting bib_record rows would put a per-record number beside per-work numbers on one
-	// panel: a source cataloguing one work four times would report four times the format.
-	//
-	// derived_type joins the DISTINCT key rather than being aggregated, because one source can
-	// legitimately contribute a print and a large-print edition to the same work.
-	@Query(value = """
-WITH cluster_source_format AS (
-    SELECT DISTINCT b.contributes_to AS cluster_id, b.source_system_id, b.derived_type
-    FROM bib_record b
-    JOIN cluster_record cr ON cr.id = b.contributes_to
-    WHERE cr.is_deleted = false
-)
-SELECT h.id AS source_system_id,
-       h.code AS source_system_code,
-       csf.derived_type,
-       COUNT(*) AS title_count
-FROM cluster_source_format csf
-JOIN host_lms h ON h.id = csf.source_system_id
-GROUP BY 1, 2, 3
-ORDER BY 4 DESC
-""", nativeQuery = true)
-	Publisher<SourceFormatStat> getFormatProfile();
-
-	// The consortium headline, as a query rather than something the caller derives: distinct
-	// titles is NOT the sum of getCollectionProfile's cluster_count. A title held by three
-	// libraries appears in three of those rows, so that sum is holdings - a plausible number
-	// that is simply too big, with nothing on the page to say so.
+	// Bounds the next statement in the caller's transaction. set_config rather than SET LOCAL,
+	// which cannot take a bound parameter.
 	@SingleResult
-	@Query(value = """
-WITH cluster_source AS (
-    SELECT DISTINCT b.contributes_to AS cluster_id, b.source_system_id
-    FROM bib_record b
-    JOIN cluster_record cr ON cr.id = b.contributes_to
-    WHERE cr.is_deleted = false
-),
-cluster_holders AS (
-    SELECT cluster_id, COUNT(*) AS holder_count
-    FROM cluster_source
-    GROUP BY cluster_id
-)
-SELECT (SELECT COUNT(*) FROM cluster_holders)                        AS distinct_titles,
-       (SELECT COUNT(*) FROM cluster_holders WHERE holder_count = 1) AS singly_held_titles,
-       (SELECT COUNT(*) FROM cluster_source)                         AS holdings,
-       (SELECT COUNT(DISTINCT source_system_id) FROM cluster_source) AS contributing_sources
-""", nativeQuery = true)
-	Publisher<CollectionTotalsStat> getCollectionTotals();
+	@Query(value = "SELECT set_config('statement_timeout', :milliseconds, true)", nativeQuery = true)
+	Publisher<String> setLocalStatementTimeout(String milliseconds);
 
 }
