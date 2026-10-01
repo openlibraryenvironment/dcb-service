@@ -40,6 +40,27 @@ it is saved with whatever settings it was given, and a missing one surfaces only
 needs it, as "Missing required configuration property". Create Alma Host LMSs through DCB Admin,
 or check one made over REST with the configuration report in [Checking a configuration](#checking-a-configuration).
 
+<a id="upgrading"></a>
+### Upgrading an existing Alma Host LMS
+
+Earlier releases required `alma-url`, `apikey`, `base-url`, `institution-code` and, unless the
+system is shared, `default-agency-code`. This release requires four more, and refuses an
+`alternative-sharing-library-code` that is the same as `sharing-library-code`:
+
+| Setting | Before this release |
+|---|---|
+| `sharing-library-code` | Not checked when saved, but lending failed without it |
+| `virtual-item-library-code` | Not checked when saved, but borrowing failed without it |
+| `virtual-item-location-code` | Not checked when saved, but borrowing failed without it |
+| `request-cancellation-reason` | Did not exist |
+
+A Host LMS that lacks them keeps working after the upgrade: one without
+`request-cancellation-reason` cancels requests without a reason, as it did before. But the next
+change to its settings in DCB Admin, including rotating its key, is refused until all four are
+present. Add them as part of the upgrade, not when a key next needs changing.
+
+`shelf-location` is no longer read. A Host LMS that still has it is unaffected.
+
 ### Connection and harvesting
 
 | Setting | Required | Default | What it is |
@@ -104,7 +125,7 @@ stable: a change of egress address stops every institution that restricts by IP 
   report show which institution answered.
 - **Rotation.** Change `apikey` on the Host LMS in DCB Admin; the change takes effect on the next
   call. Because that is a settings change, it is validated, so every required setting must
-  already be present.
+  already be present: see [Upgrading an existing Alma Host LMS](#upgrading).
 - **Logging.** DCB never logs the key. Alma errors recorded in a request's audit trail carry the
   method, the path and Alma's error, not the request headers.
 
