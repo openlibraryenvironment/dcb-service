@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
+import org.olf.dcb.core.interaction.polaris.PolarisOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.InvalidHostLmsConfigurationException;
@@ -29,6 +30,7 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
+import services.k_int.interaction.oaipmh.OaiRecord;
 
 @DcbTest
 class HostLmsTests {
@@ -182,6 +184,54 @@ class HostLmsTests {
 
 			// Assert
 			assertThat(client, is(instanceOf(PolarisLmsClient.class)));
+		}
+	}
+
+	@Nested
+	class PolarisOaiDatabaseHostLmsTests {
+		@BeforeEach
+		void beforeEach() {
+			hostLmsFixture.createHarvestingPolarisHostLms("polaris-oai-host-lms",
+				"https://some-polaris-system");
+		}
+
+		@Test
+		void shouldHarvestOverOaiWhenIngestSourceClassNamesIt() {
+			// Act
+			final var ingestSource = hostLmsFixture.getIngestSource("polaris-oai-host-lms");
+
+			// Assert
+			assertThat(ingestSource, is(instanceOf(PolarisOaiPmhIngestSource.class)));
+		}
+
+		@Test
+		void shouldStillCirculateThroughPolarisClient() {
+			// Act
+			final var client = hostLmsFixture.createClient("polaris-oai-host-lms");
+
+			// Assert
+			assertThat(client, is(instanceOf(PolarisLmsClient.class)));
+		}
+
+		@Test
+		void shouldKeyAnOaiBibExactlyAsThePapiHarvestKeysTheSameBib() {
+			// Arrange
+			final var papi = (PolarisLmsClient) hostLmsFixture.createClient("polaris-oai-host-lms");
+			final var oai = (PolarisOaiPmhIngestSource) hostLmsFixture
+				.getIngestSource("polaris-oai-host-lms");
+
+			// Act
+			final var papiRecord = papi.initIngestRecordBuilder(PolarisLmsClient.BibsPagedRow.builder()
+				.BibliographicRecordID(12345)
+				.IsDisplayInPAC(true)
+				.build()).build();
+
+			final var oaiRecord = oai.initIngestRecordBuilder(new OaiRecord(
+				new OaiRecord.Header("oai:some-polaris-system:12345", null, null, null), null)).build();
+
+			// Assert
+			assertThat(oaiRecord.getUuid(), is(papiRecord.getUuid()));
+			assertThat(oaiRecord.getSourceRecordId(), is(papiRecord.getSourceRecordId()));
 		}
 	}
 
