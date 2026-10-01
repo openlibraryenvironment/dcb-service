@@ -59,6 +59,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -450,7 +451,7 @@ class ApplicationServicesClient {
 			Argument.of(String.class))
 			// remove quotes
 			.map(string -> string.replace("\"", ""))
-			.doOnSuccess(barcode -> log.info("Successfully got patron barcode {} from local id {}", barcode, localId));
+			.doOnSuccess(barcode -> log.info("Got the patron barcode for local id {}", localId));
 	}
 
 	public Mono<String> getPatronIdByIdentifier(String identifier, String identifierType) {
@@ -2399,6 +2400,7 @@ class ApplicationServicesClient {
 		private String phoneVoice3;
 		@JsonProperty("EmailAddress")
 		private String emailAddress;
+		@ToString.Exclude
 		@JsonProperty("Password")
 		private String password;
 		@JsonProperty("EntryDate")

@@ -111,7 +111,7 @@ class PAPIAuthFilter {
 		}
 
 		if (patronCredentials.getBarcode() == null || patronCredentials.getPassword() == null) {
-			log.debug("patronAuthentication with empty credentials: {}", request.getPath());
+			log.debug("patronAuthentication with empty credentials: {}", PolarisLmsClient.redactedPath(request.getPath()));
 
 			return Mono.just(authorization(request));
 		}
@@ -217,7 +217,7 @@ class PAPIAuthFilter {
 		}
 
 		else {
-			log.warn("returning empty string to calculate api sig for request: {}", path);
+			log.warn("returning empty string to calculate api sig for request: {}", PolarisLmsClient.redactedPath(path));
 			return "";
 		}
 	}
@@ -235,7 +235,7 @@ class PAPIAuthFilter {
 
 			// Never the signing string: it ends with the staff password. A signature
 			// mismatch is diagnosed from the three parts that vary per call.
-			log.debug("Signing {} {} at {}", method, path, date);
+			log.debug("Signing {} {} at {}", method, PolarisLmsClient.redactedPath(path), date);
 
 			final var rawHmac = mac.doFinal(data.getBytes());
 			return Base64.getEncoder().encodeToString(rawHmac);
