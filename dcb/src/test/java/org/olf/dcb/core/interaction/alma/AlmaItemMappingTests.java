@@ -2,6 +2,8 @@ package org.olf.dcb.core.interaction.alma;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
@@ -121,13 +123,27 @@ class AlmaItemMappingTests {
 	}
 
 	@Test
-	void shouldReportAnUnknownHoldCountRatherThanZero() {
+	void shouldShowAnUnreadHoldCountAsZeroAndSaySo() {
 		givenItems(almaItem("23789", "MAIN-LIB", "STACKS", "BOOK"));
 
 		when(apiClient.retrieveItemRequests(any(), any(), any()))
 			.thenReturn(Mono.error(new RuntimeException("Alma is unavailable")));
 
-		assertThat(onlyItem().getHoldCount(), is(nullValue()));
+		final var item = onlyItem();
+
+		assertThat(item.getHoldCount(), is(0));
+		assertThat(item.getRawDataValues(), hasEntry("holdCount", "unread"));
+		assertThat(item.getDecisionLogEntries(),
+			hasItem("Alma did not report this item's requests, so its hold count is shown as 0"));
+	}
+
+	@Test
+	void shouldNotMarkAHoldCountThatWasRead() {
+		givenItems(almaItem("23789", "MAIN-LIB", "STACKS", "BOOK"));
+
+		final var item = onlyItem();
+
+		assertThat(item.getRawDataValues().containsKey("holdCount"), is(false));
 	}
 
 	@Test

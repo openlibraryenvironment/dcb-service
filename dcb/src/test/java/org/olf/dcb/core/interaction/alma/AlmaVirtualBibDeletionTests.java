@@ -74,6 +74,21 @@ class AlmaVirtualBibDeletionTests {
 	}
 
 	@Test
+	void shouldDeleteAVirtualBibMadeBeforeTheNoteExisted() {
+		given(bib("true", preNoteVirtualBib()), dcbHolding());
+
+		assertThat(client.deleteBib(BIB).block(), is("OK"));
+	}
+
+	@Test
+	void shouldLeaveABibCarryingOnlyOneOfTheOldPlaceholders() {
+		given(bib("true", "<record><datafield tag=\"260\"><subfield code=\"b\">DCB Publisher</subfield>"
+			+ "</datafield></record>"), dcbHolding());
+
+		assertRefused("does not carry DCB's note");
+	}
+
+	@Test
 	void shouldLeaveABibThatHasBeenPublished() {
 		given(bib("false", marcWithNote()), dcbHolding());
 
@@ -117,6 +132,15 @@ class AlmaVirtualBibDeletionTests {
 
 	private static String marcWithNote() {
 		return AlmaXmlGenerator.createBibXml("A title", "An author");
+	}
+
+	// The MARC that released versions of DCB wrote, before the 500 note
+	private static String preNoteVirtualBib() {
+		return "<record><controlfield tag=\"001\">DCB1758900000000</controlfield>"
+			+ "<datafield tag=\"020\"><subfield code=\"a\">978-0-DCB-1758900000000</subfield></datafield>"
+			+ "<datafield tag=\"245\"><subfield code=\"a\">A title</subfield></datafield>"
+			+ "<datafield tag=\"260\"><subfield code=\"a\">DCB City</subfield>"
+			+ "<subfield code=\"b\">DCB Publisher</subfield></datafield></record>";
 	}
 
 	private static AlmaHolding dcbHolding() {

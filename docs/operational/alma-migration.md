@@ -50,9 +50,10 @@ Otherwise, accept new records and tell the other members they may see a second v
 account for some of your patrons, theirs to remove once no loan is attached.
 
 **Sign-in changes too.** Sierra checks a barcode and PIN. Alma checks a barcode and an internal
-password held by the Ex Libris Identity Service, and DCB supports only that for Alma. A PIN is
-not an Alma password unless your migration loads it as one, so confirm with Ex Libris what your
-patrons will sign in with on day one. Patrons who sign in through your institution's identity
+password held by the Ex Libris Identity Service, and that is the only secret DCB can check for
+Alma. Your agency can keep `BASIC/BARCODE+PIN`, which DCB checks against that password, but a
+PIN is not an Alma password unless your migration loads it as one, so confirm with Ex Libris
+what your patrons will sign in with on day one. Patrons who sign in through your institution's identity
 provider are not affected by the PIN, but the provider must release the value Alma matches
 users on: see the sign-in step in [Before your patrons can
 borrow](alma-setup.md#borrowing).
@@ -103,7 +104,7 @@ Your old system must stay reachable, and its circulation usable, until this is d
 ## The switch
 
 1. **Re-point your agency** to the Alma Host LMS, with the authentication profile
-   `BASIC/BARCODE+PASSWORD`, supplying and borrowing still off. DCB Admin has no screen for this
+   `BASIC/BARCODE+PASSWORD` or `BASIC/BARCODE+PIN`, supplying and borrowing still off. DCB Admin has no screen for this
    today. The OpenRS team does it, then restores your agency's loan and hold limits, which the
    same call clears.
 2. **Re-import your pickup locations** under the Alma Host LMS, with the same location codes and

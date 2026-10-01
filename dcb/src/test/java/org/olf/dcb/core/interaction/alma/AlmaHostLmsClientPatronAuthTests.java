@@ -100,11 +100,22 @@ class AlmaHostLmsClientPatronAuthTests {
 	}
 
 	@Test
+	void shouldVerifyAPinAgainstTheSameInternalPassword() {
+		when(almaApi.authenticateUser("BAR1", "1234")).thenReturn(Mono.empty());
+		when(almaApi.getUserDetails("BAR1")).thenReturn(Mono.just(almaUser("BAR1")));
+
+		final var patron = PublisherUtils.singleValueFrom(sut.patronAuth("BASIC/BARCODE+PIN", "BAR1", "1234"));
+
+		assertThat(patron.getLocalId(), contains("BAR1"));
+		verify(almaApi).authenticateUser("BAR1", "1234");
+	}
+
+	@Test
 	void shouldRefuseAnAuthProfileAlmaCannotVerify() {
 		final var error = assertThrows(IllegalStateException.class,
-			() -> sut.patronAuth("BASIC/BARCODE+PIN", "BAR1", "1234").block());
+			() -> sut.patronAuth("BASIC/BARCODE+NAME", "BAR1", "Jane Doe").block());
 
-		assertThat(error.getMessage().contains("BASIC/BARCODE+PIN"), is(true));
+		assertThat(error.getMessage().contains("BASIC/BARCODE+NAME"), is(true));
 		verifyNoInteractions(almaApi);
 	}
 

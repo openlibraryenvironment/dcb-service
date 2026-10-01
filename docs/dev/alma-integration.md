@@ -125,8 +125,11 @@ Reads every item on the bib through `holdings/ALL`, with `expand=due_date`. For 
    kept separately on the item.
 3. **Agency**, from the Location mapping keyed on that library code.
 4. **Item type**, from the physical material type, through the item-type mapping.
-5. **Hold count**, from the item's requests. A count that could not be read is unknown, not
-   zero.
+5. **Hold count**, from the item's requests. In live availability a count that could not be
+   read is 0, as it was before the adapter read requests at all, with `holdCount: unread` in
+   `rawDataValues` and a decision log entry so it can be told from a real 0. `getItem` and
+   `getItemByBarcode` leave it null, because tracking must not read a failed call as no
+   requests.
 
 An item that cannot be mapped is returned with its reason in the decision log and marked not
 requestable, rather than dropped, so one bad record neither hides its bib's other items nor
@@ -239,8 +242,9 @@ field in `override`.
 
 `POST /users/{user_id}?op=auth` with the password in the `Exl-User-Pw` header: Alma's documented
 authentication operation, which checks a password held by the Ex Libris Identity Service. A 204
-is a match; then the user is read. The only supported profile is `BASIC/BARCODE+PASSWORD`; any
-other is refused, because a verifier that cannot check a credential must fail closed. A 4xx other
+is a match; then the user is read. `BASIC/BARCODE+PASSWORD` and `BASIC/BARCODE+PIN` both check
+that password, since an Alma patron has no separate PIN; any other profile is refused, because a
+verifier that cannot check a credential must fail closed. A 4xx other
 than 429 is a rejected credential (empty); anything else is an error, so an outage is not
 reported as a wrong password.
 
@@ -469,7 +473,7 @@ this page differ, this page describes the current code.
 | `defaultPatronLocationCode`, with a fallback when a location is closed or ambiguous | Removed. Holds go to the pickup location's library, and supplier holds to the sharing library or desk. |
 | Sharing library defaults to `RES_SHARE` | No default, and `RES_SHARE` cannot work: Alma cannot deliver a patron hold to the Resource Sharing Library (`401129`). |
 | Items read holding by holding, unpaged | `holdings/ALL/items`, paged by 100. |
-| Hold counts always 0 | Read from each item's requests; unknown when they cannot be read. |
+| Hold counts always 0 | Read from each item's requests. Still 0 in live availability when they cannot be read, but marked `holdCount: unread`; null in tracking. |
 | Update hold request not implemented | Implemented: rewrites the virtual item's barcode and material type. |
 | Update item status a placeholder returning "OK" | Implemented: scan-ins for `TRANSIT`, `RECEIVED` and `COMPLETED`. |
 | Prevent renewal not implemented | Implemented on the item policy. |

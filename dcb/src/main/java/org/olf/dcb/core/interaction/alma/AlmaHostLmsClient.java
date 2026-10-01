@@ -13,6 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -1081,14 +1082,17 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(this::almaUserToPatron);
 	}
 
-	// Alma can only verify a password held by the Ex Libris Identity Service; any other profile would be a pretence
-	private static final String PASSWORD_AUTH_PROFILE = "BASIC/BARCODE+PASSWORD";
+	// Alma holds one patron secret, the internal password in the Ex Libris Identity Service, and a
+	// consortium may call it a PIN. Any other profile would be a check Alma cannot make
+	private static final Set<String> PASSWORD_AUTH_PROFILES
+		= Set.of("BASIC/BARCODE+PASSWORD", "BASIC/BARCODE+PIN");
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
-		if (!PASSWORD_AUTH_PROFILE.equals(authProfile)) {
-			return Mono.error(new IllegalStateException("Alma supports auth profile "
-				+ PASSWORD_AUTH_PROFILE + ", not \"" + authProfile + "\", on " + getHostLmsCode()));
+		if (authProfile == null || !PASSWORD_AUTH_PROFILES.contains(authProfile)) {
+			return Mono.error(new IllegalStateException("Alma supports auth profiles "
+				+ String.join(" and ", new TreeSet<>(PASSWORD_AUTH_PROFILES)) + ", not \"" + authProfile
+				+ "\", on " + getHostLmsCode()));
 		}
 
 		if (isBlank(barcode) || isBlank(secret)) {
@@ -1570,6 +1574,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.defaultIfEmpty(List.of());
 	}
 
+	// Bibs made before the note existed: no catalogued record carries both of that template's placeholders
+	private static boolean isPreNoteVirtualBib(String marc) {
+		return marc.contains("978-0-DCB-") && marc.contains("DCB Publisher");
+	}
+
 	static List<String> reasonsToKeep(AlmaBib bib, List<AlmaHolding> holdings) {
 		final var reasons = new ArrayList<String>();
 
@@ -1578,7 +1587,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		}
 
 		final var marc = bib.getAnies() != null ? String.join("", bib.getAnies()) : "";
-		if (!marc.contains(AlmaXmlGenerator.VIRTUAL_BIB_NOTE)) {
+		if (!marc.contains(AlmaXmlGenerator.VIRTUAL_BIB_NOTE) && !isPreNoteVirtualBib(marc)) {
 			reasons.add("it does not carry DCB's note");
 		}
 
@@ -1870,7 +1879,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		return client.retrieveItemRequests(bibId, holdingId, itemId)
 			.map(requests -> Optional.ofNullable(requests.getRecordCount()))
-			// An unknown hold count is not a count of zero
 			.onErrorResume(e -> {
 				log.warn("Failed to retrieve hold count for item {} (bib: {}, holding: {}): {}",
 					itemId, bibId, holdingId, e.getMessage());
@@ -1916,7 +1924,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.barcode(almaItem.getItemData().getBarcode())
 					.callNumber(almaItem.getHoldingData().getCallNumber())
 					.isRequestable(isRequestable)
-					.holdCount(holdCount.orElse(null))
+					// Availability has always reported a count for every Alma item. An unread one stays
+					// 0 here, and says so in rawDataValues and the decision log; tracking reads it as unknown
+					.holdCount(holdCount.orElse(0))
 					.localBibId(bibId)
 					// this item type looks to be used for auditing
 					.localItemType(materialType(almaItem.getItemData()))
@@ -1936,7 +1946,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.rawVolumeStatement(null)
 					.parsedVolumeStatement(null)
 					.rawDataValues(rawStatus(almaItem.getItemData(), processType))
+					.rawDataValues(holdCount.isPresent() ? Map.of() : Map.of(HOLD_COUNT_KEY, HOLD_COUNT_UNREAD))
 					.decisionLogEntries(unknownProcessType(processType))
+					.decisionLogEntries(holdCount.isPresent() ? List.of() : List.of(HOLD_COUNT_UNREAD_LOG))
 					.build();
 			});
 	}
@@ -1996,6 +2008,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		return raw;
 	}
+
+	static final String HOLD_COUNT_KEY = "holdCount";
+	static final String HOLD_COUNT_UNREAD = "unread";
+	static final String HOLD_COUNT_UNREAD_LOG
+		= "Alma did not report this item's requests, so its hold count is shown as 0";
 
 	private static List<String> unknownProcessType(String processType) {
 		return processType == null || KNOWN_PROCESS_TYPES.contains(processType)

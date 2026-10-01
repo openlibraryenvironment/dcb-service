@@ -313,7 +313,9 @@ be one of those codes.
 ### Your agency
 
 The OpenRS team creates your agency, the record that stands for your library in DCB, with the
-authentication profile `BASIC/BARCODE+PASSWORD`, the only one DCB supports for Alma.
+authentication profile `BASIC/BARCODE+PASSWORD`. `BASIC/BARCODE+PIN` is accepted too and does
+the same thing: Alma holds one secret per patron, the internal password, so a consortium that
+calls it a PIN keeps its existing profile. No other profile works with Alma.
 
 Lending and borrowing are separate switches on the agency: supplying and borrowing. DCB treats
 a switch that was never set as off. An agency lends only once someone has turned supplying on,
@@ -479,7 +481,9 @@ The raw Alma values are kept with each item, as `baseStatus` and `processType`, 
 availability response and in the resolution audit. A process type OpenRS does not recognise is
 treated as unavailable and named in the item's decision log.
 
-Live availability also reports how many requests each item has in Alma.
+Live availability also reports how many requests each item has in Alma. When Alma does not
+answer that read, the item shows 0 requests, `holdCount: unread` among its raw values, and a
+line in its decision log saying the count was not read.
 
 > **Note:** OpenRS does not yet read an item's loan policy. A copy whose policy keeps it in the
 > building, such as reference, still reads as requestable if its material type is mapped to

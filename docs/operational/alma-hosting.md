@@ -35,6 +35,11 @@ DCB Admin validates an Alma Host LMS when it is created, and again whenever its 
 class change. A change that leaves out a required setting is refused, naming what is missing.
 Renaming a Host LMS, or giving it a ruleset, does not re-validate its settings.
 
+The REST route `POST /hostlmss` does not validate at all: a Host LMS created or updated through
+it is saved with whatever settings it was given, and a missing one surfaces only when DCB first
+needs it, as "Missing required configuration property". Create Alma Host LMSs through DCB Admin,
+or check one made over REST with the configuration report in [Checking a configuration](#checking-a-configuration).
+
 ### Connection and harvesting
 
 | Setting | Required | Default | What it is |
