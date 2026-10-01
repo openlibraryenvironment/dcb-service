@@ -5,6 +5,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasClientClass;
@@ -230,12 +231,40 @@ class HostLmsTests {
 				.IsDisplayInPAC(true)
 				.build()).build();
 
-			final var oaiRecord = oai.initIngestRecordBuilder(new OaiRecord(
-				new OaiRecord.Header("oai:some-polaris-system:12345", null, null, null), null)).build();
+			final var oaiRecord = oai.initIngestRecordBuilder(new OaiRecord(new OaiRecord.Header(
+				"oai:some-polaris-system:polaris:bibliographic/12345", null, null, null), null)).build();
 
 			// Assert
 			assertThat(oaiRecord.getUuid(), is(papiRecord.getUuid()));
 			assertThat(oaiRecord.getSourceRecordId(), is(papiRecord.getSourceRecordId()));
+		}
+
+		@Test
+		void shouldReadTheBibIdFromARealPolarisOaiIdentifier() {
+			// Arrange - verbatim from ListIdentifiers against a Polaris 7.7 tenant, 2026-09-07
+			final var oai = (PolarisOaiPmhIngestSource) hostLmsFixture
+				.getIngestSource("polaris-oai-host-lms");
+
+			// Act
+			final var bibId = oai.extractRecordId(new OaiRecord(new OaiRecord.Header(
+				"oai:stlouis-training.polarislibrary.com:polaris:bibliographic/2", null, null, null), null));
+
+			// Assert
+			assertThat(bibId, is("2"));
+		}
+
+		@Test
+		void shouldRefuseAnIdentifierWhoseLastSegmentIsNotABibNumber() {
+			// Arrange
+			final var oai = (PolarisOaiPmhIngestSource) hostLmsFixture
+				.getIngestSource("polaris-oai-host-lms");
+
+			// Act
+			final var bibId = oai.extractRecordId(new OaiRecord(new OaiRecord.Header(
+				"oai:some-polaris-system:polaris:bibliographic/not-a-number", null, null, null), null));
+
+			// Assert
+			assertThat(bibId, is(nullValue()));
 		}
 
 		@Test

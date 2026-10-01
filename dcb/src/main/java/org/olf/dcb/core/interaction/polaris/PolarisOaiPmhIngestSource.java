@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.BitSet;
 import java.util.OptionalInt;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
@@ -26,6 +27,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.serde.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.oaipmh.OaiRecord;
@@ -38,6 +40,7 @@ import services.k_int.utils.UUIDUtils;
  * Selected per Host LMS by setting ingest_source_class to this class; circulation stays on
  * PolarisLmsClient. Configuration and switch-over: docs/polaris_notes.md
  */
+@Slf4j
 @Prototype
 public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 	private static final String CONFIG_OAI_PATH = "oai-path";
@@ -45,8 +48,13 @@ public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 
 	private static final int VANISHED_SAMPLE_SIZE = 20;
 
+	// Measured on a 7.7 tenant, identifiers are shaped oai:<host>:polaris:bibliographic/<bib id>, so
+	// the bib id follows the final slash. Splitting on the colon reads "bibliographic/2" as an id.
+	private static final String IDENTIFIER_SEPARATOR = "/";
+	private static final Pattern BIB_ID = Pattern.compile("\\d+");
+
 	// A row the PAPI harvest wrote has no OAI identifier; this one ends in its bib id like a real one
-	private static final String PAPI_ROW_IDENTIFIER_PREFIX = "papi:";
+	private static final String PAPI_ROW_IDENTIFIER_PREFIX = "papi" + IDENTIFIER_SEPARATOR;
 
 	private final String hostLmsCode;
 	private final String oaiPath;
@@ -69,13 +77,30 @@ public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 		this.oaiPath = MapUtils.getAsOptionalString(hostLms.getClientConfig(), CONFIG_OAI_PATH)
 			.orElse(DEFAULT_OAI_PATH);
 
-		setIdentifierSeparator(":");
+		setIdentifierSeparator(IDENTIFIER_SEPARATOR);
 		setUuid5Prefix(UUID5_PREFIX);
 	}
 
 	@Override
 	protected String oaiPath() {
 		return oaiPath;
+	}
+
+	// Refused rather than passed on: a mis-read id keys a bib PAPI can never match and items can
+	// never be fetched for, and nothing else would fail.
+	@Override
+	public String extractRecordId(OaiRecord resource) {
+		final var recordId = super.extractRecordId(resource);
+
+		if (recordId != null && !BIB_ID.matcher(recordId).matches()) {
+			log.error("{} read \"{}\" as the bib id of OAI identifier \"{}\", which is not a Polaris bib "
+				+ "number. Expected <prefix>/<integer>; skipping this record.",
+				hostLmsCode, recordId, resource.header().identifier());
+
+			return null;
+		}
+
+		return recordId;
 	}
 
 	// Keyed exactly as PolarisLmsClient keys a PAPI bib, so switching a host that has already
@@ -143,10 +168,11 @@ public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 		return bibId.isPresent() && bibs.get(bibId.getAsInt());
 	}
 
-	// "oai:<host>:12345" from the OAI harvest; "12345" from the PAPI harvest or a bib record
+	// "oai:<host>:polaris:bibliographic/12345" from the OAI harvest; "12345" from the PAPI harvest or
+	// a bib record
 	private static OptionalInt bibIdOf(String id) {
 		try {
-			final int bibId = Integer.parseInt(id.substring(id.lastIndexOf(':') + 1).trim());
+			final int bibId = Integer.parseInt(id.substring(id.lastIndexOf(IDENTIFIER_SEPARATOR) + 1).trim());
 			return bibId > 0 ? OptionalInt.of(bibId) : OptionalInt.empty();
 		}
 		catch (NumberFormatException e) {
@@ -159,6 +185,6 @@ public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 	}
 
 	private static String identifierFor(String remoteId) {
-		return remoteId.contains(":") ? remoteId : PAPI_ROW_IDENTIFIER_PREFIX + remoteId;
+		return BIB_ID.matcher(remoteId).matches() ? PAPI_ROW_IDENTIFIER_PREFIX + remoteId : remoteId;
 	}
 }

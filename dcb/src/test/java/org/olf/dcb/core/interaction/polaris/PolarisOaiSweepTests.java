@@ -92,17 +92,17 @@ class PolarisOaiSweepTests {
 		// Arrange
 		final var host = "polaris-missing";
 		mockTwoPagesOfIdentifiers(mockServerClient, host);
-		mockGetRecord(mockServerClient, host, "oai:polaris:2");
-		mockGetRecord(mockServerClient, host, "oai:polaris:4");
+		mockGetRecord(mockServerClient, host, "oai:polaris.example.org:polaris:bibliographic/2");
+		mockGetRecord(mockServerClient, host, "oai:polaris.example.org:polaris:bibliographic/4");
 
 		final var source = harvestingPolaris(host);
 
 		// Act - one bib held from each harvest, so both remote id shapes count as held
-		final var recovered = manyValuesFrom(source.findMissingRecords(Flux.just("oai:polaris:1", "3")));
+		final var recovered = manyValuesFrom(source.findMissingRecords(Flux.just("oai:polaris.example.org:polaris:bibliographic/1", "3")));
 
 		// Assert
 		assertThat(recovered.stream().map(SourceRecord::getRemoteId).toList(),
-			containsInAnyOrder("oai:polaris:2", "oai:polaris:4"));
+			containsInAnyOrder("oai:polaris.example.org:polaris:bibliographic/2", "oai:polaris.example.org:polaris:bibliographic/4"));
 
 		mockServerClient.verify(request().withHeader("host", host)
 			.withQueryStringParameter("verb", "GetRecord"), VerificationTimes.exactly(2));
@@ -119,7 +119,7 @@ class PolarisOaiSweepTests {
 		// Act - 5 is listed as deleted, 6 is not listed at all
 		final var found = singleValueFrom(source.findVanishedRecords(
 			Flux.just("1", "2", "5", "6"),
-			Flux.just("oai:polaris:1", "oai:polaris:5", "5", "oai:polaris:6")));
+			Flux.just("oai:polaris.example.org:polaris:bibliographic/1", "oai:polaris.example.org:polaris:bibliographic/5", "5", "oai:polaris.example.org:polaris:bibliographic/6")));
 
 		// Assert
 		assertThat(found.held(), is(4L));
@@ -129,7 +129,7 @@ class PolarisOaiSweepTests {
 		final var deletions = manyValuesFrom(found.deletions());
 
 		assertThat(deletions.stream().map(SourceRecord::getRemoteId).toList(),
-			containsInAnyOrder("oai:polaris:5", "5", "oai:polaris:6"));
+			containsInAnyOrder("oai:polaris.example.org:polaris:bibliographic/5", "5", "oai:polaris.example.org:polaris:bibliographic/6"));
 	}
 
 	@Test
@@ -142,7 +142,7 @@ class PolarisOaiSweepTests {
 		final var papi = (PolarisLmsClient) hostLmsFixture.createClient(host);
 
 		final var found = singleValueFrom(source.findVanishedRecords(
-			Flux.just("6"), Flux.just("6", "oai:polaris:6")));
+			Flux.just("6"), Flux.just("6", "oai:polaris.example.org:polaris:bibliographic/6")));
 
 		// Act
 		final List<IngestRecord> converted = manyValuesFrom(found.deletions()
@@ -175,7 +175,7 @@ class PolarisOaiSweepTests {
 		// Act
 		final var error = assertThrows(HttpClientResponseException.class,
 			() -> singleValueFrom(source.findVanishedRecords(
-				Flux.just("1", "2", "3"), Flux.just("oai:polaris:3"))));
+				Flux.just("1", "2", "3"), Flux.just("oai:polaris.example.org:polaris:bibliographic/3"))));
 
 		// Assert - the first page was read, so it is the second page's failure that stops the sweep
 		assertThat(error.getStatus().getCode(), is(500));
@@ -201,7 +201,7 @@ class PolarisOaiSweepTests {
 		assertThat(report.get("sample"), is(List.of("10")));
 		assertThat(report, not(hasKey("deletionsQueued")));
 
-		assertThat(storedRecord(hostLms, "oai:polaris:10").getProcessingState(), is(ProcessingStatus.SUCCESS));
+		assertThat(storedRecord(hostLms, "oai:polaris.example.org:polaris:bibliographic/10").getProcessingState(), is(ProcessingStatus.SUCCESS));
 	}
 
 	@Test
@@ -216,12 +216,12 @@ class PolarisOaiSweepTests {
 		// Assert
 		assertThat(sourceRecordService.getReconcileStatus().get("deletionsQueued"), is(1L));
 
-		final var replaced = storedRecord(hostLms, "oai:polaris:10");
+		final var replaced = storedRecord(hostLms, "oai:polaris.example.org:polaris:bibliographic/10");
 
 		assertThat(replaced.getProcessingState(), is(ProcessingStatus.PROCESSING_REQUIRED));
 		assertThat(replaced.getSourceRecordData().get("header").get("status").getStringValue(), is("deleted"));
 
-		assertThat(storedRecord(hostLms, "oai:polaris:9").getProcessingState(), is(ProcessingStatus.SUCCESS));
+		assertThat(storedRecord(hostLms, "oai:polaris.example.org:polaris:bibliographic/9").getProcessingState(), is(ProcessingStatus.SUCCESS));
 	}
 
 	@Test
@@ -241,7 +241,7 @@ class PolarisOaiSweepTests {
 		assertThat(report, hasKey("refused"));
 		assertThat(report, not(hasKey("deletionsQueued")));
 
-		assertThat(storedRecord(hostLms, "oai:polaris:10").getProcessingState(), is(ProcessingStatus.SUCCESS));
+		assertThat(storedRecord(hostLms, "oai:polaris.example.org:polaris:bibliographic/10").getProcessingState(), is(ProcessingStatus.SUCCESS));
 	}
 
 	@Test
@@ -262,7 +262,7 @@ class PolarisOaiSweepTests {
 		assertThat(report, not(hasKey("refused")));
 		assertThat(report.get("deletionsQueued"), is(5L));
 
-		assertThat(storedRecord(hostLms, "oai:polaris:10").getProcessingState(),
+		assertThat(storedRecord(hostLms, "oai:polaris.example.org:polaris:bibliographic/10").getProcessingState(),
 			is(ProcessingStatus.PROCESSING_REQUIRED));
 	}
 
@@ -280,11 +280,11 @@ class PolarisOaiSweepTests {
 
 			singleValueFrom(sourceRecordRepository.save(SourceRecord.builder()
 				.hostLmsId(hostLms.getId())
-				.remoteId("oai:polaris:" + bibId)
+				.remoteId("oai:polaris.example.org:polaris:bibliographic/" + bibId)
 				.lastFetched(Instant.now())
 				.processingState(ProcessingStatus.SUCCESS)
 				.sourceRecordData(JsonNode.createObjectNode(Map.of("header", JsonNode.createObjectNode(
-					Map.of("identifier", JsonNode.createStringNode("oai:polaris:" + bibId))))))
+					Map.of("identifier", JsonNode.createStringNode("oai:polaris.example.org:polaris:bibliographic/" + bibId))))))
 				.build()));
 		}
 
@@ -320,9 +320,9 @@ class PolarisOaiSweepTests {
 
 		final var headers = Arrays.stream(ids)
 			.map(id -> id.startsWith("deleted:")
-				? "<header status=\"deleted\"><identifier>oai:polaris:%s</identifier><datestamp>2026-09-01T00:00:00Z</datestamp></header>"
+				? "<header status=\"deleted\"><identifier>oai:polaris.example.org:polaris:bibliographic/%s</identifier><datestamp>2026-09-01T00:00:00Z</datestamp></header>"
 					.formatted(id.substring("deleted:".length()))
-				: "<header><identifier>oai:polaris:%s</identifier><datestamp>2026-09-01T00:00:00Z</datestamp></header>"
+				: "<header><identifier>oai:polaris.example.org:polaris:bibliographic/%s</identifier><datestamp>2026-09-01T00:00:00Z</datestamp></header>"
 					.formatted(id))
 			.collect(Collectors.joining());
 

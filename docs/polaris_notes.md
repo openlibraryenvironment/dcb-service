@@ -38,12 +38,23 @@ Run these against the library's server and keep the responses:
 |---|---|
 | `Identify` answers at all | The provider is optional. A Polaris without it fails every harvest. |
 | `ListMetadataFormats` lists a MARCXML format | Use that prefix exactly. `oai_dc` carries no MARC and is useless to DCB. |
-| Each record identifier **ends in the Polaris `BibliographicRecordID`** after the last `:` | That segment becomes the bib's source record id, which is the id DCB passes to PAPI to fetch items. Any other identifier scheme ingests bibs whose items can never be found. |
+| Each record identifier **ends in the Polaris `BibliographicRecordID`** after the final `/` | That segment becomes the bib's source record id, which is the id DCB passes to PAPI to fetch items. DCB skips, and logs, any record whose final segment is not an integer. |
 | A bib with **Display in PAC** unchecked does **not** appear in `ListRecords` | The PAPI harvest reads that flag and removes the bib from DCB. The OAI harvest has no equivalent: a bib the provider lists is shown. |
 | Unchecking **Display in PAC** on a test bib makes the next `ListRecords&from=<before the change>` return its identifier with `status="deleted"` | That is how a bib leaves DCB when it is hidden later. If the provider simply stops listing it, the bib stays in DCB until a vanished-bib sweep removes it. |
 
 If any of the first four fails, keep that Host LMS on PAPI. If only the last
 fails, OAI is still usable, but plan to run the vanished-bib sweep regularly.
+
+What one Polaris 7.7 tenant returned, on 2026-09-07, so you know what to expect.
+Each server still needs its own checks, because the provider is optional.
+
+| Item | Value |
+|---|---|
+| Identifier | `oai:stlouis-training.polarislibrary.com:polaris:bibliographic/2`. The bib id follows the final `/`, after three colons. |
+| `baseURL` | `…/polaris.oaipmh.dataprovider/polaris/bibliographic`, the default `oai-path` |
+| `granularity` | `YYYY-MM-DDThh:mm:ssZ` (to the second) |
+| `deletedRecord` | `transient`: deletions are reported on a best-effort basis, so some will be missed. The vanished-bib sweep is how those are caught. |
+| Bib ids | Sparse: the first page ran 2, 4, 5, 7, 8 |
 
 ### Client config
 
@@ -143,7 +154,7 @@ throughout: it returns `bibRecordCount`, `sourceRecordCount`, `processStates`,
     last point at which it can be removed.
 
 12. **Delete the old PAPI rows.** PAPI remote ids are bare integers, and an OAI
-    identifier DCB can ingest always contains `:`, so this removes nothing the
+    identifier DCB can ingest always contains `/`, so this removes nothing the
     OAI harvest ingested. Rows still waiting to be processed are kept.
 
     ```sql
