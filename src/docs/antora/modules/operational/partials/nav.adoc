@@ -1,7 +1,4 @@
 .Operational Resources
 * xref:operational:bare-metal-build.adoc[]
 * xref:operational:docker.adoc[]
-* xref:operational:alma-setup.adoc[Setting up an Alma institution]
-* xref:operational:alma-migration.adoc[Moving a member library to Alma]
-* xref:operational:alma-integration.adoc[Alma integration]
 * xref:operational:identity-provider-setup.adoc[Identity provider setup]

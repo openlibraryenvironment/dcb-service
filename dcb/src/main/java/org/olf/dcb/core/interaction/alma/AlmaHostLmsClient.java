@@ -1673,7 +1673,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	 * Alma exposes no writable renewal flag on a loan - due_date is the only field a loan PUT
 	 * can change - so renewal is denied on the item, as it is for Sierra and Koha. The item
 	 * policy is Alma's own override for loan rules, and DCB already sets it when it creates
-	 * the item. See operational:alma-integration.adoc for what the library configures.
+	 * the item. See docs/operational/alma-setup.md for what the library configures.
 	 */
 	private Mono<AlmaItem> denyRenewalOfItem(String bibId, String holdingId, String itemId,
 		AlmaItem item, String noRenewPolicy) {
