@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.dataimport.SourceImportProperties;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;
@@ -63,12 +64,14 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
   private final ConcurrencyGroupService concurrency;
   private final ReactorFederatedLockService lockService;
 	private final BibRepository bibRepository;
+	private final SourceImportProperties sourceImportProperties;
 
-	public SourceRecordService(HostLmsService lmsService, SourceRecordRepository sourceRecords, ReactiveJobRunnerService jobService, ConcurrencyGroupService concurrency, ReactorFederatedLockService lockService, BibRepository bibRepository) {
+	public SourceRecordService(HostLmsService lmsService, SourceRecordRepository sourceRecords, ReactiveJobRunnerService jobService, ConcurrencyGroupService concurrency, ReactorFederatedLockService lockService, BibRepository bibRepository, SourceImportProperties sourceImportProperties) {
 		log.info("SourceRecordService::init");
 		this.lmsService = lmsService;
 		this.sourceRecords = sourceRecords;
 		this.bibRepository = bibRepository;
+		this.sourceImportProperties = sourceImportProperties;
 		this.jobService = jobService;
 		this.concurrency = concurrency;
 		this.lockService = lockService;
@@ -148,10 +151,6 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	// Reconciliation can emit far more records than a harvest chunk, so it is committed in bounded
 	// batches rather than one transaction spanning the whole sweep.
 	private static final int RECONCILE_BATCH_SIZE = 100;
-
-	// Above this share of a host's bibs a vanished sweep reports but deletes nothing: losing that much
-	// of a catalogue at once is likelier to be a wrong set or a broken provider than real withdrawals.
-	private static final double MAX_VANISHED_SHARE = 0.10;
 
 	// A healthy source writes a checkpoint on every chunk, and the import job runs every two
 	// minutes, so half an hour without one means the job is not progressing.
@@ -281,9 +280,12 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 					return Mono.just(0L);
 				}
 
-				if (found.vanished() > found.held() * MAX_VANISHED_SHARE) {
-					reconcileStatusReport.put("refused", "%d of %d bibs is more than %.0f%% of this host"
-						.formatted(found.vanished(), found.held(), MAX_VANISHED_SHARE * 100));
+				final double maxShare = sourceImportProperties.getVanishedMaxShare();
+
+				if (found.vanished() > found.held() * maxShare) {
+					reconcileStatusReport.put("refused",
+						"%d of %d bibs is more than the share of %s allowed by dcb.source-import.vanished-max-share"
+							.formatted(found.vanished(), found.held(), maxShare));
 
 					return Mono.just(0L);
 				}

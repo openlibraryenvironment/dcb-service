@@ -27,6 +27,7 @@ import org.mockserver.client.MockServerClient;
 import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.dataimport.SourceImportProperties;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;
@@ -68,10 +69,17 @@ class PolarisOaiSweepTests {
 	void beforeEach() {
 		// Built by hand: its package is @Requires(notEnv = TEST), so the context never provides it.
 		// The sweep uses neither the job runner, the concurrency groups nor the lock.
-		sourceRecordService = new SourceRecordService(hostLmsService, sourceRecordRepository,
-			null, null, null, bibRepository);
+		sourceRecordService = serviceAllowingAShareOf(new SourceImportProperties().getVanishedMaxShare());
 
 		cleanUp();
+	}
+
+	private SourceRecordService serviceAllowingAShareOf(double vanishedMaxShare) {
+		final var properties = new SourceImportProperties();
+		properties.setVanishedMaxShare(vanishedMaxShare);
+
+		return new SourceRecordService(hostLmsService, sourceRecordRepository,
+			null, null, null, bibRepository, properties);
 	}
 
 	@AfterEach
@@ -234,6 +242,28 @@ class PolarisOaiSweepTests {
 		assertThat(report, not(hasKey("deletionsQueued")));
 
 		assertThat(storedRecord(hostLms, "oai:polaris:10").getProcessingState(), is(ProcessingStatus.SUCCESS));
+	}
+
+	@Test
+	void shouldDeleteALargerShareWhenConfiguredToAllowIt(MockServerClient mockServerClient) {
+		// Arrange - the same half of the host that the default limit refuses
+		final var host = "polaris-raised-limit";
+		final var hostLms = heldBibs(host, 10);
+		mockIdentifiersPage(mockServerClient, host, null, null, "1", "2", "3", "4", "5");
+
+		final var service = serviceAllowingAShareOf(0.5);
+
+		// Act
+		singleValueFrom(service.sweepVanished(harvestingSource(host), hostLms.getId(), true));
+
+		// Assert
+		final var report = service.getReconcileStatus();
+
+		assertThat(report, not(hasKey("refused")));
+		assertThat(report.get("deletionsQueued"), is(5L));
+
+		assertThat(storedRecord(hostLms, "oai:polaris:10").getProcessingState(),
+			is(ProcessingStatus.PROCESSING_REQUIRED));
 	}
 
 	private DataHostLms tenHeldBibsOfWhichOneHasVanished(MockServerClient mockServerClient, String host) {
