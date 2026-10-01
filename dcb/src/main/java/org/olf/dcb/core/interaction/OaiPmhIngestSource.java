@@ -65,6 +65,8 @@ import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.function.TupleUtils;
+import services.k_int.interaction.oaipmh.GetRecordResponse;
+import services.k_int.interaction.oaipmh.ListIdentifiersResponse;
 import services.k_int.interaction.oaipmh.ListRecordsParams;
 import services.k_int.interaction.oaipmh.ListRecordsParams.ListRecordsParamsBuilder;
 import services.k_int.interaction.oaipmh.ListRecordsResponse;
@@ -288,20 +290,117 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 			if (error != null) {
 				return switch( error.code() ) {
 					case noRecordsMatch -> Mono.just( new ListRecordsResponse(null, Collections.emptyList()) );
-					case badResumptionToken -> {
-						final String message = error.detail() != null ? String.format("%s: %s", error.code(), error.detail()) : error.code().toString();
-						yield Mono.error(new OaiResumptionTokenError(message));
-					}
-					
-					default -> {
-						final String message = error.detail() != null ? String.format("%s: %s", error.code(), error.detail()) : error.code().toString();
-						yield Mono.error(new DcbError(message));
-					}
+					case badResumptionToken -> Mono.error(new OaiResumptionTokenError(describe(error)));
+					default -> Mono.error(new DcbError(describe(error)));
 				};
 			}
-			
+
 			return Mono.justOrEmpty( resp.listRecords() );
 		});
+	}
+
+	private static String describe(Response.Error error) {
+		return error.detail() != null
+			? String.format("%s: %s", error.code(), error.detail())
+			: error.code().toString();
+	}
+
+	/**
+	 * Every header the provider lists, live or deleted, following resumption tokens to the end.
+	 * An expired token fails the walk instead of restarting it: callers act on what is absent,
+	 * so a walk is only usable once it has completed.
+	 */
+	protected Flux<Header> listAllIdentifiers() {
+		return listIdentifiersPage(Optional.empty())
+			.expand(page -> Optional.ofNullable(page.response().resumptionToken())
+				.filter(StringUtils::hasText)
+				.map(next -> next.equals(page.requestedWith().orElse(null))
+					? Mono.<IdentifierPage>error(new DcbError(
+						"OAI-PMH provider for %s returned the resumption token it was sent".formatted(lms.getCode())))
+					: listIdentifiersPage(Optional.of(next)))
+				.orElseGet(Mono::empty))
+			.concatMapIterable(page -> Optional.ofNullable(page.response().headers()).orElseGet(List::of));
+	}
+
+	private record IdentifierPage(Optional<String> requestedWith, ListIdentifiersResponse response) {}
+
+	private Mono<IdentifierPage> listIdentifiersPage(Optional<String> resumptionToken) {
+		return get(oaiPath(), Argument.of(Response.class), params -> {
+				params.queryParam("verb", "ListIdentifiers");
+
+				resumptionToken.ifPresentOrElse(token -> params.queryParam("resumptionToken", token), () -> {
+					params.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
+
+					if (StringUtils.hasText(oaiSet)) {
+						params.queryParam(PARAM_SET, oaiSet);
+					}
+
+					additionalQueryParameters(params);
+				});
+			})
+			.flatMap(response -> {
+				final var error = response.error();
+
+				if (error == null) {
+					return Mono.justOrEmpty(response.listIdentifiers());
+				}
+
+				return error.code() == Response.ErrorCode.noRecordsMatch
+					? Mono.just(new ListIdentifiersResponse(null, List.of()))
+					: Mono.error(new DcbError(describe(error)));
+			})
+			.map(response -> new IdentifierPage(resumptionToken, response));
+	}
+
+	/**
+	 * One record by its OAI identifier, or empty when the provider no longer has it.
+	 */
+	protected Mono<OaiRecord> getRecord(String identifier) {
+		return get(oaiPath(), Argument.of(Response.class), params -> {
+				params.queryParam("verb", "GetRecord");
+				params.queryParam("identifier", identifier);
+				params.queryParam(PARAM_METADATA_PREFIX, metadataPrefix);
+				additionalQueryParameters(params);
+			})
+			.flatMap(response -> {
+				final var error = response.error();
+
+				if (error == null) {
+					return Mono.justOrEmpty(response.getRecord()).mapNotNull(GetRecordResponse::record);
+				}
+
+				return error.code() == Response.ErrorCode.idDoesNotExist
+					? Mono.empty()
+					: Mono.error(new DcbError(describe(error)));
+			});
+	}
+
+	protected SourceRecord sourceRecordFor(JsonNode rawJson, Instant fetchedAt) {
+		return SourceRecord.builder()
+			.hostLmsId(lms.getId())
+			.lastFetched(fetchedAt)
+			.remoteId(rawJson.get("header").get("identifier").coerceStringValue())
+			.sourceRecordData(rawJson)
+			.build();
+	}
+
+	protected Mono<SourceRecord> sourceRecordFor(OaiRecord record, Instant fetchedAt) {
+		return reactiveObjectMap(record)
+			.map(rawJson -> sourceRecordFor(rawJson, fetchedAt));
+	}
+
+	/**
+	 * Replaces a stored record with the deletion a provider would have sent for it, so the normal
+	 * ingest removes the bib and nothing left behind can bring it back on reprocessing.
+	 */
+	protected Mono<SourceRecord> deletedSourceRecord(String remoteId, String identifier, Instant at) {
+		return reactiveObjectMap(new OaiRecord(new Header(identifier, at, null, "deleted"), null))
+			.map(rawJson -> SourceRecord.builder()
+				.hostLmsId(lms.getId())
+				.lastFetched(at)
+				.remoteId(remoteId)
+				.sourceRecordData(rawJson)
+				.build());
 	}
 	
 	private Publisher<OaiRecord> pageAllResults(Publisher<String> terminator) {
@@ -818,12 +917,7 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 								}
 								
 								try {
-									builder.dataEntry( SourceRecord.builder()
-					  				.hostLmsId( lms.getId() )
-					  				.lastFetched( now )
-					  				.remoteId( rawJson.get("header").get("identifier").coerceStringValue() )
-					  				.sourceRecordData( rawJson )
-					  				.build());
+									builder.dataEntry( sourceRecordFor(rawJson, now) );
 				  			} catch (Throwable t) {
 				  				if (log.isDebugEnabled()) {
 				    				log.error( "Error creating SourceRecord from JSON '{}' \n{}", rawJson.getValue(), t);

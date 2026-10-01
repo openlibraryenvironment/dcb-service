@@ -136,7 +136,11 @@ public interface BibRepository {
 	@SingleResult
 	@Query(value = "select count(*) count from bib_record where source_system_id = :hostLmsId", nativeQuery = true)
 	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
-	
+
+	// Streamed, never collected: one Host LMS can hold millions of bibs. Served by idx_bib_source_system.
+	@Query(value = "select source_record_id from bib_record where source_system_id = :hostLmsId and source_record_id is not null", nativeQuery = true)
+	public Publisher<String> findSourceRecordIdsForHostLms(UUID hostLmsId);
+
 	@Vetoed
 	public Publisher<MissingAvailabilityInfo> findMissingAvailability ( int limit, Instant graceCutoff );
 	

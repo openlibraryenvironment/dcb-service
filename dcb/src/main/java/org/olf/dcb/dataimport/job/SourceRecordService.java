@@ -11,12 +11,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;
 import org.olf.dcb.ingest.IngestSource;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.SourceRecordRepository;
 import org.slf4j.event.Level;
 
@@ -60,11 +62,13 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	private final ReactiveJobRunnerService jobService;
   private final ConcurrencyGroupService concurrency;
   private final ReactorFederatedLockService lockService;
+	private final BibRepository bibRepository;
 
-	public SourceRecordService(HostLmsService lmsService, SourceRecordRepository sourceRecords, ReactiveJobRunnerService jobService, ConcurrencyGroupService concurrency, ReactorFederatedLockService lockService) {
+	public SourceRecordService(HostLmsService lmsService, SourceRecordRepository sourceRecords, ReactiveJobRunnerService jobService, ConcurrencyGroupService concurrency, ReactorFederatedLockService lockService, BibRepository bibRepository) {
 		log.info("SourceRecordService::init");
 		this.lmsService = lmsService;
 		this.sourceRecords = sourceRecords;
+		this.bibRepository = bibRepository;
 		this.jobService = jobService;
 		this.concurrency = concurrency;
 		this.lockService = lockService;
@@ -144,6 +148,10 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	// Reconciliation can emit far more records than a harvest chunk, so it is committed in bounded
 	// batches rather than one transaction spanning the whole sweep.
 	private static final int RECONCILE_BATCH_SIZE = 100;
+
+	// Above this share of a host's bibs a vanished sweep reports but deletes nothing: losing that much
+	// of a catalogue at once is likelier to be a wrong set or a broken provider than real withdrawals.
+	private static final double MAX_VANISHED_SHARE = 0.10;
 
 	// A healthy source writes a checkpoint on every chunk, and the import job runs every two
 	// minutes, so half an hour without one means the job is not progressing.
@@ -239,24 +247,75 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 	 * gets an acknowledgement; progress is read from {@link #getReconcileStatus()}.
 	 */
 	public Mono<String> startReconciliation( String hostLmsCode ) {
+		return startSweep(hostLmsCode, "reconcile", () -> resolveDataSource(hostLmsCode)
+			.flatMap(TupleUtils.function(this::reconcileSource))
+			.doOnSuccess(count -> reconcileStatusReport.put("recordsRecovered", count)));
+	}
+
+	/**
+	 * Kick off a sweep for bibs the source no longer lists as live, under the same single flight
+	 * and status report as reconciliation. Deletes nothing unless {@code apply} is set.
+	 */
+	public Mono<String> startVanishedSweep( String hostLmsCode, boolean apply ) {
+		return startSweep(hostLmsCode, apply ? "vanished-apply" : "vanished-report",
+			() -> resolveDataSource(hostLmsCode)
+				.flatMap(TupleUtils.function((datasource, hostLmsId) -> sweepVanished(datasource, hostLmsId, apply))));
+	}
+
+	public Mono<Long> sweepVanished( SourceRecordDataSource datasource, UUID hostLmsId, boolean apply ) {
+
+		return datasource.findVanishedRecords(
+				bibRepository.findSourceRecordIdsForHostLms(hostLmsId),
+				sourceRecords.findRemoteIdsByHostLmsId(hostLmsId))
+			.switchIfEmpty(Mono.error(new IllegalArgumentException(
+				"%s cannot list its records, so it cannot be checked for vanished ones".formatted(datasource.getName()))))
+			.flatMap(found -> {
+				log.info("Vanished sweep for [{}]: {} of {} bibs no longer listed as live", datasource.getName(),
+					found.vanished(), found.held());
+
+				reconcileStatusReport.put("held", found.held());
+				reconcileStatusReport.put("vanished", found.vanished());
+				reconcileStatusReport.put("sample", found.sample());
+
+				if (!apply) {
+					return Mono.just(0L);
+				}
+
+				if (found.vanished() > found.held() * MAX_VANISHED_SHARE) {
+					reconcileStatusReport.put("refused", "%d of %d bibs is more than %.0f%% of this host"
+						.formatted(found.vanished(), found.held(), MAX_VANISHED_SHARE * 100));
+
+					return Mono.just(0L);
+				}
+
+				return found.deletions()
+					.buffer(RECONCILE_BATCH_SIZE)
+					.concatMap(this::saveReconciledBatch)
+					.reduce(0L, Long::sum)
+					.doOnSuccess(count -> reconcileStatusReport.put("deletionsQueued", count));
+			});
+	}
+
+	private static final List<String> SWEEP_RESULT_KEYS = List.of("recordsRecovered", "held", "vanished",
+		"sample", "refused", "deletionsQueued", "lastError", "endTime");
+
+	private Mono<String> startSweep( String hostLmsCode, String sweep, Supplier<Mono<?>> work ) {
 
 		if (reconciliation == null) {
 			synchronized (this) {
 				if (reconciliation == null) {
 
+					SWEEP_RESULT_KEYS.forEach(reconcileStatusReport::remove);
 					reconcileStatusReport.put("status", "Running");
+					reconcileStatusReport.put("sweep", sweep);
 					reconcileStatusReport.put("hostLmsCode", hostLmsCode);
 					reconcileStatusReport.put("startTime", Instant.now().toString());
-					reconcileStatusReport.remove("recordsRecovered");
-					reconcileStatusReport.remove("lastError");
 
 					reconciliation = Mono.<String>create(report -> {
-						log.info("Starting reconciliation sweep for [{}]", hostLmsCode);
-						report.success("Reconciliation for %s started at [%s]".formatted(hostLmsCode, Instant.now()));
+						log.info("Starting {} sweep for [{}]", sweep, hostLmsCode);
+						report.success("%s sweep for %s started at [%s]".formatted(sweep, hostLmsCode, Instant.now()));
 
-						resolveDataSource(hostLmsCode)
-							.flatMap(TupleUtils.function(this::reconcileSource))
-							.doOnSuccess(count -> reconcileStatusReport.put("recordsRecovered", count))
+						Mono.defer(work)
 							.doOnError(error -> reconcileStatusReport.put("lastError", String.valueOf(error.getMessage())))
 							.doOnTerminate(() -> {
 								reconciliation = null;
@@ -264,18 +323,20 @@ public class SourceRecordService implements JobChunkProcessor, ApplicationEventL
 								reconcileStatusReport.put("endTime", Instant.now().toString());
 							})
 							.subscribe(
-								count -> log.info("Reconciliation for [{}] recovered {} records", hostLmsCode, count),
-								error -> log.error("Reconciliation for [{}] failed", hostLmsCode, error));
+								result -> log.info("{} sweep for [{}] finished: {}", sweep, hostLmsCode, result),
+								error -> log.error("{} sweep for [{}] failed", sweep, hostLmsCode, error));
 
 					}).cache();
+
+					return reconciliation;
 				}
 			}
 		}
-		else {
-			log.info("Reconciliation already running. NOOP");
-		}
 
-		return reconciliation;
+		log.info("A sweep is already running. NOOP");
+
+		return Mono.just("A %s sweep for %s is already running, so nothing was started"
+			.formatted(reconcileStatusReport.get("sweep"), reconcileStatusReport.get("hostLmsCode")));
 	}
 
 	public Map<String, Object> getReconcileStatus() {
