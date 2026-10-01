@@ -13,8 +13,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+
+import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
@@ -213,6 +216,54 @@ public class RulesetTests {
 
 		ArrayList<String> details = new ArrayList<>();
 		assertEquals(expected, ruleset.test(new AnnotatedObject(target, details)));
+	}
+
+	/**
+	 * The shipped Koha ITEM default, applied by KohaHostLmsClient.getItems.
+	 * <p>
+	 * Pinned separately from the bib ruleset because the subject is a different shape: a
+	 * KohaItem bean rather than a harvested MARC record, so property resolution goes
+	 * through BeanMap and the condition has to name the JAVA property
+	 * ("notForLoanStatus"), not the Koha API's "not_for_loan_status". Getting that wrong
+	 * fails silently - an unresolvable property makes propertyValueAnyOf false, which the
+	 * negation turns into "include", so every item would be contributed and nothing would
+	 * say why. These cases are the only thing standing between that typo and production.
+	 * <p>
+	 * True means include.
+	 */
+	@Test
+	void kohaItemDefaultSuppressesTheLocalOnlyNotForLoanValue() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		final var item = KohaItem.builder().itemId(1L).notForLoanStatus(42).build();
+
+		assertEquals(false, ruleset.test(new AnnotatedObject(item, new ArrayList<>())),
+			"not_for_loan_status 42 means local only, so the item must not be contributed");
+	}
+
+	@Test
+	void kohaItemDefaultContributesOtherNotForLoanValues() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		// 1 is an ordinary Koha "not for loan" - unavailable, but still the consortium's
+		// business to know about. Only 42 carries the "do not share" meaning.
+		final var item = KohaItem.builder().itemId(2L).notForLoanStatus(1).build();
+
+		assertEquals(true, ruleset.test(new AnnotatedObject(item, new ArrayList<>())));
+	}
+
+	@Test
+	void kohaItemDefaultIsInertOnAnItemWithNoNotForLoanStatus() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		// The overwhelmingly common case. An absent property must read as "include",
+		// otherwise turning the ruleset on empties a library's availability.
+		final var item = KohaItem.builder().itemId(3L).build();
+
+		assertEquals(true, ruleset.test(new AnnotatedObject(item, new ArrayList<>())));
 	}
 
 	@ParameterizedTest

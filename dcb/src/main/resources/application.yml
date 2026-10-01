@@ -444,6 +444,28 @@ dcb:
           negated: true
           documentation: "Koha 942$x - local only, not shared with the consortium"
 
+    # Koha ITEM suppression, applied by KohaHostLmsClient.getItems. Tested against the
+    # KohaItem bean, so properties are Java property names (notForLoanStatus), NOT the
+    # Koha API's snake_case (not_for_loan_status) - BeanMap keys the introspected bean,
+    # and a name that does not resolve makes the condition inert rather than loud.
+    #
+    # Rulesets evaluate true for INCLUSION. Inert on an item with no not_for_loan_status:
+    # an absent property makes propertyValueAnyOf false, which the negation turns into
+    # "include". Withdrawn items are suppressed in code and are not expressible here,
+    # deliberately - no ruleset should be able to contribute an item Koha says is gone.
+    koha-item-default:
+      type: "CONJUNCTIVE"
+      conditions:
+        # 42 is DCB's convention for "local only" at item level, carried over from the
+        # value that used to be hardcoded in KohaHostLmsClient. Koha's not_for_loan
+        # authorised values are site defined, so a library using a different code for
+        # this points its Host LMS at a ruleset of its own instead of editing this one.
+        - operation: propertyValueAnyOf
+          property: "notForLoanStatus"
+          values: [ "42" ]
+          negated: true
+          documentation: "Koha not_for_loan_status 42 - local only, not shared with the consortium"
+
 concurrency:
   groups:
     default: 

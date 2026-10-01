@@ -21,6 +21,9 @@ public class LocationInputValidator {
 	private static final double MIN_LONGITUDE = -180.0;
 	private static final double MAX_LONGITUDE = 180.0;
 
+	// branches.branchcode in Koha, and maxLength 10 in its own API schema for library_id
+	private static final int KOHA_MAX_LIBRARY_ID_LENGTH = 10;
+
 
 	public static Mono<Void> validateInput(Map<String, Object> input, DataHostLms hostLms) {
 		return Mono.defer(() -> {
@@ -90,6 +93,23 @@ public class LocationInputValidator {
 				} catch (NumberFormatException e) {
 					return Mono.error(new EntityCreationException(
 						"Location creation failed: localId must be a valid integer for Polaris systems"));
+				}
+			} else if (lmsClientClass.contains("koha")) {
+				// The Koha branch code, which is the only thing KohaHostLmsClient can send as
+				// a hold's library_id. Without it the hold silently goes to the sharing
+				// library instead of the branch the patron chose.
+				log.debug("Location creation: Koha system detected with client class {} and localId {}", lmsClientClass, localId);
+				if (localId.isBlank()) {
+					return Mono.error(new EntityCreationException(
+						"Location creation failed: localId is required for Koha systems, and must be the Koha library_id (branch code)"));
+				}
+				// Koha's library_id is branches.branchcode, a string of at most 10
+				// characters. A longer value cannot name any branch, so reject it here
+				// rather than at hold placement.
+				if (localId.length() > KOHA_MAX_LIBRARY_ID_LENGTH) {
+					return Mono.error(new EntityCreationException(
+						"Location creation failed: localId must be at most %d characters for Koha systems, as Koha's library_id is a branch code"
+							.formatted(KOHA_MAX_LIBRARY_ID_LENGTH)));
 				}
 			} else if (lmsClientClass.contains("sierra")) {
 				log.debug("Location creation: Sierra system detected with client class {} and localId {}", lmsClientClass, localId);
