@@ -2,8 +2,11 @@ package org.olf.dcb.core;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasClientClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
@@ -14,6 +17,7 @@ import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNonNullId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -232,6 +236,45 @@ class HostLmsTests {
 			// Assert
 			assertThat(oaiRecord.getUuid(), is(papiRecord.getUuid()));
 			assertThat(oaiRecord.getSourceRecordId(), is(papiRecord.getSourceRecordId()));
+		}
+
+		@Test
+		void shouldNameTheMissingKeyWhenTheIngestSourceCannotBeBuilt() {
+			// Arrange
+			createOaiHostWithoutMetadataPrefix();
+
+			// Act
+			final var error = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.getIngestSource("polaris-oai-no-prefix-host-lms"));
+
+			// Assert
+			assertThat(error, hasMessage("Host LMS \"polaris-oai-no-prefix-host-lms\" has invalid "
+				+ "configuration: OAI-PMH ingest for Host LMS \"polaris-oai-no-prefix-host-lms\" "
+				+ "requires client config \"metadata-prefix\""));
+		}
+
+		@Test
+		void shouldKeepHarvestingOtherHostsWhenOneCannotBuildItsIngestSource() {
+			// Arrange
+			createOaiHostWithoutMetadataPrefix();
+
+			hostLmsFixture.createPolarisHostLms("polaris-papi-host-lms", "some-username",
+				"some-password", "https://another-polaris-system", "some-domain",
+				"some-access-id", "some-access-key");
+
+			// Act
+			final var ingestSources = manyValuesFrom(hostLmsService.getIngestSources());
+
+			// Assert
+			assertThat(ingestSources, hasSize(2));
+			assertThat(ingestSources, hasItem(instanceOf(PolarisOaiPmhIngestSource.class)));
+			assertThat(ingestSources, hasItem(instanceOf(PolarisLmsClient.class)));
+		}
+
+		private void createOaiHostWithoutMetadataPrefix() {
+			hostLmsFixture.createHostLms(UUID.randomUUID(), "polaris-oai-no-prefix-host-lms",
+				PolarisLmsClient.class, Optional.of(PolarisOaiPmhIngestSource.class),
+				Map.of("base-url", "https://some-other-polaris-system"));
 		}
 	}
 
