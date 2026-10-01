@@ -155,9 +155,17 @@ public class HostLmsService implements IngestSourcesProvider {
 	@Override
 	public Publisher<IngestSource> getIngestSources() {
 		return getAllHostLms()
-			.flatMap(this::getIngestSourceFor)
-			.onErrorContinue(InvalidHostLmsConfigurationException.class,
-				(error, source) -> log.warn("{}", error.getMessage()));
+			// Contained per Host LMS, not by exception type: the constructor throws
+			// IllegalArgumentException for absent client config, which Micronaut wraps as
+			// BeanInstantiationException, and the old onErrorContinue matched neither - so
+			// one misconfigured row 500d /info for every caller.
+			.flatMap(hostLms -> getIngestSourceFor(hostLms)
+				.onErrorResume(error -> {
+					log.warn("Skipping ingest source for {} : {}",
+						hostLms.getCode(), error.getMessage());
+
+					return Mono.empty();
+				}));
 	}
 
 	protected Flux<DataHostLms> getAllHostLms() {
