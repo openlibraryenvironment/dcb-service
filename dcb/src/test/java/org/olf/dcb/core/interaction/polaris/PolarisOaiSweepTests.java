@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -154,6 +155,8 @@ class PolarisOaiSweepTests {
 			.IsDisplayInPAC(true)
 			.build()).build();
 
+		// Both stored rows of bib 6, the PAPI one and the OAI one
+		assertThat(converted, hasSize(2));
 		assertThat(converted.stream().map(IngestRecord::getDeleted).toList(), everyItem(is(true)));
 		assertThat(converted.stream().map(IngestRecord::getUuid).toList(), everyItem(is(papiBib.getUuid())));
 	}
