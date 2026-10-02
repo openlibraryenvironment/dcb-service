@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,6 +30,7 @@ import org.reactivestreams.Publisher;
 
 import io.micronaut.context.BeanContext;
 import io.micronaut.context.BeanProvider;
+import io.micronaut.context.exceptions.BeanCreationException;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.json.tree.JsonNode;
@@ -141,6 +143,10 @@ public class HostLmsService implements IngestSourcesProvider {
 			.filter(IngestSource.class::isAssignableFrom)
 			.switchIfEmpty(Mono.error(new InvalidHostLmsConfigurationException( hostLms.getCode(), "ingest source class is either unknown or invalid")))
 			.map(type -> context.createBean(type, hostLms))
+			// getIngestSources skips only this type, so a host whose source cannot be built
+			// must not end the harvest for every other host.
+			.onErrorMap(BeanCreationException.class, e -> new InvalidHostLmsConfigurationException(
+				hostLms.getCode(), Optional.ofNullable(e.getCause()).orElse(e).getMessage()))
 			.cast(IngestSource.class)
       .doOnError(e -> {
         log.error("Error creating ingest source for {} : {}",  hostLms.getCode(), e.getMessage());
