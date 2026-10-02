@@ -25,7 +25,10 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.koha.dto.KohaCheckout;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaRenewability;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
@@ -281,6 +284,8 @@ class KohaRenewalPreventionTests {
 		final var materialTypeToItemType = mock(MaterialTypeToItemTypeMappingService.class);
 
 		return new KohaHostLmsClient(hostLms, mock(ReferenceValueMappingService.class),
-			clientFactory, materialTypeToItemType, locationToAgency);
+			clientFactory, materialTypeToItemType, locationToAgency,
+			mock(ObjectRulesService.class), new RulesetCacheInvalidator(),
+			mock(HostLmsService.class));
 	}
 }

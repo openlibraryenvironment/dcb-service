@@ -1,0 +1,261 @@
+{
+	"no-942-at-all": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:1"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{ "005": "20251228122511.0" },
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "A bib that has never been near the 942 editor" }
+							]
+						}
+					},
+					{
+						"999": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "1" },
+								{ "d": "1" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"942-without-n-or-x": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:2"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "Item type and classification only" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "2": "ddc" },
+								{ "c": "BK" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"not-suppressed-explicitly": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:3"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "942$n set to the YES_NO false value" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "BK" },
+								{ "n": "0" },
+								{ "x": "0" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"hidden-from-everyone": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:4"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "OpacSuppression: hidden from the OPAC as well as DCB" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "BK" },
+								{ "n": "1" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"local-only": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:5"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "Lendable at home, withheld from the consortium" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "BK" },
+								{ "n": "0" },
+								{ "x": "1" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"local-only-yes": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:6"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "A site whose authorised value is a word, not a digit" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "BK" },
+								{ "x": "Yes" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"both-flags-set": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:7"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "Belt and braces" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "BK" },
+								{ "n": "1" },
+								{ "x": "1" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"suppressed-with-999-t": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:8"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "FOLIO's flag means nothing to a Koha" }
+							]
+						}
+					},
+					{
+						"999": {
+							"ind1": "f",
+							"ind2": "f",
+							"subfields": [
+								{ "t": "1" }
+							]
+						}
+					}
+				]
+			}
+		}
+	}
+}

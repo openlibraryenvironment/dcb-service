@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type='text/xsl' href='/opac-tmpl/xslt/OAI.xslt'?><OAI-PMH xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns='http://www.openarchives.org/OAI/2.0/' xsi:schemaLocation='http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd'><responseDate>2026-09-15T09:00:00Z</responseDate><request verb='ListRecords' metadataPrefix='marcxml'>https://koha-001-a.vhosts.k-int.com/opac/oai.pl</request><ListRecords><record><header><identifier>KOHA-OAI-TEST:10</identifier><datestamp>2026-09-01T10:00:00Z</datestamp></header><metadata><record xmlns='http://www.loc.gov/MARC21/slim'>
+  <leader>00242nam a22000857a 4500</leader>
+  <controlfield tag='005'>20260901100000.0</controlfield>
+  <datafield tag='245' ind1=' ' ind2=' '>
+    <subfield code='a'>Shareable with the consortium</subfield>
+  </datafield>
+  <datafield tag='942' ind1=' ' ind2=' '>
+    <subfield code='2'>ddc</subfield>
+    <subfield code='c'>BK</subfield>
+    <subfield code='n'>0</subfield>
+  </datafield>
+  <datafield tag='999' ind1=' ' ind2=' '>
+    <subfield code='c'>10</subfield>
+    <subfield code='d'>10</subfield>
+  </datafield>
+</record></metadata></record><record><header><identifier>KOHA-OAI-TEST:11</identifier><datestamp>2026-09-01T10:00:00Z</datestamp></header><metadata><record xmlns='http://www.loc.gov/MARC21/slim'>
+  <leader>00242nam a22000857a 4500</leader>
+  <controlfield tag='005'>20260901100000.0</controlfield>
+  <datafield tag='245' ind1=' ' ind2=' '>
+    <subfield code='a'>Hidden from everyone by OpacSuppression</subfield>
+  </datafield>
+  <datafield tag='942' ind1=' ' ind2=' '>
+    <subfield code='2'>ddc</subfield>
+    <subfield code='c'>BK</subfield>
+    <subfield code='n'>1</subfield>
+  </datafield>
+  <datafield tag='999' ind1=' ' ind2=' '>
+    <subfield code='c'>11</subfield>
+    <subfield code='d'>11</subfield>
+  </datafield>
+</record></metadata></record><record><header><identifier>KOHA-OAI-TEST:12</identifier><datestamp>2026-09-01T10:00:00Z</datestamp></header><metadata><record xmlns='http://www.loc.gov/MARC21/slim'>
+  <leader>00242nam a22000857a 4500</leader>
+  <controlfield tag='005'>20260901100000.0</controlfield>
+  <datafield tag='245' ind1=' ' ind2=' '>
+    <subfield code='a'>Local only, lendable at home</subfield>
+  </datafield>
+  <datafield tag='942' ind1=' ' ind2=' '>
+    <subfield code='2'>ddc</subfield>
+    <subfield code='c'>BK</subfield>
+    <subfield code='n'>0</subfield>
+    <subfield code='x'>1</subfield>
+  </datafield>
+  <datafield tag='999' ind1=' ' ind2=' '>
+    <subfield code='c'>12</subfield>
+    <subfield code='d'>12</subfield>
+  </datafield>
+</record></metadata></record><record><header><identifier>KOHA-OAI-TEST:13</identifier><datestamp>2026-09-01T10:00:00Z</datestamp></header><metadata><record xmlns='http://www.loc.gov/MARC21/slim'>
+  <leader>00242nam a22000857a 4500</leader>
+  <controlfield tag='005'>20260901100000.0</controlfield>
+  <datafield tag='245' ind1=' ' ind2=' '>
+    <subfield code='a'>Never been near the 942 editor</subfield>
+  </datafield>
+  <datafield tag='999' ind1=' ' ind2=' '>
+    <subfield code='c'>13</subfield>
+    <subfield code='d'>13</subfield>
+  </datafield>
+</record></metadata></record></ListRecords></OAI-PMH>
