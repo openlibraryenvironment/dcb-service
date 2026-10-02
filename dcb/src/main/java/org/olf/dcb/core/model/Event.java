@@ -1,6 +1,7 @@
 package org.olf.dcb.core.model;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 import io.micronaut.core.annotation.NonNull;
@@ -37,4 +38,11 @@ public class Event {
 	@Nullable
 	@Column(name = "event_summary")
 	String summary;
+
+	// event_summary is varchar(128), which a check code, a cluster id and a description do not
+	// fit into together. This column has been in the schema since V1 and nothing mapped it
+	@Nullable
+	@TypeDef(type = DataType.JSON)
+	@Column(name = "additional_data")
+	Map<String, Object> additionalData;
 }

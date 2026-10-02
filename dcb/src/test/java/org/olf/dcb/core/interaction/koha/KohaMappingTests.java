@@ -23,7 +23,9 @@ import org.mockito.ArgumentCaptor;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
+import org.olf.dcb.core.interaction.koha.dto.KohaItemsList;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronsList;
 import org.olf.dcb.core.model.BibRecord;
@@ -126,6 +128,27 @@ class KohaMappingTests {
 
 		assertThat(patron.getLocalHomeLibraryCode(), is((String) null));
 		assertThat(patron.getLocalPatronType(), is("ADULT"));
+	}
+
+	@Test
+	void shouldReportAnItemKohaHasCheckedOutAsLoaned() {
+		final var onLoan = KohaItem.builder()
+			.itemId(99L)
+			.biblioId(42L)
+			.externalId("ITEM-BARCODE")
+			.checkedOutDate("2026-09-01T10:00:00Z")
+			.build();
+
+		final var byBarcode = new KohaItemsList();
+		byBarcode.add(onLoan);
+
+		when(apiClient.getItemByBarcode("ITEM-BARCODE")).thenReturn(Mono.just(byBarcode));
+		when(apiClient.getItem("99")).thenReturn(Mono.just(onLoan));
+
+		// Koha leaves every status field at "available" while an item is on loan
+		assertThat(client.getItemByBarcode("ITEM-BARCODE").block().getStatus(), is(HostLmsItem.ITEM_LOANED));
+		assertThat(client.getItem(HostLmsItem.builder().localId("99").build()).block().getStatus(),
+			is(HostLmsItem.ITEM_LOANED));
 	}
 
 	@Test

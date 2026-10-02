@@ -76,7 +76,8 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 		}
 
 
-		log.debug("CreateHostLmsDataFetcher input: {}", input);
+		// Names only: clientConfig carries the system's API keys and passwords
+		log.debug("CreateHostLmsDataFetcher code={} fields={}", input.get("code"), input.keySet());
 
 		// Parse the input. Note that these are the common variables
 		String code = (String) input.get("code");

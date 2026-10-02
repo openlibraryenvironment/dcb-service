@@ -246,6 +246,34 @@ public class PAPIClient {
 			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new));
 	}
 
+	/**
+	 * Every branch-level organisation. API: GET organizations/branch
+	 */
+	public Mono<OrganizationsGetResult> listBranches() {
+		final var path = createPath(PUBLIC_PARAMETERS, "organizations", "branch");
+
+		return client.retrieve(client.createRequest(GET, path)
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
+			Argument.of(OrganizationsGetResult.class))
+			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toListFailure));
+	}
+
+	/**
+	 * Every patron code. API: GET patroncodes
+	 */
+	public Mono<PatronCodesGetResult> listPatronCodes() {
+		final var path = createPath(PUBLIC_PARAMETERS, "patroncodes");
+
+		return client.retrieve(client.createRequest(GET, path)
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
+			Argument.of(PatronCodesGetResult.class))
+			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toListFailure));
+	}
+
+	private static Throwable toListFailure(Integer errorCode, String errorMessage) {
+		return new IllegalStateException("PAPI error " + errorCode + ": " + errorMessage);
+	}
+
 	public Mono<ItemOperationResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
@@ -619,6 +647,56 @@ public class PAPIClient {
 		private Integer logonUserID;
 		@JsonProperty("LogonWorkstationID")
 		private Integer logonWorkstationID;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class OrganizationsGetResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("OrganizationsGetRows")
+		private List<OrganizationsGetRow> organizationsGetRows;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class OrganizationsGetRow {
+		@JsonProperty("OrganizationID")
+		private Integer organizationID;
+		@JsonProperty("Name")
+		private String name;
+		@JsonProperty("DisplayName")
+		private String displayName;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PatronCodesGetResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("PatronCodesRows")
+		private List<PatronCodesRow> patronCodesRows;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PatronCodesRow {
+		@JsonProperty("PatronCodeID")
+		private Integer patronCodeID;
+		@JsonProperty("Description")
+		private String description;
 	}
 
 	interface PapiResult {

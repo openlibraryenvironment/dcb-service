@@ -112,6 +112,7 @@ import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.interaction.sierra.configuration.BranchInfo;
+import services.k_int.interaction.sierra.configuration.BranchResultSet;
 import services.k_int.interaction.sierra.configuration.PickupLocationInfo;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
@@ -1507,6 +1508,87 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, concat);
 	}
 
+	private static final int BRANCH_PAGE_SIZE = 100;
+	// 50 pages is 5,000 branches, far past any Sierra site; a longer list fails rather than loops
+	private static final int MAX_BRANCH_OFFSET = 5_000;
+
+	/**
+	 * Every branch page, and the patron metadata. Triggered by an implementer from the tools API,
+	 * never on a request path.
+	 */
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.zip(
+				emptyWhenUnreadable(MappingVocabulary.LOCATION),
+				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE))
+			.map(answers -> new ConfigurationReport(getHostLmsCode(),
+				ConfigurationReport.Status.CHECKED, null, List.of(),
+				List.of(
+					ConfigurationReport.vocabulary("Locations", answers.getT1(), "Sierra"),
+					ConfigurationReport.vocabulary("Patron types", answers.getT2(), "Sierra"),
+					new ConfigurationReport.Vocabulary("Item types", List.of(), false,
+						"Sierra's API has no call listing item types"))));
+	}
+
+	@Override
+	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return switch (vocabulary) {
+			case LOCATION -> allBranches()
+				.flatMapIterable(branch -> Optional.ofNullable(branch.locations()).orElse(List.of()).stream()
+					.filter(location -> location.get("code") != null)
+					.map(location -> new ConfigurationReport.Entry(location.get("code").trim(),
+						location.get("name") + " (" + branch.name() + ")"))
+					.toList())
+				.collectList();
+			case PATRON_TYPE -> Flux.from(client.patronMetadata())
+				.flatMapIterable(metadata -> metadata)
+				.filter(metadata -> "patronType".equals(metadata.field()))
+				.flatMapIterable(metadata -> metadata.values() != null ? metadata.values() : List.of())
+				.filter(value -> value.get("code") != null)
+				.map(value -> new ConfigurationReport.Entry(metadataCode(value.get("code")),
+					Objects.toString(value.get("desc"), null)))
+				.collectList();
+			case ITEM_TYPE -> Mono.empty();
+		};
+	}
+
+	private Flux<BranchInfo> allBranches() {
+		final var fields = List.of("name", "locations");
+
+		return Mono.from(client.branches(BRANCH_PAGE_SIZE, 0, fields))
+			.expand(page -> {
+				final var nextOffset = page.start() + page.entries().size();
+
+				if (page.entries().isEmpty() || nextOffset >= page.total()) {
+					return Mono.empty();
+				}
+
+				if (nextOffset >= MAX_BRANCH_OFFSET) {
+					return Mono.error(new IllegalStateException(
+						"Sierra reports more than " + MAX_BRANCH_OFFSET + " branches"));
+				}
+
+				return Mono.from(client.branches(BRANCH_PAGE_SIZE, nextOffset, fields));
+			})
+			.flatMapIterable(BranchResultSet::entries);
+	}
+
+	// Sierra sends patron type codes as JSON numbers; 3 must read "3", as localPatronType does
+	private static String metadataCode(Object code) {
+		return code instanceof Number number && number.doubleValue() == number.longValue()
+			? Long.toString(number.longValue())
+			: code.toString().trim();
+	}
+
+	private Mono<List<ConfigurationReport.Entry>> emptyWhenUnreadable(MappingVocabulary vocabulary) {
+		return fetchVocabulary(vocabulary)
+			.onErrorResume(error -> {
+				log.warn("Could not read {} from Sierra at {}", vocabulary, getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
 	@Override
 	public Publisher<ConfigurationRecord> getConfigStream() {
 
@@ -1797,9 +1879,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 		final var deleted = getValue(item, SierraItem::getDeleted, false);
 
-		final var resolvedStatus = status != null
-			? mapSierraItemStatusToDCBItemStatus(status)
-			: (deleted ? "MISSING" : "UNKNOWN");
+		// A deleted item keeps the status code it had, which can read available
+		final var resolvedStatus = deleted ? "MISSING"
+			: status != null ? mapSierraItemStatusToDCBItemStatus(status)
+			: "UNKNOWN";
 
 		final var renewalCount = determineLocalRenewalCount(item.getFixedFields());
 		// Sierra returns a list of bibIds. We typically just need the first one.

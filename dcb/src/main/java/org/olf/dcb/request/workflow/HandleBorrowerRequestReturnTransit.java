@@ -20,6 +20,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 
@@ -56,10 +57,12 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 
 		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
 		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
-		// Handles expedited checkout situations where we need to be careful not to get stuck in LOANED.
-		// If the supplier item status is available, it's time to move on.
-		if (isPatronRequestStatusApplicable(patronRequest) && patronRequest.getIsExpeditedCheckout() !=null && patronRequest.getIsExpeditedCheckout() && isSupplierLocalItemStatusApplicable(supplierRequest)) {
-			return true;
+		// A walk-up loan is returned at the supplier's desk, so the supplier's item coming back
+		// available is the only return signal: the borrower's virtual item reads available
+		// whenever the mirrored checkout there failed
+		if (isExpedited(patronRequest)) {
+			return isPatronRequestStatusApplicable(patronRequest)
+				&& isSupplierLocalItemStatusApplicable(supplierRequest);
 		}
 		else
 		{
@@ -82,11 +85,27 @@ public class HandleBorrowerRequestReturnTransit implements PatronRequestStateTra
 	}
 
 	private boolean isSupplierLocalItemStatusApplicable(SupplierRequest supplierRequest) {
-		return supplierRequest.getLocalItemStatus() != null && possibleSupplierLocalItemStatus.contains(supplierRequest.getLocalItemStatus());
+		return supplierRequest != null && supplierRequest.getLocalItemStatus() != null
+			&& possibleSupplierLocalItemStatus.contains(supplierRequest.getLocalItemStatus());
+	}
+
+	private static boolean isExpedited(PatronRequest patronRequest) {
+		return Boolean.TRUE.equals(patronRequest.getIsExpeditedCheckout())
+			&& EXPEDITED_WORKFLOW.equals(patronRequest.getActiveWorkflow());
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
+		// The walk-up checkout also recorded a loan in the patron's own library, and nobody at that
+		// library ever handles the book, so the return is recorded there too
+		if (isExpedited(ctx.getPatronRequest())) {
+			return checkInAtBorrower(ctx)
+				.flatMap(rwc -> {
+					rwc.getPatronRequest().setStatus(PatronRequest.Status.RETURN_TRANSIT);
+					return supplierReturnExpectedNotifier.notifyExpectedReturn(rwc);
+				});
+		}
+
 		// This assumes that when using the PUA workflow, the item is returned to the pickup location
 		// Some work may need to be done in the future to account for if the item is returned to supplying/borrowing library
 		if(ctx.getPatronRequest().isUsingPickupAnywhereWorkflow()) {

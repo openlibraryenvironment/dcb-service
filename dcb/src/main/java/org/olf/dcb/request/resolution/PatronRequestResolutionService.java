@@ -47,14 +47,14 @@ public class PatronRequestResolutionService {
 	private final List<ResolutionSortOrder> allResolutionStrategies;
 	private final String itemResolver;
 	private final ManualSelection manualSelection;
-	private final ItemFilter itemFilter;
+	private final AllItemFilters itemFilters;
 	private final Duration timeout;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies, ManualSelection manualSelection,
-		ItemFilter itemFilter,
+		AllItemFilters itemFilters,
 		@Value("${dcb.resolution.live-availability.timeout:PT30S}") Duration timeout) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
@@ -62,7 +62,7 @@ public class PatronRequestResolutionService {
 		this.itemResolver = itemResolver;
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.manualSelection = manualSelection;
-		this.itemFilter = itemFilter;
+		this.itemFilters = itemFilters;
 		this.timeout = timeout;
 
 		log.debug("Using live availability timeout of {} during resolution", timeout);
@@ -288,8 +288,9 @@ public class PatronRequestResolutionService {
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {
 		return checkAvailability(resolution)
-			.map(AvailabilityReport::getItems)
-			.map(resolution::trackAllItems);
+			.map(report -> resolution
+				.trackAllItems(report.getItems())
+				.trackAvailabilityErrors(report.getErrors()));
 	}
 
 	private Mono<AvailabilityReport> checkAvailability(Resolution resolution) {
@@ -344,10 +345,10 @@ public class PatronRequestResolutionService {
 			return Mono.error(new MissingParameterException("pickupAgencyCode"));
 		}
 
-		return Flux.fromIterable(allItems)
-			.filterWhen(itemFilter.filterItem(resolution))
-			.collectList()
-			.map(resolution::trackFilteredItems);
+		return itemFilters.partition(allItems, resolution)
+			.map(outcome -> resolution
+				.trackFilteredItems(outcome.included())
+				.trackExcludedItems(outcome.excluded()));
 	}
 
 	public static Resolution checkMappedCanonicalItemType(Resolution resolution) {

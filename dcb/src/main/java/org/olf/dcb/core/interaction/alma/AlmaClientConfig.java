@@ -27,14 +27,27 @@ public class AlmaClientConfig {
 	// https://developers.exlibrisgroup.com/alma/apis/docs/xsd/rest_item.xsd/?tags=POST
 	private static final HostLmsPropertyDefinition ITEM_POLICY_SETTING
 		= stringPropertyDefinition("item-policy", "Item policy for this ALMA system", FALSE);
-	private static final HostLmsPropertyDefinition SHELF_LOCATION_SETTING
-		= stringPropertyDefinition("shelf-location", "Shelf location for this ALMA system", FALSE);
+	/**
+	 * The item policy DCB stamps on a virtual item to stop it being renewed. The library has
+	 * to configure a loan rule against this code that disallows renewal - the rule itself is
+	 * deployment state DCB cannot see. Optional, because it only matters where renewal
+	 * prevention is in use.
+	 */
+	private static final HostLmsPropertyDefinition NO_RENEW_ITEM_POLICY
+		= stringPropertyDefinition("no-renew-item-policy",
+			"Item policy DCB sets to deny renewal, matching a loan rule in this Alma that disallows it", FALSE);
+
+	public static final String DEFAULT_NO_RENEW_ITEM_POLICY = "DCB_NO_RENEW";
+
 	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
 		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition DEFAULT_CIRC_DESK_CODE
 		= stringPropertyDefinition("default-circ-desk-code", "Default circ desk code used for this ALMA system", FALSE);
 	private static final HostLmsPropertyDefinition USER_IDENTIFIER
 		= stringPropertyDefinition("user-identifier", "User identifier to find patron", FALSE);
+	private static final HostLmsPropertyDefinition REQUEST_CANCELLATION_REASON
+		= stringPropertyDefinition("request-cancellation-reason",
+			"Code from the RequestCancellationReasons code table sent when DCB cancels a request", TRUE);
 
 	// Alma has no reliable way of getting a patron's home location.
 	// So we must create virtual items at a "DCB" location agreed with the Alma staff
@@ -47,6 +60,27 @@ public class AlmaClientConfig {
 	// if we don't use a different library a check in will transition the item to hold shelf
 	private static final HostLmsPropertyDefinition DCB_SHARING_LIBRARY_CODE
 		= stringPropertyDefinition("sharing-library-code", "Library used to ship resources outside of Alma", TRUE);
+
+	// For an item that belongs to the sharing library itself, a hold there sends it to that
+	// library's hold shelf on scan-in, never into transit
+	// A desk nobody scans items in at: every scan elsewhere, even in the same library, is then a
+	// transit, so it serves items the sharing library owns as well and no alternative is needed
+	private static final HostLmsPropertyDefinition SHARING_CIRC_DESK_CODE
+		= stringPropertyDefinition("sharing-circ-desk-code",
+			"Circulation desk in the sharing library that supplier holds are sent to", FALSE);
+
+	private static final HostLmsPropertyDefinition ALTERNATIVE_SHARING_LIBRARY_CODE
+		= stringPropertyDefinition("alternative-sharing-library-code",
+			"Library supplier holds go to when the item belongs to the sharing library", FALSE);
+
+	// Alma user identifiers are unique across the institution, so a borrower's bare barcode can
+	// collide with one of this Alma's own users. Empty by default all the same: at a pickup or
+	// walk-up library the patron presents their own card, and a prefixed barcode would not scan
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_BARCODE_PREFIX
+		= stringPropertyDefinition("virtual-patron-barcode-prefix",
+			"Prefix on virtual patron barcodes; empty unless this Alma's own barcodes collide", FALSE);
+
+	public static final String DEFAULT_VIRTUAL_PATRON_BARCODE_PREFIX = "";
 
 	private final HostLms hostLms;
 
@@ -66,8 +100,8 @@ public class AlmaClientConfig {
 		return ITEM_POLICY_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
-	String getShelfLocation() {
-		return SHELF_LOCATION_SETTING.getOptionalValueFrom(hostLms.getClientConfig(), null);
+	String getNoRenewItemPolicy(String defaultValue) {
+		return NO_RENEW_ITEM_POLICY.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
 	String getPickupCircDesk(String defaultValue) {
@@ -82,8 +116,27 @@ public class AlmaClientConfig {
 		return USER_IDENTIFIER.getOptionalValueFrom(hostLms.getClientConfig(), defaultValue);
 	}
 
+	String getVirtualPatronBarcodePrefix() {
+		return VIRTUAL_PATRON_BARCODE_PREFIX.getOptionalValueFrom(hostLms.getClientConfig(),
+			DEFAULT_VIRTUAL_PATRON_BARCODE_PREFIX);
+	}
+
+	// Required when a Host LMS is saved, but read leniently: a record saved before the setting
+	// existed must still be able to cancel, as it could before
+	String getRequestCancellationReason() {
+		return REQUEST_CANCELLATION_REASON.getOptionalValueFrom(hostLms.getClientConfig(), null);
+	}
+
 	String getDcbSharingLibraryCode() {
 		return DCB_SHARING_LIBRARY_CODE.getRequiredConfigValue(hostLms);
+	}
+
+	String getSharingCircDeskCode() {
+		return SHARING_CIRC_DESK_CODE.getOptionalValueFrom(hostLms.getClientConfig(), null);
+	}
+
+	String getAlternativeSharingLibraryCode() {
+		return ALTERNATIVE_SHARING_LIBRARY_CODE.getOptionalValueFrom(hostLms.getClientConfig(), null);
 	}
 
 	// This is the location virtual items will be created at.
@@ -94,8 +147,18 @@ public class AlmaClientConfig {
 		return List.of(
 			BASE_URL_SETTING,
 			API_KEY_SETTING,
+			DCB_SHARING_LIBRARY_CODE,
+			SHARING_CIRC_DESK_CODE,
+			ALTERNATIVE_SHARING_LIBRARY_CODE,
+			VIRTUAL_ITEM_LIBRARY_CODE,
+			VIRTUAL_ITEM_LOCATION_CODE,
 			ITEM_POLICY_SETTING,
-			SHELF_LOCATION_SETTING
+			NO_RENEW_ITEM_POLICY,
+			PICKUP_CIRC_DESK_SETTING,
+			DEFAULT_CIRC_DESK_CODE,
+			USER_IDENTIFIER,
+			REQUEST_CANCELLATION_REASON,
+			VIRTUAL_PATRON_BARCODE_PREFIX
 		);
 	}
 

@@ -1515,6 +1515,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					return Mono.empty();
 				}
 
+				if (itemsCollection.getItems().size() > 1) {
+					return Mono.error(new IllegalStateException("%d items in FOLIO share barcode %s"
+						.formatted(itemsCollection.getItems().size(), barcode)));
+				}
+
 				var item = itemsCollection.getItems().iterator().next();
 				if (item.getBarcode() == null) {
 					item.setBarcode(barcode);
@@ -1625,4 +1630,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
     return result;
   }
 
+	// Declared rather than inherited: the edge API key reaches edge-dcb, edge-users and edge-rtac,
+	// none of which lists material types, patron groups or locations
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.just(ConfigurationReport.notSupported(getHostLmsCode(),
+			"DCB reaches FOLIO through edge modules that cannot list material types, patron groups or locations"));
+	}
 }

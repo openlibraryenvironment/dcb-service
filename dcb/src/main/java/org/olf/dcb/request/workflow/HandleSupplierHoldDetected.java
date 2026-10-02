@@ -1,5 +1,7 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -76,14 +78,26 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 		final var supplierItemId = HostLmsItem.builder()
 			.localId(supplierRequest.getLocalItemId())
 			.localRequestId(supplierRequest.getLocalId())
+			.bibId(supplierRequest.getLocalBibId())
+			.holdingId(supplierRequest.getLocalHoldingId())
 			.build();
 
 		// Quick check of the actual item. Does it really have a hold?
 		return hostLmsService.getClientFor(supplierSystemCode)
 			.flatMap(client -> Mono.from(client.getItem(supplierItemId)))
+			// Alma and Koha answer a vanished item with nothing, Sierra and Polaris with MISSING
+			.switchIfEmpty(Mono.error(() -> supplierItemGone(supplierRequest)))
 			.flatMap(freshItem -> {
 				log.info("Item coming back {}", freshItem);
-				int freshHoldCount = freshItem.getHoldCount() != null ? freshItem.getHoldCount() : 0;
+				// Unknown is not zero: saving 0 would erase the hold tracking saw, and skip prevention
+				if (freshItem.getHoldCount() == null) {
+					return Mono.error(ITEM_MISSING.equals(freshItem.getStatus())
+						? supplierItemGone(supplierRequest)
+						: new IllegalStateException(supplierSystemCode
+							+ " did not report a hold count for item " + supplierRequest.getLocalItemId()));
+				}
+
+				final int freshHoldCount = freshItem.getHoldCount();
 				// We set the new value, and, just to be sure, we persist it also.
 				// We should probably NOT do this if it's the same as the old hold count
 				// We should also probably update the whole item on the supplier request?
@@ -96,7 +110,8 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 				// Now we know that we have got the up-to-date hold value
 				if (freshHoldCount > 0) {
 					log.debug("Holds confirmed ({}). Preventing renewals at borrowing library.", freshHoldCount);
-					return executePreventRenewal(ctx);
+					return executePreventRenewal(ctx,
+						"Hold confirmed at owning Library. Borrowing Library told to prevent renewals");
 				} else {
 					log.info("False positive detected (Count is 0). DB updated. Skipping renewal prevention.");
 					return auditService.addAuditEntry(ctx.getPatronRequest(),
@@ -107,21 +122,27 @@ public class HandleSupplierHoldDetected implements PatronRequestStateTransition 
 				log.error("Error verifying supplier hold count for PR {}. Defaulting to proceeding with caution.", ctx.getPatronRequest().getId(), error);
 				return auditService.addAuditEntry(ctx.getPatronRequest(),
 						"Error verifying supplier hold count (" + error.getMessage() + "). Defaulting to preventing renewals.") //
-					.then(executePreventRenewal(ctx));
+					.then(executePreventRenewal(ctx, "Borrowing Library told to prevent renewals"));
 			});
 	}
 
-	private Mono<RequestWorkflowContext> executePreventRenewal(RequestWorkflowContext ctx) {
+	private static IllegalStateException supplierItemGone(SupplierRequest supplierRequest) {
+		return new IllegalStateException(supplierRequest.getHostLmsCode() + " no longer has item "
+			+ supplierRequest.getLocalItemId() + ", so it cannot say whether anyone is waiting for it");
+	}
+
+	private Mono<RequestWorkflowContext> executePreventRenewal(RequestWorkflowContext ctx, String outcome) {
 		return hostLmsService.getClientFor(ctx.getPatronSystemCode())
 			.flatMap(hostLmsClient -> hostLmsClient.preventRenewalOnLoan(
 				PreventRenewalCommand.builder()
 					.requestId(ctx.getPatronRequest().getLocalRequestId())
 					.itemBarcode(ctx.getPatronRequest().getPickupItemBarcode())
 					.itemId(ctx.getPatronRequest().getLocalItemId())
+					.localBibId(ctx.getPatronRequest().getLocalBibId())
+					.localHoldingId(ctx.getPatronRequest().getLocalHoldingId())
 					.build()))
 			.then(markPatronRequestNotRenewable(ctx))
-			.flatMap(updatedCtx -> auditService.addAuditEntry(updatedCtx.getPatronRequest(),
-					"Hold confirmed at owning Library. Borrowing Library told to prevent renewals")
+			.flatMap(updatedCtx -> auditService.addAuditEntry(updatedCtx.getPatronRequest(), outcome)
 				.thenReturn(updatedCtx)
 			)
 			.onErrorResume(error -> {

@@ -36,7 +36,9 @@ class ElasticsearchIndexDocumentSerializationTests {
 		assertThat(source.at("/members/0/sourceRecordId").asText(), is("member-1"));
 		assertThat(source.at("/members/0/title").asText(), is("Member title"));
 		assertThat(source.at("/members/0/primary").asBoolean(), is(true));
-		assertThat(source.at("/members/0/availability/0/combined").asText(), is("main.stacks"));
+		// dcb-locate aggregates on this field name — see NestedBibIndexDoc.AvailabilityEntry
+		assertThat(source.at("/members/0/availability/0/library").asText(), is("AGENCY-A"));
+		assertThat(source.at("/members/0/availability/0/combined").asText(), is("AGENCY-A.stacks"));
 		assertThat(source.at("/members/0/availability/0/count").asInt(), is(3));
 	}
 

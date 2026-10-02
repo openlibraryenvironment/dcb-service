@@ -188,6 +188,27 @@ public interface PatronRequestRepository {
     """, nativeQuery = true)
   Publisher<Long> getActiveRequestCountForPatron(String hostLmsCode, String patronId, Collection<String> activeStates);
 
+	default Publisher<PatronRequest> findActiveRequestHoldingSupplierItem(String hostLmsCode, String localItemId) {
+		return findActiveRequestHoldingSupplierItem(hostLmsCode, localItemId, Status.ACTIVE_STATE_CODES);
+	}
+
+	// supplier_request has no index on local_item_id: this narrows by idx_lender_hold's leading
+	// host_lms_code and filters that system's supplier requests. Called once per walk-up
+	@SingleResult
+	@Query(value = """
+		select pr.*
+		from patron_request pr
+		join supplier_request sr on sr.patron_request_id = pr.id
+		where sr.host_lms_code = :hostLmsCode
+		  and sr.local_item_id = :localItemId
+		  and sr.is_active = true
+		  and pr.status_code in (:activeStates)
+		order by pr.date_created
+		limit 1
+		""", nativeQuery = true)
+	Publisher<PatronRequest> findActiveRequestHoldingSupplierItem(String hostLmsCode, String localItemId,
+		Collection<String> activeStates);
+
 	// The following methods provide a limited patron request summary for a patron's active and all-time requests.
 	// This is intended for discovery services who cannot make use of the GraphQL APIs available
 	// And who need to provide a summary for patrons

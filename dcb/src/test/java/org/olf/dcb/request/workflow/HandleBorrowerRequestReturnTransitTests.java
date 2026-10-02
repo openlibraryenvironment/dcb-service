@@ -93,6 +93,54 @@ class HandleBorrowerRequestReturnTransitTests {
 		verify(dependencies.notifier(), never()).notifyExpectedReturn(any());
 	}
 
+	@Test
+	void walkUpReturnChecksInAtTheBorrowerAndNotifiesTheSupplier() {
+		final var dependencies = dependencies();
+		final var context = walkUpContext();
+		final var hostLmsClient = mock(HostLmsClient.class);
+		when(dependencies.hostLmsService().getClientFor("borrower-host"))
+			.thenReturn(Mono.just(hostLmsClient));
+		when(hostLmsClient.checkInItem(any(CheckInItemCommand.class)))
+			.thenReturn(Mono.just("OK"));
+		when(dependencies.notifier().notifyExpectedReturn(context))
+			.thenReturn(Mono.just(context));
+
+		assertThat(dependencies.transition().isApplicableFor(context), is(true));
+
+		StepVerifier.create(dependencies.transition().attempt(context))
+			.expectNext(context)
+			.verifyComplete();
+
+		// The walk-up checkout recorded a loan in the patron's own library too; nobody there
+		// ever handles the book, so the return is recorded there as well
+		verify(hostLmsClient).checkInItem(any(CheckInItemCommand.class));
+		verify(dependencies.notifier()).notifyExpectedReturn(context);
+		assertThat(context.getPatronRequest().getStatus(),
+			is(PatronRequest.Status.RETURN_TRANSIT));
+	}
+
+	@Test
+	void walkUpIsReturnedOnlyWhenTheSupplierHasTheItemBack() {
+		final var transition = dependencies().transition();
+		final var context = walkUpContext();
+
+		// The borrower's virtual item reads available whenever the mirrored checkout failed
+		context.getPatronRequest().setLocalItemStatus(HostLmsItem.ITEM_AVAILABLE);
+		context.getSupplierRequest().setLocalItemStatus(HostLmsItem.ITEM_LOANED);
+
+		assertThat(transition.isApplicableFor(context), is(false));
+	}
+
+	private static RequestWorkflowContext walkUpContext() {
+		final var context = standardContext();
+		context.getPatronRequest().setIsExpeditedCheckout(true);
+		context.getPatronRequest().setActiveWorkflow("RET-EXP");
+		context.getPatronRequest().setLocalItemStatus(HostLmsItem.ITEM_LOANED);
+		context.getSupplierRequest().setLocalItemStatus(HostLmsItem.ITEM_AVAILABLE);
+		context.setPatronSystemCode("borrower-host");
+		return context;
+	}
+
 	private static RequestWorkflowContext standardContext() {
 		final var patronRequest = PatronRequest.builder()
 			.status(PatronRequest.Status.LOANED)

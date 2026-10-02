@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.item.availability.AvailabilityReport;
 
 import lombok.Builder;
 import lombok.Value;
@@ -25,6 +26,8 @@ public class Resolution implements ItemFilterParameters {
 	@Builder.Default List<Item> allItems = emptyList();
 	@Builder.Default List<Item> filteredItems = emptyList();
 	@Builder.Default List<Item> sortedItems = emptyList();
+	@Builder.Default List<Item> excludedItems = emptyList();
+	@Builder.Default List<AvailabilityReport.Error> availabilityErrors = emptyList();
 
 	public static Resolution forParameters(ResolutionParameters parameters) {
 		return Resolution.builder()
@@ -45,43 +48,43 @@ public class Resolution implements ItemFilterParameters {
 	}
 
 	public Resolution trackAllItems(List<Item> allItems) {
+		return copy().allItems(allItems).build();
+	}
+
+	/**
+	 * What availability could not answer. Kept because an empty item list on its own cannot
+	 * distinguish a Host LMS that reported no items from one that could not be reached.
+	 */
+	public Resolution trackAvailabilityErrors(List<AvailabilityReport.Error> availabilityErrors) {
+		return copy().availabilityErrors(availabilityErrors).build();
+	}
+
+	/** Items a filter removed, each carrying the name of the filter that removed it. */
+	public Resolution trackExcludedItems(List<Item> excludedItems) {
+		return copy().excludedItems(excludedItems).build();
+	}
+
+	private ResolutionBuilder copy() {
 		return builder()
 			.parameters(parameters)
 			.allItems(allItems)
 			.filteredItems(filteredItems)
 			.sortedItems(sortedItems)
-			.chosenItem(chosenItem)
-			.build();
+			.excludedItems(excludedItems)
+			.availabilityErrors(availabilityErrors)
+			.chosenItem(chosenItem);
 	}
 
 	public Resolution trackFilteredItems(List<Item> filteredItems) {
-		return Resolution.builder()
-			.parameters(parameters)
-			.allItems(allItems)
-			.filteredItems(filteredItems)
-			.sortedItems(sortedItems)
-			.chosenItem(chosenItem)
-			.build();
+		return copy().filteredItems(filteredItems).build();
 	}
 
 	public Resolution trackSortedItems(List<Item> sortedItems) {
-		return Resolution.builder()
-			.parameters(parameters)
-			.allItems(allItems)
-			.filteredItems(filteredItems)
-			.sortedItems(sortedItems)
-			.chosenItem(chosenItem)
-			.build();
+		return copy().sortedItems(sortedItems).build();
 	}
 
 	public Resolution selectItem(Item item) {
-		return Resolution.builder()
-			.parameters(parameters)
-			.allItems(allItems)
-			.filteredItems(filteredItems)
-			.sortedItems(sortedItems)
-			.chosenItem(item)
-			.build();
+		return copy().chosenItem(item).build();
 	}
 
 	public List<String> excludedSupplyingAgencyCodes() {

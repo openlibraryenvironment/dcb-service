@@ -28,7 +28,17 @@ public class IntMessageService {
 		Map.entry("CLUSTER_RECORD_NOT_FOUND", "we're sorry, we were unable to find the title being requested. Please re-enter your search. If you believe you have reached this message in error, please reach out to your library for assistance."),
 		Map.entry("EXCEEDS_GLOBAL_LIMIT", "Your account has exceeded the maximum global limit for consortial requests"),
 		Map.entry("EXCEEDS_AGENCY_LIMIT", "Your account has exceeded the maximum global limit for requests from your institution"),
-		Map.entry("PATRON_HOLD_LIMIT_REACHED", "You have reached the maximum number of holds allowed on your account. Please cancel an existing hold, or contact your library for additional information.")
+		Map.entry("PATRON_HOLD_LIMIT_REACHED", "You have reached the maximum number of holds allowed on your account. Please cancel an existing hold, or contact your library for additional information."),
+		Map.entry("REQUEST_LIMITS_UNCHECKED", "We are unable to check your request limits at the moment. Please try again later, or contact your library if this persists."),
+		Map.entry("EXCEEDS_AGENCY_LIMIT_UNKNOWN_AGENCY", "We are unable to check your library's borrowing limit. Please contact your library for assistance."),
+		Map.entry("WALK_UP_SAME_LIBRARY", "This borrower belongs to this library. Check the item out to them in your own system rather than through a walk-up."),
+		Map.entry("WALK_UP_ITEM_AGENCY_MISMATCH", "This library is not on the library system named for the item. Check the library and system selected."),
+		Map.entry("WALK_UP_PICKUP_ELSEWHERE", "A walk-up is collected at the library that holds the item. Choose a pickup location at this library."),
+		Map.entry("ITEM_NOT_FOUND", "No item with that barcode was found. Check the barcode and try again."),
+		Map.entry("ITEM_NOT_AVAILABLE", "This item is not available to lend at the moment, for example because it is already on loan or on hold."),
+		Map.entry("WALK_UP_ITEM_ALREADY_REQUESTED", "This item is already part of a request that is still in progress. Finish or cancel that request before lending the item again."),
+		Map.entry("ITEM_NOT_IN_SHARED_INDEX", "This item's record is not in the shared catalogue yet, so it cannot be lent through a walk-up."),
+		Map.entry("CLUSTER_DELETED", "This item's catalogue entry has been removed, so it cannot be lent through a walk-up.")
 	);
 
 	public String getMessage(String code) {

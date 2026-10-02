@@ -17,10 +17,11 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Serdeable
+@ToString(onlyExplicitlyIncluded = true)
 public class AlmaUser {
 	// CONTACT, PUBLIC, STAFF
-	CodeValuePair record_type;
 	@ToString.Include
+	CodeValuePair record_type;
 	String primary_id;
 	String first_name;
 	String last_name;
@@ -35,18 +36,16 @@ public class AlmaUser {
 	CodeValuePair preferred_language;
 	// EXTERNAL, INTERNAL, INTEXTAUTH
 	CodeValuePair account_type;
-	@ToString.Include
 	String external_id;
 	// ACTIVE, INACTIVE, DELETED
-	CodeValuePair status;
 	@ToString.Include
+	CodeValuePair status;
 	@JsonProperty("user_identifier")
 	List<UserIdentifier> identifiers;
 	// Alma calls this "expiry_date"  and we need the mapping
 	@Nullable
 	@JsonProperty("expiry_date")
 	String expirationDate;
-	@ToString.Include
 	@JsonProperty("user_blocks")
 	List<AlmaUserBlock> user_blocks;
 }

@@ -1,5 +1,6 @@
 package org.olf.dcb.request.resolution;
 
+import org.olf.dcb.item.availability.AvailabilityReport;
 import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItem;
 import static org.olf.dcb.request.workflow.PresentableItem.toPresentableItems;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -72,5 +73,15 @@ public class ResolutionAuditService {
 		putNonNullValue(auditData, "filteredItems", toPresentableItems(resolution.getFilteredItems()));
 		putNonNullValue(auditData, "sortedItems", toPresentableItems(resolution.getSortedItems()));
 		putNonNullValue(auditData, "allItems", toPresentableItems(resolution.getAllItems()));
+		putNonNullValue(auditData, "excludedItems", toPresentableItems(resolution.getExcludedItems()));
+
+		// Without these, an unreachable Host LMS and a genuinely empty holding produce the
+		// same entry: three empty lists and no reason
+		final var errors = resolution.getAvailabilityErrors();
+
+		if (errors != null && !errors.isEmpty()) {
+			putNonNullValue(auditData, "availabilityErrors",
+				errors.stream().map(AvailabilityReport.Error::getMessage).toList());
+		}
 	}
 }

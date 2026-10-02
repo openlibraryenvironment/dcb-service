@@ -84,4 +84,34 @@ class FinaliseRequestTransitionWithoutVirtualPatronTests {
 			is("Not created by supplier protocol"));
 		verifyNoInteractions(pickupAgencyService);
 	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void finalisesARequestThatNeverReachedASupplier() {
+		final var auditService = mock(PatronRequestAuditService.class);
+		final var supplyingAgencyService = mock(SupplyingAgencyService.class);
+		final var borrowingAgencyService = mock(BorrowingAgencyService.class);
+		final var cleanupService = mock(CleanupService.class);
+		final var patronRequest = PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.status(PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY)
+			.build();
+		final var context = new RequestWorkflowContext().setPatronRequest(patronRequest);
+
+		when(cleanupService.cleanup(context)).thenReturn(Mono.just(context));
+		when(borrowingAgencyService.getItem(patronRequest)).thenReturn(Mono.empty());
+		when(auditService.addAuditEntry(any(PatronRequest.class), anyString(), anyMap()))
+			.thenReturn(Mono.just(PatronRequestAudit.builder().build()));
+
+		final var transition = new FinaliseRequestTransition(auditService, supplyingAgencyService,
+			borrowingAgencyService, mock(PickupAgencyService.class), cleanupService);
+
+		assertThat(singleValueFrom(transition.attempt(context)), is(context));
+		assertThat(patronRequest.getStatus(), is(PatronRequest.Status.FINALISED));
+		verify(supplyingAgencyService, never()).getRequest(anyString(), any());
+
+		final ArgumentCaptor<Map<String, Object>> auditDataCaptor = ArgumentCaptor.forClass(Map.class);
+		verify(auditService).addAuditEntry(eq(patronRequest), eq("Clean up result"), auditDataCaptor.capture());
+		assertThat(auditDataCaptor.getValue().get("VirtualRequest"), is("No supplier request was placed"));
+	}
 }

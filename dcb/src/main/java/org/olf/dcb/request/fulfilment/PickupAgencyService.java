@@ -36,8 +36,8 @@ public class PickupAgencyService {
 			RequestWorkflowContext::getPatronRequest,
 			() -> new UnexpectedlyNullProblem("Patron request during clean up"));
 
-		if (!patronRequest.isUsingPickupAnywhereWorkflow()) {
-			log.debug("Not a PUA workflow, skipping cleanup of pickup system");
+		if (!patronRequest.involvesPickupAgency()) {
+			log.debug("Nothing at a pickup library, skipping cleanup of pickup system");
 			return Mono.just(requestWorkflowContext);
 		}
 
@@ -57,10 +57,11 @@ public class PickupAgencyService {
 				.flatMap(audit -> Mono.just(requestWorkflowContext));
 		}
 
+		// The borrower cleanup's order: a hold outlives the item it points at otherwise
 		return Mono.just(pickupSystem)
+			.flatMap(client -> deleteHoldIfPresent(client, patronRequest).thenReturn(client))
 			.flatMap(client -> deleteItemIfPresent(client, patronRequest))
 			.flatMap(client -> deleteBibIfPresent(client, patronRequest))
-			.flatMap(client -> deleteHoldIfPresent(client, patronRequest))
 			.thenReturn(requestWorkflowContext);
 	}
 

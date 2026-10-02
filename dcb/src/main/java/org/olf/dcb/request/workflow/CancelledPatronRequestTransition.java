@@ -3,7 +3,6 @@ package org.olf.dcb.request.workflow;
 import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
-import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.request.fulfilment.RequestWorkflowContext.extractFromSupplierReq;
 import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.CANCELLED;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -128,11 +127,8 @@ public class CancelledPatronRequestTransition implements PatronRequestStateTrans
 			log.debug("cancelPickupRequest");
 
 			final var patronRequest = ctx.getPatronRequest();
-			final var activeWorkflow = patronRequest.getActiveWorkflow();
 
-			// we may not need to cancel the pickup system request
-			// we assume there is a pickup request if the active workflow is pickup anywhere
-			if (!PICKUP_ANYWHERE_WORKFLOW.equals(activeWorkflow)) {
+			if (!patronRequest.involvesPickupAgency()) {
 
 				log.debug("cancelPickupRequest not needed for active workflow");
 

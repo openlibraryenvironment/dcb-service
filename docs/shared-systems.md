@@ -473,8 +473,8 @@ Keys relevant to shared systems, on the Host LMS client config:
 | `default-agency-code` | string | The agency to assume when a patron's home branch has no mapping. **Incompatible with `shared-system`** (except on the OpenRS appliance, where it means something different). |
 | `base-url-qualifier` | string | Distinguishes logical systems that share one URL. Only needed for appliances and gateways. |
 | `contextHierarchy` | string list | Ordered contexts to search for reference value mappings, most specific first. |
-| `sharing-library-code` | string | Koha, Alma: the library that stands for "a borrower outside this system". Correctly one value per system, shared or not. |
-| `virtual-item-library-code` | string | Koha, Alma: the branch virtual items are created at, used only when the borrowing patron's own branch is unknown. On a shared system the patron's home branch is preferred. |
+| `sharing-library-code` | string | Koha, Alma: the library that stands for "a borrower outside this system". Correctly one value per system, shared or not. Alma also takes `sharing-circ-desk-code` and `alternative-sharing-library-code`, because Alma shelves an item scanned in at its hold's pickup library instead of sending it; see the Alma setup page. |
+| `virtual-item-library-code` | string | Koha: the branch virtual items are created at, used only when the borrowing patron's own branch is unknown; on a shared system the patron's home branch is preferred. Alma: always the library virtual items are created at, on a shared system too — the Alma client does not yet prefer the patron's own library. |
 
 Agency-level settings:
 

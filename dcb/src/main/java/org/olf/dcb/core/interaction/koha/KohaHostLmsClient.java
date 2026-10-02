@@ -23,8 +23,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
@@ -456,6 +458,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		if (item.getNotForLoanStatus() != null && item.getNotForLoanStatus() > 0) {
 			return HostLmsItem.ITEM_MISSING; // Really should be ITEM_UNAVAILABLE or ITEM_RESTRICTED
 		}
+		// Koha keeps an item on loan "available" in every status field; only the checkout says so
+		if (item.getCheckout() != null || item.getCheckedOutDate() != null) {
+			return HostLmsItem.ITEM_LOANED;
+		}
 //		if (item.getDamagedStatus() != null && item.getDamagedStatus() > 0) {
 //		}
 		// Need to look at Koha item statuses for this one
@@ -784,6 +790,87 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return client.deleteItem(itemId)
 			.thenReturn("OK")
 			.doOnError(e -> log.error("Failed to delete Koha item {}: {}", itemId, e.getMessage()));
+	}
+
+	@Override
+	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return switch (vocabulary) {
+			case ITEM_TYPE -> entries(client.getItemTypes(),
+				type -> new ConfigurationReport.Entry(type.getItemTypeId(), type.getDescription()));
+
+			case PATRON_TYPE -> entries(client.getPatronCategories(),
+				category -> new ConfigurationReport.Entry(category.getPatronCategoryId(), category.getName()));
+
+			// Koha's branches are its locations
+			case LOCATION -> entries(client.getLibraries(),
+				library -> new ConfigurationReport.Entry(library.getLibraryId(), library.getName()));
+		};
+	}
+
+	private <T> Mono<List<ConfigurationReport.Entry>> entries(Mono<T[]> source,
+		Function<T, ConfigurationReport.Entry> toEntry) {
+
+		return source.map(values -> Arrays.stream(values).map(toEntry).toList());
+	}
+
+	// An unreadable list is an empty one, not a failure: the report says so per vocabulary
+	private Mono<List<ConfigurationReport.Entry>> emptyWhenUnreadable(MappingVocabulary vocabulary) {
+		return fetchVocabulary(vocabulary)
+			.onErrorResume(error -> {
+				log.warn("Could not read {} from Koha at {}", vocabulary, getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	/**
+	 * Three list calls. Triggered by an implementer from the tools API, never on a request path.
+	 */
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.zip(
+				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.LOCATION))
+			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3()))
+			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
+				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	private ConfigurationReport buildConfigurationReport(List<ConfigurationReport.Entry> itemTypes,
+		List<ConfigurationReport.Entry> patronTypes, List<ConfigurationReport.Entry> libraries) {
+
+		final var checks = List.of(
+			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), libraries),
+			checkSetting("virtual-item-library-code", rawConfigValue("virtual-item-library-code"), libraries));
+
+		final var vocabularies = List.of(
+			vocabulary("Item types", itemTypes),
+			vocabulary("Patron categories", patronTypes),
+			vocabulary("Libraries", libraries));
+
+		return new ConfigurationReport(getHostLmsCode(), ConfigurationReport.Status.CHECKED,
+			null, checks, vocabularies);
+	}
+
+	private static ConfigurationReport.Check checkSetting(String setting, String configuredValue,
+		List<ConfigurationReport.Entry> knownValues) {
+
+		return ConfigurationReport.check(setting, configuredValue, knownValues, "Koha");
+	}
+
+	private static ConfigurationReport.Vocabulary vocabulary(String name,
+		List<ConfigurationReport.Entry> entries) {
+
+		return ConfigurationReport.vocabulary(name, entries, "Koha");
+	}
+
+	// Read from the raw config: the typed accessors throw on a missing required setting, and a
+	// report has to name what is absent rather than die reading it
+	private String rawConfigValue(String key) {
+		final var value = getConfig().get(key);
+
+		return value != null ? value.toString() : null;
 	}
 
 	@Override

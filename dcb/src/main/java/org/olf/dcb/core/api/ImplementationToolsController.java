@@ -21,13 +21,19 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import org.olf.dcb.core.interaction.ConfigurationReport;
+import org.olf.dcb.core.interaction.MappingAudit;
+import org.olf.dcb.core.interaction.MappingValueCheck;
+import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.PingResponse;
+import org.olf.dcb.core.interaction.RequestOptionsReport;
 
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 @Controller("/imps")
@@ -38,10 +44,14 @@ public class ImplementationToolsController {
 
 	private final InteropTestService interopTestService;
 	private final HouseKeepingService houseKeepingService;
+	private final RequestOptionsService requestOptionsService;
 
-	public ImplementationToolsController(InteropTestService interopTestService, HouseKeepingService houseKeepingService) {
+	public ImplementationToolsController(InteropTestService interopTestService,
+		HouseKeepingService houseKeepingService, RequestOptionsService requestOptionsService) {
+
 		this.interopTestService = interopTestService;
 		this.houseKeepingService = houseKeepingService;
+		this.requestOptionsService = requestOptionsService;
 	}
 
   @Get(uri = "/audit", produces = MediaType.TEXT_PLAIN)
@@ -152,6 +162,69 @@ public class ImplementationToolsController {
 		}
 
 		return interopTestService.retrieveConfiguration(systemCode, validatedType);
+	}
+
+	@Operation(
+		summary = "Check a Host LMS configuration",
+		description = "Asks the Host LMS whether the configuration DCB holds exists there, and which "
+			+ "item types, patron types and locations it has, so mappings can be built from real "
+			+ "values. A system that cannot be asked reports NOT_SUPPORTED rather than failing."
+	)
+	@Get(uri = "/configuration/{systemCode}", produces = APPLICATION_JSON)
+	public Mono<ConfigurationReport> checkConfiguration(
+		@Parameter(description = "Host LMS system code", required = true)
+		@PathVariable
+		@NotBlank(message = "System code cannot be blank")
+		String systemCode) {
+
+		return interopTestService.checkConfiguration(systemCode);
+	}
+
+	@Operation(
+		summary = "Ask a supplier what DCB's virtual patron may request",
+		description = "For a patron request whose supplier hold was refused: asks the supplying Host LMS "
+			+ "what the virtual patron may request on the chosen copy. Alma answers with request types, "
+			+ "not pickup locations. NOT_SUPPORTED where the Host LMS cannot be asked."
+	)
+	@Get(uri = "/patron-requests/{patronRequestId}/request-options", produces = APPLICATION_JSON)
+	public Mono<RequestOptionsReport> checkRequestOptions(
+		@Parameter(description = "DCB patron request id", required = true)
+		@PathVariable UUID patronRequestId) {
+
+		return requestOptionsService.forPatronRequest(patronRequestId);
+	}
+
+	@Operation(
+		summary = "Check every mapping already saved for a Host LMS",
+		description = "Judges each saved reference value mapping targeting this system against the "
+			+ "values that system holds. A mapping built from a value's description rather than its "
+			+ "code reports MISSING here, rather than at the moment a request is placed."
+	)
+	@Get(uri = "/configuration/{systemCode}/mappings", produces = APPLICATION_JSON)
+	public Mono<MappingAudit> auditMappings(
+		@Parameter(description = "Host LMS system code", required = true)
+		@PathVariable
+		@NotBlank(message = "System code cannot be blank")
+		String systemCode) {
+
+		return interopTestService.auditMappings(systemCode);
+	}
+
+	@Operation(
+		summary = "Check one value before it is mapped",
+		description = "Asks the Host LMS whether a single location, item type or patron type code exists "
+			+ "there. UNKNOWN means the list could not be read, never that the value is absent."
+	)
+	@Get(uri = "/configuration/{systemCode}/mapping-value", produces = APPLICATION_JSON)
+	public Mono<MappingValueCheck> checkMappingValue(
+		@Parameter(description = "Host LMS system code", required = true)
+		@PathVariable
+		@NotBlank(message = "System code cannot be blank")
+		String systemCode,
+		@NotNull @QueryValue MappingVocabulary vocabulary,
+		@NotBlank @QueryValue String value) {
+
+		return interopTestService.checkMappingValue(systemCode, vocabulary, value);
 	}
 
 	public Mono<InteropTestResult> createPatronTest() {

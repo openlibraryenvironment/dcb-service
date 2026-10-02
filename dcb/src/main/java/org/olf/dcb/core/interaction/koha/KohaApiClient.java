@@ -161,6 +161,27 @@ public interface KohaApiClient {
 	}
 
 	/**
+	 * The vocabularies a mapping is built from. Each returns a bare array rather than a
+	 * wrapped list, which is what the Koha REST spec declares for all three. '_per_page=-1'
+	 * because Koha otherwise returns its default page of 20, and every value past it would
+	 * be reported MISSING.
+	 * API: <a href="https://api.koha-community.org/#tag/item_types">item types</a>
+	 */
+	default Mono<KohaItemType[]> getItemTypes() {
+		return get("/api/v1/item_types", KohaItemType[].class, Map.of("_per_page", -1));
+	}
+
+	/** API: GET /api/v1/patron_categories */
+	default Mono<KohaPatronCategory[]> getPatronCategories() {
+		return get("/api/v1/patron_categories", KohaPatronCategory[].class, Map.of("_per_page", -1));
+	}
+
+	/** API: GET /api/v1/libraries */
+	default Mono<KohaLibrary[]> getLibraries() {
+		return get("/api/v1/libraries", KohaLibrary[].class, Map.of("_per_page", -1));
+	}
+
+	/**
 	 * Find a list of items in Koha by the given criteria
 	 * API: <a href="https://api.koha-community.org/#tag/items/operation/listItems">...</a>
 	 * @param query The query to get the items

@@ -141,8 +141,19 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "apikey", missing);
 		checkPresent(config, "institution-code", missing);
 		checkDefaultAgencyCode(config, missing);
+		checkPresent(config, "sharing-library-code", missing);
+		checkPresent(config, "virtual-item-library-code", missing);
+		checkPresent(config, "virtual-item-location-code", missing);
+		checkPresent(config, "request-cancellation-reason", missing);
 
 		throwIfMissing("Alma", missing);
+
+		final var alternative = config.get("alternative-sharing-library-code");
+		if (alternative != null && alternative.equals(config.get("sharing-library-code"))) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Alma 'alternative-sharing-library-code' must be a different library from "
+					+ "'sharing-library-code': it is where holds go for items the sharing library owns.");
+		}
 	}
 
 	private void validateFolio(Map<String, Object> config) {

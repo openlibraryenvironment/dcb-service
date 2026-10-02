@@ -590,6 +590,14 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 		return isUsingWorkflow(PICKUP_ANYWHERE_WORKFLOW);
 	}
 
+	// A re-resolution can change the workflow after records were made at the pickup library,
+	// and those records still have to be cancelled and cleaned up
+	@Transient
+	public boolean involvesPickupAgency() {
+		return isUsingPickupAnywhereWorkflow()
+			|| pickupRequestId != null || pickupItemId != null || pickupBibId != null;
+	}
+
 	@Transient
 	public boolean isUsingLocalWorkflow() {
 		return isUsingWorkflow(LOCAL_WORKFLOW);

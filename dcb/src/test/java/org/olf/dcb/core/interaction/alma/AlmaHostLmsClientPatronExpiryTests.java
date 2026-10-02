@@ -9,29 +9,27 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
-import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.svc.LocationService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.test.PublisherUtils;
 
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.http.client.HttpClient;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.alma.AlmaApiClient;
 import services.k_int.interaction.alma.types.AlmaUser;
+import services.k_int.interaction.alma.types.AlmaUserBlock;
 import services.k_int.interaction.alma.types.CodeValuePair;
 
 /**
- * The preflight check can only reject an expired patron if the client actually
- * maps Alma's expiry_date onto Patron.expiryDate.
+ * The preflight check can only reject an expired or blocked patron if the client
+ * actually maps those facts from Alma onto the Patron.
  */
 @TestInstance(PER_CLASS)
 class AlmaHostLmsClientPatronExpiryTests {
@@ -51,14 +49,10 @@ class AlmaHostLmsClientPatronExpiryTests {
 
 		sut = new AlmaHostLmsClient(
 			hostLms,
-			mock(HttpClient.class),
 			clientFactory,
 			mock(ReferenceValueMappingService.class),
 			mock(MaterialTypeToItemTypeMappingService.class),
 			mock(LocationToAgencyMappingService.class),
-			mock(ConversionService.class),
-			mock(LocationService.class),
-			mock(HostLmsService.class),
 			mock(ConsortiumService.class));
 	}
 
@@ -151,6 +145,42 @@ class AlmaHostLmsClientPatronExpiryTests {
 		assertThat(patron.getIsDeleted(), is(false));
 	}
 
+	@Test
+	void shouldMarkAnAlmaPatronWithAnActiveBlockAsBlocked() {
+		// Arrange
+		whenUserDetailsReturns(almaUserWithBlock("ACTIVE"));
+
+		// Act
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByIdentifier("patron-id"));
+
+		// Assert
+		assertThat(patron.getIsBlocked(), is(true));
+	}
+
+	@Test
+	void shouldNotMarkAnAlmaPatronBlockedByAnInactiveBlock() {
+		// Arrange
+		whenUserDetailsReturns(almaUserWithBlock("INACTIVE"));
+
+		// Act
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByIdentifier("patron-id"));
+
+		// Assert
+		assertThat(patron.getIsBlocked(), is(false));
+	}
+
+	@Test
+	void shouldNotMarkAnAlmaPatronWithNoBlocksAsBlocked() {
+		// Arrange
+		whenUserDetailsReturns(almaUser("2026-04-29Z", "ACTIVE"));
+
+		// Act
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByIdentifier("patron-id"));
+
+		// Assert
+		assertThat(patron.getIsBlocked(), is(false));
+	}
+
 	private void whenUserDetailsReturns(AlmaUser almaUser) {
 		when(almaApi.getUserDetails("patron-id")).thenReturn(Mono.just(almaUser));
 	}
@@ -164,5 +194,13 @@ class AlmaHostLmsClientPatronExpiryTests {
 			.status(status != null ? CodeValuePair.builder().value(status).build() : null)
 			.expirationDate(expiryDate)
 			.build();
+	}
+
+	private static AlmaUser almaUserWithBlock(String blockStatus) {
+		final var user = almaUser("2026-04-29Z", "ACTIVE");
+
+		user.setUser_blocks(List.of(AlmaUserBlock.builder().block_status(blockStatus).build()));
+
+		return user;
 	}
 }

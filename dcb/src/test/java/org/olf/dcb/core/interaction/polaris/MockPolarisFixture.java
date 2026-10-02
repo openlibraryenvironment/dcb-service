@@ -323,6 +323,10 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.getItem(itemId), serverError());
 	}
 
+	public void mockGetItemRecordNotFound(String pathSegment) {
+		mockServer.mockGet(paths.applicationServices("/itemrecords/" + pathSegment), notFoundResponse());
+	}
+
 	public void mockGetItemBarcode(Integer localItemId, String barcode) {
 		mockServer.mockGet(paths.getItemByBarcode(localItemId),
 			okText("\"%s\"".formatted(barcode)));
@@ -484,6 +488,20 @@ public class MockPolarisFixture {
 	void mockGetItemStatuses(List<PolarisLmsClient.PolarisItemStatus> responseBody) {
 		mockServer.replaceMock(commonRequests.get(paths.applicationServices("/itemstatuses")),
 			responseBody);
+	}
+
+	void mockListBranches(PAPIClient.OrganizationsGetResult responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.publicPapiService("/organizations/branch")),
+			responseBody);
+	}
+
+	void mockListPatronCodes(PAPIClient.PatronCodesGetResult responseBody) {
+		mockServer.replaceMock(commonRequests.get(paths.publicPapiService("/patroncodes")),
+			responseBody);
+	}
+
+	void mockListPatronCodesServerError() {
+		mockServer.replaceMock(commonRequests.get(paths.publicPapiService("/patroncodes")), serverError());
 	}
 
 	void verifyGetItemStatuses(VerificationTimes times) {

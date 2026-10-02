@@ -12,8 +12,12 @@ import lombok.Value;
 class CqlQuery {
 	String query;
 
+	// Inside quotes CQL still reads * ? ^ as masking and a bare " ends the term, so a barcode
+	// carrying one would match other records or break the query
 	static CqlQuery exactEqualityQuery(String index, String value) {
-		return new CqlQuery(index + "==\"" + value + "\"");
+		final var escaped = value.replaceAll("([\\\\\"*?^])", "\\\\$1");
+
+		return new CqlQuery(index + "==\"" + escaped + "\"");
 	}
 
 	@Override

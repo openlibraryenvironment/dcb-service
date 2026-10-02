@@ -9,7 +9,7 @@ import lombok.Builder;
 import lombok.Value;
 
 @Serdeable
-@Builder
+@Builder(toBuilder = true)
 @Value
 public class PlacePatronRequestCommand {
 	@NonNull Citation citation;

@@ -228,18 +228,26 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 		final var patronRequest = getValueOrNull(rwc, RequestWorkflowContext::getPatronRequest);
 		final var localItemId = getValueOrNull(patronRequest, PatronRequest::getLocalItemId);
-		final String[] patronBarcodes = extractPatronBarcodes(rwc.getPatronHomeIdentity().getLocalBarcode());
+		final String[] patronBarcodes = extractPatronBarcodes(
+			getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity, PatronIdentity::getLocalBarcode));
 		final var homeIdentityLocalId = getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity, PatronIdentity::getLocalId);
 		final var localRequestId = getValueOrNull(rwc, RequestWorkflowContext::getPatronRequest, PatronRequest::getLocalRequestId);
 		final var libraryCode = getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity, PatronIdentity::getLocalHomeLibraryCode);
 
 		return CheckoutItemCommand.builder()
 			.itemId(localItemId)
+			// The virtual item carries the supplier's item barcode, and Alma looks the item up by it
+			.itemBarcode(getValueOrNull(rwc, RequestWorkflowContext::getSupplierRequest,
+				SupplierRequest::getLocalItemBarcode))
 			.patronId(homeIdentityLocalId)
-			.patronBarcode(patronBarcodes[0])
+			.patronBarcode(firstBarcode(patronBarcodes))
 			.localRequestId(localRequestId)
 			.libraryCode(libraryCode)
 			.build();
+	}
+
+	private static String firstBarcode(String[] barcodes) {
+		return barcodes != null && barcodes.length > 0 ? barcodes[0] : null;
 	}
 
 	private RequestWorkflowContext logSuccessfulCheckout(RequestWorkflowContext rwc, String localItemId, String patronBarcode) {
@@ -261,8 +269,10 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 		auditData.put("patron-system-code", rwc.getPatronSystemCode());
 		auditThrowable(auditData, "Throwable", error);
 
-		// Intentionally transform Error
-		// A virtual checkout is deemed as more of a notification than a critical action
+		// The physical loan already happened at the pickup library, so this does not fail the
+		// request - but the patron's own library now has no record of it, which is for a person
+		rwc.getPatronRequest().setNeedsAttention(Boolean.TRUE);
+
 		return patronRequestAuditService
 			.addAuditEntry(rwc.getPatronRequest(), "Patron checkout failed : " + error.getMessage(), auditData)
 			.thenReturn(rwc);
