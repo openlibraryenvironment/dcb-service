@@ -1,6 +1,7 @@
 package org.olf.dcb.core;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -27,6 +28,7 @@ import org.mockito.ArgumentMatchers;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLmsProcessingStateCount;
+import org.olf.dcb.core.model.RecordCount;
 import org.olf.dcb.core.model.RecordCountSummary;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.dataimport.job.SourceRecordImportJob;
@@ -45,7 +47,7 @@ import reactor.test.scheduler.VirtualTimeScheduler;
 
 // The service is built after the virtual clock is installed, because the timeout and the cache
 // take their scheduler when the field is assembled
-class CatalogueCountCacheTests {
+class ImportIngestDetailsServiceTests {
 	private final UUID hostLmsId = UUID.randomUUID();
 
 	private SourceRecordRepository sourceRecordRepository;
@@ -114,6 +116,26 @@ class CatalogueCountCacheTests {
 		assertThat(after.get("ingestEnabled"), is(false));
 		assertThat(after.get("countedAt"), is(before.get("countedAt")));
 		verify(sourceRecordRepository, times(1)).getProcessingStateCountsByHostLms();
+	}
+
+	// Mocked because Postgres often returns the groups already sorted, so a database test passes
+	// with or without the sort
+	@Test
+	@SuppressWarnings("unchecked")
+	void shouldListProcessingStatesInStateOrderWithNoStateLast() {
+		// Arrange
+		when(sourceRecordRepository.getProcessingStateCountsByHostLms()).thenReturn(Flux.just(
+			new HostLmsProcessingStateCount(hostLmsId, "SUCCESS", 3L),
+			new HostLmsProcessingStateCount(hostLmsId, null, 4L),
+			new HostLmsProcessingStateCount(hostLmsId, "FAILURE", 1L),
+			new HostLmsProcessingStateCount(hostLmsId, "PROCESSING_REQUIRED", 2L)));
+
+		// Act
+		final var details = call(service()).value().get().get(0);
+
+		// Assert
+		assertThat(((List<RecordCount>) details.get("processStates")).stream().map(RecordCount::getValue).toList(),
+			contains("FAILURE", "PROCESSING_REQUIRED", "SUCCESS", null));
 	}
 
 	@Test

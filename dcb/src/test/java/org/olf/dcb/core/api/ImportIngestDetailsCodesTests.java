@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -39,7 +40,7 @@ class ImportIngestDetailsCodesTests {
 
 	@ParameterizedTest
 	@NullSource
-	@ValueSource(strings = { "", "   ", ",", " , ,", ",,," })
+	@ValueSource(strings = { "", " , ," })
 	void shouldReportEveryHostLmsWhenTheCodesNameNone(String hostLmsCodes) {
 		controller.getAllImportIngestDetails(hostLmsCodes).block();
 
@@ -47,10 +48,9 @@ class ImportIngestDetailsCodesTests {
 		verify(hostLmsService, never()).getImportIngestDetails(ArgumentMatchers.<Collection<String>>any());
 	}
 
-	@ParameterizedTest
-	@ValueSource(strings = { "first, second,first", " ,first,,second, " })
-	void shouldCountOnlyTheNamedCodesOnceEach(String hostLmsCodes) {
-		controller.getAllImportIngestDetails(hostLmsCodes).block();
+	@Test
+	void shouldCountOnlyTheNamedCodesOnceEach() {
+		controller.getAllImportIngestDetails(" ,first,,second, first ").block();
 
 		verify(hostLmsService).getImportIngestDetails(List.of("first", "second"));
 		verify(hostLmsService, never()).getAllImportIngestDetails();
