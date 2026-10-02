@@ -14,6 +14,7 @@ import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.koha.KohaHostLmsClient;
 import org.olf.dcb.core.interaction.koha.KohaOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
+import org.olf.dcb.core.interaction.polaris.PolarisOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
@@ -210,6 +211,25 @@ public class HostLmsFixture {
 		String accessKey, String defaultAgencyCode, Integer illLocationId,
 		Map<String, Object> additionalConfig) {
 
+		return createPolarisHostLms(code, staffUsername, staffPassword, baseUrl, domain,
+			accessId, accessKey, defaultAgencyCode, illLocationId, additionalConfig,
+			PolarisLmsClient.class);
+	}
+
+	/**
+	 * A Polaris that harvests over OAI-PMH and circulates over PAPI.
+	 */
+	public DataHostLms createHarvestingPolarisHostLms(String code, String baseUrl) {
+		return createPolarisHostLms(code, "some-username", "some-password", baseUrl,
+			"some-domain", "some-access-id", "some-access-key", null, 73,
+			Map.of("metadata-prefix", "marc21"), PolarisOaiPmhIngestSource.class);
+	}
+
+	private <R extends IngestSource> DataHostLms createPolarisHostLms(String code,
+		String staffUsername, String staffPassword, String baseUrl, String domain,
+		String accessId, String accessKey, String defaultAgencyCode, Integer illLocationId,
+		Map<String, Object> additionalConfig, Class<R> ingestSourceClass) {
+
 		Map<String, Object> clientConfig = new HashMap<>();
 
 		clientConfig.put("staff-username", staffUsername);
@@ -256,7 +276,7 @@ public class HostLmsFixture {
 		clientConfig.putAll(additionalConfig);
 
 		return createHostLms(randomUUID(), code, PolarisLmsClient.class,
-			Optional.of(PolarisLmsClient.class), clientConfig);
+			Optional.of(ingestSourceClass), clientConfig);
 	}
 
 	public DataHostLms createDummyHostLms(String code) {

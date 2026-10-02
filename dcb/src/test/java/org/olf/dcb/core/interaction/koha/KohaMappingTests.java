@@ -29,7 +29,10 @@ import org.olf.dcb.core.interaction.koha.dto.KohaItemsList;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronsList;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
@@ -77,9 +80,18 @@ class KohaMappingTests {
 		when(materialTypeToItemType.enrichItemWithMappedItemType(any()))
 			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
 
+		// No ruleset, so nothing here is suppressed by rules - suppression itself is
+		// pinned in RulesetTests against the shipped koha-item-default. A mocked
+		// invalidator would return a null publisher and NPE cacheInvalidateWhen, so the
+		// real one is used; it has no dependencies.
+		final var objectRulesService = mock(ObjectRulesService.class);
+		when(objectRulesService.findByName(any())).thenReturn(Mono.empty());
+
 		client = new KohaHostLmsClient(hostLms,
 			referenceValueMappingService, clientFactory,
-			materialTypeToItemType, locationToAgency);
+			materialTypeToItemType, locationToAgency,
+			objectRulesService, new RulesetCacheInvalidator(),
+			mock(HostLmsService.class));
 	}
 
 	@Test

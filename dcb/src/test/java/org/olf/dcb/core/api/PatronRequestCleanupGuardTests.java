@@ -5,31 +5,21 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.request.workflow.ManualCleanupService;
 import org.zalando.problem.ThrowableProblem;
-
-import org.olf.dcb.test.DcbTest;
-
-import jakarta.inject.Inject;
 
 /**
  * The manual cleanup guard. Cleanup deletes the borrowing library's virtual item and bib, which orphans
  * the physical item if it is not back at the supplier yet - so the API refuses, but with a 409 the caller
  * can act on and an explicit override for the cases support genuinely needs.
  */
-@DcbTest
-@TestInstance(PER_CLASS)
 class PatronRequestCleanupGuardTests {
-	@Inject
-	private PatronRequestController patronRequestController;
-
 	@ParameterizedTest
 	@EnumSource(value = Status.class, names = {
 		"PICKUP_TRANSIT", "RECEIVED_AT_PICKUP", "READY_FOR_PICKUP", "LOANED", "RETURN_TRANSIT",
@@ -42,7 +32,7 @@ class PatronRequestCleanupGuardTests {
 			.build();
 
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false));
+			() -> ManualCleanupService.ensureCleanupPermitted(patronRequest, false));
 
 		// 409, not the 500 an IllegalStateException produced - the caller can tell "you may not do this
 		// yet" from "DCB fell over".
@@ -64,7 +54,7 @@ class PatronRequestCleanupGuardTests {
 			.status(status)
 			.build();
 
-		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, true),
+		assertThat(ManualCleanupService.ensureCleanupPermitted(patronRequest, true),
 			is(patronRequest));
 	}
 
@@ -82,7 +72,7 @@ class PatronRequestCleanupGuardTests {
 			.status(status)
 			.build();
 
-		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false),
+		assertThat(ManualCleanupService.ensureCleanupPermitted(patronRequest, false),
 			is(patronRequest));
 	}
 
@@ -107,7 +97,7 @@ class PatronRequestCleanupGuardTests {
 			.build();
 
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false));
+			() -> ManualCleanupService.ensureCleanupPermitted(patronRequest, false));
 
 		assertThat(problem.getStatus().getStatusCode(), is(409));
 		assertThat("Should name the state the request errored in",
@@ -123,7 +113,7 @@ class PatronRequestCleanupGuardTests {
 			.previousStatus(Status.REQUEST_PLACED_AT_BORROWING_AGENCY)
 			.build();
 
-		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false),
+		assertThat(ManualCleanupService.ensureCleanupPermitted(patronRequest, false),
 			is(patronRequest));
 	}
 
@@ -135,7 +125,7 @@ class PatronRequestCleanupGuardTests {
 			.status(Status.ERROR)
 			.build();
 
-		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false),
+		assertThat(ManualCleanupService.ensureCleanupPermitted(patronRequest, false),
 			is(patronRequest));
 	}
 
@@ -147,7 +137,7 @@ class PatronRequestCleanupGuardTests {
 			.previousStatus(Status.LOANED)
 			.build();
 
-		assertThat(patronRequestController.ensureValidStateForCleanupTransition(patronRequest, true),
+		assertThat(ManualCleanupService.ensureCleanupPermitted(patronRequest, true),
 			is(patronRequest));
 	}
 
@@ -159,7 +149,7 @@ class PatronRequestCleanupGuardTests {
 			.build();
 
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> patronRequestController.ensureValidStateForCleanupTransition(patronRequest, false));
+			() -> ManualCleanupService.ensureCleanupPermitted(patronRequest, false));
 
 		assertThat(problem.getStatus().getStatusCode(), is(409));
 	}

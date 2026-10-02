@@ -129,6 +129,12 @@ public class MockPolarisFixture {
 		mockServer.mockPost(paths.publicPapiService("/authenticator/patron"), responseBody);
 	}
 
+	/** Polaris answers a wrong PIN with a 500 rather than a 401. */
+	public void mockPatronAuthenticationServerError() {
+		mockServer.mockPost(paths.publicPapiService("/authenticator/patron"),
+			response().withStatusCode(500));
+	}
+
 	public void mockCreatePatron(PatronRegistrationCreateResult responseBody) {
 		mockServer.replaceMock(commonRequests.post(paths.createPatron()), responseBody);
 	}

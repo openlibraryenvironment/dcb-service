@@ -259,6 +259,26 @@ public class AdminController {
 	}
 
 	/**
+	 * Find bibs the Host LMS no longer lists as live. Reports only, unless apply=true; even then
+	 * deletes nothing when they are more than a small share of the host's bibs.
+	 *
+	 * 202 for the same reason as reconcile: the sweep lists the whole catalogue. Poll
+	 * /admin/sourceImport/status.
+	 */
+	@Post(uri = "/sourceImport/{hostLmsCode}/vanished", produces = APPLICATION_JSON)
+	public Mono<MutableHttpResponse<String>> sweepVanishedSourceRecords(@PathVariable String hostLmsCode,
+		@QueryValue(value = "apply", defaultValue = "false") boolean apply,
+		@QueryValue("reason") @Nullable String reason, @Nullable Authentication authentication) {
+
+		log.warn("Vanished record sweep (apply={}) requested for [{}] by [{}], reason [{}]",
+			apply, hostLmsCode, nameOf(authentication), reason);
+
+		return sourceRecordServiceProvider.get()
+			.startVanishedSweep(hostLmsCode, apply)
+			.map(HttpResponse.accepted()::<String>body);
+	}
+
+	/**
 	 * Clear a source import checkpoint so the next scheduled run starts a full harvest.
 	 *
 	 * The heavy remedy - it re-walks the entire catalogue of the target system - so prefer
@@ -281,7 +301,7 @@ public class AdminController {
 		return Mono.just(sourceRecordServiceProvider.get().getReconcileStatus());
 	}
 
-	// Both recovery actions are destructive enough to want an audit trail of who asked for them.
+	// The recovery actions are destructive enough to want an audit trail of who asked for them.
 	private static String nameOf(Authentication authentication) {
 		return authentication != null ? authentication.getName() : "User not detected";
 	}

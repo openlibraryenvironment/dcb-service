@@ -49,6 +49,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -88,7 +89,7 @@ public class PAPIClient {
 
 		if (barcode == null || password == null) {
 			throw new IllegalArgumentException(
-				"Cannot validate a patron with barcode: "+barcode+" and password: "+password);
+				"Cannot validate a patron without both a barcode and a password");
 		}
 
 		final var patronCredentials = PatronCredentials.builder()
@@ -180,7 +181,7 @@ public class PAPIClient {
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
-		log.info("patronRegistrationUpdate {} {}", barcode, patronType);
+		log.info("patronRegistrationUpdate to patron type {}", patronType);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 
@@ -208,7 +209,7 @@ public class PAPIClient {
 	 * when Polaris reports success (error code 0).
 	 */
 	public Mono<Boolean> patronRegistrationUpdateDates(String barcode, String expirationDate, String addrCheckDate) {
-		log.info("patronRegistrationUpdateDates barcode={} expiry={} addrCheck={}", barcode, expirationDate, addrCheckDate);
+		log.info("patronRegistrationUpdateDates expiry={} addrCheck={}", expirationDate, addrCheckDate);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 
@@ -226,15 +227,15 @@ public class PAPIClient {
 			.map(request -> request.body(body)),
 			Argument.of(PatronUpdateResult.class))
 			.map(result -> getValue(result, PatronUpdateResult::getPapiErrorCode, -1) == 0)
-			.doOnNext(ok -> log.debug("patronRegistrationUpdateDates {} success={}", barcode, ok))
+			.doOnNext(ok -> log.debug("patronRegistrationUpdateDates success={}", ok))
 			.onErrorResume(e -> {
-				log.error("Error updating patron {} dates: {}", barcode, e.getMessage(), e);
+				log.error("Error updating patron dates: {}", e.getMessage(), e);
 				return Mono.just(FALSE);
 			});
 	}
 
 	public Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(String barcode) {
-		log.info("getPatronCirculationBlocks(), barcode: {}", barcode);
+		log.info("getPatronCirculationBlocks()");
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode, "circulationblocks");
 
@@ -277,7 +278,7 @@ public class PAPIClient {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 
-		log.info("itemCheckoutPost PatronBarcode {} itemBarcode {} path {}", patronBarcode, itemBarcode, path);
+		log.info("itemCheckoutPost {}", PolarisLmsClient.redactedPath(path));
 
 		final var body = ItemCheckoutData.builder()
 			.logonBranchID(polarisConfig.getIllLocationId())
@@ -300,7 +301,7 @@ public class PAPIClient {
 
 		final var path = createPath(PROTECTED_PARAMETERS, "item", itemBarcode, "checkin");
 
-		log.info("itemCheckInPost: itemBarcode {}, path {}", itemBarcode, path);
+		log.info("itemCheckInPost {}", PolarisLmsClient.redactedPath(path));
 
 		final var body = ItemCheckInData.builder()
 			.logonBranchID(polarisConfig.getIllLocationId())
@@ -838,8 +839,10 @@ public class PAPIClient {
 		private Integer languageID;
 		@JsonProperty("UserName")
 		private String userName;
+		@ToString.Exclude
 		@JsonProperty("Password")
 		private String password;
+		@ToString.Exclude
 		@JsonProperty("Password2")
 		private String password2;
 		@JsonProperty("DeliveryOptionID")
@@ -912,8 +915,10 @@ public class PAPIClient {
 	@AllArgsConstructor
 	@Serdeable
 	static class PatronCredentials {
+		@ToString.Exclude
 		@JsonProperty("Barcode")
 		private String barcode;
+		@ToString.Exclude
 		@JsonProperty("Password")
 		private String password;
 	}

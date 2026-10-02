@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import org.olf.dcb.security.PatronRequestAccessGuard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,9 +54,8 @@ public final class AgencyAccessScope {
 	 * Pickup is not included. Under pickup-anywhere a third library handles the item
 	 * and has a fair claim to see the request, so this is a candidate for extension.
 	 */
-	public static final List<QueryPath> PATRON_REQUEST_OWNERSHIP = List.of(
-		QUERY_PATHS.get("patronAgencyCode"),
-		QUERY_PATHS.get("supplyingAgencyCode"));
+	public static final List<QueryPath> PATRON_REQUEST_OWNERSHIP =
+		PatronRequestAccessGuard.PATRON_REQUEST_OWNERSHIP;
 
 	/**
 	 * A patron identity belongs to the library the patron was resolved to.

@@ -23,6 +23,9 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
+import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 
 import reactor.core.publisher.Mono;
@@ -69,6 +72,7 @@ class KohaMappingValueCheckTests {
 
 		return new KohaHostLmsClient(hostLms, mock(ReferenceValueMappingService.class),
 			clientFactory, mock(MaterialTypeToItemTypeMappingService.class),
-			mock(LocationToAgencyMappingService.class));
+			mock(LocationToAgencyMappingService.class),
+			mock(ObjectRulesService.class), new RulesetCacheInvalidator(), mock(HostLmsService.class));
 	}
 }

@@ -13,7 +13,13 @@ public record Response (
 	Error error,
 	
 	@JsonProperty("ListRecords")
-	ListRecordsResponse listRecords
+	ListRecordsResponse listRecords,
+
+	@JsonProperty("ListIdentifiers")
+	ListIdentifiersResponse listIdentifiers,
+
+	@JsonProperty("GetRecord")
+	GetRecordResponse getRecord
 	) {
 	
 	@Serdeable

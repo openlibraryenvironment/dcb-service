@@ -34,6 +34,20 @@ public interface SourceRecordDataSource extends Named, ConcurrencyGroupAware {
 	}
 
 	/**
+	 * Find the bibs DCB still shows that this source no longer lists as live, from one complete
+	 * enumeration of the source. Nothing is fetched from the source after the enumeration.
+	 *
+	 * @param liveSourceRecordIds the source record id of every bib DCB holds for this source
+	 * @param storedRemoteIds every stored remote id, read only when the deletions are subscribed
+	 * @return empty when the source cannot enumerate itself
+	 */
+	default Mono<VanishedRecords> findVanishedRecords( Publisher<String> liveSourceRecordIds,
+		Publisher<String> storedRemoteIds ) {
+
+		return Mono.empty();
+	}
+
+	/**
 	 * Decide whether a stored checkpoint has stopped making progress and, if it can be corrected
 	 * cheaply, return the corrected version.
 	 *
