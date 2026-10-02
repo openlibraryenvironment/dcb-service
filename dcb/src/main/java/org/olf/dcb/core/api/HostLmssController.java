@@ -130,15 +130,15 @@ public class HostLmssController {
 	public Mono<List<Map<String, Object>>> getAllImportIngestDetails(
 		@Nullable @QueryValue String hostLmsCodes) {
 
-		if (hostLmsCodes == null || hostLmsCodes.isBlank()) {
-			return hostLmsService.getAllImportIngestDetails();
-		}
-
-		final var codes = Arrays.stream(hostLmsCodes.split(","))
+		final var codes = Arrays.stream(hostLmsCodes == null ? new String[0] : hostLmsCodes.split(","))
 			.map(String::trim)
 			.filter(code -> !code.isEmpty())
 			.distinct()
 			.toList();
+
+		if (codes.isEmpty()) {
+			return hostLmsService.getAllImportIngestDetails();
+		}
 
 		if (codes.size() > HostLmsService.MAX_SCOPED_HOST_LMS) {
 			return Mono.error(new HttpStatusException(HttpStatus.BAD_REQUEST,

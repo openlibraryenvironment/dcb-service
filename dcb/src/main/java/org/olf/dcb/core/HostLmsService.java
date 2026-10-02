@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.groupingBy;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,10 @@ public class HostLmsService implements IngestSourcesProvider {
 	// Each Host LMS holds at most two connections at once (its two counts run together; the
 	// checkpoint read follows them), so this keeps one scoped request to 4 of the pool's 40.
 	private static final int SCOPED_COUNT_CONCURRENCY = 2;
+
+	// The order the per-Host LMS query used to give: by state, records with no state last
+	private static final Comparator<HostLmsProcessingStateCount> BY_STATE = Comparator.comparing(
+		HostLmsProcessingStateCount::getValue, Comparator.nullsLast(Comparator.naturalOrder()));
 
 	private final JsonNode EMPTY_JSON_NODE = JsonNode.createObjectNode(new HashMap<String, JsonNode>());
 	
@@ -335,6 +340,7 @@ public class HostLmsService implements IngestSourcesProvider {
 					details.put("checkPoint", checkpoint.checkPoint());
 				}
 				details.put("processStates", stateCounts.stream()
+					.sorted(BY_STATE)
 					.map(stateCount -> new RecordCount(stateCount.getValue(), stateCount.getCount()))
 					.toList());
 				details.put("sourceRecordCount", stateCounts.stream()
