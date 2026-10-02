@@ -61,8 +61,13 @@ public class MockFolioFixture {
 			.withQueryStringParameter("instanceIds", instanceId), response);
 	}
 
-	public void mockPatronPinVerify() {
-		mockServer.mockPost("/users/patron-pin/verify", ok());
+	public void mockPatronPinVerify(String userId) {
+		mockPatronPinVerify(userId, ok());
+	}
+
+	public void mockPatronPinVerify(String userId, HttpResponse response) {
+		mockServer.mock(commonRequests.post("/users/patron-pin/verify")
+			.withBody(json("{\"id\":\"" + userId + "\"}", MatchType.ONLY_MATCHING_FIELDS)), response);
 	}
 
 	public void mockGetUsersWithQuery(String queryField, String queryValue, User... users) {

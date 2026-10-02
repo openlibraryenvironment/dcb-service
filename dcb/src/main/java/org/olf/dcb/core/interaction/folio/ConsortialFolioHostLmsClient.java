@@ -898,7 +898,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return findPatronByBarcode(barcode)
 			.flatMap(patron -> verifyPatronPin(patron, secret))
-			.doOnError(error -> log.error("Error occurred while handling patron authentication: {}", barcode, error));
+			.doOnError(error -> log.error("Error occurred while handling patron authentication", error));
 	}
 
 	private Mono<Patron> findPatronByBarcode(String barcode) {
@@ -910,8 +910,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(POST, PATH_PATRON_PIN_VERIFY)
 			.body(VerifyPatron.builder().id(localID).pin(pin).build());
 
-		return makeRequest(request, VOID)
-			.thenReturn(patron);
+		// mod-users answers a PIN that does not match with 422, which is a refusal and not a failure
+		return makeRequest(request, VOID, response -> response
+				.onErrorMap(HttpResponsePredicates::isUnprocessableContent, error -> new PinRejected()))
+			.thenReturn(patron)
+			.onErrorResume(PinRejected.class, rejected -> Mono.empty());
+	}
+
+	private static final class PinRejected extends RuntimeException {
+		private PinRejected() {
+			super(null, null, false, false);
+		}
 	}
 
 	private Boolean isValidAuthProfile(String authProfile) {
