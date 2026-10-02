@@ -50,6 +50,10 @@ import reactor.function.TupleUtils;
 @Singleton
 public class HostLmsService implements IngestSourcesProvider {
 	private static final Duration ALL_IMPORT_INGEST_DETAILS_TTL = Duration.ofMinutes(5);
+	// A count that keeps failing is rerun at most this often, not on every page load
+	static final Duration FAILED_COUNT_TTL = Duration.ofSeconds(30);
+	// Far longer than a healthy count; one stuck past it fails, so the next request starts afresh
+	static final Duration CATALOGUE_COUNT_TIMEOUT = Duration.ofMinutes(10);
 	private static final int IMPORT_CHECKPOINT_LOOKUP_CONCURRENCY = 4;
 	public static final int MAX_SCOPED_HOST_LMS = 50;
 	// Each Host LMS holds at most two connections at once (its two counts run together; the
@@ -287,26 +291,34 @@ public class HostLmsService implements IngestSourcesProvider {
 	}
 
 	/**
-	 * Ingest and import details for every Host LMS, served for up to
-	 * {@link #ALL_IMPORT_INGEST_DETAILS_TTL} from one shared count.
+	 * Ingest and import details for every Host LMS. The two counts are shared for up to
+	 * {@link #ALL_IMPORT_INGEST_DETAILS_TTL}; ingest flags and checkpoints are read on every call.
 	 */
 	public Mono<List<Map<String, Object>>> getAllImportIngestDetails() {
-		return allImportIngestDetails;
+		return catalogueCounts.flatMap(counts -> getAllHostLms()
+			.flatMap(hostLms -> importIngestDetailsFor(hostLms,
+					counts.stateCounts().getOrDefault(hostLms.getId(), List.of()),
+					counts.bibCounts().getOrDefault(hostLms.getId(), 0L),
+					counts.countedAt()),
+				IMPORT_CHECKPOINT_LOOKUP_CONCURRENCY)
+			.collectList());
+	}
+
+	// Every map is keyed by Host LMS: at most one entry per Host LMS (four states each)
+	private record CatalogueCounts(Map<UUID, List<HostLmsProcessingStateCount>> stateCounts,
+		Map<UUID, Long> bibCounts, Instant countedAt) {
 	}
 
 	// Mono.cache does not cancel its source when a subscriber cancels (checked on reactor-core 3.8.5),
-	// so a count that outlives a request timeout still completes and the retry is served from it
-	// instead of starting a second scan of source_record and bib_record.
-	private final Mono<List<Map<String, Object>>> allImportIngestDetails =
-		Mono.defer(this::countAllImportIngestDetails)
-			.cache(details -> ALL_IMPORT_INGEST_DETAILS_TTL, error -> Duration.ZERO, () -> Duration.ZERO);
+	// so a count that outlives a request timeout still completes and the retry is served from it.
+	// The timeout sits before the cache, so it is the one thing that can end a stuck count
+	private final Mono<CatalogueCounts> catalogueCounts =
+		Mono.defer(this::countCatalogue)
+			.timeout(CATALOGUE_COUNT_TIMEOUT)
+			.cache(counts -> ALL_IMPORT_INGEST_DETAILS_TTL, error -> FAILED_COUNT_TTL, () -> Duration.ZERO);
 
-	/**
-	 * One grouped scan of each table, rather than three counts per Host LMS.
-	 * Every map below is keyed by Host LMS, so it holds at most one entry per Host LMS
-	 * (four per Host LMS for the processing states).
-	 */
-	protected Mono<List<Map<String, Object>>> countAllImportIngestDetails() {
+	// One grouped scan of each table, rather than three counts per Host LMS
+	private Mono<CatalogueCounts> countCatalogue() {
 		final Instant countedAt = Instant.now();
 
 		return Mono.zip(
@@ -314,13 +326,8 @@ public class HostLmsService implements IngestSourcesProvider {
 					.collect(groupingBy(HostLmsProcessingStateCount::getHostLmsId)),
 				Flux.from(bibRepository.getIngestReport())
 					.collectMap(RecordCountSummary::getSourceSystemId, RecordCountSummary::getRecordCount))
-			.flatMap(TupleUtils.function((stateCountsByHostLms, bibCountsByHostLms) -> getAllHostLms()
-				.flatMap(hostLms -> importIngestDetailsFor(hostLms,
-						stateCountsByHostLms.getOrDefault(hostLms.getId(), List.of()),
-						bibCountsByHostLms.getOrDefault(hostLms.getId(), 0L),
-						countedAt),
-					IMPORT_CHECKPOINT_LOOKUP_CONCURRENCY)
-				.collectList()));
+			.map(TupleUtils.function((stateCounts, bibCounts) ->
+				new CatalogueCounts(stateCounts, bibCounts, countedAt)));
 	}
 
 	private Mono<Map<String, Object>> importIngestDetailsFor(DataHostLms hostLms,
