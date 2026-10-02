@@ -247,12 +247,10 @@ dcb:
 
   insights:
     enabled: true
-    # Unmeasured limits over a whole-catalogue scan. Raise concurrency only with timings.
     collection-analysis:
-      concurrency: 1
       cache-ttl: 15m
-      # How long a queued caller waits before a 429.
-      max-wait: 30s
+      # Postgres cancels a whole-catalogue pass that runs longer than this.
+      statement-timeout: 10m
 
   # Fails closed: off until a trusted service is configured.
   # The model and onboarding: docs/discovery-service-approach.md.

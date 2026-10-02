@@ -494,7 +494,7 @@ endpoint that returns all of them in one response — at 20M bibs the clustered 
 of rows, which is an **export job, not an HTTP request**. The doctrine's ≤100 rows per UI
 interaction applies.
 
-**Reading B — the consortium's deduplicated title count.** `getCollectionTotals()` returns it
+**Reading B — the consortium's deduplicated title count.** `CollectionAnalysisService.totals()` returns it
 directly, as `distinctTitles`, alongside `singlyHeldTitles`, `holdings` and
 `contributingSources`.
 
@@ -513,13 +513,13 @@ most useful figure on the panel: how much of the combined catalogue is the same 
 again.
 
 **Reading C — a *list* of the titles only one member holds.** Still counts only.
-`getCollectionProfile().unique_title_count` says how many; nothing enumerates them.
+`CollectionAnalysisService.profile()`'s `uniqueTitleCount` says how many; nothing enumerates them.
 
 **The five catalogue-wide queries are now exposed**, behind the controls in §5.4.
 
 All five share one intermediate — the DISTINCT `(cluster, source system)` pairs — so every
 figure on the panel is counted the same way and they reconcile against each other. That
-consistency is the reason `getFormatProfile` counts **works, not `bib_record` rows**: a source
+consistency is the reason the format profile counts **works, not `bib_record` rows**: a source
 cataloguing one work four times would otherwise report four times the format, against a cluster
 count of one, on the same screen. It filters `is_deleted` for the same reason.
 
@@ -529,14 +529,14 @@ is up to 20M `(uuid, uuid)` pairs, which exceeds any sane `work_mem` and spills 
 and the R2DBC pool they run against is the one request tracking uses. That is what §5.4
 addresses.
 
-`getClusterSizeDistribution` deserves particular note: it is the **honesty check** on the
+The holder distribution (`clusterSizeDistribution()`) deserves particular note: it is the **honesty check** on the
 other three. If the consortium's clusters are overwhelmingly `holder_count = 1`, the matching
 is under-clustering and every unique-title count is fiction. It is exposed alongside the unique
 counts, not after them, for that reason.
 
 ### 5.3 So: can we count every unique title, and can we list them?
 
-**Count: yes** — `getCollectionTotals().distinctTitles`, once the query is reachable.
+**Count: yes** — `totals().distinctTitles`, once the query is reachable.
 
 **List: not yet.** The change is small and well-understood — the same `cluster_source` CTE,
 filtered to `holder_count = 1`, paged, joined back to `cluster_record.title`. What it needs is
@@ -547,33 +547,48 @@ the access decision in §5.4, not new SQL.
 These queries cost the same whoever asks, so the question was never *whether* to expose them but
 *how often the database is made to answer*.
 
-**Decision: endpoints, on demand, with two controls — not a scheduled rollup.** A rollup buys
-predictable read latency and costs a summary table, a migration, a scheduler and a staleness
-contract every panel then has to explain. That is real machinery for a screen a handful of
-people open occasionally, and we have no timings on a real corpus to justify it. `CollectionAnalysisService` gets most of the benefit for none of it, and is the same shape to
+**Decision: endpoints, on demand — not a scheduled rollup.** A rollup buys predictable read
+latency and costs a summary table, a migration, a scheduler and a staleness contract every
+panel then has to explain. That is real machinery for a screen a handful of people open
+occasionally, and we have no timings on a real corpus to justify it.
+`CollectionAnalysisService` gets most of the benefit for none of it, and is the same shape to
 hang a rollup on later if measurement says so.
 
-**Control 1 — one permit for the whole group.** Not one per endpoint: concurrency is a property
-of the group, since five different collection queries cost the same as five copies of one. A
-caller that cannot get the permit **waits up to 30 seconds** and only then gets `429` with a
-message saying the figures are about to be cached. Waiting rather than refusing matters because
-a cold panel opening five of these at once is the normal case, and failing four of them is
-indistinguishable from a broken page.
+**One pass for the four consortium-wide figures.** Totals, profile, holder distribution and
+format mix all rest on the same `DISTINCT (cluster, source, format)` intermediate over
+`bib_record`. They are computed together by `getCollectionSnapshot`, which materialises that
+intermediate once and returns tagged rows, so a cold dashboard costs one full pass, not four.
+`CollectionSnapshot` assembles the figures; the totals reconcile with the holder distribution
+by construction.
 
-**Control 2 — a 15-minute result cache** (Caffeine, bounded at 1,000 entries, keyed on a fixed
-vocabulary). These figures move on ingest timescales, so a repeat view, a page refresh and a
-second administrator all read the same answer for free. This is what turns the nine-o'clock
-pile-up into one query. The cache is re-checked **after** the permit is acquired — without that,
-everyone who queued behind a cold computation would run it again on the way in.
+**Shared, not queued.** Each computation is a cached `Mono` that every caller subscribes to
+while it runs, kept for 15 minutes once it answers and not kept if it fails. It is not cancelled
+when a caller goes away — a proxy timing out mid-pass leaves it running, and the retry reads the
+answer instead of starting again. The earlier design (one permit, a 30-second wait, then `429`)
+cached only through the caller's own subscription, so a pass longer than the proxy timeout could
+never finish and every retry restarted it from nothing.
+
+**Bounded in the database.** Each computation runs in its own read-only transaction with a
+local `statement_timeout` (`dcb.insights.collection-analysis.statement-timeout`, 10 minutes), so
+a pass that will never finish is cancelled by Postgres rather than left holding a connection.
+
+**Per instance.** The shared computation and its cache live in one pod. N pods can each make one
+pass per cache period; that bound is accepted until measurement says otherwise.
 
 **Overlap was reshaped rather than controlled.** The full matrix self-joins the intermediate, so
 a work held by *k* sources emits *k(k−1)/2* pairs — quadratic in holders per work, summed over
 every work in the consortium. At 500 members a single widely-held title produces over 100,000
 rows, and popular titles are precisely the widely-held ones. An outer `LIMIT` cannot save it,
 because the pairs are built before they are ordered. `collection-overlap` is therefore **one
-library against all others**: linear in the caller's own works, at most one row per peer, and
-the question a librarian actually asks. `requestedLibraryCode` is mandatory even for a
-consortium administrator, so the matrix cannot return by the side door.
+library against all others**: at most one row per peer, and the question a librarian actually
+asks. `requestedLibraryCode` is mandatory even for a consortium administrator, so the matrix
+cannot return by the side door.
+
+The query starts from the selected libraries' own bibs (`idx_bib_source_system`) and reaches the
+other holders of those works through `contributes_to` (`idx_bib_contributes_to`), so its cost
+follows the selection's works and their holders. An earlier version built the consortium-wide
+intermediate first and filtered it afterwards, which made one library cost a full pass. Each
+selection is cached and shared like the snapshot, keyed by its sorted codes.
 
 ### 5.5 Who may see whose collection
 
@@ -609,17 +624,18 @@ that hits trouble should be able to drop it with a property rather than revertin
 thing that goes stale silently, and nothing else in the suite would notice a typo in the
 property name.
 
-The three resource limits are tunable for the same reason, and because nobody has yet measured
+The two resource limits are tunable for the same reason, and because nobody has yet measured
 a cold pass against a real corpus:
 
-| Property | Default | Raise it when |
+| Property | Default | Change it when |
 |---|---|---|
-| `dcb.insights.collection-analysis.concurrency` | `1` | Measurement shows a cold pass is cheap enough to overlap |
 | `dcb.insights.collection-analysis.cache-ttl` | `15m` | Figures may be staler; lower it while watching an ingest |
-| `dcb.insights.collection-analysis.max-wait` | `30s` | A cold pass legitimately takes longer than the queue allows |
+| `dcb.insights.collection-analysis.statement-timeout` | `10m` | A cold snapshot pass legitimately takes longer on your corpus |
 
-Each cold miss logs at INFO with its key and duration — that is the measurement, and the cache
-keeps it to a handful of lines an hour rather than one per page view.
+Each computation logs its key and duration at INFO when it answers, and at WARN when it fails
+(a statement timeout among them) — that is the measurement, and the cache keeps it to a handful
+of lines an hour rather than one per page view. The `concurrency` and `max-wait` properties are
+gone with the permit they configured; setting them has no effect.
 
 ### 6.0.1 What a rollback costs
 
