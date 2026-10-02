@@ -312,10 +312,16 @@ be one of those codes.
 <a id="your-agency"></a>
 ### Your agency
 
-The OpenRS team creates your agency, the record that stands for your library in DCB, with the
-authentication profile `BASIC/BARCODE+PASSWORD`. `BASIC/BARCODE+PIN` is accepted too and does
-the same thing: Alma holds one secret per patron, the internal password, so a consortium that
-calls it a PIN keeps its existing profile. No other profile works with Alma.
+The OpenRS team creates your agency, the record that stands for your library in DCB, with one
+of two authentication profiles. Alma holds two secrets for a patron, and each profile checks one:
+
+| Profile | Checks | Set in Alma as |
+|---|---|---|
+| `BASIC/BARCODE+PASSWORD` | The patron's internal password | The user's password (Ex Libris Identity Service) |
+| `BASIC/BARCODE+PIN` | The patron's PIN number, the one self-check machines use | The user's PIN number |
+
+Choose the one your patrons know. Under the PIN profile, a patron with no PIN number in Alma
+cannot sign in, and their password is never tried. No other profile works with Alma.
 
 Lending and borrowing are separate switches on the agency: supplying and borrowing. DCB treats
 a switch that was never set as off. An agency lends only once someone has turned supplying on,

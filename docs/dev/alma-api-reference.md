@@ -11,7 +11,8 @@ How the calls fit together is in [Alma integration](alma-integration.md).
 | Call | `AlmaApiClient` method | Used by |
 |---|---|---|
 | `GET /almaws/v1/users/{user_id}` | `getUserDetails` | `getPatronByLocalId`, `getPatronByIdentifier`, `getPatronByUsername`, `findVirtualPatron`, `patronAuth` (after authenticating), `updatePatron` (before writing) |
-| `POST /almaws/v1/users/{user_id}?op=auth`, password in the `Exl-User-Pw` header | `authenticateUser` | `patronAuth` |
+| `GET /almaws/v1/users/{user_id}`, read for `pin_number` only | `getUserPin` | `patronAuth` with `BASIC/BARCODE+PIN` |
+| `POST /almaws/v1/users/{user_id}?op=auth`, password in the `Exl-User-Pw` header | `authenticateUser` | `patronAuth` with `BASIC/BARCODE+PASSWORD` |
 | `POST /almaws/v1/users` | `createUser` | `createPatron` |
 | `PUT /almaws/v1/users/{user_id}` | `updateUserDetails` | `updatePatron` (with `override=user_group`), virtual patron expiry extension |
 | `DELETE /almaws/v1/users/{user_id}` | `deleteUser` | `deletePatron` |

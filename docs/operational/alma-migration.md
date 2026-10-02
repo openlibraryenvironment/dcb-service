@@ -49,11 +49,12 @@ There are two ways to keep continuity instead:
 Otherwise, accept new records and tell the other members they may see a second visiting
 account for some of your patrons, theirs to remove once no loan is attached.
 
-**Sign-in changes too.** Sierra checks a barcode and PIN. Alma checks a barcode and an internal
-password held by the Ex Libris Identity Service, and that is the only secret DCB can check for
-Alma. Your agency can keep `BASIC/BARCODE+PIN`, which DCB checks against that password, but a
-PIN is not an Alma password unless your migration loads it as one, so confirm with Ex Libris
-what your patrons will sign in with on day one. Patrons who sign in through your institution's identity
+**Sign-in changes too.** Sierra checks a barcode and PIN. Alma holds two patron secrets: an
+internal password, held by the Ex Libris Identity Service, and a PIN number, which self-check
+machines use. Your agency can keep `BASIC/BARCODE+PIN`, and DCB then checks the Alma PIN number,
+so your patrons' Sierra PINs must be loaded into that field by your migration. Or it can move to
+`BASIC/BARCODE+PASSWORD`, which checks the internal password instead. Confirm with Ex Libris
+which field your migration fills, and choose the profile to match before day one. Patrons who sign in through your institution's identity
 provider are not affected by the PIN, but the provider must release the value Alma matches
 users on: see the sign-in step in [Before your patrons can
 borrow](alma-setup.md#borrowing).

@@ -240,11 +240,18 @@ field in `override`.
 
 ### Patron sign-in: `patronAuth`
 
-`POST /users/{user_id}?op=auth` with the password in the `Exl-User-Pw` header: Alma's documented
-authentication operation, which checks a password held by the Ex Libris Identity Service. A 204
-is a match; then the user is read. `BASIC/BARCODE+PASSWORD` and `BASIC/BARCODE+PIN` both check
-that password, since an Alma patron has no separate PIN; any other profile is refused, because a
-verifier that cannot check a credential must fail closed. A 4xx other
+Alma holds two patron secrets, and each profile checks one:
+
+- `BASIC/BARCODE+PASSWORD`: `POST /users/{user_id}?op=auth` with the password in the
+  `Exl-User-Pw` header, Alma's documented authentication operation, which checks the internal
+  password held by the Ex Libris Identity Service. A 204 is a match.
+- `BASIC/BARCODE+PIN`: Alma has no operation that verifies a PIN, so `GET /users/{user_id}` is
+  read into `AlmaUserPin`, which holds only `pin_number` and never reaches `AlmaUser` (logged,
+  and written back on update). The PIN is compared in constant time. A user with no PIN number is
+  refused; their password is never tried.
+
+After a match the user is read. Any other profile is refused, because a verifier that cannot
+check a credential must fail closed. A 4xx other
 than 429 is a rejected credential (empty); anything else is an error, so an outage is not
 reported as a wrong password.
 
