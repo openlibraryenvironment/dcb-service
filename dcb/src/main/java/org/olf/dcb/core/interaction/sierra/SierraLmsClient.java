@@ -262,7 +262,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			GET_HOLDS_RETRY_ATTEMPTS_PROPERTY,
 			GET_PLACE_HOLD_DELAY_PROPERTY,
 			GET_FETCHING_HOLD_DELAY_PROPERTY,
-			VIRTUAL_PATRON_PIN);
+			VIRTUAL_PATRON_PIN,
+			stringPropertyDefinition(HostLmsSierraApiClient.API_VERSION,
+				"Sierra REST API version, one of " + HostLmsSierraApiClient.API_VERSIONS, FALSE));
 	}
 
   public Flux<SourceRecord> getChunk(JsonNode parameters) {

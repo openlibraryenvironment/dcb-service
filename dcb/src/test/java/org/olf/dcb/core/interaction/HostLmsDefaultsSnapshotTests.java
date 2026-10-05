@@ -13,6 +13,7 @@ import org.olf.dcb.core.interaction.alma.AlmaClientConfig;
 import org.olf.dcb.core.interaction.koha.KohaClientConfig;
 import org.olf.dcb.core.interaction.koha.KohaOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisConfig;
+import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.ingest.IngestSource;
 
@@ -57,6 +58,7 @@ class HostLmsDefaultsSnapshotTests {
 				Map.entry("services.site-domain", polaris.getServicesSiteDomain()),
 				Map.entry("services.workstation-id", String.valueOf(polaris.getServicesWorkstationId())))),
 			"org.olf.dcb.core.interaction.sierra.SierraLmsClient", new TreeMap<>(Map.of(
+				"api-version", HostLmsSierraApiClient.DEFAULT_API_VERSION,
 				"get-hold-delay", String.valueOf(SierraLmsClient.DEFAULT_GET_HOLD_DELAY),
 				"get-holds-retry-attempts", String.valueOf(SierraLmsClient.DEFAULT_GET_HOLDS_RETRY_ATTEMPTS),
 				"page-size", String.valueOf(IngestSource.DEFAULT_PAGE_SIZE),

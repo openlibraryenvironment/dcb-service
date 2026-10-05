@@ -1,5 +1,7 @@
 package org.olf.dcb.graphql.validation;
 
+import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
+
 import static org.olf.dcb.core.interaction.HostLmsClient.SHARED_SYSTEM;
 
 import java.util.Collections;
@@ -135,6 +137,12 @@ public class HostLmsConfigValidator {
 		checkDefaultAgencyCode(config, missing);
 
 		throwIfMissing("Sierra", missing);
+
+		final var apiVersion = config.get(HostLmsSierraApiClient.API_VERSION);
+		if (apiVersion != null && !HostLmsSierraApiClient.API_VERSIONS.contains(apiVersion)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Sierra '%s' must be one of %s, not '%s'."
+				.formatted(HostLmsSierraApiClient.API_VERSION, HostLmsSierraApiClient.API_VERSIONS, apiVersion));
+		}
 	}
 
 	private void validateAlma(Map<String, Object> config) {

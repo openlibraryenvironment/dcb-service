@@ -292,6 +292,19 @@ class HostLmsConfigValidatorTests {
 		assertThat(exception.getMessage(), containsString("REFERENCE_ONLY"));
 	}
 
+	@Test
+	void shouldAcceptOnlyTheSierraApiVersionsSierraServes() {
+		final var config = sierraConfig();
+		config.put("default-agency-code", "AGENCY");
+		config.put("api-version", "v5");
+		assertDoesNotThrow(() -> validator.validate(SIERRA, config));
+
+		config.put("api-version", "6");
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(SIERRA, config));
+		assertThat(exception.getMessage(), containsString("[v4, v5, v6]"));
+	}
+
 	private Map<String, Object> kohaConfig() {
 		final Map<String, Object> config = new HashMap<>();
 

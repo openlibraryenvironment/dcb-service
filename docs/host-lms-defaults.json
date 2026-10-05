@@ -28,6 +28,7 @@
     "services.workstation-id": "1"
   },
   "org.olf.dcb.core.interaction.sierra.SierraLmsClient": {
+    "api-version": "v6",
     "get-hold-delay": "1",
     "get-holds-retry-attempts": "25",
     "page-size": "1000",

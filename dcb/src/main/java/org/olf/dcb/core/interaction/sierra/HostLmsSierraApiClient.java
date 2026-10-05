@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import java.util.Objects;
+
 import static io.micronaut.http.HttpMethod.DELETE;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
@@ -68,6 +70,10 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	private static final String CLIENT_SECRET = "secret";
 	private static final String CLIENT_KEY = "key";
 	private static final String CLIENT_BASE_URL = "base-url";
+	public static final String API_VERSION = "api-version";
+	public static final String DEFAULT_API_VERSION = "v6";
+	// The versions Sierra still serves. DCB is tested against v6 only
+	public static final List<String> API_VERSIONS = List.of("v4", "v5", "v6");
 	private static final Argument<SierraError> ERROR_TYPE = Argument.of(SierraError.class);
 
 	private static final Logger log = LoggerFactory.getLogger(HostLmsSierraApiClient.class);
@@ -93,13 +99,22 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 		log.debug("Creating Sierra HostLms client for HostLms {}", hostLms);
 
-		URI hostUri = UriBuilder.of((String) hostLms.getClientConfig().get(CLIENT_BASE_URL)).build();
-		URI relativeURI = UriBuilder.of("/iii/sierra-api/v6/").build();
-		rootUri = RelativeUriResolver.resolve(hostUri, relativeURI);
+		rootUri = rootUriFor(hostLms.getClientConfig());
 
 		lms = hostLms;
 		this.client = client;
 		this.conversionService = conversionService;
+	}
+
+	static URI rootUriFor(Map<String, Object> clientConfig) {
+		final var version = Objects.toString(clientConfig.get(API_VERSION), DEFAULT_API_VERSION);
+		if (!API_VERSIONS.contains(version)) {
+			throw new IllegalArgumentException("Sierra " + API_VERSION + " must be one of "
+				+ API_VERSIONS + ", not \"" + version + "\"");
+		}
+
+		URI hostUri = UriBuilder.of((String) clientConfig.get(CLIENT_BASE_URL)).build();
+		return RelativeUriResolver.resolve(hostUri, UriBuilder.of("/iii/sierra-api/" + version + "/").build());
 	}
 
 	@Override
