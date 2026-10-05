@@ -562,7 +562,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			checkPickupLibrary("sharing-library-code", libraries, resourceSharingLibraryCodes),
 			checkSetting("virtual-item-library-code", virtualItemLibraryCode, libraries),
 			checkVirtualItemLocation(virtualItemLibraryCode, locations),
-			checkSetting("item-policy", config.getItemPolicy("BOOK"), itemPolicies),
+			checkSetting("item-policy", config.getItemPolicy(AlmaClientConfig.DEFAULT_ITEM_POLICY), itemPolicies),
 			checkSetting("no-renew-item-policy",
 				config.getNoRenewItemPolicy(AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY), itemPolicies)));
 
@@ -865,7 +865,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final String STATUS_ACTIVE = "ACTIVE";
 	private static final String ACCOUNT_TYPE_EXTERNAL = "EXTERNAL";
 	private static final String ID_TYPE_BARCODE = "BARCODE";
-	private static final String ID_TYPE_INST_ID = "INST_ID";
+	private static final String ID_TYPE_INST_ID = AlmaClientConfig.DEFAULT_USER_IDENTIFIER;
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
@@ -1169,7 +1169,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand cic) {
 		String bibId = getValueOrNull(cic, CreateItemCommand::getBibId);
-		String policy = config.getItemPolicy("BOOK");
+		String policy = config.getItemPolicy(AlmaClientConfig.DEFAULT_ITEM_POLICY);
 		String baseStatus = "1";
 		String callNumber = DCB_VIRTUAL_COLLECTION;
 		String holdingNote = "DCB Virtual holding record";
@@ -1418,7 +1418,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		log.debug("Updating item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
 
 		// The desk is configurable because a system's default desk code can differ
-		final var defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
+		final var defaultCircDesk = config.getDefaultCircDeskCode(AlmaClientConfig.DEFAULT_CIRC_DESK);
 		final var itemBibId = bibIdOf(before, bibId);
 		final var itemHoldingId = holdingIdOf(before, holdingsId);
 
@@ -1497,7 +1497,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// Get the ID of the patron, the local request and the pickup circ desk
 		final var patronId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getPatronId);
 		final var requestId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getLocalRequestId);
-		final var pickupLocationCircuationDesk = config.getPickupCircDesk("DEFAULT_CIRC_DESK");
+		final var pickupLocationCircuationDesk = config.getPickupCircDesk(AlmaClientConfig.DEFAULT_CIRC_DESK);
 		// The item's local Alma ID (PID) and its barcode should both be obtainable from the checkout command
 		final var itemId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemId);
 		final var itemBarcode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemBarcode);
@@ -1752,7 +1752,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("Checking in item {} with bibId {} and holdingsId {}", itemId, bibId, holdingsId);
 
-		final String defaultCircDesk = config.getDefaultCircDeskCode("DEFAULT_CIRC_DESK");
+		final String defaultCircDesk = config.getDefaultCircDeskCode(AlmaClientConfig.DEFAULT_CIRC_DESK);
 
 		return client.scanIn(new ScanInQuery(bibId, holdingsId, itemId, config.getVirtualItemLibraryCode(), defaultCircDesk))
 			.thenReturn("OK")

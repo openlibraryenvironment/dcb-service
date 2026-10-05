@@ -269,6 +269,17 @@ class HostLmsConfigValidatorTests {
 		return config;
 	}
 
+	// The adapter harvests 1000 at a time when it is absent, so requiring it only invited a
+	// smaller guess
+	@Test
+	void shouldNotRequireASierraPageSize() {
+		final var config = sierraConfig();
+		config.remove("page-size");
+		config.put("default-agency-code", "any-agency");
+
+		assertDoesNotThrow(() -> validator.validate(SIERRA, config));
+	}
+
 	@Test
 	void shouldRejectInvalidPolarisShelfLocationLoanPolicy() {
 		final var config = polarisConfig();

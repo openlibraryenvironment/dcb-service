@@ -213,20 +213,24 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.consortiumService = consortiumService;
 	}
 
+	public static final int DEFAULT_GET_HOLDS_RETRY_ATTEMPTS = 25;
+	public static final int DEFAULT_PLACE_HOLD_DELAY = 2;
+	public static final int DEFAULT_GET_HOLD_DELAY = 1;
+
 	private Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
-		final var retries = GET_HOLDS_RETRY_ATTEMPTS_PROPERTY.getOptionalValueFrom(clientConfig, 25);
+		final var retries = GET_HOLDS_RETRY_ATTEMPTS_PROPERTY.getOptionalValueFrom(clientConfig, DEFAULT_GET_HOLDS_RETRY_ATTEMPTS);
 		log.info("Get holds retry attempts set to {} retries for HostLMS {}", retries, lms.getName());
 		return retries;
 	}
 
 	private Integer getPlaceHoldDelay(Map<String, Object> clientConfig) {
-		final var delay = GET_PLACE_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, 2);
+		final var delay = GET_PLACE_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, DEFAULT_PLACE_HOLD_DELAY);
 		log.info("Place hold delay set to {} seconds for HostLMS {}", delay, lms.getName());
 		return delay;
 	}
 
 	private Integer getFetchingHoldDelay(Map<String, Object> clientConfig) {
-		final var delay = GET_FETCHING_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, 1);
+		final var delay = GET_FETCHING_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, DEFAULT_GET_HOLD_DELAY);
 		log.info("Fetching hold delay set to {} seconds for HostLMS {}", delay, lms.getName());
 		return delay;
 	}

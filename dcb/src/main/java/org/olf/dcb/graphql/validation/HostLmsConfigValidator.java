@@ -133,7 +133,6 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "key", missing);
 		checkPresent(config, "secret", missing);
 		checkDefaultAgencyCode(config, missing);
-		checkPresent(config, "page-size", missing);
 
 		throwIfMissing("Sierra", missing);
 	}

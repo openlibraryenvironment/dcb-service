@@ -154,6 +154,8 @@ public class PolarisConfig {
 		return valueWithDefault(value, String.class, "1");
 	}
 
+	public static final String DEFAULT_PATRON_BARCODE_PREFIX = "DCB-";
+
 	public String getPatronBarcodePrefix(String defaultValue) {
 
 		final var value = getNestedProperty(getServices(), ServicesConfig::getPatronBarcodePrefix);

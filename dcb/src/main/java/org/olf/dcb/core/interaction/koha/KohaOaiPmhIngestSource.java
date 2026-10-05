@@ -75,7 +75,7 @@ public class KohaOaiPmhIngestSource extends OaiPmhIngestSource {
 
 	// Allows overriding the OAI path if the Koha instance uses URL rewrites
 	private static final String CONFIG_OAI_PATH = "oai-path";
-	private static final String DEFAULT_OAI_PATH = "/cgi-bin/koha/oai.pl";
+	public static final String DEFAULT_OAI_PATH = "/cgi-bin/koha/oai.pl";
 
 	private static final String UUID5_PREFIX = "ingest-source:koha-oai";
 
