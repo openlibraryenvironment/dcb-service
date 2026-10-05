@@ -34,7 +34,7 @@ public class SierraPatronMapper {
 	public Mono<Patron> sierraPatronToHostLmsPatron(
 		SierraPatronRecord patronRecord, String hostLmsCode) {
 
-		log.debug("sierraPatronToHostLmsPatron({})", patronRecord);
+		log.debug("sierraPatronToHostLmsPatron({})", patronRecord.getId());
 		final var mappedExpiryDate = parseExpiryDate(patronRecord.getExpirationDate());
 
 		final var result = Patron.builder()
@@ -50,7 +50,7 @@ public class SierraPatronMapper {
 			.build();
 
 		if (isEmpty(result.getLocalBarcodes())) {
-			log.warn("Returned patron has NO BARCODES : {} -> {}", patronRecord, result);
+			log.warn("Returned patron has NO BARCODES : {}", patronRecord.getId());
 		}
 
 		return Mono.just(result)

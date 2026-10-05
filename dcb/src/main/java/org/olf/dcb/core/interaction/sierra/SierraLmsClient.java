@@ -230,7 +230,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 
 	private String getVirtualPatronPin(Map<String, Object> clientConfig) {
 		final var pin = VIRTUAL_PATRON_PIN.getOptionalValueFrom(clientConfig, null);
-		log.info("Virtual patron pin set to {} for HostLMS {}", pin, lms.getName());
+		log.info("Virtual patron pin {} for HostLMS {}", pin != null ? "set" : "not set", lms.getName());
 		return pin;
 	}
 
@@ -768,7 +768,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	public Mono<Patron> patronFind(String varFieldTag, String varFieldContent) {
-		log.debug("patronFind({}, {})", varFieldTag, varFieldContent);
+		log.debug("patronFind({})", varFieldTag);
 
 		return Mono.from(client.patronFind(varFieldTag, varFieldContent))
 			.flatMap(this::validatePatronRecordResult)
@@ -792,14 +792,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			return Mono.just(result);
 		}
 
-		log.warn("SierraPatronRecord was not validated :: {}", result);
+		log.warn("SierraPatronRecord was not validated :: id:{}", result.getId());
 		log.warn("Returning empty.");
 		return Mono.empty();
 	}
 
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
-		log.info("{} attempt patronAuth({},{},...)", lms.getCode(), authProfile, patronPrinciple);
+		log.info("{} attempt patronAuth({})", lms.getCode(), authProfile);
 
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> validatePatronCredentials(patronPrinciple, secret, "b");
@@ -819,10 +819,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.caseSensitivity(Boolean.FALSE)
 			.build();
 
-		log.info("Attempt client patron validation : {}", patronValidationRequest);
-
 		return Mono.from(client.validatePatron(patronValidationRequest))
-			.doOnError(error -> log.debug("response of validatePatronCredentials for {}", patronValidationRequest, error))
+			.doOnError(error -> log.debug("validatePatronCredentials failed for {}", lms.getCode(), error))
 			.filter(result -> result == Boolean.TRUE)
 			.flatMap( result -> patronFind(principalType,principal));
 	}
@@ -831,7 +829,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	// "/iii/sierra-api/v6/patrons/validate";
 	// If field is b we will lookup by barcode before attempting name check, if u it will be unique ID
 	private Mono<Patron> validatePatronByIDAndName(String principal, String name, String principalField) {
-		log.debug("validatePatronByIDAndName({},{},{})", principal, name, principalField);
+		log.debug("validatePatronByIDAndName({})", principalField);
 
 		// Use used to required at least 4 characters for a user auth
 		// if ((name == null) || (name.length() < 4)) return Mono.empty();
@@ -839,7 +837,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// If the provided name is present in any of the names coming back from the
 		// client
 		return patronFind(principalField, principal)
-			.doOnSuccess(patron -> log.info("Testing {}/{} to see if {} is present", patron, patron.getLocalNames(), name))
 			.filter(patron -> patron.getLocalNames().stream()
 				.anyMatch(s -> s.toLowerCase().trim().startsWith(name.toLowerCase().trim())));
 	}
