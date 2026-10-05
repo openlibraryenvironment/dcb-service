@@ -243,7 +243,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.objectRuleService = objectRuleService;
 	}
 
-	private PolarisConfig convertConfig(HostLms hostLms) {
+	static PolarisConfig convertConfig(HostLms hostLms) {
 		Map<String, Object> lmsConf = hostLms.getClientConfig();
 
 		try {
