@@ -23,6 +23,7 @@ import reactor.core.publisher.Mono;
 class UnsupportedAuthProfileTests {
 	private static final String SIERRA = "unsupported-profile-sierra";
 	private static final String POLARIS = "unsupported-profile-polaris";
+	private static final String FOLIO = "unsupported-profile-folio";
 	private static final String BARCODE = "barcode-14142";
 
 	@Inject
@@ -34,6 +35,8 @@ class UnsupportedAuthProfileTests {
 		hostLmsFixture.createSierraHostLms(SIERRA);
 		hostLmsFixture.createPolarisHostLms(POLARIS, "staff", "password",
 			"https://polaris.example.org", "DOMAIN", "access-id", "access-key");
+		hostLmsFixture.createFolioHostLms(FOLIO, "https://folio.example.org", "api-key",
+			"oai_dc", "marc21_withholdings");
 	}
 
 	@Test
@@ -54,6 +57,16 @@ class UnsupportedAuthProfileTests {
 	@Test
 	void shouldRefuseAMissingPolarisProfileAsAConfigurationError() {
 		assertConfigurationError(POLARIS, null);
+	}
+
+	@Test
+	void shouldRefuseAnUnknownFolioProfileAsAConfigurationError() {
+		assertConfigurationError(FOLIO, "BASIC/BARCODE+NAME");
+	}
+
+	@Test
+	void shouldRefuseAMissingFolioProfileAsAConfigurationError() {
+		assertConfigurationError(FOLIO, null);
 	}
 
 	private void assertConfigurationError(String hostLmsCode, String authProfile) {
