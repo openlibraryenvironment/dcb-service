@@ -1,5 +1,7 @@
 package org.olf.dcb.graphql.validation;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
 import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
 
 import static org.olf.dcb.core.interaction.HostLmsClient.SHARED_SYSTEM;
@@ -137,6 +139,7 @@ public class HostLmsConfigValidator {
 		checkDefaultAgencyCode(config, missing);
 
 		throwIfMissing("Sierra", missing);
+		validateVirtualPatronEmail("Sierra", config);
 
 		final var apiVersion = config.get(HostLmsSierraApiClient.API_VERSION);
 		if (apiVersion != null && !HostLmsSierraApiClient.API_VERSIONS.contains(apiVersion)) {
@@ -215,6 +218,7 @@ public class HostLmsConfigValidator {
 		throwIfMissing("Polaris", missing);
 		validatePolarisShelfLocationPolicies(config);
 		validatePolarisItemAgencyResolutionMethod(config);
+		validateVirtualPatronEmail("Polaris", config);
 	}
 
 	// PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS; any other value silently resolved items' agency by shelf location
@@ -281,6 +285,15 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "virtual-item-library-code", missing);
 
 		throwIfMissing("Koha", missing);
+		validateVirtualPatronEmail("Koha", config);
+	}
+
+	private void validateVirtualPatronEmail(String system, Map<String, Object> config) {
+		final var value = config.get(VirtualPatronEmail.SETTING);
+		if (value != null && !VirtualPatronEmail.isAddress(value)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "%s '%s' must be an email address."
+				.formatted(system, VirtualPatronEmail.SETTING));
+		}
 	}
 
 	/**

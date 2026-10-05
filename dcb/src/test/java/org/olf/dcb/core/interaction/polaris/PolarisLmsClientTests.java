@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import java.util.Map;
+
 import static java.lang.Integer.parseInt;
 import static java.lang.Long.parseLong;
 import static java.time.ZoneOffset.UTC;
@@ -183,7 +185,7 @@ class PolarisLmsClientTests {
 
 		hostLmsFixture.createPolarisHostLms(CATALOGUING_HOST_LMS_CODE, key,
 			secret, baseUrl, domain, key, secret, "default-agency-code",
-			ILL_LOCATION_ID);
+			ILL_LOCATION_ID, Map.of("virtual-patron-email", "ill-notices@consortium.example.org"));
 
 		hostLmsFixture.createPolarisHostLms(CIRCULATING_HOST_LMS_CODE, key,
 			secret, baseUrl, domain, key, secret);
@@ -1322,6 +1324,9 @@ class PolarisLmsClientTests {
 
 		// The patron is registered at the branch assigned to the item being requested
 		mockPolarisFixture.verifyCreatePatronBodyContains("\"PatronBranchID\":" + itemAssignedBranchId);
+
+		// Notices for the virtual patron go to the consortium's mailbox
+		mockPolarisFixture.verifyCreatePatronBodyContains("\"EmailAddress\":\"ill-notices@consortium.example.org\"");
 
 		// The patron is born with the address check date already pushed into the future, so it never
 		// carries the block Polaris derives from a past date

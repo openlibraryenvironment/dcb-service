@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.koha;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.model.HostLms;
 
@@ -50,6 +52,9 @@ public class KohaClientConfig {
 
 	public static final String DEFAULT_VIRTUAL_PATRON_CATEGORY = "DCB";
 
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
+		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
+
 
 
 	private final HostLms hostLms;
@@ -75,7 +80,8 @@ public class KohaClientConfig {
 			DCB_SHARING_LIBRARY_CODE,
 			VIRTUAL_ITEM_LIBRARY_CODE,
 			NO_RENEW_COLLECTION_CODE,
-			VIRTUAL_PATRON_CATEGORY
+			VIRTUAL_PATRON_CATEGORY,
+			VIRTUAL_PATRON_EMAIL
 		);
 	}
 
@@ -85,6 +91,10 @@ public class KohaClientConfig {
 
 	public String getVirtualItemLibraryCode() {
 		return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);
+	}
+
+	public String getVirtualPatronEmail() {
+		return VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(hostLms.getClientConfig(), null);
 	}
 
 	public String getVirtualPatronCategory() {

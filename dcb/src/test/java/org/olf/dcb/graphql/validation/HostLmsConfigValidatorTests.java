@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -290,6 +291,23 @@ class HostLmsConfigValidatorTests {
 
 		assertThat(exception.getMessage(), containsString("Reference=REFERENCE"));
 		assertThat(exception.getMessage(), containsString("REFERENCE_ONLY"));
+	}
+
+	@Test
+	void shouldAcceptOnlyAnAddressForTheVirtualPatronMailbox() {
+		for (final var lmsClass : List.of(SIERRA, POLARIS, KOHA)) {
+			final var config = SIERRA.equals(lmsClass) ? sierraConfig()
+				: POLARIS.equals(lmsClass) ? polarisConfig() : kohaConfig();
+			config.put("default-agency-code", "AGENCY");
+
+			config.put("virtual-patron-email", "ill-notices@consortium.example.org");
+			assertDoesNotThrow(() -> validator.validate(lmsClass, config), lmsClass);
+
+			config.put("virtual-patron-email", "the ILL desk");
+			final var exception = assertThrows(HttpStatusException.class,
+				() -> validator.validate(lmsClass, config), lmsClass);
+			assertThat(exception.getMessage(), containsString("must be an email address"));
+		}
 	}
 
 	@Test

@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,6 +64,8 @@ public class PolarisConfig {
 	private String borrowerLendingFlow;
 	@JsonProperty("hold-fetching-delay")
 	private Integer holdFetchingDelay;
+	@JsonProperty(VirtualPatronEmail.SETTING)
+	private String virtualPatronEmail;
 	@JsonProperty("hold-fetching-max-retry")
 	private Integer holdFetchingMaxRetry;
 	/**

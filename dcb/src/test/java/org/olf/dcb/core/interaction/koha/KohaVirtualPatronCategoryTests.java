@@ -47,6 +47,14 @@ class KohaVirtualPatronCategoryTests {
 	}
 
 	@Test
+	void shouldCreateTheVirtualPatronWithTheConsortiumMailbox() {
+		final var created = createPatronWithNoMappedType(
+			Map.of("virtual-patron-email", "ill-notices@consortium.example.org"));
+
+		assertThat(created.getEmail(), is("ill-notices@consortium.example.org"));
+	}
+
+	@Test
 	void shouldReportACategoryKohaDoesNotHave() {
 		when(apiClient.getPatronCategories()).thenReturn(Mono.just(new KohaPatronCategory[] {
 			new KohaPatronCategory("PT", "Patron"), new KohaPatronCategory("ST", "Staff")}));

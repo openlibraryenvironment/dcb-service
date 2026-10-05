@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
@@ -152,6 +154,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_PIN = stringPropertyDefinition(
 		"virtual-patron-pin", "Virtual patrons pin to use", FALSE);
 
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
+		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
+
 	private static final HostLmsPropertyDefinition PATRON_SEARCH_TAG = stringPropertyDefinition(
 		"patron-search-tag", "VarFieldTag to search for patron by", FALSE);
 
@@ -263,6 +268,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			GET_PLACE_HOLD_DELAY_PROPERTY,
 			GET_FETCHING_HOLD_DELAY_PROPERTY,
 			VIRTUAL_PATRON_PIN,
+			VIRTUAL_PATRON_EMAIL,
 			stringPropertyDefinition(HostLmsSierraApiClient.API_VERSION,
 				"Sierra REST API version, one of " + HostLmsSierraApiClient.API_VERSIONS, FALSE));
 	}
@@ -960,6 +966,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 					.expirationDate(patronExpirationDate)
 					.pin(getVirtualPatronPin(getConfig()))
+					.emails(Optional.ofNullable(VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(getConfig(), null))
+						.map(List::of)
+						.orElse(null))
 					.build();
 
 				return Mono.from(client.patrons(patronPatch))

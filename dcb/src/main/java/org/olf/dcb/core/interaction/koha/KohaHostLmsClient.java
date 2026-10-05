@@ -215,7 +215,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 			patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty() ? patron.getUniqueIds().get(0) : null, // cardnumber
 			lastName, // surname (Required)
 			firstName, // firstname
-			null, // email
+			config.getVirtualPatronEmail(), // email
 			libraryId, // library_id (Required)
 			categoryId, // category_id (Required)
 			null, null, null, null, null, null, null, null, null, null

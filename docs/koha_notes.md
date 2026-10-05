@@ -646,3 +646,10 @@ The mappings and the pickup location are only proven together, by a request:
 
 `KohaMappingAndPickupLocationTests` covers all of the above against a stand-in
 Koha, so a change that breaks one of these lookups fails there first.
+
+## Virtual patron notices
+
+The member system sends a virtual patron hold and pickup notices like any other
+patron. Set `virtual-patron-email` to a mailbox the consortium reads, and those
+notices go there. Without it they have no address. It must be an operational
+address, never a patron's own: every virtual patron on this system shares it.
