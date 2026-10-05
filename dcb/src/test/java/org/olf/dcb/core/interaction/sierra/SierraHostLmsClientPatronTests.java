@@ -6,6 +6,8 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalToIgnoringCase;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasCanonicalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasHomeLibraryCode;
@@ -87,11 +89,11 @@ class SierraHostLmsClientPatronTests {
 	@SneakyThrows
 	void shouldFindPatronByLocalId() {
 		// Arrange
-		final var localPatronId = "583634";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 23;
-		final var barcode = "5472792742";
+		final var barcode = generateBarcode();
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
 				.id(parseInt(localPatronId))
 				.barcodes(List.of(barcode))
@@ -138,15 +140,15 @@ class SierraHostLmsClientPatronTests {
 		// every subsequent transaction.
 
 		// Arrange
-		final var localPatronId = "864902";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var newLocalPatronType = 15;
 
 		sierraPatronsAPIFixture.updatePatron(localPatronId);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
 				.id(parseInt(localPatronId))
-				.barcodes(List.of("6273627"))
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("first name", "last name"))
 				.patronType(newLocalPatronType)
 				.homeLibraryCode("home-library")

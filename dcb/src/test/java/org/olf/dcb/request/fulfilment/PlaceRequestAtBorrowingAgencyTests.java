@@ -12,6 +12,9 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalId;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescription;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
@@ -61,6 +64,7 @@ import services.k_int.interaction.sierra.SierraCodeTuple;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -71,6 +75,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 	private static final String BORROWING_AGENCY_CODE = "borrowing-agency";
 	private static final String SUPPLYING_AGENCY_CODE = "supplying-agency";
+
+	private static final String HOME_LIBRARY_CODE = "home-library-code";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -126,8 +132,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 		hostLmsFixture.createSierraHostLms(INVALID_HOLD_POLICY_HOST_LMS_CODE, KEY,
 			SECRET, BASE_URL, "invalid");
 
-		agencyFixture.defineAgency(BORROWING_AGENCY_CODE,
-			"Borrowing Agency", sierraHostLms);
+		agencyFixture.defineAgency(BORROWING_AGENCY_CODE, "Borrowing Agency", sierraHostLms);
 
 		supplyingAgency = agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE,
 			"Supplying Agency", sierraHostLms);
@@ -156,7 +161,15 @@ class PlaceRequestAtBorrowingAgencyTests {
 				.statusCode("-")
 				.build());
 
-		sierraPatronsAPIFixture.addPatronGetExpectation("872321");
+		final var localPatronId = generateNumericLocalId();
+
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
+			SierraPatronRecord.builder()
+				.id(localPatronId)
+				.barcodes(List.of(generateBarcode()))
+				.patronType(15)
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.build());
 	}
 
 	@BeforeEach
@@ -189,9 +202,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var localPatronId = "562967";
+		final var localPatronId = generateNumericLocalIdAsString();
 
-		final var patron = patronFixture.savePatron("home-library");
+		final var patron = patronFixture.savePatron(HOME_LIBRARY_CODE);
 
 		final var hostLms1 = hostLmsFixture.findByCode(HOST_LMS_CODE);
 
@@ -257,9 +270,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var localPatronId = "562967";
+		final var localPatronId = generateNumericLocalIdAsString();
 
-		final var patron = patronFixture.savePatron("home-library");
+		final var patron = patronFixture.savePatron(HOME_LIBRARY_CODE);
 
 		patronFixture.saveIdentity(patron, hostLms, localPatronId, true, "-",
 			localPatronId, null);
@@ -422,9 +435,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		bibRecordFixture.createBibRecord(bibRecordId, sourceSystemId, "798472", clusterRecord);
 
-		final var localPatronId = "562967";
+		final var localPatronId = generateNumericLocalIdAsString();
 
-		final var patron = patronFixture.savePatron("872321");
+		final var patron = patronFixture.savePatron(HOME_LIBRARY_CODE);
 
 		patronFixture.saveIdentity(patron, invalidHoldPolicyHostLms, localPatronId, true, "-",
 			localPatronId, null);
@@ -471,11 +484,9 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		clusterRecordFixture.createClusterRecord(clusterRecordId, bibRecordId);
 
-		final var localPatronId = "562967";
-		final var homeLibraryCode = "972321";
+		final var localPatronId = generateNumericLocalIdAsString();
 
-		final var patronRequest = createPatronRequest(localPatronId,
-			homeLibraryCode, clusterRecordId);
+		final var patronRequest = createPatronRequest(localPatronId, HOME_LIBRARY_CODE, clusterRecordId);
 
 		createSupplierRequest(patronRequest, "798472", supplyingAgency);
 
@@ -551,10 +562,10 @@ class PlaceRequestAtBorrowingAgencyTests {
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
-		final var localPatronId = "562967";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		final var patronRequest = createPatronRequest(localPatronId,
-			"home-library", clusterRecordId);
+			HOME_LIBRARY_CODE, clusterRecordId);
 
 		createSupplierRequest(patronRequest, "76832", supplyingAgency);
 

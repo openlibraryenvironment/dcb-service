@@ -123,7 +123,7 @@ public class PatronAuthApiTests {
 			.respond(HttpResponse.response().withStatusCode(200));
 
 		// I don't understand what this is doing here
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("23945734234",
+		sierraPatronsAPIFixture.mockGetPatronById("23945734234",
 			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)

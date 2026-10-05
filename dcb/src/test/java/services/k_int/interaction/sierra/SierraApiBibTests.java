@@ -3,7 +3,10 @@ package services.k_int.interaction.sierra;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
@@ -18,8 +21,10 @@ import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.bibs.BibPatch;
+import services.k_int.interaction.sierra.bibs.BibResult;
 import services.k_int.interaction.sierra.bibs.BibResultSet;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -56,9 +61,22 @@ class SierraApiBibTests {
 	}
 
 	@Test
-	void testBibsGET() {
+	void shouldGetSinglePageOfBibs() {
 		// Arrange
-		sierraBibsAPIFixture.createGetBibsMockWithQueryStringParameters();
+		final var firstBibId = generateNumericLocalIdAsString();
+		final var secondBibId = generateNumericLocalIdAsString();
+		final var thirdBibId = generateNumericLocalIdAsString();
+
+		sierraBibsAPIFixture.createGetBibsMockWithQueryStringParameters(
+			BibResult.builder()
+				.id(firstBibId)
+				.build(),
+			BibResult.builder()
+				.id(secondBibId)
+				.build(),
+			BibResult.builder()
+				.id(thirdBibId)
+				.build());
 
 		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
@@ -71,13 +89,14 @@ class SierraApiBibTests {
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getClass(), is(BibResultSet.class));
 		assertThat(response.total(), is(3));
-		assertThat(response.entries().get(0).id(), is("1000002"));
-		assertThat(response.entries().get(1).id(), is("1000003"));
-		assertThat(response.entries().get(2).id(), is("1000004"));
+
+		final var bibIds = response.entries().stream().map(BibResult::id).toList();
+
+		assertThat(bibIds, contains(firstBibId, secondBibId, thirdBibId));
 	}
 
 	@Test
-	void testBibsPOST() {
+	void shouldCreateBib() {
 		// Arrange
 		final var fixedFields = Map.of(31, FixedField.builder().label("suppress").value("n").build());
 

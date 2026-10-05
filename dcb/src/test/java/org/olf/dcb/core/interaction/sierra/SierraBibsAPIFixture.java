@@ -1,6 +1,9 @@
 package org.olf.dcb.core.interaction.sierra;
 
 import static org.olf.dcb.test.MockServerCommonResponses.noContent;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+
+import java.util.List;
 
 import org.olf.dcb.test.MockServer;
 import org.olf.dcb.test.MockServerCommonRequests;
@@ -8,13 +11,19 @@ import org.olf.dcb.test.MockServerCommonRequests;
 import lombok.AllArgsConstructor;
 import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.bibs.BibPatch;
+import services.k_int.interaction.sierra.bibs.BibResult;
+import services.k_int.interaction.sierra.bibs.BibResultSet;
 
 @AllArgsConstructor
 public class SierraBibsAPIFixture {
 	private final MockServer mockServer;
 	private final MockServerCommonRequests mockServerCommonRequests;
 
-	public void createGetBibsMockWithQueryStringParameters() {
+	public void createGetBibsMockWithQueryStringParameters(BibResult... bibs) {
+		createGetBibsMockWithQueryStringParameters(List.of(bibs));
+	}
+
+	public void createGetBibsMockWithQueryStringParameters(List<BibResult> bibs) {
 		mockServer.mock(mockServerCommonRequests.get(bibsPath())
 				.withQueryStringParameter("updatedDate", "null")
 				.withQueryStringParameter("suppressed", "false")
@@ -23,7 +32,11 @@ public class SierraBibsAPIFixture {
 				.withQueryStringParameter("limit", "3")
 				.withQueryStringParameter("deleted", "false")
 				.withQueryStringParameter("createdDate", "null"),
-			"bibs/sierra-api-GET-bibs-success-response.json");
+			BibResultSet.builder()
+				.entries(bibs)
+				.start(0)
+				.total(getValue(bibs, List::size, 0))
+				.build());
 	}
 
 	public void createPostBibsMock(BibPatch bibPatch, Integer returnId) {

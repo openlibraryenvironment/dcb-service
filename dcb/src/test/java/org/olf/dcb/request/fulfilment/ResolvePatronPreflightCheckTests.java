@@ -1,10 +1,13 @@
 package org.olf.dcb.request.fulfilment;
 
+import static java.lang.Integer.parseInt;
 import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
@@ -35,6 +38,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Property(name = "dcb.requests.preflight-checks.resolve-patron.enabled", value = "true")
 class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String BORROWING_HOST_LMS_CODE = "borrowing-host-lms";
+	private static final String HOME_LIBRARY_CODE = "home-library";
 
 	@Inject
 	private ResolvePatronPreflightCheck check;
@@ -76,19 +80,19 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldPassWhenPatronCanBeFoundInHostLms() {
 		// Arrange
-		final var localPatronId = "345358";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("647647746"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+		mapPatronToAgency(HOME_LIBRARY_CODE, "example-agency",
 			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
@@ -111,14 +115,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldPassWhenPatronMappedToDefaultAgency() {
 		// Arrange
-		final var localPatronId = "673633";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.barcodes(List.of("647647746"))
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
@@ -145,21 +149,21 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsAssociatedWithAgencyNotParticipatingInBorrowing() {
 		// Arrange
-		final var localPatronId = "562732";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
 		final var agencyCode = "non-borrowing-agency";
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", agencyCode, false);
+		mapPatronToAgency(HOME_LIBRARY_CODE, agencyCode, false);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -185,21 +189,21 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsAssociatedWithAnAgencyWithNoParticipationInformation() {
 		// Arrange
-		final var localPatronId = "736453";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
 		final var agencyCode = "non-borrowing-agency";
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", agencyCode, null);
+		mapPatronToAgency(HOME_LIBRARY_CODE, agencyCode, null);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -225,15 +229,15 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsNotAssociatedWithAgency() {
 		// Arrange
-		final var localPatronId = "8292567";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
@@ -254,27 +258,27 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
 				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, "home-library", BORROWING_HOST_LMS_CODE))
+					.formatted(localPatronId, HOME_LIBRARY_CODE, BORROWING_HOST_LMS_CODE))
 		));
 	}
 
 	@Test
 	void shouldFailWhenPatronIsAssociatedWithUnknownAgency() {
 		// Arrange
-		final var localPatronId = "725562";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(
-			BORROWING_HOST_LMS_CODE, "home-library", "unknown-agency");
+			BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE, "unknown-agency");
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -293,26 +297,26 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
 				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, "home-library", BORROWING_HOST_LMS_CODE))
+					.formatted(localPatronId, HOME_LIBRARY_CODE, BORROWING_HOST_LMS_CODE))
 		));
 	}
 
 	@Test
 	void shouldFailWhenPatronIsIneligible() {
 		// Arrange
-		final var localPatronId = "836492";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+		mapPatronToAgency(HOME_LIBRARY_CODE, "example-agency",
 			true);
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
@@ -343,10 +347,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronHasReachedTheAgencyHoldLimit() {
 		// Arrange
-		final var localPatronId = "164301";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		defineEligiblePatron(localPatronId, 15);
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, 25);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE, "example-agency", true, 25);
 
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningCount(localPatronId, 25);
 
@@ -364,10 +368,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldPassWhenPatronIsBelowTheAgencyHoldLimit() {
 		// Arrange
-		final var localPatronId = "164302";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		defineEligiblePatron(localPatronId, 15);
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, 25);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE, "example-agency", true, 25);
 
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningCount(localPatronId, 24);
 
@@ -384,10 +388,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// cannot be checked - the patron must not be blocked on a number we invented
 
 		// Arrange
-		final var localPatronId = "164303";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		defineEligiblePatron(localPatronId, 15);
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, null);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE, "example-agency", true, null);
 
 		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningCount(localPatronId, 500);
 
@@ -408,10 +412,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// is over their limit either, so it must not block them
 
 		// Arrange
-		final var localPatronId = "164304";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		defineEligiblePatron(localPatronId, 15);
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency", true, 25);
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE, "example-agency", true, 25);
 
 		sierraPatronsAPIFixture.patronHoldErrorResponse(localPatronId);
 
@@ -425,22 +429,22 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsBlocked() {
 		// Arrange
-		final var localPatronId = "164266";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.blockInfo(Block.builder()
 					.code("blocked")
 					.build())
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+		mapPatronToAgency(HOME_LIBRARY_CODE, "example-agency",
 			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
@@ -467,22 +471,22 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronIsIneligibleAndBlocked() {
 		// Arrange
-		final var localPatronId = "984625";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.autoBlockInfo(Block.builder()
 					.code("blocked")
 					.build())
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+		mapPatronToAgency(HOME_LIBRARY_CODE, "example-agency",
 			true);
 
 		final var notEligibleCanonicalPatronType = "NOT_ELIGIBLE";
@@ -511,20 +515,20 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronHasNoBarcodes() {
 		// Arrange
-		final var localPatronId = "673635";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
-		final var homeLibraryCode = "home-library";
+		final var homeLibraryCode = HOME_LIBRARY_CODE;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
 				.homeLibraryCode(homeLibraryCode)
 				.barcodes(emptyList())
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, homeLibraryCode, "example-agency",
+		mapPatronToAgency(homeLibraryCode, "example-agency",
 			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
@@ -551,21 +555,20 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronHasEmptyBarcode() {
 		// Arrange
-		final var localPatronId = "673635";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
-		final var homeLibraryCode = "home-library";
+		final var homeLibraryCode = HOME_LIBRARY_CODE;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
 				.homeLibraryCode(homeLibraryCode)
 				.barcodes(List.of(""))
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, homeLibraryCode, "example-agency",
-			true);
+		mapPatronToAgency(homeLibraryCode, "example-agency", true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -591,21 +594,20 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailEvenWhenPatronHasSecondNonEmptyBarcode() {
 		// Arrange
-		final var localPatronId = "673635";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
-		final var homeLibraryCode = "home-library";
+		final var homeLibraryCode = HOME_LIBRARY_CODE;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
 				.homeLibraryCode(homeLibraryCode)
-				.barcodes(List.of("", "242673764"))
+				.barcodes(List.of("", generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, homeLibraryCode, "example-agency",
-			true);
+		mapPatronToAgency(homeLibraryCode, "example-agency", true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
 			BORROWING_HOST_LMS_CODE, localPatronType, localPatronType, "DCB", "UNDERGRAD");
@@ -632,7 +634,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronCannotBeFoundInHostLms() {
 		// Arrange
-		final var localPatronId = "673825";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
 
@@ -657,20 +659,20 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronHasBeenDeletedInHostLms() {
 		// Arrange
-		final var localPatronId = "352452";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("647647746"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.deleted(true)
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
+		mapPatronToAgency(HOME_LIBRARY_CODE, "example-agency",
 			true);
 
 		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(
@@ -697,20 +699,19 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenLocalPatronTypeIsNotMappedToCanonicalPatronType() {
 		// Arrange
-		final var localPatronId = "578374";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var unmappedLocalPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(1000002)
+				.id(parseInt(localPatronId))
 				.patronType(unmappedLocalPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("647647746"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
-			true);
+		mapPatronToAgency(HOME_LIBRARY_CODE, "example-agency", true);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -733,17 +734,16 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenNoLocalPatronTypeIsDefined() {
 		// Arrange
-		final var localPatronId = "683945";
+		final var localPatronId = generateNumericLocalIdAsString();
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId, SierraPatronRecord.builder()
-			.id(Integer.parseInt(localPatronId))
-			.homeLibraryCode("home-library")
-			.barcodes(List.of("647647746"))
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId, SierraPatronRecord.builder()
+			.id(parseInt(localPatronId))
+			.homeLibraryCode(HOME_LIBRARY_CODE)
+			.barcodes(List.of(generateBarcode()))
 			.names(List.of("Bob"))
 			.build());
 
-		mapPatronToAgency(BORROWING_HOST_LMS_CODE, "home-library", "example-agency",
-			true);
+		mapPatronToAgency(HOME_LIBRARY_CODE, "example-agency", true);
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -783,10 +783,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		));
 	}
 
-	private void mapPatronToAgency(String hostLmsCode, String locationCode,
-		String agencyCode, Boolean isBorrowingAgency) {
-
-		mapPatronToAgency(hostLmsCode, locationCode, agencyCode, isBorrowingAgency, null);
+	private void mapPatronToAgency(String locationCode, String agencyCode, Boolean isBorrowingAgency) {
+		mapPatronToAgency(BORROWING_HOST_LMS_CODE, locationCode, agencyCode, isBorrowingAgency, null);
 	}
 
 	private void mapPatronToAgency(String hostLmsCode, String locationCode,
@@ -809,12 +807,12 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	private void defineEligiblePatron(String localPatronId, int localPatronType) {
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
-				.id(Integer.parseInt(localPatronId))
+				.id(parseInt(localPatronId))
 				.patronType(localPatronType)
-				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.homeLibraryCode(HOME_LIBRARY_CODE)
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 

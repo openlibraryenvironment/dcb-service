@@ -4,6 +4,9 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalId;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -11,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -138,23 +140,22 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
 
-		final var sourceRecordId = "5473765";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 				sourceRecordId, clusterRecord);
 
-		final var onlyAvailableItemId = "352545";
-		final var onlyAvailableItemBarcode = "82365396";
+		final var onlyAvailableItemId = generateNumericLocalIdAsString();
+		final var onlyAvailableItemBarcode = generateBarcode();
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			"resolution-cataloguing", 1, 1, "loanable-item");
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
-				ITEM_LOCATION_CODE)
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var localPatronId = definePatron("465367");
+		final var localPatronId = definePatron(generateNumericLocalIdAsString());
 
 		// Act
 		final var command = PlacePatronRequestCommand.builder()
@@ -185,14 +186,14 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecordId = clusterRecord.getId();
 
-		final var sourceRecordId = "3545674";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
 
 		sierraItemsAPIFixture.zeroItemsResponseForBibId(sourceRecordId);
 
-		final var localPatronId = "2645637";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		definePatron(localPatronId);
 
@@ -229,24 +230,23 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecordId = clusterRecord.getId();
 
-		final var sourceRecordId = "625252";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
 
-		final var onlyAvailableItemId = "352545";
-		final var onlyAvailableItemBarcode = "82365396";
+		final var onlyAvailableItemId = generateNumericLocalIdAsString();
+		final var onlyAvailableItemBarcode = generateBarcode();
 		final var itemLocationCode = "borrowing-location";
 
 		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
-			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode,
-				itemLocationCode)
+			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, itemLocationCode)
 		));
 
 		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
 			itemLocationCode, BORROWING_AGENCY_CODE);
 
-		final var localPatronId = "353663";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		definePatron(localPatronId);
 
@@ -283,13 +283,13 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecordId = clusterRecord.getId();
 
-		final var sourceRecordId = "625252";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
 
-		final var onlyAvailableItemId = "274625";
-		final var onlyAvailableItemBarcode = "92565476";
+		final var onlyAvailableItemId = generateNumericLocalIdAsString();
+		final var onlyAvailableItemBarcode = generateBarcode();
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
 			"resolution-cataloguing", 1, 1, "loanable-item");
@@ -298,7 +298,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 			availableItem(onlyAvailableItemId, onlyAvailableItemBarcode, ITEM_LOCATION_CODE)
 		));
 
-		final var localPatronId = "547265";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		definePatron(localPatronId);
 
@@ -312,7 +312,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				.bibClusterId(clusterRecordId)
 				.build())
 			.item(PlacePatronRequestCommand.Item.builder()
-				.localId("4322424")
+				.localId(generateNumericLocalIdAsString())
 				.agencyCode(SUPPLYING_AGENCY_CODE)
 				.localSystemCode(CIRCULATING_HOST_LMS_CODE)
 				.build())
@@ -336,7 +336,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		// Arrange
 		final var clusterRecordId = randomUUID();
 
-		final var localPatronId = "563653";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		definePatron(localPatronId);
 
@@ -375,7 +375,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		clusterRecordFixture.createClusterRecord(clusterRecord);
 
-		final var localPatronId = "8726573";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		definePatron(localPatronId);
 
@@ -410,12 +410,12 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecordId = clusterRecord.getId();
 
-		final var sourceRecordId = "874626";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
 
-		final var localPatronId = "365573";
+		final var localPatronId = generateNumericLocalIdAsString();
 
 		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localPatronId);
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", localPatronId);
@@ -453,20 +453,20 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecordId = clusterRecord.getId();
 
-		final var sourceRecordId = "874626";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
 
-		final var localPatronId = "8292567";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.patronType(localPatronType)
 				.homeLibraryCode("home-library")
-				.barcodes(List.of("27536633"))
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
@@ -506,21 +506,21 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecordId = clusterRecord.getId();
 
-		final var sourceRecordId = "356354";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
 
-		final var localPatronId = "736553";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var unmappedLocalPatronType = 35;
 		final var homeLibraryCode = "home-library";
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.patronType(unmappedLocalPatronType)
 				.homeLibraryCode(homeLibraryCode)
-				.barcodes(List.of("27536633"))
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
@@ -560,19 +560,19 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 		final var clusterRecordId = clusterRecord.getId();
 
-		final var sourceRecordId = "987531";
+		final var sourceRecordId = generateNumericLocalIdAsString();
 
 		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
 			sourceRecordId, clusterRecord);
 
-		final var localPatronId = "257255";
+		final var localPatronId = generateNumericLocalIdAsString();
 		final var homeLibraryCode = "home-library";
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.homeLibraryCode(homeLibraryCode)
-				.barcodes(List.of("27536633"))
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 
@@ -612,7 +612,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var command = PlacePatronRequestCommand.builder()
 			.requestor(Requestor.builder()
 				.localSystemCode(unknownHostLmsCode)
-				.localId("6545362")
+				.localId(generateNumericLocalIdAsString())
 				.build())
 			.citation(Citation.builder()
 				.bibClusterId(randomUUID())
@@ -634,7 +634,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	@Test
 	void shouldFailWhenPickupLocationIsUnknown() {
 		// Arrange
-		final var localPatronId = definePatron("6784636");
+		final var localPatronId = definePatron(generateNumericLocalIdAsString());
 
 		// Act
 		final var unknownPickupLocationId = randomUUID().toString();
@@ -664,7 +664,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	@Test
 	void shouldFailWhenPickupLocationIsNotAssociatedWithAnAgency() {
 		// Arrange
-		final var localPatronId = definePatron("2917863");
+		final var localPatronId = definePatron(generateNumericLocalIdAsString());
 
 		// Act
 		final var pickupLocation = locationFixture.createPickupLocation(randomUUID(), "", "", null);
@@ -695,7 +695,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	@Test
 	void shouldFailWhenPickupLocationIsAssociatedWithAnUnknownAgency() {
 		// Arrange
-		final var localPatronId = definePatron("2917863");
+		final var localPatronId = definePatron(generateNumericLocalIdAsString());
 
 		// Act
 		final var pickupLocation = locationFixture.createPickupLocation(randomUUID(), "", "",
@@ -747,12 +747,12 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		final var homeLibraryCode = "home-library";
 		final var localPatronType = 15;
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localPatronId))
 				.patronType(localPatronType)
 				.homeLibraryCode(homeLibraryCode)
-				.barcodes(List.of("647647746"))
+				.barcodes(List.of(generateBarcode()))
 				.names(List.of("Bob"))
 				.build());
 

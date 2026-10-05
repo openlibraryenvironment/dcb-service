@@ -10,6 +10,7 @@ import static org.olf.dcb.test.MockServerCommonResponses.noContent;
 import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 import static org.olf.dcb.test.MockServerCommonResponses.unauthorised;
 import static org.olf.dcb.utils.CollectionUtils.mapList;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +26,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.CheckoutEntry;
 import services.k_int.interaction.sierra.CheckoutResultSet;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.items.Location;
@@ -75,25 +77,17 @@ public class SierraItemsAPIFixture {
 			.withDelay(MILLISECONDS, millisecondDelay));
 	}
 
-	public String checkoutsForItem(String itemId) {
-		mockServer.replaceMock(getItemCheckouts(itemId), "items/sierra-get-item-checkouts-success.json");
-
-		// return needs to align with id of the json response
-		// E.g.,		"id": "https://catalog-test.wustl.edu/iii/sierra-api/v6/patrons/checkouts/1811242",
-		return "1811242";
+	public void checkoutsForItem(String itemId, CheckoutEntry checkout) {
+		checkoutsForItem(itemId, List.of(checkout));
 	}
 
-	public void checkoutsForItemWithMultiplePatronEntries(String itemId) {
+	public void checkoutsForItem(String itemId, List<CheckoutEntry> checkouts) {
 		mockServer.replaceMock(getItemCheckouts(itemId),
-			"items/sierra-get-item-checkouts-multiple-patron-match.json");
-	}
-
-	public void checkoutsForItemWithNoPatronEntries(String itemId) {
-		mockServer.replaceMock(getItemCheckouts(itemId), okJson(
 			CheckoutResultSet.builder()
-				.entries(List.of())
-				.build()
-			));
+				.start(0)
+				.total(getValue(checkouts, List::size, 0))
+				.entries(checkouts)
+				.build());
 	}
 
 	public void checkoutsForItemWithNoRecordsFound(String itemId) {

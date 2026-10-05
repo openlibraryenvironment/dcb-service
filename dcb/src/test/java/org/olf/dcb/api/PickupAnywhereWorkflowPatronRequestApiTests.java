@@ -1,6 +1,7 @@
 package org.olf.dcb.api;
 
 import static io.micronaut.http.HttpStatus.OK;
+import static java.lang.Integer.parseInt;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -46,6 +47,7 @@ import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.bibs.BibPatch;
 import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
@@ -233,9 +235,17 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 		sierraItemsAPIFixture.mockGetItemById(COMMON_VIRTUAL_LOCAL_ITEM_ID, createSierraItem("1000002"));
 
 		// Mocks for virtual patron
-		sierraPatronsAPIFixture.addPatronGetExpectation(BORROWING_PATRON_LOCAL_ID);
+		sierraPatronsAPIFixture.mockGetPatronById(BORROWING_PATRON_LOCAL_ID,
+			SierraPatronRecord.builder()
+				.id(parseInt(BORROWING_PATRON_LOCAL_ID))
+				.patronType(15)
+				.homeLibraryCode("tstce")
+				.barcodes(List.of("554334343453"))
+				.build());
+
 		sierraPatronsAPIFixture.patronsQueryNotFoundResponse(EXPECTED_UNIQUE_ID);
-		sierraPatronsAPIFixture.postPatronResponse(EXPECTED_UNIQUE_ID, Integer.parseInt(VIRTUAL_PATRON_LOCAL_ID));
+		sierraPatronsAPIFixture.postPatronResponse(EXPECTED_UNIQUE_ID, Integer.parseInt(VIRTUAL_PATRON_LOCAL_ID),
+				null);
 
 		// Mocks for local requests
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(BORROWING_PATRON_LOCAL_ID, "i", null);
