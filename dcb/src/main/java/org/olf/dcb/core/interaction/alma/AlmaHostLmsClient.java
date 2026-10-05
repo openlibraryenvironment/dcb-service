@@ -1091,6 +1091,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	private static final String PIN_AUTH_PROFILE = "BASIC/BARCODE+PIN";
 
 	@Override
+	public List<String> supportedAuthProfiles() {
+		return List.of(PASSWORD_AUTH_PROFILE, PIN_AUTH_PROFILE);
+	}
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
 		if (!PASSWORD_AUTH_PROFILE.equals(authProfile) && !PIN_AUTH_PROFILE.equals(authProfile)) {
 			return Mono.error(new UnsupportedAuthProfileException(getHostLmsCode(), authProfile,

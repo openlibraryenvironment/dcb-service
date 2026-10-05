@@ -1,9 +1,11 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
 
@@ -298,6 +300,36 @@ public class PolarisConfig {
 	public static final String DEFAULT_ITEM_AGENCY_RESOLUTION_METHOD = "Legacy";
 
 	public static final List<String> ITEM_AGENCY_RESOLUTION_METHODS = List.of("Legacy", "LocationId");
+
+	/** The keys a request reads through a required getter that this config lacks. */
+	public List<String> missingRequiredValues() {
+		final var reads = new LinkedHashMap<String, Supplier<?>>();
+		reads.put("base-url", this::getBaseUrl);
+		reads.put("logon-branch-id", this::getLogonBranchId);
+		reads.put("logon-user-id", this::getLogonUserId);
+		reads.put("services.organisation-id", this::getServicesOrganisationId);
+		reads.put("item.ill-location-id", this::getIllLocationId);
+		reads.put("item.fine-code-id", this::getItemFindCodeId);
+		reads.put("item.history-action-id", this::getItemHistoryActionId);
+		reads.put("item.shelving-scheme-id", this::getItemShelvingSchemeId);
+		reads.put("item.loan-period-code-id", this::getItemLoanPeriodCodeId);
+		reads.put("item.av-loan-period-code-id", this::getItemAvLoanPeriodCodeId);
+		reads.put("item.renewal-limit", this::getItemRenewalLimit);
+
+		return reads.entrySet().stream()
+			.filter(read -> isMissing(read.getValue()))
+			.map(Map.Entry::getKey)
+			.toList();
+	}
+
+	private static boolean isMissing(Supplier<?> read) {
+		try {
+			read.get();
+			return false;
+		} catch (PolarisConfigurationException missing) {
+			return true;
+		}
+	}
 
 	public Integer getItemAvRenewalLimit()
 	{

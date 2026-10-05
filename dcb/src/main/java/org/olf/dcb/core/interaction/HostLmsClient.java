@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+import static services.k_int.utils.MapUtils.getAsOptionalString;
 
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import reactor.core.publisher.Mono;
+import io.micronaut.core.util.StringUtils;
 
 public interface HostLmsClient
 	extends Comparable<HostLmsClient>,
@@ -164,6 +166,25 @@ public interface HostLmsClient
 	}
 
 	List<HostLmsPropertyDefinition> getSettings();
+
+	/**
+	 * Mandatory settings absent from the stored config, by key. Reads the config only: no call
+	 * is made to the Host LMS.
+	 */
+	default List<String> missingConfiguration() {
+		final var config = getConfig();
+
+		return getSettings().stream()
+			.filter(setting -> Boolean.TRUE.equals(setting.getMandatory()))
+			.map(HostLmsPropertyDefinition::getName)
+			.filter(name -> getAsOptionalString(config, name).filter(StringUtils::hasText).isEmpty())
+			.toList();
+	}
+
+	/** The auth profiles patronAuth accepts; empty where this client does not check one. */
+	default List<String> supportedAuthProfiles() {
+		return List.of();
+	}
 
 	@ExecuteOn( TaskExecutors.BLOCKING)
 	Mono<List<Item>> getItems(BibRecord bibRecord);

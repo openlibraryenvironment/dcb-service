@@ -1322,6 +1322,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
+	public List<String> missingConfiguration() {
+		return polarisConfig.missingRequiredValues();
+	}
+
+	@Override
+	public List<String> supportedAuthProfiles() {
+		return AUTH_PROFILES;
+	}
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> PAPIService.patronValidate(patronPrinciple, secret);

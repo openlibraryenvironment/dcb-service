@@ -1048,6 +1048,10 @@ type CreateHostLmsResult {
 	hostLms: HostLms
 	pingStatus: String
 	ingestStatus: String
+	"OK, or the mandatory settings the stored config lacks. Makes no call to the Host LMS."
+	configurationStatus: String
+	"OK, or the agencies whose auth profile this Host LMS cannot authenticate with."
+	authProfileStatus: String
 	warnings: [String]
 }
 
@@ -1055,6 +1059,10 @@ type UpdateHostLmsResult {
 	hostLms: HostLms
 	pingStatus: String
 	ingestStatus: String
+	"OK, or the mandatory settings the stored config lacks. Makes no call to the Host LMS."
+	configurationStatus: String
+	"OK, or the agencies whose auth profile this Host LMS cannot authenticate with."
+	authProfileStatus: String
 	warnings: [String]
 }
 

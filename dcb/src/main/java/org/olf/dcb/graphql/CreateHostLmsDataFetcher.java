@@ -1,14 +1,9 @@
 package org.olf.dcb.graphql;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.svc.HostLmsPingService;
 import org.olf.dcb.core.events.RulesetRelatedDataChangedEvent;
-import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.model.DataHostLms;
-import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.graphql.validation.HostLmsConfigValidator;
 import org.olf.dcb.storage.HostLmsRepository;
 
@@ -33,11 +28,10 @@ import services.k_int.utils.UUIDUtils;
 public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<CreateHostLmsDataFetcher.CreateHostLmsResult>> {
 
 	private final HostLmsRepository hostLmsRepository;
-	private final HostLmsService hostLmsService;
 	private final R2dbcOperations r2dbcOperations;
 	private final ApplicationEventPublisher<RulesetRelatedDataChangedEvent> eventPublisher;
 	private final HostLmsConfigValidator configValidator;
-	private final HostLmsPingService hostLmsPingService;
+	private final HostLmsVerificationService verificationService;
 
 	// The ingest sources need constants
 	private static final String INGEST_SOURCE_CLASS_FOLIO = "org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource";
@@ -51,17 +45,15 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 	private static final String CLASS_ORS_APPLIANCE = "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS";
 
 	public CreateHostLmsDataFetcher(HostLmsRepository hostLmsRepository,
-																	HostLmsService hostLmsService,
 																	R2dbcOperations r2dbcOperations,
 																	ApplicationEventPublisher<RulesetRelatedDataChangedEvent> eventPublisher,
 																	HostLmsConfigValidator configValidator,
-																	HostLmsPingService hostLmsPingService) {
+		HostLmsVerificationService verificationService) {
 		this.hostLmsRepository = hostLmsRepository;
-		this.hostLmsService = hostLmsService;
 		this.r2dbcOperations = r2dbcOperations;
 		this.eventPublisher = eventPublisher;
 		this.configValidator = configValidator;
-		this.hostLmsPingService = hostLmsPingService;
+		this.verificationService = verificationService;
 	}
 
 	@Override
@@ -140,45 +132,17 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 			.toFuture();
 	}
 
-// This is where we verify that we can actually connect and do things
 	private Mono<CreateHostLmsResult> performVerification(DataHostLms hostLms, List<String> initialWarnings) {
-		CreateHostLmsResult.CreateHostLmsResultBuilder resultBuilder = CreateHostLmsResult.builder()
-			.warnings(new ArrayList<>(initialWarnings))
-			.hostLms(hostLms);
-
-		// Ping first
-		Mono<String> pingCheck = hostLmsPingService.pingAndRecord(hostLms)
-			.map(PingResponse::summary)
-			.defaultIfEmpty("Ping Skipped or Missing")
-			.onErrorResume(e -> Mono.just("Ping Failed: " + e.getMessage()));
-
-		// Ideally we'd also look up a patron or do something else that demonstrates auth access
-
-		Mono<String> ingestCheck = hostLmsService.getIngestSourceFor(hostLms)
-			.flatMap(source -> {
-				if (source instanceof SourceRecordDataSource srds) {
-					// Try and get the first chunk, see what happens. Not sure if applicable to all LMS
-					return Mono.from(srds.getChunk(Optional.empty()))
-						.map(chunk -> "Success: Retrieved chunk with " + chunk.getSize() + " records.")
-						.timeout(Duration.ofSeconds(20)); // Do not wait forever
-				} else {
-					return Mono.just("Skipped: Source does not support chunked retrieval.");
-				}
-			})
-			.onErrorResume(e -> {
-				log.error("Ingest check failed for {}", hostLms.getCode(), e);
-				return Mono.just("Ingest Check Failed: " + e.getMessage());
-			});
-
-		// Execute checks in parallel and build result
-		return Mono.zip(pingCheck, ingestCheck)
-			.map(tuple -> resultBuilder
-				.pingStatus(tuple.getT1())
-				.ingestStatus(tuple.getT2())
+		return verificationService.verify(hostLms)
+			.map(verification -> CreateHostLmsResult.builder()
+				.hostLms(hostLms)
+				.warnings(new ArrayList<>(initialWarnings))
+				.pingStatus(verification.pingStatus())
+				.ingestStatus(verification.ingestStatus())
+				.configurationStatus(verification.configurationStatus())
+				.authProfileStatus(verification.authProfileStatus())
 				.build());
 	}
-
-
 
 	@Data
 	@Builder
@@ -188,6 +152,8 @@ public class CreateHostLmsDataFetcher implements DataFetcher<CompletableFuture<C
 		DataHostLms hostLms;
 		String pingStatus;
 		String ingestStatus;
+		String configurationStatus;
+		String authProfileStatus;
 		List<String> warnings;
 	}
 }

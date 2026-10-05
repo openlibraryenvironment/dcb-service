@@ -63,7 +63,10 @@ public class KohaClientConfig {
 		return List.of(
 			API_URL,
 			CLIENT_ID,
-			CLIENT_SECRET
+			CLIENT_SECRET,
+			DCB_SHARING_LIBRARY_CODE,
+			VIRTUAL_ITEM_LIBRARY_CODE,
+			NO_RENEW_COLLECTION_CODE
 		);
 	}
 

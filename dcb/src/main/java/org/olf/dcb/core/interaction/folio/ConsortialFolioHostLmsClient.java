@@ -886,6 +886,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public List<String> supportedAuthProfiles() {
+		return List.of(AUTH_PROFILE_BASIC_BARCODE_PIN);
+	}
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
 
 		if (!AUTH_PROFILE_BASIC_BARCODE_PIN.equals(authProfile)) {

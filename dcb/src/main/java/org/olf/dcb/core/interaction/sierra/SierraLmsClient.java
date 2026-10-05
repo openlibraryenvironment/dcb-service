@@ -804,6 +804,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		"BASIC/UNIQUE-ID+PIN", "BASIC/UNIQUE-ID+NAME");
 
 	@Override
+	public List<String> supportedAuthProfiles() {
+		return AUTH_PROFILES;
+	}
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		log.info("{} attempt patronAuth({})", lms.getCode(), authProfile);
 
