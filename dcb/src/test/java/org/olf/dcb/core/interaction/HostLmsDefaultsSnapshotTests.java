@@ -38,7 +38,8 @@ class HostLmsDefaultsSnapshotTests {
 				"user-identifier", AlmaClientConfig.DEFAULT_USER_IDENTIFIER)),
 			"org.olf.dcb.core.interaction.koha.KohaHostLmsClient", new TreeMap<>(Map.of(
 				"no-renew-collection-code", KohaClientConfig.DEFAULT_NO_RENEW_COLLECTION_CODE,
-				"oai-path", KohaOaiPmhIngestSource.DEFAULT_OAI_PATH)),
+				"oai-path", KohaOaiPmhIngestSource.DEFAULT_OAI_PATH,
+				"virtual-patron-category", KohaClientConfig.DEFAULT_VIRTUAL_PATRON_CATEGORY)),
 			"org.olf.dcb.core.interaction.polaris.PolarisLmsClient", new TreeMap<>(Map.ofEntries(
 				Map.entry("enableDoubleDelete", String.valueOf(polaris.isDoubleDeleteEnabled())),
 				Map.entry("harvest-watermark-overlap-minutes",

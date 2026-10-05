@@ -8,7 +8,8 @@
   },
   "org.olf.dcb.core.interaction.koha.KohaHostLmsClient": {
     "no-renew-collection-code": "DCB_NO_RENEW",
-    "oai-path": "/cgi-bin/koha/oai.pl"
+    "oai-path": "/cgi-bin/koha/oai.pl",
+    "virtual-patron-category": "DCB"
   },
   "org.olf.dcb.core.interaction.polaris.PolarisLmsClient": {
     "enableDoubleDelete": "false",

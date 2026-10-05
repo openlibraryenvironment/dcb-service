@@ -508,6 +508,12 @@ value mappings only. Use `patronType` reference value mappings.
 Get the codes from Administration → Patron categories, or
 `GET /api/v1/patron_categories`.
 
+A visiting patron whose DCB patron type has no mapping yet is created in the
+category named by `virtual-patron-category`, `DCB` when unset. Koha refuses the
+patron unless that category exists, so create it or point the setting at one
+that does. The Host LMS configuration check reports it as missing when it is not
+in Koha's list.
+
 ```csv
 fromContext,fromCategory,fromValue,toContext,toCategory,toValue
 KOHA-EXAMPLE,patronType,AD,DCB,patronType,ADULT

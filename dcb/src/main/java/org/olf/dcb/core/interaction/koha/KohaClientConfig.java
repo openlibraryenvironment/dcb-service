@@ -42,6 +42,14 @@ public class KohaClientConfig {
 
 	public static final String DEFAULT_NO_RENEW_COLLECTION_CODE = "DCB_NO_RENEW";
 
+	// The category a visiting patron is created in until patron type mappings exist. Koha
+	// refuses the patron unless a category with exactly this code exists
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_CATEGORY = stringPropertyDefinition(
+		"virtual-patron-category",
+		"Koha patron category for a visiting patron whose patron type has no mapping yet", FALSE);
+
+	public static final String DEFAULT_VIRTUAL_PATRON_CATEGORY = "DCB";
+
 
 
 	private final HostLms hostLms;
@@ -66,7 +74,8 @@ public class KohaClientConfig {
 			CLIENT_SECRET,
 			DCB_SHARING_LIBRARY_CODE,
 			VIRTUAL_ITEM_LIBRARY_CODE,
-			NO_RENEW_COLLECTION_CODE
+			NO_RENEW_COLLECTION_CODE,
+			VIRTUAL_PATRON_CATEGORY
 		);
 	}
 
@@ -76,6 +85,11 @@ public class KohaClientConfig {
 
 	public String getVirtualItemLibraryCode() {
 		return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);
+	}
+
+	public String getVirtualPatronCategory() {
+		return VIRTUAL_PATRON_CATEGORY.getOptionalValueFrom(
+			hostLms.getClientConfig(), DEFAULT_VIRTUAL_PATRON_CATEGORY);
 	}
 
 	public String getNoRenewCollectionCode() {

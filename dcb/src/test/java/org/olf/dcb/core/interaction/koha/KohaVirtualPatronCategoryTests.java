@@ -1,0 +1,98 @@
+package org.olf.dcb.core.interaction.koha;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
+import org.olf.dcb.core.interaction.ConfigurationReport;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
+import org.olf.dcb.core.interaction.koha.dto.KohaItemType;
+import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
+import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
+import org.olf.dcb.core.interaction.koha.dto.KohaPatronCategory;
+import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.svc.LocationToAgencyMappingService;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.rules.ObjectRulesService;
+
+import reactor.core.publisher.Mono;
+
+class KohaVirtualPatronCategoryTests {
+	private final KohaApiClient apiClient = mock(KohaApiClient.class);
+
+	@Test
+	void shouldCreateAnUnmappedPatronInTheConfiguredCategory() {
+		final var created = createPatronWithNoMappedType(Map.of("virtual-patron-category", "ILL"));
+
+		assertThat(created.getCategoryId(), is("ILL"));
+	}
+
+	@Test
+	void shouldDefaultToTheCategoryKohaSitesWereToldToCreate() {
+		final var created = createPatronWithNoMappedType(Map.of());
+
+		assertThat(created.getCategoryId(), is("DCB"));
+	}
+
+	@Test
+	void shouldReportACategoryKohaDoesNotHave() {
+		when(apiClient.getPatronCategories()).thenReturn(Mono.just(new KohaPatronCategory[] {
+			new KohaPatronCategory("PT", "Patron"), new KohaPatronCategory("ST", "Staff")}));
+		when(apiClient.getItemTypes()).thenReturn(Mono.just(new KohaItemType[0]));
+		when(apiClient.getLibraries()).thenReturn(Mono.just(new KohaLibrary[0]));
+
+		final var report = clientWith(Map.of()).checkConfiguration().block();
+
+		assertThat(report.checks(), hasItem(new ConfigurationReport.Check("virtual-patron-category",
+			"DCB", ConfigurationReport.CheckResult.MISSING, "Not found in Koha")));
+	}
+
+	private KohaPatron createPatronWithNoMappedType(Map<String, Object> extraConfig) {
+		final var captor = ArgumentCaptor.forClass(KohaPatron.class);
+		when(apiClient.createPatron(captor.capture()))
+			.thenReturn(Mono.just(KohaPatron.builder().patronId(77L).build()));
+
+		clientWith(extraConfig).createPatron(Patron.builder()
+			.uniqueIds(List.of("unique-id"))
+			.localNames(List.of("Ada", "Lovelace"))
+			.build()).block();
+
+		return captor.getValue();
+	}
+
+	private KohaHostLmsClient clientWith(Map<String, Object> extraConfig) {
+		final var config = new HashMap<String, Object>(Map.of(
+			"api-url", "https://koha.example.com",
+			"client_id", "any-id",
+			"client_secret", "any-secret",
+			"sharing-library-code", "DCB-SHARING"));
+		config.putAll(extraConfig);
+
+		final var hostLms = mock(HostLms.class);
+		when(hostLms.getCode()).thenReturn("KOHA");
+		when(hostLms.getClientConfig()).thenReturn(config);
+
+		final var clientFactory = mock(KohaClientFactory.class);
+		when(clientFactory.createClientFor(hostLms)).thenReturn(apiClient);
+
+		final var objectRulesService = mock(ObjectRulesService.class);
+		when(objectRulesService.findByName(any())).thenReturn(Mono.empty());
+
+		return new KohaHostLmsClient(hostLms, mock(ReferenceValueMappingService.class),
+			clientFactory, mock(MaterialTypeToItemTypeMappingService.class),
+			mock(LocationToAgencyMappingService.class), objectRulesService,
+			new RulesetCacheInvalidator(), mock(HostLmsService.class));
+	}
+}
