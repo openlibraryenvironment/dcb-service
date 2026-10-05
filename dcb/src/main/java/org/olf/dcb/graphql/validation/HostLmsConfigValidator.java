@@ -346,15 +346,6 @@ public class HostLmsConfigValidator {
 				warnings.add("Missing 'shelfLocationPolicyMap' in Polaris config. Defaults will be used.");
 			}
 		}
-		if (CLASS_FOLIO.equals(lmsClientClass))
-		{
-			if (!clientConfig.containsKey("folio-tenant")) {
-				warnings.add("Missing 'folio-tenant' in FOLIO config. ");
-			}
-			if(!clientConfig.containsKey("user-base-url")) {
-				warnings.add("Missing 'user-base-url' in FOLIO config. ");
-			}
-		}
 		if (CLASS_KOHA.equals(lmsClientClass)) {
 			if (!clientConfig.containsKey("page-size")) {
 				warnings.add("Missing 'page-size' in Koha config. A default will be used for harvesting.");
