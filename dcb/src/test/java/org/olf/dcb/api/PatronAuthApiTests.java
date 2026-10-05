@@ -1,10 +1,11 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
@@ -34,6 +35,7 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import lombok.Builder;
@@ -178,26 +180,18 @@ public class PatronAuthApiTests {
 	}
 
 	@Test
-	void shouldFailWhenAuthMethodIsUnknown() {
+	void shouldReportAnUnknownAuthMethodAsAServerErrorNotAWrongPin() {
 		// Arrange
 		final var agencyCode = defineAgency("UNKNOWN");
 
 		savePatronTypeMappings();
 
 		// Act
-		final var response = authenticatePatron(agencyCode, generateBarcode(), "382655gskg");
+		final var error = assertThrows(HttpClientResponseException.class,
+			() -> authenticatePatron(agencyCode, generateBarcode(), "382655gskg"));
 
 		// Assert
-		assertThat(response.getStatus(), is(OK));
-		assertThat(response.getBody().isPresent(), is(true));
-
-		final var verificationResponse = response.getBody().get();
-
-		assertThat(verificationResponse.status, is("INVALID"));
-		assertThat(verificationResponse.localPatronId, is(nullValue()));
-		assertThat(verificationResponse.agencyCode, is(nullValue()));
-		assertThat(verificationResponse.systemCode, is(nullValue()));
-		assertThat(verificationResponse.homeLocationCode, is(nullValue()));
+		assertThat(error.getStatus(), is(INTERNAL_SERVER_ERROR));
 	}
 
 	private io.micronaut.http.HttpResponse<VerificationResponse> authenticatePatron(String agencyCode,

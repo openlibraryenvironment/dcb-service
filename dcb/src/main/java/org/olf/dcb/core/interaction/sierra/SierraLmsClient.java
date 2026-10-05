@@ -800,6 +800,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.empty();
 	}
 
+	static final List<String> AUTH_PROFILES = List.of("BASIC/BARCODE+PIN", "BASIC/BARCODE+NAME",
+		"BASIC/UNIQUE-ID+PIN", "BASIC/UNIQUE-ID+NAME");
+
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		log.info("{} attempt patronAuth({})", lms.getCode(), authProfile);
@@ -809,7 +812,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case "BASIC/BARCODE+NAME" -> validatePatronByIDAndName(patronPrinciple, secret, "b");
 			case "BASIC/UNIQUE-ID+PIN" -> validatePatronCredentials(patronPrinciple, secret,"u");
 			case "BASIC/UNIQUE-ID+NAME" -> validatePatronByIDAndName(patronPrinciple, secret, "u");
-			default -> Mono.empty();
+			case null, default -> Mono.error(
+				new UnsupportedAuthProfileException(lms.getCode(), authProfile, AUTH_PROFILES));
 		};
 	}
 

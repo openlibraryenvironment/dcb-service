@@ -72,6 +72,7 @@ import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibInfo;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.CirculationData;
@@ -1325,9 +1326,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> PAPIService.patronValidate(patronPrinciple, secret);
 			case "BASIC/BARCODE+PASSWORD" -> PAPIService.patronValidate(patronPrinciple, secret);
-			default -> Mono.empty();
+			case null, default -> Mono.error(
+				new UnsupportedAuthProfileException(getHostLmsCode(), authProfile, AUTH_PROFILES));
 		};
 	}
+
+	static final List<String> AUTH_PROFILES = List.of("BASIC/BARCODE+PIN", "BASIC/BARCODE+PASSWORD");
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkout) {
