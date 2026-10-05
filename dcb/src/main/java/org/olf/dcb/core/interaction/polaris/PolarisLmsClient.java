@@ -275,9 +275,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return placeHoldRequest(parameters, false);
 		}
 
-		final String borrowerLendingFlow = borrowerlendingFlow();
 		// If following the ILL flow, default to config refined location ID
-		if(borrowerLendingFlow == ILL_BORROWING_FLOW){
+		if (followsIllBorrowingFlow(polarisConfig)) {
 			return placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
 		}
 
@@ -345,8 +344,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.build());
 	}
 
-	private String borrowerlendingFlow() {
-		return polarisConfig.getBorrowerLendingFlow();
+	// One comparison for all three decisions. Hold placement compared with ==, which a value
+	// read from stored config never satisfies, so it alone did not follow the ILL flow
+	static boolean followsIllBorrowingFlow(PolarisConfig config) {
+		return ILL_BORROWING_FLOW.equals(config.getBorrowerLendingFlow());
 	}
 
 	private Mono<LocalRequest> placeILLHoldRequest(Integer illLocationId, PlaceHoldRequestParameters parameters) {
@@ -507,7 +508,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.debug("getPatronHoldRequestId({}, {})", bibId, activationDate);
 
-		final var fetchDelay = polarisConfig.getHoldFetchingDelay(5);
+		final var fetchDelay = polarisConfig.getHoldFetchingDelay(PolarisConfig.DEFAULT_HOLD_FETCHING_DELAY);
 		final var maxFetchRetry = polarisConfig.getMaxHoldFetchingRetry(10);
 		AtomicInteger retryCount = new AtomicInteger(0);
 
@@ -748,7 +749,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		if (ILL_BORROWING_FLOW.equals(borrowerlendingFlow())) {
+		if (followsIllBorrowingFlow(polarisConfig)) {
 			log.warn(ILL_BORROWING_FLOW + " SET FOR POLARIS, CREATE BIB WILL RETURN PLACEHOLDER");
 			return Mono.just("ILL_REQUEST_BIB_ID_PLACEHOLDER");
 		}
@@ -772,7 +773,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
 		log.info("createItem({})",createItemCommand);
 
-		if (ILL_BORROWING_FLOW.equals(borrowerlendingFlow())) {
+		if (followsIllBorrowingFlow(polarisConfig)) {
 			log.warn(ILL_BORROWING_FLOW + " SET FOR POLARIS, CREATE ITEM WILL RETURN PLACEHOLDER");
 			return Mono.just(HostLmsItem.builder().localId("ILL_REQUEST_ITEM_ID_PLACEHOLDER").build());
 		}

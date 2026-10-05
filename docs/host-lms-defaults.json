@@ -11,6 +11,10 @@
     "oai-path": "/cgi-bin/koha/oai.pl"
   },
   "org.olf.dcb.core.interaction.polaris.PolarisLmsClient": {
+    "enableDoubleDelete": "false",
+    "harvest-watermark-overlap-minutes": "15",
+    "hold-fetching-delay": "5",
+    "hold-fetching-max-retry": "10",
     "papi.app-id": "100",
     "papi.lang-id": "1033",
     "papi.org-id": "1",

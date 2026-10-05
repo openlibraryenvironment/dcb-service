@@ -469,8 +469,8 @@ public class PAPIClient {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 
 		AtomicInteger retryCount = new AtomicInteger(0);
-		final var findDelay = polarisConfig.getHoldFetchingDelay(5);
-		final var maxRetry = polarisConfig.getMaxHoldFetchingRetry(10);
+		final var findDelay = polarisConfig.getHoldFetchingDelay(PolarisConfig.DEFAULT_HOLD_FETCHING_DELAY);
+		final var maxRetry = polarisConfig.getMaxHoldFetchingRetry(PolarisConfig.DEFAULT_HOLD_FETCHING_MAX_RETRY);
 
 		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_POLARIS)
 			.map(enabled -> {

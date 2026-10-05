@@ -99,7 +99,8 @@ public class PolarisConfig {
 	@JsonProperty("harvest-watermark-overlap-minutes")
 	private Integer harvestWatermarkOverlapMinutes;
 	public Duration getHarvestWatermarkOverlap() {
-		return Duration.ofMinutes(valueWithDefault(harvestWatermarkOverlapMinutes, Integer.class, 15));
+		return Duration.ofMinutes(valueWithDefault(harvestWatermarkOverlapMinutes, Integer.class,
+			DEFAULT_HARVEST_WATERMARK_OVERLAP_MINUTES));
 	}
 
 	/**
@@ -155,6 +156,9 @@ public class PolarisConfig {
 	}
 
 	public static final String DEFAULT_PATRON_BARCODE_PREFIX = "DCB-";
+	public static final int DEFAULT_HOLD_FETCHING_DELAY = 5;
+	public static final int DEFAULT_HOLD_FETCHING_MAX_RETRY = 10;
+	public static final int DEFAULT_HARVEST_WATERMARK_OVERLAP_MINUTES = 15;
 
 	public String getPatronBarcodePrefix(String defaultValue) {
 
