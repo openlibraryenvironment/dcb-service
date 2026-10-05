@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.polaris.PolarisConfig;
 
 import io.micronaut.http.exceptions.HttpStatusException;
 
@@ -227,6 +228,27 @@ class HostLmsConfigValidatorTests {
 	@Test
 	void shouldAcceptACompletePolarisConfiguration() {
 		assertDoesNotThrow(() -> validator.validate(POLARIS, polarisConfig()));
+	}
+
+	@Test
+	void shouldAcceptEveryItemAgencyResolutionMethodPolarisImplements() {
+		for (String method : PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS) {
+			final var config = polarisConfig();
+			config.put("item", Map.of("item-agency-resolution-method", method));
+
+			assertDoesNotThrow(() -> validator.validate(POLARIS, config));
+		}
+	}
+
+	@Test
+	void shouldRejectAnItemAgencyResolutionMethodPolarisDoesNotImplement() {
+		final var config = polarisConfig();
+		config.put("item", Map.of("item-agency-resolution-method", "locationid"));
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(POLARIS, config));
+
+		assertThat(exception.getMessage(), containsString("item-agency-resolution-method"));
 	}
 
 	@Test

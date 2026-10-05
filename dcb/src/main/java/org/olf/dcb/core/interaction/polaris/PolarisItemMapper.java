@@ -80,7 +80,7 @@ public class PolarisItemMapper {
 		ItemGetRow itemGetRow, String hostLmsCode, String localBibId,
 		@NonNull Optional<ObjectRuleset> itemSuppressionRules, @NonNull PolarisConfig polarisConfig) {
 
-		final String itemAgencyResolutionMethod = polarisConfig.getItem().getItemAgencyResolutionMethod();
+		final String itemAgencyResolutionMethod = polarisConfig.getItemAgencyResolutionMethod();
 
 		log.debug("map polaris item {} {} {} {}", itemGetRow, hostLmsCode, localBibId, itemAgencyResolutionMethod);
 
@@ -184,14 +184,9 @@ public class PolarisItemMapper {
 	 * @return a Mono containing the enriched item
 	 */
 	private Mono<Item> enrichItemWithAgency(ItemGetRow itemGetRow, Item item, String hostLmsCode, String itemAgencyResolutionMethod) {
-		// NB: `case null` is required for the same reason as in getLocation below. A
-		// switch on a String throws NullPointerException before reaching `default`, and
-		// a null resolution method is reachable -- PolarisConfig documents that setting
-		// it to null in config deliberately overrides the default.
 		return switch(itemAgencyResolutionMethod) {
 			case "LocationId" -> enrichItemWithAgencyUsingLocationId(itemGetRow, item, hostLmsCode);
-			case "Legacy" -> legacyEnrichItemWithAgency(item, hostLmsCode);
-			case null, default -> Mono.just(item);
+			default -> legacyEnrichItemWithAgency(item, hostLmsCode);
     };
   }
 
@@ -234,15 +229,9 @@ public class PolarisItemMapper {
 
 	private org.olf.dcb.core.model.Location getLocation(ItemGetRow itemGetRow, String itemAgencyResolutionMethod) {
 
-		// NB: `case null` is required -- this is reached with a null resolution method
-		// when the Host LMS config omits item-agency-resolution-method. Null is treated
-		// the same as the default (shelf location), which is what the previous
-		// `default ->` branch did for any unrecognised value.
-		final var locationName = switch(itemAgencyResolutionMethod) {
-      case "LocationId" -> getValueOrNull(itemGetRow, ItemGetRow::getLocationName);
-      case "Legacy" -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
-      case null, default -> getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
-    };
+		final var locationName = "LocationId".equals(itemAgencyResolutionMethod)
+			? getValueOrNull(itemGetRow, ItemGetRow::getLocationName)
+			: getValueOrNull(itemGetRow, ItemGetRow::getShelfLocation);
 
 		if (locationName == null) return Location.builder().build();
 

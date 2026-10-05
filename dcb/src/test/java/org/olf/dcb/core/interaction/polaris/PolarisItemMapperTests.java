@@ -13,6 +13,7 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.UNKNOWN;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasAgencyCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasDerivedLoanPolicy;
 
 import java.util.Map;
@@ -194,6 +195,26 @@ class PolarisItemMapperTests {
 		final var alarm = Mono.from(alarmRepository.findByCode(alarmCode)).block();
 		assertThat(alarm.getAlarmDetails().get("invalidShelfLocationPolicies"),
 			is(java.util.List.of("Reference=REFERENCE")));
+	}
+
+	// Each used to leave the item with no agency at all: a null method matched neither strategy,
+	// and a config with no item object threw before mapping
+	@Test
+	void shouldResolveTheAgencyTheLegacyWayWhenNoMethodIsSet() {
+		final var withNullMethod = PolarisConfig.builder()
+			.item(ItemConfig.builder().itemAgencyResolutionMethod(null).build())
+			.build();
+
+		assertThat(mapItem(ItemGetRow.builder().build(), withNullMethod),
+			hasAgencyCode(DEFAULT_AGENCY_CODE));
+	}
+
+	@Test
+	void shouldResolveTheAgencyTheLegacyWayWhenThereIsNoItemConfig() {
+		final var withNoItemConfig = PolarisConfig.builder().build();
+
+		assertThat(mapItem(ItemGetRow.builder().build(), withNoItemConfig),
+			hasAgencyCode(DEFAULT_AGENCY_CODE));
 	}
 
 	@Nullable

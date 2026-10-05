@@ -206,6 +206,21 @@ public class HostLmsConfigValidator {
 
 		throwIfMissing("Polaris", missing);
 		validatePolarisShelfLocationPolicies(config);
+		validatePolarisItemAgencyResolutionMethod(config);
+	}
+
+	// PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS; any other value silently resolved items' agency by shelf location
+	private static final List<String> POLARIS_ITEM_AGENCY_RESOLUTION_METHODS = List.of("Legacy", "LocationId");
+
+	private void validatePolarisItemAgencyResolutionMethod(Map<String, Object> config) {
+		final var item = nestedObject(config, "item");
+		final var method = item != null ? item.get("item-agency-resolution-method") : null;
+
+		if (method != null && !POLARIS_ITEM_AGENCY_RESOLUTION_METHODS.contains(method.toString())) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, String.format(
+				"Invalid Polaris Configuration. 'item.item-agency-resolution-method' must be one of %s, not '%s'.",
+				String.join(", ", POLARIS_ITEM_AGENCY_RESOLUTION_METHODS), method));
+		}
 	}
 
 	private void validatePolarisShelfLocationPolicies(Map<String, Object> config) {
