@@ -42,6 +42,10 @@ public class HostLmsConfigValidator {
 	private static final String PROTOCOL_NCIP = "NCIP";
 	private static final String PROTOCOL_SIP2 = "SIP2";
 
+	private static final List<String> POLARIS_REQUIRED_ITEM_KEYS = List.of("ill-location-id",
+		"fine-code-id", "history-action-id", "shelving-scheme-id", "loan-period-code-id",
+		"av-loan-period-code-id", "renewal-limit");
+
 	public void validate(String lmsClientClass, Map<String, Object> clientConfig) {
 		if (lmsClientClass == null || lmsClientClass.isBlank()) {
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "lmsClientClass cannot be null or empty.");
@@ -185,6 +189,19 @@ public class HostLmsConfigValidator {
 		}
 		if (!config.containsKey("item") || !(config.get("item") instanceof Map)) {
 			missing.add("item (object)");
+		}
+
+		// PolarisConfig requires each of these the first time a request needs it
+		final var services = nestedObject(config, "services");
+		if (services != null) {
+			checkPresent(services, "organisation-id", missing, "services.");
+		}
+
+		final var item = nestedObject(config, "item");
+		if (item != null) {
+			for (String key : POLARIS_REQUIRED_ITEM_KEYS) {
+				checkPresent(item, key, missing, "item.");
+			}
 		}
 
 		throwIfMissing("Polaris", missing);

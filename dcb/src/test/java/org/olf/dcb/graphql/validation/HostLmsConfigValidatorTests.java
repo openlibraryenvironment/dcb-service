@@ -208,6 +208,28 @@ class HostLmsConfigValidatorTests {
 	}
 
 	@Test
+	void shouldRequireTheValuesThePolarisClientReadsWhenARequestNeedsThem() {
+		final var config = polarisConfig();
+		config.put("services", Map.of());
+		config.put("item", Map.of());
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(POLARIS, config));
+
+		for (String key : new String[] { "services.organisation-id", "item.ill-location-id",
+			"item.fine-code-id", "item.history-action-id", "item.shelving-scheme-id",
+			"item.loan-period-code-id", "item.av-loan-period-code-id", "item.renewal-limit" }) {
+
+			assertThat(exception.getMessage(), containsString(key));
+		}
+	}
+
+	@Test
+	void shouldAcceptACompletePolarisConfiguration() {
+		assertDoesNotThrow(() -> validator.validate(POLARIS, polarisConfig()));
+	}
+
+	@Test
 	void shouldRejectInvalidPolarisShelfLocationLoanPolicy() {
 		final var config = polarisConfig();
 		config.put("shelfLocationPolicyMap", Map.of("Reference", "REFERENCE"));
@@ -268,8 +290,20 @@ class HostLmsConfigValidatorTests {
 		config.put("staff-password", "password");
 		config.put("default-agency-code", "agency");
 		config.put("papi", Map.of());
-		config.put("services", Map.of());
-		config.put("item", Map.of());
+		config.put("services", Map.of("organisation-id", "1"));
+		config.put("item", polarisItemConfig());
 		return config;
+	}
+
+	private Map<String, Object> polarisItemConfig() {
+		final Map<String, Object> item = new HashMap<>();
+		item.put("ill-location-id", 73);
+		item.put("fine-code-id", 1);
+		item.put("history-action-id", 6);
+		item.put("shelving-scheme-id", 1);
+		item.put("loan-period-code-id", 7);
+		item.put("av-loan-period-code-id", 8);
+		item.put("renewal-limit", 0);
+		return item;
 	}
 }

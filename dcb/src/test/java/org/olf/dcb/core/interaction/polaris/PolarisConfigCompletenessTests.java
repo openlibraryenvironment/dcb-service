@@ -7,26 +7,14 @@ import static org.olf.dcb.test.ConfigCompleteness.unreadable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.DataHostLms;
 
 class PolarisConfigCompletenessTests {
 	private static final String POLARIS = "org.olf.dcb.core.interaction.polaris.PolarisLmsClient";
-
-	// Read at run time and accepted absent by HostLmsConfigValidator. Remove an entry when the
-	// validator starts requiring its key; a stale entry fails this test as surely as a new gap
-	private static final Set<String> KNOWN_GAPS = Set.of(
-		"getServicesOrganisationId",
-		"getItemRenewalLimit",
-		"getItemAvRenewalLimit",
-		"getItemFindCodeId",
-		"getItemHistoryActionId",
-		"getItemLoanPeriodCodeId",
-		"getItemAvLoanPeriodCodeId",
-		"getItemShelvingSchemeId",
-		"getIllLocationId");
 
 	@Test
 	void shouldReadEveryValueTheClientNeedsFromAConfigTheValidatorAccepts() {
@@ -60,7 +48,40 @@ class PolarisConfigCompletenessTests {
 
 		final var failures = unreadable(reads);
 
-		assertThat("Unreadable from an accepted config: " + failures, failures.keySet(), is(KNOWN_GAPS));
+		assertThat("Unreadable from an accepted config: " + failures, failures, is(Map.of()));
+	}
+
+	@Test
+	void shouldReadTheAvRenewalLimitWhenOneIsSet() {
+		final var config = configWithItem(Map.of("renewal-limit", 2, "av-renewal-limit", 1));
+
+		assertThat(config.getItemRenewalLimit(), is(2));
+		assertThat(config.getItemAvRenewalLimit(), is(1));
+	}
+
+	@Test
+	void shouldUseTheRenewalLimitForAvItemsWhenNoAvLimitIsSet() {
+		assertThat(configWithItem(Map.of("renewal-limit", 2)).getItemAvRenewalLimit(), is(2));
+	}
+
+	// The validator runs on create and update only: a record saved before these keys were
+	// required must still bind, and fail only when a request reads the missing value
+	@Test
+	void shouldStillBindAStoredConfigThatLacksARequiredValue() {
+		final var config = configWithItem(Map.of("renewal-limit", 2));
+
+		assertThat(config.getBaseUrl(), is("https://polaris.example.org"));
+	}
+
+	private static PolarisConfig configWithItem(Map<String, Object> item) {
+		final var stored = new LinkedHashMap<>(minimalConfig());
+		stored.put("item", item);
+
+		return PolarisLmsClient.convertConfig(DataHostLms.builder()
+			.id(UUID.randomUUID())
+			.code("polaris-config")
+			.clientConfig(stored)
+			.build());
 	}
 
 	private static Map<String, Object> minimalConfig() {
@@ -75,8 +96,9 @@ class PolarisConfigCompletenessTests {
 		config.put("staff-password", "password");
 		config.put("default-agency-code", "agency");
 		config.put("papi", Map.of());
-		config.put("services", Map.of());
-		config.put("item", Map.of());
+		config.put("services", Map.of("organisation-id", "1"));
+		config.put("item", Map.of("ill-location-id", 73, "fine-code-id", 1, "history-action-id", 6,
+			"shelving-scheme-id", 1, "loan-period-code-id", 7, "av-loan-period-code-id", 8, "renewal-limit", 0));
 		return config;
 	}
 }

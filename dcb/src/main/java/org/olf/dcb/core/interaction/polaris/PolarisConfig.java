@@ -287,8 +287,11 @@ public class PolarisConfig {
 
 	public Integer getItemAvRenewalLimit()
 	{
-		final var value = getNestedProperty(getItem(), ItemConfig::getRenewalLimit);
-		return requiredValue("AV item Renewal Limit", value, Integer.class);
+		final var value = getNestedProperty(getItem(), ItemConfig::getAvRenewalLimit);
+
+		return value != null
+			? requiredValue("AV item Renewal Limit", value, Integer.class)
+			: getItemRenewalLimit();
 	}
 
 
