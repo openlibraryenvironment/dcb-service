@@ -123,13 +123,17 @@ public class HostLmsFixture {
 	public DataHostLms createFolioHostLms(String code, String baseUrl,
 		String apiKey, String recordSyntax, String metadataPrefix) {
 
+		final var clientConfig = new HashMap<String, Object>(Map.of(
+			"base-url", baseUrl,
+			"apikey", apiKey,
+			"record-syntax", recordSyntax));
+
+		if (metadataPrefix != null) {
+			clientConfig.put("metadata-prefix", metadataPrefix);
+		}
+
 		return createHostLms(randomUUID(), code, ConsortialFolioHostLmsClient.class,
-			Optional.of(FolioOaiPmhIngestSource.class), Map.of(
-				"base-url", baseUrl,
-				"apikey", apiKey,
-				"record-syntax", recordSyntax,
-				"metadata-prefix", metadataPrefix
-		));
+			Optional.of(FolioOaiPmhIngestSource.class), clientConfig);
 	}
 
 	public DataHostLms createSierraHostLms(String code) {

@@ -24,6 +24,7 @@ class HostLmsConfigValidatorTests {
 	private static final String ORS_APPLIANCE = "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS";
 	private static final String KOHA = "org.olf.dcb.core.interaction.koha.KohaHostLmsClient";
 	private static final String POLARIS = "org.olf.dcb.core.interaction.polaris.PolarisLmsClient";
+	private static final String FOLIO = "org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient";
 
 	private final HostLmsConfigValidator validator = new HostLmsConfigValidator();
 
@@ -249,6 +250,35 @@ class HostLmsConfigValidatorTests {
 			() -> validator.validate(POLARIS, config));
 
 		assertThat(exception.getMessage(), containsString("item-agency-resolution-method"));
+	}
+
+	@Test
+	void shouldRequireTheRecordSyntaxAFolioHarvestSends() {
+		final var config = folioConfig();
+		config.remove("record-syntax");
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(FOLIO, config));
+
+		assertThat(exception.getMessage(), containsString("record-syntax"));
+	}
+
+	@Test
+	void shouldNotRequireARecordSyntaxWhenTheFolioDoesNotHarvest() {
+		final var config = folioConfig();
+		config.remove("record-syntax");
+		config.put("ingest", false);
+
+		assertDoesNotThrow(() -> validator.validate(FOLIO, config));
+	}
+
+	private Map<String, Object> folioConfig() {
+		final Map<String, Object> config = new HashMap<>();
+		config.put("base-url", "https://folio.example.org");
+		config.put("apikey", "any-key");
+		config.put("default-agency-code", "any-agency");
+		config.put("record-syntax", "oai_dc");
+		return config;
 	}
 
 	@Test

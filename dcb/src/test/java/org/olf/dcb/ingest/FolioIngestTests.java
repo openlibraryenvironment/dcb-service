@@ -79,6 +79,19 @@ class FolioIngestTests {
 	}
 
 	@Test
+	void shouldHarvestWithHoldingsWhenNoMetadataPrefixIsConfigured(MockServerClient mockServerClient) {
+		hostLmsFixture.createFolioHostLms("folio-no-prefix", "https://folio-no-prefix",
+			"api-key", "oai_dc", null);
+
+		mockOaiResponse(mockServerClient, "folio-no-prefix", "example-oai-response.xml");
+
+		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream()
+			.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest")));
+
+		assertThat(ingestedBibRecords, hasSize(2));
+	}
+
+	@Test
 	void shouldNotIngestInstanceWithInvalidIdentifier(MockServerClient mockServerClient) {
 		// Arrange
 		hostLmsFixture.createFolioHostLms("invalid-folio-host-lms", "https://invalid-folio",

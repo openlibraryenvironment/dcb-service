@@ -7,18 +7,12 @@ import static org.olf.dcb.test.ConfigCompleteness.unreadable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.junit.jupiter.api.Test;
 
 class FolioConfigCompletenessTests {
 	private static final String FOLIO = "org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient";
-
-	// Read at run time and accepted absent by HostLmsConfigValidator. Remove an entry when the
-	// validator starts requiring its key; a stale entry fails this test as surely as a new gap.
-	// The harvest needs record-syntax and metadata-prefix, and ingest is on unless switched off
-	private static final Set<String> KNOWN_GAPS = Set.of("FolioOaiPmhIngestSource");
 
 	@Test
 	void shouldReadEveryValueTheClientNeedsFromAConfigTheValidatorAccepts() {
@@ -30,7 +24,7 @@ class FolioConfigCompletenessTests {
 
 		final var failures = unreadable(reads);
 
-		assertThat("Unreadable from an accepted config: " + failures, failures.keySet(), is(KNOWN_GAPS));
+		assertThat("Unreadable from an accepted config: " + failures, failures, is(Map.of()));
 	}
 
 	private static Map<String, Object> minimalConfig() {
@@ -38,6 +32,7 @@ class FolioConfigCompletenessTests {
 		config.put("base-url", "https://folio.example.org");
 		config.put("apikey", "apikey");
 		config.put("default-agency-code", "agency");
+		config.put("record-syntax", "oai_dc");
 		return config;
 	}
 }
