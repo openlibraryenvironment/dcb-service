@@ -3,6 +3,7 @@ on:
   push:
     paths-ignore:
       - 'src/docs/asciidoc/**' # If all modified paths fall only in this set then this will be ignored
+      - 'src/docs/antora/**'
     branches:
       - main
       - 'testrel-*'
